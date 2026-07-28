@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/dispatch-board/reportIncident.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "title": "dispatch-board:reportIncident arguments",
+  "type": "object"
+}

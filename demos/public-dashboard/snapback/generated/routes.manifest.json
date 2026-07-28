@@ -1,0 +1,19 @@
+{
+  "app": "public-dashboard",
+  "formatVersion": 1,
+  "routes": [
+    {
+      "queries": [
+        {
+          "args": {
+            "dashboardId": {
+              "$param": "dashboardId"
+            }
+          },
+          "function": "dashboardMetrics"
+        }
+      ],
+      "route": "/dashboards/:dashboardId"
+    }
+  ]
+}

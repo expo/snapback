@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/pulse-monitor/applyProbe.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "serviceId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "serviceId"
+  ],
+  "title": "pulse-monitor:applyProbe arguments",
+  "type": "object"
+}

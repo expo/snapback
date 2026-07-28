@@ -1,0 +1,106 @@
+---
+title: Route snapshot bundles
+id: realtime.snapshot-bundles
+order: 3
+audience: agent-first
+capabilities: [realtime.snapshot-bundles]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, packages/snapback-client/index.mjs, packages/snapback-codegen/index.mjs]
+examples: [demos/public-dashboard]
+status: current
+targets: [local, cloudflare]
+maturity: partial
+reviewed: 2026-07-27
+reviewed-commit: HEAD
+---
+
+# Route snapshot bundles
+
+A snapshot bundle evaluates every query declared for one route at a single
+commit cut. Use it to boot a deep-linked page without issuing unrelated query
+requests that can observe different database versions. Eligible entries also
+carry resumable-query tokens.
+
+The local target supports read and authenticated register mode. The Cloudflare
+target supports read-mode bundles and token resume; register mode remains
+deferred there.
+
+## Declare the route and its query arguments
+
+Routes are generated artifacts. Bind URL parameters through `routeParam`
+instead of accepting an ad hoc query list from the caller:
+
+```js source=demos/public-dashboard/snapback/routes.mjs
+export default defineRoutes([
+  {
+    route: '/dashboards/:dashboardId',
+    queries: [
+      {
+        function: 'dashboardMetrics',
+        args: { dashboardId: routeParam('dashboardId') },
+      },
+    ],
+  },
+]);
+```
+
+For anonymous Channel A boot, the query must explicitly declare all three
+disclosure facts. None is inferred from the route:
+
+```js source=demos/public-dashboard/snapback/functions.mjs
+export const dashboardMetrics = defineLiveQuery({
+  table: 'metrics',
+  args: { dashboardId: v.string() },
+  filter: [eq('dashboardId', arg('dashboardId'))],
+  order: [asc('label')],
+  index: 'by_dashboard',
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
+});
+```
+
+Codegen emits `routes.manifest.json`; provision it beside schema and functions
+with `ensureApp({ routes })`. A route may name several queries, but every
+argument must be a literal or a declared route-parameter binding.
+
+## Fetch one consistent page snapshot
+
+Read mode is socketless and does not create live demand:
+
+```js source=demos/public-dashboard/tests/acceptance/headless.mjs
+    bundle = await app.client.fetchBundle({
+      route: '/dashboards/:dashboardId',
+      params: { dashboardId: 'ops' },
+      mode: 'read',
+    });
+    assertEqual(bundle.entries.length, 1, 'bundle entry count');
+    assertEqual(bundle.entries[0].rows.map(({ label }) => label), ['latency_ms', 'uptime_pct'], 'ops rows');
+    assert(typeof bundle.entries[0].resume?.token === 'string', 'resume token missing');
+```
+
+The response has one shared `commitVersion` and one entry per declared query.
+Each entry contains rows and either a verified resume object or `null`,
+according to that query's resumable-query eligibility. An undeclared route is
+refused with `SNAPBACK_BUNDLE_ROUTE_UNKNOWN`.
+
+## Arm live demand at the same cut
+
+Authenticated local clients may use `mode: 'register'`. The response then
+includes a connection grant and live registration for each entry at the same
+commit cut. Pass each returned registration to `liveQuery` as
+`registeredSubscription`; the client adopts the bundle-owned subscription
+without taking a duplicate snapshot.
+
+Anonymous register mode is refused. Retry it in read mode only when a
+socketless public snapshot is acceptable. Register mode on Cloudflare is not
+currently claimed.
+
+## Anti-patterns
+
+- Do not send a caller-chosen list of function names to `/app/bundle`.
+- Do not mark an authenticated or authority-dependent query `publicInline`.
+- Do not compare entry versions as though independently fetched queries share
+  a commit; use the bundle's `commitVersion`.
+- Do not open a second live subscription after register mode; adopt the
+  returned registration.
+- Do not treat a resume token as application data or decode it.

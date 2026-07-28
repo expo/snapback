@@ -5,7 +5,10 @@
 **Systems:** Schema authoring, Code generation, Declarative data tier, Authorization, Query visibility, Generated operations, Diagnostics
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-25 (Implemented — author-delegated flip: the §6
+**Revised:** 2026-07-27 (generated function references now carry the exact
+closed operation argument schema and the headless client rejects invalid
+generated calls before network I/O; this is defense in depth and does not
+replace authoritative runtime validation); 2026-07-25 (Implemented — author-delegated flip: the §6
 implementation-conformance suite is assembled and green with an
 item-by-item witness map in
 `issues/20260724-step5-impl-0065-conformance-suite.md`; every claimed
@@ -329,8 +332,13 @@ server's structured trace), and `SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION` where
 a disclosure declaration admits it.
 
 Generated function references and operation schemas remain the public client
-surface. The standard-pattern helper itself is package code, not a runtime
-dependency of the server or browser bundle.
+surface. A generated reference carries the same closed argument-schema
+projection used for its operation artifact. Official clients validate that
+projection before transport and report
+`SNAPBACK_ARGUMENT_VALIDATION_FAILED`; legacy string references remain
+untyped, and every server invocation still performs authoritative validation.
+The standard-pattern helper itself is package code, not a runtime dependency
+of the server or browser bundle.
 
 ### 6. Acceptance
 

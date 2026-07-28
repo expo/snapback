@@ -1,0 +1,9 @@
+{
+  "tables": {
+    "metrics": [
+      { "_id": "metric_ops_latency", "dashboardId": "ops", "label": "latency_ms", "value": 42 },
+      { "_id": "metric_ops_uptime", "dashboardId": "ops", "label": "uptime_pct", "value": 99 },
+      { "_id": "metric_sales_orders", "dashboardId": "sales", "label": "orders", "value": 17 }
+    ]
+  }
+}

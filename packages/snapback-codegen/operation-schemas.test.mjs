@@ -52,6 +52,13 @@ export const updateTodo = defineMutation({
 
   const index = JSON.parse(readFileSync(join(dir, 'generated', 'artifacts.json'), 'utf8'));
   assert(index.artifacts.includes('operations/updateTodo.args.schema.json'));
+  const api = await import(pathToFileURL(join(dir, 'generated', 'api.mjs')).href);
+  assert.deepEqual(api.default.updateTodo.argumentSchema, {
+    type: 'object',
+    additionalProperties: false,
+    properties: schema.properties,
+    required: schema.required,
+  });
   const packageJson = JSON.parse(readFileSync(join(dir, 'generated', 'package.json'), 'utf8'));
   assert.equal(packageJson.exports['./operations/*'], './operations/*');
 } finally {

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "fe8a3ccae52e9d51c7225c0f0d30e64e7b7115c2"
+    "commit": "f08a903b996e737fe8185c3109eaaa337f690bb2"
   },
   "nav": {
     ".": [
@@ -201,6 +201,11 @@
         "id": "realtime.ephemeral-state",
         "order": 2,
         "title": "Ephemeral realtime state"
+      },
+      {
+        "id": "realtime.snapshot-bundles",
+        "order": 3,
+        "title": "Route snapshot bundles"
       }
     ],
     "recipes": [
@@ -572,7 +577,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "c20c2f27b0f69c430d450c088f052a1dcec3e57ebdc7ad59e2e9978c65a2d16c",
+      "sha256": "4a813c77d7b0708a3055ce4a2c2f205a2b201dd725c4c453d56fb5ed8461df02",
       "snippets": [
         {
           "lang": "js",
@@ -878,7 +883,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "006f01f08067eeaf2d6a0702a3b09386900a63b822edfe09e2923ebc1f0352a3",
+      "sha256": "7dbb9a8da053d390f4f400630218c383c192ead105e1565f86bb3153255f7fdb",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1049,7 +1054,7 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "75297c7ee38d90578afba8ab25753ed7d9794db733d0ab0efa987ad5d81b07b0",
+      "sha256": "482a5c381f8dce984614967cdf1fff5ca14ef8fd7b6e256eeb084b86bcc3f7f1",
       "snippets": [
         {
           "lang": "js",
@@ -1301,7 +1306,7 @@
       ],
       "reviewed": "2026-07-21",
       "reviewedCommit": "e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1",
-      "sha256": "67f94f24188344d8165a1fdf20e87760c72641dfc994f4a160f1e39b8b7da1f3",
+      "sha256": "724292e903b4615ca4ba4083da71bd0af5b1c9e60a7b96126319a60e73679746",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1409,7 +1414,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "ce0858b9d0c88816dee60b4b6c06e086cecbc9d79028216bee92ea4db26549e5",
+      "sha256": "210a4fec929d8dcbaf2bb0060114b274fde8edc1dfaf18cdb33eca130c988e8f",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1687,6 +1692,49 @@
         }
       ]
     },
+    "realtime.snapshot-bundles": {
+      "path": "guide/realtime/snapshot-bundles.md",
+      "title": "Route snapshot bundles",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "local",
+        "cloudflare"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "realtime.snapshot-bundles"
+      ],
+      "authorities": [
+        "llp/0090-resumable-query-snapshots.rfc.md",
+        "llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md",
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-codegen/index.mjs"
+      ],
+      "examples": [
+        "demos/public-dashboard"
+      ],
+      "reviewed": "2026-07-27",
+      "reviewedCommit": "HEAD",
+      "sha256": "e6095dbb252b3559fda8531d95e7780523be29c0771372c3d93247821dbecd48",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/snapback/routes.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/tests/acceptance/headless.mjs"
+        }
+      ]
+    },
     "recipes.hidden-hands": {
       "path": "guide/recipes/hidden-hands.md",
       "title": "Recipe: hidden hands",
@@ -1880,7 +1928,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "ed3ed95ae6f418db84d30cc29ceb0a9f6a7b6ad1a5373e877342df1c0540e9f2",
+      "sha256": "fc20e207183d7b7284781a87b202581e353474d42129251bcc6ac1655b6dd73b",
       "snippets": [
         {
           "lang": "js",
@@ -1956,18 +2004,18 @@
       "realtime.durable-push",
       "realtime.ephemeral",
       "realtime.live-queries",
+      "realtime.snapshot-bundles",
       "sync.offline",
       "testing.acceptance"
     ],
     "gaps": [
       "clients.non-js",
-      "clients.poll-hosted",
-      "realtime.snapshot-bundles"
+      "clients.poll-hosted"
     ]
   },
   "surfaces": {
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "962e37587c573cda6301f54dbca336073d111cce48066dc99a8bd760a9427317"
+  "contentHash": "dd053e86486b09d2d835eef2b4c56d3416e797cbf3bfcc3590971be6e2fc161c"
 }

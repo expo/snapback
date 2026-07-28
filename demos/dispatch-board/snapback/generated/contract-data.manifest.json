@@ -1,0 +1,181 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:16c720a947417eb7",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "ce57bf16150a1227ef7331409582ad1c008080b03e71fe4fb96286b2576bae8d",
+  "manifestVersion": 2,
+  "mutations": {
+    "reportIncident": {
+      "argOrder": [
+        "title"
+      ],
+      "args": {
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "incidents",
+        "auditEntries"
+      ],
+      "name": "reportIncident",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "incidents",
+        "auditEntries"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listAuditEntries": {
+      "argOrder": [
+        "incidentId"
+      ],
+      "args": {
+        "incidentId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listAuditEntries",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "auditEntries"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "incidentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "occurredAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "listIncidents": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listIncidents",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "incidents"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "reportedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:043d96b0edfb988c",
+  "schemaVersion": "snapback.v0"
+}

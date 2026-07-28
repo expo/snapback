@@ -1,0 +1,113 @@
+{
+  "app": {
+    "description": "Incident intake with server-authored IDs, time, atomic audit writes, and owner-scoped live reads.",
+    "name": "Dispatch Board"
+  },
+  "appId": "dispatch-board",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "dev"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "ce57bf16150a1227ef7331409582ad1c008080b03e71fe4fb96286b2576bae8d",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:043d96b0edfb988c",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "reportedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "reportedAt"
+          ],
+          "name": "by_owner_time"
+        },
+        {
+          "fields": [
+            "ownerId",
+            "eventId"
+          ],
+          "name": "by_owner_event",
+          "unique": true
+        }
+      ],
+      "name": "incidents",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "incidents"
+            }
+          },
+          "name": "incidentId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "occurredAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "incidentId"
+          ],
+          "name": "by_owner_incident"
+        }
+      ],
+      "name": "auditEntries",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

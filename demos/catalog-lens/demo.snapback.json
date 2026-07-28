@@ -1,0 +1,21 @@
+{
+  "id": "catalog-lens",
+  "title": "Catalog Lens",
+  "description": "Owner-scoped books joined to a public publisher dimension through a bounded relational query.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Relational queries", "Codegen", "Authorization", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "relationalQueryV1": true
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/catalog-lens/tests/acceptance/headless.mjs"
+    }
+  },
+  "notClaiming": ["full-text search", "offline relational execution", "hosted relational queries"]
+}

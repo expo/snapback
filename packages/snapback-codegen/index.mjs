@@ -1828,7 +1828,12 @@ export async function generateInProcess(backendDir, options = {}) {
   }
 
   const outDir = join(backendRoot, targetConfig.outputDirectory);
-  const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
+  const apiModule = renderApiModule(
+    appId,
+    functionManifest.functions,
+    functionsModule,
+    ephemeralCollections,
+  );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
     functionsModule,
@@ -4929,7 +4934,7 @@ function sourcePosition(source, offset) {
   return { line: lines.length, column: lines.at(-1).length + 1 };
 }
 
-function renderApiModule(appId, functions, ephemeralCollections) {
+function renderApiModule(appId, functions, functionsModule, ephemeralCollections) {
   const refs = dict();
   for (const fn of functions) {
     refs[fn.name] = {
@@ -4939,6 +4944,14 @@ function renderApiModule(appId, functions, ephemeralCollections) {
       id: fn.id,
       name: fn.name,
       kind: fn.kind,
+      // @ref LLP 0065#3-common-pattern-contracts — trusted defaults are
+      // absent and additional properties are closed on the generated client
+      // boundary. Reuse the operation-schema projection, never a second model.
+      argumentSchema: {
+        type: 'object',
+        additionalProperties: false,
+        ...jsonSchemaObjectProperties(functionsModule[fn.name]?.args ?? {}),
+      },
     };
   }
   const ephemeralRefs = dict();
@@ -4986,6 +4999,7 @@ function renderApiTypes(
     '  id: string;',
     '  name: Name;',
     '  kind: Kind;',
+    '  argumentSchema: Readonly<Record<string, unknown>>;',
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
     '}',

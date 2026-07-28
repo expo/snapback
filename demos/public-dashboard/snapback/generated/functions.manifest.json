@@ -1,0 +1,82 @@
+{
+  "appId": "public-dashboard",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:9627bec233a83c87",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "dashboardMetrics",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_dashboard",
+            "table": "metrics"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "dashboardMetrics",
+      "id": "public-dashboard:dashboardMetrics",
+      "kind": "LiveQuery",
+      "name": "dashboardMetrics",
+      "publicInline": true,
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "metrics",
+        "tables": [
+          "metrics"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "dashboardId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "dashboardId"
+                }
+              }
+            ],
+            "indexed_by": "by_dashboard",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "label"
+              }
+            ],
+            "table": "metrics"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "9dbaa35cd9d341647f0cfb5faa20babf27b4817b7af03018da49515d43703e41",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

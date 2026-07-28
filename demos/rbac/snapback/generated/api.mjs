@@ -3,6 +3,11 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "acceptInvite": {
     "appId": "rbac",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "rbac:acceptInvite",
     "kind": "Mutation",
@@ -12,6 +17,18 @@ export const api = Object.freeze({
   "ephemeral": {},
   "inviteApp": {
     "appId": "rbac",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "userId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "userId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "rbac:inviteApp",
     "kind": "Mutation",
@@ -20,6 +37,11 @@ export const api = Object.freeze({
   },
   "joinApp": {
     "appId": "rbac",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "rbac:joinApp",
     "kind": "Mutation",
@@ -28,6 +50,11 @@ export const api = Object.freeze({
   },
   "leaveApp": {
     "appId": "rbac",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "rbac:leaveApp",
     "kind": "Mutation",
@@ -36,6 +63,11 @@ export const api = Object.freeze({
   },
   "listAnnouncements": {
     "appId": "rbac",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "rbac:listAnnouncements",
     "kind": "LiveQuery",
@@ -44,6 +76,18 @@ export const api = Object.freeze({
   },
   "postAnnouncement": {
     "appId": "rbac",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "rbac:postAnnouncement",
     "kind": "Mutation",
@@ -52,6 +96,11 @@ export const api = Object.freeze({
   },
   "rawJoin": {
     "appId": "rbac",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "rbac:rawJoin",
     "kind": "Mutation",

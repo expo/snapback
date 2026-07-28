@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/catalog-lens/addPublisher.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "country": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "slug",
+    "name",
+    "country"
+  ],
+  "title": "catalog-lens:addPublisher arguments",
+  "type": "object"
+}

@@ -185,6 +185,13 @@ on the legacy `dev` path. Never reset as a mount side effect.
 or name. In sessions mode the server accepts no caller-selected identity—the
 coordinator repeats the session bearer and the server resolves authority.
 
+Generated references carry their closed operation argument schema. The client
+validates it before network I/O for query, mutation, action, live subscribe,
+and authorized-lease calls; missing, extra, nested-type, and unsafe-integer
+arguments fail with `SNAPBACK_ARGUMENT_VALIDATION_FAILED`. This is an early
+client diagnostic, not a replacement for server validation. A legacy string
+name has no generated schema and retains its untyped behavior.
+
 Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.

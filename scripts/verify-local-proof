@@ -177,6 +177,10 @@ run env SNAPBACK_RUNTIME_BINARY="$runtime_binary" npm --prefix packages/snapback
 run env SNAPBACK_RUNTIME_BINARY="$runtime_binary" npm --prefix packages/snapback-vite test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
+# Five deliberately different app kernels keep relational reads, trusted
+# runtime values, cron/live demand, route bundles, and membership authority in
+# one non-vacuous workout corpus.
+run node scripts/run-workout-apps.mjs
 # LLP 0090 rollout step 7 (ENG-25458): Channel C consumption — the
 # authenticated register-mode boot (todo-v2) and the socket-less widget
 # read-mode surface (graffiti), both wire-instrumented and hermetic.

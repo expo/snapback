@@ -3,6 +3,11 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "egressProbe": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:egressProbe",
     "kind": "Action",
@@ -12,6 +17,11 @@ export const api = Object.freeze({
   "ephemeral": {},
   "queryProbe": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:queryProbe",
     "kind": "Query",

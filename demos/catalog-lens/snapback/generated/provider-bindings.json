@@ -1,0 +1,78 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"isbn\": string; \"publisherSlug\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "books"
+          ],
+          "writes": [
+            "books"
+          ]
+        },
+        "name": "addBook",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"country\": string; \"name\": string; \"slug\": string }",
+        "effects": {
+          "invalidates": [
+            "publishers"
+          ],
+          "writes": [
+            "publishers"
+          ]
+        },
+        "name": "addPublisher",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"cursor\"?: string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "books",
+            "publishers"
+          ]
+        },
+        "name": "booksWithPublisher",
+        "resultType": "ReadonlyArray<{ \"isbn\": string; \"publisherCountry\"?: string; \"publisherName\"?: string; \"publisherSlug\": string; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "b0a5df25fcfc5c4b179f67dcf13cb5b94461ac1d27ac0b95846f79c1caabc8ea",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

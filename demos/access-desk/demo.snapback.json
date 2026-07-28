@@ -1,0 +1,22 @@
+{
+  "id": "access-desk",
+  "title": "Access Desk",
+  "description": "Resource bootstrap, membership admission, protected notes, and permission-enforced writes.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Memberships", "Authorization", "Live queries", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "membershipDeclarations": true,
+    "generatedMembershipWrites": true
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/access-desk/tests/acceptance/headless.mjs"
+    }
+  },
+  "notClaiming": ["administrator removal", "offline membership retention", "hosted auth"]
+}

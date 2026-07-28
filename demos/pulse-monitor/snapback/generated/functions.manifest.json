@@ -1,0 +1,209 @@
+{
+  "appId": "pulse-monitor",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:1069ecd2910b8d53",
+  "config": [],
+  "cronJobs": [
+    {
+      "action": "probeServices",
+      "activation": {
+        "kind": "WhileLive",
+        "whileLive": [
+          "liveServices"
+        ]
+      },
+      "enabled": true,
+      "jitterPolicy": {
+        "enabled": false,
+        "maxOffsetMs": 0
+      },
+      "name": "monitorWhileViewed",
+      "overlapPolicy": "NoOverlap",
+      "requiredCapabilities": [
+        "cron",
+        "cron_action_run_mutation"
+      ],
+      "retryPolicy": {
+        "mode": "NextTick"
+      },
+      "schedule": {
+        "everyMs": 60000
+      },
+      "sourceSpan": null,
+      "targetWakeup": {
+        "kind": "DynamicAlarm",
+        "needsDurableRunner": true
+      }
+    }
+  ],
+  "functions": [
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "applyProbe",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "serviceState"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "serviceState"
+          }
+        ]
+      },
+      "exportedName": "applyProbe",
+      "id": "pulse-monitor:applyProbe",
+      "kind": "Mutation",
+      "name": "applyProbe",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "serviceState",
+        "tables": [
+          "serviceState"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "applyProbe",
+          "source": "globalThis.__snapbackHandlers = {\n  async applyProbe(ctx, args) {\n    const rows = await ctx.db\n      .query('serviceState')\n      .withIndex('by_service')\n      .eq('serviceId', args.serviceId)\n      .collect();\n    const current = rows[0];\n    if (!current) throw new Error('unknown service');\n    await ctx.db.patch('serviceState', current._id, {\n      status: current.tickCount % 2 === 0 ? 'healthy' : 'degraded',\n      tickCount: current.tickCount + 1,\n      lastCheckedAt: ctx.runtime.now(),\n    });\n    return { tickCount: current.tickCount + 1 };\n  },\n\n  async probeServices(ctx) {\n    return await ctx.runMutation('applyProbe', { serviceId: 'api' });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "serviceState",
+        "tables": [
+          "serviceState"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "liveServices",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_service",
+            "table": "serviceState"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "liveServices",
+      "id": "pulse-monitor:liveServices",
+      "kind": "LiveQuery",
+      "name": "liveServices",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "serviceState",
+        "tables": [
+          "serviceState"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_service",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "serviceId"
+              }
+            ],
+            "table": "serviceState"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "probeServices",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "serviceState"
+          }
+        ]
+      },
+      "exportedName": "probeServices",
+      "id": "pulse-monitor:probeServices",
+      "kind": "Action",
+      "name": "probeServices",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "probeServices",
+          "source": "globalThis.__snapbackHandlers = {\n  async applyProbe(ctx, args) {\n    const rows = await ctx.db\n      .query('serviceState')\n      .withIndex('by_service')\n      .eq('serviceId', args.serviceId)\n      .collect();\n    const current = rows[0];\n    if (!current) throw new Error('unknown service');\n    await ctx.db.patch('serviceState', current._id, {\n      status: current.tickCount % 2 === 0 ? 'healthy' : 'degraded',\n      tickCount: current.tickCount + 1,\n      lastCheckedAt: ctx.runtime.now(),\n    });\n    return { tickCount: current.tickCount + 1 };\n  },\n\n  async probeServices(ctx) {\n    return await ctx.runMutation('applyProbe', { serviceId: 'api' });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "serviceState",
+        "tables": [
+          "serviceState"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "7c249712efa8d186808548294518ca0b7fba4a2389820a9fa396db2e2880ec71",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

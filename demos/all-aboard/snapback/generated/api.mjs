@@ -3,6 +3,21 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "applyFeedTick": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "lastError": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:applyFeedTick",
     "kind": "Mutation",
@@ -11,6 +26,29 @@ export const api = Object.freeze({
   },
   "applyLiveFeedSnapshot": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "delays": {},
+        "departures": {},
+        "lastError": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "delays"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:applyLiveFeedSnapshot",
     "kind": "Mutation",
@@ -19,6 +57,18 @@ export const api = Object.freeze({
   },
   "claimFeedPoll": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "minIntervalMs": {
+          "type": "integer"
+        },
+        "trigger": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:claimFeedPoll",
     "kind": "Mutation",
@@ -28,6 +78,11 @@ export const api = Object.freeze({
   "ephemeral": {},
   "feedState": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:feedState",
     "kind": "LiveQuery",
@@ -36,6 +91,11 @@ export const api = Object.freeze({
   },
   "liveDepartures": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:liveDepartures",
     "kind": "LiveQuery",
@@ -44,6 +104,11 @@ export const api = Object.freeze({
   },
   "liveTrainStatus": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:liveTrainStatus",
     "kind": "LiveQuery",
@@ -52,6 +117,24 @@ export const api = Object.freeze({
   },
   "refreshFeed": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "feedUrl": {
+          "type": "string"
+        },
+        "pollBudgetMs": {
+          "type": "integer"
+        },
+        "source": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:refreshFeed",
     "kind": "Action",
@@ -60,6 +143,11 @@ export const api = Object.freeze({
   },
   "resetFeed": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:resetFeed",
     "kind": "Mutation",
@@ -68,6 +156,37 @@ export const api = Object.freeze({
   },
   "routeEstimate": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "baseUrl": {
+          "type": "string"
+        },
+        "fromLat": {
+          "type": "number"
+        },
+        "fromLng": {
+          "type": "number"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "toLat": {
+          "type": "number"
+        },
+        "toLng": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "fromLat",
+        "fromLng",
+        "toLat",
+        "toLng",
+        "mode"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:routeEstimate",
     "kind": "Action",
@@ -76,6 +195,11 @@ export const api = Object.freeze({
   },
   "stationsQuery": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:stationsQuery",
     "kind": "Query",
@@ -84,6 +208,18 @@ export const api = Object.freeze({
   },
   "stopTimesByStation": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "stationId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "stationId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:stopTimesByStation",
     "kind": "Query",
@@ -92,6 +228,11 @@ export const api = Object.freeze({
   },
   "tripsQuery": {
     "appId": "all-aboard",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "all-aboard:tripsQuery",
     "kind": "Query",

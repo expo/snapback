@@ -1,0 +1,44 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [],
+    "queries": [
+      {
+        "argumentsType": "{ \"dashboardId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "metrics"
+          ]
+        },
+        "name": "dashboardMetrics",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"dashboardId\": string; \"label\": string; \"value\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "9dbaa35cd9d341647f0cfb5faa20babf27b4817b7af03018da49515d43703e41",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

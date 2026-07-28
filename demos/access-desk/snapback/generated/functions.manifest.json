@@ -1,0 +1,252 @@
+{
+  "appId": "access-desk",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:4bb2ea69c3c21164",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "addMember",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          }
+        ]
+      },
+      "exportedName": "addMember",
+      "id": "access-desk:addMember",
+      "kind": "Mutation",
+      "name": "addMember",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "addMember",
+          "source": "globalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async addNote(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(\n      args.workspaceId,\n      'owner',\n      'member',\n    );\n    return await ctx.db.insert('notes', {\n      workspaceId: args.workspaceId,\n      authorId: ctx.auth.userId,\n      body: String(args.body ?? '').trim(),\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "addNote",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "notes"
+          }
+        ]
+      },
+      "exportedName": "addNote",
+      "id": "access-desk:addNote",
+      "kind": "Mutation",
+      "name": "addNote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "addNote",
+          "source": "globalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async addNote(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(\n      args.workspaceId,\n      'owner',\n      'member',\n    );\n    return await ctx.db.insert('notes', {\n      workspaceId: args.workspaceId,\n      authorId: ctx.auth.userId,\n      body: String(args.body ?? '').trim(),\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "createWorkspace",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaces"
+          }
+        ]
+      },
+      "exportedName": "createWorkspace",
+      "id": "access-desk:createWorkspace",
+      "kind": "Mutation",
+      "name": "createWorkspace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "createWorkspace",
+          "source": "globalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async addNote(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(\n      args.workspaceId,\n      'owner',\n      'member',\n    );\n    return await ctx.db.insert('notes', {\n      workspaceId: args.workspaceId,\n      authorId: ctx.auth.userId,\n      body: String(args.body ?? '').trim(),\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaces",
+        "tables": [
+          "workspaces",
+          "workspaceMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "workspaceNotes",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_workspace",
+            "table": "notes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "workspaceNotes",
+      "id": "access-desk:workspaceNotes",
+      "kind": "LiveQuery",
+      "name": "workspaceNotes",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "notes",
+        "tables": [
+          "notes",
+          "workspaceMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "workspaceId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "workspaceId"
+                }
+              }
+            ],
+            "indexed_by": "by_workspace",
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "workspaceMembers",
+                "resource": {
+                  "arg": {
+                    "path": "workspaceId",
+                    "resourceTable": "workspaces"
+                  }
+                }
+              }
+            ],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "notes"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "c1b614e17866701ed4e18b1f439323fdadd584ee9160f2edd31351f51720ac39",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

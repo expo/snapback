@@ -1,0 +1,217 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId",
+            "userId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId",
+            "body"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "notes"
+          ],
+          "writes": [
+            "notes"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "addNote",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "name"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "workspaces",
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaces",
+            "workspaceMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "notes",
+            "workspaceMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "workspaceNotes",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "authorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "body": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "workspaceId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:4bb2ea69c3c21164",
+    "inputsHash": "c1b614e17866701ed4e18b1f439323fdadd584ee9160f2edd31351f51720ac39",
+    "schemaHash": "sha256:c974d49e0784fecd"
+  }
+}

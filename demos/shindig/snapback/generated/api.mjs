@@ -3,6 +3,38 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "createEvent": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "emoji": {
+          "type": "string"
+        },
+        "hostName": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "startsAt": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "emoji",
+        "description",
+        "location",
+        "startsAt",
+        "hostName"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:createEvent",
     "kind": "Mutation",
@@ -12,6 +44,18 @@ export const api = Object.freeze({
   "ephemeral": {},
   "eventDetails": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:eventDetails",
     "kind": "LiveQuery",
@@ -20,6 +64,18 @@ export const api = Object.freeze({
   },
   "eventWall": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:eventWall",
     "kind": "LiveQuery",
@@ -28,6 +84,18 @@ export const api = Object.freeze({
   },
   "getEvent": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:getEvent",
     "kind": "Query",
@@ -36,6 +104,18 @@ export const api = Object.freeze({
   },
   "guestList": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:guestList",
     "kind": "LiveQuery",
@@ -44,6 +124,26 @@ export const api = Object.freeze({
   },
   "invite": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        },
+        "guestName": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "userId",
+        "guestName"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:invite",
     "kind": "Mutation",
@@ -52,6 +152,11 @@ export const api = Object.freeze({
   },
   "myFeed": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:myFeed",
     "kind": "LiveQuery",
@@ -60,6 +165,26 @@ export const api = Object.freeze({
   },
   "postToWall": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "authorName": {
+          "type": "string"
+        },
+        "eventId": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "message",
+        "authorName"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:postToWall",
     "kind": "Mutation",
@@ -68,6 +193,25 @@ export const api = Object.freeze({
   },
   "rsvp": {
     "appId": "shindig",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "status"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "shindig:rsvp",
     "kind": "Mutation",

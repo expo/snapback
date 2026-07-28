@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/public-dashboard/dashboardMetrics.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "dashboardId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "dashboardId"
+  ],
+  "title": "public-dashboard:dashboardMetrics arguments",
+  "type": "object"
+}

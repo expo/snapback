@@ -1,0 +1,113 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "dashboardId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "dashboardId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "metrics"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "dashboardMetrics",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "dashboardId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "label": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "value": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:9627bec233a83c87",
+    "inputsHash": "9dbaa35cd9d341647f0cfb5faa20babf27b4817b7af03018da49515d43703e41",
+    "schemaHash": "sha256:c929af1ce7a69e0f"
+  }
+}

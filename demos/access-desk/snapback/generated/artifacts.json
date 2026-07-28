@@ -1,0 +1,64 @@
+{
+  "appId": "access-desk",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/addMember.args.schema.json",
+    "operations/addNote.args.schema.json",
+    "operations/createWorkspace.args.schema.json",
+    "operations/workspaceNotes.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/addMember.mutation.ts",
+    "contract/addMember.mutation.contract-meta.ts",
+    "contract/addNote.mutation.ts",
+    "contract/addNote.mutation.contract-meta.ts",
+    "contract/createWorkspace.mutation.ts",
+    "contract/createWorkspace.mutation.contract-meta.ts",
+    "contract/workspaceNotes.query.ts",
+    "contract/workspaceNotes.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:4bb2ea69c3c21164",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "access-desk:addMember",
+      "kind": "Mutation",
+      "name": "addMember"
+    },
+    {
+      "id": "access-desk:addNote",
+      "kind": "Mutation",
+      "name": "addNote"
+    },
+    {
+      "id": "access-desk:createWorkspace",
+      "kind": "Mutation",
+      "name": "createWorkspace"
+    },
+    {
+      "id": "access-desk:workspaceNotes",
+      "kind": "LiveQuery",
+      "name": "workspaceNotes"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "c1b614e17866701ed4e18b1f439323fdadd584ee9160f2edd31351f51720ac39",
+  "schemaHash": "sha256:c974d49e0784fecd",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "workspaces",
+    "workspaceMembers",
+    "notes"
+  ]
+}

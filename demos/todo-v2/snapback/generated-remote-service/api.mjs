@@ -22,6 +22,22 @@ export const ephemeral = Object.freeze({
 export const api = Object.freeze({
   "createTodo": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "priority": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "priority"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:createTodo",
     "kind": "Mutation",
@@ -30,6 +46,18 @@ export const api = Object.freeze({
   },
   "deleteTodo": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:deleteTodo",
     "kind": "Mutation",
@@ -38,6 +66,22 @@ export const api = Object.freeze({
   },
   "editTitle": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:editTitle",
     "kind": "Mutation",
@@ -66,6 +110,11 @@ export const api = Object.freeze({
   },
   "listTodos": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:listTodos",
     "kind": "LiveQuery",
@@ -74,6 +123,18 @@ export const api = Object.freeze({
   },
   "listTodosByPriority": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "priority": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "priority"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:listTodosByPriority",
     "kind": "LiveQuery",
@@ -82,6 +143,11 @@ export const api = Object.freeze({
   },
   "listTodosOnce": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:listTodosOnce",
     "kind": "Query",
@@ -90,6 +156,22 @@ export const api = Object.freeze({
   },
   "setCompleted": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "completed": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "completed"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:setCompleted",
     "kind": "Mutation",
@@ -98,6 +180,22 @@ export const api = Object.freeze({
   },
   "setPriority": {
     "appId": "todo-v2",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "priority"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo-v2:setPriority",
     "kind": "Mutation",

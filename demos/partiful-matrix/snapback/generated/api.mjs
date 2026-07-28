@@ -3,6 +3,42 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "createEvent": {
     "appId": "partiful-matrix",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "accent": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "emoji": {
+          "type": "string"
+        },
+        "hostName": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "startsAt": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "emoji",
+        "description",
+        "location",
+        "startsAt",
+        "hostName",
+        "accent"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:createEvent",
     "kind": "Mutation",
@@ -12,6 +48,18 @@ export const api = Object.freeze({
   "ephemeral": {},
   "eventDetails": {
     "appId": "partiful-matrix",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventDetails",
     "kind": "LiveQuery",
@@ -20,6 +68,18 @@ export const api = Object.freeze({
   },
   "eventWall": {
     "appId": "partiful-matrix",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventWall",
     "kind": "LiveQuery",
@@ -28,6 +88,18 @@ export const api = Object.freeze({
   },
   "guestList": {
     "appId": "partiful-matrix",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:guestList",
     "kind": "LiveQuery",
@@ -36,6 +108,11 @@ export const api = Object.freeze({
   },
   "listEvents": {
     "appId": "partiful-matrix",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:listEvents",
     "kind": "LiveQuery",
@@ -44,6 +121,26 @@ export const api = Object.freeze({
   },
   "postMessage": {
     "appId": "partiful-matrix",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "authorName": {
+          "type": "string"
+        },
+        "eventId": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "authorName",
+        "message"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:postMessage",
     "kind": "Mutation",
@@ -52,6 +149,26 @@ export const api = Object.freeze({
   },
   "rsvp": {
     "appId": "partiful-matrix",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        },
+        "guestName": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "guestName",
+        "status"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:rsvp",
     "kind": "Mutation",

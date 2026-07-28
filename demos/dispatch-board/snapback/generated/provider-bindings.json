@@ -1,0 +1,89 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "incidents",
+            "auditEntries"
+          ],
+          "writes": [
+            "incidents",
+            "auditEntries"
+          ]
+        },
+        "name": "reportIncident",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"incidentId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "auditEntries"
+          ]
+        },
+        "name": "listAuditEntries",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"eventId\": string; \"incidentId\": string; \"kind\": string; \"occurredAt\": number; \"ownerId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "incidents"
+          ]
+        },
+        "name": "listIncidents",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"eventId\": string; \"ownerId\": string; \"reportedAt\": number; \"status\": string; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "ce57bf16150a1227ef7331409582ad1c008080b03e71fe4fb96286b2576bae8d",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

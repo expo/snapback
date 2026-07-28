@@ -1,0 +1,106 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:1069ecd2910b8d53",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "7c249712efa8d186808548294518ca0b7fba4a2389820a9fa396db2e2880ec71",
+  "manifestVersion": 2,
+  "mutations": {
+    "applyProbe": {
+      "argOrder": [
+        "serviceId"
+      ],
+      "args": {
+        "serviceId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "serviceState"
+      ],
+      "name": "applyProbe",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "serviceState"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "liveServices": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "liveServices",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "serviceState"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "lastCheckedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "serviceId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "tickCount": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:78e3f85b8ab4ad2b",
+  "schemaVersion": "snapback.v0"
+}

@@ -1,0 +1,61 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"serviceId\": string }",
+        "effects": {
+          "invalidates": [
+            "serviceState"
+          ],
+          "writes": [
+            "serviceState"
+          ]
+        },
+        "name": "applyProbe",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "serviceState"
+          ]
+        },
+        "name": "liveServices",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"lastCheckedAt\": number; \"serviceId\": string; \"status\": string; \"tickCount\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "7c249712efa8d186808548294518ca0b7fba4a2389820a9fa396db2e2880ec71",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

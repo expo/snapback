@@ -1,0 +1,96 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"userId\": string; \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"body\": string; \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "notes"
+          ],
+          "writes": [
+            "notes"
+          ]
+        },
+        "name": "addNote",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"name\": string }",
+        "effects": {
+          "invalidates": [
+            "workspaces",
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaces",
+            "workspaceMembers"
+          ]
+        },
+        "name": "createWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"workspaceId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "notes",
+            "workspaceMembers"
+          ]
+        },
+        "name": "workspaceNotes",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"workspaceId\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "c1b614e17866701ed4e18b1f439323fdadd584ee9160f2edd31351f51720ac39",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

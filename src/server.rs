@@ -5330,6 +5330,11 @@ impl ConnectionRegistry {
             ));
         };
         let grants = self.lock();
+        // Do not replace this with Iterator::any: it short-circuits and leaks
+        // which registry entry matched through request timing.
+        // @ref LLP 0039#session-transport-and-connection-binding — grant
+        // verification uses constant-time comparison under the small registry lock.
+        #[allow(clippy::unnecessary_fold)]
         let valid = grants.grants.values().fold(false, |valid, record| {
             constant_time_str_eq(&record.token, presented) || valid
         });

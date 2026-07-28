@@ -42,6 +42,18 @@ export const api = Object.freeze({
   },
   "listCells": {
     "appId": "graffiti",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "boardId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "boardId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "graffiti:listCells",
     "kind": "LiveQuery",
@@ -50,6 +62,30 @@ export const api = Object.freeze({
   },
   "paintCell": {
     "appId": "graffiti",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "boardId": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "boardId",
+        "x",
+        "y",
+        "color"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "graffiti:paintCell",
     "kind": "Mutation",

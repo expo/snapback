@@ -3,6 +3,18 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "createTodo": {
     "appId": "todo",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo:createTodo",
     "kind": "Mutation",
@@ -11,6 +23,18 @@ export const api = Object.freeze({
   },
   "deleteTodo": {
     "appId": "todo",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo:deleteTodo",
     "kind": "Mutation",
@@ -19,6 +43,22 @@ export const api = Object.freeze({
   },
   "editTitle": {
     "appId": "todo",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo:editTitle",
     "kind": "Mutation",
@@ -28,6 +68,11 @@ export const api = Object.freeze({
   "ephemeral": {},
   "listTodos": {
     "appId": "todo",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo:listTodos",
     "kind": "LiveQuery",
@@ -36,6 +81,11 @@ export const api = Object.freeze({
   },
   "listTodosOnce": {
     "appId": "todo",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo:listTodosOnce",
     "kind": "Query",
@@ -44,6 +94,22 @@ export const api = Object.freeze({
   },
   "setCompleted": {
     "appId": "todo",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "completed": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "completed"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "todo:setCompleted",
     "kind": "Mutation",

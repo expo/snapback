@@ -1,0 +1,55 @@
+{
+  "appId": "catalog-lens",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/addBook.args.schema.json",
+    "operations/addPublisher.args.schema.json",
+    "operations/booksWithPublisher.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/addBook.mutation.ts",
+    "contract/addBook.mutation.contract-meta.ts",
+    "contract/addPublisher.mutation.ts",
+    "contract/addPublisher.mutation.contract-meta.ts",
+    "contract/booksWithPublisher.query.ts",
+    "contract/booksWithPublisher.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:8bbf04a2b595b517",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "catalog-lens:addBook",
+      "kind": "Mutation",
+      "name": "addBook"
+    },
+    {
+      "id": "catalog-lens:addPublisher",
+      "kind": "Mutation",
+      "name": "addPublisher"
+    },
+    {
+      "id": "catalog-lens:booksWithPublisher",
+      "kind": "LiveQuery",
+      "name": "booksWithPublisher"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "b0a5df25fcfc5c4b179f67dcf13cb5b94461ac1d27ac0b95846f79c1caabc8ea",
+  "schemaHash": "sha256:4a8520cc1f19026b",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "books",
+    "publishers"
+  ]
+}

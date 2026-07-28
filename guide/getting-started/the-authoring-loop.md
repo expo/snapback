@@ -61,6 +61,13 @@ Change `schema.mjs`, `functions.mjs`, `handlers.mjs`, or `seed.json`
 
 ## 2. Regenerate
 
+In a source checkout, install the pinned workspace dependencies once before
+running repository codegen:
+
+```sh
+bun install --frozen-lockfile
+```
+
 ```sh
 node packages/snapback-codegen/index.mjs <app>/snapback
 ```
@@ -90,6 +97,11 @@ rejects stale artifacts loudly (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`,
 
 If you forget this step, the very first server load or acceptance run tells
 you; nothing downstream guesses.
+
+A raw `ERR_MODULE_NOT_FOUND` for `acorn`, `esbuild`, or `typescript` means the
+source checkout has not completed the pinned install above. It is a contributor
+environment failure, not an application diagnostic. Packaged
+`snapback generate` installs these as ordinary package dependencies.
 
 ## 3. Run the acceptance suite
 

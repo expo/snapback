@@ -1,0 +1,55 @@
+{
+  "appId": "dispatch-board",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/listAuditEntries.args.schema.json",
+    "operations/listIncidents.args.schema.json",
+    "operations/reportIncident.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/listAuditEntries.query.ts",
+    "contract/listAuditEntries.query.contract-meta.ts",
+    "contract/listIncidents.query.ts",
+    "contract/listIncidents.query.contract-meta.ts",
+    "contract/reportIncident.mutation.ts",
+    "contract/reportIncident.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:16c720a947417eb7",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "dispatch-board:listAuditEntries",
+      "kind": "LiveQuery",
+      "name": "listAuditEntries"
+    },
+    {
+      "id": "dispatch-board:listIncidents",
+      "kind": "LiveQuery",
+      "name": "listIncidents"
+    },
+    {
+      "id": "dispatch-board:reportIncident",
+      "kind": "Mutation",
+      "name": "reportIncident"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "ce57bf16150a1227ef7331409582ad1c008080b03e71fe4fb96286b2576bae8d",
+  "schemaHash": "sha256:043d96b0edfb988c",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "incidents",
+    "auditEntries"
+  ]
+}

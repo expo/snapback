@@ -1,0 +1,211 @@
+{
+  "appId": "dispatch-board",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:16c720a947417eb7",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listAuditEntries",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_incident",
+            "table": "auditEntries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listAuditEntries",
+      "id": "dispatch-board:listAuditEntries",
+      "kind": "LiveQuery",
+      "name": "listAuditEntries",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "auditEntries",
+        "tables": [
+          "auditEntries"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "incidentId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "incidentId"
+                }
+              }
+            ],
+            "indexed_by": "by_owner_incident",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "auditEntries"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listIncidents",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_time",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listIncidents",
+      "id": "dispatch-board:listIncidents",
+      "kind": "LiveQuery",
+      "name": "listIncidents",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_owner_time",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "reportedAt"
+              }
+            ],
+            "table": "incidents"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "reportIncident",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "auditEntries"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          }
+        ]
+      },
+      "exportedName": "reportIncident",
+      "id": "dispatch-board:reportIncident",
+      "kind": "Mutation",
+      "name": "reportIncident",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "reportIncident",
+          "source": "// @ref LLP 0051#d1-the-ctx-answer-ledger-recordable-replayable-deterministic-ops\n// — one frozen invocation time spans both writes while each logical event gets\n// a fresh host-recorded identifier.\n\nglobalThis.__snapbackHandlers = {\n  async reportIncident(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('incident title is required');\n    const occurredAt = ctx.runtime.now();\n    const eventId = ctx.runtime.id();\n    const incidentId = await ctx.db.insert('incidents', {\n      ownerId: ctx.auth.userId,\n      title,\n      status: 'open',\n      eventId,\n      reportedAt: occurredAt,\n    });\n    await ctx.db.insert('auditEntries', {\n      ownerId: ctx.auth.userId,\n      incidentId,\n      eventId: ctx.runtime.id(),\n      kind: 'incident.reported',\n      occurredAt,\n    });\n    return { incidentId, eventId, occurredAt };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "auditEntries"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "ce57bf16150a1227ef7331409582ad1c008080b03e71fe4fb96286b2576bae8d",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

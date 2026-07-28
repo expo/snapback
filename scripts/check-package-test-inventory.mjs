@@ -52,6 +52,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'argument-validation.test.mjs',
       'bundle.test.mjs',
       'external-store.test.mjs',
       'hosted-browser.test.mjs',
@@ -236,7 +237,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // maintained Fly Machines VM driver suite.
 // 87 -> 88 (LLP 0094 B2): @snapback/client gains the wire-version
 // negotiation suite (open-time offer, echo witness, §0B.6 fallback).
-assert.equal(total, 88, 'reviewed package/admin test count changed');
+// 88 -> 89 (2026-07-27 workout): generated-reference argument validation
+// refuses closed-schema mismatches before transport.
+assert.equal(total, 89, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

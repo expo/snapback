@@ -1,0 +1,191 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:8bbf04a2b595b517",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": true,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "b0a5df25fcfc5c4b179f67dcf13cb5b94461ac1d27ac0b95846f79c1caabc8ea",
+  "manifestVersion": 2,
+  "mutations": {
+    "addBook": {
+      "argOrder": [
+        "isbn",
+        "title",
+        "publisherSlug"
+      ],
+      "args": {
+        "isbn": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "publisherSlug": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "books"
+      ],
+      "name": "addBook",
+      "optimistic": true,
+      "plan": {
+        "return_value": null,
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": null,
+              "table": "books",
+              "values": {
+                "createdAt": "RuntimeNow",
+                "isbn": {
+                  "Arg": "isbn"
+                },
+                "ownerId": "AuthUserId",
+                "publisherSlug": {
+                  "Arg": "publisherSlug"
+                },
+                "title": {
+                  "Arg": "title"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "books"
+      ]
+    },
+    "addPublisher": {
+      "argOrder": [
+        "slug",
+        "name",
+        "country"
+      ],
+      "args": {
+        "country": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "name": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "slug": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "publishers"
+      ],
+      "name": "addPublisher",
+      "optimistic": true,
+      "plan": {
+        "return_value": null,
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": null,
+              "table": "publishers",
+              "values": {
+                "country": {
+                  "Arg": "country"
+                },
+                "name": {
+                  "Arg": "name"
+                },
+                "slug": {
+                  "Arg": "slug"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "publishers"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "booksWithPublisher": {
+      "argOrder": [
+        "cursor"
+      ],
+      "args": {
+        "cursor": {
+          "name": "string",
+          "optional": true,
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "booksWithPublisher",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "books",
+        "publishers"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "isbn": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "publisherCountry": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "publisherName": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "publisherSlug": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:4a8520cc1f19026b",
+  "schemaVersion": "snapback.v0"
+}

@@ -1,0 +1,275 @@
+{
+  "appId": "catalog-lens",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:8bbf04a2b595b517",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "addBook",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "books"
+          }
+        ]
+      },
+      "exportedName": "addBook",
+      "id": "catalog-lens:addBook",
+      "kind": "Mutation",
+      "name": "addBook",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": null,
+                  "table": "books",
+                  "values": {
+                    "createdAt": "RuntimeNow",
+                    "isbn": {
+                      "Arg": "isbn"
+                    },
+                    "ownerId": "AuthUserId",
+                    "publisherSlug": {
+                      "Arg": "publisherSlug"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "books",
+        "tables": [
+          "books"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "addPublisher",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "publishers"
+          }
+        ]
+      },
+      "exportedName": "addPublisher",
+      "id": "catalog-lens:addPublisher",
+      "kind": "Mutation",
+      "name": "addPublisher",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": null,
+                  "table": "publishers",
+                  "values": {
+                    "country": {
+                      "Arg": "country"
+                    },
+                    "name": {
+                      "Arg": "name"
+                    },
+                    "slug": {
+                      "Arg": "slug"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "publishers",
+        "tables": [
+          "publishers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "booksWithPublisher",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_created",
+            "table": "books"
+          },
+          {
+            "access": "query",
+            "index": "by_slug",
+            "table": "publishers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "booksWithPublisher",
+      "id": "catalog-lens:booksWithPublisher",
+      "kind": "LiveQuery",
+      "name": "booksWithPublisher",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "relational",
+        "primaryTable": "books",
+        "tables": [
+          "books",
+          "publishers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "relational_query_v1"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "RelationalQuery": {
+            "joinKind": "Left",
+            "joinOn": [
+              {
+                "joinedField": "slug",
+                "rootField": "publisherSlug"
+              }
+            ],
+            "joined": "publishers",
+            "joinedAlias": "publishers",
+            "joinedIndex": "by_slug",
+            "joinedVisibility": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "createdAt"
+              }
+            ],
+            "projection": [
+              {
+                "name": "isbn",
+                "source": {
+                  "RootField": "isbn"
+                }
+              },
+              {
+                "name": "title",
+                "source": {
+                  "RootField": "title"
+                }
+              },
+              {
+                "name": "publisherSlug",
+                "source": {
+                  "RootField": "publisherSlug"
+                }
+              },
+              {
+                "name": "publisherName",
+                "source": {
+                  "JoinedField": "name"
+                }
+              },
+              {
+                "name": "publisherCountry",
+                "source": {
+                  "JoinedField": "country"
+                }
+              }
+            ],
+            "root": "books",
+            "rootAlias": "books",
+            "rootFilters": [],
+            "rootIndex": "by_owner_created",
+            "rootVisibility": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "take": 3
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "b0a5df25fcfc5c4b179f67dcf13cb5b94461ac1d27ac0b95846f79c1caabc8ea",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

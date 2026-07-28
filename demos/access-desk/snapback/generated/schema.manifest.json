@@ -1,0 +1,136 @@
+{
+  "app": {
+    "description": "Resource bootstrap, membership admission, protected notes, and permission-enforced writes.",
+    "name": "Access Desk"
+  },
+  "appId": "access-desk",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "dev"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "c1b614e17866701ed4e18b1f439323fdadd584ee9160f2edd31351f51720ac39",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:c974d49e0784fecd",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "workspaces",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "workspaces"
+            }
+          },
+          "name": "workspaceId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "owner",
+        "id": "workspaceMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "workspaceId",
+        "resourceTable": "workspaces",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "workspaceMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "workspaces"
+            }
+          },
+          "name": "workspaceId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "workspaceId"
+          ],
+          "name": "by_workspace"
+        }
+      ],
+      "name": "notes",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

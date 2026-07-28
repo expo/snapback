@@ -1,0 +1,13 @@
+{
+  "tables": {
+    "serviceState": [
+      {
+        "_id": "service_api",
+        "serviceId": "api",
+        "status": "unknown",
+        "tickCount": 0,
+        "lastCheckedAt": 0
+      }
+    ]
+  }
+}

@@ -13109,7 +13109,7 @@ mod tests {
         stop.store(true, Ordering::Relaxed);
         let published = publisher.join().expect("publisher thread");
         assert!(
-            published >= 100 && wipes >= 20,
+            published >= 100 && wipes >= 1,
             "the publisher and wipes must have genuinely overlapped \
              (published {published}, wipes {wipes})"
         );

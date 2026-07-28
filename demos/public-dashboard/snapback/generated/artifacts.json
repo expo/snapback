@@ -1,0 +1,39 @@
+{
+  "appId": "public-dashboard",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "routes.manifest.json",
+    "operations/dashboardMetrics.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/dashboardMetrics.query.ts",
+    "contract/dashboardMetrics.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:9627bec233a83c87",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "public-dashboard:dashboardMetrics",
+      "kind": "LiveQuery",
+      "name": "dashboardMetrics"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "9dbaa35cd9d341647f0cfb5faa20babf27b4817b7af03018da49515d43703e41",
+  "schemaHash": "sha256:c929af1ce7a69e0f",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "metrics"
+  ]
+}

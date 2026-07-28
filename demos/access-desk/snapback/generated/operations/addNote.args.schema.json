@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/access-desk/addNote.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "workspaceId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspaceId",
+    "body"
+  ],
+  "title": "access-desk:addNote arguments",
+  "type": "object"
+}

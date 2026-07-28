@@ -1,0 +1,230 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "title"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "incidents",
+            "auditEntries"
+          ],
+          "writes": [
+            "incidents",
+            "auditEntries"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "reportIncident",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "incidentId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "incidentId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "auditEntries"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listAuditEntries",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "eventId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "incidentId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "kind": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "occurredAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "incidents"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listIncidents",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "eventId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "reportedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "status": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:16c720a947417eb7",
+    "inputsHash": "ce57bf16150a1227ef7331409582ad1c008080b03e71fe4fb96286b2576bae8d",
+    "schemaHash": "sha256:043d96b0edfb988c"
+  }
+}

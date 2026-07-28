@@ -1,0 +1,47 @@
+{
+  "app": {
+    "description": "A route-declared public snapshot bundle with parameter binding and resume tokens.",
+    "name": "Public Dashboard"
+  },
+  "appId": "public-dashboard",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "9dbaa35cd9d341647f0cfb5faa20babf27b4817b7af03018da49515d43703e41",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:c929af1ce7a69e0f",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "dashboardId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "label",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "value",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "dashboardId"
+          ],
+          "name": "by_dashboard"
+        }
+      ],
+      "name": "metrics",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

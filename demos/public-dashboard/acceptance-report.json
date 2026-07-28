@@ -1,0 +1,38 @@
+{
+  "title": "public-dashboard / headless",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "one ensure provisions schema, functions, seed, and routes",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "generated function certifies the public disclosure facts",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "anonymous deep link returns one snapshot bundle with resume token",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "route params select a different dashboard at one commit cut",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "an undeclared route is refused",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

@@ -1,0 +1,58 @@
+{
+  "appId": "pulse-monitor",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/applyProbe.args.schema.json",
+    "operations/liveServices.args.schema.json",
+    "operations/probeServices.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/applyProbe.mutation.ts",
+    "contract/applyProbe.mutation.contract-meta.ts",
+    "contract/liveServices.query.ts",
+    "contract/liveServices.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:1069ecd2910b8d53",
+  "config": [],
+  "cronJobs": [
+    {
+      "action": "probeServices",
+      "enabled": true,
+      "name": "monitorWhileViewed"
+    }
+  ],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "pulse-monitor:applyProbe",
+      "kind": "Mutation",
+      "name": "applyProbe"
+    },
+    {
+      "id": "pulse-monitor:liveServices",
+      "kind": "LiveQuery",
+      "name": "liveServices"
+    },
+    {
+      "id": "pulse-monitor:probeServices",
+      "kind": "Action",
+      "name": "probeServices"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "7c249712efa8d186808548294518ca0b7fba4a2389820a9fa396db2e2880ec71",
+  "schemaHash": "sha256:78e3f85b8ab4ad2b",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "serviceState"
+  ]
+}

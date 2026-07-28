@@ -4030,6 +4030,7 @@ export class SnapbackClient {
 
   query(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     return this.#req(
       'POST',
       `/query/${encodeURIComponent(name)}`,
@@ -4113,6 +4114,7 @@ export class SnapbackClient {
     authorityCapture = null,
   } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     const namespace = createLiveQueryNamespace(authorizationNamespace ?? {});
     if (typeof leaseRequestId !== 'string' || leaseRequestId.length === 0) {
       throw new TypeError('authorizedLeaseQuery requires leaseRequestId');
@@ -4130,6 +4132,7 @@ export class SnapbackClient {
 
   action(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     return this.#req(
       'POST',
       `/action/${encodeURIComponent(name)}`,
@@ -4158,6 +4161,7 @@ export class SnapbackClient {
     authorityCapture = null,
   } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
@@ -4212,6 +4216,7 @@ export class SnapbackClient {
     resumeFromToken = null,
   } = {}, externalBearerTransitionPermit = null) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
     const response = await this.#withGrant(connectionId, (grant) => {
@@ -8141,6 +8146,69 @@ function functionName(ref) {
     throw new TypeError(`Snapback function name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
   }
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
+}
+
+function validateGeneratedArguments(ref, args, name = functionName(ref)) {
+  if (
+    typeof ref !== 'object'
+    || ref === null
+    || ref.artifactKind !== 'functionReference'
+    || ref.argumentSchema == null
+  ) return;
+  const problems = [];
+  validateArgumentSchemaNode(ref.argumentSchema, args, 'args', problems);
+  if (problems.length === 0) return;
+  const diagnostic = {
+    code: 'SNAPBACK_ARGUMENT_VALIDATION_FAILED',
+    severity: 'error',
+    subsystem: 'client',
+    message: `arguments for ${name} do not match the generated operation schema`,
+    details: { function: name, problems },
+  };
+  const error = new TypeError(`${diagnostic.code}: ${diagnostic.message}`);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  throw error;
+}
+
+function validateArgumentSchemaNode(schema, value, path, problems) {
+  const type = schema?.type;
+  if (type === undefined) return;
+  if (type === 'object') {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      problems.push(`${path} must be an object`);
+      return;
+    }
+    const properties = schema.properties ?? {};
+    for (const required of schema.required ?? []) {
+      if (!Object.hasOwn(value, required) || value[required] === undefined) {
+        problems.push(`${path}.${required} is required`);
+      }
+    }
+    if (schema.additionalProperties === false) {
+      for (const key of Object.keys(value)) {
+        if (!Object.hasOwn(properties, key)) problems.push(`${path}.${key} is not declared`);
+      }
+    }
+    for (const [key, child] of Object.entries(properties)) {
+      if (Object.hasOwn(value, key) && value[key] !== undefined) {
+        validateArgumentSchemaNode(child, value[key], `${path}.${key}`, problems);
+      }
+    }
+    return;
+  }
+  if (type === 'string' && typeof value !== 'string') {
+    problems.push(`${path} must be a string`);
+  } else if (type === 'boolean' && typeof value !== 'boolean') {
+    problems.push(`${path} must be a boolean`);
+  } else if (
+    type === 'number'
+    && (typeof value !== 'number' || !Number.isFinite(value))
+  ) {
+    problems.push(`${path} must be a finite number`);
+  } else if (type === 'integer' && !Number.isSafeInteger(value)) {
+    problems.push(`${path} must be a safe integer`);
+  }
 }
 
 function collectionName(ref) {

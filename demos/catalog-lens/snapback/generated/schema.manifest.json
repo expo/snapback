@@ -1,0 +1,99 @@
+{
+  "app": {
+    "description": "Owner-scoped books joined to a public publisher dimension through a bounded relational query.",
+    "name": "Catalog Lens"
+  },
+  "appId": "catalog-lens",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "dev"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "b0a5df25fcfc5c4b179f67dcf13cb5b94461ac1d27ac0b95846f79c1caabc8ea",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:4a8520cc1f19026b",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "isbn",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "publisherSlug",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "createdAt"
+          ],
+          "name": "by_owner_created"
+        },
+        {
+          "fields": [
+            "ownerId",
+            "isbn"
+          ],
+          "name": "by_owner_isbn",
+          "unique": true
+        }
+      ],
+      "name": "books",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "country",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slug"
+          ],
+          "name": "by_slug",
+          "unique": true
+        }
+      ],
+      "name": "publishers",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

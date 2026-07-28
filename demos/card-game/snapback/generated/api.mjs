@@ -3,6 +3,26 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "acceptHandCard": {
     "appId": "card-game",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "card": {
+          "type": "string"
+        },
+        "gameId": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "gameId",
+        "position",
+        "card"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "card-game:acceptHandCard",
     "kind": "Mutation",
@@ -12,6 +32,18 @@ export const api = Object.freeze({
   "ephemeral": {},
   "myHand": {
     "appId": "card-game",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "gameId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "gameId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "card-game:myHand",
     "kind": "LiveQuery",
@@ -20,6 +52,22 @@ export const api = Object.freeze({
   },
   "signalReady": {
     "appId": "card-game",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "gameId": {
+          "type": "string"
+        },
+        "ready": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "gameId",
+        "ready"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "card-game:signalReady",
     "kind": "Mutation",

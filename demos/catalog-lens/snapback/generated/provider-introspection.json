@@ -1,0 +1,244 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": true,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": true,
+      "optimisticMutations": true,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "isbn": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "publisherSlug": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "isbn",
+            "title",
+            "publisherSlug"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "books"
+          ],
+          "writes": [
+            "books"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "Insert": {
+                    "bind_id_as": null,
+                    "table": "books",
+                    "values": {
+                      "createdAt": "RuntimeNow",
+                      "isbn": {
+                        "Arg": "isbn"
+                      },
+                      "ownerId": "AuthUserId",
+                      "publisherSlug": {
+                        "Arg": "publisherSlug"
+                      },
+                      "title": {
+                        "Arg": "title"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "addBook",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "country": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "slug",
+            "name",
+            "country"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "publishers"
+          ],
+          "writes": [
+            "publishers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "Insert": {
+                    "bind_id_as": null,
+                    "table": "publishers",
+                    "values": {
+                      "country": {
+                        "Arg": "country"
+                      },
+                      "name": {
+                        "Arg": "name"
+                      },
+                      "slug": {
+                        "Arg": "slug"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "addPublisher",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "cursor": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "cursor"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "books",
+            "publishers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "booksWithPublisher",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "isbn": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "publisherCountry": {
+                "name": "string",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "publisherName": {
+                "name": "string",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "publisherSlug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:8bbf04a2b595b517",
+    "inputsHash": "b0a5df25fcfc5c4b179f67dcf13cb5b94461ac1d27ac0b95846f79c1caabc8ea",
+    "schemaHash": "sha256:4a8520cc1f19026b"
+  }
+}

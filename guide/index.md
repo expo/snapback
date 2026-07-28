@@ -75,6 +75,8 @@ you never build around a feature because you didn't know it existed.
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.
+- [Route snapshot bundles](./realtime/snapshot-bundles.md) — one-commit page
+  boot, route manifests, resume tokens, and register-mode handoff.
 - [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
   collection options and key modes, overlays, recovery, and Contract links.
 

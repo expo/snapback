@@ -1,0 +1,22 @@
+{
+  "id": "dispatch-board",
+  "title": "Dispatch Board",
+  "description": "Incident intake with server-authored IDs, time, atomic audit writes, and owner-scoped live reads.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Runtime values", "Mutations", "Live queries", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "trustedRuntimeValues": true,
+    "liveSubscriptions": true
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/dispatch-board/tests/acceptance/headless.mjs"
+    }
+  },
+  "notClaiming": ["notifications", "durable background delivery", "general audit subsystem"]
+}

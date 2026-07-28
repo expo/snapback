@@ -16,6 +16,7 @@
     "check:package-tests": "node scripts/check-package-test-inventory.mjs",
     "check:types": "scripts/check-generated-types",
     "check:surfaces": "scripts/check-demo-surfaces",
+    "workout": "node scripts/run-workout-apps.mjs",
     "verify": "scripts/verify-local-proof",
     "cf:accept": "node cloudflare/test/local-suite.mjs",
     "cf:index-scaling": "node cloudflare/test/index-scaling.mjs",

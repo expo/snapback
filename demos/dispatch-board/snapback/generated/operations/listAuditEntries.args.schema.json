@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/dispatch-board/listAuditEntries.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "incidentId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "incidentId"
+  ],
+  "title": "dispatch-board:listAuditEntries arguments",
+  "type": "object"
+}

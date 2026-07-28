@@ -1,0 +1,53 @@
+{
+  "app": {
+    "description": "Demand-gated scheduled action to mutation to live-query delivery.",
+    "name": "Pulse Monitor"
+  },
+  "appId": "pulse-monitor",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "7c249712efa8d186808548294518ca0b7fba4a2389820a9fa396db2e2880ec71",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:78e3f85b8ab4ad2b",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "serviceId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "tickCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "lastCheckedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "serviceId"
+          ],
+          "name": "by_service",
+          "unique": true
+        }
+      ],
+      "name": "serviceState",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

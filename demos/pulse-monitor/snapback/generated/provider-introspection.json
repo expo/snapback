@@ -1,0 +1,141 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "serviceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "serviceId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "serviceState"
+          ],
+          "writes": [
+            "serviceState"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "applyProbe",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "serviceState"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "liveServices",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "lastCheckedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "serviceId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "status": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "tickCount": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:1069ecd2910b8d53",
+    "inputsHash": "7c249712efa8d186808548294518ca0b7fba4a2389820a9fa396db2e2880ec71",
+    "schemaHash": "sha256:78e3f85b8ab4ad2b"
+  }
+}

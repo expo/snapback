@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/catalog-lens/addBook.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "isbn": {
+      "type": "string"
+    },
+    "publisherSlug": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "isbn",
+    "title",
+    "publisherSlug"
+  ],
+  "title": "catalog-lens:addBook arguments",
+  "type": "object"
+}

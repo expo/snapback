@@ -3,6 +3,26 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "applyReplyProgress": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "delta": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attemptId",
+        "sequence",
+        "delta"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:applyReplyProgress",
     "kind": "Mutation",
@@ -11,6 +31,18 @@ export const api = Object.freeze({
   },
   "cancelReply": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attemptId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:cancelReply",
     "kind": "Mutation",
@@ -19,6 +51,26 @@ export const api = Object.freeze({
   },
   "completeReply": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "tail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attemptId",
+        "sequence",
+        "tail"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:completeReply",
     "kind": "Mutation",
@@ -27,6 +79,18 @@ export const api = Object.freeze({
   },
   "conversationBySlug": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "slug": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:conversationBySlug",
     "kind": "LiveQuery",
@@ -35,6 +99,15 @@ export const api = Object.freeze({
   },
   "conversationsWithModel": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:conversationsWithModel",
     "kind": "LiveQuery",
@@ -43,6 +116,26 @@ export const api = Object.freeze({
   },
   "createConversation": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "title",
+        "model"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:createConversation",
     "kind": "Mutation",
@@ -51,6 +144,18 @@ export const api = Object.freeze({
   },
   "deleteConversation": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:deleteConversation",
     "kind": "Mutation",
@@ -60,6 +165,11 @@ export const api = Object.freeze({
   "ephemeral": {},
   "firstConversationPage": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:firstConversationPage",
     "kind": "LiveQuery",
@@ -68,6 +178,18 @@ export const api = Object.freeze({
   },
   "getConversation": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:getConversation",
     "kind": "LiveQuery",
@@ -76,6 +198,11 @@ export const api = Object.freeze({
   },
   "listConversationCards": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listConversationCards",
     "kind": "LiveQuery",
@@ -84,6 +211,11 @@ export const api = Object.freeze({
   },
   "listConversations": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listConversations",
     "kind": "LiveQuery",
@@ -92,6 +224,18 @@ export const api = Object.freeze({
   },
   "listMessages": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "conversationId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listMessages",
     "kind": "LiveQuery",
@@ -100,6 +244,18 @@ export const api = Object.freeze({
   },
   "nextConversationPage": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "after"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:nextConversationPage",
     "kind": "LiveQuery",
@@ -108,6 +264,25 @@ export const api = Object.freeze({
   },
   "registerModel": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "displayName"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:registerModel",
     "kind": "Mutation",
@@ -116,6 +291,22 @@ export const api = Object.freeze({
   },
   "settleReply": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attemptId",
+        "status"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:settleReply",
     "kind": "Mutation",
@@ -124,6 +315,26 @@ export const api = Object.freeze({
   },
   "startReply": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "conversationId": {
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversationId",
+        "content",
+        "idempotencyKey"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:startReply",
     "kind": "Mutation",
@@ -132,6 +343,30 @@ export const api = Object.freeze({
   },
   "streamReply": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "streamUrl": {
+          "type": "string"
+        },
+        "upstreamIdempotent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "attemptId",
+        "streamUrl",
+        "method",
+        "upstreamIdempotent"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:streamReply",
     "kind": "Action",
@@ -140,6 +375,26 @@ export const api = Object.freeze({
   },
   "updateConversation": {
     "appId": "competitive-checkpoint",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "model"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:updateConversation",
     "kind": "Mutation",

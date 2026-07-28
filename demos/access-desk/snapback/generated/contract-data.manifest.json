@@ -1,0 +1,162 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:4bb2ea69c3c21164",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "c1b614e17866701ed4e18b1f439323fdadd584ee9160f2edd31351f51720ac39",
+  "manifestVersion": 2,
+  "mutations": {
+    "addMember": {
+      "argOrder": [
+        "workspaceId",
+        "userId"
+      ],
+      "args": {
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "workspaceId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "workspaceMembers"
+      ],
+      "name": "addMember",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "workspaceMembers"
+      ]
+    },
+    "addNote": {
+      "argOrder": [
+        "workspaceId",
+        "body"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "workspaceId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "notes"
+      ],
+      "name": "addNote",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "notes"
+      ]
+    },
+    "createWorkspace": {
+      "argOrder": [
+        "name"
+      ],
+      "args": {
+        "name": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "workspaces",
+        "workspaceMembers"
+      ],
+      "name": "createWorkspace",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "workspaces",
+        "workspaceMembers"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "workspaceNotes": {
+      "argOrder": [
+        "workspaceId"
+      ],
+      "args": {
+        "workspaceId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "workspaceNotes",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "notes",
+        "workspaceMembers"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:c974d49e0784fecd",
+  "schemaVersion": "snapback.v0"
+}

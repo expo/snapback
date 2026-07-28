@@ -1599,7 +1599,7 @@ impl ResumeKeyring {
                     .map(|retired_at| (retired_at, key.key_id.clone()))
             })
             .collect();
-        retired.sort_by(|a, b| b.0.cmp(&a.0));
+        retired.sort_by_key(|entry| std::cmp::Reverse(entry.0));
         let keep: Vec<&String> = retired
             .iter()
             .take(RESUME_KEY_RETIRED_OVERLAP_KEYS)
