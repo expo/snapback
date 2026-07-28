@@ -26,14 +26,13 @@ fn main() -> anyhow::Result<()> {
         report.vm_cost_us
     );
     println!(
-        "    of which VM creation:            {:>10.1} µs   ({:.0}% — what a warm VM avoids; rest is eval)",
+        "    of which VM creation:            {:>10.1} µs   ({:.0}% of fresh invocation)",
         report.vm_create_us,
         100.0 * report.vm_create_us / report.vm_cost_us.max(1.0)
     );
     println!(
-        "  warm-path invocation (DK-4):       {:>10.1} µs   (invoke IIFE + reset sweep; {:.1}x cheaper than fresh)",
-        report.warm_invoke_us,
-        report.vm_cost_us / report.warm_invoke_us.max(1.0)
+        "  legacy DK-4 metric field:          {:>10.1} µs   (fresh-path compatibility sample)",
+        report.warm_invoke_us
     );
     println!(
         "  single-writer throughput:          {:>10.0} mut/s (serial commits under the global mutex)",

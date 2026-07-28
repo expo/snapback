@@ -497,9 +497,57 @@ pub(crate) struct HermesRuntimeOpaque {
     _private: [u8; 0],
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct HermesValueHandle {
+    runtime_nonce: u64,
+    handle_id: u64,
+}
+
+#[repr(C)]
+struct HermesOwnedBytes {
+    data: *mut u8,
+    length: usize,
+}
+
+#[repr(C)]
+struct HermesAsyncFailureEvent {
+    abi_version: u32,
+    struct_size: u32,
+    kind: u32,
+    principal_status: u32,
+    value: HermesValueHandle,
+    host_context_id: u64,
+    owning_principal_id: u64,
+    event_id: u64,
+    associated_evaluation: u64,
+    dropped_count: u64,
+}
+
+impl HermesAsyncFailureEvent {
+    fn current() -> Self {
+        Self {
+            abi_version: 1,
+            struct_size: std::mem::size_of::<Self>() as u32,
+            kind: 0,
+            principal_status: 0,
+            value: HermesValueHandle {
+                runtime_nonce: 0,
+                handle_id: 0,
+            },
+            host_context_id: 0,
+            owning_principal_id: 0,
+            event_id: 0,
+            associated_evaluation: 0,
+            dropped_count: 0,
+        }
+    }
+}
+
 unsafe extern "C" {
     fn ex_hermes_create_no_eval() -> *mut HermesRuntimeOpaque;
     fn ex_hermes_destroy(runtime: *mut HermesRuntimeOpaque);
+    fn ex_hermes_runtime_nonce(runtime: *mut HermesRuntimeOpaque) -> u64;
     fn ex_hermes_eval(
         runtime: *mut HermesRuntimeOpaque,
         data: *const u8,
@@ -510,6 +558,29 @@ unsafe extern "C" {
     ) -> c_int;
     fn ex_hermes_watch_time_limit(runtime: *mut HermesRuntimeOpaque, timeout_ms: u32) -> c_int;
     fn ex_hermes_unwatch_time_limit(runtime: *mut HermesRuntimeOpaque);
+    fn ex_hermes_interrupt_eval(runtime: *mut HermesRuntimeOpaque, runtime_nonce: u64) -> c_int;
+    fn ex_hermes_take_async_failure_event(
+        runtime: *mut HermesRuntimeOpaque,
+        event: *mut HermesAsyncFailureEvent,
+    ) -> u32;
+    fn ex_hermes_value_kind(runtime: *mut HermesRuntimeOpaque, handle: HermesValueHandle) -> u32;
+    fn ex_hermes_value_stage1_text(
+        runtime: *mut HermesRuntimeOpaque,
+        handle: HermesValueHandle,
+        out_data: *mut *mut u8,
+        out_length: *mut usize,
+        out_truncated: *mut u32,
+    ) -> u32;
+    fn ex_hermes_value_safe_throw_metadata(
+        runtime: *mut HermesRuntimeOpaque,
+        handle: HermesValueHandle,
+        metadata_fields: *mut u32,
+        error_class: *mut u32,
+        message: *mut HermesOwnedBytes,
+        stack: *mut HermesOwnedBytes,
+    ) -> u32;
+    fn ex_hermes_value_release(runtime: *mut HermesRuntimeOpaque, handle: HermesValueHandle)
+    -> u32;
     fn ex_hermes_free_string(value: *mut c_char);
     fn ex_hermes_set_host_call(
         runtime: *mut HermesRuntimeOpaque,
@@ -523,18 +594,20 @@ pub(crate) struct RuntimeGuard {
 }
 
 struct RuntimeInterrupt {
-    runtime: StdMutex<Option<usize>>,
+    runtime: StdMutex<Option<(usize, u64)>>,
 }
 
 impl RuntimeInterrupt {
     fn signal(&self) {
         let runtime = self.runtime.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some(runtime) = *runtime {
-            // The vendored Hermes watcher is the same asynchronous engine
-            // interrupt used by action deadlines. One millisecond is the
-            // smallest supported bound; epoch checks still own effect denial.
+        if let Some((runtime, runtime_nonce)) = *runtime {
+            // Hermes documents watchTimeLimit as owner-thread-only. Cancellation
+            // can arrive from another thread, so carry the generation captured
+            // while this runtime was live and use Ibex's authenticated
+            // any-thread async-break seam.
+            // @ref LLP 0009#resource-limits
             unsafe {
-                ex_hermes_watch_time_limit(runtime as *mut HermesRuntimeOpaque, 1);
+                ex_hermes_interrupt_eval(runtime as *mut HermesRuntimeOpaque, runtime_nonce);
             }
         }
     }
@@ -580,11 +653,20 @@ impl RuntimeGuard {
                 "Ibex runtime could not be created",
             ));
         }
+        let runtime_nonce = unsafe { ex_hermes_runtime_nonce(runtime) };
+        if runtime_nonce == 0 {
+            unsafe { ex_hermes_destroy(runtime) };
+            return Err(SnapbackError::error(
+                "SNAPBACK_RUNTIME_CREATE_FAILED",
+                "runtime",
+                "Ibex runtime identity could not be captured",
+            ));
+        }
         unsafe { ex_hermes_set_host_call(runtime, snapback_host_call) };
         Ok(Self {
             runtime,
             interrupt: Arc::new(RuntimeInterrupt {
-                runtime: StdMutex::new(Some(runtime as usize)),
+                runtime: StdMutex::new(Some((runtime as usize, runtime_nonce))),
             }),
         })
     }
@@ -630,7 +712,7 @@ impl Drop for RuntimeGuard {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take();
-        if let Some(runtime) = runtime {
+        if let Some((runtime, _runtime_nonce)) = runtime {
             unsafe { ex_hermes_destroy(runtime as *mut HermesRuntimeOpaque) };
         }
     }
@@ -2066,19 +2148,6 @@ pub(crate) fn dispatch_host_call(
     result
 }
 
-/// Test seam for the DK-4 keying invariant: the warm pool keys by module
-/// source alone, which is sound only while the query and mutation ambient
-/// restriction texts are identical.
-#[cfg(test)]
-pub(crate) fn ambient_restriction_source_for_tests(mutation: bool, outbound: bool) -> String {
-    let mode = if mutation {
-        IbexInvocationMode::Mutation
-    } else {
-        IbexInvocationMode::Query
-    };
-    ambient_restriction_source(mode, outbound)
-}
-
 thread_local! {
     static CURRENT_IBEX_HOST_CONTEXT: RefCell<*mut c_void> = const { RefCell::new(ptr::null_mut()) };
 }
@@ -2120,18 +2189,12 @@ fn run_ibex_handler_with_context_until(
             .validate("workerd runtime completion")?;
         return output;
     }
-    // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
-    // scope fences: only queries and mutations take the warm path; actions
-    // always run fresh (secrets/cron/egress powers, and keeping the outer
-    // invocation of the only nested shape — action→mutation — off the pool
-    // makes checkout re-entrancy-proof). Hosted/untrusted is untouched: no
-    // pool handle, no warm path.
-    if let Some(pool) = pool
-        && !matches!(invocation.mode, IbexInvocationMode::Action)
-        && pool.enabled()
-    {
-        return run_warm_handler_with_context(module, invocation, pool);
-    }
+    // @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 —
+    // Snapback workers may change OS threads between invocations, while an
+    // upstream Ibex runtime must be evaluated and destroyed on its creating
+    // thread. The lifecycle policy therefore keeps `enabled()` false and this
+    // target always takes the fresh path.
+    let _ = pool;
 
     let runtime = RuntimeGuard::create()?;
     let cancellation = runtime.interrupt_on(&invocation.admission);
@@ -2264,113 +2327,212 @@ fn remaining_deadline_ms(deadline: Instant) -> SnapbackResult<u32> {
     Ok(rounded_up_ms.clamp(1, u128::from(u32::MAX)) as u32)
 }
 
-/// The DK-4 warm path: check out a VM keyed by the exact module source, run
-/// the setup eval once per VM (inside the invocation's host-context window,
-/// so first-invocation module top-level host calls match the fresh path),
-/// eval only the small invoke IIFE per invocation, then let the pool's
-/// reset-and-verify decide whether the VM survives. Any eval error burns the
-/// VM (drop = destroy); fresh-per-invocation is always the fallback.
-///
-/// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — warm structure.
-fn run_warm_handler_with_context(
-    module: &IbexModule,
-    invocation: &mut IbexHostContext<'_>,
-    pool: &WarmVmPool,
-) -> SnapbackResult<Value> {
-    let mut vm = pool.checkout(&module.source)?;
-    let cancellation = vm.interrupt_on(&invocation.admission);
-    let iife = invocation_iife_source(module, invocation)?;
-
-    // S5.D1: same save/restore stack as the fresh path. The reset eval below
-    // runs *after* the restore — its source is a fixed string that makes no
-    // host calls, so it can never observe a stale or outer context.
-    let previous_context = CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
-        let previous = *slot.borrow();
-        *slot.borrow_mut() = invocation as *mut IbexHostContext<'_> as *mut c_void;
-        previous
-    });
-    let eval_result = (|| {
-        if !vm.is_set_up() {
-            eval(
-                vm.runtime(),
-                crate::warm_vm::WARM_SETUP_SOURCE_URL,
-                &warm_setup_source(module),
-            )?;
-            vm.mark_set_up();
-        }
-        eval(vm.runtime(), &module.export, &iife)
-    })();
-    CURRENT_IBEX_HOST_CONTEXT.with(|slot| {
-        *slot.borrow_mut() = previous_context;
-    });
-    drop(cancellation);
-    if let Err(cancelled) = invocation.admission.validate("warm runtime completion") {
-        drop(vm);
-        return Err(cancelled);
-    }
-
-    match eval_result {
-        Ok(output) => match inspect_unhandled_rejections(vm.runtime()) {
-            Ok(rejections) => {
-                if !rejections.is_empty() {
-                    // The ledger is intentionally non-destructive so handler
-                    // code cannot drain it. A VM that observed an unhandled
-                    // rejection is therefore burned, never pooled with stale
-                    // control-plane state.
-                    drop(vm);
-                    return Err(unhandled_rejection_error(module, rejections));
-                }
-                pool.reset_and_check_in(vm);
-                parse_handler_output(module, output)
-            }
-            Err(error) => {
-                drop(vm); // burn: the sweep eval itself failed, state untrusted
-                Err(error)
-            }
-        },
-        Err(error) => {
-            drop(vm); // burn: an errored eval's VM state is not trusted
-            Err(error)
-        }
-    }
-}
-
-/// Post-eval sweep of the bootstrap's unhandled-rejection ledger (ENG-23361).
-/// Runs after `ex_hermes_eval` returned, i.e. after the *full* microtask
-/// drain — so it also observes detached chains that rejected after the
-/// invocation promise settled, which an in-IIFE check would miss. The source
-/// is a fixed string that makes no host calls, so (like the warm reset eval)
-/// it runs outside the host-context window.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RejectionInspection {
-    supported: bool,
-    rejections: Vec<String>,
-}
-
+/// Post-eval drain of Ibex's native asynchronous-failure queue (ENG-23361).
+/// `ex_hermes_eval` reaches a full microtask checkpoint before returning, so
+/// this also observes detached chains that reject after the invocation promise
+/// settles. Values remain rooted and are rendered through trap-free native
+/// inspection; handler code cannot inspect, forge, or drain this queue.
+/// @ref LLP 0009#harness-control-plane-boundary
 fn inspect_unhandled_rejections(runtime: *mut HermesRuntimeOpaque) -> SnapbackResult<Vec<String>> {
-    const INSPECT_SOURCE: &str = r#"(function() {
-  var inspect = globalThis.__snapbackInspectUnhandledRejections;
-  if (typeof inspect !== "function") { throw new Error("rejection inspection missing"); }
-  return inspect();
-})()"#;
-    let output = eval(runtime, "<snapback-rejection-inspection>", INSPECT_SOURCE)?;
-    let report: RejectionInspection = serde_json::from_str(&output).map_err(|error| {
-        SnapbackError::error(
-            "SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID",
-            "runtime",
-            "the trusted rejection inspection returned malformed data; the invocation failed closed",
-        )
-        .with_details(json!({ "error": error.to_string() }))
-    })?;
-    if !report.supported {
-        return Err(SnapbackError::error(
-            "SNAPBACK_HANDLER_REJECTION_DETECTION_UNAVAILABLE",
-            "runtime",
-            "unhandled-rejection detection is unavailable; the invocation failed closed",
-        ));
+    const EMPTY: u32 = 0;
+    const AVAILABLE: u32 = 1;
+    const DROPPED: u32 = 2;
+    let mut rejections = Vec::new();
+    loop {
+        let mut event = HermesAsyncFailureEvent::current();
+        match unsafe { ex_hermes_take_async_failure_event(runtime, &mut event) } {
+            EMPTY => return Ok(rejections),
+            AVAILABLE => {
+                if event.abi_version != 1
+                    || event.struct_size != std::mem::size_of::<HermesAsyncFailureEvent>() as u32
+                    || event.value.runtime_nonce == 0
+                    || event.value.handle_id == 0
+                {
+                    if event.value.runtime_nonce != 0 && event.value.handle_id != 0 {
+                        unsafe {
+                            ex_hermes_value_release(runtime, event.value);
+                        }
+                    }
+                    return Err(rejection_inspection_invalid(
+                        "Ibex returned a malformed asynchronous-failure event",
+                    ));
+                }
+                rejections.push(render_and_release_async_failure(runtime, event.value)?);
+            }
+            DROPPED => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_HANDLER_REJECTION_DETECTION_UNAVAILABLE",
+                    "runtime",
+                    "Ibex's asynchronous-failure queue overflowed; the invocation failed closed",
+                )
+                .with_details(json!({ "droppedCount": event.dropped_count })));
+            }
+            status => {
+                return Err(rejection_inspection_invalid(
+                    "Ibex asynchronous-failure publication failed",
+                )
+                .with_details(json!({ "status": status })));
+            }
+        }
     }
-    Ok(report.rejections)
+}
+
+fn rejection_inspection_invalid(message: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID",
+        "runtime",
+        format!("{message}; the invocation failed closed"),
+    )
+}
+
+fn render_and_release_async_failure(
+    runtime: *mut HermesRuntimeOpaque,
+    handle: HermesValueHandle,
+) -> SnapbackResult<String> {
+    let rendered = render_async_failure(runtime, handle);
+    let released = unsafe { ex_hermes_value_release(runtime, handle) };
+    match (rendered, released) {
+        (Ok(reason), 0) => Ok(reason),
+        (Err(message), _) => Err(rejection_inspection_invalid(&message)),
+        (Ok(_), fault) => Err(rejection_inspection_invalid(
+            "Ibex could not release an asynchronous-failure value",
+        )
+        .with_details(json!({ "fault": fault }))),
+    }
+}
+
+fn render_async_failure(
+    runtime: *mut HermesRuntimeOpaque,
+    handle: HermesValueHandle,
+) -> Result<String, String> {
+    const THROW_FIELD_MESSAGE: u32 = 1 << 0;
+    const VALUE_INVALID: u32 = 0;
+    const VALUE_FUNCTION: u32 = 8;
+    const VALUE_OBJECT: u32 = 9;
+    const VALUE_ARRAY: u32 = 10;
+    const SAFE_TEXT_MAX_BYTES: usize = 16_384;
+
+    let mut metadata_fields = 0;
+    let mut error_class = 0;
+    let mut message = HermesOwnedBytes {
+        data: ptr::null_mut(),
+        length: 0,
+    };
+    let mut stack = HermesOwnedBytes {
+        data: ptr::null_mut(),
+        length: 0,
+    };
+    let metadata_fault = unsafe {
+        ex_hermes_value_safe_throw_metadata(
+            runtime,
+            handle,
+            &mut metadata_fields,
+            &mut error_class,
+            &mut message,
+            &mut stack,
+        )
+    };
+    let decoded_message = if metadata_fault == 0 && metadata_fields & THROW_FIELD_MESSAGE != 0 {
+        copy_native_utf8(
+            message.data,
+            message.length,
+            SAFE_TEXT_MAX_BYTES,
+            "error message",
+        )
+    } else if metadata_fault == 0 {
+        Ok(None)
+    } else {
+        Err(format!(
+            "Ibex safe throw inspection failed with fault {metadata_fault}"
+        ))
+    };
+    unsafe {
+        ex_hermes_free_string(message.data.cast());
+        ex_hermes_free_string(stack.data.cast());
+    }
+    if let Some(message) = decoded_message? {
+        if !message.is_empty() {
+            return Ok(message);
+        }
+        if error_class != 0 {
+            return Ok(error_class_name(error_class).to_owned());
+        }
+    }
+
+    let kind = unsafe { ex_hermes_value_kind(runtime, handle) };
+    if kind == VALUE_INVALID {
+        return Err("Ibex returned a stale asynchronous-failure value".to_owned());
+    }
+    if matches!(kind, VALUE_FUNCTION | VALUE_OBJECT | VALUE_ARRAY) {
+        return Ok("unserializable rejection reason".to_owned());
+    }
+
+    let mut data = ptr::null_mut();
+    let mut length = 0;
+    let mut truncated = 0;
+    let fault = unsafe {
+        ex_hermes_value_stage1_text(runtime, handle, &mut data, &mut length, &mut truncated)
+    };
+    let text = if fault != 0 {
+        Err(format!(
+            "Ibex primitive rejection inspection failed with fault {fault}"
+        ))
+    } else if truncated > 1 {
+        Err("Ibex primitive rejection inspection returned an invalid truncation flag".to_owned())
+    } else {
+        copy_native_utf8(
+            data,
+            length,
+            SAFE_TEXT_MAX_BYTES,
+            "primitive rejection reason",
+        )
+        .and_then(|value| {
+            value
+                .ok_or_else(|| "Ibex primitive rejection inspection omitted its payload".to_owned())
+        })
+    };
+    unsafe {
+        ex_hermes_free_string(data.cast());
+    }
+    text
+}
+
+fn copy_native_utf8(
+    data: *mut u8,
+    length: usize,
+    maximum: usize,
+    label: &str,
+) -> Result<Option<String>, String> {
+    if data.is_null() {
+        return if length == 0 {
+            Ok(None)
+        } else {
+            Err(format!("Ibex {label} returned a null non-empty payload"))
+        };
+    }
+    if length > maximum {
+        return Err(format!("Ibex {label} exceeded the {maximum}-byte bound"));
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(data, length) };
+    std::str::from_utf8(bytes)
+        .map(|text| Some(text.to_owned()))
+        .map_err(|_| format!("Ibex {label} was not valid UTF-8"))
+}
+
+fn error_class_name(error_class: u32) -> &'static str {
+    match error_class {
+        1 => "Error",
+        2 => "AggregateError",
+        3 => "EvalError",
+        4 => "RangeError",
+        5 => "ReferenceError",
+        6 => "SyntaxError",
+        7 => "TypeError",
+        8 => "URIError",
+        9 => "TimeoutError",
+        10 => "QuitError",
+        _ => "Error",
+    }
 }
 
 /// A handler that completes while a detached promise chain it spawned
@@ -2679,24 +2841,6 @@ fn invocation_iife_source(
     )
 }
 
-/// The once-per-VM warm setup eval: ambient restriction + ctx bootstrap +
-/// module source + the reset installer (which captures the post-setup
-/// baseline). The ambient text is the query/mutation deny set — identical for
-/// both warm modes (pinned by `dk4_query_and_mutation_share_one_ambient_restriction`);
-/// actions, whose ambient differs, never take this path.
-///
-/// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — keying.
-fn warm_setup_source(module: &IbexModule) -> String {
-    format!(
-        "{}\n{}\n{}\n{}\n{}",
-        ambient_restriction_source(IbexInvocationMode::Query, outbound_actions_enabled()),
-        allowlist_install_source(),
-        ctx_bootstrap_source(),
-        module.source,
-        crate::warm_vm::RESET_INSTALL_SOURCE,
-    )
-}
-
 /// Outbound action egress is opt-in and off by default. When enabled, an ACTION
 /// (only) keeps `fetch` + timers and is granted `network:fetch`; queries and
 /// mutations stay fully denied. This is the [LLP 0027#external-data-and-action-egress]
@@ -2843,7 +2987,14 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
             denials.push_str(&format!(
                 "  try {{ Object.defineProperty(g, \"{name}\", {{ value: deny(\"{name}\"), configurable: false, writable: false }}); }} catch (_) {{}}\n"
             ));
-            probed.push(name);
+            // Current Ibex seals the engine-provided eval global before the
+            // restricted consumer constructor returns, so Snapback cannot
+            // always replace that property with its own denier. The fixed
+            // dynamic-code corpus below executes valid source through both
+            // direct and indirect eval instead; either survivor fails closed.
+            if name != "eval" {
+                probed.push(name);
+            }
         }
     }
     // The deterministic tier (queries/mutations) additionally denies the
@@ -2888,8 +3039,9 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
     // constructor route before application source evaluates so a stale engine
     // artifact, including the historical `Function("return this")` fast path,
     // fails invocation setup rather than exposing a compiler to the handler.
-    // Direct/indirect eval is covered by the ordinary denied-global probe.
     let dynamic_code_probe = r#"  [
+    ["direct eval", function() { return eval("1"); }],
+    ["indirect eval", function() { return (0, eval)("1"); }],
     ["Function", function() { return g.Function("return 1"); }],
     ["Function(return this)", function() { return g.Function("return this"); }],
     ["Function(return this whitespace)", function() { return g.Function("  return this;  "); }],

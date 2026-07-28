@@ -4142,13 +4142,12 @@ pub struct CapabilityManifest {
     pub resource_limits: Vec<ResourceLimit>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
     pub capability_gaps: Vec<String>,
-    /// VM lifecycle for handler execution: `"fresh-per-invocation"` (the
-    /// durable default and the only hosted posture) or `"warm-pooled-reset"`
-    /// (the DK-4 trusted-local optimization — VM reuse per bundle behind a
-    /// verified per-invocation reset). Surfaced so LLP 0012's honesty rule
-    /// holds: an agent can see which execution semantics are in force.
+    /// VM lifecycle for handler execution. Current targets report
+    /// `"fresh-per-invocation"`; `"warm-pooled-reset"` remains a recognized
+    /// historical value for compatibility with older artifacts. Surfaced so
+    /// LLP 0012's honesty rule holds.
     ///
-    /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — capability flag.
+    /// @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 — lifecycle truthfulness.
     #[serde(
         rename = "vmLifecycle",
         alias = "vm_lifecycle",
@@ -4487,8 +4486,8 @@ impl CapabilityManifest {
                 },
             ],
             capability_gaps,
-            // Conservative default; `LocalSnapback::inspect` overrides it
-            // with the live per-instance value (warm pool enabled or not).
+            // Current Ibex is owner-thread-affine, so every target uses the
+            // conservative fresh-per-invocation lifecycle.
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };

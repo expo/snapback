@@ -32979,10 +32979,6 @@ globalThis.__snapbackHandlers = {
             "suffix of the __SNAPBACK_EXPORT__ embedded-runtime placeholder",
         ),
         (
-            "SNAPBACK_FRESH_VM",
-            "environment variable opting out of the warm VM pool",
-        ),
-        (
             "SNAPBACK_HANDLER_BACKEND",
             "environment variable selecting the handler backend",
         ),

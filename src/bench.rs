@@ -78,17 +78,15 @@ pub struct BenchReport {
     /// definition). Drives DK-4.
     pub vm_cost_us: f64,
     /// Of the VM cost, the *creation* portion (`ex_hermes_create` + wiring +
-    /// drop, host install cached). What a warm VM avoids; the remainder is
-    /// eval (the handler run itself, which a warm VM still does but without
-    /// re-parsing the module).
+    /// drop, host install cached). Retained to make the cost of the required
+    /// fresh-runtime lifecycle visible.
     pub vm_create_us: f64,
-    /// Per-invocation cost on the DK-4 warm path (default-on): eval of the
-    /// small invoke IIFE plus the per-invocation reset sweep, no VM create,
-    /// no module re-parse. The probe is an ordinary finite query because
-    /// auth-scoped live queries deliberately use the protected fresh-realm
-    /// profile. Compare against `vm_cost_us` for the warm win.
+    /// A second steady-state sample of the ordinary finite-query invocation
+    /// path. The field name is retained for benchmark JSON compatibility after
+    /// DK-4 retirement; it now includes fresh runtime creation just like
+    /// `vm_cost_us`.
     ///
-    /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — proof: re-measure.
+    /// @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 — compatibility metric.
     pub warm_invoke_us: f64,
     /// Single-writer throughput: sequential `createTodo` mutations per second.
     /// Because every mutation serializes on the global instance mutex, this is
@@ -326,8 +324,7 @@ fn args(value: Value) -> HandlerInput {
 
 fn measure_vm_cost(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
     let snapback = configured()?;
-    // This metric is defined as the *fresh* per-invocation cost; keep that
-    // definition by forcing the fresh path (the warm path has its own metric).
+    // This metric is defined as the fresh per-invocation cost.
     snapback.set_warm_vms_enabled(false);
     // Warm up (first eval pays one-time costs the steady state should not).
     for _ in 0..4 {
@@ -340,12 +337,9 @@ fn measure_vm_cost(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f6
     Ok(micros_per(start, config.iterations))
 }
 
-/// The DK-4 warm-path per-invocation cost: the same trivial no-data finite
-/// query as `vm_cost_us`, but through the default warm pool — invoke-IIFE eval
-/// plus the reset sweep, no create, no module re-parse. The finite-query kind
-/// matters: auth-scoped live queries intentionally use a protected fresh
-/// realm. The warm-up pays the one-time VM setup so repeat eligible
-/// invocations reach steady state.
+/// Compatibility sample for the former DK-4 metric. Current Ibex requires
+/// owner-thread-affine runtimes, so this measures the same fresh-runtime
+/// finite-query path without forcing any lifecycle toggle.
 fn measure_warm_invoke(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
     let snapback = configured()?;
     for _ in 0..4 {
@@ -1013,17 +1007,9 @@ mod tests {
             "{report:?}"
         );
         ensure!(report.vm_create_us >= 0.0, "{report:?}");
-        // DK-4: the warm path must be meaningfully cheaper than a fresh VM —
-        // if it regressed to fresh (silent fallback, broken reset burning
-        // every VM) the ratio collapses toward 1.0 and this catches it. The
-        // 0.75 bound is loose; the architectural gap (no create, no module
-        // re-parse) is several-fold. Both metrics invoke the same ordinary
-        // finite query; only the fresh measurement disables the pool. That
-        // keeps the comparison on DK-4's eligible path while protected live
-        // queries continue to get their intentional fresh realm.
         ensure!(
-            report.warm_invoke_us > 0.0 && report.warm_invoke_us < report.vm_cost_us * 0.75,
-            "warm invocation must beat the fresh path decisively: {report:?}"
+            report.warm_invoke_us > 0.0 && report.warm_invoke_us < 1_000_000.0,
+            "{report:?}"
         );
         ensure!(report.single_writer_mutations_per_sec > 1.0, "{report:?}");
         ensure!(report.matcher_skip_us_per_sub >= 0.0, "{report:?}");
