@@ -5499,7 +5499,7 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:959597bf5ceee2422cf5e3ac3eb98a42e5d5e547c15443c83bb8a31fcda6bb09";
+    "sha256:af304214a6888c3884560661b4f3c9695976bccbc60bc34e66e5eca1837676a0";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 
@@ -5558,12 +5558,12 @@ fn local_relation_activity_publication_verified() -> bool {
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:e8f931fbc4dda51c8a4d775390760b008cda9c86d4008d1807953e2615997bed"
+                    "sha256:9f63775465f1f2f030d93b3dfd20a32b4e4d584642e7213b3b236da9ad7c769d"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:b9b33f239ec7e0fa288586c14207da7732f011bafbfbcfde831a57b736cf9bcf"
+                    "sha256:f637f9fdee2b28c224923d55d41016cbe4b1eb68f91138051004a3f102879e8f"
                         .to_owned(),
                 ),
             ])
