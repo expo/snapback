@@ -129,4 +129,35 @@
 - OpenAI reviewer: fresh Codex CLI 0.145.0 session,
   `gpt-5.6-sol`, reasoning effort `ultra`, read-only sandbox.
 - Round budget: final round 3 of 3. Launch cap remains 6 attempts per family.
-- Round status before launch: pending.
+- Claude reviewer completed in fresh remote session
+  `d73cff2e-2d17-422c-82c-8ce039ebb3b4` with `VERDICT: NOT READY`; its
+  review is preserved verbatim in the Fable-family artifact.
+- Codex reviewer completed against the same immutable capsule with
+  `VERDICT: NOT READY`; its review is preserved verbatim in the Codex
+  artifact.
+- Round status: completed at the three-round protocol maximum. Formal
+  convergence is not claimed.
+
+## Terminal author reconciliation
+
+The author accepted the final material findings and reconciled them in the
+implemented local-SQLite profile recorded by LLP 0073's Implementation state
+and executable gate. In particular, the landing:
+
+- treats concurrent derived-index rebuild as search-owned machinery with an
+  index-only switch fence instead of claiming LLP 0081's exclusive application
+  migration executor;
+- defines closed logical query and maintenance ledgers, bounded inputs,
+  indexed sources, materialized results, and deterministic highlight behavior;
+- uses the shipped query-kind vocabulary, LLP 0065 `owner.v1` field types,
+  classification-neutral highlight fields, framed cursor associated data, and
+  explicit null/filter semantics; and
+- retains PostgreSQL, hosted, live/offline search, relational visibility, and
+  native acceleration as unadvertised nonclaims.
+
+The final implementation hardening additionally makes query release
+authoritatively recompute each candidate's source digest and quarantines any
+generation whose derived source, posting, frontier, or generation-root state
+is altered until rebuild. The complete local conformance gate, rather than
+this unreviewed author reconciliation, is the authority for the implemented
+local capability. Per the stop rule, no fourth review round is launched.

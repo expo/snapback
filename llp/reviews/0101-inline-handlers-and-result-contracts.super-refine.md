@@ -103,3 +103,31 @@
   artifact.
 - Round status: completed at the three-round limit. The author must reconcile
   the final material findings explicitly; no fourth review round is permitted.
+
+## Terminal author reconciliation
+
+The author accepts the final findings. The normative “Final author
+reconciliation after round 3” section in LLP 0101 narrows the implementation
+instead of attempting the reviewed-but-unclosed compatibility and replay
+protocol:
+
+- inline v1 admits one statically self-contained handler expression and no
+  imported/sibling helper graph, class surface, dynamic evaluation, or
+  top-level purity claim;
+- no expected-operation tuple, compatible/predecessor execution window, or
+  new RQS/resume/replay wire member lands in v1;
+- retained mutations keep LLP 0043's existing 65,536-byte settlement ceiling,
+  lookup/acknowledgement order, and frozen effective validator;
+- result identity hashes the expanded name-keyed structural schema, and every
+  shipped operation arm maps to an effective contract or explicit `Unknown`;
+  and
+- provider/Contract and shipped React consumers receive total, fail-closed
+  projection evidence before either capability can be advertised.
+
+The implementation follows that narrowed section: codegen extracts and checks
+the exact authored expression, Rust and JavaScript share canonical effective
+contract/hash vectors, and runtime egress validates the post-JSON image at the
+correct precommit/publication boundary. This disposition is deliberately
+unreviewed after the terminal round, so the spec remains `Review` and no
+dual-READY claim is made. Per the stop rule, no fourth review round is
+launched.
