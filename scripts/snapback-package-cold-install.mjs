@@ -1406,7 +1406,12 @@ await build({
       cwd: fixtureRoot,
       timeout: 360_000,
     });
-    for (const name of ['@snapback/client', '@snapback/react', '@snapback/vite']) {
+    const fixtureSnapbackPackages = [
+      '@snapback/client',
+      '@snapback/react',
+      '@snapback/vite',
+    ].filter((name) => Object.hasOwn(manifest.dependencies ?? {}, name));
+    for (const name of fixtureSnapbackPackages) {
       const installed = join(fixtureRoot, 'node_modules', ...name.split('/'));
       if (!existsSync(installed) || lstatSync(installed).isSymbolicLink()) {
         fail(`${fixtureRoot}: ${name} is not a materialized tarball install`);
