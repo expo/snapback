@@ -1,7 +1,12 @@
 import type {
   FunctionArgs,
   FunctionResult,
+  EphemeralScope,
+  EphemeralValue,
+  PreparedReactQueryGroup,
   PreparedReactBinding,
+  QueryGroupEntries,
+  SnapbackEphemeralReference,
   SnapbackFunctionReference,
 } from '@snapback/client';
 
@@ -42,6 +47,12 @@ export type MutationReference<
   Result = unknown,
 > = SnapbackFunctionReference<Name, 'Mutation', Args, Result>;
 
+export type ConnectionEphemeralCollectionReference<
+  Name extends string = string,
+  Scope = Record<string, unknown>,
+  Value = unknown,
+> = SnapbackEphemeralReference<Name, Scope, Value, 'Connection'>;
+
 export const skip: unique symbol;
 
 export interface SnapbackReactProvider {
@@ -66,6 +77,13 @@ export interface SnapbackReactProvider {
     reservations: number;
     timers: number;
     listeners: number;
+    presenceStores: number;
+    presenceConsumers: number;
+    presenceSubscriptions: number;
+    publishers: number;
+    presenceTimers: number;
+    presenceListeners: number;
+    resyncReasons: readonly string[];
     diagnostics: readonly SnapbackDiagnostic[];
   }>;
   dispose(): Promise<void>;
@@ -76,6 +94,7 @@ export function createSnapbackReactProvider(
   options?: {
     readonly connectionId?: string;
     readonly onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
+    readonly preparedGroup?: PreparedReactQueryGroup;
   },
 ): SnapbackReactProvider;
 
@@ -89,6 +108,61 @@ export function useSnapbackQuery<Ref extends QueryReference>(
   reference: Ref,
   args: FunctionArgs<Ref> | typeof skip,
 ): QueryState<FunctionResult<Ref>>;
+
+export type PresenceEntry<Value> = Readonly<{
+  key: string;
+  value: DeepReadonly<Value>;
+  expiresAtMs: number;
+  receivedAtMs: number;
+  scopeEpoch: number;
+  entryVersion: number;
+}>;
+export type PublisherState =
+  | Readonly<{ status: 'observing' | 'publishing' | 'published'; diagnostic: null }>
+  | Readonly<{ status: 'publish-error'; diagnostic: SnapbackDiagnostic }>;
+export type PresenceActions<Value> = Readonly<{
+  publisher: PublisherState;
+  publish(value: Value, options?: { readonly ttlMs?: number }): Promise<void>;
+  delete(): Promise<void>;
+}>;
+export type PresenceState<Value> =
+  | (Readonly<{
+      status: 'pending' | 'resyncing';
+      entries: readonly [];
+      selfKey: null;
+      diagnostic: null;
+      connection: SnapbackConnection;
+    }> & PresenceActions<Value>)
+  | (Readonly<{
+      status: 'ready' | 'stale';
+      entries: readonly PresenceEntry<Value>[];
+      selfKey: string;
+      diagnostic: null;
+      connection: SnapbackConnection;
+    }> & PresenceActions<Value>)
+  | (Readonly<{
+      status: 'error' | 'unsupported';
+      entries: readonly [];
+      selfKey: null;
+      diagnostic: SnapbackDiagnostic;
+      connection: SnapbackConnection;
+    }> & PresenceActions<Value>);
+type DeepReadonly<Value> =
+  Value extends (...args: any[]) => any ? Value
+    : Value extends readonly (infer Entry)[] ? readonly DeepReadonly<Entry>[]
+      : Value extends object ? { readonly [Name in keyof Value]: DeepReadonly<Value[Name]> }
+        : Value;
+
+export function useSnapbackPresence<
+  Ref extends ConnectionEphemeralCollectionReference,
+>(
+  reference: Ref,
+  options: Readonly<{
+    scope: EphemeralScope<Ref>;
+    value: EphemeralValue<Ref> | typeof skip;
+    ttlMs?: number;
+  }>,
+): PresenceState<EphemeralValue<Ref>>;
 
 export type QueryEntry<Ref extends QueryReference = QueryReference> = Readonly<{
   ref: Ref;
@@ -112,14 +186,42 @@ export type QueryGroupState<Entries extends QueryEntryMap> = Readonly<{
   status: 'pending' | 'ready' | 'refreshing' | 'error';
   connection: SnapbackConnection;
   error: SnapbackDiagnostic | null;
+  boot: null | Readonly<{
+    source: 'registered-bundle';
+    commitVersion: number;
+    generation: string;
+    versionStream: string;
+  }>;
 }>;
 
 export function useSnapbackQueries<const Entries extends QueryEntryMap>(
   entries: Entries,
 ): QueryGroupState<Entries>;
+export function useSnapbackQueries<
+  const Group extends PreparedReactQueryGroup,
+>(
+  group: Group,
+): QueryGroupState<QueryGroupEntries<Group['reference']> & QueryEntryMap>;
 
-export function useSnapbackMutation<Ref extends MutationReference>(
+export function useSnapbackMutation<
+  Ref extends MutationReference,
+  Q extends QueryReference = never,
+>(
   reference: Ref,
+  options?: Readonly<{
+    optimistic?: Readonly<{
+      query: Q;
+      args: FunctionArgs<Q>;
+      update(
+        current: FunctionResult<Q>,
+        mutationArgs: FunctionArgs<Ref>,
+      ): FunctionResult<Q>;
+      isAuthoritative?(
+        current: FunctionResult<Q>,
+        result: FunctionResult<Ref>,
+      ): boolean;
+    }>;
+  }>,
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>;
 
 export type SnapbackConnectionState = Readonly<{
@@ -142,15 +244,58 @@ export interface SnapbackQueryGroupObserver<Entries extends QueryEntryMap> {
   snapshot(): QueryGroupState<Entries>;
   dispose(): void;
 }
+export interface SnapbackPresenceObserver<Value, Scope> {
+  update(options: Readonly<{
+    scope: Scope;
+    value?: Value | typeof skip;
+    ttlMs?: number;
+  }>): void;
+  snapshot(): PresenceState<Value>;
+  publish(value: Value, options?: { readonly ttlMs?: number }): Promise<void>;
+  delete(): Promise<void>;
+  dispose(): Promise<void>;
+}
+export function observeSnapbackPresence<
+  Ref extends ConnectionEphemeralCollectionReference,
+>(
+  provider: SnapbackReactProvider,
+  reference: Ref,
+  options: Readonly<{
+    scope: EphemeralScope<Ref>;
+    value?: EphemeralValue<Ref> | typeof skip;
+    ttlMs?: number;
+  }>,
+  listener: (state: PresenceState<EphemeralValue<Ref>>) => void,
+): SnapbackPresenceObserver<EphemeralValue<Ref>, EphemeralScope<Ref>>;
 export function observeSnapbackQueries<const Entries extends QueryEntryMap>(
   provider: SnapbackReactProvider,
   entries: Entries,
   listener: (state: QueryGroupState<Entries>) => void,
 ): SnapbackQueryGroupObserver<Entries>;
-export function invokeSnapbackMutation<Ref extends MutationReference>(
+export function observeSnapbackQueries<
+  const Group extends PreparedReactQueryGroup,
+>(
+  provider: SnapbackReactProvider,
+  group: Group,
+  listener: (
+    state: QueryGroupState<QueryGroupEntries<Group['reference']> & QueryEntryMap>,
+  ) => void,
+): SnapbackQueryGroupObserver<QueryGroupEntries<Group['reference']> & QueryEntryMap>;
+export function invokeSnapbackMutation<
+  Ref extends MutationReference,
+  Q extends QueryReference = never,
+>(
   provider: SnapbackReactProvider,
   reference: Ref,
   args: FunctionArgs<Ref>,
+  options?: Readonly<{
+    optimistic?: Readonly<{
+      query: Q;
+      args: FunctionArgs<Q>;
+      update(current: FunctionResult<Q>, mutationArgs: FunctionArgs<Ref>): FunctionResult<Q>;
+      isAuthoritative?(current: FunctionResult<Q>, result: FunctionResult<Ref>): boolean;
+    }>;
+  }>,
 ): Promise<FunctionResult<Ref>>;
 
 export function bindSnapbackAppLifecycle(

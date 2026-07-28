@@ -66,7 +66,7 @@ use crate::local::{
     FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
     LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation,
     PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
-    live_stream_text,
+    live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthRequirement, CtxAnswerLedger,
@@ -2755,6 +2755,7 @@ struct ConnectionGrantRecord {
     ///   v1 for the equality rules but never upgraded in place.
     wire_version: Option<String>,
     ephemeral_authority_protocol: Option<u32>,
+    ephemeral_expiry_protocol: Option<u32>,
 }
 
 /// The sender half of a `BoundGrantAuthorityV2` session grant: the custody
@@ -3145,6 +3146,7 @@ struct ConnectionOpenAttempt<'a> {
     /// classification-before-equality precedence). `None` = offerless.
     wire_version_offer: Option<String>,
     ephemeral_authority_protocol: Option<u32>,
+    ephemeral_expiry_protocol: Option<u32>,
     admission: Option<&'a AdmissionLease>,
 }
 
@@ -3168,6 +3170,7 @@ impl<'a> ConnectionOpenAttempt<'a> {
             auth_invalidation_protocol,
             wire_version_offer: None,
             ephemeral_authority_protocol: None,
+            ephemeral_expiry_protocol: None,
             admission: None,
         }
     }
@@ -3186,6 +3189,11 @@ impl<'a> ConnectionOpenAttempt<'a> {
 
     fn with_ephemeral_authority_protocol(mut self, protocol: Option<u32>) -> Self {
         self.ephemeral_authority_protocol = protocol;
+        self
+    }
+
+    fn with_ephemeral_expiry_protocol(mut self, protocol: Option<u32>) -> Self {
+        self.ephemeral_expiry_protocol = protocol;
         self
     }
 }
@@ -4107,6 +4115,14 @@ pub struct ConnectionGrant {
         skip_serializing_if = "Option::is_none"
     )]
     pub ephemeral_authority_protocol: Option<u32>,
+    /// Echo present iff the connection lineage negotiated LLP 0106's
+    /// monotonic ephemeral-expiry conversion protocol.
+    #[serde(
+        rename = "ephemeralExpiryProtocol",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ephemeral_expiry_protocol: Option<u32>,
 }
 
 impl std::fmt::Debug for ConnectionGrant {
@@ -4126,6 +4142,7 @@ impl std::fmt::Debug for ConnectionGrant {
                 "ephemeral_authority_protocol",
                 &self.ephemeral_authority_protocol,
             )
+            .field("ephemeral_expiry_protocol", &self.ephemeral_expiry_protocol)
             .finish()
     }
 }
@@ -4164,6 +4181,10 @@ pub struct OpenConnectionRequest {
     /// and absent degrades without failing durable connection use.
     #[serde(default, alias = "ephemeral_authority_protocol")]
     pub ephemeral_authority_protocol: Option<u32>,
+    /// Optional exact offer. Unknown values refuse; absence preserves the
+    /// legacy durable surface and makes React presence unavailable.
+    #[serde(default, alias = "ephemeral_expiry_protocol")]
+    pub ephemeral_expiry_protocol: Option<u32>,
 }
 
 impl std::fmt::Debug for OpenConnectionRequest {
@@ -4184,11 +4205,19 @@ impl std::fmt::Debug for OpenConnectionRequest {
                 "ephemeral_authority_protocol",
                 &self.ephemeral_authority_protocol,
             )
+            .field("ephemeral_expiry_protocol", &self.ephemeral_expiry_protocol)
             .finish()
     }
 }
 
 impl ConnectionRegistry {
+    fn ephemeral_expiry_protocol(&self, connection_id: &str) -> Option<u32> {
+        self.lock()
+            .grants
+            .get(connection_id)
+            .and_then(|record| record.ephemeral_expiry_protocol)
+    }
+
     fn install_retirement_sink(
         &self,
         sink: impl Fn(BoundConnectionTerminalCapture) + Send + Sync + 'static,
@@ -4714,6 +4743,7 @@ impl ConnectionRegistry {
             auth_invalidation_protocol,
             wire_version_offer,
             ephemeral_authority_protocol,
+            ephemeral_expiry_protocol,
             admission,
         } = attempt;
         let PreparedConnectionOpenAuthority {
@@ -4787,6 +4817,10 @@ impl ConnectionRegistry {
                     .grants
                     .get(id)
                     .and_then(|existing| existing.ephemeral_authority_protocol);
+                let lineage_ephemeral_expiry_protocol = grants
+                    .grants
+                    .get(id)
+                    .and_then(|existing| existing.ephemeral_expiry_protocol);
                 if let Some(offer) = wire_version_offer.as_deref() {
                     let bound_version = lineage_wire_version
                         .as_deref()
@@ -4815,6 +4849,22 @@ impl ConnectionRegistry {
                         ));
                     }
                 }
+                if let Some(offer) = ephemeral_expiry_protocol {
+                    let Some(bound) = lineage_ephemeral_expiry_protocol else {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH",
+                            "ephemeral",
+                            "a legacy connection lineage cannot be upgraded to an expiry protocol in place",
+                        ));
+                    };
+                    if offer != bound {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH",
+                            "ephemeral",
+                            "the ephemeral expiry offer does not equal this lineage",
+                        ));
+                    }
+                }
                 let existing = grants
                     .grants
                     .get_mut(id)
@@ -4836,6 +4886,8 @@ impl ConnectionRegistry {
                         wire_version: lineage_wire_version,
                         ephemeral_authority_protocol:
                             lineage_ephemeral_authority_protocol,
+                        ephemeral_expiry_protocol:
+                            lineage_ephemeral_expiry_protocol,
                     },
                     grant_id,
                     newly_minted: false,
@@ -4906,6 +4958,7 @@ impl ConnectionRegistry {
                     authorization_invalidation: authorization_invalidation.clone(),
                     wire_version: wire_version_offer.clone(),
                     ephemeral_authority_protocol,
+                    ephemeral_expiry_protocol,
                 },
             );
             Ok(OpenedConnectionGrant {
@@ -4915,6 +4968,7 @@ impl ConnectionRegistry {
                     authorization_invalidation,
                     wire_version: wire_version_offer.clone(),
                     ephemeral_authority_protocol,
+                    ephemeral_expiry_protocol,
                 },
                 grant_id,
                 newly_minted: true,
@@ -5790,6 +5844,7 @@ async fn open_connection(
         auth_invalidation_protocol,
         wire_version,
         ephemeral_authority_protocol,
+        ephemeral_expiry_protocol,
     ) = body
         .map(|body| {
             (
@@ -5798,6 +5853,7 @@ async fn open_connection(
                 body.auth_invalidation_protocol,
                 body.wire_version,
                 body.ephemeral_authority_protocol,
+                body.ephemeral_expiry_protocol,
             )
         })
         .unwrap_or_default();
@@ -5820,6 +5876,17 @@ async fn open_connection(
             "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
             "ephemeral",
             "this server understands ephemeralAuthorityProtocol 1 only; omit the field to keep hosted ephemeral unavailable",
+        )));
+    }
+    // @ref LLP 0106#closed-presence-state — this is a must-understand,
+    // lineage-bound offer; unknown values never silently downgrade.
+    if ephemeral_expiry_protocol
+        .is_some_and(|offered| offered != crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1)
+    {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED",
+            "ephemeral",
+            "this server understands ephemeralExpiryProtocol 1 only; omit the field to keep durable operations available without React presence",
         )));
     }
     // @ref LLP 0094#0b3-the-wireversion-open-time-offer — known binds, unknown
@@ -5855,6 +5922,7 @@ async fn open_connection(
             )
             .with_wire_version(wire_version)
             .with_ephemeral_authority_protocol(ephemeral_authority_protocol)
+            .with_ephemeral_expiry_protocol(ephemeral_expiry_protocol)
             .with_admission(&admission),
         )?
     };
@@ -18389,6 +18457,13 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             Ok(room_authorization) => room_authorization,
                             Err(response) => {
+                                let response = if connections.ephemeral_expiry_protocol(
+                                    &connection_id,
+                                ) == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1) {
+                                    stamp_ephemeral_socket_response(response)
+                                } else {
+                                    response
+                                };
                                 if send_live_with_admission(
                                     handoff_cut,
                                     Message::Text(response.text.into()),
@@ -18432,6 +18507,13 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                             ) else {
                                 break 'stream;
                             };
+                            response
+                        };
+                        let response = if connections.ephemeral_expiry_protocol(
+                            &connection_id,
+                        ) == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1) {
+                            stamp_ephemeral_socket_response(response)
+                        } else {
                             response
                         };
                         let outer_room_authority =
@@ -19026,7 +19108,10 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
     defer_ws_projections_for_recovery_marker(&mut projections, &messages);
     for admitted in messages {
         let (envelope, publication_authority, outbox_lease) = admitted.into_leased_parts();
-        let Some(message) = live_stream_text(envelope) else {
+        let observed = (connections.ephemeral_expiry_protocol(connection_id)
+            == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1))
+        .then(now_millis);
+        let Some(message) = live_stream_text_with_server_observed(envelope, observed) else {
             continue;
         };
         match send_live_with_admission(
@@ -19502,6 +19587,19 @@ async fn authorize_live_socket_room(
 struct LiveSocketResponse {
     text: String,
     room_authority: Option<RoomAuthorityPermit>,
+}
+
+fn stamp_ephemeral_socket_response(mut response: LiveSocketResponse) -> LiveSocketResponse {
+    let Ok(mut value) = serde_json::from_str::<Value>(&response.text) else {
+        return response;
+    };
+    if let Some(object) = value.as_object_mut() {
+        object.insert("serverObservedAtMs".to_owned(), json!(now_millis()));
+        if let Ok(text) = serde_json::to_string(&value) {
+            response.text = text;
+        }
+    }
+    response
 }
 
 #[derive(Clone, Copy, Default)]
@@ -20053,7 +20151,27 @@ async fn drain_outbox(
     // one definition.
     // @ref LLP 0094#0a5-the-drain-response-shape-lane-p — bare
     //   `[RealtimeEnvelope]`, in-band unknown_or_reaped batch, no client ack.
-    let mut response = Json(crate::live_wire::OutboxDrainOutput(drained)).into_response();
+    let mut response = if runtime
+        .connections
+        .ephemeral_expiry_protocol(&connection_act.connection_id)
+        == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1)
+    {
+        let observed = now_millis();
+        let mut values = drained
+            .into_iter()
+            .map(|envelope| {
+                let is_ephemeral = matches!(envelope, RealtimeEnvelope::Ephemeral(_));
+                let mut value = serde_json::to_value(envelope).unwrap_or(Value::Null);
+                if is_ephemeral && let Some(object) = value.as_object_mut() {
+                    object.insert("serverObservedAtMs".to_owned(), json!(observed));
+                }
+                value
+            })
+            .collect::<Vec<_>>();
+        Json(std::mem::take(&mut values)).into_response()
+    } else {
+        Json(crate::live_wire::OutboxDrainOutput(drained)).into_response()
+    };
     retain_realtime_handoff_in(
         &mut response,
         publication_authority,
@@ -20298,10 +20416,16 @@ async fn publish_ephemeral(
                 .publish_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
                 .map_err(ApiError::from_ephemeral)
         })?;
-    Ok(retain_room_authority(
-        Json(output).into_response(),
-        room_authority,
-    ))
+    let response = if runtime
+        .connections
+        .ephemeral_expiry_protocol(&connection_act.connection_id)
+        == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1)
+    {
+        ephemeral_http_json(output, epoch_now_ms)
+    } else {
+        Json(output).into_response()
+    };
+    Ok(retain_room_authority(response, room_authority))
 }
 
 async fn subscribe_ephemeral(
@@ -20349,10 +20473,16 @@ async fn subscribe_ephemeral(
                 )
                 .map_err(ApiError::from_ephemeral)
         })?;
-    Ok(retain_room_authority(
-        Json(output).into_response(),
-        room_authority,
-    ))
+    let response = if runtime
+        .connections
+        .ephemeral_expiry_protocol(&connection_act.connection_id)
+        == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1)
+    {
+        ephemeral_http_json(output, epoch_now_ms)
+    } else {
+        Json(output).into_response()
+    };
+    Ok(retain_room_authority(response, room_authority))
 }
 
 async fn delete_ephemeral(
@@ -20393,10 +20523,27 @@ async fn delete_ephemeral(
                 .delete_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
                 .map_err(ApiError::from_ephemeral)
         })?;
-    Ok(retain_room_authority(
-        Json(output).into_response(),
-        room_authority,
-    ))
+    let response = if runtime
+        .connections
+        .ephemeral_expiry_protocol(&connection_act.connection_id)
+        == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1)
+    {
+        ephemeral_http_json(output, epoch_now_ms)
+    } else {
+        Json(output).into_response()
+    };
+    Ok(retain_room_authority(response, room_authority))
+}
+
+fn ephemeral_http_json(value: impl Serialize, server_observed_at_ms: u64) -> Response {
+    let mut value = serde_json::to_value(value).unwrap_or(Value::Null);
+    if let Some(object) = value.as_object_mut() {
+        object.insert(
+            "serverObservedAtMs".to_owned(),
+            json!(server_observed_at_ms),
+        );
+    }
+    Json(value).into_response()
 }
 
 /// Connection teardown is instance control (it tears down the connection *and*
@@ -33247,6 +33394,7 @@ globalThis.__snapbackHandlers = {
             authorization_invalidation: None,
             wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
             ephemeral_authority_protocol: Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),
+            ephemeral_expiry_protocol: Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1),
         };
         let grant_debug = format!("{grant:?}");
         assert!(!grant_debug.contains(SENTINEL), "{grant_debug}");
@@ -33258,6 +33406,7 @@ globalThis.__snapbackHandlers = {
             auth_invalidation_protocol: None,
             wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
             ephemeral_authority_protocol: Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),
+            ephemeral_expiry_protocol: Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1),
         };
         let open_debug = format!("{open:?}");
         assert!(!open_debug.contains(SENTINEL), "{open_debug}");
@@ -33701,6 +33850,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
         "SNAPBACK_WIRE_VERSION_MISMATCH",
         "SNAPBACK_WIRE_VERSION_REQUIRED",
+        // LLP 0105/0106 additive ephemeral open-time offers follow the same
+        // request-classed unsupported/mismatched lineage policy.
+        "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
+        "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+        "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH",
+        "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
         "SNAPBACK_AUTH_REQUEST_INVALID",
         "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID",
@@ -33770,12 +33925,15 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION",
         "SNAPBACK_FIELD_MISSING",
         "SNAPBACK_FIELD_TYPE_MISMATCH",
+        "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+        "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID",
         "SNAPBACK_FUNCTION_IDENTITY_COLLISION",
         "SNAPBACK_FUNCTION_IDENTITY_INVALID",
         "SNAPBACK_FUNCTION_KIND_MISMATCH",
         "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH",
         "SNAPBACK_FUNCTION_NOT_LIVE",
         "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+        "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH",
         "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
         "SNAPBACK_HANDLER_CAPABILITY_DENIED",
         "SNAPBACK_HANDLER_DID_NOT_SETTLE",
@@ -33785,10 +33943,20 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON",
         "SNAPBACK_HANDLER_HOST_CALL_MALFORMED",
         "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
         "SNAPBACK_HANDLER_RESULT_INVALID",
         "SNAPBACK_HANDLER_STALE_CONTINUATION",
         "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
         "SNAPBACK_HANDLER_WRITE_IN_QUERY",
+        "SNAPBACK_SEARCH_CURSOR_RESTART",
+        "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+        "SNAPBACK_SEARCH_MAINTENANCE_LIMIT",
+        "SNAPBACK_SEARCH_QUERY_INVALID",
+        "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
+        "SNAPBACK_SEARCH_SOURCE_LIMIT",
+        "SNAPBACK_SEARCH_WORK_LIMIT",
+        "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
         "SNAPBACK_HOST_OP_CLI_ONLY",
         "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED",
         "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN",
@@ -34061,9 +34229,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED",
         "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED",
         "SNAPBACK_SEED_IDENTITY_CORRUPT",
+        "SNAPBACK_SEED_IDENTITY_CONFLICT",
         "SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED",
         "SNAPBACK_SEED_MIGRATION_REQUIRED",
         "SNAPBACK_SEED_NONEMPTY_UNTRACKED",
+        "SNAPBACK_SEED_REPLAY_REQUIRES_PREFLIGHT",
         "SNAPBACK_SEED_OPERATION_HISTORICAL",
         "SNAPBACK_SEED_OPERATION_ID_REUSED",
         "SNAPBACK_SEED_PARTIAL_UNTRACKED",
@@ -34196,6 +34366,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_LIVE_STAGE_UNAVAILABLE",
         "SNAPBACK_OVERLOADED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
+        "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
     ];
 
@@ -34307,6 +34478,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_READY_FILE_PATH_COLLISION",
         "SNAPBACK_RUNTIME_CREATE_FAILED",
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
+        "SNAPBACK_SEARCH_INDEX_CORRUPT",
+        "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
         "SNAPBACK_SQLITE_ERROR",
         "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED",
         "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED",
@@ -40093,6 +40266,67 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    #[test]
+    fn ephemeral_expiry_binding_echo_and_reopen_immutability() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory expiry registry state"),
+        );
+        let registry = state.connections.clone();
+        fn attempt<'a>(suggested: &str, previous: Option<&'a str>) -> ConnectionOpenAttempt<'a> {
+            let (incarnation, publication) =
+                FencedPublication::anonymous_for_unmanaged_dev_connection();
+            ConnectionOpenAttempt::new(
+                Some(suggested.to_owned()),
+                previous,
+                true,
+                PreparedConnectionOpenAuthority {
+                    resolved: ResolvedAppAuthority::Anonymous,
+                    managed_authority: false,
+                    hosted_sender: None,
+                    bound: BoundGrantAuthority::Anonymous {
+                        authorization_stream_incarnation: incarnation,
+                        publication,
+                    },
+                },
+                super::now_millis(),
+                Instant::now(),
+                None,
+            )
+        }
+        let v1 = crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1;
+        let bound = registry
+            .open_prepared(attempt("expiry_bound", None).with_ephemeral_expiry_protocol(Some(v1)))
+            .expect("bind expiry protocol");
+        assert_eq!(bound.grant.ephemeral_expiry_protocol, Some(v1));
+        let reopened = registry
+            .open_prepared(attempt("expiry_bound", Some(&bound.grant.connection_token)))
+            .expect("offerless reopen retains expiry binding");
+        assert_eq!(reopened.grant.ephemeral_expiry_protocol, Some(v1));
+        let changed = registry
+            .open_prepared(
+                attempt("expiry_bound", Some(&bound.grant.connection_token))
+                    .with_ephemeral_expiry_protocol(Some(v1 + 1)),
+            )
+            .expect_err("changed expiry protocol must refuse");
+        assert_eq!(
+            changed.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH"
+        );
+        let legacy = registry
+            .open_prepared(attempt("expiry_legacy", None))
+            .expect("legacy expiry lineage");
+        let upgrade = registry
+            .open_prepared(
+                attempt("expiry_legacy", Some(&legacy.grant.connection_token))
+                    .with_ephemeral_expiry_protocol(Some(v1)),
+            )
+            .expect_err("legacy expiry lineage cannot upgrade in place");
+        assert_eq!(
+            upgrade.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH"
+        );
+    }
+
     /// LLP 0094 §0B.3 / §0C.5: the HTTP half of the open offer matrix — the
     /// classification (known/unknown/absent) runs in the handler with
     /// precedence over the registry equality check, and both open-time offer
@@ -40120,12 +40354,14 @@ globalThis.__snapbackHandlers = {
             .oneshot(open(json!({
                 "connectionId": "wire_http",
                 "wireVersion": "snapback.v1",
+                "ephemeralExpiryProtocol": 1,
             })))
             .await
             .expect("known-offer open");
         assert_eq!(bound.status(), StatusCode::OK);
         let bound = response_json(bound).await;
         assert_eq!(bound["wireVersion"], "snapback.v1");
+        assert_eq!(bound["ephemeralExpiryProtocol"], 1);
         let previous_token = bound["connectionToken"]
             .as_str()
             .expect("bound grant token")
@@ -40153,6 +40389,22 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             response_json(unknown).await["diagnostic"]["code"],
             "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+        );
+
+        // LLP 0106: the additive expiry clock offer is exact. Version 1
+        // echoes; unknown values refuse rather than negotiating down.
+        let unknown_expiry = router
+            .clone()
+            .oneshot(open(json!({
+                "wireVersion": "snapback.v1",
+                "ephemeralExpiryProtocol": 2,
+            })))
+            .await
+            .expect("unknown expiry offer");
+        assert_eq!(unknown_expiry.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(unknown_expiry).await["diagnostic"]["code"],
+            "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED"
         );
 
         // Classification precedes equality: an unknown candidate on a
@@ -40183,6 +40435,10 @@ globalThis.__snapbackHandlers = {
         assert!(
             legacy.get("wireVersion").is_none(),
             "legacy grants must not echo: {legacy}"
+        );
+        assert!(
+            legacy.get("ephemeralExpiryProtocol").is_none(),
+            "legacy grants must omit the expiry protocol: {legacy}"
         );
 
         // The Rust Option<String> authority and generated input schema admit

@@ -15,6 +15,11 @@ export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 export const SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS = 'Parity';
 
 export {
+  compileResultContractValidator,
+  RESULT_CONTRACT_LIMITS_V1,
+} from './result-contract-validator.mjs';
+
+export {
   createSnapbackProviderDiagnostic,
   createSnapbackProviderDiagnosticCollector,
   createSnapbackProviderDiagnosticError,

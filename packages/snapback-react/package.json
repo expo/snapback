@@ -23,6 +23,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-result-types.fixture.ts"
+    "test": "node package.test.mjs && node optimistic.test.mjs && node presence.test.mjs && node lifecycle.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-result-types.fixture.ts"
   }
 }

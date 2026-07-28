@@ -6,6 +6,7 @@ import {
   canonicalizeClientValueV1,
 } from '@snapback/client';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
+import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
   SnapbackProvider,
   createSnapbackReactProvider,
@@ -20,17 +21,40 @@ import {
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-const reference = (name, kind, suffix) => Object.freeze({
-  artifactKind: 'functionReference',
-  schemaVersion: 'snapback.v0',
-  appId: 'react-fixture',
-  id: `react-fixture:${name}`,
-  name,
-  kind,
-  implementationHash: `sha256:implementation-${suffix}`,
-  argsContractHash: `sha256:args-${suffix}`,
-  resultContractHash: `sha256:result-${suffix}`,
+const queryResultContract = Object.freeze({
+  kind: 'records',
+  record: Object.freeze({
+    kind: 'object',
+    fields: Object.freeze([
+      Object.freeze({ name: 'id', required: true, value: { kind: 'string', maxBytes: 1_024 } }),
+      Object.freeze({
+        name: 'revision',
+        required: true,
+        value: { kind: 'integer', min: 0, max: Number.MAX_SAFE_INTEGER },
+      }),
+    ]),
+    allowExtra: false,
+  }),
 });
+const mutationResultContract = Object.freeze({
+  kind: 'value',
+  value: Object.freeze({ kind: 'string', maxBytes: 1_024 }),
+});
+const reference = (name, kind, suffix) => {
+  const resultContract = kind === 'Mutation' ? mutationResultContract : queryResultContract;
+  return Object.freeze({
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'react-fixture',
+    id: `react-fixture:${name}`,
+    name,
+    kind,
+    implementationHash: `sha256:implementation-${suffix}`,
+    argsContractHash: `sha256:args-${suffix}`,
+    resultContractHash: resultContractHash(resultContract),
+    resultContract,
+  });
+};
 const feed = reference('feed', 'LiveQuery', 'feed');
 const details = reference('details', 'LiveQuery', 'details');
 const publish = reference('publish', 'Mutation', 'publish');
@@ -54,6 +78,9 @@ function createFakeClient() {
   const byFunction = new Map();
   let starts = 0;
   let mutations = 0;
+  let bundleFetches = 0;
+  let registeredStarts = 0;
+  let ordinaryStarts = 0;
   const barriers = [];
   let barrierUnregistered = 0;
   const client = {
@@ -79,10 +106,14 @@ function createFakeClient() {
     },
     startLiveQuery(ref, options) {
       starts += 1;
+      if (options.registeredSubscription) registeredStarts += 1;
+      else ordinaryStarts += 1;
       let disposed = false;
-      const rows = [{ id: `${ref.name}:${options.args?.id ?? 'root'}`, revision: 0 }];
+      const rows = options.registeredSubscription?.rows
+        ?? [{ id: `${ref.name}:${options.args?.id ?? 'root'}`, revision: 0 }];
       const current = {
-        subscriptionId: `subscription-${starts}`,
+        subscriptionId: options.registeredSubscription?.subscriptionId
+          ?? `subscription-${starts}`,
         rows,
         connection: 'live',
       };
@@ -112,6 +143,37 @@ function createFakeClient() {
       mutations += 1;
       return { result: `${ref.name}:${args.value}`, version: mutations };
     },
+    async fetchBundle({ route, params, mode }) {
+      bundleFetches += 1;
+      assert.equal(route, '/workspace/:id');
+      assert.equal(mode, 'register');
+      return {
+        commitVersion: 41,
+        generation: 'generation-41',
+        versionStream: 'stream-41',
+        connection: {
+          connectionId: 'registered-react-group',
+          grant: '[adopted-by-client-owner]',
+          attachDeadline: 10_000,
+        },
+        entries: [
+          {
+            function: 'feed',
+            args: { id: params.id },
+            rows: [{ id: `feed:${params.id}`, revision: 41 }],
+            resume: null,
+            subscriptionId: 'registered-feed',
+          },
+          {
+            function: 'details',
+            args: { id: params.id },
+            rows: [{ id: `details:${params.id}`, revision: 41 }],
+            resume: null,
+            subscriptionId: 'registered-details',
+          },
+        ],
+      };
+    },
     emit(ref, rows, connection = 'live') {
       for (const handle of byFunction.get(ref.id) ?? []) handle.emit(rows, connection);
     },
@@ -120,6 +182,9 @@ function createFakeClient() {
         starts,
         handles: handles.size,
         mutations,
+        bundleFetches,
+        registeredStarts,
+        ordinaryStarts,
         barriers,
         barrierUnregistered,
       };
@@ -328,6 +393,114 @@ assert.deepEqual(
 assert.equal(fake.inspection().handles, 0);
 assert.equal(fake.inspection().barrierUnregistered, 1);
 await siblingProvider.dispose();
+
+const primedFake = createFakeClient();
+const routes = Object.freeze({
+  formatVersion: 1,
+  app: 'react-fixture',
+  routes: Object.freeze([
+    Object.freeze({
+      route: '/workspace/:id',
+      queries: Object.freeze([
+        Object.freeze({ function: 'feed', args: { id: { $param: 'id' } } }),
+        Object.freeze({ function: 'details', args: { id: { $param: 'id' } } }),
+      ]),
+    }),
+  ]),
+});
+const primedBinding = await prepareReactBindingForClient(primedFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const generatedGroup = primedBinding.groups['/workspace/:id'];
+assert.equal(generatedGroup.artifactKind, 'queryGroupReference');
+assert.match(generatedGroup.definitionHash, /^sha256:[0-9a-f]{64}$/);
+await assert.rejects(
+  primedBinding.prepareQueryGroup(
+    { ...generatedGroup, definitionHash: 'sha256:forged-group' },
+    { id: 'incident-41' },
+  ),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_REFERENCE_INVALID',
+);
+await assert.rejects(
+  primedBinding.prepareQueryGroup(generatedGroup, {}),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_PARAMS_INVALID',
+);
+const primedGroup = await primedBinding.prepareQueryGroup(
+  generatedGroup,
+  { id: 'incident-41' },
+);
+assert.equal(primedGroup.source, 'registered-bundle');
+assert.deepEqual(primedGroup.boot, {
+  source: 'registered-bundle',
+  commitVersion: 41,
+  generation: 'generation-41',
+  versionStream: 'stream-41',
+});
+const primedProvider = createSnapbackReactProvider(primedBinding, {
+  preparedGroup: primedGroup,
+});
+let primedSnapshot = null;
+const primedObserver = observeSnapbackQueries(
+  primedProvider,
+  primedGroup,
+  (snapshot) => { primedSnapshot = snapshot; },
+);
+await flush();
+assert.equal(primedSnapshot.status, 'ready');
+assert.equal(primedSnapshot.queries.feed.data[0].revision, 41);
+assert.equal(primedSnapshot.queries.details.data[0].revision, 41);
+assert.equal(primedSnapshot.boot, primedGroup.boot);
+assert.deepEqual(
+  {
+    bundleFetches: primedFake.inspection().bundleFetches,
+    registeredStarts: primedFake.inspection().registeredStarts,
+    ordinaryStarts: primedFake.inspection().ordinaryStarts,
+    remainingRegistrations: primedProvider.inspection().preparedRegistrations,
+  },
+  {
+    bundleFetches: 1,
+    registeredStarts: 2,
+    ordinaryStarts: 0,
+    remainingRegistrations: 0,
+  },
+  'one register-mode bundle primes both children and no prime/subscribe race opens ordinary starts',
+);
+primedObserver.dispose();
+await flush();
+await primedProvider.dispose();
+
+const fallbackFake = createFakeClient();
+fallbackFake.fetchBundle = async () => {
+  const error = new Error('register-mode bundles are unavailable on this target');
+  error.code = 'SNAPBACK_BUNDLE_REGISTER_UNAVAILABLE';
+  throw error;
+};
+const fallbackBinding = await prepareReactBindingForClient(fallbackFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const fallbackGroup = await fallbackBinding.prepareQueryGroup(
+  fallbackBinding.groups['/workspace/:id'],
+  { id: 'incident-fallback' },
+  { fallbackToLive: true },
+);
+assert.equal(fallbackGroup.source, 'live-fallback');
+assert.equal(fallbackGroup.boot, null);
+const fallbackProvider = createSnapbackReactProvider(fallbackBinding, {
+  preparedGroup: fallbackGroup,
+});
+const fallbackObserver = observeSnapbackQueries(
+  fallbackProvider,
+  fallbackGroup,
+  () => {},
+);
+await flush();
+assert.equal(fallbackObserver.snapshot().status, 'ready');
+assert.equal(fallbackObserver.snapshot().boot, null);
+assert.equal(fallbackFake.inspection().registeredStarts, 0);
+assert.equal(fallbackFake.inspection().ordinaryStarts, 2);
+fallbackObserver.dispose();
+await flush();
+await fallbackProvider.dispose();
 
 const capacityProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-capacity-test',

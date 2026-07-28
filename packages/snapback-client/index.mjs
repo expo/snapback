@@ -32,7 +32,9 @@ import {
   generateSenderConstraintKey,
   isCanonicalSenderNonce,
 } from './sender-proof.mjs';
-import { prepareReactBindingForClient } from './react-binding.mjs';
+import {
+  prepareReactBindingForClient,
+} from './react-binding.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
@@ -40,8 +42,17 @@ export {
   canonicalReactStoreKeyV1,
 } from './canonical-client-value.mjs';
 export {
+  compileResultContractValidator,
+  RESULT_CONTRACT_LIMITS_V1,
+} from '@snapback/contract/result-contract-validator';
+export {
+  admittedReactEphemeralDefinition,
+  admittedReactQueryGroup,
   admittedReactReference,
   assertPreparedReactBinding,
+  isPreparedReactQueryGroup,
+  prepareReactQueryGroupForBinding,
+  preparedReactResultContract,
   preparedReactBindingClient,
 } from './react-binding.mjs';
 
@@ -1274,6 +1285,10 @@ export class SnapbackClient {
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
+    // LLP 0106's additive expiry clock negotiation. A version-aware server
+    // echoes 1; a legacy server is retried without this member so durable
+    // operations remain available while React presence reports unsupported.
+    ephemeralExpiryProtocol = 1,
     authCoordinator = null,
     agentAuthority = null,
     senderConstrained = false,
@@ -1349,7 +1364,9 @@ export class SnapbackClient {
       authorityDescriptor: authorityDescriptorProtocol,
       authorizedLease: authorizedLeaseProtocol,
       ephemeralAuthority: ephemeralAuthorityProtocol,
+      ephemeralExpiry: ephemeralExpiryProtocol,
     });
+    this.__ephemeralExpirySupported = ephemeralExpiryProtocol === 1 ? null : false;
     // Keep the last validated projection separate from the current network
     // attempt. A forced offline probe may reject without poisoning or
     // replacing the durable/offline fence's last successful projection.
@@ -2870,7 +2887,7 @@ export class SnapbackClient {
     externalBearerTransitionPermit = null,
   ) {
     let grant;
-    const openBody = (withWireVersion) => ({
+    const openBody = (withWireVersion, withEphemeralExpiry = true) => ({
       connectionId: suggestedConnectionId,
       ...(previousToken ? { previousToken } : {}),
       ...(this.authProtocols.authInvalidation != null
@@ -2879,14 +2896,17 @@ export class SnapbackClient {
       ...(this.authProtocols.ephemeralAuthority != null
         ? { ephemeralAuthorityProtocol: this.authProtocols.ephemeralAuthority }
         : {}),
+      ...(withEphemeralExpiry && this.authProtocols.ephemeralExpiry != null
+        ? { ephemeralExpiryProtocol: this.authProtocols.ephemeralExpiry }
+        : {}),
       // @ref LLP 0094#0b3-the-wireversion-open-time-offer — B2: the kit
       // offers the exact token; the response echo witnesses the binding.
       ...(withWireVersion ? { wireVersion: WIRE_VERSION_TOKEN } : {}),
     });
-    const openRequest = (withWireVersion) => this.#req(
+    const openRequest = (withWireVersion, withEphemeralExpiry = true) => this.#req(
       'POST',
       '/connection/open',
-      openBody(withWireVersion),
+      openBody(withWireVersion, withEphemeralExpiry),
       undefined,
       { externalBearerTransitionPermit },
     );
@@ -2936,6 +2956,21 @@ export class SnapbackClient {
         };
         throw error;
       }
+      if (granted?.ephemeralExpiryProtocol === this.authProtocols.ephemeralExpiry) {
+        this.__ephemeralExpirySupported = true;
+      } else if (granted?.ephemeralExpiryProtocol != null) {
+        const error = new Error(
+          'SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED: server echoed an unknown expiry protocol',
+        );
+        error.code = 'SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED';
+        error.diagnostic = {
+          code: error.code,
+          message: 'server echoed an unknown ephemeral expiry protocol',
+        };
+        throw error;
+      } else {
+        this.__ephemeralExpirySupported = false;
+      }
       if (granted?.wireVersion === WIRE_VERSION_TOKEN) {
         wireVersionEndpointVerdicts.set(this.baseUrl, 'modern');
         return granted;
@@ -2981,10 +3016,25 @@ export class SnapbackClient {
             `was already proven to be a pre-B1 legacy endpoint`,
           );
         }
-        return openRequest(false);
+        return openRequest(false, false);
       }
       if (verdict === 'modern') {
-        return validateOfferedGrant(await openRequest(true));
+        try {
+          return validateOfferedGrant(await openRequest(
+            true,
+            this.__ephemeralExpirySupported !== false,
+          ));
+        } catch (error) {
+          if (
+            this.__ephemeralExpirySupported !== false
+            && error?.status === 400
+            && (error?.diagnostic?.code ?? error?.code) === 'SNAPBACK_REQUEST_JSON_INVALID'
+          ) {
+            this.__ephemeralExpirySupported = false;
+            return validateOfferedGrant(await openRequest(true, false));
+          }
+          throw error;
+        }
       }
 
       const activeProbe = wireVersionEndpointProbes.get(this.baseUrl);
@@ -3000,7 +3050,7 @@ export class SnapbackClient {
       wireVersionEndpointProbes.set(this.baseUrl, probe);
       try {
         try {
-          return validateOfferedGrant(await openRequest(true));
+          return validateOfferedGrant(await openRequest(true, true));
         } catch (error) {
           // §0B.6 legacy-server detection. The trigger is exact, not
           // heuristic: only the decode-class rejection a closed pre-B1 open
@@ -3022,7 +3072,8 @@ export class SnapbackClient {
           }
           // Re-open with the offer member alone removed. Success proves the
           // legacy closed-DTO shape; failure records no verdict.
-          const granted = await openRequest(false);
+          const granted = await openRequest(false, false);
+          this.__ephemeralExpirySupported = false;
           wireVersionEndpointVerdicts.set(this.baseUrl, 'legacy');
           surfaceDowngrade('decode-class differential');
           return granted;
@@ -3048,6 +3099,9 @@ export class SnapbackClient {
           wireVersion: typeof granted.wireVersion === 'string' ? granted.wireVersion : null,
           ephemeralAuthorityProtocol: Number.isSafeInteger(granted.ephemeralAuthorityProtocol)
             ? granted.ephemeralAuthorityProtocol
+            : null,
+          ephemeralExpiryProtocol: Number.isSafeInteger(granted.ephemeralExpiryProtocol)
+            ? granted.ephemeralExpiryProtocol
             : null,
         }, granted?.[AUTHORITY_CAPTURE] ?? null);
       },
@@ -3628,7 +3682,59 @@ export class SnapbackClient {
   }
 
   health() { return this.#req('GET', '/health'); }
-  inspect() { return this.#req('GET', '/inspect'); }
+  inspect() {
+    return this.#req('GET', '/inspect', undefined, this.#authOfferHeaders(false));
+  }
+
+  // @ref LLP 0106#package-and-acceptance — retained cleanup evidence inspects
+  // only caller-known labels and finite resource counts; it never exposes
+  // grant tokens, wire ids, payloads, or authority facts.
+  localResourceInspection(connectionIds = null) {
+    const selected = connectionIds === null
+      ? null
+      : new Set(Array.from(connectionIds, (value) => String(value)));
+    const includes = (connectionId) => selected === null || selected.has(connectionId);
+    const managers = Object.freeze(
+      [...(this.__liveStreamManagers?.entries?.() ?? [])]
+        .filter(([connectionId]) => includes(connectionId))
+        .map(([connectionId, manager]) => Object.freeze({
+          connectionId,
+          ...manager.inspection(),
+        })),
+    );
+    const grantLabels = Object.freeze(
+      [...this.__connectionGrants.keys()].filter(includes).sort(),
+    );
+    const laneConsumers = Object.freeze(
+      [...this.__laneConsumers.entries()]
+        .filter(([connectionId]) => includes(connectionId))
+        .map(([connectionId, lanes]) => Object.freeze({
+          connectionId,
+          durable: lanes?.durable?.size ?? 0,
+          ephemeral: lanes?.ephemeral?.size ?? 0,
+        })),
+    );
+    return Object.freeze({
+      managers,
+      managerCount: managers.length,
+      grants: grantLabels,
+      grantCount: grantLabels.length,
+      laneConsumers,
+      socketDemand: managers.reduce((sum, manager) => sum + manager.socketDemand, 0),
+      timers: managers.reduce(
+        (sum, manager) => sum + manager.reconnectTimer + manager.heartbeatTimer,
+        0,
+      ),
+      listeners: managers.reduce(
+        (sum, manager) => sum
+          + manager.durableListeners
+          + manager.ephemeralListeners
+          + manager.stateListeners
+          + manager.readinessListeners,
+        0,
+      ),
+    });
+  }
   prepareReactBinding(options) {
     return prepareReactBindingForClient(this, options);
   }
@@ -4556,6 +4662,278 @@ export class SnapbackClient {
     }
   }
 
+  // @ref LLP 0106#resync-authority-and-lifecycle — React borrows one
+  // client-owned room handle; the handle owns socket demand, overlay
+  // replacement, expiry, bounded startup, and unsubscribe-before-detach.
+  startEphemeralRoom(admittedDefinition, scope = {}) {
+    const definition = admittedDefinition?.definition;
+    const ref = admittedDefinition?.reference;
+    const connectionId = admittedDefinition?.connectionId;
+    if (
+      !definition
+      || !ref
+      || ref.artifactKind !== 'ephemeralCollectionReference'
+      || typeof connectionId !== 'string'
+      || connectionId.length === 0
+    ) {
+      throw new TypeError('startEphemeralRoom requires an admitted React collection definition');
+    }
+    const listeners = new Set();
+    const manager = this.liveStreamManager(connectionId);
+    let overlay = null;
+    let overlayOff = null;
+    let managerOff = null;
+    let expiryTimer = null;
+    let generation = 0;
+    let disposed = false;
+    let cleanup = Promise.resolve();
+    let currentConnection = 'connecting';
+    let current = freezeEphemeralRoomSnapshot({
+      status: 'pending',
+      entries: [],
+      selfKey: null,
+      diagnostic: null,
+      connection: currentConnection,
+      reason: null,
+    });
+    const notify = () => {
+      for (const listener of [...listeners]) deliverIsolated(listener);
+    };
+    const publishSnapshot = (patch, expectedGeneration = generation) => {
+      if (disposed || expectedGeneration !== generation) return false;
+      current = freezeEphemeralRoomSnapshot({ ...current, ...patch });
+      notify();
+      return true;
+    };
+    const clearExpiry = () => {
+      if (expiryTimer !== null) clearTimeout(expiryTimer);
+      expiryTimer = null;
+    };
+    const scheduleExpiry = (expectedGeneration = generation) => {
+      clearExpiry();
+      if (!overlay || disposed || expectedGeneration !== generation) return;
+      const delayMs = overlay.msUntilEarliestExpiry();
+      if (!Number.isFinite(delayMs)) return;
+      expiryTimer = setTimeout(() => {
+        if (!overlay || disposed || expectedGeneration !== generation) return;
+        overlay.pruneExpired();
+        publishSnapshot({
+          entries: overlay.currentEntries(),
+          status: currentConnection === 'live' ? 'ready' : 'stale',
+        }, expectedGeneration);
+        scheduleExpiry(expectedGeneration);
+      }, Math.max(0, delayMs));
+      expiryTimer.unref?.();
+    };
+    const adoptOverlay = (next, expectedGeneration) => {
+      if (disposed || generation !== expectedGeneration) {
+        next.dispose();
+        // Registrations are keyed by the same granted connection, collection,
+        // and scope across replacement generations. A late generation cannot
+        // distinguish "its" server registration from the successor's, so an
+        // unsubscribe here could tear down the current room. Final handle
+        // disposal still owns the one authenticated unsubscribe; a successor
+        // generation safely adopts the shared server registration meanwhile.
+        return;
+      }
+      overlayOff?.();
+      overlay?.dispose();
+      overlay = next;
+      overlayOff = overlay.onChange((result) => {
+        if (disposed || generation !== expectedGeneration) return;
+        if (
+          result === 'needs_resync'
+          || result === 'authority_changed'
+          || result === 'authority_missing'
+        ) {
+          void startGeneration(
+            result === 'authority_changed'
+              ? 'ephemeral_authority_changed'
+              : result,
+          );
+          return;
+        }
+        const entries = overlay.currentEntries();
+        publishSnapshot({
+          status: currentConnection === 'live' ? 'ready' : 'stale',
+          entries,
+          selfKey: overlay.grantedConnectionId,
+          diagnostic: null,
+          reason: null,
+        }, expectedGeneration);
+        scheduleExpiry(expectedGeneration);
+      });
+      const entries = overlay.currentEntries();
+      publishSnapshot({
+        status: currentConnection === 'live' ? 'ready' : 'stale',
+        entries,
+        selfKey: overlay.grantedConnectionId,
+        diagnostic: null,
+        reason: null,
+      }, expectedGeneration);
+      scheduleExpiry(expectedGeneration);
+    };
+    const bounded = (promise, label) => {
+      let timer;
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            const error = new Error(`SNAPBACK_EPHEMERAL_ROOM_TIMEOUT: ${label} exceeded 5000ms`);
+            error.code = 'SNAPBACK_EPHEMERAL_ROOM_TIMEOUT';
+            reject(error);
+          }, 5_000);
+        }),
+      ]).finally(() => clearTimeout(timer));
+    };
+    const startGeneration = async (reason = null) => {
+      if (disposed) return;
+      const expectedGeneration = ++generation;
+      clearExpiry();
+      overlayOff?.();
+      overlayOff = null;
+      overlay?.dispose();
+      overlay = null;
+      publishSnapshot({
+        status: reason === null ? 'pending' : 'resyncing',
+        entries: [],
+        selfKey: null,
+        diagnostic: null,
+        reason,
+      }, expectedGeneration);
+      try {
+        const grant = await bounded(this.connectionGrant(connectionId), 'connection grant');
+        if (grant.ephemeralExpiryProtocol !== 1) {
+          const error = new Error(
+            'SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED: connection did not negotiate ephemeral expiry protocol 1',
+          );
+          error.code = 'SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED';
+          throw error;
+        }
+        await bounded(manager.waitUntilReady({ timeoutMs: 5_000 }), 'socket readiness');
+        const next = await bounded(
+          this.subscribeEphemeral(ref, { connectionId, scope }),
+          'ephemeral subscribe',
+        );
+        adoptOverlay(next, expectedGeneration);
+      } catch (error) {
+        if (disposed || generation !== expectedGeneration) return;
+        const unsupported = error?.code === 'SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED';
+        publishSnapshot({
+          status: unsupported ? 'unsupported' : 'error',
+          entries: [],
+          selfKey: null,
+          diagnostic: clientDiagnosticFromError(error),
+          reason,
+        }, expectedGeneration);
+      }
+    };
+    managerOff = manager.onState((state, detail = {}) => {
+      if (disposed) return;
+      currentConnection = state === 'open'
+        ? 'live'
+        : state === 'connecting'
+          ? 'connecting'
+          : state === 'lost'
+            ? 'stale'
+            : state === 'closed'
+              ? 'closed'
+              : currentConnection;
+      if (state === 'lost' && current.status === 'ready') {
+        publishSnapshot({ status: 'stale', connection: currentConnection });
+      } else {
+        publishSnapshot({
+          connection: currentConnection,
+          ...(detail.error && current.status !== 'ready'
+            ? { diagnostic: clientDiagnosticFromError(detail.error) }
+            : {}),
+        });
+      }
+      if (state === 'open' && (current.status === 'stale' || current.status === 'resyncing')) {
+        void startGeneration('socket_reconnected');
+      }
+    });
+    const startedPromise = startGeneration().then(() => {
+      if (current.status === 'error' || current.status === 'unsupported') {
+        const error = new Error(`${current.diagnostic.code}: ${current.diagnostic.message}`);
+        error.code = current.diagnostic.code;
+        error.diagnostic = current.diagnostic;
+        throw error;
+      }
+    });
+    const observedStart = startedPromise.catch(() => {});
+    const handle = {
+      subscribe(listener) {
+        if (disposed) return () => {};
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      getSnapshot() { return current; },
+      getServerSnapshot() {
+        return freezeEphemeralRoomSnapshot({
+          status: 'pending',
+          entries: [],
+          selfKey: null,
+          diagnostic: null,
+          connection: 'idle',
+          reason: null,
+        });
+      },
+      get grantedConnectionId() { return overlay?.grantedConnectionId ?? null; },
+      started() { return startedPromise; },
+      publish(value, options = {}) {
+        if (!overlay || current.status !== 'ready') {
+          const error = new Error('SNAPBACK_REACT_PRESENCE_NOT_AUTHORITATIVE: room is not ready');
+          error.code = 'SNAPBACK_REACT_PRESENCE_NOT_AUTHORITATIVE';
+          return Promise.reject(error);
+        }
+        return bounded(overlay.publish(value, options), 'ephemeral publish');
+      },
+      delete() {
+        if (!overlay) return Promise.resolve();
+        return bounded(overlay.delete(), 'ephemeral delete');
+      },
+      dispose() {
+        if (disposed) return;
+        disposed = true;
+        generation += 1;
+        clearExpiry();
+        overlayOff?.();
+        overlayOff = null;
+        const retiringOverlay = overlay;
+        overlay = null;
+        retiringOverlay?.dispose();
+        cleanup = bounded(
+          Promise.resolve(
+            thisClient.unsubscribeEphemeral(ref, { connectionId, scope }),
+          ).catch(() => {}),
+          'ephemeral unsubscribe',
+        ).catch(() => {}).finally(() => {
+          managerOff?.();
+          managerOff = null;
+          listeners.clear();
+        });
+      },
+      async settled() {
+        await observedStart;
+        await cleanup;
+      },
+      inspection() {
+        return Object.freeze({
+          generation,
+          disposed,
+          listeners: listeners.size,
+          expiryTimer: expiryTimer === null ? 0 : 1,
+          subscription: overlay === null ? 0 : 1,
+          grantedConnectionId: overlay?.grantedConnectionId ?? null,
+          reason: current.reason,
+        });
+      },
+    };
+    const thisClient = this;
+    return Object.freeze(handle);
+  }
+
   registerEphemeralRepublisher(ref, callback) {
     const collection = collectionName(ref);
     if (typeof callback !== 'function') {
@@ -4626,7 +5004,11 @@ export class SnapbackClient {
       });
       try {
         const result = await Promise.race([
-          Promise.resolve(registration.callback(Object.freeze({ collection, publish }))),
+          Promise.resolve(registration.callback(Object.freeze({
+            collection,
+            scope: deepFreezeEphemeralValue(structuredClone(overlay.scope)),
+            publish,
+          }))),
           timeout,
         ]);
         if (result !== undefined && !acknowledged) await publish(result);
@@ -4729,10 +5111,20 @@ export class SnapbackClient {
   async disconnect(connectionId) {
     // Admin teardown addresses the WIRE id; do not open a grant just to tear
     // one down — an unopened label falls through verbatim.
-    const grant = this.__connectionGrants.has(connectionId)
-      ? await this.connectionGrant(connectionId)
-      : null;
-    return this.#adminReq('POST', `/_snapback/api/connections/${encodeURIComponent(grant?.id ?? connectionId)}/disconnect`);
+    const cached = this.__connectionGrants.has(connectionId);
+    const grant = cached ? await this.connectionGrant(connectionId) : null;
+    try {
+      return await this.#adminReq(
+        'POST',
+        `/_snapback/api/connections/${encodeURIComponent(grant?.id ?? connectionId)}/disconnect`,
+      );
+    } finally {
+      const manager = this.__liveStreamManagers?.get(connectionId);
+      manager?.close();
+      this.__liveStreamManagers?.delete(connectionId);
+      this.__connectionGrants.delete(connectionId);
+      this.__laneConsumers.delete(connectionId);
+    }
   }
 
   async drainEnvelopes(connectionId) {
@@ -7319,6 +7711,22 @@ class LiveStreamManager {
     return this.open && this.readyGeneration === this.socketGeneration;
   }
 
+  inspection() {
+    return Object.freeze({
+      connectionId: this.connectionId,
+      open: this.open,
+      closed: this.closed,
+      socketDemand: this.#demand(),
+      durableListeners: this.durableListeners.size,
+      ephemeralListeners: this.ephemeralListeners.size,
+      stateListeners: this.stateListeners.size,
+      readinessListeners: this.readinessStateListeners.size,
+      pendingRequests: this.pendingRequests.size,
+      reconnectTimer: this.reconnectTimer === null ? 0 : 1,
+      heartbeatTimer: this.heartbeatTimer === null ? 0 : 1,
+    });
+  }
+
   settled() {
     if (this.closed) return Promise.resolve();
     return new Promise((resolve) => this.settlementWaiters.add(resolve));
@@ -8094,6 +8502,55 @@ function resyncReason(serverReason) {
   return 'resync';
 }
 
+function clientDiagnosticFromError(error) {
+  const existing = error?.diagnostic;
+  if (existing && typeof existing.code === 'string') {
+    return Object.freeze({
+      schemaVersion: 'snapback.client-diagnostic.v1',
+      code: existing.code,
+      severity: 'error',
+      message: existing.message ?? error?.message ?? existing.code,
+      details: Object.freeze({ ...(existing.details ?? {}) }),
+    });
+  }
+  return Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: error?.code ?? 'SNAPBACK_EPHEMERAL_ROOM_FAILED',
+    severity: 'error',
+    message: error instanceof Error ? error.message : String(error),
+    details: Object.freeze({}),
+  });
+}
+
+function deepFreezeEphemeralValue(value, seen = new Set()) {
+  if (value === null || typeof value !== 'object' || seen.has(value)) return value;
+  seen.add(value);
+  for (const child of Object.values(value)) deepFreezeEphemeralValue(child, seen);
+  return Object.freeze(value);
+}
+
+function compareRawUtf8(left, right) {
+  const a = new TextEncoder().encode(left);
+  const b = new TextEncoder().encode(right);
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return a.length - b.length;
+}
+
+function freezeEphemeralRoomSnapshot(snapshot) {
+  const entries = [...(snapshot.entries ?? [])]
+    .sort((a, b) => compareRawUtf8(a.key, b.key))
+    .map((entry) => Object.freeze({
+      ...entry,
+      value: deepFreezeEphemeralValue(structuredClone(entry.value)),
+    }));
+  return Object.freeze({
+    ...snapshot,
+    entries: Object.freeze(entries),
+  });
+}
+
 export class EphemeralOverlay {
   // @ref LLP 0013#client-overlay-store — generated clients keep ephemeral
   // entries in memory, apply scope/version checks, and prune by server TTL.
@@ -8316,6 +8773,8 @@ export class EphemeralOverlay {
     }
     const message = unwrapEphemeralMessage(input);
     if (!message) return 'not_ephemeral';
+    const serverObservedAtMs = ephemeralServerObservedAtMs(input, message);
+    const receivedMonotonicMs = monotonicNowMs();
     const authority = input?.ephemeralAuthorityInstance
       ?? input?.ephemeral_authority_instance
       ?? Object.values(message)[0]?.ephemeralAuthorityInstance
@@ -8396,7 +8855,10 @@ export class EphemeralOverlay {
       this.entries.clear();
       this.tombstones.clear();
       for (const entry of message.Snapshot.entries ?? []) {
-        this.entries.set(entry.key, normalizeEntry(entry));
+        this.entries.set(
+          entry.key,
+          normalizeEntry(entry, serverObservedAtMs, receivedMonotonicMs),
+        );
       }
       this.needsResync = false;
       // Ephemeral one-version story (LLP 0034 §3.1): entry versions are valid
@@ -8420,7 +8882,11 @@ export class EphemeralOverlay {
       return 'applied';
     }
     if (message.Upsert) {
-      const entry = normalizeEntry(message.Upsert.entry);
+      const entry = normalizeEntry(
+        message.Upsert.entry,
+        serverObservedAtMs,
+        receivedMonotonicMs,
+      );
       if (this.scopeEpoch !== entry.scopeEpoch) {
         this.needsResync = true;
         return 'needs_resync';
@@ -8471,10 +8937,24 @@ export class EphemeralOverlay {
     return 'not_ephemeral';
   }
 
-  pruneExpired(nowMs = Date.now()) {
+  pruneExpired(nowMs = Date.now(), monotonicMs = monotonicNowMs()) {
     for (const [key, entry] of this.entries) {
-      if (entry.expiresAtMs <= nowMs) this.entries.delete(key);
+      if (
+        entry.monotonicExpiresAtMs === null
+          ? entry.expiresAtMs <= nowMs
+          : entry.monotonicExpiresAtMs <= monotonicMs
+      ) this.entries.delete(key);
     }
+  }
+
+  msUntilEarliestExpiry(monotonicMs = monotonicNowMs()) {
+    let delay = Number.POSITIVE_INFINITY;
+    for (const entry of this.entries.values()) {
+      if (entry.monotonicExpiresAtMs !== null) {
+        delay = Math.min(delay, entry.monotonicExpiresAtMs - monotonicMs);
+      }
+    }
+    return delay;
   }
 
   currentEntries({ prune = true } = {}) {
@@ -8575,8 +9055,24 @@ function sameRoom(a, b) {
   return a.collection === b.collection && a.routing_key === b.routing_key;
 }
 
-function normalizeEntry(entry) {
-  return {
+function monotonicNowMs() {
+  return globalThis.performance?.now?.() ?? Date.now();
+}
+
+function ephemeralServerObservedAtMs(input, message) {
+  const direct = input?.serverObservedAtMs ?? input?.server_observed_at_ms;
+  if (Number.isSafeInteger(direct) && direct >= 0) return direct;
+  const body = Object.values(message ?? {})[0];
+  const nested = body?.serverObservedAtMs ?? body?.server_observed_at_ms;
+  return Number.isSafeInteger(nested) && nested >= 0 ? nested : null;
+}
+
+function normalizeEntry(entry, serverObservedAtMs = null, receivedMonotonicMs = monotonicNowMs()) {
+  const remainingTtlMs = Number.isSafeInteger(serverObservedAtMs)
+    && Number.isSafeInteger(entry.expires_at_ms)
+    ? Math.max(0, entry.expires_at_ms - serverObservedAtMs)
+    : null;
+  const normalized = {
     key: entry.key,
     value: decodeEphemeralValue(entry.value),
     receivedAtMs: entry.received_at_ms,
@@ -8584,6 +9080,13 @@ function normalizeEntry(entry) {
     scopeEpoch: entry.scope_epoch,
     entryVersion: entry.entry_version,
   };
+  Object.defineProperty(normalized, 'monotonicExpiresAtMs', {
+    value: remainingTtlMs === null ? null : receivedMonotonicMs + remainingTtlMs,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return normalized;
 }
 
 function snapshotMaxEntryVersion(snapshot) {

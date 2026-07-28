@@ -13,7 +13,7 @@ declare const __SNAPBACK_URL__: string;
 const client = new SnapbackClient(__SNAPBACK_URL__);
 await client.ensureApp({ schema, functions, seed });
 const binding = await client.prepareReactBinding({
-  generatedManifest: { functions, capabilityManifest },
+  generatedManifest: { schema, functions, capabilityManifest },
 });
 const provider = createSnapbackReactProvider(binding);
 createRoot(document.getElementById('root')!).render(

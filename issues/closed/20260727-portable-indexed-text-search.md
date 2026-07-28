@@ -1,6 +1,6 @@
 # Portable indexed full-text search v1
 
-**Status:** Open  
+**Status:** Closed
 **Impact:** 5  
 **Urgency:** 4  
 **Ease:** 1  
@@ -61,3 +61,30 @@ follows the converged revision and records target-specific nonclaims.
   storage class, accelerator identity, and every nonclaim.
 - LLP status/evidence notes, Rust-owned schemas, `@ref`s, and corpus audit land
   with implementation.
+
+## Resolution — 2026-07-27
+
+Implemented the exact local SQLite profile governed by LLP 0073. Schema
+authoring now declares weighted, classified search indexes and generated search
+operations; the client sends a closed structured AST and receives typed,
+ranked, highlighted keyset pages. SQLite maintains the canonical
+Unicode-17 term/position/source authority synchronously with the source
+transaction, and the runtime owns visibility pushdown plus authoritative
+release rechecks, bounded exact ranking, XChaCha-protected current-keyset
+cursors, rebuild/activation, corruption quarantine, and backup/restore
+recovery.
+
+Signal Desk now uses `defineSearchQuery` and the generated
+`api.searchIncidents` reference; its former JavaScript scan is gone. LLP 0073
+is Implemented and records the admitted local profile plus the explicit
+PostgreSQL, hosted-service, live/offline, sensitive-field, relation-visibility,
+and accelerator nonclaims.
+
+The retained Rust and package corpus covers analyzer/parser/query semantics,
+ranking, pagination, mutation maintenance, owner isolation, rebuild,
+generation switching, integrity roots, direct SQLite tampering, corruption,
+and backup/restore. The final integrity hardening binds every source projection
+to a canonical content digest and checks the exact derived state before
+release, including mutation-triggered quarantine and deterministic
+grapheme-safe highlight vectors. Focused search tests pass 23/23; the complete
+repository proof owns the final integration gate.

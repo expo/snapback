@@ -81,7 +81,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | First-class React external-store hook with arguments and rows/mutation results inferred exactly from generated references | react, hooks, useSyncExternalStore, result inference, typed mutation | local | shipped | `useSnapbackQuery` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0101 | clients/react.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, route-group references with one-commit register-mode priming and honest live fallback, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, aggregate connection state, Strict Mode/HMR sharing, complete cleanup, and a retained ten-check Signal Desk receipt | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, presence, query groups, bundle prime, hmr | local | shipped | `useSnapbackQueries` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0102, llp/0106 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI | install, new app, dev, watch, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041 | getting-started/the-authoring-loop.md |
@@ -94,7 +94,7 @@ with the Snapback label and `guide-gap` in the title.
 | operating.guide-mcp | Read-only MCP resources for the build-bound guide corpus | mcp docs, guide resources | all | shipped | `run_stdio` in src/guide_mcp.rs | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness and package-owned backend comparator profile | tests, acceptance, harness, comparator, backend bake-off, native push receipt | local | shipped | `runComparatorAcceptance` in packages/snapback-cli/comparator-profile.mjs | llp/0010, llp/0012, llp/0013, llp/0034 | testing/acceptance.md |
 | deploy.release-build | Target-neutral immutable release build, scan, content identity, and read-back verification | deploy build, release artifact, dirty preview, release digest | all | partial | `buildRelease` in packages/snapback-cli/index.mjs | llp/0072 | deploying/releases.md |
-| deploy.target-control | Descriptor-first no-follow/single-link authority I/O; owner-only target registration; a content-addressed provider/storage/TLS/supervisor/log/credential/cost drill plan before provisioning; digest-pinned inspection; content-addressed deploy/backup/code-only-rollback/destructive-restore planning; lease/generation-fenced apply; paused restore plus explicit activation; bounded redacted logs; authenticated inspection; read-back-verified backups; receipts; fail-closed hash-chained control audit; positive hosted-auth/qualification/prepared-release artifact producers; and a MAC-authenticated hosted-startup admission consumer/sealer/producer contract. The concrete provider choices, external store, provider secret retrieval, supervised refresh operation, and remote provider evidence remain GAPs | target add, target doctor, remote drill plan, deploy plan, deploy apply, deploy rollback, deploy status, backup create, backup list, backup verify, restore plan, restore apply, restore verify, restore activate, hosted admission, qualification, prepared release, logs, inspect, audit verify | single-instance-container-vm | partial | `applyDeployPlan` in packages/snapback-cli/deployment-control.mjs | llp/0072 | deploying/releases.md |
+| deploy.target-control | Descriptor-first no-follow/single-link authority I/O; owner-only target registration; a content-addressed provider/storage/TLS/supervisor/log/credential/cost drill plan before provisioning; digest-pinned inspection; content-addressed deploy/backup/code-only-rollback/destructive-restore planning; lease/generation-fenced apply; paused restore plus explicit activation; bounded redacted logs; authenticated inspection; read-back-verified backups; receipts; fail-closed hash-chained control audit; positive hosted-auth/qualification/prepared-release artifact producers; and a MAC-authenticated hosted-startup admission consumer/sealer/producer contract. Fly observation/lease and a separately packed sentinel-owned supervisor now have real provider evidence, including scoped credential custody and SQLite → immutable Tigris mirror → conditional external-anchor restart recovery. The public lifecycle train, target registration/channel, online admissions, served inspection, migration/activation/rollback, and complete packed product receipt remain GAPs; no hosted capability is advertised | target add, target doctor, remote drill plan, deploy plan, deploy apply, deploy rollback, deploy status, backup create, backup list, backup verify, restore plan, restore apply, restore verify, restore activate, hosted admission, qualification, prepared release, logs, inspect, audit verify | single-instance-container-vm | partial | `applyDeployPlan` in packages/snapback-cli/deployment-control.mjs | llp/0072, llp/0105 | deploying/releases.md |
 | deploy.cloudflare | The hosted Cloudflare target, as far as it is real | deploy, hosting, production | cloudflare | partial | cloudflare/test/local-suite.mjs | llp/0014, llp/0040, llp/0049 | deploying/cloudflare.md |
 
 Cross-repo seam: Contract/Exact *authoring* (language, components, styling,
@@ -3801,6 +3801,10 @@ additional exports are required.
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
+    // LLP 0106's additive expiry clock negotiation. A version-aware server
+    // echoes 1; a legacy server is retried without this member so durable
+    // operations remain available while React presence reports unsupported.
+    ephemeralExpiryProtocol = 1,
     authCoordinator = null,
     agentAuthority = null,
     senderConstrained = false,
@@ -4017,6 +4021,14 @@ generation counter. React apps should normally consume the thin
 [`@snapback/react` adapter](./react.md), which projects the same store through
 `useSyncExternalStore`.
 
+When a generated route group needs one-commit boot, call
+`binding.prepareQueryGroup(groupRef, params)` before mount. That helper is a
+strict projection over the headless client's existing register-mode
+`fetchBundle` owner: it validates the closed response, retains no grant secret,
+and hands child registrations plus public commit/generation provenance to the
+React provider. A coded `fallbackToLive` result has `boot: null`; it is an
+ordinary live group, not a degraded single-commit claim.
+
 Providers must declare `externalStoreProtocol: "snapback.external-store.v1"`.
 If a resolved handle also declares a protocol, an incompatible token publishes
 `SNAPBACK_EXTERNAL_STORE_INCOMPATIBLE` and disposes that handle. The external
@@ -4042,6 +4054,16 @@ lower-level transport operations. See the
 [presence recipe](../recipes/presence-cursors.md) for the paved feature and
 [ephemeral-state reference](../realtime/ephemeral-state.md) for the complete
 declaration, overlay, and recovery contract.
+
+Framework adapters that must own a complete room lifecycle use
+`startEphemeralRoom(admittedDefinition, scope)`. Its handle owns subscribe,
+grant refresh, overlay, reconnect/resync, and cleanup, and exposes
+`started()`, idempotent `dispose()`, bounded `settled()`, the granted identity,
+and level-triggered snapshots. Ordinary React code should use
+[`useSnapbackPresence`](./react.md) instead. `localResourceInspection(ids)` is
+an acceptance-only finite-count view of local managers, grants, lane
+consumers, socket demand, timers, and listeners; it is not application state
+or an authorization API.
 
 ## Enter and leave session authority
 
@@ -4094,8 +4116,9 @@ intent so source additions cannot hide as “advanced” APIs:
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
 | Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
 | Durable live | `liveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
+| Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
+| Acceptance inspection | `localResourceInspection` |
 | Receipts | `recordReceipt`, `receipts`, `onReceipt` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
@@ -4212,8 +4235,8 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0101-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/backend-bakeoff/src/backends/snapback.ts, demos/backend-bakeoff/tests/react.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0101-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0106-react-presence-and-optimistic-lifecycle.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/backend-bakeoff/src/backends/snapback.ts, demos/backend-bakeoff/tests/react.mjs, demos/backend-bakeoff/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
@@ -4228,18 +4251,19 @@ reviewed-commit: HEAD
 > [auth/targets](../auth/targets.md).
 
 `@snapback/react` supplies a prepared provider, exact generated-reference
-inference, shared single and grouped live queries, mutations, and connection
-state through React's `useSyncExternalStore` contract. The provider owns
-canonical query identity, Strict Mode replay, late-handle disposal, auth
-custody blanking, and cleanup. Components do not open live handles in
-`useEffect` or add a second query cache.
+inference, shared single and grouped live queries, optimistic mutations,
+managed presence, and connection state through React's `useSyncExternalStore`
+contract. The provider owns canonical query and room identity, Strict Mode
+replay, late-handle disposal, auth custody blanking, expiry/heartbeat work, and
+cleanup. Components do not open live handles in `useEffect`, add a second
+query cache, or manage presence intervals.
 
 Prepare the connected deployment before rendering, then construct a provider
 from that immutable binding:
 
 ```ts fragment reason="application composition varies by renderer and generated artifact imports"
 const binding = await client.prepareReactBinding({
-  generatedManifest: { functions, capabilityManifest },
+  generatedManifest: { schema, functions, capabilityManifest },
 });
 const provider = createSnapbackReactProvider(binding);
 
@@ -4250,10 +4274,11 @@ root.render(
 );
 ```
 
-Preparation verifies app, deployment, auth-mode, function-catalog, and
-capability identity. The provider borrows the client; `provider.dispose()`
-drains only provider-owned subscriptions, stores, listeners, timers, and its
-auth-barrier participant.
+Preparation verifies app, deployment, auth-mode, schema, function-catalog,
+result contracts, ephemeral declarations, and capability identity. The
+provider borrows the client; `provider.dispose()` drains provider-owned
+subscriptions, rooms, stores, listeners, timers, connection grant, socket
+demand, and its auth-barrier participant.
 
 ## Bind a generated query
 
@@ -4284,10 +4309,38 @@ arguments stay isolated.
 
 ## Read a query group
 
-Use one group when a view assembles several independently live results:
+When the group is also a declared route bundle, use its generated reference.
+Prepare it before mount so the LLP 0090 register-mode owner takes every
+initial snapshot and creates every live registration at one commit:
 
-```ts fragment reason="group membership is application-specific"
-const workspace = useSnapbackQueries({
+```ts fragment reason="route and parameter names come from the generated application API"
+const workspaceGroup = await binding.prepareQueryGroup(
+  groups['/workspace/:incidentId'],
+  { incidentId },
+  { fallbackToLive: true },
+);
+const provider = createSnapbackReactProvider(binding, {
+  preparedGroup: workspaceGroup,
+});
+
+// Inside the provider:
+const workspace = useSnapbackQueries(workspaceGroup);
+```
+
+The generated reference closes the child refs, argument mappings, route
+parameters, app, and definition digest. The prepared group contains no grant
+secret. On a successful registered boot, `workspace.boot` records the one
+initial `{commitVersion, generation, versionStream}` and each canonical child
+store adopts its registration without an ordinary prime/subscribe race. That
+field is initial provenance only; later child deltas are independently live.
+An explicit coded target fallback returns `boot: null` and opens ordinary live
+subscriptions, so it makes no single-commit claim.
+
+For view-local group membership that is not a route bundle, pass the existing
+typed object map directly:
+
+```ts fragment reason="view-local group membership is application-specific"
+const filters = useSnapbackQueries({
   incidents: { ref: api.listIncidents, args: {} },
   tasks: { ref: api.tasksForIncident, args: { incidentId } },
   comments: { ref: api.commentsForIncident, args: showComments ? {} : skip },
@@ -4310,6 +4363,72 @@ The returned function infers exact arguments and the unwrapped result from the
 generated mutation reference. Runtime refusals reject with Snapback's
 structured diagnostic.
 
+For a mutation whose optimistic projection updates a currently authoritative
+live query, declare that projection beside the hook:
+
+```ts fragment reason="mutation and query fields come from the generated application API"
+const toggleTask = useSnapbackMutation(api.toggleTask, {
+  optimistic: {
+    query: api.allTasks,
+    args: {},
+    update(tasks, { taskId }) {
+      return tasks.map((task) =>
+        task.id === taskId ? { ...task, done: !task.done } : task);
+    },
+    isAuthoritative(tasks, result) {
+      return tasks.some((task) => task.id === result.id
+        && task.done === result.done);
+    },
+  },
+});
+```
+
+The optimistic layer is installed only over the provider's already-current
+authoritative query store and is validated against the generated result
+contract before network work. Overlapping attempts rebase in invocation order.
+Rejection removes only its own layer and recomputes over the newest
+authoritative base. An HTTP response validates and settles the mutation
+promise, but is not itself live-query authority; `isAuthoritative`, when
+present, retires that layer only after a matching validated live delivery.
+There are at most 256 pending optimistic layers per store.
+
+## Publish and observe presence
+
+Pass a generated connection-keyed ephemeral reference. A non-skipped value is
+declarative managed intent: the provider publishes it after the authoritative
+room snapshot and refreshes it within the generated TTL and rate limits.
+
+```ts fragment reason="presence fields come from the generated ephemeral declaration"
+const presence = useSnapbackPresence(ephemeral.incidentPresence, {
+  scope: { incidentId },
+  value: {
+    userId: persona.id,
+    name: persona.name,
+    color: persona.color,
+    viewing: 'incident',
+  },
+  ttlMs: 4_000,
+});
+
+if (presence.status === 'ready' || presence.status === 'stale') {
+  renderViewers(presence.entries);
+}
+```
+
+Equal provider/reference/scope consumers share one headless room, overlay,
+listener, and heartbeat. Their managed values and TTLs must agree. Use
+`value: skip` for an observer; only observers may call `publish` and `delete`
+imperatively. Managed TTL is 500 ms through the collection's generated
+maximum, and scope/value contracts, payload size, sustained rate, burst rate,
+and React-local room/consumer/publisher caps refuse before invalid work.
+
+The closed state is `pending | resyncing | ready | stale | error |
+unsupported`. Only `ready` is authoritative. `stale` retains same-authority
+entries only to their server-stamped monotonic expiry; predecessor authority
+entries are blanked. Presence is never persisted, hydrated, or counted as a
+durable mutation. This first-class surface is deliberately local-target only;
+a hosted binding returns `unsupported` without starting a room or socket.
+
 ## Render connection state honestly
 
 `useSnapbackConnection()` observes the provider-wide weakest connection state
@@ -4326,8 +4445,13 @@ the old group.
 
 This is an Online projection. It does not claim local handler execution,
 durable offline queueing, or Parity merely because it can retain data while a
-connection is stale. Presence remains an explicit headless-client adapter
-until its separate React lifecycle gate lands.
+connection is stale.
+
+The retained Signal Desk receipt at
+`demos/backend-bakeoff/acceptance/results/react-presence.v1.json` proves two
+independent WebSocket clients, TTL expiry, disconnect deletion, durable-version
+separation, optimistic rebase/matcher ordering, SSR zero demand, hosted
+no-work refusal, and exact provider/client/server cleanup with zero skips.
 
 ## Anti-patterns
 
@@ -4345,6 +4469,11 @@ until its separate React lifecycle gate lands.
   mutation references admitted by the prepared binding.
 - **Do not add a caller-selected row/result generic around a generated
   reference.** Fix the function's result contract and regenerate the API.
+- **Do not treat a mutation HTTP response as live-query authority.** Use the
+  subsequent validated live delivery to retire optimistic state.
+- **Do not create presence heartbeat intervals in application code.** Pass
+  managed intent to `useSnapbackPresence`; the provider owns admission,
+  refresh, disconnect, and teardown.
 
 ---
 

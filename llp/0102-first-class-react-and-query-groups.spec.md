@@ -9,6 +9,11 @@
 shipped provider/connection, single-query/mutation hooks, finite typed query
 groups, and a clean-install starter; removes new authority, RQS adoption, SSR
 hydration, presence, optimistic-ledger, and bundle provenance claims).
+2026-07-27 (post-bakeoff implementation extension: adopts the super-refine
+Fable recommendation to project served route entries as generated group
+references and uses LLP 0090's existing register-mode owner for pre-mount
+single-commit priming; adds dedicated React reconnect, revocation, and
+HMR-replacement evidence without adding a React transport or cache).
 2026-07-27 (pre-review security/totality pass: authority
 partitions come only from the bound headless client, caller-authored cache
 identity and presence permissions are removed, verified preload is the sole
@@ -1225,3 +1230,55 @@ React receipt must exercise the real Snapback adapter, prepared binding,
 provider, group transition, mutation, live update, and zero-resource cleanup;
 the generic demo receipt must not stand in for it. Exact checked-in command
 names and their successful outputs are capability evidence.
+
+## Post-bakeoff implementation extension
+
+The backend bakeoff exposed two acceptance gaps that the narrowed v1 left
+open. This section is normative and supersedes only the earlier nonclaims
+about generated group references and React adoption of an already-owned
+register-mode bundle. It follows the Fable-family super-refine recommendation
+recorded in
+`llp/reviews/0102-first-class-react-and-query-groups.fable.md`; it does not
+revive the rejected React-owned bundle, authority, hydration, or cache owners.
+
+### Bundle-primed generated query groups
+
+Codegen projects every admitted `routes.manifest.json` entry into one exact
+`queryGroupReference` under the generated `groups[routePattern]` map. The
+reference binds the app, route pattern, canonical route definition hash,
+complete child function references, deterministic child labels, literal
+argument mappings, and typed route parameters. A prepared binding reconstructs
+and admits that reference from the generated routes and already-admitted
+function manifests; a stale, partial, forged, cross-app, non-live child, or
+wrong-parameter reference refuses before a bundle request.
+
+`binding.prepareQueryGroup(reference, params)` is the pre-mount acquisition
+seam. It asks the bound headless client for one LLP 0090 register-mode route
+bundle, verifies that the closed response contains exactly the generated
+children, retains no returned grant secret, and returns an opaque prepared
+group carrying only child registrations, the caller-known connection label,
+and `{commitVersion,generation,versionStream}` provenance. The provider must
+adopt that connection label and consumes each registration once when the
+canonical child store starts. A single-query consumer and a generated group
+still share the same store. No ordinary snapshot subscribe may race the
+registered child. Unconsumed pending registrations remain owned by the same
+connection and are removed by provider disconnect.
+
+An explicit `fallbackToLive: true` handles only coded
+`SNAPBACK_BUNDLE_*` target refusals. It returns the same generated group with
+`boot:null` and ordinary live subscriptions; it never calls a failed bundle a
+single-commit boot. `boot` is immutable provenance for the initial registered
+cut, not a claim that later independently delivered child states remain
+transactionally aligned.
+
+### Strict Mode, HMR replacement, and late work
+
+The package retains a dedicated React-level lifecycle witness in
+`packages/snapback-react/lifecycle.test.mjs`. It drives a room through
+`ready → stale → resyncing → ready`, then executes the LLP 0059
+`quiesce → blank → resume` barrier and proves predecessor entries are blank
+before a fresh successor-authority room is visible. Its HMR-shaped overlap
+constructs the successor provider before disposing the predecessor and proves
+that disposal drains only predecessor handles, republishers, listeners,
+barrier participation, and timers. The successor remains authoritative, and
+final cleanup reports zero React-owned resources.

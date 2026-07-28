@@ -39,7 +39,6 @@ const ALLOWED_GLOBALS = new Set([
   'decodeURIComponent',
   'encodeURI',
   'encodeURIComponent',
-  'globalThis',
   'isFinite',
   'isNaN',
   'parseFloat',
@@ -72,18 +71,6 @@ function propertyName(node) {
   return null;
 }
 
-function declaredNames(name, output) {
-  if (ts.isIdentifier(name)) {
-    output.add(name.text);
-    return;
-  }
-  if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
-    for (const element of name.elements) {
-      if (ts.isBindingElement(element)) declaredNames(element.name, output);
-    }
-  }
-}
-
 function isDeclarationIdentifier(node) {
   const parent = node.parent;
   if (!parent) return false;
@@ -109,22 +96,15 @@ function isDeclarationIdentifier(node) {
   return false;
 }
 
-function selfContainedProblems(expression) {
-  const declared = new Set();
+function selfContainedProblems(expression, checker) {
   const referenced = new Set();
   const forbidden = [];
   const collect = (node) => {
-    if (ts.isVariableDeclaration(node)) declaredNames(node.name, declared);
-    if (
-      (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node))
-      && node.name
-    ) declaredNames(node.name, declared);
-    if (ts.isParameter(node)) declaredNames(node.name, declared);
-    if (ts.isCatchClause(node) && node.variableDeclaration) {
-      declaredNames(node.variableDeclaration.name, declared);
-    }
     if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
       forbidden.push({ node, reason: 'class syntax is outside inline_handler_v1' });
+    }
+    if (node.kind === ts.SyntaxKind.ThisKeyword || node.kind === ts.SyntaxKind.SuperKeyword) {
+      forbidden.push({ node, reason: 'ambient this/super is outside inline_handler_v1' });
     }
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       forbidden.push({ node, reason: 'dynamic import is outside inline_handler_v1' });
@@ -147,13 +127,21 @@ function selfContainedProblems(expression) {
   };
   collect(expression);
   const inspect = (node) => {
-    if (ts.isIdentifier(node) && !isDeclarationIdentifier(node)) referenced.add(node.text);
+    if (ts.isTypeNode(node)) return;
+    if (ts.isIdentifier(node) && !isDeclarationIdentifier(node)) {
+      const symbol = checker.getSymbolAtLocation(node);
+      const local = symbol?.declarations?.some(
+        (declaration) => (
+          declaration.getStart() >= expression.getStart()
+          && declaration.end <= expression.end
+        ),
+      );
+      if (!local && !ALLOWED_GLOBALS.has(node.text)) referenced.add(node.text);
+    }
     ts.forEachChild(node, inspect);
   };
   inspect(expression);
-  const free = [...referenced]
-    .filter((name) => !declared.has(name) && !ALLOWED_GLOBALS.has(name))
-    .sort();
+  const free = [...referenced].sort();
   return { forbidden, free };
 }
 
@@ -179,6 +167,17 @@ export function extractInlineHandlers(source, {
     true,
     scriptKind,
   );
+  const compilerOptions = {
+    allowJs: true,
+    checkJs: true,
+    noLib: true,
+    target: ts.ScriptTarget.ES2022,
+  };
+  const compilerHost = ts.createCompilerHost(compilerOptions);
+  compilerHost.fileExists = (fileName) => fileName === path;
+  compilerHost.readFile = (fileName) => (fileName === path ? source : undefined);
+  compilerHost.getSourceFile = (fileName) => (fileName === path ? sourceFile : undefined);
+  const checker = ts.createProgram([path], compilerOptions, compilerHost).getTypeChecker();
   const diagnostics = sourceFile.parseDiagnostics.map((problem) => {
     const start = Number.isInteger(problem.start) ? problem.start : 0;
     const point = sourceFile.getLineAndCharacterOfPosition(start);
@@ -244,7 +243,7 @@ export function extractInlineHandlers(source, {
         ));
         continue;
       }
-      const { forbidden, free } = selfContainedProblems(expression);
+      const { forbidden, free } = selfContainedProblems(expression, checker);
       for (const problem of forbidden) {
         diagnostics.push(diagnostic(
           'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN',

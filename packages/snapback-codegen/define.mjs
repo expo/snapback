@@ -1649,7 +1649,10 @@ function jsQueryDef(kind, spec) {
   }
   if (spec.result !== undefined) {
     assert(
-      spec.result?.__resultContract === true
+      (
+        spec.result?.__resultContract === true
+        && (spec.result.kind === 'documents' || spec.result.kind === 'records')
+      )
         || (spec.result?.__validator === true && spec.result.primitive === 'object'),
       `${kind} result must be results.documents(...), results.records(...), or the legacy v.object(...) row validator`,
     );
@@ -1912,7 +1915,11 @@ export function defineMutation(spec) {
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
   assert(steps.length > 0, 'defineMutation requires at least one plan step');
   if (spec.result !== undefined) {
-    assert(spec.result?.__resultContract === true, 'defineMutation result must use results.document(...) or results.value(...)');
+    assert(
+      spec.result?.__resultContract === true
+        && (spec.result.kind === 'document' || spec.result.kind === 'value'),
+      'defineMutation result must use results.document(...) or results.value(...)',
+    );
   }
   return {
     [FN]: true,
@@ -1946,7 +1953,11 @@ export function defineJsMutation(spec) {
   }
   assert(spec.writes && Array.isArray(spec.writes) && spec.writes.length > 0, 'defineJsMutation requires declared writes');
   if (spec.result !== undefined) {
-    assert(spec.result?.__resultContract === true, 'defineJsMutation result must use results.document(...) or results.value(...)');
+    assert(
+      spec.result?.__resultContract === true
+        && (spec.result.kind === 'document' || spec.result.kind === 'value'),
+      'defineJsMutation result must use results.document(...) or results.value(...)',
+    );
   }
   if (spec.outgrewIr !== undefined) {
     assert(
@@ -1982,7 +1993,11 @@ export const runMutation = (name, args = {}, opts = {}) => ({
 
 export function defineAction(spec) {
   if (spec.result !== undefined) {
-    assert(spec.result?.__resultContract === true, 'defineAction result must use results.document(...) or results.value(...)');
+    assert(
+      spec.result?.__resultContract === true
+        && (spec.result.kind === 'document' || spec.result.kind === 'value'),
+      'defineAction result must use results.document(...) or results.value(...)',
+    );
   }
   if (spec.handler !== undefined) {
     assert(spec.js === undefined && spec.plan === undefined, 'defineAction handler cannot be mixed with js or plan');

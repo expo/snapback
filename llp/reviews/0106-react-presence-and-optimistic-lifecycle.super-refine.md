@@ -152,3 +152,16 @@ Complete disposition:
 Per the stop rule, no fourth launch is made. This is not dual-READY and no
 acceptance claim is inferred from the reconciliation; implementation follows
 the explicit final decisions behind an unadvertised capability.
+
+## Implementation evidence reconciliation — 2026-07-27
+
+The terminal author revision was subsequently implemented without claiming a
+fourth review or dual-READY. The implementation closes the executable gate
+named above: package-owned client expiry/room, shared result-validator, React
+presence/optimistic, and generated-descriptor suites pass; Signal Desk uses
+the first-class provider APIs; and its retained
+`acceptance/results/react-presence.v1.json` records all ten required check ids
+with zero skips. The guide publishes only the local-target Online capability,
+while the hosted no-work refusal remains explicit. LLP 0106 therefore moves
+from Review to Implemented on executable evidence, not on an invented review
+verdict.

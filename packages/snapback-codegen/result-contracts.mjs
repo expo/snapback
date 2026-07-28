@@ -1,4 +1,8 @@
 import { createHash } from 'node:crypto';
+export {
+  compileResultContractValidator,
+  RESULT_CONTRACT_LIMITS_V1,
+} from '@snapback/contract/result-contract-validator';
 
 // @ref LLP 0101#final-author-reconciliation-after-round-3 — the emitted
 // contract is the schema-expanded effective contract, and its hash is over
@@ -39,6 +43,144 @@ export function argsContractHash(args) {
 }
 
 const scalar = (kind, extra = {}) => ({ kind, ...extra });
+
+function invalidResultContract(message) {
+  const error = new TypeError(`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID: ${message}`);
+  error.code = 'SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID';
+  throw error;
+}
+
+function primitiveKind(contract) {
+  if (contract.kind === 'null') return 'null';
+  if (contract.kind === 'boolean') return 'boolean';
+  if (['string', 'principal', 'id'].includes(contract.kind)) return 'string';
+  if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
+  if (contract.kind === 'array') return 'array';
+  if (contract.kind === 'object') return 'object';
+  if (contract.kind === 'literal') {
+    if (contract.value === null) return 'null';
+    if (Array.isArray(contract.value)) return 'array';
+    return typeof contract.value;
+  }
+  return 'any-json';
+}
+
+function objectUnionHasDiscriminator(variants) {
+  if (!variants.every((variant) => variant.kind === 'object' && variant.allowExtra === false)) {
+    return false;
+  }
+  return variants[0].fields.some((candidate) => {
+    if (!candidate.required || candidate.value.kind !== 'literal') return false;
+    const values = [];
+    for (const variant of variants) {
+      const field = variant.fields.find(
+        (entry) => entry.required && entry.name === candidate.name && entry.value.kind === 'literal',
+      );
+      if (!field) return false;
+      values.push(canonicalJson(field.value.value));
+    }
+    return new Set(values).size === values.length;
+  });
+}
+
+function primitiveUnionIsDisjoint(variants) {
+  const groups = new Map();
+  for (const variant of variants) {
+    const kind = primitiveKind(variant);
+    if (kind === 'any-json') return false;
+    const group = groups.get(kind) ?? [];
+    group.push(variant);
+    groups.set(kind, group);
+  }
+  for (const group of groups.values()) {
+    if (group.length === 1) continue;
+    if (!group.every((variant) => variant.kind === 'literal')) return false;
+    const literals = group.map((variant) => canonicalJson(variant.value));
+    if (new Set(literals).size !== literals.length) return false;
+  }
+  return true;
+}
+
+function validateEffectiveResultContract(contract) {
+  let objectFields = 0;
+  const visit = (value, depth) => {
+    if (depth > RESULT_MAX_DEPTH) invalidResultContract('contract depth exceeds 16');
+    if (value.kind === 'string') {
+      if (!Number.isSafeInteger(value.maxBytes) || value.maxBytes < 0
+        || value.maxBytes > RESULT_MAX_STRING_BYTES) {
+        invalidResultContract('string maxBytes exceeds 1 MiB');
+      }
+    } else if (value.kind === 'integer') {
+      if (!Number.isSafeInteger(value.min) || !Number.isSafeInteger(value.max)
+        || value.min < -JS_SAFE_INTEGER || value.max > JS_SAFE_INTEGER || value.min > value.max) {
+        invalidResultContract('integer bounds are invalid or outside JavaScript-safe integers');
+      }
+    } else if (value.kind === 'finiteReal') {
+      if (!Number.isFinite(value.min) || !Number.isFinite(value.max) || value.min > value.max) {
+        invalidResultContract('finite-real bounds are invalid');
+      }
+    } else if (value.kind === 'id') {
+      if (typeof value.table !== 'string' || value.table.length === 0) {
+        invalidResultContract('id contract names an empty table');
+      }
+    } else if (value.kind === 'literal') {
+      if (
+        value.value !== null
+        && typeof value.value !== 'string'
+        && typeof value.value !== 'boolean'
+        && !(typeof value.value === 'number' && Number.isFinite(value.value))
+      ) invalidResultContract('literal must be a finite JSON scalar');
+    } else if (value.kind === 'json') {
+      if (!Number.isSafeInteger(value.maxDepth) || value.maxDepth < 0
+        || value.maxDepth > RESULT_MAX_DEPTH
+        || !Number.isSafeInteger(value.maxBytes) || value.maxBytes < 0
+        || value.maxBytes > RESULT_MAX_STRING_BYTES) {
+        invalidResultContract('JSON bounds exceed depth 16 or 1 MiB');
+      }
+    } else if (value.kind === 'array') {
+      if (!Number.isSafeInteger(value.maxItems) || value.maxItems < 0
+        || value.maxItems > RESULT_MAX_ARRAY_ITEMS) {
+        invalidResultContract('array maxItems exceeds 1,024');
+      }
+      visit(value.element, depth + 1);
+    } else if (value.kind === 'union') {
+      if (value.variants.length < 2 || value.variants.length > 8) {
+        invalidResultContract('union must contain 2–8 variants');
+      }
+      const primitiveDisjoint = primitiveUnionIsDisjoint(value.variants);
+      if (!primitiveDisjoint && !objectUnionHasDiscriminator(value.variants)) {
+        invalidResultContract('union variants are not syntactically disjoint');
+      }
+      for (const variant of value.variants) visit(variant, depth + 1);
+    } else if (value.kind === 'object') {
+      objectFields += value.fields.length;
+      if (objectFields > 128) invalidResultContract('contract exceeds 128 object fields');
+      const names = new Set();
+      for (const field of value.fields) {
+        if (typeof field.name !== 'string' || field.name.length === 0 || names.has(field.name)) {
+          invalidResultContract('object field names must be non-empty and unique');
+        }
+        names.add(field.name);
+        visit(field.value, depth + 1);
+      }
+    }
+  };
+  let value;
+  if (contract.kind === 'documents' || contract.kind === 'document') {
+    if (typeof contract.table !== 'string' || contract.table.length === 0) {
+      invalidResultContract('document contract names an empty table');
+    }
+    value = contract.document;
+  } else if (contract.kind === 'records') {
+    if (contract.record.kind !== 'object' || contract.record.allowExtra !== false) {
+      invalidResultContract('records requires a closed object');
+    }
+    value = contract.record;
+  } else if (contract.kind === 'value') value = contract.value;
+  else if (contract.kind === 'legacyQueryRowsV0') value = contract.row;
+  if (value) visit(value, 0);
+  return contract;
+}
 
 export function validatorResultValue(validator, {
   legacy = false,
@@ -205,27 +347,38 @@ export function effectiveResultContract({
   runtime,
   tables,
 }) {
+  if (def?.resultContract) {
+    const query = functionKind === 'Query' || functionKind === 'LiveQuery';
+    const allowed = query
+      ? new Set(['documents', 'records'])
+      : new Set(['document', 'value']);
+    if (!allowed.has(def.resultContract.kind)) {
+      throw new TypeError(
+        `${functionKind} cannot use ${String(def.resultContract.kind)} result contract`,
+      );
+    }
+  }
   const authored = authoredContract(def?.resultContract, tables);
-  if (authored) return authored;
+  if (authored) return validateEffectiveResultContract(authored);
   if (
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && def?.result
-  ) return legacyRows(def.result);
+  ) return validateEffectiveResultContract(legacyRows(def.result));
   const queryTable = runtime?.HostPlan?.Query?.table;
   if ((functionKind === 'Query' || functionKind === 'LiveQuery') && queryTable) {
-    return {
+    return validateEffectiveResultContract({
       kind: 'documents',
       table: queryTable,
       document: tableDocumentValue(queryTable, tables),
-    };
+    });
   }
   const returnedDocument = runtime?.HostPlan?.Mutation?.return_value?.Document?.table;
   if (functionKind === 'Mutation' && returnedDocument) {
-    return {
+    return validateEffectiveResultContract({
       kind: 'document',
       table: returnedDocument,
       document: tableDocumentValue(returnedDocument, tables),
-    };
+    });
   }
   return { kind: 'unknown' };
 }

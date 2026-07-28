@@ -105,10 +105,14 @@ fn derive_key(root: &[u8; 32], key_generation: &str) -> Option<[u8; 32]> {
 }
 
 pub fn mint(root: &[u8; 32], body: &Body) -> Result<String, &'static str> {
-    let key = derive_key(root, &body.key_generation).ok_or("derive")?;
-    let cipher = XChaCha20Poly1305::new((&key).into());
     let mut nonce = [0_u8; 24];
     getrandom::fill(&mut nonce).map_err(|_| "random")?;
+    mint_with_nonce(root, body, nonce)
+}
+
+fn mint_with_nonce(root: &[u8; 32], body: &Body, nonce: [u8; 24]) -> Result<String, &'static str> {
+    let key = derive_key(root, &body.key_generation).ok_or("derive")?;
+    let cipher = XChaCha20Poly1305::new((&key).into());
     let plaintext = serde_json::to_vec(body).map_err(|_| "serialize")?;
     let ciphertext = cipher
         .encrypt(
@@ -244,6 +248,83 @@ mod tests {
                 10_001,
             )
             .is_err()
+        );
+    }
+
+    // @ref LLP 0104#sbbc1-cursor-protocol-and-restart-precedence — one
+    // committed fixed-nonce vector is consumed independently by Rust and
+    // Node, pinning HKDF, length-framed AAD, struct serialization, XChaCha20-
+    // Poly1305 bytes, and the canonical multi-type boundary vocabulary.
+    #[test]
+    fn cross_language_cursor_golden_vector() {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct CursorVector {
+            root_hex: String,
+            nonce_hex: String,
+            body: Body,
+            expected_wire: String,
+        }
+        #[derive(Deserialize)]
+        struct OrderingRow {
+            #[serde(rename = "_id")]
+            id: String,
+            position: i64,
+            label: String,
+            active: bool,
+        }
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct OrderingVector {
+            rows: Vec<OrderingRow>,
+            expected_ids: Vec<String>,
+        }
+        #[derive(Deserialize)]
+        struct Vectors {
+            cursor: CursorVector,
+            ordering: OrderingVector,
+        }
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/conformance/relation-activity-publication-v1.vectors.json");
+        let vectors: Vectors =
+            serde_json::from_slice(&std::fs::read(path).expect("read cursor vectors"))
+                .expect("parse cursor vectors");
+        let decode_hex = |value: &str| {
+            (0..value.len())
+                .step_by(2)
+                .map(|offset| u8::from_str_radix(&value[offset..offset + 2], 16).expect("hex byte"))
+                .collect::<Vec<_>>()
+        };
+        let root: [u8; 32] = decode_hex(&vectors.cursor.root_hex)
+            .try_into()
+            .expect("32-byte root");
+        let nonce: [u8; 24] = decode_hex(&vectors.cursor.nonce_hex)
+            .try_into()
+            .expect("24-byte nonce");
+        let wire = mint_with_nonce(&root, &vectors.cursor.body, nonce).expect("fixed mint");
+        assert_eq!(wire, vectors.cursor.expected_wire);
+        let decoded = decode(
+            &wire,
+            &[(vectors.cursor.body.key_generation.clone(), root)],
+            &vectors.cursor.body.app_id,
+            &vectors.cursor.body.database_id,
+            &vectors.cursor.body.target_profile_id,
+            vectors.cursor.body.issued_at + 1,
+        )
+        .expect("decode golden");
+        assert_eq!(decoded, vectors.cursor.body);
+
+        let mut rows = vectors.ordering.rows;
+        rows.sort_by(|left, right| {
+            left.position
+                .cmp(&right.position)
+                .then_with(|| left.label.as_bytes().cmp(right.label.as_bytes()))
+                .then_with(|| left.active.cmp(&right.active))
+                .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
+        });
+        assert_eq!(
+            rows.into_iter().map(|row| row.id).collect::<Vec<_>>(),
+            vectors.ordering.expected_ids
         );
     }
 }

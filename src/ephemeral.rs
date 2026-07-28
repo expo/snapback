@@ -688,6 +688,15 @@ pub struct EphemeralCollection {
     pub name: String,
     #[serde(default, rename = "scopeFields", alias = "scope_fields")]
     pub scope_fields: Vec<String>,
+    /// Frozen generated scope/value contracts retained for prepared clients.
+    /// The server's existing request validators remain authoritative.
+    ///
+    /// @ref LLP 0106#public-api — prepared React bindings admit the complete
+    /// generated/deployed collection schema rather than reconstructing it.
+    #[serde(default, rename = "scopeContract", alias = "scope_contract")]
+    pub scope_contract: serde_json::Value,
+    #[serde(default, rename = "valueContract", alias = "value_contract")]
+    pub value_contract: serde_json::Value,
     #[serde(rename = "keyMode", alias = "key_mode")]
     pub key_mode: KeyMode,
     #[serde(rename = "routingFields", alias = "routing_fields")]
@@ -731,6 +740,8 @@ impl EphemeralCollection {
         Self {
             name: name.into(),
             scope_fields: vec![routing_field.clone()],
+            scope_contract: serde_json::json!({"kind": "unknown"}),
+            value_contract: serde_json::json!({"kind": "unknown"}),
             key_mode: KeyMode::Connection,
             routing_fields: vec![routing_field],
             default_ttl_ms: 5_000,
@@ -852,6 +863,10 @@ const LOCAL_HARD_MAX_TTL_MS: Millis = 30_000;
 /// Missing offer preserves durable/local behavior and withholds hosted
 /// ephemeral; unknown values refuse before a connection lineage is minted.
 pub const EPHEMERAL_AUTHORITY_PROTOCOL_V1: u32 = 1;
+/// Client-local monotonic expiry conversion protocol. When negotiated, every
+/// final ephemeral serialization includes the server observation time used to
+/// derive remaining TTL without assuming synchronized wall clocks.
+pub const EPHEMERAL_EXPIRY_PROTOCOL_V1: u32 = 1;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

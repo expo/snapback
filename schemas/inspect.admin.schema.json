@@ -1618,6 +1618,10 @@
           },
           "type": "array"
         },
+        "scopeContract": {
+          "default": null,
+          "description": "Frozen generated scope/value contracts retained for prepared clients.\nThe server's existing request validators remain authoritative.\n\n@ref LLP 0106#public-api — prepared React bindings admit the complete\ngenerated/deployed collection schema rather than reconstructing it."
+        },
         "scopeFields": {
           "default": [],
           "items": {
@@ -1632,6 +1636,9 @@
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "valueContract": {
+          "default": null
         }
       },
       "required": [
@@ -4879,8 +4886,7 @@
       "additionalProperties": false,
       "properties": {
         "classification": {
-          "$ref": "#/$defs/SearchFieldClassV1",
-          "default": "public"
+          "$ref": "#/$defs/SearchFieldClassV1"
         },
         "weight": {
           "format": "uint32",
@@ -4890,7 +4896,8 @@
         }
       },
       "required": [
-        "weight"
+        "weight",
+        "classification"
       ],
       "type": "object"
     },

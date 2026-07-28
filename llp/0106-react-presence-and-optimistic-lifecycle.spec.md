@@ -1,12 +1,17 @@
 # LLP 0106: React presence and optimistic lifecycle
 
 **Type:** Spec
-**Status:** Review
+**Status:** Implemented
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-27 (final author reconciliation pins result-contract and
-expiry negotiation carriers plus remaining lifecycle diagnostics/tests)
+**Revised:** 2026-07-27 (implementation reconciliation: the negotiated expiry
+carrier, shared result validator, provider-owned presence and optimistic
+stores, generated admission descriptors, Signal Desk migration, package
+suites, guide, and exact ten-check retained receipt are complete; hosted
+presence remains unsupported). 2026-07-27 (final author reconciliation pins
+result-contract and expiry negotiation carriers plus remaining lifecycle
+diagnostics/tests)
 **Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0102, LLP 0105
 
 ## Summary
@@ -269,7 +274,34 @@ This supersedes LLP 0102 placeholders
 No durable/offline/SSR/history/cross-room/custom-key presence, caller authority
 facts, React-owned transport/cache/ledger, HTTP authority, or hosted inheritance.
 
+## Implementation journal
+
+Implemented on 2026-07-27 as one projection across:
+
+- `packages/snapback-client` for negotiated expiry, server-time-to-monotonic
+  conversion, owned room handles, disconnect cleanup, and finite resource
+  inspection;
+- `packages/snapback-contract/result-contract-validator.mjs` for the shared
+  generated result-contract validator;
+- `packages/snapback-codegen`, `src/ephemeral.rs`, and `src/manifest.rs` for
+  complete private collection/result descriptors;
+- `packages/snapback-react` for the provider-owned presence registry and the
+  single authoritative optimistic query-store ledger; and
+- `demos/backend-bakeoff/src/backends/snapback.ts` for the removal of manual
+  presence heartbeat/overlay and optimistic rollback glue.
+
+The package suites cover descriptor/refusal typing, old/new expiry negotiation,
+room sharing and cleanup, optimistic ordering/rebase/selective rollback, and
+the shared result validator. `bun run test:react` in
+`demos/backend-bakeoff` produced
+`acceptance/results/react-presence.v1.json`: all ten required ids passed with
+zero skips, using two independent native WebSocket clients and exact
+provider/client/server cleanup inspection. `typecheck` and the production
+build also pass. The guide and capability index advertise only the proven
+local-target Online surface; hosted presence continues to refuse before work.
+
 ## Status
 
-Review. This consumes LLP 0013/0102. Implementation stays unadvertised until
-the complete package, demo, comparator, guide, and target evidence passes.
+Implemented. This consumes LLP 0013/0102. The local-target capability is
+advertised only with the package suites and retained ten-check bakeoff receipt
+above; no hosted capability or stronger LLP 0064 class is inferred.

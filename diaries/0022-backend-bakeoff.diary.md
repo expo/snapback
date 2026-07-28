@@ -284,3 +284,57 @@ This is a better failure mode than the original surface. The capability index
 still tells an agent not to depend on the profiles as a published target
 guarantee until LLP 0104 completes its separate author-acceptance and
 cross-target evidence lifecycle.
+
+## 2026-07-27 — first-class React presence and optimistic follow-up
+
+Signal Desk previously owned a manual ephemeral overlay and heartbeat interval,
+four live-subscription aggregators, and optimistic rollback vulnerable to
+newer authoritative delivery. It now uses the prepared first-party provider,
+typed query group, managed presence observer, and the provider's sole
+authoritative optimistic ledger.
+
+The real receipt exposed integration seams that unit-only work would have
+missed: session-mode `/inspect` needed the auth-client offer, public inspection
+needed the result descriptor (not only its hash), the browser hash carrier had
+to match codegen's canonical bytes, confirmed optimistic layers had to respect
+response-first as well as query-first matching, provider startup needed an
+independent grant before the auth barrier, and final cleanup needed an awaited
+disconnect plus finite manager/grant/lane inspection. Those fixes now live in
+the owners rather than in the demo.
+
+The retained React receipt passes all ten required checks with zero skips, and
+the package suites, typecheck, and production build pass. Compared with Convex,
+Snapback now offers a similarly first-class reactive lifecycle while preserving
+purpose-built nondurable TTL presence and more explicit evidence; Convex still
+has the more cohesive first-hour loop. Compared with Supabase, Snapback avoids
+application-owned channel/refresh coordination for this path, while Supabase
+still has the more mature hosted presence and operational product. Hosted
+Snapback presence remains an explicit unsupported no-work state.
+
+## 2026-07-27 — generated groups and lifecycle closure
+
+The remaining React friction was narrower but important: the group hook still
+made Signal Desk repeat four generated refs, and the strongest lifecycle
+claims were inherited from headless tests instead of witnessed at React's own
+ownership boundary. Codegen now projects the existing route manifest as an
+exact `queryGroupReference`; the adapter prepares that group before mount and
+the provider adopts LLP 0090 register-mode child subscriptions from one commit
+cut. Targets that explicitly refuse bundles fall back to the same generated
+group with `boot: null`, so the UI remains usable without pretending it saw an
+atomic initial cut.
+
+The package proof distinguishes registered adoption from ordinary
+subscriptions (two registered starts, zero ordinary starts), rejects a forged
+group and wrong route params before work, and retains the existing individual
+query/store sharing. Signal Desk's adapter now names one generated group
+instead of maintaining its own four-entry map. Compared with Convex, this is a
+more explicit route/boot protocol and a little more pre-mount ceremony; the
+payoff is inspectable single-commit provenance and a fail-closed fallback
+boundary.
+
+A separate React lifecycle witness now drives disconnect, reconnect/resync,
+auth-barrier blank/resume, and overlapping HMR-like provider replacement. The
+successor stays live while predecessor handles, republishers, listeners,
+barrier registrations, and timers drain to zero. That closed the last evidence
+gap in the first-class React ticket rather than relying on a headless test as a
+proxy.

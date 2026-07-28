@@ -110,7 +110,7 @@ fn validate_value(
             if serde_json::to_vec(value).map_or(true, |bytes| bytes.len() > *max_bytes) {
                 return Err(path.to_owned());
             }
-            validate_json_budget_with_limit(value, depth, *max_depth, budget, path)
+            validate_json_children_with_limit(value, depth, *max_depth, budget, path)
         }
         ResultValueContract::Array { element, max_items } => {
             let values = value.as_array().ok_or_else(|| path.to_owned())?;
@@ -245,6 +245,44 @@ fn validate_json_budget_with_limit(
     Ok(())
 }
 
+fn validate_json_children_with_limit(
+    value: &Value,
+    depth: usize,
+    max_depth: usize,
+    budget: &mut ValidationBudget,
+    path: &str,
+) -> Result<(), String> {
+    if depth > max_depth {
+        return Err(path.to_owned());
+    }
+    match value {
+        Value::Array(values) => {
+            for (index, value) in values.iter().enumerate() {
+                validate_json_budget_with_limit(
+                    value,
+                    depth + 1,
+                    max_depth,
+                    budget,
+                    &format!("{path}[{index}]"),
+                )?;
+            }
+        }
+        Value::Object(object) => {
+            for (name, value) in object {
+                validate_json_budget_with_limit(
+                    value,
+                    depth + 1,
+                    max_depth,
+                    budget,
+                    &format!("{path}.{}", path_segment(name)),
+                )?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn violation(function: &FunctionDefinition, path: &str) -> SnapbackError {
     let path_hash = Sha256::digest(path.as_bytes());
     SnapbackError::error(
@@ -322,5 +360,175 @@ mod tests {
             },
         });
         validate_handler_result(&function, &json!([{"title": "ok"}])).unwrap();
+    }
+
+    #[test]
+    fn value_contract_matrix_covers_every_recursive_variant() {
+        let cases = vec![
+            (ResultValueContract::Null, Value::Null, json!(false)),
+            (ResultValueContract::Boolean, json!(true), json!("true")),
+            (
+                ResultValueContract::String { max_bytes: 4 },
+                json!("éé"),
+                json!("ééé"),
+            ),
+            (
+                ResultValueContract::Integer { min: -2, max: 2 },
+                json!(2),
+                json!(3),
+            ),
+            (
+                ResultValueContract::FiniteReal {
+                    min: -1.5,
+                    max: 1.5,
+                },
+                json!(1.25),
+                json!(2.0),
+            ),
+            (ResultValueContract::Principal, json!("usr_1"), json!("")),
+            (
+                ResultValueContract::Id {
+                    table: "items".to_owned(),
+                },
+                json!("item_1"),
+                json!(""),
+            ),
+            (
+                ResultValueContract::Literal {
+                    value: json!("ready"),
+                },
+                json!("ready"),
+                json!("waiting"),
+            ),
+            (
+                ResultValueContract::Json {
+                    max_depth: 1,
+                    max_bytes: 64,
+                },
+                json!({"ok": true}),
+                json!({"too": {"deep": true}}),
+            ),
+            (
+                ResultValueContract::Array {
+                    element: Box::new(ResultValueContract::Boolean),
+                    max_items: 2,
+                },
+                json!([true, false]),
+                json!([true, false, true]),
+            ),
+            (
+                ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, ResultValueContract::Boolean],
+                },
+                json!(false),
+                json!("neither"),
+            ),
+            (
+                ResultValueContract::Object {
+                    fields: vec![
+                        ResultObjectFieldContract {
+                            name: "required".to_owned(),
+                            required: true,
+                            value: ResultValueContract::Boolean,
+                        },
+                        ResultObjectFieldContract {
+                            name: "optional".to_owned(),
+                            required: false,
+                            value: ResultValueContract::String { max_bytes: 4 },
+                        },
+                    ],
+                    allow_extra: false,
+                },
+                json!({"required": true}),
+                json!({"optional": "ok"}),
+            ),
+        ];
+
+        for (contract, accepted, rejected) in cases {
+            let function = function(FunctionResultContract::Value { value: contract });
+            validate_handler_result(&function, &accepted)
+                .unwrap_or_else(|error| panic!("accepted fixture refused: {error}"));
+            let error = validate_handler_result(&function, &rejected)
+                .expect_err("rejected fixture passed its result contract");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+            );
+            assert!(
+                !error.to_string().contains(&rejected.to_string()),
+                "result diagnostics must not echo the rejected value"
+            );
+        }
+    }
+
+    #[test]
+    fn document_and_legacy_rows_preserve_their_declared_extra_field_posture() {
+        let fields = vec![
+            ResultObjectFieldContract {
+                name: "_id".to_owned(),
+                required: true,
+                value: ResultValueContract::String { max_bytes: 64 },
+            },
+            ResultObjectFieldContract {
+                name: "title".to_owned(),
+                required: true,
+                value: ResultValueContract::String { max_bytes: 8 },
+            },
+        ];
+        let document = function(FunctionResultContract::Documents {
+            table: "items".to_owned(),
+            document: ResultValueContract::Object {
+                fields: fields.clone(),
+                allow_extra: false,
+            },
+        });
+        validate_handler_result(&document, &json!([{"_id": "item_1", "title": "ok"}]))
+            .expect("exact stored document");
+        assert!(
+            validate_handler_result(
+                &document,
+                &json!([{"_id": "item_1", "title": "ok", "invented": true}]),
+            )
+            .is_err(),
+            "stored documents cannot invent undeclared system/application fields"
+        );
+
+        let legacy = function(FunctionResultContract::LegacyQueryRowsV0 {
+            row: ResultValueContract::Object {
+                fields,
+                allow_extra: true,
+            },
+        });
+        validate_handler_result(
+            &legacy,
+            &json!([{"_id": "item_1", "title": "ok", "legacyExtra": true}]),
+        )
+        .expect("legacy query rows retain their documented open-extra compatibility");
+    }
+
+    #[test]
+    fn bounded_json_root_consumes_the_shared_node_budget_once() {
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::Json {
+                max_depth: 0,
+                max_bytes: 8,
+            },
+        });
+        let mut budget = ValidationBudget {
+            nodes: MAX_RESULT_NODES - 1,
+        };
+        validate_value(
+            &function,
+            &Value::Null,
+            match &function.result_contract {
+                FunctionResultContract::Value { value } => value,
+                _ => unreachable!(),
+            },
+            "$",
+            0,
+            &mut budget,
+        )
+        .expect("the JSON root was already consumed by the contract dispatcher");
+        assert_eq!(budget.nodes, MAX_RESULT_NODES);
     }
 }

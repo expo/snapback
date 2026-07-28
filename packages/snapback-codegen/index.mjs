@@ -81,6 +81,7 @@ import {
   effectiveResultContract,
   resultContractHash,
   resultContractType,
+  validatorResultValue,
 } from './result-contracts.mjs';
 import {
   createCodegenSummary,
@@ -1877,7 +1878,7 @@ export async function generateInProcess(backendDir, options = {}) {
       }
     } catch (error) {
       err(
-        'SNAPBACK_RESULT_CONTRACT_INVALID',
+        'SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID',
         'function',
         `${fn.name}: ${error.message}`,
         { function: fn.name },
@@ -2248,13 +2249,19 @@ export async function generateInProcess(backendDir, options = {}) {
   }
 
   const outDir = join(backendRoot, targetConfig.outputDirectory);
-  const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
+  const apiModule = renderApiModule(
+    appId,
+    functionManifest.functions,
+    ephemeralCollections,
+    routesManifest,
+  );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
     functionsModule,
     ephemeralCollections,
     schemaDef,
     providerBindingMetadata,
+    routesManifest,
   );
   const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
@@ -2506,21 +2513,23 @@ function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
         maximum: MAX_EPHEMERAL_SCOPE_FIELDS,
       });
     }
+    let contractsValid = true;
     for (const field of scopeFields) {
       if (!IDENT.test(field) || Buffer.byteLength(field) > MAX_EPHEMERAL_SCOPE_KEY_BYTES) {
         err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} has invalid scope field ${field}`, { collection: name, field });
+        contractsValid = false;
         continue;
       }
-      validateAuthoringValidator(def.scope?.[field], `${name} scope ${field}`, (message) => {
+      if (!validateAuthoringValidator(def.scope?.[field], `${name} scope ${field}`, (message) => {
         err('EPHEMERAL_INVALID_VALIDATOR', 'ephemeral', message, { collection: name, field });
-      });
+      })) contractsValid = false;
       checkObjectValidatorFieldIdents(def.scope?.[field], `scope field ${field}`, (fieldName, where) => {
         err('EPHEMERAL_INVALID_SCOPE_FIELD', 'ephemeral', `${name} ${where} has invalid field identifier ${fieldName}`, { collection: name, field: fieldName });
       });
     }
-    validateAuthoringValidator(def.value, `${name} value`, (message) => {
+    if (!validateAuthoringValidator(def.value, `${name} value`, (message) => {
       err('EPHEMERAL_INVALID_VALIDATOR', 'ephemeral', message, { collection: name });
-    });
+    })) contractsValid = false;
     // The value validator's nested v.object field names reach the emitted
     // scope/value TS types (typeForValidator) unescaped, same as scope fields.
     checkObjectValidatorFieldIdents(def.value, 'value', (fieldName, where) => {
@@ -2623,9 +2632,25 @@ function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
       });
     }
 
+    // Preserve all independently actionable diagnostics above, but never feed
+    // a known-invalid mutable definition object into the result-contract
+    // projector. A projector exception would collapse the field-specific
+    // authoring errors into one worker failure and obscure the remaining
+    // budget/auth findings.
+    if (!contractsValid) continue;
     collections.push({
       name,
       scopeFields,
+      scopeContract: {
+        kind: 'object',
+        fields: Object.entries(def.scope ?? {}).map(([fieldName, validator]) => ({
+          name: fieldName,
+          required: validator.optional !== true,
+          value: validatorResultValue(validator),
+        })),
+        allowExtra: false,
+      },
+      valueContract: validatorResultValue(def.value),
       keyMode: resolvedKeyMode ?? 'Connection',
       routingFields,
       defaultTtlMs: def.ttlMs ?? 0,
@@ -5524,7 +5549,61 @@ function sourcePosition(source, offset) {
   return { line: lines.length, column: lines.at(-1).length + 1 };
 }
 
-function renderApiModule(appId, functions, ephemeralCollections) {
+function queryGroupEntryName(functionName, occurrences) {
+  const count = (occurrences.get(functionName) ?? 0) + 1;
+  occurrences.set(functionName, count);
+  return count === 1 ? functionName : `${functionName}${count}`;
+}
+
+function renderQueryGroupReferences(appId, functions, routesManifest) {
+  const byName = new Map(functions.map((fn) => [fn.name, fn]));
+  const groups = dict();
+  for (const routeEntry of routesManifest?.routes ?? []) {
+    const occurrences = new Map();
+    const queries = routeEntry.queries.map((query) => {
+      const fn = byName.get(query.function);
+      if (!fn) {
+        throw new Error(`codegen internal error: query group references unknown function ${query.function}`);
+      }
+      return {
+        name: queryGroupEntryName(query.function, occurrences),
+        ref: {
+          artifactKind: 'functionReference',
+          schemaVersion: SCHEMA_VERSION,
+          appId,
+          id: fn.id,
+          name: fn.name,
+          kind: fn.kind,
+          implementationHash: fn.implementationHash,
+          argsContractHash: fn.argsContractHash,
+          resultContractHash: fn.resultContractHash,
+        },
+        args: query.args ?? {},
+      };
+    });
+    const definition = {
+      route: routeEntry.route,
+      queries: routeEntry.queries,
+      ...(routeEntry.persist === false ? { persist: false } : {}),
+    };
+    groups[routeEntry.route] = {
+      artifactKind: 'queryGroupReference',
+      formatVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
+      appId,
+      id: `${appId}:query-group:${routeEntry.route}`,
+      route: routeEntry.route,
+      definitionHash: `sha256:${sha256(
+        `snapback:query-group-reference:v1\n${stableJson(definition)}`,
+      )}`,
+      queries,
+      ...(routeEntry.persist === false ? { persist: false } : {}),
+    };
+  }
+  return groups;
+}
+
+function renderApiModule(appId, functions, ephemeralCollections, routesManifest) {
   const refs = dict();
   for (const fn of functions) {
     refs[fn.name] = {
@@ -5561,9 +5640,13 @@ function renderApiModule(appId, functions, ephemeralCollections) {
     };
   }
   refs.ephemeral = ephemeralRefs;
+  const groupRefs = renderQueryGroupReferences(appId, functions, routesManifest);
+  refs.groups = groupRefs;
   return `${HEADER}\n` +
     `/** @type {import('./api.d.ts').GeneratedEphemeral} */\n` +
     `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
+    `/** @type {import('./api.d.ts').GeneratedQueryGroups} */\n` +
+    `export const groups = Object.freeze(${stableJson(groupRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = Object.freeze(${stableJson(refs)});\n` +
     `export default api;\n`;
@@ -5575,6 +5658,7 @@ function renderApiTypes(
   ephemeralCollections,
   schemaDef,
   providerBindingMetadata,
+  routesManifest,
 ) {
   const lines = [
     HEADER,
@@ -5615,13 +5699,28 @@ function renderApiTypes(
     "export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
     "export type MutationInvocation<Ref extends FunctionReference<string, 'Mutation', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
     "export type ActionInvocation<Ref extends FunctionReference<string, 'Action', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
-    'export interface EphemeralCollectionReference<Name extends string, Scope, Value> {',
+    'export interface QueryGroupReference<Route extends string, Params, Entries> {',
+    "  artifactKind: 'queryGroupReference';",
+    '  formatVersion: 1;',
+    '  schemaVersion: SchemaVersion;',
+    '  appId: string;',
+    '  id: string;',
+    '  route: Route;',
+    '  definitionHash: string;',
+    '  queries: readonly Readonly<{ name: string; ref: FunctionReference<string, "Query" | "LiveQuery", unknown, unknown>; args: Readonly<Record<string, unknown>> }>[];',
+    '  persist?: false;',
+    '  readonly __params?: Params;',
+    '  readonly __entries?: Entries;',
+    '}',
+    'export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, unknown> ? Params : never;',
+    'export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Entries> ? Entries : never;',
+    'export interface EphemeralCollectionReference<Name extends string, Scope, Value, KeyMode extends EphemeralKeyMode = EphemeralKeyMode> {',
     "  artifactKind: 'ephemeralCollectionReference';",
     '  schemaVersion: SchemaVersion;',
     '  appId: string;',
     '  id: string;',
     '  name: Name;',
-    '  keyMode: EphemeralKeyMode;',
+    '  keyMode: KeyMode;',
     '  scopeFields: readonly string[];',
     '  routingFields: readonly string[];',
     '  defaultTtlMs: number;',
@@ -5727,7 +5826,52 @@ function renderApiTypes(
   );
   for (const collection of ephemeralCollections) {
     const def = schemaDef.ephemeral?.collections?.[collection.name];
-    lines.push(`  ${collection.name}: EphemeralCollectionReference<'${collection.name}', ${typeForScope(def?.scope ?? {})}, ${typeForValidator(def?.value)}>;`);
+    lines.push(`  ${collection.name}: EphemeralCollectionReference<'${collection.name}', ${typeForScope(def?.scope ?? {})}, ${typeForValidator(def?.value)}, '${collection.keyMode}'>;`);
+  }
+  lines.push(
+    '}',
+    'export interface GeneratedQueryGroups {',
+  );
+  const functionsByName = new Map(functions.map((fn) => [fn.name, fn]));
+  for (const routeEntry of routesManifest?.routes ?? []) {
+    const routeParams = parseRoutePattern(routeEntry.route, () => {}) ?? [];
+    const paramTypes = new Map(routeParams.map((name) => [name, 'string']));
+    const occurrences = new Map();
+    const entryTypes = [];
+    for (const query of routeEntry.queries) {
+      const fn = functionsByName.get(query.function);
+      const def = functionsModule[query.function];
+      const argsType = typeForGeneratedArgs(def?.args ?? {});
+      const resultType = resultContractType(
+        fn?.resultContract ?? { kind: 'unknown' },
+        (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
+      );
+      const refType = `FunctionReference<'${query.function}', '${fn?.kind ?? 'Query'}', ${argsType}, ${resultType}>`;
+      const entryName = queryGroupEntryName(query.function, occurrences);
+      entryTypes.push(`${JSON.stringify(entryName)}: { readonly ref: ${refType}; readonly args: ${argsType} }`);
+      for (const [argName, value] of Object.entries(query.args ?? {})) {
+        if (
+          value
+          && typeof value === 'object'
+          && !Array.isArray(value)
+          && Object.keys(value).length === 1
+          && typeof value.$param === 'string'
+        ) {
+          const validator = def?.args?.[argName];
+          paramTypes.set(
+            value.$param,
+            { string: 'string', number: 'number', boolean: 'boolean' }[validator?.primitive]
+              ?? 'string',
+          );
+        }
+      }
+    }
+    const paramsType = routeParams.length === 0
+      ? 'Record<string, never>'
+      : `{ ${routeParams.map((name) => `${JSON.stringify(name)}: ${paramTypes.get(name) ?? 'string'}`).join('; ')} }`;
+    lines.push(
+      `  ${JSON.stringify(routeEntry.route)}: QueryGroupReference<${JSON.stringify(routeEntry.route)}, ${paramsType}, { readonly ${entryTypes.join('; readonly ')} }>;`,
+    );
   }
   lines.push(
     '}',
@@ -5746,8 +5890,10 @@ function renderApiTypes(
     lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
   }
   lines.push('  ephemeral: GeneratedEphemeral;');
+  lines.push('  groups: GeneratedQueryGroups;');
   lines.push('}');
   lines.push('export declare const ephemeral: GeneratedEphemeral;');
+  lines.push('export declare const groups: GeneratedQueryGroups;');
   lines.push('export declare const api: GeneratedApi;');
   lines.push('export default api;');
   return lines.join('\n') + '\n';

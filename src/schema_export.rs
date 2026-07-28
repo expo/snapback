@@ -36,8 +36,8 @@ use crate::deploy::{
     CleanupConfirmationV1, CleanupPlanV1, CleanupReceiptV1, ControlAuditEvent, DeployPlan,
     DeployReceipt, ExternalReplayFloorAdvanceReceipt, FlyTargetBindingV2,
     HostedAdmissionProjectionReceipt, HostedAdmissionRefreshReceipt, HostedAdmissionV2,
-    HostedAuthDrillReceipt, HostedControlHeadV2, HostedSpendLedgerV1, MaintenanceReceipt,
-    PlannedBindingPromotionV1, PreparedReleaseManifest, ProviderEffectIntentV1,
+    HostedAuthDrillReceipt, HostedControlHeadV2, HostedProductJourneyV1, HostedSpendLedgerV1,
+    MaintenanceReceipt, PlannedBindingPromotionV1, PreparedReleaseManifest, ProviderEffectIntentV1,
     ProviderEffectObservationV1, ProviderEffectReconciliationV1, ProviderEffectTerminalV1,
     ReleaseManifest, RemoteDrillPlan, RestoreActivationPlan, RestorePlan, RollbackPlan,
     TargetDescriptor,
@@ -329,6 +329,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "vm-adapter.cleanup-receipt-v1.schema.json",
             schemars::schema_for!(CleanupReceiptV1),
+        ),
+        finish(
+            "hosted-product-journey-v1.schema.json",
+            schemars::schema_for!(HostedProductJourneyV1),
         ),
         finish(
             "backup.manifest.schema.json",

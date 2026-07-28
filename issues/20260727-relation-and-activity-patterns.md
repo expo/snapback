@@ -101,3 +101,18 @@ paired-store noninterference, restore/backfill vectors, cross-language cursor
 goldens, retained-settlement boundaries and queue-owner coverage, the hosted
 target corpus, full Signal Desk product adoption, and author acceptance or an
 equally explicit decision to narrow the public profile.
+
+## Repository-local publication evidence — 2026-07-27
+
+The paired-store, restore/backfill, cross-language cursor/order, cursor
+concurrency/deletion/live, activity fault-cut, exact 65,536/65,537 retained
+result, ACK/purge/replay-loss, and web/React Native/Expo queue-owner rows are
+now executable and mapped by
+`tests/conformance/relation-activity-publication-v1.receipt.json`. The work
+also fixed two evidence-discovered defects: relation activation now validates
+parent-to-registry and registry-to-parent integrity, and cross-parent cursors
+return the uniform invalid-cursor outcome before lineage restart comparison.
+
+The ticket stays open. Capability facts remain false until the hosted target
+corpus, Signal Desk product-path adoption, and author acceptance (or explicit
+profile narrowing) are complete.

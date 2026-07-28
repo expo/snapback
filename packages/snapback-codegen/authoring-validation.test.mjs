@@ -695,6 +695,21 @@ export default defineRoutes([
   assert.equal(routes.formatVersion, 1);
   assert.equal(routes.routes.length, 2);
   assert.deepEqual(routes.routes[1].queries[0].args, { title: { $param: 'title' } });
+  const apiModule = await import(`${pathToFileURL(join(result.outDir, 'api.mjs')).href}?groups`);
+  assert.equal(apiModule.groups['/t/:title'].artifactKind, 'queryGroupReference');
+  assert.equal(apiModule.groups['/t/:title'].queries[0].name, 'listTodos');
+  assert.deepEqual(
+    apiModule.groups['/t/:title'].queries[0].args,
+    { title: { $param: 'title' } },
+  );
+  assert.deepEqual(apiModule.api.groups, apiModule.groups);
+  const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
+  assert(
+    apiTypes.includes(
+      '"/t/:title": QueryGroupReference<"/t/:title", { "title": string }',
+    ),
+    'generated route params and group reference stay exact in api.d.ts',
+  );
   const index = JSON.parse(readFileSync(join(result.outDir, 'artifacts.json'), 'utf8'));
   assert(index.artifacts.includes('routes.manifest.json'), 'artifact index lists the routes manifest');
 }

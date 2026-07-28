@@ -77,6 +77,7 @@ assert.deepEqual(externalClient.authProtocols, {
   authorityDescriptor: 1,
   authorizedLease: null,
   ephemeralAuthority: null,
+  ephemeralExpiry: 1,
 });
 assert.throws(
   () => createExternalSessionClient('http://127.0.0.1:9', { bearerToken: '' }),

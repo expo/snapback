@@ -168,6 +168,10 @@ Implemented now:
 - The existing typed in-memory ephemeral store: process-local rooms, TTL expiry,
   connection-owned cleanup, `scopeEpoch`/`entryVersion`, rate and payload limits,
   and an in-memory client overlay.
+- First-class React/Expo bindings for generated single/grouped live queries,
+  result-validated optimistic mutations, local managed presence, aggregate
+  connection state, Strict Mode-safe sharing, and complete provider cleanup;
+  see [`guide/clients/react.md`](./guide/clients/react.md).
 
 These auth guarantees are local-target guarantees. ENG-24607 now defines and
 enforces the local transport fence, hosted-capability descriptor, and honest

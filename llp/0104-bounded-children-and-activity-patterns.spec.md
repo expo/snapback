@@ -1231,4 +1231,45 @@ Signal Desk's browser product path continues to use its explicit JS activity
 mutation because the shared demo persona is not backend-specific session
 custody. The direct acceptance path now exercises the closed activity plan
 with a real session. Delegated authority and a first-party durable queue owner
-remain publication-evidence gates, not missing local executor paths.
+were publication-evidence gates, not missing local executor paths; the
+repository-local matrix below now closes the queue-owner row while the hosted
+and product-path gates remain.
+
+## Repository-local publication matrix extension — 2026-07-27
+
+The machine-readable receipt at
+`tests/conformance/relation-activity-publication-v1.receipt.json` now closes the
+remaining non-hosted evidence rows without changing the publication boundary:
+
+- paired authorization stores differing only in an unauthorized parent's
+  bytes return byte-identical visible and absent payloads; a unique index
+  scoped by `(parent id, relation incarnation)` admits the same business key
+  in another scope and refuses a duplicate in the same scope;
+- activation now validates the registry lifecycle in both directions. The
+  executable matrix covers seed, buffered insert and foreign-key move, reset,
+  backup/restore preservation, missing-registry refusal, an explicit
+  migration-privileged parent/child backfill, and dangling-active refusal;
+- one fixed-nonce `sbbc1` vector is reproduced independently by Rust and Node,
+  including HKDF, length-framed AAD, XChaCha20-Poly1305, exact body bytes, and
+  integer/binary-UTF-8/boolean/`_id` boundary ordering;
+- the persisted executor covers malformed, cross-function, cross-parent,
+  cross-authority-partition, and cross-database cursors, concurrent inserts on
+  both sides of a boundary, delete and order-key movement, parent-version
+  restart, parent deletion, cursor-bearing live refusal, and child/parent
+  `live_replace` with no delta claim;
+- source/activity execution now has explicit rollback witnesses before the
+  source, after the source, before the activity insert, after the activity
+  insert, before commit, during activity validation, and during result
+  construction;
+- the retained output boundary admits exactly 65,536 serialized bytes and
+  rolls back source, activity, version, and settlement at 65,537. Exact replay,
+  authenticated ACK, administrative purge, activity survival, and the
+  documented loss of replay after reclamation are one executable lifecycle;
+  and
+- Node exercises the shared LLP 0043 queue as the non-caller-selected mutation
+  identity owner for the web, React Native, and Expo first-party arms.
+
+The receipt deliberately records publication as **blocked** and both capability
+facts remain false. The residual gates are the hosted target corpus, full
+Signal Desk product-path adoption, and author acceptance (or an explicit
+decision to narrow the public profile).

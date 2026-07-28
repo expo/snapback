@@ -15793,12 +15793,6 @@ fn execute_query_invocation(
                         now_ms,
                     )
                     .map_err(|_| bounded_children_cursor_invalid())?;
-                    if body.stream_epoch != stream_epoch
-                        || body.parent_incarnation != incarnation
-                        || body.parent_version != parent_version
-                    {
-                        return Err(bounded_children_parent_restart_required());
-                    }
                     if body.function != name
                         || body.plan_hash != plan_hash
                         || body.parent_id != parent_id
@@ -15806,6 +15800,12 @@ fn execute_query_invocation(
                         || body.order_fields != order_fields
                     {
                         return Err(bounded_children_cursor_invalid());
+                    }
+                    if body.stream_epoch != stream_epoch
+                        || body.parent_incarnation != incarnation
+                        || body.parent_version != parent_version
+                    {
+                        return Err(bounded_children_parent_restart_required());
                     }
                     Some(
                         crate::storage::validate_query_keyset_boundary(
@@ -16266,6 +16266,13 @@ fn refuse_unprovenanced_host_plan_authority_creation(
 }
 
 pub(crate) fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
+    live_stream_text_with_server_observed(envelope, None)
+}
+
+pub(crate) fn live_stream_text_with_server_observed(
+    envelope: RealtimeEnvelope,
+    server_observed_at_ms: Option<u64>,
+) -> Option<String> {
     match envelope {
         RealtimeEnvelope::Durable(message) => String::from_utf8(message.payload)
             .or_else(|error| {
@@ -16275,7 +16282,12 @@ pub(crate) fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
             })
             .ok(),
         RealtimeEnvelope::Ephemeral(message) => {
-            serde_json::to_string(&LiveSocketServerFrame::Ephemeral { message }).ok()
+            let mut value =
+                serde_json::to_value(&LiveSocketServerFrame::Ephemeral { message }).ok()?;
+            if let (Some(now_ms), Some(object)) = (server_observed_at_ms, value.as_object_mut()) {
+                object.insert("serverObservedAtMs".to_owned(), serde_json::json!(now_ms));
+            }
+            serde_json::to_string(&value).ok()
         }
     }
 }
@@ -20276,6 +20288,584 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionManifest) {
+        use crate::manifest::{
+            BoundedChildrenQueryPlan, BoundedParentVisibility, BoundedProjectionField,
+            FieldManifest, FieldType, IndexManifest, OrderDirection, TableManifest,
+        };
+        let field = |name: &str, field_type: FieldType| FieldManifest {
+            name: name.to_owned(),
+            field_type,
+            optional: false,
+        };
+        let table =
+            |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| TableManifest {
+                name: name.to_owned(),
+                fields,
+                indexes,
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+            };
+        let schema = SchemaManifest {
+            tables: vec![
+                table(
+                    "parents",
+                    vec![
+                        field("owner", FieldType::String),
+                        field("title", FieldType::String),
+                    ],
+                    Vec::new(),
+                ),
+                table(
+                    "children",
+                    vec![
+                        field(
+                            "parentId",
+                            FieldType::Id {
+                                table: "parents".to_owned(),
+                            },
+                        ),
+                        field(
+                            "parentIncarnation",
+                            FieldType::RelationIncarnation {
+                                foreign_key_field: "parentId".to_owned(),
+                                parent_table: "parents".to_owned(),
+                            },
+                        ),
+                        field("position", FieldType::Integer),
+                        field("label", FieldType::String),
+                        field("active", FieldType::Boolean),
+                        field("externalKey", FieldType::String),
+                    ],
+                    vec![
+                        IndexManifest {
+                            name: "by_parent_boundary".to_owned(),
+                            fields: vec![
+                                "parentId".to_owned(),
+                                "parentIncarnation".to_owned(),
+                                "position".to_owned(),
+                                "label".to_owned(),
+                                "active".to_owned(),
+                            ],
+                            unique: false,
+                        },
+                        IndexManifest {
+                            name: "by_parent_external_key".to_owned(),
+                            fields: vec![
+                                "parentId".to_owned(),
+                                "parentIncarnation".to_owned(),
+                                "externalKey".to_owned(),
+                            ],
+                            unique: true,
+                        },
+                    ],
+                ),
+            ],
+            ..SchemaManifest::default()
+        };
+        let order = ["position", "label", "active"]
+            .into_iter()
+            .map(|field| crate::manifest::OrderExpr {
+                field: field.to_owned(),
+                direction: OrderDirection::Asc,
+            })
+            .collect::<Vec<_>>();
+        let select = |name: &str| BoundedProjectionField {
+            name: name.to_owned(),
+            field: name.to_owned(),
+        };
+        let relation_plan = BoundedChildrenQueryPlan {
+            profile: "bounded-children.v1".to_owned(),
+            parent_table: "parents".to_owned(),
+            parent_id_arg: "parentId".to_owned(),
+            parent_visibility: BoundedParentVisibility::Owner {
+                field: "owner".to_owned(),
+            },
+            parent_projection: vec![select("_id"), select("title")],
+            child_table: "children".to_owned(),
+            child_foreign_key: "parentId".to_owned(),
+            child_relation_incarnation: "parentIncarnation".to_owned(),
+            child_index: "by_parent_boundary".to_owned(),
+            order,
+            take,
+            child_projection: ["_id", "position", "label", "active", "externalKey"]
+                .into_iter()
+                .map(select)
+                .collect(),
+            parent_deletion: "hide-orphans.v1".to_owned(),
+        };
+        let relation = FunctionDefinition::new(
+            "parentChildren",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(relation_plan.clone())),
+        );
+        let other_relation = FunctionDefinition::new(
+            "otherParentChildren",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(relation_plan.clone())),
+        );
+        let mut public_plan = relation_plan;
+        public_plan.parent_visibility = BoundedParentVisibility::PublicRead;
+        let public_relation = FunctionDefinition::new(
+            "publicParentChildren",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(public_plan)),
+        );
+        let insert = FunctionDefinition::new(
+            "addChild",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "children".to_owned(),
+                    values: BTreeMap::from([
+                        ("parentId".to_owned(), ValueExpr::Arg("parentId".to_owned())),
+                        ("position".to_owned(), ValueExpr::Arg("position".to_owned())),
+                        ("label".to_owned(), ValueExpr::Arg("label".to_owned())),
+                        ("active".to_owned(), ValueExpr::Arg("active".to_owned())),
+                        (
+                            "externalKey".to_owned(),
+                            ValueExpr::Arg("externalKey".to_owned()),
+                        ),
+                    ]),
+                    bind_id_as: Some("childId".to_owned()),
+                }],
+                return_value: Some(ReturnValue::Binding("childId".to_owned())),
+            })),
+        );
+        let patch = |name: &str, table: &str, field: &str| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Patch {
+                        table: table.to_owned(),
+                        id: ValueExpr::Arg("id".to_owned()),
+                        values: BTreeMap::from([(
+                            field.to_owned(),
+                            ValueExpr::Arg("value".to_owned()),
+                        )]),
+                    }],
+                    return_value: Some(ReturnValue::ChangedCount),
+                })),
+            )
+        };
+        let delete = |name: &str, table: &str| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Delete {
+                        table: table.to_owned(),
+                        id: ValueExpr::Arg("id".to_owned()),
+                    }],
+                    return_value: Some(ReturnValue::ChangedCount),
+                })),
+            )
+        };
+        (
+            schema,
+            FunctionManifest {
+                app_id: "relation-publication".to_owned(),
+                functions: vec![
+                    relation,
+                    other_relation,
+                    public_relation,
+                    insert,
+                    patch("moveChild", "children", "position"),
+                    patch("renameParent", "parents", "title"),
+                    delete("deleteChild", "children"),
+                    delete("deleteParent", "parents"),
+                ],
+                ..FunctionManifest::default()
+            },
+        )
+    }
+
+    fn seed_bounded_publication_fixture(snapback: &mut LocalSnapback, foreign_secret: &str) {
+        let row = |value: Value| value.as_object().cloned().expect("seed object");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "parents".to_owned(),
+                        vec![
+                            row(json!({
+                                "_id": "parent-a", "owner": "user-a", "title": "visible"
+                            })),
+                            row(json!({
+                                "_id": "parent-b", "owner": "user-b", "title": foreign_secret
+                            })),
+                            row(json!({
+                                "_id": "parent-c", "owner": "user-a", "title": "other visible"
+                            })),
+                        ],
+                    ),
+                    (
+                        "children".to_owned(),
+                        vec![
+                            row(json!({
+                                "_id": "child-10", "parentId": "parent-a",
+                                "position": 10, "label": "é", "active": false,
+                                "externalKey": "shared"
+                            })),
+                            row(json!({
+                                "_id": "child-20-a", "parentId": "parent-a",
+                                "position": 20, "label": "a", "active": false,
+                                "externalKey": "twenty-a"
+                            })),
+                            row(json!({
+                                "_id": "child-20-b", "parentId": "parent-a",
+                                "position": 20, "label": "a", "active": true,
+                                "externalKey": "twenty-b"
+                            })),
+                            row(json!({
+                                "_id": "child-30", "parentId": "parent-a",
+                                "position": 30, "label": "z", "active": false,
+                                "externalKey": "thirty"
+                            })),
+                            row(json!({
+                                "_id": "foreign-child", "parentId": "parent-b",
+                                "position": 1, "label": foreign_secret, "active": true,
+                                "externalKey": "shared"
+                            })),
+                            row(json!({
+                                "_id": "other-visible-child", "parentId": "parent-c",
+                                "position": 1, "label": "other", "active": true,
+                                "externalKey": "other"
+                            })),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("seed bounded publication fixture");
+    }
+
+    fn bounded_input(parent: &str, cursor: Option<&str>) -> HandlerInput {
+        let mut args = json!({ "parentId": parent });
+        if let Some(cursor) = cursor {
+            args["cursor"] = json!(cursor);
+        }
+        HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    // @ref LLP 0104#81-bounded-children — paired stores differing only in
+    // unauthorized bytes are publicly identical. The partitioned unique key
+    // admits the same value in another scope/incarnation but refuses a
+    // duplicate inside the authorized scope.
+    #[test]
+    fn bounded_children_paired_store_noninterference_and_partitioned_uniqueness() {
+        let build = |secret: &str| {
+            let (schema, functions) = bounded_children_publication_fixture(16);
+            let mut snapback = LocalSnapback::memory().expect("paired relation store");
+            snapback
+                .apply_schema(schema)
+                .expect("apply relation schema");
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                diagnostics.iter().all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+                "{diagnostics:?}"
+            );
+            seed_bounded_publication_fixture(&mut snapback, secret);
+            snapback
+        };
+        let mut left = build("left-private");
+        let right = build("right-private");
+        let visible_left = left
+            .invoke_query("parentChildren", bounded_input("parent-a", None))
+            .expect("left visible");
+        let visible_right = right
+            .invoke_query("parentChildren", bounded_input("parent-a", None))
+            .expect("right visible");
+        assert_eq!(
+            serde_json::to_vec(&visible_left).unwrap(),
+            serde_json::to_vec(&visible_right).unwrap(),
+            "unauthorized bytes do not perturb result/status/transport payload"
+        );
+        for cursor in [None, Some("sbbc1.malformed")] {
+            let left_absent = left
+                .invoke_query("parentChildren", bounded_input("parent-b", cursor))
+                .expect("left invisible collapses to absent");
+            let right_absent = right
+                .invoke_query("parentChildren", bounded_input("missing", cursor))
+                .expect("right missing collapses to absent");
+            assert_eq!(
+                serde_json::to_vec(&left_absent).unwrap(),
+                serde_json::to_vec(&right_absent).unwrap()
+            );
+        }
+
+        // `shared` already exists under parent-a and parent-b. The scoped
+        // unique key admits the cross-owner pair, but another parent-a value
+        // is a typed conflict and leaves no row.
+        let before = left.db.scan_table("children", 32, 0).unwrap().total;
+        let error = left
+            .invoke_mutation(
+                "addChild",
+                HandlerInput {
+                    args: json!({
+                        "parentId": "parent-a", "position": 99, "label": "dup",
+                        "active": false, "externalKey": "shared"
+                    }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("same-scope unique value must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        );
+        assert_eq!(left.db.scan_table("children", 32, 0).unwrap().total, before);
+    }
+
+    // @ref LLP 0104#sbbc1-cursor-protocol-and-restart-precedence — the local
+    // persisted executor uses canonical multi-type boundary order plus `_id`,
+    // follows the documented concurrent insert/delete/move rules, restarts
+    // after a parent version change, hides deleted parents, and publishes only
+    // authoritative live_replace frames.
+    #[test]
+    fn bounded_children_cursor_concurrency_deletion_and_live_replacement() {
+        let (schema, functions) = bounded_children_publication_fixture(2);
+        let mut snapback = LocalSnapback::memory().expect("bounded cursor store");
+        snapback
+            .apply_schema(schema)
+            .expect("apply relation schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "{diagnostics:?}"
+        );
+        seed_bounded_publication_fixture(&mut snapback, "foreign");
+
+        let page1 = snapback
+            .invoke_query("parentChildren", bounded_input("parent-a", None))
+            .expect("first bounded page");
+        let row1 = &page1.rows[0];
+        assert_eq!(row1["kind"], "visible");
+        assert_eq!(
+            row1["children"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| row["_id"].clone())
+                .collect::<Vec<_>>(),
+            vec![json!("child-10"), json!("child-20-a")],
+            "integer, binary string, boolean, then UTF-8 id totalize the boundary"
+        );
+        let cursor = row1["continuation"]
+            .as_str()
+            .expect("full page continuation")
+            .to_owned();
+        assert!(cursor.starts_with("sbbc1."));
+
+        for (function, input, label) in [
+            (
+                "parentChildren",
+                bounded_input("parent-a", Some("sbbc1.malformed")),
+                "malformed",
+            ),
+            (
+                "otherParentChildren",
+                bounded_input("parent-a", Some(&cursor)),
+                "cross-function",
+            ),
+            (
+                "parentChildren",
+                bounded_input("parent-c", Some(&cursor)),
+                "cross-parent",
+            ),
+        ] {
+            let error = match snapback.invoke_query(function, input) {
+                Ok(output) => panic!("{label} cursor unexpectedly produced {output:?}"),
+                Err(error) => error,
+            };
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID",
+                "{label}"
+            );
+        }
+
+        let public_anonymous = HandlerInput {
+            args: json!({ "parentId": "parent-a" }),
+            ..HandlerInput::default()
+        };
+        let public_cursor = snapback
+            .invoke_query("publicParentChildren", public_anonymous)
+            .expect("anonymous public first page")
+            .rows[0]["continuation"]
+            .as_str()
+            .expect("public continuation")
+            .to_owned();
+        let cross_partition = snapback
+            .invoke_query(
+                "publicParentChildren",
+                bounded_input("parent-a", Some(&public_cursor)),
+            )
+            .expect_err("public cursor is bound to anonymous/authenticated partition");
+        assert_eq!(
+            cross_partition.diagnostic.code,
+            "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID"
+        );
+
+        let (other_schema, other_functions) = bounded_children_publication_fixture(2);
+        let mut other_database =
+            LocalSnapback::memory().expect("cross-deployment bounded cursor store");
+        other_database
+            .apply_schema(other_schema)
+            .expect("apply cross-deployment schema");
+        let other_diagnostics = other_database.load_functions(other_functions);
+        assert!(
+            other_diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+        seed_bounded_publication_fixture(&mut other_database, "foreign");
+        let cross_deployment = other_database
+            .invoke_query("parentChildren", bounded_input("parent-a", Some(&cursor)))
+            .expect_err("cursor never crosses database/key custody");
+        assert_eq!(
+            cross_deployment.diagnostic.code,
+            "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID"
+        );
+
+        let mutate = |snapback: &mut LocalSnapback, name: &str, args: Value| {
+            snapback
+                .invoke_mutation(
+                    name,
+                    HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                )
+                .unwrap_or_else(|error| panic!("{name}: {error:?}"))
+        };
+        mutate(
+            &mut snapback,
+            "addChild",
+            json!({
+                "parentId": "parent-a", "position": 25, "label": "after",
+                "active": false, "externalKey": "inserted-after"
+            }),
+        );
+        mutate(
+            &mut snapback,
+            "addChild",
+            json!({
+                "parentId": "parent-a", "position": 15, "label": "before",
+                "active": false, "externalKey": "inserted-before"
+            }),
+        );
+        mutate(&mut snapback, "deleteChild", json!({ "id": "child-30" }));
+        mutate(
+            &mut snapback,
+            "moveChild",
+            json!({ "id": "child-10", "value": 40 }),
+        );
+        let page2 = snapback
+            .invoke_query("parentChildren", bounded_input("parent-a", Some(&cursor)))
+            .expect("concurrent successor page");
+        let keys = page2.rows[0]["children"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["externalKey"].clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            keys,
+            vec![json!("twenty-b"), json!("inserted-after")],
+            "insert after the boundary appears; insert before does not; delete \
+             disappears; a moved row is permitted to reappear on a later page"
+        );
+
+        mutate(
+            &mut snapback,
+            "renameParent",
+            json!({ "id": "parent-a", "value": "renamed" }),
+        );
+        let restart = snapback
+            .invoke_query("parentChildren", bounded_input("parent-a", Some(&cursor)))
+            .expect_err("parent projection/version change restarts continuation");
+        assert_eq!(
+            restart.diagnostic.code,
+            "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED"
+        );
+
+        let subscribed = snapback
+            .subscribe_live(
+                "parentChildren",
+                LiveSubscribeInput {
+                    connection_id: "conn-bounded".to_owned(),
+                    input: bounded_input("parent-a", None),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("first-page live subscription");
+        assert_eq!(
+            subscribed.snapshot.as_ref().unwrap().rows[0]["kind"],
+            "visible"
+        );
+        for (name, args) in [
+            (
+                "addChild",
+                json!({
+                    "parentId": "parent-a", "position": 5, "label": "live",
+                    "active": false, "externalKey": "live-insert"
+                }),
+            ),
+            ("moveChild", json!({ "id": "child-20-b", "value": 50 })),
+            ("deleteChild", json!({ "id": "child-20-b" })),
+        ] {
+            mutate(&mut snapback, name, args);
+            let frames = rqs_drained_envelopes(&mut snapback, "conn-bounded");
+            assert!(!frames.is_empty(), "{name} must resnapshot");
+            assert!(
+                frames.iter().all(|frame| frame["kind"] == "live_replace"),
+                "{name} may not claim live_delta"
+            );
+        }
+        mutate(&mut snapback, "deleteParent", json!({ "id": "parent-a" }));
+        let frames = rqs_drained_envelopes(&mut snapback, "conn-bounded");
+        assert_eq!(frames.last().unwrap()["kind"], "live_replace");
+        assert_eq!(frames.last().unwrap()["rows"][0]["kind"], "absent");
+        let after_delete = snapback
+            .invoke_query("parentChildren", bounded_input("parent-a", Some(&cursor)))
+            .expect("deleted parent suppresses cursor validation");
+        assert_eq!(after_delete.rows[0]["kind"], "absent");
+
+        let error = snapback
+            .subscribe_live(
+                "parentChildren",
+                LiveSubscribeInput {
+                    connection_id: "conn-cursor".to_owned(),
+                    input: bounded_input("parent-b", Some(&cursor)),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect_err("cursor-bearing live subscribe refuses before storage");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED"
+        );
+    }
+
     // @ref LLP 0065#1-fact-classes — the runtime checks observed
     //   operations are a subset of the admitted EffectCeilingV1 and fails
     //   closed on mismatch: a doctored artifact that under-declares its
@@ -20823,15 +21413,16 @@ globalThis.__snapbackHandlers = {
             .collect();
         assert_eq!(versions.len(), 1, "outputs commit at one version");
 
-        // Unchanged recomputation issues no write.
+        // A byte-identical source mutation and its byte-identical projection
+        // recomputation are both suppressed.
         let unchanged = mutate(
             &mut snapback,
             "renameAuthor",
             json!({ "id": author_id, "name": "Ada Lovelace" }),
         );
         assert_eq!(
-            unchanged.changed_count, 1,
-            "byte-unchanged output rows are not written"
+            unchanged.changed_count, 0,
+            "byte-unchanged source and output rows are not written"
         );
 
         // Key stability: delete + re-insert the same slug keeps the output

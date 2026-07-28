@@ -8,10 +8,12 @@
 //! `{}` / `null` / `undefined` results still succeed.
 
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
+    FunctionResultContract, FunctionRuntime, HandlerInput, IbexModule, ResultObjectFieldContract,
+    ResultValueContract, SchemaManifest, TableManifest,
 };
 
 /// One module holding every handler the settlement tests need. The warm pool
@@ -43,7 +45,14 @@ globalThis.__snapbackHandlers = {
     await ctx.db.insert('items', { n: args.n });
     return {};
   },
+  async insertThenReturnWrongContract(ctx, args) {
+    await ctx.db.insert('items', { n: args.n });
+    return { accepted: "not-a-boolean" };
+  },
   async listItems(ctx) {
+    return await ctx.db.query('items').order('_createdAt', 'asc').collect();
+  },
+  async listItemsWrongContract(ctx) {
     return await ctx.db.query('items').order('_createdAt', 'asc').collect();
   }
 };
@@ -81,7 +90,48 @@ fn functions() -> FunctionManifest {
             }),
         )
     };
+    let contract = FunctionResultContract::Value {
+        value: ResultValueContract::Object {
+            fields: vec![ResultObjectFieldContract {
+                name: "accepted".to_owned(),
+                required: true,
+                value: ResultValueContract::Boolean,
+            }],
+            allow_extra: false,
+        },
+    };
+    let install_contract = |function: &mut FunctionDefinition, contract: FunctionResultContract| {
+        let value = serde_json::to_value(&contract).expect("serialize result contract");
+        let canonical = snapback::rqs::jcs(&value).expect("canonical result contract");
+        let mut hash = Sha256::new();
+        hash.update(b"snapback:function-result:v1\n");
+        hash.update(canonical.as_bytes());
+        function.result_contract = contract;
+        function.result_contract_hash = Some(format!("sha256:{:x}", hash.finalize()));
+        function
+            .required_capabilities
+            .push("result_contract_v1".to_owned());
+    };
+    let mut invalid_mutation = define("insertThenReturnWrongContract", FunctionKind::Mutation);
+    install_contract(&mut invalid_mutation, contract);
+
+    let mut invalid_query = define("listItemsWrongContract", FunctionKind::Query);
+    install_contract(
+        &mut invalid_query,
+        FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "missing".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 8 },
+                }],
+                allow_extra: false,
+            },
+        },
+    );
+
     FunctionManifest {
+        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
         functions: vec![
             define("insertThenHang", FunctionKind::Mutation),
             define("hangForever", FunctionKind::Query),
@@ -90,7 +140,9 @@ fn functions() -> FunctionManifest {
             define("returnsNull", FunctionKind::Mutation),
             define("insertThenReturnFunction", FunctionKind::Mutation),
             define("insertOne", FunctionKind::Mutation),
+            invalid_mutation,
             define("listItems", FunctionKind::Query),
+            invalid_query,
         ],
         ..FunctionManifest::default()
     }
@@ -220,4 +272,42 @@ fn pool_stays_healthy_after_an_unsettled_invocation() {
     let rows = items(&snapback);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0]["n"], json!(7));
+}
+
+#[test]
+fn declared_result_contract_refuses_before_mutation_commit() {
+    // @ref LLP 0101#final-author-reconciliation-after-round-3 — mutation
+    // result validation runs while handler writes are still buffered.
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("insertThenReturnWrongContract", input(json!({ "n": 9 })))
+        .expect_err("an invalid declared result must refuse");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "writes must not commit when the declared result contract fails"
+    );
+}
+
+#[test]
+fn declared_result_contract_refuses_before_query_publication() {
+    let mut snapback = configured();
+    snapback
+        .invoke_mutation("insertOne", input(json!({ "n": 7 })))
+        .expect("seed one query row");
+    let error = snapback
+        .invoke_query("listItemsWrongContract", input(json!({})))
+        .expect_err("an invalid query result must refuse");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+    );
+    assert_eq!(
+        items(&snapback).len(),
+        1,
+        "query result refusal cannot mutate source state"
+    );
 }

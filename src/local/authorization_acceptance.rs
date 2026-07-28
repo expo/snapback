@@ -1603,12 +1603,15 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     assert_eq!(randomized_all_query_convergence_rounds, 24);
     assert_eq!(randomized_fresh_query_comparisons, 72);
     assert_delivery_accounting(&random_observation, "randomized writes");
-    assert_eq!(random_observation.generated_snapshot_frames, 60);
-    assert_eq!(random_observation.delivered_snapshot_frames, 48);
+    // Byte-identical patch attempts are now true storage no-ops. The fixed
+    // random schedule contains four such attempts, so they create no commit
+    // and therefore no live settlement obligation.
+    assert_eq!(random_observation.generated_snapshot_frames, 52);
+    assert_eq!(random_observation.delivered_snapshot_frames, 40);
     assert_eq!(random_observation.discarded_snapshot_frames, 12);
     assert_eq!(random_observation.reprojected_snapshot_frames, 12);
-    assert_eq!(random_observation.generated_invalidation_frames, 60);
-    assert_eq!(random_observation.delivered_invalidation_frames, 48);
+    assert_eq!(random_observation.generated_invalidation_frames, 52);
+    assert_eq!(random_observation.delivered_invalidation_frames, 40);
     assert_eq!(random_observation.discarded_invalidation_frames, 12);
     assert_eq!(random_observation.reprojected_invalidation_frames, 12);
     assert_eq!(random_observation.discarded_response_drains, 12);

@@ -1,0 +1,101 @@
+{
+  "formatVersion": "relation-activity-publication-v1",
+  "cursor": {
+    "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "nonceHex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7",
+    "body": {
+      "formatVersion": 1,
+      "keyGeneration": "generation-golden-1",
+      "appId": "relation-publication",
+      "databaseId": "db-golden-1",
+      "targetProfileId": "local-dev-sqlite-ibex",
+      "streamEpoch": "stream-golden-1",
+      "function": "parentChildren",
+      "planHash": "sha256:0123456789abcdef",
+      "parentId": "parent-a",
+      "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+      "parentVersion": 7,
+      "authorityPartition": "user:user-a",
+      "orderFields": [
+        "position",
+        "label",
+        "active"
+      ],
+      "boundary": [
+        20,
+        "é",
+        false
+      ],
+      "rowId": "child-20-a",
+      "issuedAt": 1785000000000,
+      "expiresAt": 1786209600000
+    },
+    "expectedWire": "sbbc1.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3t69tkbvTkjBvPFyKu-L_ASRICAe1kcAgKYAhvel6aeUFZYRkiA47F0jTMqK1qJvjw0aROT5sAg5cdNL8dsu-FYKw61p89XRXZtL-FE7hmobvF8wQAAcpZSvzDzxJJSQLUAmRNI7h1uYgxkLFN-wFCiZ7PYsroS0UmsV6no6phug3ZCkscpKk-9u_nHdIHI-JRRBFvRGlYv6m-h3FwBOoT1LsTQucXhc-MVYmKIijwe49NtxPNt1FLSrbKoXfASY6JRiszsPFFebHXkbafE7J5tlrKkHKuW1nlzmMY9azhMFi6ufXs0KTkREOlH4xOWvWGnMGQdFvUyeK7mt_XMvZAlGxv2vgLLRXmhYc90llu5zs7xQz1Bkj_EstAdddnUqXKdCjg5Ps0WjRenmgeJjwyTymR3OqAQ46qizUK3dK8q50a_8hK6AbW-T9n1KkCGYoxPxVJq7ZKnfjR-2Iu4zRy9KRro0-i6EnoOSsUmrW3KexhpvUzHt4IenKYhMmo1_bqXlNlL-ZIJySUy-bE058k9Nbf0vwwBBFCkKFuyAacjxX6QHWUYyHXjV9asZ9QCMN5uKFE8KSGI5xZ2szWJTEyZ_LHVJKJVUF0BLeXrO6he0vBUSQPyX5u0TjdctGXHDEf0gWn8DGBjTjOK1ycHLZ3RZEuG0SGKa6pp8TIypU3SiK7GCVowgGxr8joMoDObJ0fAqUzPb-wShedhbozFD1AFjFGA"
+  },
+  "ordering": {
+    "fields": [
+      {
+        "name": "position",
+        "kind": "javascript-safe-integer"
+      },
+      {
+        "name": "label",
+        "kind": "binary-utf8"
+      },
+      {
+        "name": "active",
+        "kind": "boolean"
+      },
+      {
+        "name": "_id",
+        "kind": "binary-utf8-tiebreak"
+      }
+    ],
+    "rows": [
+      {
+        "_id": "negative",
+        "position": -9007199254740991,
+        "label": "z",
+        "active": true
+      },
+      {
+        "_id": "upper",
+        "position": 20,
+        "label": "A",
+        "active": false
+      },
+      {
+        "_id": "lower-false-a",
+        "position": 20,
+        "label": "a",
+        "active": false
+      },
+      {
+        "_id": "lower-false-b",
+        "position": 20,
+        "label": "a",
+        "active": false
+      },
+      {
+        "_id": "lower-true",
+        "position": 20,
+        "label": "a",
+        "active": true
+      },
+      {
+        "_id": "accent",
+        "position": 20,
+        "label": "é",
+        "active": false
+      }
+    ],
+    "expectedIds": [
+      "negative",
+      "upper",
+      "lower-false-a",
+      "lower-false-b",
+      "lower-true",
+      "accent"
+    ]
+  }
+}

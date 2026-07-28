@@ -54,6 +54,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'bundle.test.mjs',
+      'ephemeral-room.test.mjs',
       'external-store.test.mjs',
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
@@ -74,14 +75,20 @@ const inventories = [
     packageDir: 'packages/snapback-hosted-supervisor',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['index.test.mjs'],
+    expectedFiles: [
+      'bootstrap.test.mjs',
+      'external-store.test.mjs',
+      'hosted-edge-admission.test.mjs',
+      'index.test.mjs',
+      'target-onboarding.test.mjs',
+    ],
   },
   {
     id: '@snapback/react',
     packageDir: 'packages/snapback-react',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['package.test.mjs'],
+    expectedFiles: ['lifecycle.test.mjs', 'optimistic.test.mjs', 'package.test.mjs', 'presence.test.mjs'],
   },
   {
     id: '@snapback/app-cli',
@@ -159,6 +166,7 @@ const inventories = [
       'online-surface.test.mjs',
       'optimistic-duplicate-reapply.test.mjs',
       'query-authorization.test.mjs',
+      'result-contract-validator.test.mjs',
       'render-first.test.mjs',
       'retained-identity.test.mjs',
       'session-queue-axis.test.mjs',
@@ -261,10 +269,21 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // versioned-seed artifact coverage.
 // 94 -> 95 (LLP 0104): @snapback/codegen gains the bounded-relation and
 // transactional write/activity authoring corpus.
-// 95 -> 97 (LLP 0105): @snapback/client gains hosted ephemeral authority
+// 95 -> 98 (LLP 0105): @snapback/client gains hosted ephemeral authority
 // replacement/republish coverage and the independently packed supervisor
-// gains its deterministic fencing/effect/spend/TLS/cleanup corpus.
-assert.equal(total, 97, 'reviewed package/admin test count changed');
+// gains deterministic protocol and provider-bootstrap plan corpora.
+// 98 -> 99 (LLP 0105): the supervisor adds immutable external-mirror,
+// conditional-anchor, chain-recovery, and stale-writer coverage.
+// 99 -> 103 (LLP 0106): @snapback/client gains the negotiated-expiry room
+// lifecycle suite, @snapback/react gains optimistic and presence lifecycle
+// suites, and @snapback/contract gains the shared result-contract validator.
+// 103 -> 104 (LLP 0105): the independently packed supervisor gains the
+// hosted-edge admission lifecycle and refusal matrix.
+// 104 -> 105 (LLP 0105): target onboarding gains a confirmation-bound,
+// legacy-preserving credential-staging plan corpus.
+// 105 -> 106 (LLP 0106): @snapback/react gains the maintained lifecycle
+// wrapper corpus alongside its optimistic and presence suites.
+assert.equal(total, 106, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

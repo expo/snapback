@@ -44,12 +44,52 @@ export interface SnapbackEphemeralReference<
   Name extends string = string,
   Scope = Record<string, unknown>,
   Value = unknown,
+  KeyMode extends 'Connection' | 'Session' | 'User' | 'Custom' =
+    'Connection' | 'Session' | 'User' | 'Custom',
 > {
   readonly artifactKind: 'ephemeralCollectionReference';
+  readonly schemaVersion: string;
+  readonly appId: string;
+  readonly id: string;
   readonly name: Name;
+  readonly keyMode: KeyMode;
+  readonly scopeFields: readonly string[];
+  readonly routingFields: readonly string[];
+  readonly defaultTtlMs: number;
+  readonly maxTtlMs: number;
+  readonly maxValueBytes: number;
+  readonly publishRate: Readonly<{ sustainedHz: number; burst: number }>;
+  readonly deliveryMode: 'latest';
   readonly __scope?: Scope;
   readonly __value?: Value;
 }
+
+export interface SnapbackQueryGroupReference<
+  Route extends string = string,
+  Params = Record<string, unknown>,
+  Entries = Record<string, unknown>,
+> {
+  readonly artifactKind: 'queryGroupReference';
+  readonly formatVersion: 1;
+  readonly schemaVersion: string;
+  readonly appId: string;
+  readonly id: string;
+  readonly route: Route;
+  readonly definitionHash: string;
+  readonly queries: readonly Readonly<{
+    name: string;
+    ref: SnapbackFunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>;
+    args: Readonly<Record<string, unknown>>;
+  }>[];
+  readonly persist?: false;
+  readonly __params?: Params;
+  readonly __entries?: Entries;
+}
+
+export type QueryGroupParams<Ref> =
+  Ref extends { readonly __params?: infer Params } ? Params : Record<string, unknown>;
+export type QueryGroupEntries<Ref> =
+  Ref extends { readonly __entries?: infer Entries } ? Entries : Record<string, unknown>;
 
 export type FunctionArgs<Ref> =
   Ref extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;
@@ -180,7 +220,50 @@ export interface PreparedReactBinding {
   readonly functionCatalogDigest: string;
   readonly capabilityDigest: string;
   readonly references: Readonly<Record<string, SnapbackFunctionReference>>;
+  readonly ephemeral: Readonly<Record<string, SnapbackEphemeralReference>>;
+  readonly groups: Readonly<Record<string, SnapbackQueryGroupReference>>;
+  prepareQueryGroup<Ref extends SnapbackQueryGroupReference>(
+    reference: Ref,
+    params: QueryGroupParams<Ref>,
+    options?: {
+      readonly fallbackToLive?: boolean;
+      readonly userId?: string;
+    },
+  ): Promise<PreparedReactQueryGroup<Ref>>;
 }
+
+export interface PreparedReactQueryGroup<
+  Ref extends SnapbackQueryGroupReference = SnapbackQueryGroupReference,
+> {
+  readonly artifactKind: 'preparedReactQueryGroup';
+  readonly source: 'registered-bundle' | 'live-fallback';
+  readonly reference: Ref;
+  readonly params: QueryGroupParams<Ref>;
+  readonly connectionId: string | null;
+  readonly boot: null | Readonly<{
+    source: 'registered-bundle';
+    commitVersion: number;
+    generation: string;
+    versionStream: string;
+  }>;
+  readonly entries: readonly Readonly<{
+    name: string;
+    ref: SnapbackFunctionReference<string, 'LiveQuery', unknown, unknown>;
+    args: Readonly<Record<string, unknown>>;
+  }>[];
+}
+
+export function prepareReactQueryGroupForBinding<
+  Ref extends SnapbackQueryGroupReference,
+>(
+  binding: PreparedReactBinding,
+  reference: Ref,
+  params: QueryGroupParams<Ref>,
+  options?: {
+    readonly fallbackToLive?: boolean;
+    readonly userId?: string;
+  },
+): Promise<PreparedReactQueryGroup<Ref>>;
 
 export interface EphemeralEntry<Value> {
   readonly key: string;
@@ -189,6 +272,45 @@ export interface EphemeralEntry<Value> {
   readonly receivedAtMs: number;
   readonly scopeEpoch: number;
   readonly entryVersion: number;
+}
+
+export type EphemeralRoomSnapshot<Value> =
+  | Readonly<{
+      status: 'pending' | 'resyncing';
+      entries: readonly [];
+      selfKey: null;
+      diagnostic: null;
+      connection: string;
+      reason: string | null;
+    }>
+  | Readonly<{
+      status: 'ready' | 'stale';
+      entries: readonly EphemeralEntry<Value>[];
+      selfKey: string;
+      diagnostic: null;
+      connection: string;
+      reason: string | null;
+    }>
+  | Readonly<{
+      status: 'error' | 'unsupported';
+      entries: readonly [];
+      selfKey: null;
+      diagnostic: Readonly<Record<string, unknown>>;
+      connection: string;
+      reason: string | null;
+    }>;
+
+export interface EphemeralRoomHandle<Value> {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): EphemeralRoomSnapshot<Value>;
+  getServerSnapshot(): EphemeralRoomSnapshot<Value>;
+  readonly grantedConnectionId: string | null;
+  started(): Promise<void>;
+  publish(value: Value, options?: { readonly ttlMs?: number }): Promise<unknown>;
+  delete(): Promise<unknown>;
+  dispose(): void;
+  settled(): Promise<void>;
+  inspection(): Readonly<Record<string, unknown>>;
 }
 
 export class EphemeralOverlay<Scope = Record<string, unknown>, Value = unknown> {
@@ -211,6 +333,7 @@ export interface SnapbackClientOptions {
   readonly authorityDescriptorProtocol?: number | null;
   readonly authorizedLeaseProtocol?: number | null;
   readonly ephemeralAuthorityProtocol?: number | null;
+  readonly ephemeralExpiryProtocol?: number | null;
   readonly authCoordinator?: unknown;
   readonly agentAuthority?: unknown;
   readonly senderConstrained?: boolean;
@@ -241,16 +364,48 @@ type FunctionRef<
 > = string | SnapbackFunctionReference<string, Kind, Args, Result>;
 type NamedReference = string;
 
+export interface SnapbackLiveManagerInspection {
+  readonly connectionId: string;
+  readonly open: boolean;
+  readonly closed: boolean;
+  readonly socketDemand: number;
+  readonly durableListeners: number;
+  readonly ephemeralListeners: number;
+  readonly stateListeners: number;
+  readonly readinessListeners: number;
+  readonly pendingRequests: number;
+  readonly reconnectTimer: number;
+  readonly heartbeatTimer: number;
+}
+
+export interface SnapbackLocalResourceInspection {
+  readonly managers: readonly SnapbackLiveManagerInspection[];
+  readonly managerCount: number;
+  readonly grants: readonly string[];
+  readonly grantCount: number;
+  readonly laneConsumers: readonly Readonly<{
+    connectionId: string;
+    durable: number;
+    ephemeral: number;
+  }>[];
+  readonly socketDemand: number;
+  readonly timers: number;
+  readonly listeners: number;
+}
+
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
   health(): Promise<unknown>;
   inspect(): Promise<unknown>;
+  localResourceInspection(connectionIds?: Iterable<string> | null): SnapbackLocalResourceInspection;
   prepareReactBinding(options: {
     readonly generatedManifest:
       | Readonly<Record<string, unknown>>
       | {
           readonly functions: Readonly<Record<string, unknown>>;
+          readonly schema?: Readonly<Record<string, unknown>>;
           readonly capabilityManifest?: Readonly<Record<string, unknown>>;
+          readonly routes?: Readonly<Record<string, unknown>>;
         };
   }): Promise<PreparedReactBinding>;
   ensureApp(options?: {
@@ -393,12 +548,48 @@ export class SnapbackClient {
     ref: Ref,
     callback: (context: Readonly<{
       collection: string;
+      scope: EphemeralScope<Ref>;
       publish(
         value: EphemeralValue<Ref>,
         options?: Readonly<Record<string, unknown>>,
       ): Promise<unknown>;
     }>) => void | EphemeralValue<Ref> | Promise<void | EphemeralValue<Ref>>,
   ): Readonly<{ dispose(): void }>;
+  publishEphemeral<
+    Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
+  >(
+    ref: Ref,
+    options: {
+      readonly connectionId: string;
+      readonly scope?: EphemeralScope<Ref>;
+      readonly value: EphemeralValue<Ref>;
+      readonly ttlMs?: number | null;
+      readonly userId?: string;
+      readonly permissions?: readonly string[];
+    },
+  ): Promise<unknown>;
+  deleteEphemeral<
+    Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
+  >(
+    ref: Ref,
+    options: {
+      readonly connectionId: string;
+      readonly scope?: EphemeralScope<Ref>;
+      readonly userId?: string;
+      readonly permissions?: readonly string[];
+    },
+  ): Promise<unknown>;
+  disconnect(connectionId: string): Promise<unknown>;
+  startEphemeralRoom<
+    Ref extends SnapbackEphemeralReference<string, unknown, unknown, 'Connection'>,
+  >(
+    admittedDefinition: Readonly<{
+      reference: Ref;
+      definition: Readonly<Record<string, unknown>>;
+      connectionId: string;
+    }>,
+    scope: EphemeralScope<Ref>,
+  ): EphemeralRoomHandle<EphemeralValue<Ref>>;
 }
 
 export function createExternalSessionClient(

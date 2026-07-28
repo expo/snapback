@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "snapback.relation-activity-publication-evidence.v1",
+  "date": "2026-07-27",
+  "repositoryLocal": {
+    "status": "passed",
+    "cases": [
+      {
+        "id": "paired-store-noninterference-and-partitioned-uniqueness",
+        "status": "passed",
+        "runner": "rust",
+        "test": "local::tests::bounded_children_paired_store_noninterference_and_partitioned_uniqueness"
+      },
+      {
+        "id": "restore-backfill-and-central-writer-lifecycle",
+        "status": "passed",
+        "runner": "rust",
+        "test": "storage::guarded_commit_tests::relation_restore_backfill_and_central_writer_matrix"
+      },
+      {
+        "id": "sbbc1-cross-language-and-canonical-ordering",
+        "status": "passed",
+        "runner": "rust+node",
+        "test": "bounded_children_cursor::tests::cross_language_cursor_golden_vector",
+        "command": "node tests/conformance/relation-activity-publication-v1.mjs"
+      },
+      {
+        "id": "cursor-concurrency-deletion-and-live-replace",
+        "status": "passed",
+        "runner": "rust",
+        "test": "local::tests::bounded_children_cursor_concurrency_deletion_and_live_replacement"
+      },
+      {
+        "id": "write-activity-fault-cuts",
+        "status": "passed",
+        "runner": "rust",
+        "test": "storage::guarded_commit_tests::write_with_activity_fault_cuts_leave_no_residue"
+      },
+      {
+        "id": "retained-result-65536-65537-ack-purge",
+        "status": "passed",
+        "runner": "rust",
+        "test": "storage::guarded_commit_tests::write_with_activity_exact_retention_boundary_ack_purge_and_replay_loss"
+      },
+      {
+        "id": "first-party-queue-owner-web-react-native-expo",
+        "status": "passed",
+        "runner": "node",
+        "command": "node tests/conformance/relation-activity-publication-v1.mjs"
+      }
+    ]
+  },
+  "publication": {
+    "status": "blocked",
+    "capabilitiesPublished": false,
+    "residualGates": [
+      "hosted target corpus",
+      "Signal Desk product-path adoption",
+      "author acceptance or explicit public-profile narrowing"
+    ]
+  }
+}

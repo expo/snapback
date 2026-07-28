@@ -44,6 +44,10 @@ additional exports are required.
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
+    // LLP 0106's additive expiry clock negotiation. A version-aware server
+    // echoes 1; a legacy server is retried without this member so durable
+    // operations remain available while React presence reports unsupported.
+    ephemeralExpiryProtocol = 1,
     authCoordinator = null,
     agentAuthority = null,
     senderConstrained = false,
@@ -260,6 +264,14 @@ generation counter. React apps should normally consume the thin
 [`@snapback/react` adapter](./react.md), which projects the same store through
 `useSyncExternalStore`.
 
+When a generated route group needs one-commit boot, call
+`binding.prepareQueryGroup(groupRef, params)` before mount. That helper is a
+strict projection over the headless client's existing register-mode
+`fetchBundle` owner: it validates the closed response, retains no grant secret,
+and hands child registrations plus public commit/generation provenance to the
+React provider. A coded `fallbackToLive` result has `boot: null`; it is an
+ordinary live group, not a degraded single-commit claim.
+
 Providers must declare `externalStoreProtocol: "snapback.external-store.v1"`.
 If a resolved handle also declares a protocol, an incompatible token publishes
 `SNAPBACK_EXTERNAL_STORE_INCOMPATIBLE` and disposes that handle. The external
@@ -285,6 +297,16 @@ lower-level transport operations. See the
 [presence recipe](../recipes/presence-cursors.md) for the paved feature and
 [ephemeral-state reference](../realtime/ephemeral-state.md) for the complete
 declaration, overlay, and recovery contract.
+
+Framework adapters that must own a complete room lifecycle use
+`startEphemeralRoom(admittedDefinition, scope)`. Its handle owns subscribe,
+grant refresh, overlay, reconnect/resync, and cleanup, and exposes
+`started()`, idempotent `dispose()`, bounded `settled()`, the granted identity,
+and level-triggered snapshots. Ordinary React code should use
+[`useSnapbackPresence`](./react.md) instead. `localResourceInspection(ids)` is
+an acceptance-only finite-count view of local managers, grants, lane
+consumers, socket demand, timers, and listeners; it is not application state
+or an authorization API.
 
 ## Enter and leave session authority
 
@@ -337,8 +359,9 @@ intent so source additions cannot hide as “advanced” APIs:
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
 | Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
 | Durable live | `liveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
+| Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
+| Acceptance inspection | `localResourceInspection` |
 | Receipts | `recordReceipt`, `receipts`, `onReceipt` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 

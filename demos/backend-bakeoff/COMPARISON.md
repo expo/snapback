@@ -2,7 +2,28 @@
 
 **Date:** 2026-07-27  
 **Scope:** one shared React incident-response app, three native backends  
-**Verdict:** Convex first, Supabase second, Snapback third for this app today
+**Baseline verdict:** Convex first, Supabase second, Snapback third before the
+improvement program below
+
+## Post-improvement React receipt
+
+The original narrative below is retained as the bakeoff baseline. Its claims
+that Snapback has no first-party React presence/optimistic surface and needs
+application-owned subscription/heartbeat/rollback glue are superseded.
+Signal Desk now uses one prepared `@snapback/react` provider, one typed
+four-query group, generated result contracts, provider-owned managed presence,
+and result-validated optimistic mutation rebase/rollback.
+
+The targeted rerun is retained at
+`acceptance/results/react-presence.v1.json`: all ten required checks passed
+with zero skips, including two independent native WebSocket clients, TTL
+expiry, disconnect deletion before half the TTL, no durable-version advance,
+rollback over newer authority, both matcher orderings, SSR zero demand, hosted
+no-work refusal, and exact provider/client/server cleanup. Package tests,
+TypeScript, and the production build pass. This improves Snapback's React and
+presence position materially; it does not erase the baseline's hosted-product
+and first-hour dev-loop disadvantages. The full three-backend rerun later in
+this program owns the final revised ranking.
 
 ## Executive result
 

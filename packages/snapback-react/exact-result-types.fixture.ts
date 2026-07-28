@@ -1,4 +1,8 @@
-import type { SnapbackFunctionReference } from '@snapback/client';
+import type {
+  PreparedReactQueryGroup,
+  SnapbackFunctionReference,
+  SnapbackQueryGroupReference,
+} from '@snapback/client';
 import {
   skip,
   useSnapbackMutation,
@@ -24,6 +28,15 @@ declare const createTodo: SnapbackFunctionReference<
   { title: string },
   string
 >;
+type WorkspaceGroup = SnapbackQueryGroupReference<
+  '/workspace/:owner',
+  { owner: string },
+  {
+    todos: { readonly ref: typeof todos; readonly args: { owner: string } };
+    feed: { readonly ref: typeof feed; readonly args: Record<string, never> };
+  }
+>;
+declare const primedWorkspace: PreparedReactQueryGroup<WorkspaceGroup>;
 
 const query = useSnapbackQuery(todos, { owner: 'ada' });
 if (query.status === 'ready' || query.status === 'refreshing') {
@@ -40,6 +53,13 @@ if (group.queries.todos.status === 'ready') {
 }
 if (group.queries.feed.status === 'ready') {
   group.queries.feed.data[0]?.body.toUpperCase();
+}
+const primed = useSnapbackQueries(primedWorkspace);
+if (primed.queries.todos.status === 'ready') {
+  primed.queries.todos.data[0]?.title.toUpperCase();
+}
+if (primed.queries.feed.status === 'ready') {
+  primed.queries.feed.data[0]?.body.toUpperCase();
 }
 
 const create = useSnapbackMutation(createTodo);

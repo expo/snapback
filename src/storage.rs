@@ -8648,6 +8648,76 @@ fn validate_relation_activation(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {
+    let participating_parents = manifest
+        .tables
+        .iter()
+        .flat_map(|child| child.fields.iter())
+        .filter_map(|field| match &field.field_type {
+            FieldType::RelationIncarnation { parent_table, .. } => Some(parent_table.as_str()),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    for parent_table in participating_parents {
+        let parent_table_sql = quote_ident(parent_table)?;
+        let missing_or_duplicate_active = tx
+            .query_row(
+                &format!(
+                    "SELECT p._id
+                       FROM {parent_table_sql} p
+                  LEFT JOIN _snapback_relation_incarnations_v1 r
+                         ON r.table_name = ?1
+                        AND r.row_id = p._id
+                        AND r.active = 1
+                   GROUP BY p._id
+                     HAVING count(r.incarnation) != 1
+                      LIMIT 1"
+                ),
+                params![parent_table],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if let Some(row_id) = missing_or_duplicate_active {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "each current relation parent must have exactly one active incarnation",
+            )
+            .with_details(json!({
+                "parentTable": parent_table,
+                "rowId": row_id,
+                "direction": "parent-to-registry",
+            })));
+        }
+
+        let dangling_active = tx
+            .query_row(
+                &format!(
+                    "SELECT r.row_id
+                       FROM _snapback_relation_incarnations_v1 r
+                  LEFT JOIN {parent_table_sql} p ON p._id = r.row_id
+                      WHERE r.table_name = ?1
+                        AND r.active = 1
+                        AND p._id IS NULL
+                      LIMIT 1"
+                ),
+                params![parent_table],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if let Some(row_id) = dangling_active {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "an active relation incarnation has no physically present parent",
+            )
+            .with_details(json!({
+                "parentTable": parent_table,
+                "rowId": row_id,
+                "direction": "registry-to-parent",
+            })));
+        }
+    }
+
     for child in &manifest.tables {
         for stamp in &child.fields {
             let FieldType::RelationIncarnation {
@@ -15592,6 +15662,241 @@ mod guarded_commit_tests {
         assert_eq!(visible_old, 0, "old child is not revived by id reuse");
     }
 
+    // @ref LLP 0104#relation-registry-lifecycle — backup/restore carries the
+    // registry byte-for-byte, activation validates both directions, and a
+    // legacy relation is admitted only after an explicit migration backfill.
+    #[test]
+    fn relation_restore_backfill_and_central_writer_matrix() {
+        let row = |entries: &[(&str, Value)]| {
+            entries
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), value.clone()))
+                .collect::<Map<_, _>>()
+        };
+        let seed = SeedData {
+            tables: BTreeMap::from([
+                (
+                    "parents".to_owned(),
+                    vec![
+                        row(&[
+                            ("_id", json!("parent-a")),
+                            ("owner", json!("user-a")),
+                            ("title", json!("A")),
+                        ]),
+                        row(&[
+                            ("_id", json!("parent-b")),
+                            ("owner", json!("user-b")),
+                            ("title", json!("B")),
+                        ]),
+                    ],
+                ),
+                (
+                    "children".to_owned(),
+                    vec![row(&[
+                        ("_id", json!("seed-child")),
+                        ("parentId", json!("parent-a")),
+                        ("position", json!(1)),
+                        ("body", json!("seed")),
+                    ])],
+                ),
+            ]),
+        };
+        let mut db = relation_database();
+        db.seed(seed.clone())
+            .expect("seed stamps relation children");
+        let seed_stamp: String = db
+            .conn
+            .query_row(
+                "SELECT parentIncarnation FROM children WHERE _id = 'seed-child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("seed stamp");
+        let active_stamp = |db: &LocalDatabase, parent: &str| -> String {
+            db.conn
+                .query_row(
+                    "SELECT incarnation
+                       FROM _snapback_relation_incarnations_v1
+                      WHERE table_name = 'parents' AND row_id = ?1 AND active = 1",
+                    params![parent],
+                    |row| row.get(0),
+                )
+                .expect("active relation incarnation")
+        };
+        assert_eq!(active_stamp(&db, "parent-a"), seed_stamp);
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "children".to_owned(),
+                id: "buffered-child".to_owned(),
+                values: row(&[
+                    ("parentId", json!("parent-a")),
+                    ("position", json!(2)),
+                    ("body", json!("buffered")),
+                ]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("buffered insert stamps relation");
+        let buffered_stamp: String = db
+            .conn
+            .query_row(
+                "SELECT parentIncarnation FROM children WHERE _id = 'buffered-child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("buffered stamp");
+        assert_eq!(buffered_stamp, seed_stamp);
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Patch {
+                table: "children".to_owned(),
+                id: "buffered-child".to_owned(),
+                values: row(&[("parentId", json!("parent-b"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("foreign-key move re-derives relation stamp");
+        let moved_stamp: String = db
+            .conn
+            .query_row(
+                "SELECT parentIncarnation FROM children WHERE _id = 'buffered-child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("moved stamp");
+        assert_ne!(moved_stamp, seed_stamp);
+        assert_eq!(active_stamp(&db, "parent-b"), moved_stamp);
+
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "children".to_owned(),
+                    id: "buffered-child".to_owned(),
+                    values: row(&[("parentIncarnation", json!("forged"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("buffered writers cannot author the protected stamp");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED"
+        );
+
+        let mut restored = db
+            .detached_read_snapshot()
+            .expect("SQLite backup preserves protected relation state");
+        let restored_stamp: String = restored
+            .conn
+            .query_row(
+                "SELECT parentIncarnation FROM children WHERE _id = 'seed-child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("restored stamp");
+        assert_eq!(restored_stamp, seed_stamp);
+        {
+            let schema = restored.schema.clone();
+            let tx = restored.conn.transaction().expect("restore validation tx");
+            validate_relation_activation(&tx, &schema)
+                .expect("uncorrupted restore satisfies both-direction relation validation");
+            tx.rollback().unwrap();
+        }
+
+        restored
+            .conn
+            .execute(
+                "DELETE FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = 'parents' AND row_id = 'parent-a'",
+                [],
+            )
+            .expect("model legacy restore without protected registry");
+        {
+            let schema = restored.schema.clone();
+            let tx = restored.conn.transaction().expect("legacy validation tx");
+            let error = validate_relation_activation(&tx, &schema)
+                .expect_err("activation never silently blesses a legacy relation");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+            );
+            assert_eq!(error.diagnostic.details["direction"], "parent-to-registry");
+            tx.rollback().unwrap();
+        }
+
+        // This direct SQL is intentionally migration-privileged: the normal
+        // writer boundary above proves application code cannot perform it.
+        let replacement = Uuid::now_v7().to_string();
+        restored
+            .conn
+            .execute(
+                "INSERT INTO _snapback_relation_incarnations_v1(
+                   table_name, row_id, incarnation, active
+                 ) VALUES('parents', 'parent-a', ?1, 1)",
+                params![replacement],
+            )
+            .expect("explicit registry backfill");
+        restored
+            .conn
+            .execute(
+                "UPDATE children
+                    SET parentIncarnation = ?1
+                  WHERE parentId = 'parent-a'",
+                params![replacement],
+            )
+            .expect("explicit child-stamp backfill");
+        {
+            let schema = restored.schema.clone();
+            let tx = restored.conn.transaction().expect("backfill validation tx");
+            validate_relation_activation(&tx, &schema)
+                .expect("reviewed registry plus child backfill activates");
+            tx.rollback().unwrap();
+        }
+
+        restored
+            .conn
+            .execute(
+                "INSERT INTO _snapback_relation_incarnations_v1(
+                   table_name, row_id, incarnation, active
+                 ) VALUES('parents', 'missing-parent', ?1, 1)",
+                params![Uuid::now_v7().to_string()],
+            )
+            .expect("model dangling active registry row");
+        {
+            let schema = restored.schema.clone();
+            let tx = restored.conn.transaction().expect("dangling validation tx");
+            let error = validate_relation_activation(&tx, &schema)
+                .expect_err("restore refuses an active incarnation without a parent");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+            );
+            assert_eq!(error.diagnostic.details["direction"], "registry-to-parent");
+            tx.rollback().unwrap();
+        }
+
+        db.reset_and_seed(Some(seed))
+            .expect("reset seed recreates and restamps the relation cut");
+        let reset_stamp: String = db
+            .conn
+            .query_row(
+                "SELECT parentIncarnation FROM children WHERE _id = 'seed-child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("reset stamp");
+        assert_ne!(
+            reset_stamp, seed_stamp,
+            "reset mints a successor parent incarnation"
+        );
+    }
+
     // @ref LLP 0104#total-effect-formulas — source-effect assertion and the
     // activity append share one transaction; exact replay commits once, and
     // no-op/wrong-operation paths roll back before activity or settlement.
@@ -15749,6 +16054,308 @@ mod guarded_commit_tests {
                 .is_none(),
             "refusal retains no settlement"
         );
+    }
+
+    fn activity_insert_plan(return_value: ReturnValue) -> MutationPlan {
+        let source_id = ValueExpr::Binding("sourceId".to_owned());
+        MutationPlan {
+            steps: vec![
+                MutationStep::Insert {
+                    table: "children".to_owned(),
+                    values: BTreeMap::from([
+                        ("parentId".to_owned(), ValueExpr::Literal(json!("parent-1"))),
+                        ("position".to_owned(), ValueExpr::RuntimeNow),
+                        ("body".to_owned(), ValueExpr::Literal(json!("publication"))),
+                    ]),
+                    bind_id_as: Some("sourceId".to_owned()),
+                },
+                MutationStep::AssertSourceChanged {
+                    table: "children".to_owned(),
+                    id: source_id.clone(),
+                    operation: crate::manifest::WriteWithActivitySourceOperation::Insert,
+                },
+                MutationStep::Insert {
+                    table: "activity".to_owned(),
+                    values: BTreeMap::from([
+                        ("parentId".to_owned(), ValueExpr::Literal(json!("parent-1"))),
+                        ("sourceId".to_owned(), source_id),
+                        ("operation".to_owned(), ValueExpr::Literal(json!("insert"))),
+                        ("actualActor".to_owned(), ValueExpr::AuthActorUserId),
+                        ("actorKind".to_owned(), ValueExpr::AuthActivityActorKind),
+                        ("mutationDigest".to_owned(), ValueExpr::ClientMutationDigest),
+                    ]),
+                    bind_id_as: Some("activityId".to_owned()),
+                },
+            ],
+            return_value: Some(return_value),
+        }
+    }
+
+    fn activity_input(result: Value) -> HandlerInput {
+        HandlerInput {
+            args: json!({ "result": result }),
+            auth: AuthInput {
+                user_id: Some("user-1".to_owned()),
+                ..AuthInput::default()
+            }
+            .with_activity_provenance(Some("user-1"), Some("human"), None)
+            .with_client_mutation_digest(Some(&format!("sha256:{}", "0".repeat(64)))),
+            ..HandlerInput::default()
+        }
+    }
+
+    fn seed_activity_scope(db: &mut LocalDatabase) {
+        let tx = db.conn.transaction().expect("activity scope tx");
+        let parent = db.schema.table("parents").expect("parent").clone();
+        insert_document(
+            &tx,
+            &parent,
+            "parent-1",
+            &object(&[("owner", json!("user-1")), ("title", json!("incident"))]),
+            1,
+            1_000,
+        )
+        .expect("insert activity scope");
+        set_version(&tx, 1).expect("publish activity scope version");
+        tx.commit().expect("commit activity scope");
+    }
+
+    fn activity_counts(db: &LocalDatabase) -> (i64, i64) {
+        db.conn
+            .query_row(
+                "SELECT
+                   (SELECT count(*) FROM children),
+                   (SELECT count(*) FROM activity)",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("activity publication row counts")
+    }
+
+    fn input_with_identity_digest(
+        id: &str,
+        function: &str,
+        result: Value,
+    ) -> (HandlerInput, ClientMutationIdentity) {
+        let mut input = activity_input(result);
+        let identity = ClientMutationIdentity::new(id, function, &input);
+        input.auth = input
+            .auth
+            .with_client_mutation_digest(Some(&identity.activity_digest()));
+        (input, identity)
+    }
+
+    // @ref LLP 0104#result-and-settlement-dependency — the retained result
+    // boundary is exactly 65,536/65,537 serialized bytes; ACK and recovery
+    // purge remove only settlement evidence, never ordinary activity data,
+    // and a retry after either reclamation demonstrably executes again.
+    #[test]
+    fn write_with_activity_exact_retention_boundary_ack_purge_and_replay_loss() {
+        let mut db = relation_database();
+        seed_activity_scope(&mut db);
+        let plan = activity_insert_plan(ReturnValue::Expr(ValueExpr::Arg("result".to_owned())));
+
+        let base = db
+            .dry_run_mutation(&plan, &activity_input(json!("")))
+            .expect("measure retained output envelope")
+            .commit
+            .output;
+        let base_bytes = serde_json::to_string(&base).unwrap().len();
+        assert!(
+            base_bytes < CLIENT_MUTATION_MAX_RESULT_BYTES as usize,
+            "fixture envelope leaves room for exact-boundary payload"
+        );
+        let padding = CLIENT_MUTATION_MAX_RESULT_BYTES as usize - base_bytes;
+        let (exact_input, exact_identity) =
+            input_with_identity_digest("cm_activity_65536", "addTask", json!("x".repeat(padding)));
+        let exact = db
+            .execute_mutation_idempotent(&plan, &exact_input, &exact_identity)
+            .expect("65,536-byte retained result commits");
+        assert_eq!(
+            serde_json::to_string(&exact.output).unwrap().len(),
+            CLIENT_MUTATION_MAX_RESULT_BYTES as usize
+        );
+        assert_eq!(activity_counts(&db), (1, 1));
+        let replay = db
+            .execute_mutation_idempotent(&plan, &exact_input, &exact_identity)
+            .expect("exact replay returns retained bytes");
+        assert_eq!(replay.output, exact.output);
+        assert_eq!(activity_counts(&db), (1, 1));
+
+        assert_eq!(
+            db.acknowledge_client_mutations(
+                &exact_identity.auth_fingerprint,
+                std::slice::from_ref(&exact_identity.id),
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(activity_counts(&db), (1, 1), "ACK reclaims no product data");
+        assert!(
+            db.client_mutation_result(&exact_identity)
+                .unwrap()
+                .is_none()
+        );
+        let after_ack = db
+            .execute_mutation_idempotent(&plan, &exact_input, &exact_identity)
+            .expect("retry after ACK executes because replay evidence is gone");
+        assert_ne!(after_ack.output, exact.output);
+        assert_eq!(activity_counts(&db), (2, 2));
+
+        let before_oversize = (
+            db.current_version().unwrap(),
+            activity_counts(&db),
+            db.client_mutation_retention_info().unwrap(),
+        );
+        let measured = db
+            .dry_run_mutation(&plan, &activity_input(json!("")))
+            .expect("measure successor output envelope")
+            .commit
+            .output;
+        let successor_base = serde_json::to_string(&measured).unwrap().len();
+        let oversized_padding = CLIENT_MUTATION_MAX_RESULT_BYTES as usize + 1 - successor_base;
+        let (oversized_input, oversized_identity) = input_with_identity_digest(
+            "cm_activity_65537",
+            "addTask",
+            json!("x".repeat(oversized_padding)),
+        );
+        let error = db
+            .execute_mutation_idempotent(&plan, &oversized_input, &oversized_identity)
+            .expect_err("65,537-byte retained result rolls back the whole profile");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
+        );
+        assert_eq!(error.diagnostic.details["bytes"], 65_537);
+        assert_eq!(db.current_version().unwrap(), before_oversize.0);
+        assert_eq!(activity_counts(&db), before_oversize.1);
+        assert_eq!(
+            db.client_mutation_retention_info().unwrap(),
+            before_oversize.2
+        );
+        assert!(
+            db.client_mutation_result(&oversized_identity)
+                .unwrap()
+                .is_none()
+        );
+
+        let (purge_input, purge_identity) =
+            input_with_identity_digest("cm_activity_purge", "addTask", json!("small"));
+        db.execute_mutation_idempotent(&plan, &purge_input, &purge_identity)
+            .expect("settlement to purge");
+        let before_purge = activity_counts(&db);
+        assert!(
+            db.purge_client_mutation_settlements(Some(&purge_identity.auth_fingerprint))
+                .unwrap()
+                >= 1
+        );
+        assert_eq!(
+            activity_counts(&db),
+            before_purge,
+            "administrative settlement purge preserves activity"
+        );
+        assert!(
+            db.client_mutation_result(&purge_identity)
+                .unwrap()
+                .is_none()
+        );
+        db.execute_mutation_idempotent(&plan, &purge_input, &purge_identity)
+            .expect("retry after purge executes again by documented contract");
+        assert_eq!(
+            activity_counts(&db),
+            (before_purge.0 + 1, before_purge.1 + 1)
+        );
+    }
+
+    // @ref LLP 0104#82-write-plus-activity — every observable failure cut
+    // executes inside the same SQLite transaction and leaves the scope cut,
+    // source/activity rows, version, and successful settlement unchanged.
+    #[test]
+    fn write_with_activity_fault_cuts_leave_no_residue() {
+        let clean = || {
+            let mut db = relation_database();
+            seed_activity_scope(&mut db);
+            db
+        };
+        let plan = activity_insert_plan(ReturnValue::Expr(ValueExpr::Literal(json!({
+            "ok": true
+        }))));
+
+        // Lifecycle checkpoints: before source, after source/before assertion,
+        // before activity, after activity/result, and immediately before
+        // settlement+COMMIT.
+        for (label, fail_at) in [
+            ("before-primary", 2_usize),
+            ("between-primary-and-assertion", 3),
+            ("before-activity", 4),
+            ("after-activity", 5),
+            ("before-commit", 6),
+        ] {
+            let mut db = clean();
+            let (input, identity) =
+                input_with_identity_digest(&format!("cm_fault_{fail_at}"), "addTask", Value::Null);
+            let checks = Cell::new(0_usize);
+            let error = match db.execute_mutation_plan_with_lifecycle(
+                &plan,
+                &input,
+                true,
+                Some(&identity),
+                &|| {
+                    checks.set(checks.get() + 1);
+                    if checks.get() == fail_at {
+                        Err(SnapbackError::error(
+                            "SNAPBACK_TEST_ACTIVITY_FAULT",
+                            "mutation",
+                            label,
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                },
+                || Ok(()),
+            ) {
+                Ok(_) => panic!("{label} unexpectedly committed"),
+                Err(error) => error,
+            };
+            assert_eq!(error.diagnostic.code, "SNAPBACK_TEST_ACTIVITY_FAULT");
+            assert_eq!(db.current_version().unwrap(), 1, "{label}");
+            assert_eq!(activity_counts(&db), (0, 0), "{label}");
+            assert!(
+                db.client_mutation_result(&identity).unwrap().is_none(),
+                "{label}"
+            );
+        }
+
+        let mut invalid_activity = plan.clone();
+        let Some(MutationStep::Insert { values, .. }) = invalid_activity.steps.last_mut() else {
+            panic!("activity append");
+        };
+        values.insert("actorKind".to_owned(), ValueExpr::Literal(json!(7)));
+        let mut db = clean();
+        let (input, identity) =
+            input_with_identity_digest("cm_fault_activity_validation", "addTask", Value::Null);
+        let error = db
+            .execute_mutation_idempotent(&invalid_activity, &input, &identity)
+            .expect_err("activity schema validation failure rolls back source");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
+        assert_eq!(activity_counts(&db), (0, 0));
+        assert_eq!(db.current_version().unwrap(), 1);
+        assert!(db.client_mutation_result(&identity).unwrap().is_none());
+
+        let mut invalid_result = plan;
+        invalid_result.return_value = Some(ReturnValue::Expr(ValueExpr::Arg(
+            "missingResult".to_owned(),
+        )));
+        let mut db = clean();
+        let (input, identity) =
+            input_with_identity_digest("cm_fault_result_validation", "addTask", Value::Null);
+        let error = db
+            .execute_mutation_idempotent(&invalid_result, &input, &identity)
+            .expect_err("result construction failure rolls back activity");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ARG_MISSING");
+        assert_eq!(activity_counts(&db), (0, 0));
+        assert_eq!(db.current_version().unwrap(), 1);
+        assert!(db.client_mutation_result(&identity).unwrap().is_none());
     }
 
     // @ref LLP 0081#6-compatibility-and-deployment-ordering — barrier-time

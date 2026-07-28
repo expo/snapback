@@ -1,6 +1,6 @@
 # Typed live-query groups and aggregate external store
 
-**Status:** Open  
+**Status:** Resolved
 **Impact:** 4  
 **Urgency:** 4  
 **Ease:** 2  
@@ -11,10 +11,35 @@
 **Date:** 2026-07-27  
 **Related:** LLP 0012, LLP 0053, LLP 0064, LLP 0090; `packages/snapback-client/external-store.mjs`
 
-The external store deduplicates identical query identities, and LLP 0090's app
-bundle can prime multiple route queries at one commit. There is no generated
-query-group reference or aggregate store, so a four-feed workspace still owns
-manual snapshot assembly, partial readiness, errors, and cleanup.
+## Resolution
+
+`useSnapbackQueries` and `observeSnapbackQueries` now provide an exact typed
+aggregate over canonical child stores, with transactional admission,
+same-store sharing, per-child state, deterministic aggregate connection/error
+state, replacement isolation, and cleanup. Signal Desk no longer hand-builds
+four subscriptions or its disposal logic.
+
+Code generation now projects each declared route into an exact generated group
+reference whose closed child refs, route parameters, argument mapping, and
+result types are all represented in the generated TypeScript API. The prepared
+binding admits those refs and can acquire an LLP 0090 register-mode bundle
+before mount. It validates the complete returned child set and one-commit
+provenance, then hands each registered subscription to the existing canonical
+child store. This preserves one cache seam and closes the prime/subscribe
+window.
+
+Targets that explicitly refuse bundle acquisition with a stable
+`SNAPBACK_BUNDLE_*` diagnostic may opt into live fallback. Fallback retains the
+same generated group identity and child stores but reports `boot: null`, so it
+does not counterfeit one-commit provenance.
+
+The package proof covers exact generated identity and parameter rejection,
+registered adoption with two children from commit 41 and no ordinary starts,
+fallback with ordinary starts and no registered starts, typed child result
+inference, sharing/isolation/update/error/authority behavior, and final
+cleanup. Signal Desk now declares a route group and prepares that generated
+group before mounting its provider instead of maintaining a custom four-feed
+aggregator or disposal path.
 
 ## Desired resolution
 

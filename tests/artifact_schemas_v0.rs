@@ -49,17 +49,17 @@ use snapback::deploy::{
     ExternalReplayFloorAdvanceReceipt, ExternalReplayFloorAdvanceVersion,
     HostedAdmissionProjectionReceipt, HostedAdmissionProjectionVersion,
     HostedAdmissionRefreshReceipt, HostedAdmissionRefreshVersion, HostedAuthDrillReceipt,
-    HostedAuthLiveHealth, InspectionFact, MaintenanceReceipt, MaintenanceReceiptKind,
-    MaintenanceReceiptOutcome, PreparedReleaseEvidence, PreparedReleaseEvidenceKind,
-    PreparedReleaseManifest, RedactedLogField, ReleaseArtifactKind, ReleaseCompatibility,
-    ReleaseCompatibilityEnvelope, ReleaseComponent, ReleaseGap, ReleaseManifest,
-    ReleaseManifestVersion, ReleaseScan, ReleaseSource, ReleaseToolchain, RemoteDrillCostBoundary,
-    RemoteDrillCostComponent, RemoteDrillCredentials, RemoteDrillLogs, RemoteDrillNonclaim,
-    RemoteDrillPlan, RemoteDrillPlanVersion, RemoteDrillProvisioningAuthority, RemoteDrillStorage,
-    RemoteDrillSupervisor, RemoteDrillSupervisorKind, RemoteDrillTls, RestoreActivationPlan,
-    RestoreActivationPlanStep, RestorePlan, RestorePlanStep, RestoreResult, RollbackMode,
-    RollbackPlan, RollbackPlanStep, TargetDescriptor, TargetDescriptorVersion, TargetObservation,
-    TargetProductionClass, VmAdapterDescriptor, VmAdapterKind,
+    HostedAuthLiveHealth, HostedProductJourneyV1, InspectionFact, MaintenanceReceipt,
+    MaintenanceReceiptKind, MaintenanceReceiptOutcome, PreparedReleaseEvidence,
+    PreparedReleaseEvidenceKind, PreparedReleaseManifest, RedactedLogField, ReleaseArtifactKind,
+    ReleaseCompatibility, ReleaseCompatibilityEnvelope, ReleaseComponent, ReleaseGap,
+    ReleaseManifest, ReleaseManifestVersion, ReleaseScan, ReleaseSource, ReleaseToolchain,
+    RemoteDrillCostBoundary, RemoteDrillCostComponent, RemoteDrillCredentials, RemoteDrillLogs,
+    RemoteDrillNonclaim, RemoteDrillPlan, RemoteDrillPlanVersion, RemoteDrillProvisioningAuthority,
+    RemoteDrillStorage, RemoteDrillSupervisor, RemoteDrillSupervisorKind, RemoteDrillTls,
+    RestoreActivationPlan, RestoreActivationPlanStep, RestorePlan, RestorePlanStep, RestoreResult,
+    RollbackMode, RollbackPlan, RollbackPlanStep, TargetDescriptor, TargetDescriptorVersion,
+    TargetObservation, TargetProductionClass, VmAdapterDescriptor, VmAdapterKind,
 };
 use snapback::diagnostic::Diagnostic;
 use snapback::ephemeral::{EphemeralDiagnostics, EphemeralRoomDiagnostics, Scope};
@@ -2737,6 +2737,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             authorization_invalidation: None,
             wire_version: None,
             ephemeral_authority_protocol: None,
+            ephemeral_expiry_protocol: None,
         })
         .unwrap(),
     );
@@ -2752,6 +2753,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             ephemeral_authority_protocol: Some(
                 snapback::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1,
             ),
+            ephemeral_expiry_protocol: Some(snapback::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1),
         })
         .unwrap(),
     );
@@ -2761,6 +2763,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         auth_invalidation_protocol: None,
         wire_version: Some("snapback.v1".to_owned()),
         ephemeral_authority_protocol: Some(snapback::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),
+        ephemeral_expiry_protocol: Some(snapback::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1),
     })
     .unwrap();
     assert_validates("connection.open.input.schema.json", &open_request);
@@ -3481,4 +3484,23 @@ fn gap_row_schemas_accept_representative_values() {
     let mut unknown_kind = session_publish;
     unknown_kind["type"] = json!("ephemeral_broadcast");
     assert_rejects("live.socket-client.sessions.schema.json", &unknown_kind);
+}
+
+#[test]
+fn hosted_product_journey_receipt_is_rust_owned_and_closed() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("demos/backend-bakeoff/hosted-product-journey.v1.json");
+    let bytes = fs::read(&path).expect("hosted product journey receipt");
+    let value: Value = serde_json::from_slice(&bytes).expect("journey receipt JSON");
+    assert_validates("hosted-product-journey-v1.schema.json", &value);
+    let parsed: HostedProductJourneyV1 =
+        serde_json::from_value(value.clone()).expect("journey receipt Rust carrier");
+    assert_eq!(
+        serde_json::to_value(parsed).expect("serialize journey receipt"),
+        value
+    );
+    let mut unknown = value;
+    unknown["unexpected"] = json!(true);
+    assert_rejects("hosted-product-journey-v1.schema.json", &unknown);
+    assert!(serde_json::from_value::<HostedProductJourneyV1>(unknown).is_err());
 }

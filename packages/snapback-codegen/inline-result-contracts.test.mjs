@@ -166,6 +166,123 @@ try {
       args: {},
       reads: ['todos'],
       handler: async () => {
+        (() => { const nestedOnly = []; return nestedOnly; })();
+        return nestedOnly;
+      },
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(generated.diagnostics.some(
+    ({ code, identifiers }) => (
+      code === 'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER'
+      && identifiers.includes('nestedOnly')
+    ),
+  ), 'a declaration in a nested lexical scope must not admit an outer free reference');
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+    export const listTodos = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      handler: async () => this.todos,
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(generated.diagnostics.some(
+    ({ code }) => code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN',
+  ), 'module-ambient this must not cross into the generated runtime module');
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+    export const listTodos = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      handler: async () => globalThis['eval']('[]'),
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(generated.diagnostics.some(
+    ({ code, identifiers }) => (
+      code === 'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER'
+      && identifiers.includes('globalThis')
+    ),
+  ), 'globalThis cannot act as a computed escape to forbidden ambient authority');
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineAction, results, v } from ${JSON.stringify(defineUrl)};
+    export const oversized = defineAction({
+      args: {},
+      result: results.value(v.string({ maxBytes: 1048577 })),
+      handler: async () => 'ok',
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(
+    generated.diagnostics.some(({ code, message }) => (
+      code === 'SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID'
+      && /1 MiB/u.test(message)
+    )),
+  );
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery, results, v } from ${JSON.stringify(defineUrl)};
+    export const wrongQueryShape = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      result: results.value(v.string()),
+      handler: async () => 'not-a-query-row-list',
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert.match(
+    JSON.stringify(generated.diagnostics),
+    /Query result must be results\.documents\(\.\.\.\), results\.records\(\.\.\.\)/u,
+  );
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsMutation, results, v } from ${JSON.stringify(defineUrl)};
+    export const wrongMutationShape = defineJsMutation({
+      args: {},
+      writes: ['todos'],
+      result: results.records(v.object({ title: v.string() })),
+      handler: async () => [],
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert.match(
+    JSON.stringify(generated.diagnostics),
+    /defineJsMutation result must use results\.document\(\.\.\.\) or results\.value\(\.\.\.\)/u,
+  );
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineAction, results, v } from ${JSON.stringify(defineUrl)};
+    export const ambiguous = defineAction({
+      args: {},
+      result: results.value(v.union([v.string(), v.string({ maxBytes: 8 })])),
+      handler: async () => 'ok',
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(
+    generated.diagnostics.some(({ code, message }) => (
+      code === 'SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID'
+      && /syntactically disjoint/u.test(message)
+    )),
+  );
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+    export const listTodos = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      handler: async () => {
         class Hidden {}
         return [new Hidden()];
       },

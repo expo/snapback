@@ -31,6 +31,16 @@
         "null"
       ]
     },
+    "ephemeralExpiryProtocol": {
+      "default": null,
+      "description": "Optional exact offer. Unknown values refuse; absence preserves the\nlegacy durable surface and makes React presence unavailable.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
     "previousToken": {
       "default": null,
       "description": "A prior grant's bearer. This field is deliberately absent from every\nserver response and from all receipt/capsule schemas.",

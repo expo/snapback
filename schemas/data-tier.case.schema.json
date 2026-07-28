@@ -1167,8 +1167,7 @@
       "additionalProperties": false,
       "properties": {
         "classification": {
-          "$ref": "#/$defs/SearchFieldClassV1",
-          "default": "public"
+          "$ref": "#/$defs/SearchFieldClassV1"
         },
         "weight": {
           "format": "uint32",
@@ -1178,7 +1177,8 @@
         }
       },
       "required": [
-        "weight"
+        "weight",
+        "classification"
       ],
       "type": "object"
     },

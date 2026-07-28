@@ -1124,6 +1124,284 @@ impl FunctionManifest {
     }
 }
 
+const RESULT_CONTRACT_MAX_DEPTH: usize = 16;
+const RESULT_CONTRACT_MAX_FIELDS: usize = 128;
+const RESULT_CONTRACT_MAX_UNION_VARIANTS: usize = 8;
+const RESULT_CONTRACT_MAX_ARRAY_ITEMS: usize = 1_024;
+const RESULT_CONTRACT_MAX_VALUE_BYTES: usize = 1024 * 1024;
+const RESULT_CONTRACT_JS_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
+
+fn invalid_result_contract(
+    function: &FunctionDefinition,
+    message: impl Into<String>,
+) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
+        "runtime",
+        format!("function {} {}", function.name, message.into()),
+    )
+}
+
+fn result_contract_hash(contract: &FunctionResultContract) -> SnapbackResult<String> {
+    let value = serde_json::to_value(contract).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+            "runtime",
+            "result contract cannot be represented as canonical JSON",
+        )
+    })?;
+    let canonical = crate::rqs::jcs(&value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+            "runtime",
+            "result contract is outside the canonical JSON profile",
+        )
+    })?;
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:function-result:v1\n");
+    hash.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", hash.finalize()))
+}
+
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+enum ResultPrimitiveKind {
+    Null,
+    Boolean,
+    String,
+    Number,
+    Array,
+    Object,
+    AnyJson,
+}
+
+fn result_primitive_kind(contract: &ResultValueContract) -> ResultPrimitiveKind {
+    match contract {
+        ResultValueContract::Null => ResultPrimitiveKind::Null,
+        ResultValueContract::Boolean => ResultPrimitiveKind::Boolean,
+        ResultValueContract::String { .. }
+        | ResultValueContract::Principal
+        | ResultValueContract::Id { .. } => ResultPrimitiveKind::String,
+        ResultValueContract::Integer { .. } | ResultValueContract::FiniteReal { .. } => {
+            ResultPrimitiveKind::Number
+        }
+        ResultValueContract::Literal { value } => match value {
+            Value::Null => ResultPrimitiveKind::Null,
+            Value::Bool(_) => ResultPrimitiveKind::Boolean,
+            Value::String(_) => ResultPrimitiveKind::String,
+            Value::Number(_) => ResultPrimitiveKind::Number,
+            Value::Array(_) => ResultPrimitiveKind::Array,
+            Value::Object(_) => ResultPrimitiveKind::Object,
+        },
+        ResultValueContract::Json { .. } | ResultValueContract::Union { .. } => {
+            ResultPrimitiveKind::AnyJson
+        }
+        ResultValueContract::Array { .. } => ResultPrimitiveKind::Array,
+        ResultValueContract::Object { .. } => ResultPrimitiveKind::Object,
+    }
+}
+
+fn union_has_object_discriminator(variants: &[ResultValueContract]) -> bool {
+    let objects = variants
+        .iter()
+        .map(|variant| match variant {
+            ResultValueContract::Object {
+                fields,
+                allow_extra: false,
+            } => Some(fields),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>();
+    let Some(objects) = objects else {
+        return false;
+    };
+    let Some(first) = objects.first() else {
+        return false;
+    };
+    first.iter().any(|candidate| {
+        if !candidate.required {
+            return false;
+        }
+        let ResultValueContract::Literal { value: first_value } = &candidate.value else {
+            return false;
+        };
+        if !matches!(
+            first_value,
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)
+        ) {
+            return false;
+        }
+        let mut values = BTreeSet::new();
+        for fields in &objects {
+            let Some(field) = fields
+                .iter()
+                .find(|field| field.required && field.name == candidate.name)
+            else {
+                return false;
+            };
+            let ResultValueContract::Literal { value } = &field.value else {
+                return false;
+            };
+            let Ok(canonical) = crate::rqs::jcs(value) else {
+                return false;
+            };
+            if !values.insert(canonical) {
+                return false;
+            }
+        }
+        true
+    })
+}
+
+fn union_has_disjoint_primitive_variants(variants: &[ResultValueContract]) -> bool {
+    let mut groups = BTreeMap::<ResultPrimitiveKind, Vec<&ResultValueContract>>::new();
+    for variant in variants {
+        let kind = result_primitive_kind(variant);
+        if kind == ResultPrimitiveKind::AnyJson {
+            return false;
+        }
+        groups.entry(kind).or_default().push(variant);
+    }
+    groups.values().all(|group| {
+        if group.len() == 1 {
+            return true;
+        }
+        let mut literals = BTreeSet::new();
+        group.iter().all(|variant| {
+            let ResultValueContract::Literal { value } = variant else {
+                return false;
+            };
+            crate::rqs::jcs(value)
+                .ok()
+                .is_some_and(|value| literals.insert(value))
+        })
+    })
+}
+
+fn validate_result_value_contract(
+    function: &FunctionDefinition,
+    contract: &ResultValueContract,
+    depth: usize,
+    object_fields: &mut usize,
+) -> SnapbackResult<()> {
+    if depth > RESULT_CONTRACT_MAX_DEPTH {
+        return Err(invalid_result_contract(
+            function,
+            "result contract exceeds the depth-16 profile",
+        ));
+    }
+    match contract {
+        ResultValueContract::String { max_bytes } => {
+            if *max_bytes > RESULT_CONTRACT_MAX_VALUE_BYTES {
+                return Err(invalid_result_contract(
+                    function,
+                    "result string bound exceeds 1 MiB",
+                ));
+            }
+        }
+        ResultValueContract::Integer { min, max } => {
+            if min > max
+                || *min < -RESULT_CONTRACT_JS_SAFE_INTEGER
+                || *max > RESULT_CONTRACT_JS_SAFE_INTEGER
+            {
+                return Err(invalid_result_contract(
+                    function,
+                    "result integer bounds are invalid or outside JavaScript-safe integers",
+                ));
+            }
+        }
+        ResultValueContract::FiniteReal { min, max } => {
+            if !min.is_finite() || !max.is_finite() || min > max {
+                return Err(invalid_result_contract(
+                    function,
+                    "result finite-real bounds are invalid",
+                ));
+            }
+        }
+        ResultValueContract::Id { table } if table.is_empty() => {
+            return Err(invalid_result_contract(
+                function,
+                "result id names an empty table",
+            ));
+        }
+        ResultValueContract::Literal { value } => {
+            if !matches!(
+                value,
+                Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)
+            ) || crate::rqs::jcs(value).is_err()
+            {
+                return Err(invalid_result_contract(
+                    function,
+                    "result literal is not a canonical JSON scalar",
+                ));
+            }
+        }
+        ResultValueContract::Json {
+            max_depth,
+            max_bytes,
+        } => {
+            if *max_depth > RESULT_CONTRACT_MAX_DEPTH
+                || *max_bytes > RESULT_CONTRACT_MAX_VALUE_BYTES
+            {
+                return Err(invalid_result_contract(
+                    function,
+                    "result JSON bound exceeds the depth-16/1-MiB profile",
+                ));
+            }
+        }
+        ResultValueContract::Array { element, max_items } => {
+            if *max_items > RESULT_CONTRACT_MAX_ARRAY_ITEMS {
+                return Err(invalid_result_contract(
+                    function,
+                    "result array bound exceeds 1,024 items",
+                ));
+            }
+            validate_result_value_contract(function, element, depth + 1, object_fields)?;
+        }
+        ResultValueContract::Union { variants } => {
+            if !(2..=RESULT_CONTRACT_MAX_UNION_VARIANTS).contains(&variants.len()) {
+                return Err(invalid_result_contract(
+                    function,
+                    "result union must contain 2–8 variants",
+                ));
+            }
+            let primitive_disjoint = union_has_disjoint_primitive_variants(variants);
+            if !primitive_disjoint && !union_has_object_discriminator(variants) {
+                return Err(invalid_result_contract(
+                    function,
+                    "result union variants are not syntactically disjoint",
+                ));
+            }
+            for variant in variants {
+                validate_result_value_contract(function, variant, depth + 1, object_fields)?;
+            }
+        }
+        ResultValueContract::Object { fields, .. } => {
+            *object_fields = object_fields.saturating_add(fields.len());
+            if *object_fields > RESULT_CONTRACT_MAX_FIELDS {
+                return Err(invalid_result_contract(
+                    function,
+                    "result contract exceeds 128 object fields",
+                ));
+            }
+            let mut names = BTreeSet::new();
+            for field in fields {
+                if field.name.is_empty() || !names.insert(field.name.as_str()) {
+                    return Err(invalid_result_contract(
+                        function,
+                        "result object field names must be non-empty and unique",
+                    ));
+                }
+                validate_result_value_contract(function, &field.value, depth + 1, object_fields)?;
+            }
+        }
+        ResultValueContract::Null
+        | ResultValueContract::Boolean
+        | ResultValueContract::Principal
+        | ResultValueContract::Id { .. } => {}
+    }
+    Ok(())
+}
+
 fn validate_result_contract_definition(function: &FunctionDefinition) -> SnapbackResult<()> {
     let compatible = match (&function.kind, &function.result_contract) {
         (_, FunctionResultContract::Unknown)
@@ -1148,6 +1426,40 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
                 function.name, function.kind
             ),
         ));
+    }
+    let value_contract = match &function.result_contract {
+        FunctionResultContract::Unknown => None,
+        FunctionResultContract::Documents { table, document }
+        | FunctionResultContract::Document { table, document } => {
+            if table.is_empty() {
+                return Err(invalid_result_contract(
+                    function,
+                    "result contract names an empty table",
+                ));
+            }
+            Some(document)
+        }
+        FunctionResultContract::Records { record } => {
+            if !matches!(
+                record,
+                ResultValueContract::Object {
+                    allow_extra: false,
+                    ..
+                }
+            ) {
+                return Err(invalid_result_contract(
+                    function,
+                    "records result must carry a closed object contract",
+                ));
+            }
+            Some(record)
+        }
+        FunctionResultContract::Value { value } => Some(value),
+        FunctionResultContract::LegacyQueryRowsV0 { row } => Some(row),
+    };
+    if let Some(contract) = value_contract {
+        let mut object_fields = 0;
+        validate_result_value_contract(function, contract, 0, &mut object_fields)?;
     }
     if let Some(form) = function.handler_form.as_deref() {
         let form_matches = match (form, &function.runtime) {
@@ -1196,6 +1508,35 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
                     function.name
                 ),
             ));
+        }
+    }
+    match (
+        &function.result_contract,
+        function.result_contract_hash.as_deref(),
+    ) {
+        (FunctionResultContract::Unknown, None) => {}
+        (_, None) => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+                "runtime",
+                format!(
+                    "function {} must pair its concrete result contract and resultContractHash",
+                    function.name
+                ),
+            ));
+        }
+        (contract, Some(actual)) => {
+            let expected = result_contract_hash(contract)?;
+            if actual != expected {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+                    "runtime",
+                    format!(
+                        "function {} resultContractHash does not authenticate its effective contract",
+                        function.name
+                    ),
+                ));
+            }
         }
     }
     if function.result_contract_hash.is_some()
@@ -3035,6 +3376,12 @@ pub struct PublicFunctionDefinition {
     pub implementation_hash: Option<String>,
     #[serde(rename = "argsContractHash", skip_serializing_if = "Option::is_none")]
     pub args_contract_hash: Option<String>,
+    // @ref LLP 0106#optimistic-mutation-projection — the browser verifies
+    // the deployed descriptor as well as its hash before admitting an
+    // optimistic reducer. Result contracts are bounded declarative schemas,
+    // not executable handler source.
+    #[serde(rename = "resultContract")]
+    pub result_contract: FunctionResultContract,
     #[serde(rename = "resultContractHash", skip_serializing_if = "Option::is_none")]
     pub result_contract_hash: Option<String>,
     #[serde(rename = "requiredCapabilities")]
@@ -3216,7 +3563,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             handler_form,
             implementation_hash,
             args_contract_hash,
-            result_contract: _,
+            result_contract,
             result_contract_hash,
             required_capabilities,
             auth_requirement,
@@ -3243,6 +3590,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             handler_form,
             implementation_hash,
             args_contract_hash,
+            result_contract,
             result_contract_hash,
             required_capabilities,
             auth_requirement,
@@ -5570,6 +5918,80 @@ mod membership_manifest_grammar_tests {
     use super::*;
     use serde_json::json;
 
+    fn result_contract_function(contract: FunctionResultContract) -> FunctionDefinition {
+        let mut function = FunctionDefinition::new(
+            "resultContractFixture",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "resultContractFixture".to_owned(),
+            }),
+        );
+        function.result_contract_hash =
+            Some(result_contract_hash(&contract).expect("hash fixture contract"));
+        function.result_contract = contract;
+        function
+            .required_capabilities
+            .push("result_contract_v1".to_owned());
+        function
+    }
+
+    #[test]
+    fn result_contract_hash_authenticates_the_effective_contract() {
+        let mut function = result_contract_function(FunctionResultContract::Value {
+            value: ResultValueContract::String { max_bytes: 8 },
+        });
+        validate_result_contract_definition(&function).expect("matching contract hash");
+
+        function.result_contract = FunctionResultContract::Value {
+            value: ResultValueContract::String { max_bytes: 9 },
+        };
+        let error = validate_result_contract_definition(&function)
+            .expect_err("a valid-looking stale hash must not authenticate changed semantics");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID"
+        );
+
+        let mut explicit_unknown = result_contract_function(FunctionResultContract::Unknown);
+        validate_result_contract_definition(&explicit_unknown)
+            .expect("explicit unknown is still a hashed effective contract");
+        explicit_unknown.result_contract_hash = None;
+        explicit_unknown.required_capabilities.clear();
+        validate_result_contract_definition(&explicit_unknown)
+            .expect("legacy manifests may omit the result contract identity");
+    }
+
+    #[test]
+    fn result_contract_profile_bounds_and_union_disjointness_are_load_time_authority() {
+        let oversized = result_contract_function(FunctionResultContract::Value {
+            value: ResultValueContract::String {
+                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES + 1,
+            },
+        });
+        let error = validate_result_contract_definition(&oversized)
+            .expect_err("authored bounds may narrow but never widen the profile");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
+        );
+
+        let overlapping = result_contract_function(FunctionResultContract::Value {
+            value: ResultValueContract::Union {
+                variants: vec![
+                    ResultValueContract::String { max_bytes: 8 },
+                    ResultValueContract::String { max_bytes: 16 },
+                ],
+            },
+        });
+        let error = validate_result_contract_definition(&overlapping)
+            .expect_err("overlapping unions are not deterministic contracts");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
+        );
+    }
+
     #[test]
     fn bounded_stream_capability_requires_both_implementation_and_live_egress() {
         let declared = CapabilityManifest::local_v0_declared();
@@ -5620,9 +6042,8 @@ mod membership_manifest_grammar_tests {
     // @ref LLP 0058#capability-maturity — the maturity map annotates the
     // emitted support set with every non-stable id; stable ids never appear.
     // With `relational_query_v1` and `migration_keyset_scan_v1` promoted as
-    // LLP 0080/0081's Implemented act (2026-07-26), the registry has no
-    // non-stable id left: the empty map below IS the promotion regression,
-    // exactly as `bounded_response_stream_v1`'s absence was for LLP 0076.
+    // LLP 0080/0081's Implemented act (2026-07-26), only the explicitly
+    // experimental 0101/0103 contracts remain in the maturity map.
     #[test]
     fn capability_maturity_promotions_hold_and_admission_stays_fail_closed() {
         let disabled = CapabilityManifest::local_v0_declared();
@@ -5637,24 +6058,39 @@ mod membership_manifest_grammar_tests {
                 .supported_capabilities
                 .contains(&TargetCapabilityId::MigrationKeysetScanV1)
         );
-        // …and the maturity map is empty: no registered id is non-stable.
-        assert!(disabled.capability_maturity.is_empty());
+        let experimental = BTreeMap::from([
+            (
+                TargetCapabilityId::InlineHandlerV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::ResultContractV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::VersionedSeedInstallV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::VersionedSeedResetV1,
+                CapabilityMaturity::Experimental,
+            ),
+        ]);
+        assert_eq!(disabled.capability_maturity, experimental);
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
         assert!(
             enabled
                 .supported_capabilities
                 .contains(&TargetCapabilityId::BoundedResponseStreamV1)
         );
-        assert!(enabled.capability_maturity.is_empty());
+        assert_eq!(enabled.capability_maturity, experimental);
 
-        // Serialization: an all-stable manifest omits the field, and an
-        // omitted field round-trips to an empty map (older manifests predate
-        // the dimension).
+        // Serialization retains the experimental advertisement gate.
         let plain = serde_json::to_value(&enabled).expect("serialize");
-        assert!(plain.get("capabilityMaturity").is_none());
+        assert!(plain.get("capabilityMaturity").is_some());
         let round_tripped: CapabilityManifest =
-            serde_json::from_value(plain).expect("deserialize without the field");
-        assert!(round_tripped.capability_maturity.is_empty());
+            serde_json::from_value(plain).expect("deserialize maturity map");
+        assert_eq!(round_tripped.capability_maturity, experimental);
 
         // Promoted ids are plain support: they admit with NO acknowledgment
         // at all — before 2026-07-26 the first two refusals below were the
@@ -5668,15 +6104,19 @@ mod membership_manifest_grammar_tests {
         enabled
             .require_capability("bounded_response_stream_v1")
             .expect("stable support admits without acknowledgment");
+        assert_eq!(
+            enabled
+                .require_capability("inline_handler_v1")
+                .expect_err("experimental support requires an artifact acknowledgment")
+                .diagnostic
+                .code,
+            "SNAPBACK_CAPABILITY_UNSUPPORTED"
+        );
 
-        // Pre-promotion artifacts survive: acknowledging a stable id —
-        // including one promoted after the artifact was generated — is a
-        // harmless no-op, and an acknowledgment can never make an
-        // unsupported capability supported. (The experimental refusal arm in
-        // `require_capability_acknowledging` has no live non-stable id to
-        // exercise it until the next one lands; `auth_artifacts_v1`'s
-        // registry sweep re-arms automatically when it does.)
+        // Pre-promotion acknowledgments for stable ids remain harmless, while
+        // the current experimental ids admit only through the explicit gate.
         let acknowledged = CapabilityManifest::parse_acknowledged_capabilities([
+            "inline_handler_v1",
             "relational_query_v1",
             "bounded_response_stream_v1",
             "live_subscriptions",
@@ -5688,6 +6128,9 @@ mod membership_manifest_grammar_tests {
         enabled
             .require_capability_acknowledging("live_subscriptions", &acknowledged)
             .expect("acknowledging a stable id is a no-op");
+        enabled
+            .require_capability_acknowledging("inline_handler_v1", &acknowledged)
+            .expect("acknowledged experimental support admits");
         assert_eq!(
             disabled
                 .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
