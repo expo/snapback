@@ -128,3 +128,15 @@ inventing a root. This remains a local package proof: no operator listener,
 mTLS/operator-certificate binding, supervisor-response intermediate, provider
 executor, or live installation update was added, so the capability remains
 false and the remote corpus remains required.
+
+**Async provider-transaction progress (2026-07-28):** the retained operator
+boundary now has an explicit asynchronous execution path for bounded provider
+reads and effects. Authorization completes before the provider promise starts;
+a rejected promise advances neither supervisor generation, request journal,
+device sequence, nor replay floor; and an awaited canonical response commits
+before sequence advancement and exact-replays after mirror/anchor recovery.
+The synchronous entry point rejects Promise-returning executors, and a
+canonical `null` response now exact-replays instead of being mistaken for a
+cache miss. This is still prerequisite code only: it adds no provider
+operation, public listener, response signer, root provisioning, live update,
+or hosted capability claim.

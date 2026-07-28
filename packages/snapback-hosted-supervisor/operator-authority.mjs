@@ -18,6 +18,7 @@ import {
   randomUUID,
   verify,
 } from 'node:crypto';
+import { isAsyncFunction } from 'node:util/types';
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
@@ -488,7 +489,7 @@ export class SupervisorOperatorAuthority {
           );
         }
       }
-      return decodeResponse(this.#state, retained);
+      return { found: true, response: decodeResponse(this.#state, retained) };
     }
     const tombstone = this.#state.responseTombstones[request.requestId];
     if (tombstone) {
@@ -503,14 +504,17 @@ export class SupervisorOperatorAuthority {
         refuse('SNAPBACK_OPERATOR_REQUEST_ID_COLLISION', 'pending upload request id was reused with different bytes', 409);
       }
       return {
-        schemaVersion: 'snapback.release-upload-pending.v1',
-        ok: true,
-        requestId: request.requestId,
-        state: this.#state.uploads[request.requestId].state,
-        receivedBytes: this.#state.uploads[request.requestId].receivedBytes,
+        found: true,
+        response: {
+          schemaVersion: 'snapback.release-upload-pending.v1',
+          ok: true,
+          requestId: request.requestId,
+          state: this.#state.uploads[request.requestId].state,
+          receivedBytes: this.#state.uploads[request.requestId].receivedBytes,
+        },
       };
     }
-    return null;
+    return { found: false, response: null };
   }
 
   #authorizeNew(request, canonical, { nowMs, verifySpecialAuthority }) {
@@ -618,7 +622,52 @@ export class SupervisorOperatorAuthority {
   } = {}) {
     const canonical = validateRequestShape(request);
     const replay = this.#findReplay(request, canonical);
-    if (replay !== null) return clone(replay);
+    if (replay.found) return clone(replay.response);
+    if (request.variant === 'release.upload') {
+      refuse('SNAPBACK_RELEASE_UPLOAD_STREAM_REQUIRED', 'release.upload must use the bounded streaming transition API', 400);
+    }
+    this.#authorizeNew(request, canonical, { nowMs, verifySpecialAuthority });
+    if (typeof execute !== 'function') {
+      refuse('SNAPBACK_OPERATOR_EXECUTOR_REQUIRED', 'new requests require an executor', 500);
+    }
+    if (isAsyncFunction(execute)) {
+      refuse(
+        'SNAPBACK_OPERATOR_ASYNC_EXECUTOR_REQUIRED',
+        'async provider executors must use handleRequestAsync',
+        500,
+      );
+    }
+    const next = clone(this.#state);
+    let response;
+    try {
+      response = execute({ request: clone(request), state: next });
+      if (response && typeof response.then === 'function') {
+        refuse(
+          'SNAPBACK_OPERATOR_ASYNC_EXECUTOR_REQUIRED',
+          'promise-returning provider executors must use handleRequestAsync',
+          500,
+        );
+      }
+      canonicalAuthorityJson(response);
+      this.#commitResponse(next, request, canonical, response, nowMs);
+    } catch (error) {
+      if (error instanceof OperatorAuthorityRefusal) throw error;
+      throw error;
+    }
+    this.#state = next;
+    return clone(response);
+  }
+
+  // @ref LLP 0105#atomic-request-response-replay — provider I/O may await,
+  // but the canonical response is retained before sequence state advances.
+  async handleRequestAsync(request, {
+    nowMs = Date.now(),
+    execute,
+    verifySpecialAuthority = undefined,
+  } = {}) {
+    const canonical = validateRequestShape(request);
+    const replay = this.#findReplay(request, canonical);
+    if (replay.found) return clone(replay.response);
     if (request.variant === 'release.upload') {
       refuse('SNAPBACK_RELEASE_UPLOAD_STREAM_REQUIRED', 'release.upload must use the bounded streaming transition API', 400);
     }
@@ -627,15 +676,9 @@ export class SupervisorOperatorAuthority {
       refuse('SNAPBACK_OPERATOR_EXECUTOR_REQUIRED', 'new requests require an executor', 500);
     }
     const next = clone(this.#state);
-    let response;
-    try {
-      response = execute({ request: clone(request), state: next });
-      canonicalAuthorityJson(response);
-      this.#commitResponse(next, request, canonical, response, nowMs);
-    } catch (error) {
-      if (error instanceof OperatorAuthorityRefusal) throw error;
-      throw error;
-    }
+    const response = await execute({ request: clone(request), state: next });
+    canonicalAuthorityJson(response);
+    this.#commitResponse(next, request, canonical, response, nowMs);
     this.#state = next;
     return clone(response);
   }
@@ -649,7 +692,7 @@ export class SupervisorOperatorAuthority {
       refuse('SNAPBACK_RELEASE_UPLOAD_VARIANT_INVALID', 'stream API accepts only release.upload', 400);
     }
     const replay = this.#findReplay(request, canonical);
-    if (replay !== null) return clone(replay);
+    if (replay.found) return clone(replay.response);
     this.#authorizeNew(request, canonical, { nowMs, verifySpecialAuthority });
     assertClosed(upload, [
       'attemptId',

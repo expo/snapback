@@ -19,6 +19,7 @@ import {
 } from './operator-authority.mjs';
 
 const JOURNAL_SCHEMA_VERSION = 'snapback.supervisor-operator-journal-entry.v1';
+const ACTIVE_TRANSACTION_KEYS = new Set();
 
 function refuse(code, message, status = 500) {
   throw new OperatorAuthorityRefusal(code, message, status);
@@ -44,6 +45,8 @@ function assertSupervisor(supervisor) {
     || typeof supervisor.installationReceipt !== 'object'
     || typeof supervisor.installationReceipt.installationId !== 'string'
     || supervisor.installationReceipt.installationId.length < 1
+    || typeof supervisor.incarnation !== 'string'
+    || supervisor.incarnation.length < 1
   ) {
     refuse(
       'SNAPBACK_OPERATOR_SUPERVISOR_INVALID',
@@ -71,33 +74,34 @@ function assertSupervisor(supervisor) {
   }
 }
 
-/**
- * Admit, execute, retain, and commit one ordinary operator request.
- *
- * The caller supplies only an already-authorized execution function. Public
- * listener admission, mTLS certificate binding, response-intermediate
- * signing, provider execution, and release-upload streaming remain separate
- * gates. The returned `committed` bit lets the eventual listener distinguish
- * exact replay from a newly retained response without guessing from content.
- */
-export function executeOperatorAuthorityTransaction(supervisor, request, {
-  nowMs = Date.now(),
-  execute,
-  verifySpecialAuthority = undefined,
-} = {}) {
+function beginTransaction(supervisor) {
   assertSupervisor(supervisor);
-  const installationId = supervisor.installationReceipt.installationId;
+  const transactionKey = canonicalAuthorityJson([
+    supervisor.installationReceipt.installationId,
+    supervisor.incarnation,
+  ]);
+  if (ACTIVE_TRANSACTION_KEYS.has(transactionKey)) {
+    refuse(
+      'SNAPBACK_OPERATOR_SINGLE_WRITER_BUSY',
+      'another canonical operator transaction is in progress',
+      409,
+    );
+  }
   const authority = new SupervisorOperatorAuthority({
-    installationId,
+    installationId: supervisor.installationReceipt.installationId,
     state: supervisor.database.operatorAuthority,
   });
   const before = authority.snapshot();
   const beforeDigest = snapshotDigest(before);
-  const response = authority.handleRequest(request, {
-    nowMs,
-    execute,
-    verifySpecialAuthority,
-  });
+  ACTIVE_TRANSACTION_KEYS.add(transactionKey);
+  return {
+    authority,
+    beforeDigest,
+    transactionKey,
+  };
+}
+
+function finishTransaction(supervisor, request, response, authority, beforeDigest) {
   const after = authority.snapshot();
   const afterDigest = snapshotDigest(after);
 
@@ -154,6 +158,59 @@ export function executeOperatorAuthorityTransaction(supervisor, request, {
     generation: supervisor.database.generation,
     operatorAuthoritySha256: afterDigest,
   };
+}
+
+/**
+ * Admit, execute, retain, and commit one ordinary operator request.
+ *
+ * The caller supplies only an already-authorized execution function. Public
+ * listener admission, mTLS certificate binding, response-intermediate
+ * signing, provider execution, and release-upload streaming remain separate
+ * gates. The returned `committed` bit lets the eventual listener distinguish
+ * exact replay from a newly retained response without guessing from content.
+ */
+export function executeOperatorAuthorityTransaction(supervisor, request, {
+  nowMs = Date.now(),
+  execute,
+  verifySpecialAuthority = undefined,
+} = {}) {
+  const { authority, beforeDigest, transactionKey } = beginTransaction(supervisor);
+  try {
+    const response = authority.handleRequest(request, {
+      nowMs,
+      execute,
+      verifySpecialAuthority,
+    });
+    return finishTransaction(supervisor, request, response, authority, beforeDigest);
+  } finally {
+    ACTIVE_TRANSACTION_KEYS.delete(transactionKey);
+  }
+}
+
+/**
+ * Async form for bounded provider reads/effects. Authorization completes
+ * before `execute` starts; a rejected provider promise leaves the canonical
+ * supervisor generation, request journal, sequence, and replay floor intact.
+ *
+ * @ref LLP 0105#atomic-request-response-replay — an awaited response and its
+ * exact replay bytes commit before the device sequence advances.
+ */
+export async function executeOperatorAuthorityTransactionAsync(supervisor, request, {
+  nowMs = Date.now(),
+  execute,
+  verifySpecialAuthority = undefined,
+} = {}) {
+  const { authority, beforeDigest, transactionKey } = beginTransaction(supervisor);
+  try {
+    const response = await authority.handleRequestAsync(request, {
+      nowMs,
+      execute,
+      verifySpecialAuthority,
+    });
+    return finishTransaction(supervisor, request, response, authority, beforeDigest);
+  } finally {
+    ACTIVE_TRANSACTION_KEYS.delete(transactionKey);
+  }
 }
 
 export const __operatorAuthorityTransactionTest = Object.freeze({

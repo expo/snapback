@@ -56,6 +56,8 @@ try {
     transaction.__operatorAuthorityTransactionTest.JOURNAL_SCHEMA_VERSION,
     'snapback.supervisor-operator-journal-entry.v1',
   );
+  assert.equal(typeof authority.SupervisorOperatorAuthority.prototype.handleRequestAsync, 'function');
+  assert.equal(typeof transaction.executeOperatorAuthorityTransactionAsync, 'function');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

@@ -15,6 +15,7 @@ import {
 import {
   __operatorAuthorityTransactionTest,
   executeOperatorAuthorityTransaction,
+  executeOperatorAuthorityTransactionAsync,
 } from './operator-authority-transaction.mjs';
 
 const nowMs = 1_800_000_000_000;
@@ -170,6 +171,135 @@ function expectRefusal(code, callback, status = undefined) {
   assert.deepEqual(recoveredReplay.response, first.response);
   assert.equal(recoveredReplay.committed, false);
   assert.equal(executions, 1);
+}
+
+{
+  const supervisor = createSupervisor();
+  let executions = 0;
+  const request = signedRequest({ requestId: 'request-async-provider' });
+  const first = await executeOperatorAuthorityTransactionAsync(supervisor, request, {
+    nowMs,
+    execute: async () => {
+      executions += 1;
+      await Promise.resolve();
+      return {
+        schemaVersion: 'snapback.supervisor-provider-observation.v1',
+        ok: true,
+        providerFactsSha256: `sha256:${'c'.repeat(64)}`,
+      };
+    },
+  });
+  assert.equal(first.committed, true);
+  assert.equal(first.generation, 1);
+  assert.equal(supervisor.database.floors.replay, 1);
+  assert.equal(supervisor.anchor.replayFloor, 1);
+  assert.equal(supervisor.database.operatorAuthority.devices['device-a'].lastSequence, 1);
+
+  const recovered = new HostedSupervisor({
+    installationReceipt,
+    incarnation: supervisor.incarnation,
+    database: supervisor.database,
+    mirror: supervisor.mirror,
+    anchor: supervisor.anchor,
+  });
+  const replay = await executeOperatorAuthorityTransactionAsync(recovered, request, {
+    nowMs: nowMs + 180_000,
+    execute: async () => {
+      executions += 1;
+      return { shouldNotRun: true };
+    },
+  });
+  assert.deepEqual(replay.response, first.response);
+  assert.equal(replay.committed, false);
+  assert.equal(replay.generation, 1);
+  assert.equal(recovered.database.journal.length, 1);
+  assert.equal(recovered.database.floors.replay, 1);
+  assert.equal(executions, 1);
+}
+
+{
+  const supervisor = createSupervisor();
+  const request = signedRequest({ requestId: 'request-async-failure' });
+  await assert.rejects(
+    executeOperatorAuthorityTransactionAsync(supervisor, request, {
+      nowMs,
+      execute: async () => {
+        throw new Error('provider read failed before response retention');
+      },
+    }),
+    /provider read failed before response retention/,
+  );
+  assert.equal(supervisor.database.generation, 0);
+  assert.equal(supervisor.database.floors.replay, 0);
+  assert.equal(supervisor.database.journal.length, 0);
+  assert.equal(supervisor.database.operatorAuthority.devices['device-a'].lastSequence, 0);
+  assert.equal(
+    supervisor.database.operatorAuthority.requestJournal['request-async-failure'],
+    undefined,
+  );
+  const retry = await executeOperatorAuthorityTransactionAsync(supervisor, request, {
+    nowMs,
+    execute: async () => ({ ok: true, retried: true }),
+  });
+  assert.equal(retry.committed, true);
+  assert.deepEqual(retry.response, { ok: true, retried: true });
+  assert.equal(supervisor.database.generation, 1);
+}
+
+{
+  const supervisor = createSupervisor();
+  let releaseProvider;
+  let markProviderStarted;
+  let secondExecutions = 0;
+  const providerStarted = new Promise((resolve) => {
+    markProviderStarted = resolve;
+  });
+  const providerRelease = new Promise((resolve) => {
+    releaseProvider = resolve;
+  });
+  const first = executeOperatorAuthorityTransactionAsync(
+    supervisor,
+    signedRequest({ requestId: 'request-async-in-flight' }),
+    {
+      nowMs,
+      execute: async () => {
+        markProviderStarted();
+        await providerRelease;
+        return { ok: true };
+      },
+    },
+  );
+  await providerStarted;
+  const concurrentSupervisor = new HostedSupervisor({
+    installationReceipt,
+    incarnation: supervisor.incarnation,
+    database: supervisor.database,
+    mirror: supervisor.mirror,
+    anchor: supervisor.anchor,
+  });
+  await assert.rejects(
+    executeOperatorAuthorityTransactionAsync(
+      concurrentSupervisor,
+      signedRequest({ requestId: 'request-async-concurrent' }),
+      {
+        nowMs,
+        execute: async () => {
+          secondExecutions += 1;
+          return { shouldNotRun: true };
+        },
+      },
+    ),
+    (error) => error instanceof OperatorAuthorityRefusal
+      && error.code === 'SNAPBACK_OPERATOR_SINGLE_WRITER_BUSY'
+      && error.status === 409,
+  );
+  assert.equal(secondExecutions, 0);
+  assert.equal(supervisor.database.generation, 0);
+  assert.equal(concurrentSupervisor.database.generation, 0);
+  releaseProvider();
+  const committed = await first;
+  assert.equal(committed.committed, true);
+  assert.equal(supervisor.database.generation, 1);
 }
 
 {

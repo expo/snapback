@@ -157,6 +157,15 @@ function expectRefusal(code, callback, status = undefined) {
   });
 }
 
+async function expectAsyncRefusal(code, promise, status = undefined) {
+  await assert.rejects(promise, (error) => {
+    assert(error instanceof OperatorAuthorityRefusal);
+    assert.equal(error.code, code);
+    if (status !== undefined) assert.equal(error.status, status);
+    return true;
+  });
+}
+
 assert.deepEqual(Object.keys(SUPERVISOR_REQUEST_REGISTRY).sort(), EXPECTED_VARIANTS);
 assert.equal(new Set(SUPERVISOR_SCOPE_VOCABULARY).size, SUPERVISOR_SCOPE_VOCABULARY.length);
 assert(Object.isFrozen(SUPERVISOR_REQUEST_REGISTRY));
@@ -199,6 +208,90 @@ for (const entry of Object.values(SUPERVISOR_REQUEST_REGISTRY)) {
     'SNAPBACK_OPERATOR_REQUEST_ID_COLLISION',
     () => authority.handleRequest(collision, { nowMs, execute: () => ({}) }),
   );
+}
+
+{
+  const authority = makeAuthority(['deploy.plan']);
+  let executions = 0;
+  const request = signedRequest({ requestId: 'request-null' });
+  assert.equal(authority.handleRequest(request, {
+    nowMs,
+    execute: () => {
+      executions += 1;
+      return null;
+    },
+  }), null);
+  assert.equal(authority.handleRequest(request, {
+    nowMs: nowMs + 1,
+    execute: () => {
+      executions += 1;
+      return { shouldNotRun: true };
+    },
+  }), null);
+  assert.equal(executions, 1);
+  assert.equal(authority.snapshot().devices['device-a'].lastSequence, 1);
+}
+
+{
+  const authority = makeAuthority(['deploy.plan']);
+  let executions = 0;
+  const request = signedRequest({ requestId: 'request-async' });
+  const response = await authority.handleRequestAsync(request, {
+    nowMs,
+    execute: async () => {
+      executions += 1;
+      await Promise.resolve();
+      return { schemaVersion: 'snapback.async-provider-result.v1', ok: true };
+    },
+  });
+  assert.deepEqual(response, {
+    schemaVersion: 'snapback.async-provider-result.v1',
+    ok: true,
+  });
+  assert.equal(authority.snapshot().devices['device-a'].lastSequence, 1);
+  assert.equal(authority.snapshot().requestJournal['request-async'].response.kind, 'inline');
+  assert.deepEqual(await authority.handleRequestAsync(request, {
+    nowMs: nowMs + 7_200_000,
+    execute: async () => {
+      executions += 1;
+      return { shouldNotRun: true };
+    },
+  }), response);
+  assert.equal(executions, 1);
+}
+
+{
+  const authority = makeAuthority(['deploy.plan']);
+  const request = signedRequest({ requestId: 'request-async-rejected' });
+  await expectAsyncRefusal(
+    'SNAPBACK_OPERATOR_CANONICAL_VALUE_INVALID',
+    authority.handleRequestAsync(request, {
+      nowMs,
+      execute: async () => undefined,
+    }),
+  );
+  assert.equal(authority.snapshot().devices['device-a'].lastSequence, 0);
+  assert.equal(authority.snapshot().requestJournal['request-async-rejected'], undefined);
+}
+
+{
+  const authority = makeAuthority(['deploy.plan']);
+  const request = signedRequest({ requestId: 'request-sync-promise' });
+  let executions = 0;
+  expectRefusal(
+    'SNAPBACK_OPERATOR_ASYNC_EXECUTOR_REQUIRED',
+    () => authority.handleRequest(request, {
+      nowMs,
+      execute: async () => {
+        executions += 1;
+        return { ok: true };
+      },
+    }),
+    500,
+  );
+  assert.equal(executions, 0);
+  assert.equal(authority.snapshot().devices['device-a'].lastSequence, 0);
+  assert.equal(authority.snapshot().requestJournal['request-sync-promise'], undefined);
 }
 
 {
