@@ -54,6 +54,21 @@ function lexicalInputs(source) {
   return out;
 }
 
+function rejectUnpairedSurrogates(source) {
+  for (let index = 0; index < source.length; index += 1) {
+    const unit = source.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = source.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) {
+        throw invalid('query contains an unpaired UTF-16 surrogate');
+      }
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      throw invalid('query contains an unpaired UTF-16 surrogate');
+    }
+  }
+}
+
 function matchAtom(input, { fields, minPrefixScalars }) {
   let value = input.value;
   const field = input.field;
@@ -78,6 +93,7 @@ export function parseSearchQueryV1(source, {
   minPrefixScalars = 2,
 } = {}) {
   if (typeof source !== 'string') throw invalid('query must be a string');
+  rejectUnpairedSurrogates(source);
   if (fields !== undefined && (!Array.isArray(fields) || fields.some((field) => typeof field !== 'string'))) {
     throw invalid('fields must be an array of declared field names');
   }

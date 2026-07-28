@@ -21,7 +21,6 @@ pub const SEARCH_MAX_BYTES_PER_COMMIT: usize = 256 * 1024;
 pub struct SearchTextFieldV1 {
     #[schemars(range(min = 1, max = 64))]
     pub weight: u32,
-    #[serde(default)]
     pub classification: SearchFieldClassV1,
 }
 

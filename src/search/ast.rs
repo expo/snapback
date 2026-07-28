@@ -15,6 +15,11 @@ fn atom_key(atom: &SearchMatchAtomV1) -> SnapbackResult<String> {
     .map_err(|_| invalid("query atom is not canonicalizable"))
 }
 
+pub fn canonical_atom_bytes(atom: &SearchMatchAtomV1) -> SnapbackResult<String> {
+    let value = serde_json::to_value(atom).map_err(|_| invalid("query atom does not serialize"))?;
+    crate::rqs::jcs(&value).map_err(|_| invalid("query atom is not canonicalizable"))
+}
+
 fn sort_and_dedupe<T>(pairs: &mut Vec<(String, T)>) {
     pairs.sort_by(|a, b| a.0.cmp(&b.0));
     pairs.dedup_by(|a, b| a.0 == b.0);

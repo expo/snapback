@@ -1,5 +1,13 @@
-use crate::search::types::{SearchHighlightV1, SearchMatchRangeV1, SearchToken};
+use crate::search::types::{SearchHighlightV1, SearchMatchRangeV1};
 use unicode_segmentation::UnicodeSegmentation;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SearchOccurrence {
+    pub field: String,
+    pub source_start: u32,
+    pub source_end: u32,
+    pub canonical_atom: String,
+}
 
 /// Build at most three plain-text fragments. Source ranges are scalar offsets;
 /// grapheme boundaries are used only to select/extract, so no client receives
@@ -10,7 +18,7 @@ use unicode_segmentation::UnicodeSegmentation;
 pub fn highlights(
     field_order: &[String],
     source_fields: &std::collections::BTreeMap<String, String>,
-    matched: &[&SearchToken],
+    matched: &[SearchOccurrence],
 ) -> Vec<SearchHighlightV1> {
     let mut ordered = matched.to_vec();
     ordered.sort_by(|a, b| {
@@ -26,13 +34,27 @@ pub fn highlights(
             .cmp(&field_b)
             .then(a.source_start.cmp(&b.source_start))
             .then(b.source_end.cmp(&a.source_end))
-            .then(a.token.cmp(&b.token))
+            .then(a.canonical_atom.as_bytes().cmp(b.canonical_atom.as_bytes()))
     });
-    let mut result = Vec::new();
+    let mut merged = Vec::<SearchOccurrence>::new();
     for occurrence in ordered {
+        if let Some(previous) = merged.last_mut()
+            && previous.field == occurrence.field
+            && occurrence.source_start <= previous.source_end
+        {
+            previous.source_end = previous.source_end.max(occurrence.source_end);
+            continue;
+        }
+        merged.push(occurrence);
+    }
+    let mut result = Vec::new();
+    let mut occurrence_index = 0;
+    while occurrence_index < merged.len() {
         if result.len() >= 3 {
             break;
         }
+        let occurrence = &merged[occurrence_index];
+        occurrence_index += 1;
         let Some(source) = source_fields.get(&occurrence.field) else {
             continue;
         };
@@ -90,13 +112,29 @@ pub fn highlights(
             continue;
         }
         let scalar_base = graphemes[left].2;
+        let scalar_end = graphemes[right].3;
+        let mut matches = vec![SearchMatchRangeV1 {
+            start: occurrence.source_start.saturating_sub(scalar_base),
+            end: occurrence.source_end.saturating_sub(scalar_base),
+        }];
+        while occurrence_index < merged.len() && matches.len() < 8 {
+            let candidate = &merged[occurrence_index];
+            if candidate.field != occurrence.field
+                || candidate.source_start < scalar_base
+                || candidate.source_end > scalar_end
+            {
+                break;
+            }
+            matches.push(SearchMatchRangeV1 {
+                start: candidate.source_start.saturating_sub(scalar_base),
+                end: candidate.source_end.saturating_sub(scalar_base),
+            });
+            occurrence_index += 1;
+        }
         result.push(SearchHighlightV1 {
             field: occurrence.field.clone(),
             text: source[byte_start..byte_end].to_owned(),
-            matches: vec![SearchMatchRangeV1 {
-                start: occurrence.source_start.saturating_sub(scalar_base),
-                end: occurrence.source_end.saturating_sub(scalar_base),
-            }],
+            matches,
         });
     }
     result
@@ -108,6 +146,15 @@ mod tests {
     use crate::search::analyzer::analyze_field;
     use std::collections::BTreeMap;
 
+    fn occurrence(token: &crate::search::types::SearchToken) -> SearchOccurrence {
+        SearchOccurrence {
+            field: token.field.clone(),
+            source_start: token.source_start,
+            source_end: token.source_end,
+            canonical_atom: token.token.clone(),
+        }
+    }
+
     #[test]
     fn fragments_are_plain_bounded_and_grapheme_safe() {
         let source = "before e\u{301} match after";
@@ -116,10 +163,106 @@ mod tests {
         let out = highlights(
             &["body".into()],
             &BTreeMap::from([("body".into(), source.into())]),
-            &[hit],
+            &[occurrence(hit)],
         );
         assert_eq!(out.len(), 1);
         assert!(out[0].text.len() <= 256);
         assert_eq!(out[0].matches.len(), 1);
+    }
+
+    #[test]
+    fn overlapping_occurrences_and_hits_inside_one_fragment_merge() {
+        let source = "alpha beta gamma delta";
+        let out = highlights(
+            &["body".into()],
+            &BTreeMap::from([("body".into(), source.into())]),
+            &[
+                SearchOccurrence {
+                    field: "body".into(),
+                    source_start: 0,
+                    source_end: 10,
+                    canonical_atom: "phrase".into(),
+                },
+                SearchOccurrence {
+                    field: "body".into(),
+                    source_start: 6,
+                    source_end: 10,
+                    canonical_atom: "beta".into(),
+                },
+                SearchOccurrence {
+                    field: "body".into(),
+                    source_start: 11,
+                    source_end: 16,
+                    canonical_atom: "gamma".into(),
+                },
+            ],
+        );
+        assert_eq!(out.len(), 1);
+        assert_eq!(
+            out[0].matches,
+            vec![
+                SearchMatchRangeV1 { start: 0, end: 10 },
+                SearchMatchRangeV1 { start: 11, end: 16 },
+            ]
+        );
+    }
+
+    #[test]
+    fn unicode_and_field_boundary_golden_vectors_are_exact() {
+        let sources = BTreeMap::<String, String>::from([
+            ("apostrophe".to_owned(), "don't stop".to_owned()),
+            ("emoji".to_owned(), "👩‍🚀 alpha".to_owned()),
+            ("hyphen".to_owned(), "alpha-beta".to_owned()),
+            ("rtl".to_owned(), "שלום עולם".to_owned()),
+        ]);
+        let cases = [
+            ("apostrophe", "don't"),
+            ("emoji", "alpha"),
+            ("hyphen", "beta"),
+            ("rtl", "שלום"),
+        ];
+        let matched = cases
+            .iter()
+            .map(|(field, token)| {
+                let tokens = analyze_field(field, &sources[*field]).unwrap();
+                occurrence(tokens.iter().find(|value| value.token == *token).unwrap())
+            })
+            .collect::<Vec<_>>();
+        let out = highlights(
+            &[
+                "apostrophe".into(),
+                "emoji".into(),
+                "hyphen".into(),
+                "rtl".into(),
+            ],
+            &sources,
+            &matched,
+        );
+        assert_eq!(out.len(), 3, "the global fragment cap is deterministic");
+        assert_eq!(out[0].field, "apostrophe");
+        assert_eq!(out[0].text, "don't stop");
+        assert_eq!(
+            out[0].matches,
+            vec![SearchMatchRangeV1 { start: 0, end: 5 }]
+        );
+        assert_eq!(out[1].field, "emoji");
+        assert_eq!(out[1].text, "👩‍🚀 alpha");
+        assert_eq!(
+            out[1].matches,
+            vec![SearchMatchRangeV1 { start: 4, end: 9 }]
+        );
+        assert_eq!(out[2].field, "hyphen");
+        assert_eq!(out[2].text, "alpha-beta");
+        assert_eq!(
+            out[2].matches,
+            vec![SearchMatchRangeV1 { start: 6, end: 10 }]
+        );
+
+        let rtl = highlights(&["rtl".into()], &sources, &[matched[3].clone()]);
+        assert_eq!(rtl[0].text, "שלום עולם");
+        assert_eq!(
+            rtl[0].matches,
+            vec![SearchMatchRangeV1 { start: 0, end: 4 }]
+        );
     }
 }

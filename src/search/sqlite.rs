@@ -1,14 +1,15 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{FieldType, HandlerInput, QueryOutput, SchemaManifest, TableManifest};
 use crate::search::analyzer::analyze_field;
-use crate::search::ast::{atom_tokens, canonicalize_query, clause_atom, query_core_hash};
-use crate::search::highlight::highlights;
+use crate::search::ast::{
+    atom_tokens, canonical_atom_bytes, canonicalize_query, clause_atom, query_core_hash,
+};
+use crate::search::highlight::{SearchOccurrence, highlights};
 use crate::search::scorer::{atom_frequency, atom_score};
 use crate::search::types::*;
 use crate::storage::{ChangeOp, ChangedRow};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::{Map, Value, json};
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 fn diagnostic(code: &'static str, message: impl Into<String>) -> SnapbackError {
@@ -47,6 +48,7 @@ pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
           filters_json TEXT NOT NULL,
           fields_json TEXT NOT NULL,
           tokens_json TEXT NOT NULL,
+          content_digest TEXT NOT NULL,
           tombstone INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY(table_name, index_name, generation, row_id)
         );
@@ -75,6 +77,7 @@ pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
           source_id TEXT NOT NULL,
           highest_version INTEGER NOT NULL,
           tombstone INTEGER NOT NULL,
+          content_digest TEXT NOT NULL,
           PRIMARY KEY(table_name, index_name, generation, source_id)
         );
         CREATE TABLE IF NOT EXISTS _snapback_search_builds (
@@ -110,6 +113,60 @@ pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
             [],
         )?;
     }
+    for (table, column) in [
+        ("_snapback_search_sources", "content_digest"),
+        ("_snapback_search_frontiers", "content_digest"),
+    ] {
+        let has_column = conn
+            .prepare(&format!("PRAGMA table_info({table})"))?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(Result::ok)
+            .any(|candidate| candidate == column);
+        if !has_column {
+            conn.execute(
+                &format!(
+                    "ALTER TABLE {table}
+                     ADD COLUMN {column} TEXT NOT NULL DEFAULT ''"
+                ),
+                [],
+            )?;
+        }
+    }
+    // @ref LLP 0073#adapter-contract-and-capabilities — every derived-state
+    // mutation invalidates the generation seal until the canonical maintainer
+    // verifies the source/posting/frontier tuple and advances the content root.
+    // Any write outside the verified maintainer transaction quarantines the
+    // complete generation. Official maintenance verifies the changed source,
+    // advances the content root, and atomically reseals it before commit.
+    // This catches omissions in non-candidate postings without adding an
+    // unbounded whole-index scan to every search request.
+    for (relation, event) in [
+        ("sources", "INSERT"),
+        ("sources", "UPDATE"),
+        ("sources", "DELETE"),
+        ("terms", "INSERT"),
+        ("terms", "UPDATE"),
+        ("terms", "DELETE"),
+        ("frontiers", "INSERT"),
+        ("frontiers", "UPDATE"),
+        ("frontiers", "DELETE"),
+    ] {
+        let timing = event.to_ascii_lowercase();
+        let row = if event == "DELETE" { "OLD" } else { "NEW" };
+        conn.execute_batch(&format!(
+            "CREATE TRIGGER IF NOT EXISTS _snapback_search_{relation}_{timing}_quarantine
+             AFTER {event} ON _snapback_search_{relation}
+             BEGIN
+               UPDATE _snapback_search_generations
+               SET status='quarantined',
+                   corruption_reason='derived search state changed without a verified generation seal'
+               WHERE table_name={row}.table_name
+                 AND index_name={row}.index_name
+                 AND generation={row}.generation
+                 AND status IN ('active','quarantined');
+             END;"
+        ))?;
+    }
     Ok(())
 }
 
@@ -142,20 +199,41 @@ fn active_generation(
     table: &str,
     index: &str,
 ) -> SnapbackResult<(u64, String, String)> {
-    conn.query_row(
-        "SELECT generation, semantic_version, manifest_digest
+    let generation: Option<(u64, String, String, String, String, Option<String>)> = conn
+        .query_row(
+            "SELECT generation, semantic_version, manifest_digest, root_digest, status,
+                corruption_reason
          FROM _snapback_search_generations
-         WHERE table_name = ?1 AND index_name = ?2 AND status = 'active'",
-        params![table, index],
-        |row| Ok((row.get::<_, i64>(0)? as u64, row.get(1)?, row.get(2)?)),
-    )
-    .optional()?
-    .ok_or_else(|| {
-        diagnostic(
+         WHERE table_name = ?1 AND index_name = ?2
+           AND status IN ('active','quarantined')
+         ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, generation DESC
+         LIMIT 1",
+            params![table, index],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)? as u64,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((generation, semantic, manifest, root, status, corruption_reason)) = generation else {
+        return Err(diagnostic(
             "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
             format!("search index {table}.{index} has no active generation"),
-        )
-    })
+        ));
+    };
+    if status != "active" || corruption_reason.is_some() || decode_generation_root(&root).is_err() {
+        return Err(diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            format!("search index {table}.{index} generation seal is not valid"),
+        ));
+    }
+    Ok((generation, semantic, manifest))
 }
 
 fn manifest_digest(index: &SearchIndexManifestV1) -> SnapbackResult<String> {
@@ -225,6 +303,130 @@ fn source_tokens(
     Ok((tokens, source_fields, stored))
 }
 
+fn token_values(tokens: &[SearchToken]) -> Vec<Value> {
+    tokens
+        .iter()
+        .map(|token| {
+            json!({
+                "field": token.field,
+                "token": token.token,
+                "position": token.position,
+                "sourceStart": token.source_start,
+                "sourceEnd": token.source_end,
+            })
+        })
+        .collect()
+}
+
+fn content_digest(value: &Value) -> SnapbackResult<String> {
+    crate::rqs::sha256_identity(value).map_err(|_| {
+        diagnostic(
+            "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
+            "search source content is not canonically digestible",
+        )
+    })
+}
+
+fn live_source_content_digest(
+    row_id: &str,
+    source_version: u64,
+    partition: &str,
+    stored: &Map<String, Value>,
+    filters: &Map<String, Value>,
+    source_fields: &BTreeMap<String, String>,
+    tokens: &[SearchToken],
+) -> SnapbackResult<String> {
+    content_digest(&json!({
+        "profile": "snapback-search-source-content-v1",
+        "rowId": row_id,
+        "sourceVersion": source_version,
+        "partition": partition,
+        "stored": stored,
+        "filters": filters,
+        "sourceFields": source_fields,
+        "tokens": token_values(tokens),
+        "tombstone": false,
+    }))
+}
+
+fn tombstone_content_digest(row_id: &str, source_version: u64) -> SnapbackResult<String> {
+    content_digest(&json!({
+        "profile": "snapback-search-source-content-v1",
+        "rowId": row_id,
+        "sourceVersion": source_version,
+        "tombstone": true,
+    }))
+}
+
+fn decode_sha256_digest(digest: &str) -> SnapbackResult<[u8; 32]> {
+    let encoded = digest.strip_prefix("sha256:").ok_or_else(|| {
+        diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "search source content digest has the wrong profile",
+        )
+    })?;
+    if encoded.len() != 64 {
+        return Err(diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "search source content digest has the wrong size",
+        ));
+    }
+    let mut decoded = [0_u8; 32];
+    for (index, byte) in decoded.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&encoded[index * 2..index * 2 + 2], 16).map_err(|_| {
+            diagnostic(
+                "SNAPBACK_SEARCH_INDEX_CORRUPT",
+                "search source content digest is not hexadecimal",
+            )
+        })?;
+    }
+    Ok(decoded)
+}
+
+fn encode_generation_root(root: [u8; 32]) -> String {
+    let encoded = root
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    format!("sha256-xor-v1:{encoded}")
+}
+
+fn decode_generation_root(root: &str) -> SnapbackResult<[u8; 32]> {
+    let encoded = root.strip_prefix("sha256-xor-v1:").ok_or_else(|| {
+        diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "search generation root has the wrong profile",
+        )
+    })?;
+    decode_sha256_digest(&format!("sha256:{encoded}"))
+}
+
+fn xor_content_digest(root: &mut [u8; 32], digest: &str) -> SnapbackResult<()> {
+    for (root_byte, digest_byte) in root.iter_mut().zip(decode_sha256_digest(digest)?) {
+        *root_byte ^= digest_byte;
+    }
+    Ok(())
+}
+
+fn generation_root_from_frontiers(
+    conn: &Connection,
+    table: &str,
+    index: &str,
+    generation: u64,
+) -> SnapbackResult<String> {
+    let mut statement = conn.prepare(
+        "SELECT content_digest FROM _snapback_search_frontiers
+         WHERE table_name=?1 AND index_name=?2 AND generation=?3
+         ORDER BY source_id",
+    )?;
+    let mut rows = statement.query(params![table, index, generation as i64])?;
+    let mut root = [0_u8; 32];
+    while let Some(row) = rows.next()? {
+        xor_content_digest(&mut root, &row.get::<_, String>(0)?)?;
+    }
+    Ok(encode_generation_root(root))
+}
+
 fn replace_source(
     tx: &Transaction<'_>,
     table: &str,
@@ -235,6 +437,31 @@ fn replace_source(
     row: Option<&Value>,
     counters: &mut MaintenanceCounters,
 ) -> SnapbackResult<()> {
+    let generation_status: Option<String> = tx
+        .query_row(
+            "SELECT status FROM _snapback_search_generations
+             WHERE table_name=?1 AND index_name=?2 AND generation=?3",
+            params![table, index.name, generation as i64],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if generation_status
+        .as_deref()
+        .is_some_and(|status| status != "active")
+    {
+        return Err(diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "search maintenance cannot reseal a generation that was already quarantined",
+        ));
+    }
+    let old_content_digest: Option<String> = tx
+        .query_row(
+            "SELECT content_digest FROM _snapback_search_frontiers
+             WHERE table_name=?1 AND index_name=?2 AND generation=?3 AND source_id=?4",
+            params![table, index.name, generation as i64, row_id],
+            |row| row.get(0),
+        )
+        .optional()?;
     let old_postings: usize = tx.query_row(
         "SELECT COUNT(*) FROM _snapback_search_terms
          WHERE table_name = ?1 AND index_name = ?2 AND generation = ?3 AND row_id = ?4",
@@ -255,42 +482,49 @@ fn replace_source(
     counters.effects = counters.effects.saturating_add(1);
     match row {
         None => {
+            let new_content_digest = tombstone_content_digest(row_id, source_version)?;
             tx.execute(
                 "INSERT INTO _snapback_search_frontiers
-                 (table_name,index_name,generation,source_id,highest_version,tombstone)
-                 VALUES (?1,?2,?3,?4,?5,1)
+                 (table_name,index_name,generation,source_id,highest_version,tombstone,content_digest)
+                 VALUES (?1,?2,?3,?4,?5,1,?6)
                  ON CONFLICT(table_name,index_name,generation,source_id)
-                 DO UPDATE SET highest_version=excluded.highest_version,tombstone=1
+                 DO UPDATE SET highest_version=excluded.highest_version,tombstone=1,
+                               content_digest=excluded.content_digest
                  WHERE excluded.highest_version >= highest_version",
                 params![
                     table,
                     index.name,
                     generation as i64,
                     row_id,
-                    source_version as i64
+                    source_version as i64,
+                    new_content_digest,
                 ],
+            )?;
+            verify_source_derived(tx, table, index, generation, row_id, source_version, None)?;
+            reseal_generation_source(
+                tx,
+                table,
+                index,
+                generation,
+                source_version,
+                old_content_digest.as_deref(),
+                &new_content_digest,
             )?;
         }
         Some(row) => {
             let partition = partition_for(index, row)?;
             let (tokens, source_fields, stored) = source_tokens(index, row)?;
+            if old_postings.saturating_add(tokens.len())
+                > index.source_limits.max_posting_operations as usize
+            {
+                return Err(diagnostic(
+                    "SNAPBACK_SEARCH_SOURCE_LIMIT",
+                    "search source replacement exceeds its declared old-plus-new posting bound",
+                ));
+            }
             counters.positions = counters.positions.saturating_add(tokens.len());
             counters.posting_ops = counters.posting_ops.saturating_add(tokens.len());
-            let token_json = serde_json::to_string(
-                &tokens
-                    .iter()
-                    .map(|token| {
-                        json!({
-                            "field": token.field,
-                            "token": token.token,
-                            "position": token.position,
-                            "sourceStart": token.source_start,
-                            "sourceEnd": token.source_end,
-                        })
-                    })
-                    .collect::<Vec<_>>(),
-            )
-            .map_err(|_| {
+            let token_json = serde_json::to_string(&token_values(&tokens)).map_err(|_| {
                 diagnostic(
                     "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
                     "tokens do not serialize",
@@ -324,14 +558,23 @@ fn replace_source(
                     "stored fields do not serialize",
                 )
             })?;
+            let new_content_digest = live_source_content_digest(
+                row_id,
+                source_version,
+                &partition,
+                &stored,
+                &filters,
+                &source_fields,
+                &tokens,
+            )?;
             counters.bytes = counters.bytes.saturating_add(
                 token_json.len() + fields_json.len() + filters_json.len() + row_json.len(),
             );
             tx.execute(
                 "INSERT INTO _snapback_search_sources
-                 (table_name,index_name,generation,row_id,source_version,partition_key,row_json,filters_json,fields_json,tokens_json,tombstone)
-                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0)",
-                params![table, index.name, generation as i64, row_id, source_version as i64, partition, row_json, filters_json, fields_json, token_json],
+                 (table_name,index_name,generation,row_id,source_version,partition_key,row_json,filters_json,fields_json,tokens_json,content_digest,tombstone)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,0)",
+                params![table, index.name, generation as i64, row_id, source_version as i64, partition, row_json, filters_json, fields_json, token_json, new_content_digest],
             )?;
             for token in &tokens {
                 tx.execute(
@@ -355,18 +598,48 @@ fn replace_source(
             }
             tx.execute(
                 "INSERT INTO _snapback_search_frontiers
-                 (table_name,index_name,generation,source_id,highest_version,tombstone)
-                 VALUES (?1,?2,?3,?4,?5,0)
+                 (table_name,index_name,generation,source_id,highest_version,tombstone,content_digest)
+                 VALUES (?1,?2,?3,?4,?5,0,?6)
                  ON CONFLICT(table_name,index_name,generation,source_id)
-                 DO UPDATE SET highest_version=excluded.highest_version,tombstone=0
+                 DO UPDATE SET highest_version=excluded.highest_version,tombstone=0,
+                               content_digest=excluded.content_digest
                  WHERE excluded.highest_version >= highest_version",
                 params![
                     table,
                     index.name,
                     generation as i64,
                     row_id,
-                    source_version as i64
+                    source_version as i64,
+                    new_content_digest,
                 ],
+            )?;
+            let expected = IndexedSource {
+                row_id: row_id.to_owned(),
+                source_version,
+                partition,
+                stored,
+                filters,
+                source_fields,
+                tokens,
+                content_digest: new_content_digest.clone(),
+            };
+            verify_source_derived(
+                tx,
+                table,
+                index,
+                generation,
+                row_id,
+                source_version,
+                Some(&expected),
+            )?;
+            reseal_generation_source(
+                tx,
+                table,
+                index,
+                generation,
+                source_version,
+                old_content_digest.as_deref(),
+                &new_content_digest,
             )?;
         }
     }
@@ -615,21 +888,36 @@ pub fn activate_manifest_in_tx(
         for index in &table.search_indexes {
             validate_index_declaration(table, index)?;
             let index_manifest_digest = manifest_digest(index)?;
-            let existing: Option<(u64, String, String)> = tx
+            let existing: Option<(u64, String, String, String, String, Option<String>)> = tx
                 .query_row(
-                    "SELECT generation, semantic_version, manifest_digest
+                    "SELECT generation, semantic_version, manifest_digest, root_digest, status,
+                            corruption_reason
                      FROM _snapback_search_generations
-                     WHERE table_name=?1 AND index_name=?2 AND status='active'",
+                     WHERE table_name=?1 AND index_name=?2
+                       AND status IN ('active','quarantined')
+                     ORDER BY generation DESC LIMIT 1",
                     params![table.name, index.name],
-                    |row| Ok((row.get::<_, i64>(0)? as u64, row.get(1)?, row.get(2)?)),
+                    |row| {
+                        Ok((
+                            row.get::<_, i64>(0)? as u64,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                        ))
+                    },
                 )
                 .optional()?;
-            if existing
-                .as_ref()
-                .is_some_and(|(_, semantic, current_digest)| {
-                    semantic == &index.semantic_version && current_digest == &index_manifest_digest
-                })
-            {
+            if existing.as_ref().is_some_and(
+                |(_, semantic, current_digest, root, status, reason)| {
+                    semantic == &index.semantic_version
+                        && current_digest == &index_manifest_digest
+                        && status == "active"
+                        && reason.is_none()
+                        && decode_generation_root(root).is_ok()
+                },
+            ) {
                 continue;
             }
             let generation: u64 = tx.query_row(
@@ -659,7 +947,6 @@ pub fn activate_manifest_in_tx(
             )?;
             let rows = scan_table_rows(tx, table)?;
             let mut counters = MaintenanceCounters::default();
-            let mut digest = Sha256::new();
             for (id, version, row) in &rows {
                 replace_source(
                     tx,
@@ -671,12 +958,10 @@ pub fn activate_manifest_in_tx(
                     Some(row),
                     &mut counters,
                 )?;
-                digest.update((id.len() as u32).to_be_bytes());
-                digest.update(id.as_bytes());
-                digest.update(version.to_be_bytes());
             }
             counters.enforce_global()?;
-            let root_digest = format!("sha256:{:x}", digest.finalize());
+            let root_digest =
+                generation_root_from_frontiers(tx, &table.name, &index.name, generation)?;
             let receipt = crate::search::rebuild::SearchRebuildReceiptV1 {
                 executor: "derived-search-catchup.v1".to_owned(),
                 table: table.name.clone(),
@@ -748,7 +1033,7 @@ pub fn activate_manifest_in_tx(
     Ok(())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 struct IndexedSource {
     row_id: String,
     source_version: u64,
@@ -757,37 +1042,324 @@ struct IndexedSource {
     filters: Map<String, Value>,
     source_fields: BTreeMap<String, String>,
     tokens: Vec<SearchToken>,
+    content_digest: String,
 }
 
-fn decode_source(row: &rusqlite::Row<'_>) -> rusqlite::Result<IndexedSource> {
-    let tokens: Vec<Value> = serde_json::from_str(&row.get::<_, String>(7)?).unwrap_or_default();
-    Ok(IndexedSource {
+struct RawIndexedSource {
+    row_id: String,
+    source_version: i64,
+    partition: String,
+    stored_json: String,
+    filters_json: String,
+    source_fields_json: String,
+    tokens_json: String,
+    content_digest: String,
+}
+
+fn decode_raw_source(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawIndexedSource> {
+    Ok(RawIndexedSource {
         row_id: row.get(0)?,
-        source_version: row.get::<_, i64>(1)? as u64,
+        source_version: row.get(1)?,
         partition: row.get(2)?,
-        stored: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
-        filters: serde_json::from_str(&row.get::<_, String>(4)?).unwrap_or_default(),
-        source_fields: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or_default(),
-        tokens: tokens
-            .into_iter()
-            .filter_map(|token| {
-                Some(SearchToken {
-                    field: token.get("field")?.as_str()?.to_owned(),
-                    token: token.get("token")?.as_str()?.to_owned(),
-                    position: token.get("position")?.as_u64()? as u32,
-                    source_start: token.get("sourceStart")?.as_u64()? as u32,
-                    source_end: token.get("sourceEnd")?.as_u64()? as u32,
-                })
-            })
-            .collect(),
+        stored_json: row.get(3)?,
+        filters_json: row.get(4)?,
+        source_fields_json: row.get(5)?,
+        tokens_json: row.get(7)?,
+        content_digest: row.get(8)?,
     })
 }
 
-fn atom_matches<'a>(
+fn parse_source(raw: RawIndexedSource) -> SnapbackResult<IndexedSource> {
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    struct TokenWire {
+        field: String,
+        token: String,
+        position: u32,
+        source_start: u32,
+        source_end: u32,
+    }
+
+    let corrupt = || {
+        diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "search source record has a malformed derived-state payload",
+        )
+    };
+    let tokens: Vec<TokenWire> = serde_json::from_str(&raw.tokens_json).map_err(|_| corrupt())?;
+    if raw.source_version < 0
+        || tokens.iter().any(|token| {
+            token.field.is_empty()
+                || token.token.is_empty()
+                || token.source_start >= token.source_end
+        })
+    {
+        return Err(corrupt());
+    }
+    Ok(IndexedSource {
+        row_id: raw.row_id,
+        source_version: raw.source_version as u64,
+        partition: raw.partition,
+        stored: serde_json::from_str(&raw.stored_json).map_err(|_| corrupt())?,
+        filters: serde_json::from_str(&raw.filters_json).map_err(|_| corrupt())?,
+        source_fields: serde_json::from_str(&raw.source_fields_json).map_err(|_| corrupt())?,
+        tokens: tokens
+            .into_iter()
+            .map(|token| SearchToken {
+                field: token.field,
+                token: token.token,
+                position: token.position,
+                source_start: token.source_start,
+                source_end: token.source_end,
+            })
+            .collect(),
+        content_digest: raw.content_digest,
+    })
+}
+
+fn authoritative_indexed_source(
+    index: &SearchIndexManifestV1,
+    row_id: &str,
+    row: &Value,
+) -> SnapbackResult<IndexedSource> {
+    let source_version = row.get("_version").and_then(Value::as_u64).ok_or_else(|| {
+        diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "authoritative search source has no portable row version",
+        )
+    })?;
+    let partition = partition_for(index, row)?;
+    let (tokens, source_fields, stored) = source_tokens(index, row)?;
+    let filters = index
+        .equality_filters
+        .iter()
+        .map(|field| {
+            (
+                field.clone(),
+                row.get(field).cloned().unwrap_or(Value::Null),
+            )
+        })
+        .collect::<Map<_, _>>();
+    let content_digest = live_source_content_digest(
+        row_id,
+        source_version,
+        &partition,
+        &stored,
+        &filters,
+        &source_fields,
+        &tokens,
+    )?;
+    Ok(IndexedSource {
+        row_id: row_id.to_owned(),
+        source_version,
+        partition,
+        stored,
+        filters,
+        source_fields,
+        tokens,
+        content_digest,
+    })
+}
+
+fn load_authoritative_row(
+    conn: &Connection,
+    table: &TableManifest,
+    row_id: &str,
+) -> SnapbackResult<Option<Value>> {
+    let quoted = crate::storage::quote_ident(&table.name)?;
+    let mut statement =
+        conn.prepare(&format!("SELECT * FROM {quoted} WHERE \"_id\"=?1 LIMIT 1"))?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(params![row_id])?;
+    let Some(row) = rows.next()? else {
+        return Ok(None);
+    };
+    Ok(Some(crate::storage::row_to_document(row, table, &columns)?))
+}
+
+fn verify_source_derived(
+    conn: &Connection,
+    table: &str,
+    index: &SearchIndexManifestV1,
+    generation: u64,
+    row_id: &str,
+    source_version: u64,
+    expected: Option<&IndexedSource>,
+) -> SnapbackResult<()> {
+    let raw_source = conn
+        .query_row(
+            "SELECT row_id,source_version,partition_key,row_json,filters_json,fields_json,
+                    tombstone,tokens_json,content_digest
+             FROM _snapback_search_sources
+             WHERE table_name=?1 AND index_name=?2 AND generation=?3 AND row_id=?4",
+            params![table, index.name, generation as i64, row_id],
+            decode_raw_source,
+        )
+        .optional()?;
+    let actual_source = raw_source.map(parse_source).transpose()?;
+    if actual_source.as_ref() != expected {
+        return Err(diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "derived search source differs from its canonical source content",
+        ));
+    }
+
+    let mut statement = conn.prepare(
+        "SELECT partition_key,token,field_name,position,source_start,source_end,source_version
+         FROM _snapback_search_terms
+         WHERE table_name=?1 AND index_name=?2 AND generation=?3 AND row_id=?4
+         ORDER BY field_name,position",
+    )?;
+    let actual_terms = statement
+        .query_map(
+            params![table, index.name, generation as i64, row_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(6)?,
+                ))
+            },
+        )?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut expected_terms = expected
+        .map(|source| {
+            source
+                .tokens
+                .iter()
+                .map(|token| {
+                    (
+                        source.partition.clone(),
+                        token.token.clone(),
+                        token.field.clone(),
+                        i64::from(token.position),
+                        i64::from(token.source_start),
+                        i64::from(token.source_end),
+                        source.source_version as i64,
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    expected_terms.sort_by(|left, right| (&left.2, left.3).cmp(&(&right.2, right.3)));
+    if actual_terms != expected_terms {
+        return Err(diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "derived search postings differ from canonical source tokens",
+        ));
+    }
+
+    let frontier: Option<(i64, i64, String)> = conn
+        .query_row(
+            "SELECT highest_version,tombstone,content_digest
+             FROM _snapback_search_frontiers
+             WHERE table_name=?1 AND index_name=?2 AND generation=?3 AND source_id=?4",
+            params![table, index.name, generation as i64, row_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let expected_digest = match expected {
+        Some(source) => source.content_digest.clone(),
+        None => tombstone_content_digest(row_id, source_version)?,
+    };
+    if frontier
+        != Some((
+            source_version as i64,
+            i64::from(expected.is_none()),
+            expected_digest,
+        ))
+    {
+        return Err(diagnostic(
+            "SNAPBACK_SEARCH_INDEX_CORRUPT",
+            "derived search frontier differs from canonical source state",
+        ));
+    }
+    Ok(())
+}
+
+fn reseal_generation_source(
+    tx: &Transaction<'_>,
+    table: &str,
+    index: &SearchIndexManifestV1,
+    generation: u64,
+    source_version: u64,
+    old_content_digest: Option<&str>,
+    new_content_digest: &str,
+) -> SnapbackResult<()> {
+    let generation_row: Option<(String, String)> = tx
+        .query_row(
+            "SELECT root_digest,receipt_json FROM _snapback_search_generations
+             WHERE table_name=?1 AND index_name=?2 AND generation=?3
+               AND status IN ('active','quarantined')",
+            params![table, index.name, generation as i64],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((root_digest, receipt_json)) = generation_row else {
+        // A rebuild constructs derived rows before publishing its generation
+        // record. Activation computes and stores the complete root afterward.
+        return Ok(());
+    };
+    let mut root = decode_generation_root(&root_digest)?;
+    if let Some(old_content_digest) = old_content_digest {
+        xor_content_digest(&mut root, old_content_digest)?;
+    }
+    xor_content_digest(&mut root, new_content_digest)?;
+    let root_digest = encode_generation_root(root);
+    let row_count: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM _snapback_search_sources
+         WHERE table_name=?1 AND index_name=?2 AND generation=?3",
+        params![table, index.name, generation as i64],
+        |row| row.get(0),
+    )?;
+    let mut receipt: crate::search::rebuild::SearchRebuildReceiptV1 =
+        serde_json::from_str(&receipt_json).map_err(|_| {
+            diagnostic(
+                "SNAPBACK_SEARCH_INDEX_CORRUPT",
+                "search generation receipt is not parseable during reseal",
+            )
+        })?;
+    receipt.root_digest = root_digest.clone();
+    receipt.source_head = receipt.source_head.max(source_version);
+    receipt.row_count = row_count as u64;
+    tx.execute(
+        "UPDATE _snapback_search_generations
+         SET status='active',source_head=MAX(source_head,?4),root_digest=?5,
+             receipt_json=?6,corruption_reason=NULL
+         WHERE table_name=?1 AND index_name=?2 AND generation=?3",
+        params![
+            table,
+            index.name,
+            generation as i64,
+            source_version as i64,
+            root_digest,
+            serde_json::to_string(&receipt).map_err(|_| {
+                diagnostic(
+                    "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
+                    "search generation receipt does not serialize during reseal",
+                )
+            })?,
+        ],
+    )?;
+    Ok(())
+}
+
+fn atom_matches(
     atom: &SearchMatchAtomV1,
     terms: &[String],
-    source: &'a IndexedSource,
-) -> (bool, Vec<&'a SearchToken>) {
+    source: &IndexedSource,
+) -> SnapbackResult<(bool, Vec<SearchOccurrence>)> {
+    if terms.is_empty() {
+        return Ok((false, Vec::new()));
+    }
     let field = match atom {
         SearchMatchAtomV1::Term(value) | SearchMatchAtomV1::Prefix(value) => value.field.as_deref(),
         SearchMatchAtomV1::Phrase(value) => value.field.as_deref(),
@@ -798,14 +1370,27 @@ fn atom_matches<'a>(
         .filter(|token| field.is_none_or(|field| token.field == field))
         .collect::<Vec<_>>();
     let frequency = atom_frequency(atom, terms, &field_tokens);
+    let canonical_atom = canonical_atom_bytes(atom)?;
     let occurrences = match atom {
         SearchMatchAtomV1::Term(_) => field_tokens
             .into_iter()
             .filter(|token| token.token == terms[0])
+            .map(|token| SearchOccurrence {
+                field: token.field.clone(),
+                source_start: token.source_start,
+                source_end: token.source_end,
+                canonical_atom: canonical_atom.clone(),
+            })
             .collect(),
         SearchMatchAtomV1::Prefix(_) => field_tokens
             .into_iter()
             .filter(|token| token.token.starts_with(&terms[0]))
+            .map(|token| SearchOccurrence {
+                field: token.field.clone(),
+                source_start: token.source_start,
+                source_end: token.source_end,
+                canonical_atom: canonical_atom.clone(),
+            })
             .collect(),
         SearchMatchAtomV1::Phrase(_) => field_tokens
             .windows(terms.len())
@@ -816,13 +1401,19 @@ fn atom_matches<'a>(
                     .enumerate()
                     .all(|(index, (token, term))| {
                         token.token == *term
+                            && token.field == window[0].field
                             && (index == 0 || token.position == window[index - 1].position + 1)
                     })
             })
-            .flat_map(|window| window.iter().copied())
+            .map(|window| SearchOccurrence {
+                field: window[0].field.clone(),
+                source_start: window[0].source_start,
+                source_end: window[window.len() - 1].source_end,
+                canonical_atom: canonical_atom.clone(),
+            })
             .collect(),
     };
-    (frequency > 0, occurrences)
+    Ok((frequency > 0, occurrences))
 }
 
 pub struct SearchExecutionAuthority<'a> {
@@ -1084,7 +1675,7 @@ pub fn query_search_on(
         posting_candidates(conn, &table.name, index, generation, &partition, &query)?;
     let mut statement = conn.prepare(
         "SELECT row_id,source_version,partition_key,row_json,filters_json,fields_json,
-                tombstone,tokens_json
+                tombstone,tokens_json,content_digest
          FROM _snapback_search_sources
          WHERE table_name=?1 AND index_name=?2 AND generation=?3
            AND partition_key=?4 AND row_id=?5",
@@ -1094,7 +1685,7 @@ pub fn query_search_on(
         let source = statement
             .query_row(
                 params![table.name, index.name, generation as i64, partition, row_id],
-                decode_source,
+                decode_raw_source,
             )
             .optional()?
             .ok_or_else(|| {
@@ -1102,11 +1693,36 @@ pub fn query_search_on(
                     "SNAPBACK_SEARCH_INDEX_CORRUPT",
                     "search posting references a missing source record",
                 )
+            })
+            .and_then(parse_source)?;
+        // @ref LLP 0073#authorization-and-result-release — release replays the
+        // canonical derivation from the authoritative row, rather than trusting
+        // even well-formed stored/filter/source-field/token payloads.
+        let authoritative = load_authoritative_row(conn, table, &source.row_id)?
+            .ok_or_else(|| {
+                diagnostic(
+                    "SNAPBACK_SEARCH_INDEX_CORRUPT",
+                    "search posting references a missing authoritative source row",
+                )
+            })
+            .and_then(|row| {
+                authoritative_indexed_source(index, &source.row_id, &row).map_err(|_| {
+                    diagnostic(
+                        "SNAPBACK_SEARCH_INDEX_CORRUPT",
+                        "search source cannot be reproduced from its authoritative row",
+                    )
+                })
             })?;
+        if source != authoritative {
+            return Err(diagnostic(
+                "SNAPBACK_SEARCH_INDEX_CORRUPT",
+                "search source content failed its authoritative digest recheck",
+            ));
+        }
         sources.push(source);
     }
 
-    let mut ranked = Vec::<(u32, IndexedSource, Vec<SearchToken>)>::new();
+    let mut ranked = Vec::<(u32, IndexedSource, Vec<SearchOccurrence>)>::new();
     for source in sources {
         if source.partition != partition {
             return Err(diagnostic(
@@ -1124,12 +1740,12 @@ pub fn query_search_on(
             continue;
         }
         let mut score = 0_u32;
-        let mut matched_tokens = Vec::<SearchToken>::new();
+        let mut matched_occurrences = Vec::<SearchOccurrence>::new();
         let mut required_match = true;
         for clause in &query.all {
             if let Some(atom) = clause_atom(clause) {
                 let terms = atom_tokens(&atom)?;
-                let (matches, occurrences) = atom_matches(&atom, &terms, &source);
+                let (matches, occurrences) = atom_matches(&atom, &terms, &source)?;
                 required_match &= matches;
                 if matches {
                     score = score
@@ -1137,13 +1753,13 @@ pub fn query_search_on(
                         .ok_or_else(|| {
                             diagnostic("SNAPBACK_SEARCH_INDEX_CORRUPT", "score overflow")
                         })?;
-                    matched_tokens.extend(occurrences.into_iter().cloned());
+                    matched_occurrences.extend(occurrences);
                 }
             } else if let SearchClauseV1::Any(atoms) = clause {
                 let mut any_match = false;
                 for atom in atoms {
                     let terms = atom_tokens(atom)?;
-                    let (matches, occurrences) = atom_matches(atom, &terms, &source);
+                    let (matches, occurrences) = atom_matches(atom, &terms, &source)?;
                     if matches {
                         any_match = true;
                         score = score
@@ -1151,17 +1767,17 @@ pub fn query_search_on(
                             .ok_or_else(|| {
                                 diagnostic("SNAPBACK_SEARCH_INDEX_CORRUPT", "score overflow")
                             })?;
-                        matched_tokens.extend(occurrences.into_iter().cloned());
+                        matched_occurrences.extend(occurrences);
                     }
                 }
                 required_match &= any_match;
             } else if let SearchClauseV1::Not(atom) = clause {
                 let terms = atom_tokens(atom)?;
-                required_match &= !atom_matches(atom, &terms, &source).0;
+                required_match &= !atom_matches(atom, &terms, &source)?.0;
             }
         }
         if required_match {
-            ranked.push((score, source, matched_tokens));
+            ranked.push((score, source, matched_occurrences));
         }
     }
     ranked.sort_by(|(score_a, source_a, _), (score_b, source_b, _)| {
@@ -1208,7 +1824,6 @@ pub fn query_search_on(
                 "search posting failed current authoritative source recheck",
             ));
         }
-        let occurrence_refs = matched_tokens.iter().collect::<Vec<_>>();
         items.push(SearchItemV1 {
             row_id: source.row_id.clone(),
             score: *score,
@@ -1216,7 +1831,7 @@ pub fn query_search_on(
             highlights: highlights(
                 &index.highlight_fields,
                 &source.source_fields,
-                &occurrence_refs,
+                matched_tokens,
             ),
         });
     }
@@ -1481,6 +2096,46 @@ mod tests {
     }
 
     #[test]
+    fn phrase_matching_emits_one_complete_source_span() {
+        let source_text = "alpha beta gamma";
+        let source = IndexedSource {
+            row_id: "incident-phrase".into(),
+            source_version: 1,
+            partition: "public".into(),
+            stored: Map::new(),
+            filters: Map::new(),
+            source_fields: BTreeMap::from([("summary".into(), source_text.into())]),
+            tokens: crate::search::analyzer::analyze_field("summary", source_text).unwrap(),
+            content_digest: "unused-by-atom-matcher".into(),
+        };
+        let atom = SearchMatchAtomV1::Phrase(SearchPhraseV1 {
+            values: vec!["alpha".into(), "beta".into()],
+            field: Some("summary".into()),
+        });
+        let terms = atom_tokens(&atom).unwrap();
+        let (matched, occurrences) = atom_matches(&atom, &terms, &source).unwrap();
+        assert!(matched);
+        assert_eq!(occurrences.len(), 1);
+        assert_eq!(occurrences[0].source_start, 0);
+        assert_eq!(occurrences[0].source_end, 10);
+
+        let prefix = SearchMatchAtomV1::Prefix(SearchTermV1 {
+            value: "alp".into(),
+            field: Some("summary".into()),
+        });
+        let prefix_terms = atom_tokens(&prefix).unwrap();
+        let (prefix_matched, prefix_occurrences) =
+            atom_matches(&prefix, &prefix_terms, &source).unwrap();
+        assert!(prefix_matched);
+        assert_eq!(prefix_occurrences.len(), 1);
+        assert_eq!(prefix_occurrences[0].source_start, 0);
+        assert_eq!(
+            prefix_occurrences[0].source_end, 5,
+            "prefix highlights cover the complete source token"
+        );
+    }
+
+    #[test]
     fn maintained_postings_rank_filter_highlight_and_paginate() {
         let db = seeded(SearchVisibilityV1::PublicRead);
         let first = run(&db, &request(None, 1), None).expect("first page");
@@ -1500,6 +2155,43 @@ mod tests {
         let tampered = format!("{cursor}x");
         let error = run(&db, &request(Some(tampered), 1), None).expect_err("tampered cursor");
         assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_CURSOR_RESTART");
+    }
+
+    #[test]
+    fn official_mutation_verifies_and_reseals_the_generation() {
+        let mut db = seeded(SearchVisibilityV1::PublicRead);
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![crate::storage::BufferedWrite::Patch {
+                table: "incidents".to_owned(),
+                id: "incident-1".to_owned(),
+                values: Map::from_iter([
+                    (
+                        "title".to_owned(),
+                        Value::String("Recovered service".to_owned()),
+                    ),
+                    (
+                        "summary".to_owned(),
+                        Value::String("Everything is healthy".to_owned()),
+                    ),
+                ]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("official search-source mutation");
+
+        assert_eq!(
+            run(&db, &request(None, 10), None)
+                .expect("resealed checkout search")
+                .rows
+                .len(),
+            2,
+        );
+        let recovered = run(&db, &request_for("recovered", None, 10), None)
+            .expect("resealed replacement is searchable");
+        assert_eq!(recovered.rows.len(), 1);
+        assert_eq!(recovered.rows[0]["rowId"], "incident-1");
     }
 
     #[test]
@@ -1524,6 +2216,10 @@ mod tests {
 
     #[test]
     fn classifications_are_closed_and_manifest_changes_rebuild_then_purge() {
+        assert!(
+            serde_json::from_value::<SearchTextFieldV1>(json!({ "weight": 8 })).is_err(),
+            "omitting a text-field classification must not silently become public"
+        );
         let (directory, path, mut db) = file_seeded(
             SearchVisibilityV1::Owner {
                 field: "owner".to_owned(),
@@ -1605,6 +2301,46 @@ mod tests {
     }
 
     #[test]
+    fn replacement_source_limit_counts_old_and_new_postings() {
+        let mut conn = Connection::open_in_memory().expect("search maintenance fixture");
+        create_infra(&conn).expect("create derived-search tables");
+        let mut schema = search_schema(SearchVisibilityV1::PublicRead);
+        let index = &mut schema.tables[0].search_indexes[0];
+        index.source_limits.max_posting_operations = 1;
+        let index = index.clone();
+        let row = json!({
+            "title": "checkout",
+            "summary": "",
+            "status": "open",
+            "owner": "alice"
+        });
+        let tx = conn.transaction().expect("begin maintenance");
+        replace_source(
+            &tx,
+            "incidents",
+            &index,
+            1,
+            "incident-1",
+            1,
+            Some(&row),
+            &mut MaintenanceCounters::default(),
+        )
+        .expect("initial source has one posting operation");
+        let error = replace_source(
+            &tx,
+            "incidents",
+            &index,
+            1,
+            "incident-1",
+            2,
+            Some(&row),
+            &mut MaintenanceCounters::default(),
+        )
+        .expect_err("replacement must count the deleted and inserted posting");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_SOURCE_LIMIT");
+    }
+
+    #[test]
     fn corruption_backup_and_restore_are_fail_closed_and_recoverable() {
         let (_directory, path, db) = file_seeded(SearchVisibilityV1::PublicRead, "Checkout outage");
         drop(db);
@@ -1635,6 +2371,131 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["incident-1", "incident-2", "incident-3"]
         );
+    }
+
+    #[test]
+    fn malformed_derived_source_payload_refuses_instead_of_losing_matches() {
+        let (_directory, path, db) = file_seeded(SearchVisibilityV1::PublicRead, "Checkout outage");
+        drop(db);
+        let raw = Connection::open(&path).expect("open corruption fixture");
+        raw.execute(
+            "UPDATE _snapback_search_sources SET tokens_json='[{\"field\":\"title\"}]'
+             WHERE table_name='incidents' AND index_name='search_incidents'
+               AND row_id='incident-1'",
+            [],
+        )
+        .expect("malform a retained source payload");
+        drop(raw);
+
+        let corrupt = LocalDatabase::open(&path).expect("open corrupt derived index");
+        let error = run(&corrupt, &request(None, 10), None)
+            .expect_err("malformed derived payload must fail closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_INDEX_CORRUPT");
+    }
+
+    #[test]
+    fn well_formed_token_tamper_cannot_create_a_search_result() {
+        let (_directory, path, db) = file_seeded(SearchVisibilityV1::PublicRead, "Checkout outage");
+        drop(db);
+        let raw = Connection::open(&path).expect("open token-tamper fixture");
+        raw.execute(
+            "UPDATE _snapback_search_sources
+             SET tokens_json='[{\"field\":\"title\",\"token\":\"forgedneedle\",\"position\":0,\"sourceStart\":0,\"sourceEnd\":12}]'
+             WHERE table_name='incidents' AND index_name='search_incidents'
+               AND row_id='incident-3'",
+            [],
+        )
+        .expect("replace source tokens with a well-formed forged token");
+        raw.execute(
+            "UPDATE _snapback_search_terms
+             SET token='forgedneedle',source_start=0,source_end=12
+             WHERE table_name='incidents' AND index_name='search_incidents'
+               AND row_id='incident-3' AND field_name='title' AND position=0",
+            [],
+        )
+        .expect("forge a matching posting anchor");
+        // Exercise the independent source-content authentication even if an
+        // operator mistakenly clears the trigger-owned quarantine marker.
+        raw.execute(
+            "UPDATE _snapback_search_generations
+             SET status='active',corruption_reason=NULL
+             WHERE table_name='incidents' AND index_name='search_incidents'",
+            [],
+        )
+        .expect("simulate an incorrectly cleared quarantine marker");
+        drop(raw);
+
+        let corrupt = LocalDatabase::open(&path).expect("open token-tampered index");
+        let error = run(&corrupt, &request_for("forgedneedle", None, 10), None)
+            .expect_err("well-formed forged tokens must fail authoritative recheck");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_INDEX_CORRUPT");
+    }
+
+    #[test]
+    fn well_formed_stored_field_tamper_cannot_escape() {
+        let (_directory, path, db) = file_seeded(SearchVisibilityV1::PublicRead, "Checkout outage");
+        drop(db);
+        let raw = Connection::open(&path).expect("open stored-field-tamper fixture");
+        raw.execute(
+            "UPDATE _snapback_search_sources
+             SET row_json='{\"owner\":\"mallory\",\"status\":\"open\",\"summary\":\"Checkout is slow\",\"title\":\"Forged stored title\"}'
+             WHERE table_name='incidents' AND index_name='search_incidents'
+               AND row_id='incident-1'",
+            [],
+        )
+        .expect("replace stored projection with a well-formed forged object");
+        raw.execute(
+            "UPDATE _snapback_search_generations
+             SET status='active',corruption_reason=NULL
+             WHERE table_name='incidents' AND index_name='search_incidents'",
+            [],
+        )
+        .expect("simulate an incorrectly cleared quarantine marker");
+        drop(raw);
+
+        let corrupt = LocalDatabase::open(&path).expect("open stored-field-tampered index");
+        let error = run(&corrupt, &request(None, 10), None)
+            .expect_err("well-formed stored projection tamper must fail authoritative recheck");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_INDEX_CORRUPT");
+    }
+
+    #[test]
+    fn omitted_non_candidate_posting_quarantines_the_generation() {
+        let (_directory, path, db) = file_seeded(SearchVisibilityV1::PublicRead, "Checkout outage");
+        drop(db);
+        let raw = Connection::open(&path).expect("open omitted-posting fixture");
+        assert_eq!(
+            raw.execute(
+                "DELETE FROM _snapback_search_terms
+                 WHERE table_name='incidents' AND index_name='search_incidents'
+                   AND row_id='incident-4' AND token='historical'",
+                [],
+            )
+            .expect("remove a posting outside the requested candidate set"),
+            1
+        );
+        drop(raw);
+
+        let mut corrupt = LocalDatabase::open(&path).expect("open posting-omitted index");
+        let error = run(&corrupt, &request_for("latency", None, 10), None)
+            .expect_err("a dirty generation must refuse before candidate routing");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_INDEX_CORRUPT");
+        let maintenance = corrupt
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![crate::storage::BufferedWrite::Patch {
+                    table: "incidents".to_owned(),
+                    id: "incident-1".to_owned(),
+                    values: Map::from_iter([(
+                        "status".to_owned(),
+                        Value::String("resolved".to_owned()),
+                    )]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("ordinary maintenance must not clear a pre-existing quarantine");
+        assert_eq!(maintenance.diagnostic.code, "SNAPBACK_SEARCH_INDEX_CORRUPT");
     }
 
     #[test]

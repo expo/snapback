@@ -1,13 +1,9 @@
-use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::diagnostic::SnapbackResult;
 use crate::search::types::SearchToken;
 use crate::search::unicode17_generated::{
     is_control, is_default_ignorable, is_letter_or_number, is_mark, nfkc_case_fold,
 };
 use unicode_normalization::char::{canonical_combining_class, compose, decompose_canonical};
-
-fn query_invalid(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_SEARCH_QUERY_INVALID", "search", message)
-}
 
 #[derive(Clone, Copy)]
 struct Scalar {
@@ -71,14 +67,9 @@ fn nfc_with_provenance(input: Vec<Scalar>) -> Vec<Scalar> {
 }
 
 pub fn normalize(input: &str) -> SnapbackResult<Vec<(char, u32, u32)>> {
-    if input
-        .encode_utf16()
-        .any(|unit| (0xD800..=0xDFFF).contains(&unit))
-    {
-        return Err(query_invalid(
-            "search text contains an unpaired UTF-16 surrogate",
-        ));
-    }
+    // Rust `str` is Unicode scalar text and therefore cannot contain an
+    // unpaired UTF-16 surrogate. Supplementary scalars legitimately encode
+    // to a surrogate *pair* on the JavaScript arm and must remain admissible.
     let mut mapped = Vec::new();
     for (index, source) in input.chars().enumerate() {
         let source = if is_control(source) || is_default_ignorable(source) {
@@ -165,11 +156,12 @@ mod tests {
 
     #[test]
     fn pinned_separator_and_compatibility_vectors() {
-        let tokens = analyze_atom("ＦＯＯ_bar example.com Straße a\u{200e}b e\u{301} É").unwrap();
+        let tokens =
+            analyze_atom("ＦＯＯ_bar example.com Straße a\u{200e}b e\u{301} É 👩‍🚀 orbit").unwrap();
         assert_eq!(
             tokens,
             [
-                "foo", "bar", "example", "com", "strasse", "a", "b", "é", "é"
+                "foo", "bar", "example", "com", "strasse", "a", "b", "é", "é", "orbit"
             ]
         );
         assert_eq!(

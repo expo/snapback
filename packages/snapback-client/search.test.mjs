@@ -34,5 +34,19 @@ assert.throws(() => parseSearchQueryV1('-hidden'), /positive atom/u);
 assert.throws(() => parseSearchQueryV1('aa* bb'), /last positive/u);
 assert.throws(() => parseSearchQueryV1('-aa* bb'), /last positive/u);
 assert.throws(() => parseSearchQueryV1('aa OR bb cc OR dd'), /independent OR groups/u);
+assert.throws(
+  () => parseSearchQueryV1(`alpha${String.fromCharCode(0xd800)}beta`),
+  /unpaired UTF-16 surrogate/u,
+);
+assert.throws(
+  () => parseSearchQueryV1(`alpha${String.fromCharCode(0xdc00)}beta`),
+  /unpaired UTF-16 surrogate/u,
+);
+assert.deepEqual(parseSearchQueryV1('emoji 😀'), {
+  all: [
+    { Term: { value: 'emoji' } },
+    { Term: { value: '😀' } },
+  ],
+});
 
 process.stdout.write('snapback-client search parser: pass\n');
