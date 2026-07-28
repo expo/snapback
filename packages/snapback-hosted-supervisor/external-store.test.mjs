@@ -120,6 +120,18 @@ const database1 = structuredClone(database0);
 database1.generation = 1;
 database1.floors.replay = 1;
 database1.journal.push({ kind: 'test', sequence: 1 });
+database1.operatorAuthority = {
+  schemaVersion: 'snapback.supervisor-operator-authority-state.v1',
+  requestJournal: {
+    'request-1': {
+      response: {
+        kind: 'inline',
+        sha256: sha256(Buffer.from('retained-response')),
+        bytes: Buffer.from('retained-response').toString('base64url'),
+      },
+    },
+  },
+};
 const external1 = await publishExternalAuthority({
   installationReceipt,
   anchorClient,
@@ -137,6 +149,11 @@ const recovered = await readExternalAuthority({
   journalClient,
 });
 assert.deepEqual(coreStateFromExternal(installationReceipt, recovered).database, database1);
+assert.equal(
+  coreStateFromExternal(installationReceipt, recovered)
+    .database.operatorAuthority.requestJournal['request-1'].response.bytes,
+  Buffer.from('retained-response').toString('base64url'),
+);
 
 await assert.rejects(
   publishExternalAuthority({

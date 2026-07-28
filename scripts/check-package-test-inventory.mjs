@@ -83,6 +83,7 @@ const inventories = [
       'external-store.test.mjs',
       'hosted-edge-admission.test.mjs',
       'index.test.mjs',
+      'operator-authority-transaction.test.mjs',
       'operator-authority.test.mjs',
       'package.test.mjs',
       'target-onboarding.test.mjs',
@@ -296,7 +297,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 109 -> 112 (LLP 0105 hosted completion tranche): @snapback/cli gains the
 // checkout-free hosted command/package corpus, while the supervisor gains
 // operator-authority semantics and its own extracted-tarball proof.
-assert.equal(total, 112, 'reviewed package/admin test count changed');
+// 112 -> 113 (LLP 0105 hosted completion tranche): the supervisor gains the
+// canonical operator request/response transaction and recovery corpus.
+assert.equal(total, 113, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

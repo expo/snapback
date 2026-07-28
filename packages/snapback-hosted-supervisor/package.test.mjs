@@ -21,6 +21,7 @@ try {
   const paths = new Set(files.map(({ path }) => path));
   for (const required of [
     'operator-authority.mjs',
+    'operator-authority-transaction.mjs',
     'index.mjs',
     'service.mjs',
     'external-store.mjs',
@@ -38,6 +39,9 @@ try {
   );
   assert.equal(extracted.status, 0, extracted.stderr);
   const authority = await import(pathToFileURL(join(root, 'package', 'operator-authority.mjs')));
+  const transaction = await import(pathToFileURL(
+    join(root, 'package', 'operator-authority-transaction.mjs'),
+  ));
   assert.equal(authority.__operatorAuthorityTest.STATE_SCHEMA_VERSION, 'snapback.supervisor-operator-authority-state.v1');
   assert(authority.SUPERVISOR_REQUEST_REGISTRY['release.upload']);
   assert(authority.SUPERVISOR_REQUEST_REGISTRY['capability.publication.finalize']);
@@ -48,6 +52,10 @@ try {
   }).snapshot();
   assert.equal(state.installationId, 'isolated-installation');
   assert.equal(state.operatorRevocationGeneration, 1);
+  assert.equal(
+    transaction.__operatorAuthorityTransactionTest.JOURNAL_SCHEMA_VERSION,
+    'snapback.supervisor-operator-journal-entry.v1',
+  );
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

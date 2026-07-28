@@ -116,3 +116,15 @@ authority and bounded release-upload core, with retained exact replay and
 revocation negatives. Neither module is wired to the live external authority
 store or Fly provider executor yet, so this creates no hosted-ephemeral or
 hosted-lifecycle claim and does not satisfy the remote corpus.
+
+**Durable operator-transaction progress (2026-07-28):** operator request,
+canonical response, sequence, and replay state now enter the standing
+supervisor database in one generation through its existing single-writer
+commit boundary. The redacted outer journal advances the replay floor without
+copying response payloads, exact replay advances neither generation nor floor,
+and the complete retained bytes survive the mirror/anchor recovery path.
+Missing offline-provisioned operator authority fails closed instead of
+inventing a root. This remains a local package proof: no operator listener,
+mTLS/operator-certificate binding, supervisor-response intermediate, provider
+executor, or live installation update was added, so the capability remains
+false and the remote corpus remains required.
