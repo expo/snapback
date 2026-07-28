@@ -39,3 +39,19 @@ The four operator-entered values are:
 
 XCUITest supplies the RSVP Space key through the native test input path. It
 does not mutate the DOM or issue a WebDriver command.
+
+After the four isolated observations for each arm have been converted into
+`partitime.ios-attended-physical-receipt.v1` receipts, compose them with the
+fresh conjunctive simulator receipts:
+
+```sh
+node demos/partiful-matrix/tests/acceptance/compose-ios-attended-v3.mjs \
+  --amendment demos/partiful-matrix/acceptance/physical-ios-text-carrier-amendment.2026-07-28-v3.json \
+  --simulator-root demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari \
+  --physical-root demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-xcuitest-v3 \
+  --out demos/partiful-matrix/acceptance/results/step4-ui-claims-ios-safari-physical-text.json
+```
+
+The composer accepts simulator facts only for menu/guest keyboard behavior
+and overlay/RSVP reduced-motion behavior. Create, RSVP-Space, wall submission,
+and reduced-motion wall evidence must come from the physical XCUITest receipt.

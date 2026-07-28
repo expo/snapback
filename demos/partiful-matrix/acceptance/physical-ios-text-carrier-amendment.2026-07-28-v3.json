@@ -74,9 +74,9 @@
     }
   },
   "implementationStatus": {
-    "conjunctiveReceiptSupport": "implemented-uncommitted",
+    "conjunctiveReceiptSupport": "implemented-verified",
     "physicalXCTestCarrier": "implemented-build-verified",
-    "aggregateValidator": "pending",
+    "aggregateValidator": "implemented-verified",
     "qualifyingRun": "forbidden-before-ratification"
   },
   "ratification": null
