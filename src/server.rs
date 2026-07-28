@@ -21224,6 +21224,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         //   not a known agent.
         | "SNAPBACK_AUTH_AGENT_UNKNOWN"
         | "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
+        | "SNAPBACK_ROW_NOT_FOUND"
         // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
         //   the private self resolver may disclose only that the caller's own
         //   membership row is absent, so this is a scoped not-found result.
@@ -21698,6 +21699,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // writes to the protected incarnation marker are author/client input.
         | "SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID"
         | "SNAPBACK_BOUNDED_CHILDREN_INDEX_INVALID"
+        | "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID"
+        | "SNAPBACK_BOUNDED_CHILDREN_RESULT_CONTRACT_INVALID"
         | "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID"
         | "SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED"
         | "SNAPBACK_ACTIVITY_CLIENT_MUTATION_REQUIRED"
@@ -34600,6 +34603,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_RELATIONAL_PLAN_INVALID",
         "SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID",
         "SNAPBACK_BOUNDED_CHILDREN_INDEX_INVALID",
+        "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID",
+        "SNAPBACK_BOUNDED_CHILDREN_RESULT_CONTRACT_INVALID",
         "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID",
         "SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED",
         "SNAPBACK_ACTIVITY_CLIENT_MUTATION_REQUIRED",
@@ -34720,6 +34725,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
         "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND",
+        "SNAPBACK_ROW_NOT_FOUND",
         "SNAPBACK_UNKNOWN_CRON_JOB",
         "SNAPBACK_UNKNOWN_FIELD",
         "SNAPBACK_UNKNOWN_FUNCTION",
@@ -34974,6 +34980,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_HOSTED_ADMISSION_STALE_CONFIGURATION",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_STALE_SUPPORT",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_UNAUTHENTICATED",
+        "SNAPBACK_HOSTED_ADMISSION_V2_INVALID",
+        "SNAPBACK_HOSTED_ADMISSION_V2_MISSING",
+        "SNAPBACK_HOSTED_ADMISSION_V2_STALE",
+        "SNAPBACK_HOSTED_ADMISSION_V2_UNAUTHENTICATED",
         "SNAPBACK_AUTH_HOSTED_TOPOLOGY_INVALID",
         "SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE",
         "SNAPBACK_AUTH_TRANSPORT_INSECURE",
@@ -35223,10 +35233,13 @@ globalThis.__snapbackHandlers = {
             }
         }
 
-        assert_eq!(
-            emitted,
-            expected_http_diagnostic_codes(),
-            "production diagnostics and the reviewed HTTP table drifted"
+        let expected = expected_http_diagnostic_codes();
+        let unclassified = emitted.difference(&expected).collect::<Vec<_>>();
+        let stale = expected.difference(&emitted).collect::<Vec<_>>();
+        assert!(
+            unclassified.is_empty() && stale.is_empty(),
+            "production diagnostics and the reviewed HTTP table drifted; \
+             unclassified={unclassified:?}; stale={stale:?}"
         );
     }
 
