@@ -3,16 +3,16 @@
 
 ## Round 1 — 2026-07-27
 
-**Reviewer family:** OpenAI Codex  
-**Provider / runtime:** Codex CLI 0.145.0, `gpt-5.6-sol`  
-**Reasoning effort:** ultra  
-**Date:** 2026-07-27  
-**Redacted:** no  
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** Codex CLI 0.145.0, `gpt-5.6-sol`
+**Reasoning effort:** ultra
+**Date:** 2026-07-27
+**Redacted:** no
 **Method:** fresh CLI runner, read-only sandbox, mutually blind structurally
-isolated capsule  
-**Target SHA-256:** `5b106fe0dcbdee00b3727d1442d8033ca3f214a3a8b74009f2f92445c01fe31d`  
-**Capsule SHA-256:** `07aa9f210dd98c5ba7803ab963cf21270abdeffb54fcf9f93d4cb6aa035cd06e`  
-**Instruction SHA-256:** `9f68f158fd2807c25e5bddec20be40953470728bff2102502109d9d828dff8ce`  
+isolated capsule
+**Target SHA-256:** `5b106fe0dcbdee00b3727d1442d8033ca3f214a3a8b74009f2f92445c01fe31d`
+**Capsule SHA-256:** `07aa9f210dd98c5ba7803ab963cf21270abdeffb54fcf9f93d4cb6aa035cd06e`
+**Instruction SHA-256:** `9f68f158fd2807c25e5bddec20be40953470728bff2102502109d9d828dff8ce`
 **Status:** completed
 
 ## 1. Overall assessment
@@ -251,21 +251,253 @@ The Plan has a sound narrow objective and a credible semantic basis, but the rou
 
 VERDICT: NOT READY
 
+## Post-bakeoff delta loop, round 3 — 2026-07-28
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** Codex subagent, `gpt-5.6-sol`
+**Reasoning effort:** ultra
+**Date:** 2026-07-28
+**Redacted:** no
+**Method:** fresh subagent, instruction-restricted to the mutually blind
+structurally isolated capsule
+**Target SHA-256 vector:** `de1ae53be9eea058e1c0edac95cfcef9074354c244b60af6821bdf66080ed816`
+**Capsule SHA-256:** `6bd369e9b91c82bd411cc48c913e493e2f23b5651acb38754383846aa8eef904`
+**Instruction SHA-256:** `35c89e6b9da1ac61666c520ab42660c6df40088d6400a83383e8c4d5696e9651`
+**Status:** completed
+
+## Overall assessment
+
+The lockstep delta is not yet implementation-ready. It substantially improves provenance, publication ordering, migration custody, qualification authority, and operator security, but several crash/concurrency cuts still require normative invention.
+
+## Strengths
+
+- LLP 0041 defines a strong nine-package candidate → exact-registry proof → dependency-first/CLI-last promotion sequence, including current-default preflight and candidate/post-promotion ledger lineage.
+- Qualification refines ordinary `PreparedAuthority` instead of creating a parallel identity system.
+- Local source-owned publication and signed packaged attestation are correctly distinct from hosted control-head authority.
+- LLP 0099 binds admission policy, verified backup/restore evidence, barrier equality, and signed cancellation generations.
+- Claim-family revocation correctly avoids automatic graph rollback after successor writes.
+- The documents remain honest: scheduled implementation and remote evidence are not presented as completed capability claims.
+
+## Concerns
+
+1. **MATERIAL · IN-DELTA — Pre-CAS qualification writes have no isolation or failure disposition.**
+
+   LLP 0104 requires hidden served qualification to use the production parser, transaction executor, storage, and serializer, including a durable write-with-activity mutation and replay. Yet pre-CAS failure only deletes or quarantines the candidate graph. Nothing defines whether candidate schema effects or committed rows are visible to predecessor queries/live subscriptions, compatible with predecessor constraints, or removed after failed qualification.
+
+   **Resolution criteria:** Specify either an isolated qualification database/restore identity, or a production-data protocol proving predecessor/candidate schema and write compatibility. Bind that data identity in the grant and receipt; define schema/index activation, visibility, cleanup/retention, crash recovery, and failed-qualification disposition. Tests must prove ordinary callers receive no candidate-only rows or frames before CAS.
+
+2. **MATERIAL · IN-DELTA — The bounded-use protocol is not wire-complete or ordering-complete.**
+
+   `QualificationUseV1` has no closed shape, encoding, size, index/nonce rules, or signature preimage. Query and mutation have a use carrier, but live subscribe and subsequent frames carry only the connection token while LLP 0104 promises nonce-addressable crash replay for every subscription/frame. Connection reopen is likewise unspecified. LLP 0058 says ordinary `PreparedAuthority` comes first while also saying failed auth consumes a reservation; credential failure cannot reach that refinement without another ordering rule. Exact qualification codes, HTTP statuses, and precedence are also left as `SNAPBACK_QUALIFICATION_*`.
+
+   **Resolution criteria:** Define the complete `QualificationUseV1` DTO/header grammar and signature binding; a deterministic replay key for open/reopen, subscribe, and every counted frame; counter domains and exhaustion behavior; exact gate order; which failures consume; atomic journal transitions; retained-result/refusal bounds and GC; and a closed diagnostic/status/precedence matrix. Exercise duplicate, concurrent, disconnect, timeout, crash, and lost-response cases.
+
+3. **MATERIAL · IN-DELTA — The 180-second migration ceiling cannot survive the required interruption classes.**
+
+   LLP 0099 records process-monotonic elapsed intervals and says crash resume reconstructs the remaining budget. A stopped/rebooted/replaced VM cannot account for time spent down from those intervals; its monotonic origin may reset. Resume can therefore undercount downtime and violate both the 135-second forward cutoff and reserved recovery budget. `admissionExpiresAt` also has no consume/expiry transition, and the required action when health misses the cutoff after `published-held` is not pinned.
+
+   **Resolution criteria:** Bind the barrier to a supervisor-signed, boot-independent deadline or conservatively exhaust the budget whenever elapsed time is uncertain. Define admission-expiry semantics and the exact 135/140/180-second transitions before and after publication, including whether an already authorized generation-republish rollback is used. Prove process kill, stop/start, suspend, replacement, partition, and long recovery without deadline reset or late publication.
+
+4. **MATERIAL · IN-DELTA — Capability-only revocation lacks an enforceable publication cut.**
+
+   A failed post-CAS observation merely causes the supervisor to attempt another CAS. If that CAS cannot land, no target-enforced provisional expiry returns the claim to GAP. Nor is there a claim-family epoch captured and rechecked at mutation commit, HTTP publication, live-frame send, or retained subscription rerun. “Functions immediately refuse” does not define hosted-ephemeral withdrawal or a migration already admitted under the profile.
+
+   **Resolution criteria:** Make provisional publication self-expiring unless finalized, or provide an equivalently bounded fail-closed mechanism independent of a successful withdrawal CAS. Define monotone per-family generations captured at admission and rechecked at every externally visible cut. Pin terminal behavior for relation live subscriptions/queued frames, ephemeral rooms/sockets, and new versus already-admitted migrations. Preserve the intended no-automatic-graph-rollback rule.
+
+5. **MATERIAL · IN-DELTA — The operator/root lifecycle is not closed by the deny-by-default registry.**
+
+   Enrollment consumption is described, but bundle minting, certificate renewal, device revocation, root rotation, and root recovery have no exact request variants or command/scope mappings. The closed scope list contains `release.upload`, while the command registry assigns deploy apply one scope even though apply performs the upload; no command owns that listed scope. Root recovery is required but its unsealing authority and lost-root procedure are unspecified.
+
+   **Resolution criteria:** Enumerate closed requests, commands, and scopes for bundle issuance/consumption, renewal, device listing/revocation, release upload, and root rotation/recovery. Define delegation/subset rules, signature preimages, atomic lost-response replay, certificate trust overlap, revocation behavior, and encrypted-root unsealing/recovery custody. Every operation must have exactly one unambiguous authority mapping and recovery test.
+
+6. **MATERIAL · PRE-EXISTING — The auth-invalidation refusal has conflicting HTTP status authority.**
+
+   LLP 0058 requires `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` to use HTTP 503; LLP 0094’s refusal registry assigns HTTP 400 and different retry semantics.
+
+   **Resolution criteria:** Choose one registered status/retry classification, update both documents and the schema/code registry, and add a cross-transport conformance case.
+
+7. **DETAIL · IN-DELTA — LLP 0094 lacks the hosted-ephemeral wire amendment promised by LLP 0105.**
+
+   The authoritative DTO matrix does not yet register `ephemeralAuthorityProtocol` or `ephemeralAuthorityInstance` across open, HTTP/socket ephemeral families, errors, acknowledgements, resyncs, and drain items.
+
+8. **DETAIL · IN-DELTA — LLP 0058’s closed capability table does not record the two LLP 0104 IDs and their publication predicates/maturity.**
+
+   The qualification amendment refers only to “the two named” requirements, while the allowed implementation context already contains `bounded_children_v1` and `write_activity_v1`.
+
+9. **DETAIL · PRE-EXISTING — LLP 0058’s “current assignment” maturity prose has drifted from the code-owned registry.**
+
+   It still calls relational-query and migration-keyset capabilities experimental, while the allowed `src/manifest.rs` context treats them as stable and carries additional experimental entries.
+
+## Per-target readiness
+
+| Target | Readiness |
+|---|---|
+| LLP 0041 | **Ready independently.** Its candidate publication and ledger boundary is implementable; downstream carrier publication remains blocked by the set-level issues. |
+| LLP 0058 | **Not ready.** Qualification reservation ordering/wire semantics and the pre-existing status conflict remain unresolved. |
+| LLP 0094 | **Not ready.** `QualificationUseV1`, exact refusals, and hosted-ephemeral DTO closure are incomplete. |
+| LLP 0099 | **Not ready.** The crash-safe deadline and admission-expiry state machine are incomplete. |
+| LLP 0104 | **Not ready.** Pre-CAS write isolation, bounded-use replay, and claim-family revocation cuts are incomplete. |
+| LLP 0105 | **Not ready.** It inherits the qualification and deadline gaps and lacks closed revocation and operator/root lifecycle protocols. |
+
+## Set-level conclusion
+
+The package-promotion boundary is strong, and no current positive claim is overstated. However, implementing the present text would require security- and correctness-relevant choices at hidden candidate writes, use consumption, reboot-spanning deadlines, post-CAS withdrawal, and operator-root recovery. Those choices must be made in the documents before the six-file lockstep boundary is ready.
+
+I attest that I reviewed `REVIEW_INSTRUCTIONS.md` and all six targets completely inside `/private/tmp/snapback-super-refine-delta-r3.yzhUQ5`, consulted only context files explicitly authorized there, used no network or outside repository/worktree, accessed no prior/Fable/other-reviewer output, and made no edits. The six target hashes matched before and after review.
+
+VERDICT: NOT READY
+
+## Post-bakeoff delta loop, round 2 — 2026-07-28
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** Codex subagent, `gpt-5.6-sol`
+**Reasoning effort:** ultra
+**Date:** 2026-07-28
+**Redacted:** no
+**Method:** fresh subagent, instruction-restricted to the mutually blind
+structurally isolated capsule
+**Target SHA-256 vector:** `41b1992927f596ce169ab5ca45432c1a03012637bce865eae9a4a7c039d87d7b`
+**Capsule SHA-256:** `436a4c126895025718a26e11e0395388233a78c07b86e66d7ca2b21a0f68786e`
+**Instruction SHA-256:** `d43a3c0b73e8abd4118eeb02e0b6c9aff58b30a09a7827eac998fc56277d008d`
+**Status:** completed
+
+## Overall assessment
+
+The set is not yet implementation-ready. It establishes a strong publication DAG, preserves ordinary GAP behavior during hidden qualification, and substantially closes legacy certificate custody and hosted cleanup. However, several security- and safety-critical transitions still require implementers to invent normative behavior.
+
+## Strengths
+
+- LLP 0041 provides a coherent nine-package sequence: local tarball proof, candidate-tag publication, public exact-version cold proof, dependency-first default promotion, CLI-root-last promotion, and final closure verification (`0041:172-235`).
+- The source-to-OCI provenance chain is explicit and binds packages, binaries, target images, supervisor images, and carrier evidence to one source SHA (`0041:225-235`).
+- Candidate qualification is separated from ordinary discovery and routing; ordinary users remain GAP until carrier CAS (`0104:1412-1455`).
+- Applicability is partitioned into `pureEvaluator`, `localPersisted`, and `servedHosted`, with mandatory injection matrices rather than informal exemptions (`0104:1457-1488`).
+- The public journey correctly places hosted qualification receipts before npm default promotion and carrier publication (`0105:1176-1197`), avoiding a public-evidence cycle.
+- The legacy Caddy transition is unusually well bounded: fixed executable and archive path, entry/size/time limits, pinned process identity, quiescence proof, trap-based recovery, native secret handling, zeroization, uncertainty reconciliation, and explicit residual-provider risk (`0105:1199-1250`).
+- Cleanup distinguishes disposable hosted resources from the standing supervisor and durable evidence, and requires a delayed destruction grant after sustained post-CAS proof (`0105:1291-1322`).
+
+## Concerns
+
+### 1. MATERIAL / IN-DELTA — Hidden qualification lacks a closed invocation protocol
+
+LLP 0104 defines a signed, one-use `QualificationGrantV1`, but it does not define how that grant enters HTTP query/mutation requests or WebSocket/live-query sessions, how consumption is made durable under concurrency and crashes, or how its scoped capability override joins the existing authorization gate (`0104:1412-1428, 1473-1488`).
+
+That omission crosses existing closed boundaries:
+
+- LLP 0058 requires every function entry path to pass through `PreparedAuthority` and `PreparedInvocation`, with no unregistered gate path (`0058:1177-1215, 1223-1247`).
+- LLP 0094 requires new client-visible routes to join the route matrix and already distinguishes HTTP and live/connection authority (`0094:136-158, 222-227`).
+- LLP 0104 nevertheless refers only generically to “qualification headers” (`0104:1488`).
+
+The pre-CAS receipt also calls the tested identity the “active-generation” identity (`0104:1482`), although the candidate is expressly not active until carrier CAS. That leaves candidate-versus-predecessor binding ambiguous.
+
+Resolution criteria:
+
+- Specify the exact Rust-owned grant carrier for HTTP and WebSocket/live traffic, including encoding, size limits, signature/key identifier, request/session binding, and refusal behavior.
+- Register every qualification entry path in the existing route and gate registries.
+- Define an explicit candidate-scoped override inside `PreparedInvocation`; it must not alter ordinary target discovery or active-generation capability state.
+- Define atomic budget/one-use consumption for successful, failed, concurrent, disconnected, and crash-replayed mutation and subscription attempts.
+- Bind the pre-CAS receipt to `candidateGeneration` and separately record the predecessor active generation.
+- Add negative tests proving ordinary callers, stale sessions, replayed grants, wrong function IDs, and wrong candidate digests remain GAP.
+
+### 2. MATERIAL / IN-DELTA — Local/package carrier authority is undefined
+
+The hosted carrier is signed by the standing supervisor and committed through the hosted control head. LLP 0104 then says local/package targets use “the same carrier shape” with a source-committed qualification receipt, but it does not identify the signer, trust root, authoritative head, CAS rule, replay rule, or revocation mechanism for those targets (`0104:1430-1455`).
+
+Because local persisted and pure evaluator applicability is mandatory, this is not an optional implementation detail. An implementation must currently invent what makes a local positive capability claim authoritative.
+
+Resolution criteria:
+
+- Define either a distinct local carrier or a complete local interpretation of `CapabilityPublicationV1`.
+- Specify its signer and trust root, canonical bytes, package/binary digest binding, authoritative generation, CAS or immutable-source commitment, replay protection, revocation, and rollback behavior.
+- State exactly how the code-owned target capability registry derives positive local support from it without accepting candidate artifacts as authority.
+- Test tampered carriers, carriers from another binary, stale generations, old package closures, and rollback after a failed public observation.
+
+### 3. MATERIAL / IN-DELTA — Migration admission and checkpoint ordering is cyclic
+
+LLP 0099 says admission is durably enqueued before any physical step and binds the required backup (`0099:94-98, 232-238`). The same controlling section requires the backup to be complete, read back, restored, and verified before admission (`0099:262-267`).
+
+The governing executor sequence instead places the fence before backup and migration work (`0081:349-351, 460-469`). The current text therefore does not establish whether the backup occurs outside admission, under an admitted job, or under a preliminary fence, nor how source-head drift between backup and admission is prevented.
+
+Resolution criteria:
+
+- Choose one canonical order and state it as a closed state machine.
+- If backup precedes admission, define the preliminary fence/lease that prevents source drift and clarify that backup creation is not the prohibited migration physical step.
+- If admission precedes backup, bind admission initially to a backup policy and require a signed supplemental checkpoint before the first schema/data batch.
+- Define re-admission behavior when source head, schema, lease, or backup identity changes.
+- Cover cancellation and crashes before, during, and after backup, with idempotent receipt linkage.
+
+### 4. MATERIAL / IN-DELTA — The 180-second downtime ceiling cannot be enforced as written
+
+Downtime is measured until either successor publication becomes healthy or predecessor reopen becomes healthy. Yet abort begins only after the deadline is reached, at the next safe checkpoint, and predecessor reopen occurs afterward (`0099:252-260`). Thus a failed run can necessarily exceed the stated ceiling.
+
+A rehearsal p95 plus 50% margin is an admission heuristic, not a hard upper bound. The text also provides no maximum batch duration or reserved abort/reopen budget. Cancellation is authoritative in the external supervisor database (`0099:240-248, 279-283`), but the target-side rule does not explicitly define how fresh cancellation state reaches every checkpoint and the final publication barrier during a partition.
+
+Resolution criteria:
+
+- Reserve a measured worst-case abort-and-reopen budget inside 180 seconds and set the forward-execution cutoff earlier by that amount.
+- Give every batch a hard interruptible bound or prove a smaller non-interruptible maximum.
+- Define persisted monotonic timing and crash-resume accounting.
+- Treat rehearsal statistics only as admission evidence, not enforcement.
+- Define a signed cancellation generation or head transition that the target must freshly prove at every checkpoint and immediately before publication.
+- Specify partition behavior, lost cancellation responses, and reconciliation after uncertain reopen/publication outcomes.
+
+### 5. MATERIAL / IN-DELTA — Enrollment bootstrap and scope enforcement are not closed
+
+LLP 0105 defines device keys, a one-use ten-minute enrollment bundle, operator certificates, mTLS, request signatures, and a command-to-authority table (`0105:1252-1289`). It does not define:
+
+- who signs and issues the enrollment bundle;
+- the trust root and canonical signed bytes;
+- where one-use consumption is atomically recorded;
+- certificate renewal, revocation, and recovery;
+- the closed scope vocabulary and exact command-to-scope mapping;
+- replay behavior across supervisor recovery.
+
+Those are root authorization semantics, not merely wire implementation details. The table also calls reads “supervisor-signed read request” (`0105:1276`), contradicting the preceding rule that every request carries the device-key signature.
+
+Resolution criteria:
+
+- Define canonical Rust-owned schemas and signature preimages for bundles, certificates, and requests.
+- Bind issuance to an identified standing-supervisor root and define the authorized minting path.
+- Atomically consume bundle nonce state in the durable external anchor.
+- Define renewal, expiry, revocation, key compromise, supervisor recovery, and replay behavior.
+- Introduce a closed scope enum and exhaustive command-to-scope registry with deny-by-default tests.
+- Correct the read path to device/operator-signed request and supervisor-signed response.
+
+## Detail concerns
+
+- **DETAIL / IN-DELTA:** LLP 0099 retains open questions about cancellation, downtime, checkpointing, and receipts after its controlling amendment says those questions are closed (`0099:285-318`). Mark them historical or replace them with pointers to the controlling decisions.
+- **DETAIL / IN-DELTA:** Clarify whether per-entry GAP behavior in LLP 0105 applies only to later validation/revocation or also permits partial initial publication; the executable first-publication sequence currently requires all hosted receipts (`0105:1158-1190`).
+- **DETAIL / PRE-EXISTING:** LLP 0041’s status section first says the public workflow has not run, then says it was executed successfully (`0041:417-424`). Reconcile the stale status prose.
+
+## Per-target readiness
+
+- **LLP 0041: READY with editorial cleanup.** Its controlling publication and provenance sequence is sufficiently closed; the contradictory historical status text is not an implementation blocker.
+- **LLP 0099: NOT READY.** Admission/checkpoint ordering and enforceable downtime/cancellation semantics remain materially ambiguous.
+- **LLP 0104: NOT READY.** Qualification transport/consumption and local carrier authority are not closed.
+- **LLP 0105: NOT READY.** It inherits the 0099/0104 gaps, and its public enrollment root and scope enforcement require additional normative decisions.
+
+## Set-level conclusion
+
+The set has the right high-level release order and contains strong custody, provenance, and recovery work. It should not yet authorize implementation or public promotion because the remaining gaps occur precisely at hidden capability admission, persistent publication authority, migration rollback timing, and operator-root authentication. Resolve the five material items together, then re-review the combined state machine and negative-test matrix.
+
+Capsule restriction attestation: I reviewed only files inside `/private/tmp/snapback-super-refine-delta-r2.tHDmV7`. I did not access the source worktree, network, prior or peer reviews, journals, orchestrator notes, or Fable, and I made no edits.
+
+VERDICT: NOT READY
+
 ## Round 2 — 2026-07-27
 
-**Reviewer family:** OpenAI Codex  
-**Provider / runtime:** Codex CLI 0.145.0, `gpt-5.6-sol`  
-**Reasoning effort:** ultra  
-**Date:** 2026-07-27  
-**Redacted:** no  
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** Codex CLI 0.145.0, `gpt-5.6-sol`
+**Reasoning effort:** ultra
+**Date:** 2026-07-27
+**Redacted:** no
 **Method:** fresh CLI runner, read-only sandbox, mutually blind structurally
-isolated capsule; delta-round instructions  
-**Target SHA-256:** `0f7821dc7919abf69441d59efdce93a6f5b913b525a48676d0a710f8ae7fcf5a`  
-**Capsule SHA-256:** `fc466535fd68c2ccd57b6da2b02c2f6cb2dc0eb4d981a6981842ec0e5a6c9337`  
-**Instruction SHA-256:** `6477ff4e3c091e39585f6aa255969e18828c3f05e8ef6daac36218e5ee620f35`  
+isolated capsule; delta-round instructions
+**Target SHA-256:** `0f7821dc7919abf69441d59efdce93a6f5b913b525a48676d0a710f8ae7fcf5a`
+**Capsule SHA-256:** `fc466535fd68c2ccd57b6da2b02c2f6cb2dc0eb4d981a6981842ec0e5a6c9337`
+**Instruction SHA-256:** `6477ff4e3c091e39585f6aa255969e18828c3f05e8ef6daac36218e5ee620f35`
 **Status before launch:** pending
 
-**Status:** completed  
+**Status:** completed
 **Verdict:** NOT READY
 
 ## Overall assessment
@@ -373,16 +605,16 @@ VERDICT: NOT READY
 
 ## Round 3 — 2026-07-27
 
-**Reviewer family:** OpenAI Codex  
-**Provider / runtime:** Codex CLI 0.145.0, `gpt-5.6-sol`  
-**Reasoning effort:** ultra  
-**Date:** 2026-07-27  
-**Redacted:** no  
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** Codex CLI 0.145.0, `gpt-5.6-sol`
+**Reasoning effort:** ultra
+**Date:** 2026-07-27
+**Redacted:** no
 **Method:** fresh CLI runner, read-only sandbox, mutually blind structurally
-isolated capsule  
-**Target SHA-256:** `60bf43edb12c99a784a48f6fbd6f3b6130316107dafcc585d3a82d38ea82b03f`  
-**Capsule SHA-256:** `f9d60997ef75683ce968867c6909dbf695eefe7663a24ff866310c2ff2d97c14`  
-**Instruction SHA-256:** `9f65e59a46c426975af9b30cb631d53b12e62d09acc7ece6d802f90dba2fab0c`  
+isolated capsule
+**Target SHA-256:** `60bf43edb12c99a784a48f6fbd6f3b6130316107dafcc585d3a82d38ea82b03f`
+**Capsule SHA-256:** `f9d60997ef75683ce968867c6909dbf695eefe7663a24ff866310c2ff2d97c14`
+**Instruction SHA-256:** `9f65e59a46c426975af9b30cb631d53b12e62d09acc7ece6d802f90dba2fab0c`
 **Status:** completed
 
 NOT READY. I found five material defects in the controlling Round-2 delta.
@@ -431,5 +663,175 @@ One non-blocking issue: **DETAIL / IN-DELTA** — `commitUncertain` is named ter
 Earlier incorrect operation aliases and the “already-landed” comparator wording are **DETAIL / PRE-EXISTING** superseded residue and did not affect the verdict. The controlling v1 operation list matches the Rust enums, and the comparator is correctly reframed as a same-landing packed prerequisite.
 
 No repository files were modified, and no prior review artifacts were consulted.
+
+VERDICT: NOT READY
+
+## Post-bakeoff delta loop, round 1 — 2026-07-28
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** Codex subagent, `gpt-5.6-sol`
+**Reasoning effort:** ultra
+**Date:** 2026-07-28
+**Redacted:** no
+**Method:** fresh subagent, instruction-restricted to the mutually blind
+structurally isolated capsule
+**Target SHA-256 vector:** `a33f006d3784c7a1466696a90d73e297260314e0bada023236d61482e79365cd`
+**Capsule SHA-256:** `1bb93b1ff4838d8fe2eb8902d489a4170a67e2bc33ef35490168b85634e6633b`
+**Instruction SHA-256:** `b0ae0014c12ad5e3df3a948e27656e2b0a0682af6901c1c2eb0c65195147ed0b`
+**Status:** completed
+
+## 1. Overall assessment
+
+The coupled design is substantially stronger, honest about current gaps, and close to implementable. However, the new execution sections still contain circular qualification/publication prerequisites and several unclosed authority and recovery boundaries. These are plan defects, not objections to implementation work that the Plans explicitly schedule.
+
+Most notably:
+
+- LLP 0104 requires the candidate graph to execute publicly before the target may support the capabilities needed to install or invoke that graph.
+- LLP 0105 requires public-registry cold-install receipts before the nine-package release is published, while LLP 0041 defines those receipts as requiring an already successful publication ledger.
+- The legacy certificate bootstrap does not carry forward the required Caddy quiescence/resume protocol or assign an enforceable implementation for locked-memory plaintext custody.
+- The public CLI command list has no closed target-registration/enrollment or operator-to-supervisor authority path.
+- The migration profile still has unresolved normative choices.
+- Cleanup wording conditionally exposes the standing shared supervisor and overstates the currently expired predecessor as a publicly correct fallback.
+
+These prevent the coupled boundary from being ready for implementation as written.
+
+I do not treat the partial Fly driver, missing packaged files, hard-false capability facts, or shallow current journey receipt as standalone defects: the execution plans are allowed to schedule that implementation. The concerns below are places where an implementer would have to invent or change normative behavior.
+
+## 2. Strengths
+
+- LLP 0104 explicitly limits first publication to bounded children plus `existing-owner.v1`, keeps `create-owner.v1` rejected, requires current-source generation, and forbids laundering pre-hardening last-good artifacts.
+- Its session-authenticated Signal Desk flow is a meaningful improvement over the development-persona nonclaim and closes a real provenance gap.
+- The direct-artifact reconstruction, exact result/cardinality contract, current-incarnation checks, provenance storage typing, and quantitative effect checks form a strong admission boundary.
+- LLP 0105 honestly records the expired legacy hosted-auth chain, partial supervisor deployment, unqualified target, and false capability state.
+- The standing supervisor remains the intended single writer for control heads, provider effects, spend, cleanup, and admission authority.
+- The legacy TLS exception is narrowly scoped to one declared predecessor class, an exact lease, a one-use effect, an attested recipient, and a fixed command rather than arbitrary shell input.
+- The hosted receipt correctly demands public-origin evidence, the target-neutral ephemeral corpus, migration, LLP 0104, restore/TLS, cost, inspection, and cleanup rather than accepting a remote-shaped local harness.
+- Both documents consistently refuse stable promotion and preserve explicit GAPs until executable evidence exists.
+
+## 3. Concerns with evidence
+
+1. **MATERIAL — IN-DELTA: the LLP 0104 served-qualification gate is circular.**
+
+   LLP 0104 says ordinary codegen refuses the profiles and preserves the last-good graph while both target capabilities remain unsupported (§Implemented landing evidence and §Adversarial closure evidence, lines 1235–1239 and 1310–1314). The bundled Rust target registry likewise hard-codes both profiles unsupported, and target admission rejects required capabilities absent from the positive support set (`src/manifest.rs`, lines 5360–5363 and 6299–6305).
+
+   The new execution plan nevertheless requires current-source generation into the installed graph, a session product invocation, and the public Fly corpus before either capability enters a target support set (lines 1376–1397). LLP 0105 repeats the cycle by requiring LLP 0104 against the same served release before that target advertises the capabilities (lines 1119–1120 and 1133–1137).
+
+   No candidate graph slot, qualification-only authority, or non-advertised served execution lane is defined. An implementation must either advertise early, bypass capability admission, or fail to collect the required evidence.
+
+2. **MATERIAL — IN-DELTA: public cold-install precedes publication, and the nine-package promotion has no safe partial-failure state.**
+
+   LLP 0105 says the public macOS/arm64 and Linux/x64 cold-install receipts must pass before the nine-package release is published (lines 1133–1134). LLP 0041 defines public mode as accepting only a successful publication ledger, downloading exact public-registry tarballs, and checking their ledger-bound identities (lines 14–22). Those conditions cannot both hold.
+
+   The amendment also does not enumerate the nine package identities, exact versions/aliases, dependency pins, or the ninth package relative to LLP 0041’s existing eight-package closure. npm publication and dist-tag movement are not atomic across nine packages, yet no candidate tag, promotion order, or partial-publication stop rule preserves the prior default closure.
+
+   The receipt’s independent source, package, binary, target-image, and supervisor-image digests also need explicit cross-links; a bag of digests does not itself prove that the served binaries are the binaries from the public runtime packages built from the named clean source.
+
+3. **MATERIAL — IN-DELTA: the legacy certificate bootstrap lacks a complete consistency, custody, and crash-recovery protocol.**
+
+   The preceding normative TLS section requires admission withdrawal, Caddy quiescence, and predecessor resume on every pre-head failure (lines 784–794). The new exceptional path reads Caddy state through provider exec but never specifies how Caddy is quiesced, how zero writers are proved, or how it is resumed and publicly TLS-verified after a supervisor crash (lines 1052–1069). Copying live ACME/account state can produce a self-consistent archive format with inconsistent logical contents.
+
+   “Bounded archive” has no byte, member, per-file, decompression, or elapsed-time ceiling. “Locked process memory” and complete zeroization also have no assigned implementation mechanism. The bundled supervisor is Node and its current helper copies plaintext through ordinary `Buffer` operations while only zeroizing the data key; missing extraction code is allowed, but extending that path does not prove locked-memory/no-copy custody.
+
+   The lost-provider-response case is listed as a fixture but has no terminal rule explaining whether the one-use effect is abandoned, reconciled, or safely retried.
+
+4. **MATERIAL — IN-DELTA: the public command and operator-authority surface is not closed end to end.**
+
+   The original product journey requires registering or selecting the exact target (LLP 0105 line 289). The new exhaustive-looking command list has no target registration, planned-binding promotion, target enrollment, supervisor selection, or operator authentication command (lines 1086–1093).
+
+   It also does not state whether legacy certificate extraction is a subeffect of an existing lifecycle operation or a new closed request variant; the bundled Rust v2 lifecycle registry has no such operation. `backup` and `rollback` are presented without the plan/confirm/apply/reconcile grammar used for other effects.
+
+   Consequently, a clean installed CLI has no specified way to bind an operator principal, standing supervisor installation, target/planned binding, spend grant, confirmation, and enrollment without ambient or repository-private state.
+
+5. **MATERIAL — PRE-EXISTING: the migration capability still depends on unresolved normative decisions.**
+
+   LLP 0099 requires G1–G3 before `container-vm-migration-executor.v1` appears in a manifest (lines 202–221), but still leaves the admission point, cancellation race, downtime ceiling, and qualifying pre-apply checkpoint unresolved (lines 236–253).
+
+   LLP 0105’s earlier reconciliation assigns executor-job/checkpoint/receipt carriers, but does not choose enqueue-time versus barrier-time admission or define the initial measurable downtime ceiling. The new served gate nevertheless requires LLP 0099 execution and then advertises the capability. Those are design choices, not merely missing implementation.
+
+6. **MATERIAL — IN-DELTA: cleanup and failure preservation have an unsafe ambiguity.**
+
+   LLP 0105 earlier states that creating or deleting the pre-provisioned shared supervisor is never a journey effect (line 842). The new normative text says the old predecessor *and shared supervisor* are never cleanup targets “until” successor verification and reverse-window closure (lines 1127–1129), grammatically permitting both afterward.
+
+   The reverse-transition window has no exact closing artifact or predicate. Additionally, the checkpoint establishes that the predecessor already returns `SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED` (lines 965–974), so a pre-head failure cannot honestly be described as preserving a currently “publicly correct generation” without qualifying that claim.
+
+7. **DETAIL — IN-DELTA: the retained create-owner acceptance row conflicts with the narrowed publication corpus.**
+
+   Section 8.2 still requires a positive create-scope fixture producing a normalized plan and effect ceiling (lines 827–829), while the new controlling section reserves and rejects `create-owner.v1` and prohibits codegen, manifests, capabilities, Guide material, or receipts from describing it as supported (lines 1360–1367). The new section only declares precedence where it narrows the “implementation sequence,” leaving the executable-acceptance row formally live.
+
+## 4. Concrete resolution criteria
+
+1. **Break the LLP 0104 qualification cycle.**
+
+   Define a versioned candidate-generation state that:
+
+   - is emitted only from current source into a separate digest-addressed slot;
+   - cannot replace the active/last-good graph;
+   - is executable only under a receipt-bound qualification authority at the public origin;
+   - does not appear in ordinary supported capabilities or admit ordinary callers;
+   - exercises the identical executor, schema, function, and image bytes that will be promoted; and
+   - atomically promotes both capability facts and the candidate graph only after the complete receipt passes.
+
+   Failure must delete or quarantine only the candidate and leave the prior graph/control head unchanged. Tests must prove ordinary clients cannot invoke or discover candidate support.
+
+2. **Define a realizable nine-package publication state machine.**
+
+   Enumerate all nine source names, public aliases, exact versions, tarball hashes, dependency edges, and source SHA. Distinguish immutable candidate publication from default-channel promotion:
+
+   - pack and local-test first;
+   - publish immutable exact versions under a non-default candidate tag;
+   - create and verify the registry ledger;
+   - run both public cold installs against those exact registry versions;
+   - promote the root/default closure only after all rows pass; and
+   - flip served capabilities only after package promotion succeeds.
+
+   Internal dependencies must pin exact candidate versions so partially moved tags cannot create a mixed closure. Any failure must leave all prior default tags, target support, active graph, and control head unchanged; immutable candidate versions may remain quarantined. The receipt must prove byte equality from clean source through each runtime package into both target and supervisor images.
+
+3. **Close the legacy TLS state machine.**
+
+   Specify:
+
+   - the exact allowlisted Caddy paths, archive format, maximum members, per-file and total clear/ciphertext bytes, timeout, and mode/owner rules;
+   - a verified Caddy quiescence/zero-writer step before extraction;
+   - an automatic crash-safe resume path with predecessor TLS health proof for every pre-head failure;
+   - lease renewal and exact recipient-attestation verification;
+   - either source-side encryption before provider response, or a packaged native locked-memory helper with an explicit no-JS-string/no-copy boundary and zeroization evidence;
+   - terminal handling for lost response and supervisor crash; and
+   - a distinct custody confirmation bound to source, recipient, paths, effect ID, and deletion disposition.
+
+4. **Close the CLI-to-supervisor authority map.**
+
+   Add a mechanical table mapping every public command to:
+
+   - request schema and operation/effect kind;
+   - target or planned-binding resolution;
+   - operator authentication and supervisor installation fingerprint;
+   - required approval, confirmation, lease, spend grant, and migration authority;
+   - idempotency/reconciliation behavior; and
+   - whether the operation is read-only or supervisor-mutating.
+
+   Add an explicit target register/select/enroll path, or state precisely that `deploy plan` owns planned-binding creation and promotion. Place `legacyCertificateExtraction.v1` under one exact closed lifecycle variant. The clean-package test must construct and submit this flow without repository access or Fly/Tigris credentials in the CLI.
+
+5. **Resolve LLP 0099 before its served row can pass.**
+
+   A dated governing amendment must choose the admission point and cancellation semantics, define an initial downtime ceiling or closed calibration rule, and name the qualifying backup/checkpoint. The remote receipt must bind approval, admission, resident operation ID, backup boundary, interruption samples, terminal receipt, and all nine audience identities before the capability can appear.
+
+6. **Make cleanup disposition unambiguous.**
+
+   State unconditionally that the shared supervisor and immutable evidence prefix are never journey cleanup targets. Define a signed reverse-window-close artifact and exact predicates for withdrawing, retaining, or deleting predecessor Machine/volume/credentials. Failure receipts must report the predecessor’s actual availability and continuing cost; given the expired admission, they may claim preserved data/TLS generation but not currently correct protected serving.
+
+7. **Reconcile create-owner acceptance.**
+
+   Explicitly supersede the positive create-scope row for first publication. Require an existing-owner positive corpus plus create-owner rejection vectors, and move positive create-owner evaluation to its future evaluator/corpus gate.
+
+## 5. Per-target readiness
+
+- **LLP 0104 — NOT READY.** The profile semantics are largely implementation-ready, but the new publication section lacks a non-advertised candidate execution lane and leaves a contradictory create-owner acceptance row.
+- **LLP 0105 — NOT READY.** The package/publication order is impossible under LLP 0041’s public-mode definition, and TLS bootstrap, CLI authority, migration admission, and cleanup still require normative decisions.
+
+## 6. Set-level conclusion
+
+The documents now describe the right evidence and mostly the right safety posture, but they do not yet form one finite executable coupled plan. An implementation following them literally must either publish before qualifying, bypass capability authority, obtain public-install evidence before registry publication, or invent sensitive transition and cleanup behavior. Both targets should remain Review with all four capabilities false until the bounded criteria above are incorporated.
+
+I self-attest that I read both complete targets and supporting context only from the immutable capsule at `/private/tmp/snapback-super-refine-delta.c2O390`. I did not access the source worktree, repository outside the capsule, network, prior reviews, journals, Fable output, or another reviewer’s output, and I did not edit any file.
 
 VERDICT: NOT READY

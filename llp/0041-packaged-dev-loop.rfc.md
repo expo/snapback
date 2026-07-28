@@ -32,7 +32,7 @@ fencing. The packed external proof now requires the full vertical result;
 public npm and independent-machine gates remain open.)
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
@@ -45,6 +45,15 @@ workflow remains unexecuted on this working tree). 2026-07-24 (the provider-inde
 section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
+
+**Revised (nine-package candidate promotion):** 2026-07-28 (the next public
+closure uses immutable exact-version candidate publication, exact-registry
+cold proof, dependency-safe default-tag promotion with the CLI root last, and
+byte/provenance links from clean source through target and supervisor images.
+The round-2 reconciliation adds a refusing preflight over the current default
+closure, prior-tag inventory, ledger lineage, and verified-versus-attested
+provenance edges. The amendment defines gates only; it does not claim
+publication.)
 
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
@@ -162,6 +171,94 @@ developer-loop CLI.
 
 The packages may initially be private or prerelease, but demos must consume
 versioned artifacts instead of sibling-at-HEAD paths.
+
+### Nine-package candidate promotion — 2026-07-28
+
+This amendment is normative for the `0.1.1` backend-bakeoff closure and later
+releases unless superseded. The complete public source-to-alias inventory is:
+
+| Source package | Public registry identity |
+| --- | --- |
+| `@snapback/runtime-darwin-arm64` | `@ccheever/snapback-runtime-darwin-arm64` |
+| `@snapback/runtime-linux-x64` | `@ccheever/snapback-runtime-linux-x64` |
+| `@snapback/contract` | `@ccheever/snapback-contract` |
+| `@snapback/client` | `@ccheever/snapback-client` |
+| `@snapback/codegen` | `@ccheever/snapback-codegen` |
+| `@snapback/vite` | `@ccheever/snapback-vite` |
+| `@snapback/react` | `@ccheever/snapback-react` |
+| `@snapback/app-cli` | `@ccheever/snapback-app-cli` |
+| `@snapback/cli` | `@ccheever/snapback-cli` |
+
+`@snapback/hosted-supervisor` is not a tenth public package in this closure.
+Its image is built from the same clean source revision and is independently
+byte-bound in the hosted receipt. The public CLI tarball carries the Fly
+driver, hosted schemas, and hosted release packer required to talk to that
+standing service.
+
+Publication is a closed state machine:
+
+1. one clean source SHA produces all nine `0.1.1` tarballs; internal Snapback
+   dependencies are rewritten to exact `npm:` aliases at `0.1.1`, never tags
+   or ranges;
+2. both platforms pass repository-free tarball cold installs before any
+   registry mutation;
+3. the nine immutable exact versions publish in dependency order under the
+   non-default dist-tag `bakeoff-0-1-1-<source-sha12>`. A partial publish
+   cannot change any existing `latest` resolution;
+4. the publication ledger re-downloads every exact registry version, proves
+   its tarball digest equals the locally qualified tarball, and records source
+   name, public name, version, integrity, dependencies, source SHA, and
+   publication order;
+5. fresh macOS/arm64 and Linux/x64 machines install exact public aliases at
+   `0.1.1` using only that successful candidate ledger. These are the
+   pre-promotion public-registry cold receipts; they do not resolve `latest`;
+6. default-tag promotion moves dependency/runtime packages first and
+   `@ccheever/snapback-cli` last. The verifier reopens the entire exact closure
+   after every move. Because the old CLI root pins its old exact closure, any
+   failure before the final root move leaves the previous default developer
+   loop intact. Candidate versions remain immutable and quarantined rather
+   than being unpublished; and
+7. after the CLI root moves, both platforms perform one final fresh
+   `latest`-root install and prove that it resolves exactly the candidate
+   ledger. Failure blocks served capability publication and moves the CLI root
+   back to its recorded prior tag when npm permits; if the root move cannot be
+   reversed, the release receipt is failed loudly and no target capability
+   carrier may reference it.
+
+The release receipt is not a bag of hashes. It proves a directed provenance
+chain:
+
+`clean source SHA → staged package file digests → registry tarball digests →
+runtime binary digests → target/supervisor build contexts → OCI image
+digests`.
+
+The hosted packer records every edge and the verifier reopens it. Target and
+supervisor images must name the same source SHA; declared skew is not permitted
+for this release. LLP 0105's capability-publication carrier may reference only
+the successful post-promotion ledger and both final `latest` cold receipts.
+
+Before the first default-tag mutation, a refusing
+`PriorDefaultClosurePreflightV1` downloads the current `latest` root and every
+transitively selected Snapback tarball. It parses the retained registry bytes
+and proves every internal dependency and optional dependency is an exact
+`npm:` alias pin with an exact version—never a range or tag. It records every
+package's prior tag state and identifies first-publish packages such as React,
+for which rollback means removing the newly created default tag rather than
+restoring a prior one. A missing tarball, range, alias mismatch, or unknown
+prior tag fails the release receipt before any tag changes.
+
+The post-promotion ledger is a canonical extension of the candidate ledger:
+it retains the candidate-ledger digest as `previousLedgerSha256`, adds the
+ordered prior/new tag observations and both final `latest` cold receipts, and
+has its own content digest. Qualification names the candidate ledger; the
+capability carrier names the post-promotion extension, so lineage is
+mechanically reopened rather than inferred.
+
+Registry tarball → staged file → runtime/build-context → OCI layer edges are
+byte-reverified. Clean-source → compiled binary is a clean-run attestation
+bound to the source SHA, builder image, toolchain digests, command transcript,
+and resulting binary digest; it is not described as independently
+reproducible unless a separate reproducible-build row passes.
 
 ### CLI commands
 
@@ -333,7 +430,7 @@ outside the root workspace and exercise independent consumer setups.
 
 ## Status
 
-Draft. The Apple-silicon macOS tarball closure and external-directory loop are
+Review. The Apple-silicon macOS tarball closure and external-directory loop are
 implemented and retained by
 `scripts/snapback-package-cold-install.mjs`: packed runtime launch, `new`,
 offline `generate`, managed `dev`, ready-file attach, watched regeneration and
@@ -343,13 +440,12 @@ runtime/storage/live vertical slice rather than only `--help`. That is not yet
 the RFC exit. The public `@ccheever/snapback-*` alias set is decided and staged
 from `@snapback/*` source identities, and the complete eight-package `0.1.0`
 closure is now public under `latest` with a byte-bound publication ledger. The
-fail-closed public-registry instrument and its two-platform clean-machine
-aggregation workflow exist, but they have not yet executed against that
-publication. The prior tarball proof on a development host and the
-clean-Ubuntu staged-registry proof at workflow run `30215680492`, revision
-`ca92d029`, remain useful checkpoints. The authoritative public-registry
-executions completed in GitHub Actions run `30216614778` on new macOS/arm64 and
-Linux/x64 machines, and the retained aggregate now satisfies the packaged-loop
-claim with no nonclaims. LLP 0041 remains Draft only because its proposal
-status still awaits the normal document-acceptance decision, not because an
-executable acceptance item remains open.
+fail-closed public-registry instrument and two-platform aggregation were first
+staged without public execution; the prior development-host tarball proof and
+clean-Ubuntu staged-registry workflow run `30215680492`, revision `ca92d029`,
+remain those checkpoints. The later authoritative public-registry executions
+completed in GitHub Actions run `30216614778` on new macOS/arm64 and Linux/x64
+machines, and the retained aggregate satisfies the `0.1.0` packaged-loop claim
+with no nonclaims. LLP 0041 remains Review pending the normal
+document-acceptance decision. The distinct `0.1.1` candidate-promotion
+amendment above remains unexecuted.

@@ -1,12 +1,20 @@
 # LLP 0099 — Container-VM migration-executor conformance profile
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Review
 **Systems:** Migrations, Deployment, Storage, Backup and restore, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-26
-**Revised:** —
-**Related:** LLP 0072, LLP 0081, LLP 0007, LLP 0014, LLP 0063, LLP 0075, LLP 0076, LLP 0098
+**Revised:** 2026-07-28 (LLP 0108 corrective reconciliation: trusted absolute
+deadline, reboot-safe budget exhaustion, admission expiry, and exact
+forward/recovery cutoffs). 2026-07-28 (round-2 reconciliation: admission binds a backup
+policy then an exact supplemental checkpoint; cancellation uses LLP 0081's
+states and a signed generation; the 180-second ceiling reserves bounded
+abort/reopen time). 2026-07-28 (first hosted executor decisions: enqueue
+admission with barrier re-proof, checkpointed cancellation, a 180-second
+initial downtime ceiling, streaming-backup qualification, and closed receipt
+identities)
+**Related:** LLP 0072, LLP 0081, LLP 0007, LLP 0014, LLP 0063, LLP 0075, LLP 0076, LLP 0098, LLP 0105, LLP 0108
 
 ## Summary
 
@@ -220,6 +228,161 @@ Ordered, each gating the next; none is claimed today:
 Until G3, `container-vm-migration-executor.v1` appears nowhere in any
 capability manifest and no artifact may require it.
 
+## First hosted executor decisions — 2026-07-28
+
+This section resolves the normative choices that gate G2/G3.
+
+### Admission and cancellation
+
+The standing supervisor admits at enqueue. It persists a signed
+`MigrationAdmissionV1` before the executor job becomes runnable, binding the
+approval, plan/input digest, target binding/control head, active generation,
+source schema, backup policy, migration audience, supervisor enqueue-lease
+epoch, replay floor, and `admissionExpiresAt`. It does not yet name a backup
+artifact or barrier lease that does not exist. Creating the qualifying backup
+is the first admitted physical effect.
+
+The closed order is:
+
+1. persist `MigrationAdmissionV1` with the backup policy and expected source
+   head/schema/version;
+2. create and read back the streaming backup, restore it into isolation, and
+   open it at the captured source version;
+3. append a signed `MigrationCheckpointV1` to the same admission, binding the
+   exact backup/restore evidence and a newly acquired barrier-lease epoch;
+4. acquire the application barrier, then require the current source
+   head/schema/version to equal the checkpoint. Drift releases the barrier,
+   marks the checkpoint stale, and requires a new admission/checkpoint; and
+5. begin migration batches only after that exact re-proof.
+
+No source fence is claimed while the online backup runs. Safety comes from the
+exact equality check under the later barrier, not from assuming the source was
+quiet. Crashes and cancellation before, during, or after backup replay from the
+operation journal; a complete artifact can be adopted only through the exact
+checkpoint append, and an incomplete artifact is cleanup-only.
+
+Cancellation is a monotone, supervisor-signed `MigrationCancellationV1`
+generation stored in the external head and copied into the target journal.
+The target must freshly prove that generation at every durable batch boundary
+and immediately before `published-held`; partition or stale proof aborts before
+publication. Before the barrier, `admitted → cancel_requested → aborting →
+cancelled` occurs with no application write. During
+`executing(step,batch)`, the same existing LLP 0081 states reach the next
+durable checkpoint and then `aborting → cancelled`. These are mappings onto
+LLP 0081's closed vocabulary, not new journal states. After
+`published-held`, cancel cannot unpublish and is translated into a separately
+approved compatible rollback. Lost responses are reconciled from journal and
+external head rather than CLI timeout.
+
+### Downtime ceiling and checkpoint
+
+The initial `container-vm-migration-executor.v1` profile ceiling is
+`180000 ms`, measured from successful write-withdrawal/barrier acquisition
+until either successor publication health or predecessor reopen health.
+
+The profile reserves the final `45000 ms` for abort and predecessor reopen.
+Forward work has a hard `135000 ms` cutoff. Every non-interruptible batch is
+limited to `5000 ms` by the SQLite progress interrupt and checked before and
+after commit, so abort begins no later than `140000 ms`. Qualification must
+prove a worst observed abort-plus-reopen bound plus 50% margin no greater than
+`40000 ms`; otherwise this profile remains unsupported. The remaining
+`5000 ms` is fixed scheduling margin.
+
+Barrier start and accumulated downtime are recorded from a monotonic clock in
+the durable journal. Crash resume reconstructs the remaining budget from
+journaled elapsed intervals and may never reset it. Rehearsal p95 is admission
+evidence only, measured from barrier acquisition through the same public-health
+or predecessor-health terminal; it cannot relax the forward cutoff. If provider
+behavior nevertheless exceeds 180 seconds, the run is a conformance failure,
+the capability carrier is revoked, and the receipt reports the violation—no
+provider SLA is inferred.
+
+At every checkpoint and final publication the target freshly verifies the
+signed cancellation generation and supervisor/control head. Network partition,
+stale cancellation state, uncertain reopen, or uncertain publication refuses
+forward progress and enters journaled reconciliation. An operation that begins
+abort cannot later publish. Raising the ceiling or either reserved bound
+requires a dated amendment and a new remote corpus.
+
+The qualifying pre-apply checkpoint is the existing streaming SQLite backup to
+the separately permissioned Tigris object-store prefix. It must be complete,
+content-addressed, integrity-checked, restored into an isolated volume, and
+opened at the exact source schema/durable version/replay floor before the
+supplemental `MigrationCheckpointV1` and barrier re-proof.
+A provider volume snapshot may be retained as supplemental evidence but never
+satisfies `SNAPBACK_MIGRATION_BACKUP_REQUIRED`.
+
+### Closed remote receipt
+
+The G3 receipt binds the approval, admission, rehearsal, resident executor job
+and operation id, every durable checkpoint, qualifying backup/isolated restore,
+barrier and downtime samples, terminal executor receipt, rollback expected
+value, target binding/control head, source and target images, and the exact
+nine-package publication ledger identities from LLP 0041. Every audience named
+by the migration plan is enumerated and proven; no summarized "package set"
+field substitutes for the nine exact package name/version/digest triples.
+
+The standing supervisor's external database is the authority for approval,
+admission, cancellation, and consumed-rehearsal records, with its monotone
+Tigris mirror and incarnation/head recovery rules from LLP 0105. The target
+process holds only the resident executor journal and cannot mint or renew
+control-plane approval.
+
+These decisions close open questions 1–4 for this profile. The questions remain
+historical context for other hosted profiles and future ceiling changes.
+
+### Corrective deadline and admission closure — 2026-07-28
+
+The monotonic-clock reconstruction above is superseded by a
+supervisor-signed `MigrationDeadlineV1`, persisted in both the external head
+and target journal before the barrier:
+
+```text
+{
+  admissionId,
+  barrierStartedAt,
+  noNewBatchAt,
+  abortMustBeginBy,
+  successorOrRollbackDecisionBy,
+  terminalHealthBy,
+  supervisorTimeHead,
+  signature
+}
+```
+
+The supervisor obtains time from its trusted control-plane clock and fixes
+`noNewBatchAt = barrierStartedAt + 135 s`,
+`abortMustBeginBy = barrierStartedAt + 140 s`,
+`successorOrRollbackDecisionBy = barrierStartedAt + 140 s`, and
+`terminalHealthBy = barrierStartedAt + 180 s`. The target's monotonic clock is
+used only to fail earlier. Restart, stop/start, replacement, backwards wall
+clock, unavailable supervisor time, or uncertainty about elapsed downtime
+conservatively exhausts the affected budget and enters abort/reconciliation;
+no process may create a fresh barrier timestamp for the same admission.
+
+The 5-second value is the maximum allowance for the one batch already running
+at the 135-second forward cutoff. It is inside the 45-second recovery reserve,
+leaving 40 seconds for abort, predecessor reopen, and public health. No new
+batch starts at or after 135 seconds. The current batch is interrupted and its
+transaction resolved by 140 seconds, when abort must already be under way.
+
+For a pre-publication run, predecessor health must be proved by 180 seconds.
+For `published-held`, the successor must be healthy by the 140-second decision
+point or the supervisor invokes a pre-authorized, generation-bound republish
+rollback whose public health must be proved by 180 seconds. After the terminal
+deadline no late successor, predecessor, or rollback result is accepted as
+success. The run remains fenced, reports the conformance failure, and revokes
+the migration claim family under LLP 0108.
+
+`MigrationAdmissionV1.admissionExpiresAt` is monotone. If it expires before the
+checkpoint/barrier, `admitted -> abandoned` is recorded, incomplete artifacts
+are cleanup-only, and a new approval/admission/checkpoint is required. Expiry
+during backup aborts and cleans the partial backup. Source durable-head,
+schema, stream-incarnation, or version drift at barrier invalidates the
+admission as well as the checkpoint; the executor releases the barrier and
+starts again from a fresh admission. Neither reboot nor operator retry can
+revive an abandoned/stale admission.
+
 ## Non-goals
 
 - everything LLP 0081 excludes (no rolling/zero-downtime migration, no
@@ -233,21 +396,29 @@ capability manifest and no artifact may require it.
   both lines at production quality, sequenced, not one line instead of the
   other.
 
-## Open questions
+## Historical open questions — resolved for this profile on 2026-07-28
+
+The following questions are retained as provenance. The controlling answers are
+the dated decisions above; they are not open implementation choices for this
+profile.
 
 1. Where does the control plane persist approval and rehearsal-receipt
    records before LLP 0072's control-plane store exists? (Adjacent to LLP
-   0072 open question 4 — the paved operator credential/store experience.)
+   0072 open question 4.) **Resolved:** the standing supervisor's external
+   database plus monotone mirror.
 2. Admission timing: LLP 0081 §2 lets each hosted profile fix its own
    admission point. Control-plane enqueue ahead of the barrier (admission
    record written at enqueue, re-proved at barrier) is the working
    assumption; at-barrier admission like the local profile is simpler but
-   makes `cancel` a race. Decide with the G2 executor arm.
+   makes `cancel` a race. **Resolved:** enqueue admission with barrier re-proof
+   and a signed monotone cancellation generation.
 3. Should the profile's declared downtime ceiling be recalibrated from
    remote measurements (provider restart latency is part of the barrier
    window on this adapter), and does LLP 0072 open question 3's measured
-   ceiling subsume it?
+   ceiling subsume it? **Resolved:** fixed 180-second ceiling with explicit
+   forward/recovery budgets; measurements admit or refuse but never recalibrate.
 4. Is the pre-apply checkpoint a provider volume snapshot or the existing
    streaming SQLite backup to the separately permissioned object store —
    and if both are offered, which one satisfies
-   `SNAPBACK_MIGRATION_BACKUP_REQUIRED`?
+   `SNAPBACK_MIGRATION_BACKUP_REQUIRED`? **Resolved:** verified streaming
+   SQLite backup; provider snapshots are supplemental only.

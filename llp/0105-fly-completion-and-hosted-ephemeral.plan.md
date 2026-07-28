@@ -5,7 +5,17 @@
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-27 (round-1 author reconciliation: expiring
+**Revised:** 2026-07-28 (LLP 0108 corrective reconciliation: closed
+operator/root lifecycle, release-upload separation, self-expiring claim
+families, and ledger lineage). 2026-07-28 (post-bakeoff round-2 reconciliation: root-signed
+operator enrollment and scopes, exact first-publication claim semantics,
+capability-only revocation, legacy disposition equivalence, and staged-target
+adoption). 2026-07-28 (post-bakeoff round-1 reconciliation: qualification
+promotion carrier, candidate registry state machine, bounded native TLS bridge,
+closed operator/command authority, migration decisions, and unambiguous
+cleanup). 2026-07-28 (post-bakeoff execution amendment: explicit legacy
+certificate bootstrap, public-package closure, served corpus identities, and
+cutover/cleanup stop rules). 2026-07-27 (round-1 author reconciliation: expiring
 machine-bound routing admission, exact lifecycle-v2 carriers and handoff,
 opaque ephemeral authority negotiation, distinct TLS replacement classes,
 online admission renewal, versioned target/credential binding, raw evidence,
@@ -1030,3 +1040,497 @@ pass locally. The currently installed supervisor image predates this
 checkpoint, so a rebuilt image, real successor journey, restart/republish
 corpus, and remote receipts remain required; `ephemeralHostedAdapter` stays
 false.
+
+## Post-bakeoff execution amendment — 2026-07-28
+
+This section is normative where it conflicts with the earlier implementation
+sequence or transition text. It closes the gaps found while attempting to
+execute the public journey; it does not claim that the journey has passed.
+
+### Legacy certificate bootstrap
+
+The cert-only predecessor has no outbound supervisor-mTLS agent. Therefore the
+ordinary certificate-recipient protocol cannot begin by asking that
+predecessor to use a channel it does not possess.
+
+The one permitted transition bootstrap is a journaled, one-use
+`legacyCertificateExtraction.v1` provider effect under the exact predecessor
+Machine lease and transition spend grant:
+
+1. fresh provider read-back proves the expected sole routed predecessor,
+   exact image/version, public origin, and unchanged ownership sentinel;
+2. the successor is non-routed, volume-bound, and supplies the attested
+   in-memory X25519 recipient key from the existing recipient protocol;
+3. the supervisor invokes Fly Machine exec against that exact predecessor
+   with a fixed, content-addressed extractor command. The command reads only
+   the allowlisted Caddy state paths, validates ownership/modes and a closed
+   secret-free manifest, and streams one bounded archive. No arbitrary
+   operator command, path, or shell fragment is accepted;
+4. the supervisor keeps the provider response and plaintext archive only in
+   locked process memory, immediately encrypts it to the attested successor,
+   persists only ciphertext/wrapped key/manifest, zeroizes plaintext buffers,
+   and records only redacted provider request/response digests;
+5. the successor installs and proves certificate/account/key identity before
+   any route or head change; and
+6. every pre-head failure leaves the predecessor routed and deletes partial
+   successor/transfer state. After `headAdvanced`, only the closed cutover
+   recovery table applies.
+
+Provider-exec extraction is restricted to this declared legacy source class.
+Every successor and all later transitions use the outbound mTLS channel.
+Fixtures prove wrong Machine/version/path, oversized output, extra archive
+members, mode mismatch, truncated or corrupt output, lost provider response,
+replay, recipient mismatch, supervisor crash before/after encryption, and
+cleanup. The final receipt identifies this exceptional custody path without
+retaining certificate bytes.
+
+### Public package and command closure
+
+The public CLI package must include the Fly driver, its immutable digest, the
+hosted release packer, the generated v2 schemas, and a high-level
+`snapback hosted` command family. Repository-relative `scripts/` and sibling
+workspace imports cannot satisfy the journey. The command family exposes:
+
+- `hosted doctor|inspect`;
+- `hosted release pack`;
+- `hosted deploy plan|confirm|apply|reconcile`;
+- `hosted backup`;
+- `hosted restore plan|confirm|apply|activate`;
+- `hosted rollback`;
+- `hosted logs|inspect-admin|cost`; and
+- `hosted cleanup plan|confirm|apply`.
+
+Each mutating command submits the closed request to the standing supervisor;
+the installed CLI never becomes a second Fly/Tigris writer. The package test
+unpacks the tarball into a temporary directory, removes repository access, and
+proves every driver/packer/schema path and command help/import before any
+remote effect.
+
+The Fly driver implements every v1 spelling plus the five v2 additions in the
+mechanical operation registry. Each effect records durable intent before the
+provider call, raw redacted evidence, immutable terminal status, and explicit
+reconciliation after uncertainty. `inspectAdmin` combines authenticated served
+inspection with provider/control-head read-back instead of returning a
+provider-only approximation.
+
+### Served evidence and release gate
+
+The completed receipt binds one clean source SHA, package-tarball digests,
+Linux image digest, supervisor image/incarnation, target binding/control head,
+predecessor and successor identities, and every subordinate artifact digest.
+Its verifier reopens the artifacts and requires:
+
+- public-origin health/auth/data/live/ephemeral checks under the successor
+  head;
+- the complete target-neutral hosted ephemeral restart/republish corpus;
+- LLP 0099 resident migration execution and interruption evidence;
+- LLP 0104 bounded-relation and existing-owner activity corpus against the
+  same served release;
+- backup read-back, fresh-volume restore, restore activation, compatible
+  rollback, TLS continuity, logs/admin inspection, cost, and nonclaims; and
+- exact cleanup absence for disposable helpers, transfer objects/keys,
+  temporary credentials, leases, and test prefixes.
+
+No verifier infers success from skipped rows or a successful provider HTTP
+status. The old predecessor and shared supervisor are never cleanup targets
+until the successor is sole-routed, head-bound, admitted, publicly verified,
+and the reverse-transition window is closed. On failure, cleanup removes only
+sentinel-owned disposable resources and preserves the last publicly correct
+generation plus the evidence needed to resume.
+
+Only after this receipt and the public macOS/arm64 and Linux/x64 cold-install
+receipts pass may the nine-package release be published and the served target
+advertise `ephemeralHostedAdapter`,
+`container-vm-migration-executor.v1`, `bounded_children_v1`, or
+`write_activity_v1`.
+
+## Post-bakeoff round-1 reconciliation — 2026-07-28
+
+This section is normative where it tightens or supersedes the post-bakeoff
+execution amendment. LLP 0041's dated candidate-promotion amendment, LLP 0099's
+dated executor decisions, and LLP 0104's candidate/applicability amendment are
+part of this same executable gate.
+
+### Qualification, package promotion, and capability publication
+
+The product journey uses LLP 0104's digest-addressed
+`QualificationGenerationV1` and one-use `QualificationGrantV1`. A candidate
+graph can run at the public origin only for the receipt-bound acceptance
+principal; it is absent from ordinary discovery and the target continues to
+advertise a GAP. The qualification route is not a second general capability
+authority and is consumed or expires before publication.
+
+The standing supervisor alone commits the Rust-owned
+`CapabilityPublicationV1` into the target control head. In addition to LLP
+0104's fields, its closed claim set is:
+
+- target capabilities `bounded_children_v1` and `write_activity_v1`;
+- hosted claim `ephemeralHostedAdapter`; and
+- migration profile `container-vm-migration-executor.v1`.
+
+Each entry has its own profile version, maturity/nonclaim facts, and evidence
+digest; one missing or mismatched entry remains a GAP without weakening the
+others. The carrier binds the running target and supervisor images to the same
+clean source SHA, the complete qualification receipt, the exact nine-package
+post-promotion ledger and cold receipts from LLP 0041, the target-neutral
+ephemeral receipt, the LLP 0099 migration receipt, and the LLP 0104
+applicability-partitioned receipt. The target refuses the whole carrier when
+its signature, control head, running image, active graph, or package provenance
+does not match.
+
+The executable order is:
+
+1. pack and locally cold-test all nine exact package tarballs;
+2. publish their immutable exact versions under the non-default candidate tag,
+   create the candidate ledger, and run both exact-version public cold installs;
+3. build target and supervisor images from the same clean source and the exact
+   candidate package bytes, then complete local and hidden served qualification;
+4. complete the hosted ephemeral, migration, relation/activity, TLS,
+   backup/restore/rollback, cost, inspection, and cleanup qualification receipt;
+5. promote the default npm closure under LLP 0041's dependency-first,
+   CLI-root-last rule and pass both final `latest` cold installs;
+6. CAS the candidate graph and `CapabilityPublicationV1` into the target head;
+   and
+7. record the post-CAS public observation receipt. Failure at step 7 immediately
+   revokes the carrier to GAP while retaining the prior graph and evidence.
+
+Thus immutable candidate publication occurs before public-registry proof;
+default-channel promotion and served advertisement occur only after
+qualification. Immutable failed candidates may remain quarantined. They never
+change `latest`, the active graph, or target support. The public closure is the
+nine packages enumerated by LLP 0041; the hosted supervisor is an image-bound
+component, not an unlisted tenth registry package.
+
+### Closed legacy certificate transition
+
+`legacyCertificateExtraction.v1` is a semantic subeffect of the existing
+`activateGeneration` lifecycle operation for exactly the declared legacy
+source class. It is not a new top-level adapter spelling. Its intent, lease,
+spend, uncertainty, reconciliation, and terminal record use the same v2 effect
+journal as every other provider effect.
+
+The legacy binding substitutes an owner-approved pinned identity for a
+sentinel the old Machine never had: exact Fly app, Machine id/version, image
+digest, volume id, region, public origin/certificate fingerprint, and the
+predecessor ownership-record digest. Every pre-effect read must match all
+members.
+
+The fixed provider-exec program:
+
+- addresses only `/data/caddy`;
+- admits POSIX-ustar directory and regular-file members only, no symlinks,
+  hard links, devices, sockets, absolute paths, `..`, duplicate paths, sparse
+  members, extensions, or trailing data;
+- permits at most 4,096 members, 8 MiB per file, 32 MiB cleartext total,
+  40 MiB ciphertext total, and 60 seconds elapsed;
+- validates each member against a closed path/mode/uid/gid manifest derived
+  from the pinned predecessor image; and
+- uses one exact Caddy PID/executable digest. Under a fixed process lock it
+  sends `SIGSTOP`, proves that PID is stopped and no other process has an open
+  descriptor below `/data/caddy`, emits the archive, then sends `SIGCONT` in a
+  trap. A separate fixed recovery command is safe to replay and resumes the
+  same pinned PID.
+
+The supervisor image contains a native `snapback-cert-bridge` helper. That
+helper, not Node or JavaScript, owns the Fly exec HTTPS exchange and secret
+response. It preallocates and locks fixed-size memory, rejects overflow before
+copy, never creates a JavaScript string/Buffer or plaintext file, encrypts
+directly to the attested successor X25519 key, zeroizes and unlocks on every
+exit, and returns only ciphertext plus redacted metadata to the Node
+supervisor. Its binary digest and locked-memory/zeroization corpus are receipt
+members. Fly's control plane necessarily carries the plaintext exec response;
+provider compromise during that bounded exchange is an explicit residual.
+
+Every pre-head exit runs recovery, proves the predecessor PID resumed, and
+probes the prior public certificate/TLS response. A lost exec response or
+supervisor crash remains `commitUncertain` until reconciliation. If the exact
+encrypted artifact exists and validates, reconciliation appends an immutable
+`applied` record referring to the uncertain intent. Otherwise, after resume
+and public TLS proof it appends `notApplied`; a new intent, recipient key, and
+effect id may retry. "One-use" means at most one successfully applied transfer,
+not one transport attempt. After ciphertext creation the successor's existing
+recipient protocol installs atomically and proves account/certificate/key
+identity. The custody receipt binds source and recipient identities, member
+manifest, effect id, resume proof, ciphertext deletion, key deletion, and
+terminal disposition without certificate bytes.
+
+### Public operator and command authority
+
+The installed CLI begins with `hosted supervisor enroll`. It generates device
+Ed25519/X25519 keys in the OS credential store, consumes a one-use,
+ten-minute `SupervisorEnrollmentBundleV1`, pins the supervisor endpoint and
+server certificate fingerprint, and obtains an operator client certificate
+bound to subject, device key, and scopes. The private key and renewable
+credential never enter repository files or CLI JSON. A CI enrollment uses an
+owner-provided mode-0600 one-use bundle, stores credentials only in its
+ephemeral keychain, and deletes the bundle after exchange.
+
+`hosted target register` submits the closed target descriptor and creates the
+planned binding; `hosted target select` changes only the local nonsecret target
+pointer. `deploy plan` resolves that planned binding and owns its
+provider-assigned-id promotion to a registered binding. Every supervisor
+request uses mTLS plus a device-key signature and carries operator subject,
+supervisor installation fingerprint, target/planned-binding digest, request
+id, expiry, and required scopes.
+
+The mechanical command registry maps:
+
+| Command group | Closed request/authority |
+| --- | --- |
+| `supervisor enroll`; `target register|select` | one-use enrollment; register mutation or local-only selection |
+| `doctor|inspect|logs|inspect-admin|cost` | supervisor-signed read request; the supervisor performs provider/control/served read-back |
+| `release pack` | local deterministic pack only; no provider or registry credential |
+| `deploy plan|confirm|apply|reconcile` | planned binding, approval, spend grant, lease, effect journal; `apply` streams the bounded content-addressed release to the supervisor, which alone owns Fly registry credentials |
+| `backup plan|confirm|apply|reconcile` | exact target/head, destructive-write scope, spend, lease, idempotent backup effect |
+| `restore plan|confirm|apply|activate|reconcile` | backup identity, restore approval, spend, lease, migration authority where required, activation/head CAS |
+| `rollback plan|confirm|apply|reconcile` | compatible held generation, rollback approval, spend, lease, head CAS |
+| `cleanup plan|confirm|apply|reconcile` | sentinel inventory, cleanup reserve, destroy grant, lease, continuing-cost reconciliation |
+
+No read command holds Fly or Tigris credentials. No mutating command directly
+writes Fly/Tigris. npm candidate publication is the separately confirmed LLP
+0041 publisher path and uses the operator's npm authority; it grants no hosted
+provider authority. The clean-tarball test enrolls a fixture operator,
+registers/selects a target, plans/confirms/submits every group, and proves the
+CLI has neither repository access nor Fly/Tigris credentials.
+
+### Migration and cleanup closure
+
+LLP 0099's dated amendment fixes enqueue admission with barrier re-proof,
+checkpointed cancellation, a 180-second ceiling, and the qualifying streaming
+backup. The served receipt reopens all those decisions and every exact
+package/audience identity before publishing
+`container-vm-migration-executor.v1`.
+
+The shared standing supervisor, its monotone authority store, and the immutable
+evidence prefix are never journey cleanup targets. The predecessor is not
+described as currently correct protected serving while its hosted admission is
+expired; before cutover it is the preserved data/TLS generation with an exact
+continuing-cost and availability report.
+
+A predecessor Machine, volume, or credential becomes eligible for destruction
+only after a signed `ReverseTransitionClosedV1` records:
+
+- the post-CAS publication receipt and a fresh verified backup/isolated restore;
+- at least 60 continuous minutes of successor public health, twelve five-minute
+  probes, and ten consecutive admission renewals;
+- sole routing, current target/control head, no unresolved/uncertain effect,
+  no pending rollback request, and zero disposable-resource cleanup residual;
+- the exact predecessor inventory and continuing cost; and
+- a separate one-use operator destroy grant issued after `notBefore`.
+
+Machine, volume, and credential dispositions are separate confirmed effects;
+failure of one cannot imply absence of another. Until that artifact and grant
+exist the predecessor is retained. Afterward only sentinel-owned predecessor
+resources may be removed; the shared supervisor and evidence remain. Every
+failure receipt reports what still serves, what data/TLS generation remains,
+and what continues to cost money instead of claiming a generically "publicly
+correct generation."
+
+Superseded round vocabulary remains non-controlling under the dated
+amendments. A consolidation pass after first publication will remove it
+without weakening the reviewed carriers or gates.
+
+## Post-bakeoff round-2 reconciliation — 2026-07-28
+
+This section closes the operator trust root, request scope/replay protocol,
+claim-family publication, post-CAS revocation, and remaining legacy/adoption
+details. LLP 0104's registered qualification and local-carrier amendment, LLP
+0058/0094's gate/wire amendments, LLP 0099's reconciled executor state machine,
+and LLP 0041's prior-closure preflight are part of the same landing.
+
+### Standing-supervisor root and operator protocol
+
+Bootstrap creates one `SupervisorInstallationRootV1`: an Ed25519 signing root,
+an X.509 client-CA identity, supervisor endpoint/certificate fingerprint,
+installation id/incarnation floor, and external-store head. Private root
+material is encrypted in the external authority store and usable only by the
+standing supervisor. Bootstrap returns the initial owner device certificate
+once, before the public listener is enabled; its public fingerprint is
+journaled. The root public bytes and installation fingerprint are retained in
+the public bootstrap receipt.
+
+An enrollment bundle can be minted only by a current owner device holding
+`operator.enroll`. `SupervisorEnrollmentBundleV1` is canonical JCS signed by
+the installation root over schema version, root key id, bundle id/nonce,
+installation fingerprint, intended subject, maximum scopes, device
+proof-of-possession challenge, issuance, and expiry of at most ten minutes.
+Issuance writes an unused nonce record to the monotone external database before
+returning bytes. Consumption supplies the new device Ed25519/X25519 public keys
+and a signature over the challenge; one external-head CAS changes
+`unused → consumed` and issues `SupervisorOperatorCertificateV1`. Concurrent,
+expired, cross-installation, or replayed consumption refuses.
+
+Operator certificates are valid at most 24 hours. Renewal before expiry
+requires the current mTLS certificate, device-key signature, unchanged subject,
+and current revocation generation; after expiry a new owner-issued bundle is
+required. Owner revocation increments a monotone
+`operatorRevocationGeneration` and identifies the device key. Root recovery or
+rotation must prove the external head and mirror are not behind before minting;
+uncertain/regressed state disables enrollment and all mutating requests. Root
+rotation is a dual-signed control-head CAS, never replacement by restored
+database bytes.
+
+Every request is canonical `SupervisorRequestV1`, device-signed over
+installation/root ids, operator certificate digest, revocation generation,
+monotone per-device request sequence, request/idempotency ids, command scope,
+target or planned-binding digest, body digest, issued time, and expiry.
+The external database atomically retains the highest sequence and exact
+response digest. Exact replay returns the retained response; a reused sequence
+with different bytes or a lower sequence refuses, including after supervisor
+recovery.
+
+The closed scope vocabulary is:
+
+- `operator.enroll`, `supervisor.read`, and `target.register`;
+- `release.upload`;
+- `deploy.plan|confirm|apply|reconcile`;
+- `backup.plan|confirm|apply|reconcile`;
+- `restore.plan|confirm|apply|activate|reconcile`;
+- `rollback.plan|confirm|apply|reconcile`; and
+- `cleanup.plan|confirm|apply|reconcile`.
+
+Each mechanical command-registry row maps to exactly one scope above and denies
+unknown or missing scopes. `target select` and `release pack` are local-only.
+Read commands are device/operator-signed requests under `supervisor.read`; the
+supervisor returns a signed response. They are not "supervisor-signed
+requests." Negative tests cover every command × wrong-scope pair, revoked or
+expired device, root rotation, restored old database, sequence replay, body
+substitution, and cross-installation certificates.
+
+### First publication and revocation
+
+The first `CapabilityPublicationV1` CAS requires all three claim families and
+all four positive claims: atomic relation/activity
+(`bounded_children_v1` plus `write_activity_v1`), hosted ephemeral, and
+migration. A missing first-publication receipt blocks the whole initial CAS.
+After a successful first publication, later validation or revocation may
+withdraw hosted-ephemeral or migration independently; the relation/activity
+pair always changes state together.
+
+Post-CAS observation has a hard 120-second window. Timeout or failed
+observation causes a new control-head CAS that withdraws only the affected
+capability claim family. The promoted generation remains active, but its
+functions immediately refuse through their function-level capability
+requirements. Generation demotion is a separate, journaled, compatibility-
+checked rollback and is never an automatic consequence of capability
+revocation. This rule is identical in LLP 0104.
+
+The post-CAS wording "retain the prior graph" is therefore superseded. The
+predecessor graph may remain stored for an explicitly approved compatible
+rollback, but it is not silently reactivated after new-generation writes.
+
+### Legacy and staged-target closure
+
+The owner-approved pinned legacy identity is the exact sentinel substitute for
+all predecessor disposition effects. "Sentinel-owned" in the cleanup rule
+means either a native v2 sentinel or that complete pinned legacy identity—never
+a weaker provider label.
+
+Before extraction, provider read-back and image-content preflight prove the
+pinned legacy image contains the exact `sh`, `tar`, `procfs`, signal, hashing,
+and Caddy executables/paths required by the content-addressed program. Missing
+or different tools refuse before `SIGSTOP`. A file already torn before stop
+can be copied consistently while stopped; successor account/certificate/key
+identity and Caddy-open validation make this fail-closed, but inability to
+prove semantic Caddy consistency is an explicit residual and prevents
+cutover.
+
+The controlling command registry is the plan/confirm/apply/reconcile table;
+earlier single `hosted backup` or `hosted rollback` spellings are superseded.
+The already staged `snapback-drill-hosted-v2-20260728` artifacts are not
+ambiently trusted. `hosted target register --adopt` may consume them only after
+fresh provider/onboarding read-back, exact bundle/root/target identity, owner
+authorization, and a new registered-binding CAS; otherwise registration starts
+fresh and the staged artifacts are cleanup-only.
+
+The target validates package provenance only against the signed candidate →
+post-promotion ledger lineage digest embedded in its own image/release
+provenance. It never fetches npm or accepts a carrier-supplied ledger digest as
+self-authenticating.
+
+## LLP 0108 corrective reconciliation — 2026-07-28
+
+This section supersedes the incomplete online-root and command registry above.
+It also adopts LLP 0108's isolated qualification data, candidate-ledger
+lineage, provisional family epoch, and target-enforced expiry rules.
+
+### Root custody, rotation, and recovery
+
+`SupervisorInstallationRootV1` is an offline Ed25519/X.509 trust root whose
+public identity is pinned by targets and operators. Its private key is not an
+online service secret. Bootstrap encrypts a recovery package to three
+independent owner recovery keys and requires any two to authorize use.
+
+The standing supervisor holds a seven-day online enrollment intermediate,
+signed by the offline root and encrypted at rest with a platform-held service
+secret. That intermediate may issue at-most-24-hour device/operator
+certificates; it cannot rotate the root, add recovery keys, or grant a scope
+outside the authorizing operator's delegable subset. No issuer may delegate
+`operator.admin` or `root.admin` unless it is a current owner root operation
+with explicit confirmation.
+
+Root rotation is `root.rotate.plan -> confirm -> apply`, authorized by two of
+the three registered recovery keys and the current external head. The old and
+new roots cross-sign a 24-hour overlap carrier. Requests and targets accept
+both only during that exact overlap, after which the old root and every
+intermediate/certificate descending solely from it are revoked.
+
+Lost-root recovery is `root.recover.plan -> confirm -> apply` using a
+`RootRecoveryV1` signed by any two pre-registered recovery keys. It advances
+the installation incarnation and revocation generations, invalidates all
+operator certificates and target enrollments, and requires explicit target
+and device rebind. With fewer than two recovery keys there is no bypass:
+operators build a new supervisor installation and re-enroll targets through
+their ordinary ownership proof.
+
+Every plan, confirmation, application, refusal, and exact replay is retained
+in the external request journal. If a response is lost, a caller resubmits the
+identical request id/bytes and receives the retained response; a different
+body, sequence, scope, installation, root, or head refuses. Recovery may not
+restore a journal or revocation generation behind the monotone mirror.
+
+### Closed request and command registry
+
+The complete authority vocabulary adds `operator.admin`, `root.admin`, and
+the recovery threshold authority. It maps commands and request variants
+exactly:
+
+| CLI command | Request variant | Required authority |
+| --- | --- | --- |
+| `hosted operator enrollment issue` | `operator.enrollment.issue` | `operator.enroll` |
+| `hosted operator enrollment consume` | `operator.enrollment.consume` | one-use bundle plus device proof |
+| `hosted operator certificate renew` | `operator.certificate.renew` | current certificate self-auth |
+| `hosted operator device list` | `operator.device.list` | `operator.admin` |
+| `hosted operator device revoke` | `operator.device.revoke` | `operator.admin` |
+| `hosted release upload` | `release.upload` | `release.upload` |
+| `hosted root rotate plan|confirm|apply` | `root.rotate.plan|confirm|apply` | `root.admin` plus 2-of-3 recovery signatures at confirm/apply |
+| `hosted root recover plan|confirm|apply` | `root.recover.plan|confirm|apply` | 2-of-3 recovery signatures; no operator scope substitutes |
+
+The previously listed `hosted supervisor enroll` is an ergonomic alias for
+`hosted operator enrollment consume` only; it is not a separate authority.
+All plan/confirm/apply/reconcile rows for deploy, backup, restore, rollback,
+cleanup, reads, and target registration keep their exact scopes from the
+earlier table. Unknown command/request/scope combinations fail the exhaustive
+registry equality test.
+
+`hosted release upload` is a distinct bounded byte-stream request. It verifies
+and stores the content-addressed release under an upload receipt. A later
+`deploy.apply` carries no release bytes and may reference only that verified
+digest. Thus deploy authority cannot be used as release-upload authority, and
+upload authority cannot activate a release.
+
+### Claim expiry and ledger authority
+
+All three hosted claim families use LLP 0108's `familyEpoch` and provisional
+expiry. Each target rechecks the authoritative epoch at the exact operation
+boundaries listed there, closes live/ephemeral sockets on change, and refuses
+provisional claims after reboot or time/head uncertainty. Even if withdrawal
+CAS is unavailable, the provisional carrier self-expires within 120 seconds.
+The active graph and data remain intact; only functions needing the withdrawn
+family refuse.
+
+Target and supervisor images embed the candidate-ledger digest, not a
+future post-promotion digest. The final ledger supplied by the supervisor must
+canonically extend that digest through `previousLedgerSha256`. Qualification,
+release upload, deploy, final publication, and both public cold-install
+receipts reopen the same nine-package lineage.

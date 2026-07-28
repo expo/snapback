@@ -5,7 +5,15 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (schema-admission reconciliation: ordinary-table and
+**Revised:** 2026-07-28 (LLP 0108 corrective reconciliation: isolated
+qualification data, complete use protocol, self-expiring family epochs, and
+candidate-ledger lineage). 2026-07-28 (post-bakeoff round-2 reconciliation: registered
+qualification transport and durable budgets, source-owned local publication,
+hosted claim-family semantics, and capability-only revocation). 2026-07-28 (post-bakeoff round-1 reconciliation: isolated
+qualification generations, signed publication carriers, target-applicable
+corpus rows, and explicit create-owner refusal). 2026-07-28 (first-publication execution plan: existing-owner-only,
+current-source generation, session product proof, and exact served-hosted
+corpus). 2026-07-28 (schema-admission reconciliation: ordinary-table and
 owner-field eligibility, exact provenance types, unique projection/order
 axes, and direct bounded relation binding). 2026-07-28 (direct-artifact reconciliation: reconstructs the
 existing-owner plan, provenance, and quantitative ceiling at Rust admission;
@@ -1348,3 +1356,298 @@ Spec:
   in steps and returns. Membership reads require a separately modeled
   authorization profile and cannot hide outside this profile's quantitative
   relationship-read formula.
+
+## First-publication execution plan — 2026-07-28
+
+This section is normative where it narrows the implementation sequence above.
+It records the post-bakeoff audit plan and does not itself publish either
+capability.
+
+The first publication contains exactly:
+
+- `bounded-children.v1` as the cursor-free-first-page `LiveQuery` profile; and
+- `write-with-activity.v1` in `existing-owner.v1` mode only.
+
+`create-owner.v1` remains a reserved, rejected discriminator. No codegen,
+manifest, capability, Guide, or receipt may describe it as supported until a
+separate generated evaluator and corpus exist.
+
+Publication is one atomic repository generation:
+
+1. the direct-artifact admission suite proves the plan-implied function
+   capabilities, exact-one sealed result, nominal relation/index/projection
+   binding, current-incarnation authorization, ordinary-table eligibility,
+   provenance storage types, required insert coverage, total effect formula,
+   and refusal of runtime-id or authoritative membership escapes;
+2. Signal Desk generates from source with the current binary—never from its
+   pre-hardening last-good manifest—and all three bounded collections plus the
+   existing-owner activity mutation appear in the installed graph;
+3. a session-authenticated Signal Desk product flow creates one task through
+   the generated activity mutation, observes the bounded task and activity
+   replacements, proves exact replay, and proves rollback. The shared
+   development-persona comparison may remain a separately labeled
+   authentication nonclaim, but it cannot substitute for this session path;
+4. the target-neutral relation/activity receipt passes on the local persisted
+   executor and on the exact immutable Fly release that will advertise the
+   hosted target. The hosted row invokes the public origin and reopens served
+   capability/function/schema identities; running the local corpus inside a
+   remote-shaped harness is insufficient;
+5. generated API/provider/Contract artifacts, Guide snippets, capability
+   index, diary, and comparison receipt are regenerated together; and
+6. a clean package install and current-source comparator pass before
+   `bounded_children_v1` or `write_activity_v1` enters a target support set.
+
+The initial maturity is `experimental`, with the required acknowledgment and
+the complete receipt digest retained by inspection. Stable promotion remains a
+later decision. A missing local, session-product, hosted, package, or generated
+artifact row keeps both capabilities false and preserves the previous
+known-good graph. This coupled publication avoids a state where stale Signal
+Desk bytes are made parseable by hand while the code generator still refuses
+the target honestly.
+
+## Post-bakeoff round-1 reconciliation — 2026-07-28
+
+This section is normative where it tightens the first-publication execution
+plan. It resolves the qualification/publication cycle without letting an
+unqualified capability appear to ordinary callers.
+
+### Candidate generation and atomic promotion
+
+Codegen emits the candidate graph from current source into a separate,
+content-addressed `QualificationGenerationV1`; it never overwrites the active
+or last-good graph. The generation binds the complete schema/function/provider
+artifacts, normalized plan hashes, exact executor binary and image digests,
+source SHA, and the two candidate capability ids. It is not returned by normal
+inspection, capability discovery, function lookup, or generated clients.
+
+The target admits that generation only with a short-lived, one-use
+`QualificationGrantV1` signed by the standing supervisor. The grant is bound
+to the exact target/control generation, candidate digest, image digest,
+acceptance principal and session, public origin, allowed function ids, maximum
+invocations, and expiry. It grants no general target support: ordinary callers
+still receive the structured capability GAP, and a grant cannot address any
+active or different candidate graph. Qualification uses the identical parser,
+authorization gate, transaction executor, storage, and response serializer
+that promotion will use. Tests prove candidate functions are undiscoverable
+and not invokable without the exact grant.
+
+After every mandatory row passes, the supervisor may commit one signed
+`CapabilityPublicationV1` into the target control head. The Rust-owned carrier
+contains:
+
+- target binding generation/digest and control-head generation;
+- source SHA, target and supervisor image digests, candidate-generation digest,
+  package-publication ledger digest, and qualification-receipt digest;
+- exactly `bounded_children_v1` and `write_activity_v1`, profile versions,
+  `experimental` maturity, and the required acknowledgment; and
+- the promoted active-generation digest.
+
+The target reports a GAP unless the carrier signature, binding, running image,
+active graph, package ledger, and every digest match. A single control-head CAS
+promotes the candidate graph and both capability facts together; no
+intermediate state exposes one profile or the candidate slot. Failure deletes
+or quarantines only the candidate and leaves the active graph and prior
+control head unchanged.
+
+The qualification receipt is complete before the CAS and is the evidence
+authority named by the carrier. A post-CAS `CapabilityPublicationReceiptV1`
+then reopens the carrier and proves the public capability/inspection response
+matches it. If that observation fails, the supervisor revokes the carrier by a
+new control-head CAS and the target returns to GAP. This observation receipt
+does not retroactively qualify the candidate, so there is no evidence cycle.
+Local/package targets use the same carrier shape with the source-committed
+qualification receipt and exact local binary digest.
+
+### Conformance applicability
+
+Every `RelationActivityConformanceRowV1` declares exactly one applicability
+class:
+
+- `pureEvaluator`;
+- `localPersisted`; or
+- `servedHosted`.
+
+Receipts report zero skipped rows inside every class required by the target;
+"zero skips" never means that a served target exposes the local fault injector.
+The complete injection/interruption matrix, paired authorization stores,
+retired-key clock cases, and synthetic 14-day expiry remain mandatory
+`pureEvaluator` or `localPersisted` rows and are bound to the served executor
+through the exact source/binary/image digest.
+
+The `servedHosted` class contains, at minimum:
+
+- session-authenticated and hosted-authenticated invocation of both generated
+  operations through the public origin;
+- byte-exact sealed absent/visible relation results;
+- first page plus cursor continuation and cursor-after-restart refusal;
+- duplicate mutation replay returning the retained result bytes;
+- exact activity provenance fields and source/scope incarnation;
+- accepted live first-page subscribe and refused cursor-bearing subscribe; and
+- reopened capability, function, schema, active-generation, and image
+  identities equal to the qualification receipt.
+
+No fault-injection or qualification route remains enabled after promotion. The
+post-CAS receipt proves the grant expired or was consumed, the candidate slot
+is no longer separately addressable, and the ordinary public origin refuses
+qualification headers.
+
+### First-publication conflict resolution
+
+All six publication steps run against one immutable candidate generation;
+step 6 gates its CAS promotion and repository commit, not its isolated
+qualification. The earlier positive `create-owner.v1` acceptance row is
+superseded for this publication. The corpus instead requires positive
+`existing-owner.v1` coverage and direct/codegen/runtime rejection vectors for
+every `create-owner.v1` spelling. A future evaluator and corpus must amend this
+Spec before create-owner becomes positive.
+
+The session product proof is the experimental gate. Its diary and receipt
+must name the development-persona authentication nonclaim and the narrowing
+from the earlier full-product wording; stable promotion still requires the
+complete Signal Desk product path with no such nonclaim. Superseded vocabulary
+elsewhere in this living document is non-controlling under the dated
+amendments and will be consolidated after first publication without changing
+the executable gates.
+
+## Post-bakeoff round-2 reconciliation — 2026-07-28
+
+This section closes the remaining qualification, local-authority, carrier, and
+revocation semantics. Same-landing amendments to LLP 0058 and LLP 0094 register
+the transport and gate integration.
+
+### Registered qualification invocation
+
+`QualificationGrantV1` is a canonical-JCS, supervisor-Ed25519-signed carrier
+with compact form `sqg1.<key-id>.<payload-b64url>.<signature-b64url>`, at most
+8,192 bytes. Its closed payload binds grant id, target binding/control head,
+candidate-generation digest, predecessor active-generation digest, acceptance
+subject/session, public origin, allowed function ids, HTTP/connection/
+subscription/frame budgets, issuance, expiry of at most ten minutes, and a
+random activation nonce. The existing sender proof covers the exact compact
+grant and `QualificationUseV1` nonce so neither can be moved across requests.
+
+The registered routes are exactly:
+
+- `POST /connection/open`, whose closed DTO gains optional
+  `qualificationGrant` and `qualificationUse` members;
+- `POST /query/{name}` and `POST /mutation/{name}`, which carry
+  `Snapback-Qualification-Grant` and `Snapback-Qualification-Use` headers; and
+- `POST /live/{name}/subscribe`, reached through a connection whose token is
+  already bound to the activated grant. WebSocket/live frames carry the
+  existing connection token and never a free-floating qualification token.
+
+No other route accepts either member/header. Unknown versions, oversize
+carriers, missing paired members, or qualification input on an active/ordinary
+function refuse before evaluation.
+
+The target keeps a durable qualification journal keyed by grant id. First use
+atomically changes `unused → active` and binds the exact connection/session.
+Every HTTP invocation, connection, subscription, and admitted frame reserves a
+monotone use index and unique use nonce before `PreparedInvocation`; success,
+authorization refusal, handler failure, disconnect, and timeout all consume
+the reserved budget. Concurrent duplicate reservation loses the CAS. Crash
+replay of the same use nonce returns the retained result or refusal and never
+consumes twice. Mutations additionally use the existing settlement replay.
+Expiry closes subscriptions and changes the grant to `consumed`; no budget is
+refunded.
+
+Every route first constructs ordinary `PreparedAuthority`. The registered
+function gate then creates a `QualificationAuthorityV1` refinement inside
+`PreparedInvocation` only when the authenticated subject/session, candidate
+generation, function id, route, use reservation, and grant all match. It
+satisfies only the two named candidate function requirements for that hidden
+generation; it does not mutate target capability discovery, the active
+generation, or an ordinary function's admission. Functionless connection
+paths consume `PreparedAuthority` plus the validated qualification session and
+cannot fabricate a function. Every route remains in LLP 0058's one composed
+gate registry.
+
+The pre-CAS receipt names `candidateGeneration` and separately records
+`predecessorActiveGeneration`; it never calls the candidate active. Negative
+tests cover absent/ordinary callers, stale or cross-session connections,
+wrong origin/subject/function/route/generation, replayed use nonce, concurrent
+activation, exhausted budgets, expiry, crash replay, and a grant presented
+after promotion.
+
+### Local and packaged publication authority
+
+Local targets do not pretend to have a hosted supervisor/control head. They use
+a distinct canonical `LocalCapabilityPublicationV1` committed as tracked source
+and compiled with `include_bytes!` behind a private Rust constructor. It binds
+the exact qualification receipt, executor/schema source digests, local target
+profile, package closure when present, and the two atomic capability ids. The
+code-owned target registry derives positive local support only when the
+embedded carrier parses, its compiled digest matches, all private
+implementation-registration facts are true, and the loaded graph has the
+bound artifact identities. A generated/direct artifact cannot supply or
+replace the carrier.
+
+For contributor source builds, the trust root is the reviewed source commit
+and build-provenance digest; revocation is a later source commit that removes
+the carrier, followed by process restart. For public runtime packages, a
+canonical `PackageCapabilityAttestationV1` is signed by the release Ed25519
+key embedded in the loader and additionally binds the binary SHA-256, target
+triple, tarball/post-promotion-ledger digest, source SHA, and embedded local
+carrier digest. Startup mismatch reports GAP and leaves the loaded/last-good
+graph unchanged.
+
+There is no runtime local CAS or replayable sidecar. Rollback is an explicit
+compatible executable/package rollback with its own carrier; it cannot be
+triggered by a failed observation. Tampered embedded bytes, another binary or
+target triple, stale graph, old package closure, unknown signing key, rollback
+incompatibility, and candidate-artifact substitution are mandatory negatives.
+
+### Hosted union carrier and revocation
+
+For the hosted target, LLP 0105's union `CapabilityPublicationV1` controls.
+`bounded_children_v1` and `write_activity_v1` are one atomic relation/activity
+claim family: they share the candidate generation and qualification receipt
+and always change publication state together. Hosted ephemeral and migration
+are separate families. Per-entry independence applies between those three
+families during later validation or revocation; the first publication still
+requires all four claims and every receipt in LLP 0105.
+
+The target does not download npm to verify the carrier. Its image contains the
+0041 candidate/post-promotion ledger lineage digest in signed release
+provenance, and carrier validation compares against that local immutable fact.
+
+Post-CAS observation has a hard 120-second window. Timeout or failed
+observation causes a new control-head CAS that withdraws only the affected
+capability claim family. The promoted generation remains active, but its
+functions immediately refuse through their function-level capability
+requirements. Generation demotion is a separate, journaled, compatibility-
+checked rollback and is never an automatic consequence of capability
+revocation. This rule is identical in LLP 0105.
+
+## LLP 0108 corrective reconciliation — 2026-07-28
+
+LLP 0108 supersedes this document's incomplete qualification-use, data, and
+post-CAS carrier details. The candidate grant remains a refinement of ordinary
+`PreparedAuthority`, but `QualificationUseV1` is the complete signed carrier
+defined there—not only a nonce. Its durable journal has
+`unused|reserved|terminal|expired`, exact retained replay, per-operation and
+egress ceilings, a closed diagnostic matrix, and the ordinary-auth-first
+ordering. All implementations and acceptance fixtures consume that definition.
+
+Candidate DDL, indexes, queries, mutation writes, outbox entries, live state,
+and journals execute only against LLP 0108's verified disposable restore.
+They never share the production database or stream incarnation. Promotion
+copies no candidate-created data or schema into production. The supervisor
+re-proves the production schema, durable head, active graph, candidate graph,
+image, and ledgers immediately before CAS; drift requires a fresh restore and
+complete qualification. Failed qualification destroys or quarantines only the
+isolated destination with a closed cleanup receipt.
+
+The release image embeds the immutable candidate-ledger digest. The carrier
+supplies the final publication ledger only as a signed extension whose
+`previousLedgerSha256` equals that embedded digest; a carrier-supplied
+post-promotion digest alone is never self-authenticating.
+
+Every hosted claim family uses LLP 0108's `familyEpoch` and an expiring
+`provisional` carrier. Target-side expiry at no more than 120 seconds is the
+safety cut even if supervisor withdrawal CAS fails. Epoch is rechecked at
+admission and every operation-specific effect/serialization boundary listed
+there. Expiry or withdrawal withholds the relation/activity pair and makes its
+functions refuse; it does not roll back the active graph or production data.
+The final CAS is the only transition of `bounded_children_v1` and
+`write_activity_v1` from `proposed` to `experimental`.

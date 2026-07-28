@@ -1,11 +1,16 @@
 # LLP 0094: Wire envelope contract (LLP 0093 rollout P-0)
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Review
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-27 (LLP 0101 amendment: result-contract failures use the
+**Revised:** 2026-07-28 (LLP 0108 corrective addendum: complete
+qualification-use/refusal contract, hosted-ephemeral authority-instance wire
+closure, and HTTP-400 invalidation-protocol reconciliation). 2026-07-28 (LLP 0104 qualification amendment: exact
+connection-open DTO members and query/mutation headers carry the bounded hidden
+candidate grant; live frames inherit only the bound connection session).
+2026-07-27 (LLP 0101 amendment: result-contract failures use the
 existing error envelope and refusal registry; no expected-operation wire
 carrier is introduced); 2026-07-25 (initial draft; §0D receipt typing and §0A.4 hosted
 route migration implemented with this draft); 2026-07-25 (§0A.5 drain
@@ -1134,3 +1139,76 @@ package suite including `wire-version.test.mjs`;
    in-repo)? (Leaning: yes — one negative probe per migrated family in
    the remote suite, paired with a positive probe of its migrated
    replacement in the same run.)
+
+## LLP 0104 hidden-qualification wire amendment — 2026-07-28
+
+The acceptance-only qualification protocol is `sqg1`. It is not an ordinary
+client capability offer and never appears in generated application APIs.
+
+The route matrix gains exactly:
+
+| Route | Qualification carrier |
+| --- | --- |
+| `POST /connection/open` | optional closed DTO members `qualificationGrant` (compact `sqg1`, max 8,192 bytes) and `qualificationUse` |
+| `POST /query/{name}` | paired `Snapback-Qualification-Grant` and `Snapback-Qualification-Use` headers |
+| `POST /mutation/{name}` | paired `Snapback-Qualification-Grant` and `Snapback-Qualification-Use` headers |
+| `POST /live/{name}/subscribe` | no free token; inherits the qualification session immutably bound to the connection token |
+
+The two carriers are paired: one without the other is a body/header decode
+refusal. Unknown grant versions, oversize values, duplicate headers, or either
+carrier on any other route return a bounded `SNAPBACK_QUALIFICATION_*` refusal
+before function evaluation. The sender-proof canonical request binds the exact
+compact grant and use nonce. The open response adds no reusable qualification
+secret; its ordinary connection token is server-bound to the qualification
+session. WebSocket/live frames carry only that existing connection token and
+cannot switch candidate generation or grant.
+
+Qualification errors use the existing error-envelope family and never expose
+candidate function inventory, remaining budget, signature bytes, or whether a
+different hidden generation exists.
+
+## LLP 0108 corrective wire closure — 2026-07-28
+
+LLP 0108 owns the complete `QualificationUseV1` grammar, signature preimage,
+operation-specific optionality, durable reservation order, replay retention,
+budgets, and refusal matrix. The route carriers above are unchanged, except
+that their `qualificationUse` value is the compact JCS object defined there
+and is bounded to 2,048 bytes. Ordinary authentication precedes qualification
+diagnostics. After ordinary auth, the exact qualification status assignments
+are 400 for malformed/unsupported/pair-required/route-forbidden, 403 for
+refused/expired, 409 for replay-mismatch/candidate-unavailable, 429 for budget
+exhaustion, 410 for collected replay, and 503 for unavailable durable state.
+
+This Draft also reconciles the pre-existing invalidation refusal conflict:
+`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` is HTTP **400**, as already
+registered in §0E and emitted by the server. It means the authenticated client
+omitted or mismatched the must-understand invalidation offer. Retrying unchanged
+is incorrect; the caller repairs the offer. LLP 0108 is the later addendum to
+Accepted LLP 0058 for this status assignment.
+
+### Hosted-ephemeral authority instance
+
+The generated and hand-served wire families gain one negotiated protocol:
+
+| Boundary | Required members |
+| --- | --- |
+| `POST /connection/open` request | optional `ephemeralAuthorityProtocol: 1` offer |
+| successful open/reopen response | exact echo `ephemeralAuthorityProtocol: 1` and `ephemeralAuthorityInstance` |
+| every hosted ephemeral HTTP or socket request | the bound `ephemeralAuthorityInstance` |
+| every hosted ephemeral success, refusal, acknowledgement, snapshot, change, resync, drain, and final frame | the same bound `ephemeralAuthorityInstance` |
+
+`ephemeralAuthorityInstance` uses the closed scalar `eai1.<43 unpadded
+base64url characters>`. It is opaque and comparison is byte equality. The
+flattened acknowledgement envelopes are not an exception: their existing
+top-level shape adds the same required member. No receiver derives or rewrites
+it from a connection id.
+
+A missing offer preserves legacy local operation and withholds the hosted
+ephemeral capability. A hosted target claiming that capability requires the
+offer and exact response echo. Missing, old, or mismatched instance values use
+the hosted-ephemeral stale-authority refusal and force reconnect/resnapshot;
+unknown protocol versions use the ordinary must-understand HTTP-400 refusal.
+Every committed schema, Rust authority type, hosted serializer, JS client
+validator, and real-served-byte gate must agree on the matrix. A serializer
+that cannot stamp the bound instance withholds the hosted claim rather than
+emitting a partially governed frame.

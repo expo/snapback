@@ -3,17 +3,17 @@
 
 ## Round 1 — 2026-07-27
 
-**Reviewer family:** Claude Fable  
+**Reviewer family:** Claude Fable
 **Provider / runtime:** Anthropic Claude Code 2.1.220,
-`claude-fable-5` on the approved M4 Mac mini fleet lane  
-**Effort:** max  
-**Date:** 2026-07-27  
-**Redacted:** no  
+`claude-fable-5` on the approved M4 Mac mini fleet lane
+**Effort:** max
+**Date:** 2026-07-27
+**Redacted:** no
 **Method:** fresh remote CLI runner, read-only tools, mutually blind
-structurally isolated capsule  
-**Target SHA-256:** `5b106fe0dcbdee00b3727d1442d8033ca3f214a3a8b74009f2f92445c01fe31d`  
-**Capsule SHA-256:** `07aa9f210dd98c5ba7803ab963cf21270abdeffb54fcf9f93d4cb6aa035cd06e`  
-**Instruction SHA-256:** `9f68f158fd2807c25e5bddec20be40953470728bff2102502109d9d828dff8ce`  
+structurally isolated capsule
+**Target SHA-256:** `5b106fe0dcbdee00b3727d1442d8033ca3f214a3a8b74009f2f92445c01fe31d`
+**Capsule SHA-256:** `07aa9f210dd98c5ba7803ab963cf21270abdeffb54fcf9f93d4cb6aa035cd06e`
+**Instruction SHA-256:** `9f68f158fd2807c25e5bddec20be40953470728bff2102502109d9d828dff8ce`
 **Status:** completed
 **Session ID:** `4b7e6733-4fca-4608-b6d8-4e5581116c48`
 **Duration:** 817,343 ms
@@ -112,24 +112,184 @@ The plan is the right document with the right shape: the profile decision is sou
 
 VERDICT: NOT READY
 
+## Post-bakeoff delta loop, round 3 — 2026-07-28
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`
+**Effort:** max
+**Date:** 2026-07-28
+**Redacted:** no
+**Method:** fresh local CLI runner, read-only tools, mutually blind
+structurally isolated capsule
+**Target SHA-256 vector:** `de1ae53be9eea058e1c0edac95cfcef9074354c244b60af6821bdf66080ed816`
+**Capsule SHA-256:** `6bd369e9b91c82bd411cc48c913e493e2f23b5651acb38754383846aa8eef904`
+**Instruction SHA-256:** `35c89e6b9da1ac61666c520ab42660c6df40088d6400a83383e8c4d5696e9651`
+**Status:** completed
+**Session ID:** `11758b15-b7c0-4d98-834e-c9915aaef7fb`
+**Duration:** 468,812 ms
+**Cost:** $7.164325500000001
+
+# Super-refine review — final delta round 3
+
+**Capsule self-attestation:** I read only files inside `/private/tmp/snapback-super-refine-delta-r3.yzhUQ5` — all six targets in full, plus LLP 0081, the two supervisor/CLI package manifests, `target-onboarding.mjs`, `fly-machines-vm-driver.mjs`, and the bakeoff-corrections issue as context. No network, no prior reviews, no orchestrator material, no edits.
+
+## Overall assessment
+
+This delta round closes the seven boundaries it set out to close, and the closures are mutually consistent across the lockstep set. The qualification protocol is now a genuine refinement of ordinary auth (0058's amendment forbids a parallel path; 0094 pins the exact HTTP body members, headers, and connection-inheritance carriers; 0104 pins the durable journal with CAS reservation, consume-on-every-outcome, and crash replay returning the retained terminal). Local publication authority is source-owned and distinct from the hosted CAS path (`LocalCapabilityPublicationV1` via `include_bytes!` plus the release-key-signed `PackageCapabilityAttestationV1`). The migration order in 0099 is closed end-to-end — admission with backup *policy*, then the verified streaming-backup `MigrationCheckpointV1`, then barrier acquisition with exact head/schema/version equality re-proof, a supervisor-signed monotone cancellation generation proven at every durable boundary and before `published-held`, and a 180-second ceiling whose forward/abort/reopen sub-budgets sum exactly and can only change by dated amendment plus new remote corpus. Operator authority in 0105 is root-signed, nonce-CAS-consumed, 24-hour-bounded, revocation-generation-fenced, sequence-replay-safe, and scope-registered deny-by-default. Post-CAS revocation is capability-family-only with generation demotion explicitly severed from it — stated in identical words in 0104 and 0105, with the earlier "retain the prior graph" wording explicitly superseded. The npm boundary gets the refusing `PriorDefaultClosurePreflightV1` over the *current* default closure before any tag mutation, plus a candidate→post-promotion ledger lineage that is mechanically reopened rather than inferred.
+
+I found no place where a positive claim can appear without all evidence, and no place where the implementer must invent normative behavior; the residual concerns below are details with single feasible resolutions, most of them forced by other explicit rules.
+
+## Verification highlights (capsule cross-checks)
+
+- **0099's "mappings, not new states" claim is true.** LLP 0081's revision log confirms `cancel_requested` and journaled `published-held` are members of its closed, schema-enumerated journal vocabulary, so 0099's cancellation mapping introduces no new states as claimed.
+- **0105's implementation checkpoints are honest against the capsule.** `target-onboarding.mjs` matches the documented staging slice exactly: fresh target id `snapback-drill-hosted-v2-20260728`, six role-scoped Tigris credentials, and a cleanup credential whose `ListBucket` is bucket-scoped — matching the document's deliberate "custody-separated rather than falsely claimed prefix-enforced" labeling. The Fly driver implements observation/lease/logs and *fails closed* on remaining lifecycle operations, matching "the Fly adapter remains partial."
+- **Claims-hygiene chain holds.** The bakeoff-corrections issue's mandatory items (sealed one-row discriminator, incarnation assertion in-transaction, dedicated capability requirements, asserted-versus-authenticated comparator identity) correspond one-to-one with 0104's adversarial-closure section; the publication receipt is recorded as **blocked** and both capability facts stay false.
+- **The current `@snapback/cli` package `files` array omits `adapters/`** (the Fly driver would not pack today). This is exactly the state the unexecuted 0.1.1/journey gates anticipate, and 0105's clean-tarball test ("unpacks the tarball, removes repository access, and proves every driver/packer/schema path") is designed to catch precisely this failure. Scheduled work, not a defect — and evidence the gate is aimed at a real hazard.
+
+## Strengths
+
+1. **Qualification without a second gate.** Ordinary `PreparedAuthority` first, one registered refinement to `QualificationAuthorityV1`, four exactly enumerated routes, refusal of the carriers everywhere else, journaled reservation before `PreparedInvocation`, budget consumed on success/refusal/failure/disconnect/timeout alike, CAS-losing concurrent duplicates, replay returning retained terminals, and post-promotion proof that the origin refuses qualification headers. Hidden-route secrecy is stated as a property (no inventory, budget, signature bytes, or hidden-generation existence in errors).
+2. **The refusing preflight.** `PriorDefaultClosurePreflightV1` parses the retained registry bytes of the *live* default closure, proves exact `npm:` alias pins, records prior tags, and distinguishes first-publish rollback (remove the new tag) from restore-prior rollback — before any tag moves. Combined with dependency-first/CLI-root-last promotion, whole-closure reopening after every move, and the loud-failure rule when a root move can't be reversed, "failure after public writes" and "tag partial failure" are both bounded.
+3. **Capability-only revocation, stated twice, identically.** The 120-second observation window, family-scoped withdrawal, functions refusing through their own capability requirements, and generation demotion as a separate journaled compatible rollback — with the contrary earlier wording explicitly superseded in both documents. No automatic graph rollback can be inferred anywhere.
+4. **0099's equality-under-barrier design.** "No source fence is claimed while the online backup runs. Safety comes from the exact equality check under the later barrier" is the right invariant, and the fixed ceiling that measurements "admit or refuse but never recalibrate" prevents budget creep.
+5. **Evidence discipline under failure.** Non-success receipts recorded as non-success (`hosted-product-journey.v1.json`), expired legacy admission reported rather than papered over, the development-persona authentication nonclaim carried forward, and `ReverseTransitionClosedV1` gating predecessor destruction behind sustained successor health plus a separately issued destroy grant.
+
+## Concerns
+
+None material. All are details with bounded fixes; none licenses an unsafe implementation, because in each case the surrounding explicit rules force the safe reading.
+
+1. **DETAIL / IN-DELTA — embedded ledger-lineage timing (0104 §hosted union carrier; 0105 §legacy/staged closure).** "Its image contains the 0041 candidate/post-promotion ledger lineage digest" cannot be literal for the post-promotion half: the image is built and qualified (steps 3–4) before promotion (step 5) and cannot be rebuilt afterward without breaking the qualification receipt's image binding. The only feasible implementation — embed the candidate-ledger digest and verify the carrier-named post-promotion ledger's `previousLedgerSha256` against it, per 0041's lineage definition — is forced by "never accepts a carrier-supplied ledger digest as self-authenticating." *Resolution:* one sentence in 0104/0105 naming the embedded fact as the candidate-ledger digest and the chaining check as `previousLedgerSha256` equality over supervisor-supplied ledger bytes.
+2. **DETAIL / IN-DELTA — `release.upload` scope has no command-registry row (0105).** The round-2 scope vocabulary includes it, but the round-1 command table maps `deploy apply` (which streams the release) without saying which request carries `release.upload`. Deny-by-default means any wrong guess refuses at the supervisor. *Resolution:* add the release-stream request row to the command/scope table (obvious reading: the byte-stream sub-request carries `release.upload`; the apply mutation carries `deploy.apply`).
+3. **DETAIL / IN-DELTA — `QualificationUseV1` field closure and `SNAPBACK_QUALIFICATION_*` code enumeration (0104/0094).** The semantics are fully pinned (paired carrier, unique per-use nonce, sender-proof coverage, durable reservation, single consumption); the record's exact members and the individual refusal-code spellings are left to the Rust-owned schemas per the corpus's LLP 0037 convention. *Resolution:* enumerate both in the landing that implements the transport, in 0094 §0E style.
+4. **DETAIL / IN-DELTA — 0099's 5,000 ms label does double duty.** 135 s forward + 5 s worst in-flight batch + 40 s proven abort/reopen = 180 s exactly, yet the text also calls a "remaining 5000 ms" fixed scheduling margin. Every individual constraint is exact and enforceable; only the accounting label is muddled. *Resolution:* one sentence stating whether the 5 s is the batch-completion allowance or a separate margin inside the 45 s reserve.
+5. **DETAIL / IN-DELTA — 0099 drift wording.** "Marks the checkpoint stale, and requires a new admission/checkpoint" leaves ambiguous whether drift invalidates the admission or only the appended checkpoint; both readings are fail-closed (no batch without a fresh checkpoint and re-proof; `admissionExpiresAt` bounds the admission regardless). *Resolution:* choose one reading in a sentence.
+6. **DETAIL / PRE-EXISTING — superseded vocabulary retained.** 0105 §2.1's `processBootId` grant object versus the round-1 `eai1.` digest field set; 0104's earlier `create-owner.v1` acceptance row versus its supersession. Both are explicitly declared non-controlling with a promised consolidation pass, and the implementation checkpoint confirms the `eai1.` form is what exists. *Resolution:* the already-scheduled consolidation pass.
+7. **DETAIL / PRE-EXISTING — 0099 Related-line hygiene.** 0099 relies normatively on LLP 0105's mirror/incarnation recovery rules but omits LLP 0105 from its Related list. *Resolution:* add the reference.
+
+## Per-target readiness
+
+| Target | Readiness |
+| --- | --- |
+| `0041-packaged-dev-loop.rfc.md` | **Ready.** The nine-package promotion machine is closed and refusing; the preflight, lineage, and verified-vs-attested provenance edges close boundary 6; every green claim is receipt-named; unexecuted machinery is labeled unexecuted. |
+| `0058-…auth-mode-protocol.spec.md` | **Ready.** The Accepted base is untouched; the qualification amendment is a bounded refinement inside the existing composed gate with journaled reservation and no fallback gate. |
+| `0094-wire-envelope-contract.spec.md` | **Ready.** Exact carriers, pairing rule, size cap, secrecy properties, and error-envelope reuse; concern 3 is enumeration hygiene for the implementing landing. |
+| `0099-…migration-executor-profile.spec.md` | **Ready.** Open questions 1–4 resolved with exact orders, signed cancellation, and a fixed ceiling; state vocabulary verified against LLP 0081; concerns 4/5/7 are wording. |
+| `0104-bounded-children-and-activity-patterns.spec.md` | **Ready.** The round-2 reconciliation closes registered transport, local/packaged authority, family semantics, and capability-only revocation; the publication gate provably cannot leak a positive claim early. |
+| `0105-fly-completion-and-hosted-ephemeral.plan.md` | **Ready.** Root-signed enrollment, certificates, revocation, sequence replay, and the deny-by-default scope registry close boundary 4; checkpoints are scrupulously non-claiming and match the capsule's code and receipts. |
+
+## Set-level conclusion
+
+The lockstep boundary holds. The cross-document couplings — 0058↔0094↔0104 on the qualification protocol, 0099↔0105 on the supervisor/receipt authority, 0041↔0104↔0105 on ledger lineage and publication ordering, and the verbatim-duplicated capability-only revocation rule — are consistent, with explicit dated supersession wherever earlier round vocabulary conflicts. Remaining implementation work (packaging closure, the journey, qualification transport, hosted corpora) is uniformly *scheduled and gated*, never presumed; the gates are designed to catch the very gaps observable in the capsule today. The seven previously material boundaries are closed; what remains is detail-level editorial tightening that no implementer can resolve unsafely without violating an explicit rule elsewhere in the set.
+
+VERDICT: READY
+
+## Post-bakeoff delta loop, round 2 — 2026-07-28
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`
+**Effort:** max
+**Date:** 2026-07-28
+**Redacted:** no
+**Method:** fresh local CLI runner, read-only tools, mutually blind
+structurally isolated capsule
+**Target SHA-256 vector:** `41b1992927f596ce169ab5ca45432c1a03012637bce865eae9a4a7c039d87d7b`
+**Capsule SHA-256:** `436a4c126895025718a26e11e0395388233a78c07b86e66d7ca2b21a0f68786e`
+**Instruction SHA-256:** `d43a3c0b73e8abd4118eeb02e0b6c9aff58b30a09a7827eac998fc56277d008d`
+**Status:** completed
+**Session ID:** `d21da6a6-5d2b-4212-ba63-5472b89b2efd`
+**Duration:** 787,268 ms
+**Cost:** $7.02625
+
+No manifest exists and directory listing is unavailable in this toolset; the capsule as accessible consists of the four targets, each read in full. Here is the review.
+
+---
+
+# Super-refine delta round 2 — lockstep review of LLP 0041 / 0099 / 0104 / 0105
+
+**Capsule self-attestation.** I reviewed only the four capsule files, reading every line of each (0041: 427; 0099: 319; 0104: 1,507; 0105: 1,327). I accessed no source repository, network, prior review, journal, or other reviewer output, and edited nothing. No hashing tool is available in this session, so I could not independently recompute the stated SHA-256 values; completeness was verified by full-line reads against the harness's reported line totals.
+
+## 1. Overall assessment
+
+The round-2 reconciliation is close to closing the whole lockstep boundary. The seven intended closures are each substantively addressed: hidden qualification is cleanly separated from ordinary advertisement (`QualificationGenerationV1`/`QualificationGrantV1` with undiscoverability tests and post-promotion route closure); conformance applicability is partitioned into `pureEvaluator`/`localPersisted`/`servedHosted` with per-class zero-skip semantics; the nine-package machine publishes immutable candidates under a non-default tag, proves cold installs twice, and promotes dependency-first/CLI-root-last; the legacy Caddy extraction is pinned, allowlisted, capped, natively custodied, and uncertainty-journaled; the CLI-to-supervisor authority surface is a closed matrix; the migration executor's admission, cancellation, ceiling, checkpoint, and receipt decisions are concrete and fail-closed; and predecessor versus standing-supervisor cleanup disposition is unambiguous in direction. The end-to-end ordering (source → tarballs → candidate registry → images → hidden qualification → npm promotion → control-head CAS → public observation → revocation) is cycle-free: the post-CAS observation receipt is explicitly non-retroactive, and candidate publication precedes public proof while default promotion and advertisement follow qualification.
+
+Two bounded material defects remain, both introduced by the delta: the post-CAS revocation path leaves the active-generation disposition undefined (and the two controlling sections phrase it contradictorily), and the npm promotion safety invariant rests on an asserted-but-ungated property of the already-published `0.1.0` bytes. Each is a one-edit fix, but each sits exactly on the lockstep execution boundary, so the set is not yet implementation-ready under the stated standard.
+
+## 2. Strengths
+
+- **The qualification/publication cycle is genuinely broken.** The candidate graph is content-addressed, never overwrites active/last-good, is invisible to discovery, and runs only under a one-use supervisor-signed grant bound to principal, session, origin, function ids, invocation cap, and expiry (0104:1410–1430). The post-CAS observation "does not retroactively qualify the candidate, so there is no evidence cycle" (0104:1452–1453), and the post-CAS receipt must prove the grant is consumed/expired, the candidate slot unaddressable, and qualification headers refused (0104:1485–1488).
+- **Promotion is crash-analyzed at every boundary.** Candidate tags cannot move `latest`; the verifier reopens the whole exact closure after every tag move; the CLI root moves last; failed candidates are quarantined, never unpublished; the capability carrier may reference only the post-promotion ledger and both final `latest` cold receipts (0041:195–235).
+- **Applicability partitioning kills "zero skips" laundering** while still binding local fault/interruption evidence to the served bytes through exact source/binary/image digests (0104:1457–1472).
+- **LLP 0099's decisions are concrete and fail-closed:** enqueue admission with barrier and per-batch re-proof ("never sufficient by itself after a changed head or expired lease", 0099:232–241); checkpointed cooperative cancellation with journal-reconciled lost responses (0099:242–250); a 180 s ceiling with rehearsal-p95-plus-50% pre-refusal and amendment-gated recalibration (0099:252–262); and streaming-backup-only satisfaction of `SNAPBACK_MIGRATION_BACKUP_REQUIRED` with restore-and-open verification, provider snapshots demoted to supplemental (0099:263–267).
+- **The legacy certificate path is tightly bounded:** pinned-identity substitution for the missing sentinel, ustar-only allowlist with hard member/size/time caps, SIGSTOP plus open-descriptor proof, a native locked-memory `snapback-cert-bridge` with a zeroization corpus, `commitUncertain` reconciliation with "one-use means one *applied* transfer," and the Fly-control-plane plaintext residual declared rather than hidden (0105:1199–1250).
+- **Authority closure is real:** every mutating CLI verb submits a closed request to the standing supervisor; no read command holds provider credentials; npm authority is separated and grants no hosted authority; the clean-tarball test proves the CLI holds neither repository access nor Fly/Tigris credentials (0105:1253–1289).
+- **Cleanup disposition is decided in the right direction:** the shared supervisor, monotone authority store, and evidence prefix are never journey cleanup targets; predecessor destruction requires `ReverseTransitionClosedV1` (post-CAS receipt, fresh verified backup/restore, 60 minutes of health, twelve probes, ten renewals, zero residuals) plus a separate one-use destroy grant, with per-resource confirmed dispositions and honest continuing-cost reporting (0105:1299–1322).
+- **Honest residuals throughout:** Tigris `ListBucket` prefix-condition limitation recorded as custody-separated rather than falsely prefix-enforced (0105:1008–1013), expired predecessor admission not described as correct serving (0105:1301–1303), and the packaged-loop, supervisor, and onboarding checkpoints all claim exactly what they proved.
+
+## 3. Concerns with evidence
+
+**M1 — Post-CAS revocation leaves the active-generation disposition undefined, and the two controlling sections contradict each other.** `MATERIAL`, `IN-DELTA` (0104 and 0105 round-1 reconciliations). LLP 0104 says failed observation means "the supervisor revokes the carrier by a new control-head CAS and the target returns to GAP" (0104:1449–1451) — silent on what generation is then active. LLP 0105 step 7 says failure "immediately revokes the carrier to GAP while retaining the prior graph and evidence" (0105:1189–1190) — reusing the *pre*-CAS failure phrasing ("leaves the active graph and prior control head unchanged," 0104:1444–1446) in a *post*-CAS context where the prior graph is no longer active. Between CAS and revocation, ordinary callers can legitimately invoke the newly advertised profiles and commit writes (activity rows, settlement records) under the promoted generation. Read as "re-activate the prior graph," revocation becomes a blind post-effect code rollback that the corpus itself forbids elsewhere and an unsafe data/graph divergence; read as "do not delete the prior graph," the active-graph state is simply unstated. An implementer must invent normative behavior at the single most consequential boundary in the set. The safe design is already latent in 0104's own machinery: capability facts false ⇒ the new functions refuse via their named function-level capability requirements (0104:1313–1316, 1344–1349).
+
+**M2 — The promotion safety invariant rests on an unverified property of the published `0.1.0` bytes.** `MATERIAL`, `IN-DELTA` (0041 nine-package amendment). Step 6 asserts: "Because the old CLI root pins its old exact closure, any failure before the final root move leaves the previous default developer loop intact" (0041:216–218). The exact-`npm:`-alias-never-tags-or-ranges rule is stated only for `0.1.1`+ (0041:200–202), and the retained `0.1.0` ledger binds tarball *bytes*, not pinning discipline (0041:6–10). If the `0.1.0` CLI root — in particular its platform `optionalDependencies` on the runtime packages — declares any range, moving dependency `latest` tags first breaks fresh default installs mid-promotion, defeating exactly the crash-safety property the state machine is built around. This is a claim that can become load-bearing without its evidence; it is mechanically checkable from bytes the project already retains. (Related nuance to record in the same edit: for `@ccheever/snapback-react`, a first-publish package, "move" means *create* `latest`, and step 7's tag-reversal rule is vacuous for it.)
+
+**D1 — Carrier claim-set wording conflict.** `DETAIL`, `IN-DELTA`. 0104 says the carrier contains "exactly `bounded_children_v1` and `write_activity_v1`" and that "no intermediate state exposes one profile" (0104:1437, 1443–1444); 0105 extends the same carrier to four claims and says "one missing or mismatched entry remains a GAP without weakening the others" (0105:1159–1167). State that the union carrier controls for the hosted target, that the two 0104 entries share one candidate-generation/qualification-receipt binding and change state together, and that per-entry independence applies *between* claim families.
+
+**D2 — "The verifier reopens it" overstates one provenance edge.** `DETAIL`, `IN-DELTA`. In the chain `clean source SHA → staged digests → registry digests → runtime binary digests → build contexts → image digests` (0041:225–235), every inter-artifact edge is byte-reverifiable, but source-SHA→compiled-binary is run-attested, not recomputable. By the corpus's own standard (self-asserted verification cannot qualify evidence), label which edges are reverified versus attested.
+
+**D3 — Candidate ledger versus post-promotion ledger lineage.** `DETAIL`, `IN-DELTA`. The qualification receipt (pre-promotion, 0104:1448) and the carrier (post-promotion only, 0041:234–235; 0104:1435–1436) both reference "the ledger" at different states. Define the post-promotion ledger as the candidate ledger extended under a digest chain so the two references reconcile mechanically.
+
+**D4 — Admission members "lease epoch" and "deadline" are underspecified.** `DETAIL`, `IN-DELTA`. `MigrationAdmissionV1` binds a "lease epoch" and "deadline" at enqueue (0099:232–238), but the migration lease epoch is acquired at the barrier under LLP 0081, and two deadlines coexist (admission validity versus the 180 s ceiling). Name which lease is bound at enqueue and disambiguate the deadlines; also fix the rehearsal-duration sample basis behind "measured rehearsal p95" (0099:254–256).
+
+**D5 — Cancellation-window state vocabulary.** `DETAIL`, `IN-DELTA`. `applyingCheckpointed` and `cancelledBeforeBarrier` (0099:242–246) are used as if journal states; 0099's own rule makes any disagreement with LLP 0081's closed 13-state machine a defect here (0099:44–46). The G2 landing must bind these names to the exact 0081 state names.
+
+**D6 — Enrollment-bundle issuance is the one unclosed authority edge.** `DETAIL`, `IN-DELTA`. Consumption of `SupervisorEnrollmentBundleV1` is fully specified (one-use, ten minutes, mode-0600 CI variant, 0105:1254–1262), but who mints bundles, under which standing-root authorization, and where issuance is journaled is only implicit ("owner-provided").
+
+**D7 — Legacy predecessor sentinel gap in the destruction rule.** `DETAIL`, `IN-DELTA`. The legacy Machine "never had" a sentinel and substitutes an owner-approved pinned identity (0105:1206–1209), yet after `ReverseTransitionClosedV1` "only sentinel-owned predecessor resources may be removed" (0105:1318–1319). The strict reading strands the legacy predecessor forever (fail-safe but perpetual cost). State that the pinned identity satisfies the sentinel requirement for predecessor disposition effects.
+
+**D8 — Legacy extractor feasibility and torn-file residual.** `DETAIL`, `IN-DELTA`. The fixed content-addressed exec program (0105:1213–1227) must be executable with tools present in the pinned legacy image; add an image-content preflight beside the existing wrong-image fixture. A SIGSTOP mid-write can freeze a torn Caddy file; the successor's certificate/account/key identity proof bounds this, but the residual should be named.
+
+**D9 — Superseded command spellings and the pre-staged target.** `DETAIL`, `IN-DELTA`. `hosted backup`/`hosted rollback` single verbs (0105:1093–1095) versus the controlling plan/confirm/apply/reconcile registry (0105:1272–1283) is acknowledged consolidation debt; the mechanical command-registry test must use the controlling table. Also define whether the already-staged `snapback-drill-hosted-v2-20260728` onboarding artifacts are adopted by `hosted target register` or re-registered.
+
+**D10 — Target-side source for verifying the carrier's package-ledger digest.** `DETAIL`, `IN-DELTA`. The target "reports a GAP unless … package ledger … match" (0104:1440–1442) but cannot re-download npm; state that it compares against the ledger digest carried in its own release/image provenance from the 0041 chain.
+
+No `PRE-EXISTING` material concern surfaced in this pass; the pre-existing layers (supervisor commit order, cutover state table, wire rollout, `sbbc1` cursor protocol, ceiling formulas) held up under re-examination and the delta sections consistently tighten rather than loosen them.
+
+## 4. Resolution criteria for material concerns
+
+**M1.** One dated clarification landed identically in LLP 0104 and LLP 0105 stating: (a) the revocation CAS withdraws capability claims only — the promoted generation remains the active graph; (b) invocations of the new profiles then refuse through their function-level capability requirements; (c) any generation demotion is a separate, journaled rollback governed by the existing compatibility rules and never an automatic consequence of revocation; and (d) the post-CAS observation must complete within a declared bounded window, with supervisor auto-revocation on timeout. The 0105 step-7 phrase "retaining the prior graph" is replaced accordingly. Closed when both texts agree verbatim on (a)–(d).
+
+**M2.** Add one mechanical preflight row to the 0041 promotion machine: before the first tag move, download the current default (`latest`) closure tarballs and verify every internal dependency and `optionalDependency` is an exact `npm:` alias pin (no tag or range); any violation refuses promotion and fails the release receipt before any registry tag mutation. The row also records each package's prior tag state, noting first-publish packages (react) for which step 7's reversal is vacuous. Closed when the preflight is a named, refusing gate in the state machine rather than an assertion.
+
+## 5. Per-target readiness
+
+- **LLP 0041 — conditionally ready.** The nine-package machine, provenance chain, and carrier restriction are implementable as written; M2 must land as a gate (D2/D3 are wording fixes that can ride the same edit).
+- **LLP 0099 — ready.** The 2026-07-28 decisions close open questions 1–4 concretely and fail-closed; D4/D5 are naming/mapping fixes that fit naturally in the G2 landing and require no design change.
+- **LLP 0104 — conditionally ready.** The candidate/grant/carrier design, applicability partition, and first-publication conflict resolution are sound; M1 (shared with 0105) and D1/D10 must be resolved before the promotion boundary is unambiguous.
+- **LLP 0105 — conditionally ready.** The most complete document in the set; the M1 phrasing defect lives here, and D6–D9 are bounded specification gaps in otherwise closed subsystems.
+
+## 6. Set-level conclusion
+
+The lockstep boundary is one small edit-set away from closure. The ordering across source, candidate tarballs and registry, target/supervisor images, hidden qualification, npm promotion, control-head publication, public observation, and revocation is coherent, cycle-free, and honest about its residuals; no hidden backdoor, ambient authority, or evidence-free positive claim survives in the delta except the two named: the revocation step whose active-graph semantics an implementer would have to invent (M1), and a promotion-safety invariant asserted without its mechanical gate (M2). Because both sit directly on the shared execution boundary and one reading of M1 is affirmatively unsafe after public writes, the set does not yet meet the "no invented normative behavior" bar — but both resolutions are single, bounded, verifiable edits, after which this set should pass a delta round without further design work.
+
+VERDICT: NOT READY
+
 ## Round 2 — 2026-07-27
 
-**Reviewer family:** Claude Fable  
+**Reviewer family:** Claude Fable
 **Provider / runtime:** Anthropic Claude Code 2.1.220,
-`claude-fable-5` on the approved M4 Mac mini fleet lane  
-**Effort:** max  
-**Date:** 2026-07-27  
-**Redacted:** no  
+`claude-fable-5` on the approved M4 Mac mini fleet lane
+**Effort:** max
+**Date:** 2026-07-27
+**Redacted:** no
 **Method:** fresh remote CLI runner, read-only tools, mutually blind
-structurally isolated capsule; delta-round instructions  
-**Target SHA-256:** `0f7821dc7919abf69441d59efdce93a6f5b913b525a48676d0a710f8ae7fcf5a`  
-**Capsule SHA-256:** `fc466535fd68c2ccd57b6da2b02c2f6cb2dc0eb4d981a6981842ec0e5a6c9337`  
-**Instruction SHA-256:** `6477ff4e3c091e39585f6aa255969e18828c3f05e8ef6daac36218e5ee620f35`  
+structurally isolated capsule; delta-round instructions
+**Target SHA-256:** `0f7821dc7919abf69441d59efdce93a6f5b913b525a48676d0a710f8ae7fcf5a`
+**Capsule SHA-256:** `fc466535fd68c2ccd57b6da2b02c2f6cb2dc0eb4d981a6981842ec0e5a6c9337`
+**Instruction SHA-256:** `6477ff4e3c091e39585f6aa255969e18828c3f05e8ef6daac36218e5ee620f35`
 **Status before launch:** pending
 
-**Session ID:** `10d9c1e3-0529-4ad0-b33d-e64e282f8229`  
-**Duration:** 161,589 ms  
-**Cost:** $16.66263620  
+**Session ID:** `10d9c1e3-0529-4ad0-b33d-e64e282f8229`
+**Duration:** 161,589 ms
+**Cost:** $16.66263620
 **Status:** completed
 
 All four verification agents have reported. I have everything needed to complete the review.
@@ -210,17 +370,17 @@ VERDICT: NOT READY
 
 ## Round 3 — 2026-07-27
 
-**Reviewer family:** Anthropic Claude / Fable 5  
-**Provider / runtime:** Claude Code 2.1.220, `claude-fable-5`  
-**Reasoning effort:** max  
-**Session:** `f91b00c2-897b-4219-a5b4-9907309cc604`  
-**Duration:** 827682 ms  
-**Date:** 2026-07-27  
-**Redacted:** no  
-**Method:** fresh remote runner, mutually blind structurally isolated capsule  
-**Target SHA-256:** `60bf43edb12c99a784a48f6fbd6f3b6130316107dafcc585d3a82d38ea82b03f`  
-**Capsule SHA-256:** `f9d60997ef75683ce968867c6909dbf695eefe7663a24ff866310c2ff2d97c14`  
-**Instruction SHA-256:** `9f65e59a46c426975af9b30cb631d53b12e62d09acc7ece6d802f90dba2fab0c`  
+**Reviewer family:** Anthropic Claude / Fable 5
+**Provider / runtime:** Claude Code 2.1.220, `claude-fable-5`
+**Reasoning effort:** max
+**Session:** `f91b00c2-897b-4219-a5b4-9907309cc604`
+**Duration:** 827682 ms
+**Date:** 2026-07-27
+**Redacted:** no
+**Method:** fresh remote runner, mutually blind structurally isolated capsule
+**Target SHA-256:** `60bf43edb12c99a784a48f6fbd6f3b6130316107dafcc585d3a82d38ea82b03f`
+**Capsule SHA-256:** `f9d60997ef75683ce968867c6909dbf695eefe7663a24ff866310c2ff2d97c14`
+**Instruction SHA-256:** `9f65e59a46c426975af9b30cb631d53b12e62d09acc7ece6d802f90dba2fab0c`
 **Status:** completed
 
 All verification is complete. Here is my review.
@@ -272,3 +432,101 @@ Additional grounded corrections: the maintenance-receipt fix targets a real mism
 The delta is coherent, finite, implementable against the existing adapter and wire, and sufficient on all five stress axes: duplicate provider effects (journal + semantic ids + guards), two authorities (single-routed-Machine admission + closed cutover states), credential leakage (custody matrix + stripped evidence), stale ephemeral frames (per-frame authority digest + amended ack exception + per-frame drain checks), and stranded paid resources (reservation-first ledger + non-expiring cleanup reserve). The new always-on dependency and the one cross-volume key movement are honestly costed, bounded, and recoverable. Every remaining concern is DETAIL with a bounded resolution inside already-committed decisions.
 
 VERDICT: READY
+
+## Post-bakeoff delta loop, round 1 — 2026-07-28
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`
+**Effort:** max
+**Date:** 2026-07-28
+**Redacted:** no
+**Method:** fresh local CLI runner, read-only tools, mutually blind
+structurally isolated capsule
+**Target SHA-256 vector:** `a33f006d3784c7a1466696a90d73e297260314e0bada023236d61482e79365cd`
+**Capsule SHA-256:** `1bb93b1ff4838d8fe2eb8902d489a4170a67e2bc33ef35490168b85634e6633b`
+**Instruction SHA-256:** `b0ae0014c12ad5e3df3a948e27656e2b0a0682af6901c1c2eb0c65195147ed0b`
+**Status:** completed
+**Session ID:** `c522c768-3844-4fca-9fbc-253fdccd3189`
+**Duration:** 658,683 ms
+**Cost:** $4.491747
+
+Both capsule documents read in full (LLP 0104: 1,401 lines; LLP 0105: 1,137 lines). Here is my complete independent review.
+
+---
+
+# Super-refine delta review — LLP 0104 / LLP 0105 (2026-07-28 delta sections)
+
+## 1. Overall assessment
+
+The two new controlling sections are close to forming one finite, safe, executable plan, and they repair the most serious defect carried out of round 3: the certificate-recipient protocol previously required the legacy predecessor to use an outbound mTLS channel it does not possess, and the new `legacyCertificateExtraction.v1` bootstrap resolves that honestly and in a bounded, fail-closed way. The anti-laundering construction in LLP 0104's first-publication plan (generation from current source, atomic coupled publication, last-good preservation on any missing row) is exactly the right shape, and the stop conditions throughout are honest — the checkpoint sections openly record the expired hosted-auth chain, the failed product receipt, and every capability that remains false.
+
+However, two coupled requirements at the served-evidence boundary are under-specified to the point that the final capability flip is not executable as written: (1) there is no named mechanism or carrier by which the served target transitions from structured GAP to experimental advertisement without either rebuilding the release (breaking the "exact immutable Fly release that will advertise" binding) or advertising before evidence (breaking the no-advertisement-before-receipt invariant); and (2) the requirement that the LLP 0104 relation/activity corpus pass "against the same served release" collides with the "no skipped rows" rule, because the corpus contains server-transactional injection rows that cannot execute against a served public origin without an injection surface the design elsewhere (correctly) refuses. Both are bounded specification gaps, not design incoherence requiring rework, but both sit precisely on the coupled execution boundary this review gates.
+
+## 2. Strengths
+
+1. **The delta names and repairs a real round-3 incoherence.** Round 3's recipient protocol said the supervisor "extracts the exact Caddy files through the existing outbound mTLS channel" (0105:888–891), but the legacy predecessor has no such agent. The new bootstrap (0105:1043–1077) admits this directly and substitutes a journaled, one-use, leased, spend-granted provider-exec extraction with a fixed content-addressed command, allowlisted paths, a bounded archive, a closed secret-free manifest, and an explicit restriction to the declared legacy source class. It also reconciles cleanly with the standing non-goal against "arbitrary provider shell commands" (0105:375) because the command is fixed, not arbitrary.
+2. **Anti-laundering by construction.** Gate 2 requires Signal Desk to generate "from source with the current binary—never from its pre-hardening last-good manifest" (0104:1377–1380); gate 5 regenerates all artifacts together; failure "keeps both capabilities false and preserves the previous known-good graph"; and the closing sentence names the exact failure state being avoided — stale bytes made parseable by hand while codegen honestly refuses (0104:1397–1400).
+3. **Honest scoping.** First publication is `existing-owner.v1` only; `create-owner.v1` is a reserved, rejected discriminator that no codegen, manifest, capability, Guide, or receipt may describe as supported (0104:1365–1367). Initial maturity is `experimental` with a required acknowledgment; stable promotion is explicitly a later decision. The shared development-persona comparison "cannot substitute" for the session product path and remains a labeled nonclaim (0104:1381–1387).
+4. **Closed public command and authority surface.** The `snapback hosted` command family is enumerated; "the installed CLI never becomes a second Fly/Tigris writer" (0105:1095–1096); the package test proves tarball self-containment with repository access removed before any remote effect; and the driver must implement every v1 spelling plus exactly the five v2 additions in the mechanical operation registry (0105:1101–1103), inheriting round-2's enum-comparison closure.
+5. **Strong evidence binding with honest verification rules.** The completed receipt binds one clean source SHA, package-tarball digests, Linux image digest, supervisor image/incarnation, target binding/control head, predecessor and successor identities, and every subordinate artifact digest; the verifier reopens artifacts; and "no verifier infers success from skipped rows or a successful provider HTTP status" (0105:1108–1127).
+6. **Conservative destruction and preservation rules.** The predecessor and shared supervisor are never cleanup targets until the successor is sole-routed, head-bound, admitted, publicly verified, and the reverse-transition window is closed; failure cleanup removes only sentinel-owned disposables and preserves the last publicly correct generation plus resume evidence (0105:1128–1132).
+7. **Cross-document coupling hygiene.** 0105's verifier row names the "existing-owner activity corpus" (0105:1120–1121), matching 0104's narrowed first publication exactly; both deltas describe the same coupled publication event from their own side. I reconstructed one finite linear execution order — comparator → local matrices → supervisor rebuild → packed CLI/package proof → legacy certificate bootstrap → successor journey deploying the release → LLP 0104 hosted row against it → receipts → atomic repository generation → tarball cold-installs → nine-package publish plus served advertisement — and found no genuinely circular prerequisite once the packed-tarball and atomic-candidate readings are applied (the residual ambiguities are the concerns below).
+8. **Custody-aware evidence exception, explicitly labeled.** The legacy extraction deliberately deviates from raw-evidence content-addressing (the provider response contains private keys), persists only ciphertext/wrapped key/manifest with redacted digests, and the receipt "identifies this exceptional custody path without retaining certificate bytes" (0105:1062–1065, 1076–1077).
+
+## 3. Concerns with evidence
+
+### MATERIAL
+
+**M1 — Unspecified served capability-advertisement mechanism; the "exact immutable release" binding and the no-advertisement-before-evidence invariant cannot both be satisfied as written.** *(IN-DELTA; coupled boundary of 0104 gate 4 and 0105's final gate.)*
+0104 gate 4 requires the corpus to pass "on the exact immutable Fly release that will advertise the hosted target" (0104:1384–1385) and requires "the complete receipt digest retained by inspection" (0104:1395–1396). 0105 permits the served target to advertise the four capabilities only "after this receipt and the public … cold-install receipts pass" (0105:1133–1137), and its governing section forbids any advertisement until evidence is committed (0105:57–58). But capability support currently lives in the repository-committed registry compiled into builds — "Both registry entries are Proposed, unsupported by all committed targets" (0104:1310–1312). That produces a trilemma: if support is baked in ungated, the validated release advertises before the receipt exists; if support is not in the release, that release can never be "the release that will advertise"; if a post-receipt rebuild flips it, the advertising release is not the corpus-validated release. The only coherent execution is a runtime publication input (a control-head/binding member or supervisor-staged target configuration carrying maturity, acknowledgment, receipt digest, and validated release digest) — but no such carrier exists in round-2's exhaustive carrier enumeration (0105:598–607), and neither delta names one. Given both documents' own standard of exhaustively enumerated Rust-owned carriers, this is a missing decision at the exact boundary, not schedulable absent implementation.
+
+**M2 — The hosted applicability of the relation/activity corpus is undefined, and the no-skip rule makes that gap gate-breaking.** *(IN-DELTA; same coupled boundary.)*
+0104 says "the target-neutral relation/activity receipt passes on the local persisted executor and on the exact immutable Fly release," with the hosted row invoking the public origin and a remote-shaped harness insufficient (0104:1384–1388); 0105's verifier requires the "LLP 0104 bounded-relation and existing-owner activity corpus against the same served release" and forbids inferring success from skipped rows (0105:1120–1121, 1126–1127); round 3 already requires the conformance matrix to "report zero skipped cases only when publishing a capability" (0104:1057–1059). The corpus, however, contains server-transactional rows that cannot run against a served public origin: fault injection before/between/after primary writes (0104:843–846), the explicit rollback witnesses (0104:1271–1274), paired authorization stores differing by one row, key-retirement and 14-day cursor-expiry cases. Executing them remotely would require a served injection surface the design correctly refuses on an advertising deployment; excluding them requires per-row target-applicability semantics the receipt schema does not define. As literally written — full corpus against the served release, zero skips — the gate is unimplementable; under the narrower "the hosted row" (singular) reading it is implementable but the served subset is nowhere enumerated, so the 0105 verifier row is not decidable. Either way the partition must be written down.
+
+### DETAIL
+
+**D1** *(IN-DELTA)* — "the public macOS/arm64 and Linux/x64 cold-install receipts" (0105:1133–1134) is ambiguous between packed-tarball installs (executable) and published-registry installs (circular with publication). Only the tarball reading is executable, but then nothing explicitly requires the published nine packages to be byte-identical to the receipt-bound tarball digests.
+
+**D2** *(IN-DELTA)* — The "nine-package release" (0105:1134) is never enumerated in either document nor referenced by its Rust-owned package-inventory identity, so "nine" is not checkable from the capsule.
+
+**D3** *(IN-DELTA)* — The legacy extraction has no quiesce or stability step: round 3 quiesced Caddy through the mTLS channel the legacy machine lacks, and the bootstrap's steps 1–6 (0105:1052–1069) substitute nothing (a torn copy during an ACME renewal write is possible). The step-5 identity proof makes this fail-closed rather than unsafe, but a torn copy could strand the bootstrap, and "one-use" (0105:1049–1050) does not say whether a `notApplied`/failed-validation attempt may be retried under a fresh journaled intent.
+
+**D4** *(IN-DELTA)* — Certificate private-key bytes transit the provider's exec channel in plaintext (Fly control plane) during step 3. Given the plan's practice of naming residuals explicitly ("Provider compromise between read-backs remains an explicit residual," 0105:420–421), this exposure should be named as a residual in the receipt row rather than left implicit.
+
+**D5** *(IN-DELTA)* — Only "each mutating command" is routed through the standing supervisor (0105:1095–1096). The provider-fact sourcing and credential custody for `hosted doctor|inspect|logs|cost` is unstated, while round 2 places the Fly read/control roles with the supervisor (0105:662–663). Related: `hosted backup` and `hosted rollback` lack the plan/confirm discipline applied to deploy/restore/cleanup despite pausing writes and changing serving.
+
+**D6** *(IN-DELTA)* — "The installed CLI never becomes a second Fly/Tigris writer" forbids the obvious direct registry push, but the byte path and registry-credential custody for `hosted release pack`/`uploadImmutableRelease` (image bytes to the Fly registry) are unspecified.
+
+**D7** *(IN-DELTA)* — "the reverse-transition window is closed" (0105:1130–1131) has no closing condition (duration, journaled confirmation, or observation), so predecessor/supervisor retirement eligibility is not decidable. The direction of error is safe (retain longer), but the stop condition is unbounded as written.
+
+**D8** *(IN-DELTA)* — Bootstrap step 1 requires an "unchanged ownership sentinel" on the legacy predecessor (0105:1052–1054), which predates sentinel stamping and v2 binding registration (0105:970–972). Define what constitutes the legacy sentinel, or substitute exact pinned app/Machine/image identity.
+
+**D9** *(IN-DELTA)* — The receipt binds the supervisor image/incarnation but nothing requires that image to be built from the bound source SHA (or states an accepted skew policy), even though the checkpoint concedes the installed supervisor "predates this checkpoint" and must be rebuilt (0105:1031–1034).
+
+**D10** *(IN-DELTA)* — 0104 gate ordering pedantics: gates 2–5 require the candidate support flip to be visible to codegen (current codegen refuses because both requirements are unsupported, 0104:1235–1239), while gate 6 forbids entering "a target support set" until after the install/comparator pass. The atomic-candidate reading resolves it, but the text should say all gates run against one candidate generation and gate 6 gates its commit/publication.
+
+**D11** *(IN-DELTA)* — The delta narrows round 2's first-publication gate ("committed Signal Desk fixture … pass without skips" before even experimental, 0104:1034–1040) and round 3's dissent ("full Signal Desk product migration … before either positive capability appears," 0104:1198–1204) to one session product proof plus a labeled persona nonclaim. The section's declared precedence permits this, but the relaxation should be named in the receipt/diary and full product-path adoption explicitly anchored to stable promotion.
+
+**D12** *(PRE-EXISTING)* — Superseded-text residue remains resolvable only via each section's precedence declaration: §1.1/§2.1's `(createdAt, creationVersion)` incarnation versus the controlling UUIDv7 registry; §2.3's `human | service | agent` versus the controlling `human | agent`; 0105 §2.1's `processBootId` grant JSON versus the controlling `eai1.` digest reusing the issuer boot identity; round-1 operation names versus round-2's closure. No behavior change needed, but a consolidation pass would reduce implementer risk.
+
+**Distinguishing absent implementation from incoherence:** the successor journey, supervisor rebuild, packed command family, bootstrap execution, hosted rows, cold-install receipts, and publication itself are all *absent implementation properly scheduled with gates* — that is what this Plan/Spec pair is for, and none of it counts against readiness. M1 and M2 are different in kind: they are not unimplemented specified things but unspecified reconciliations of the documents' own invariants (release-identity binding versus no-pre-evidence advertisement; complete-corpus-served versus no-skips versus no served injection surface). A plan may schedule building a specified mechanism; it may not leave the resolution of two of its own conflicting requirements to the implementer. Nothing found rises to internal incoherence requiring redesign — both material items have one obvious coherent resolution each.
+
+## 4. Concrete resolution criteria
+
+**M1 (bounded, roughly one paragraph plus one schema):** Name a Rust-owned capability-publication carrier — e.g., a member of `FlyTargetBindingV2`/`HostedControlHeadV2` or a supervisor-staged target configuration artifact — holding {capability id, profile version, maturity = experimental, acknowledgment, publication-receipt digest, validated-release image digest}. Specify that: the served release reports a structured GAP whenever the carrier is absent or its validated-release digest differs from the running image digest, and reports experimental exactly when present and matching; the supervisor commits the carrier only after receipt verification; one verifier/receipt row proves advertising-release digest equals corpus-validated digest at flip time; and the carrier gets the same mechanical schema/drift test as the other v2 carriers. (Local/package targets satisfy the same shape with the in-repo receipt digest baked at generation.) Done when the flip is executable with zero pre-evidence advertisement and zero unvalidated releases.
+
+**M2 (bounded, one schema field plus one enumeration):** Add per-row target-applicability classes (pure evaluator / local persisted / served hosted) to the relation/activity receipt schema, and enumerate the mandatory served-hosted rows — at minimum: session- and hosted-auth invocation of both generated operations via the public origin; sealed absent/visible byte-equality; page plus cursor continuation round trip and cursor-restart refusal; duplicate replay returning retained bytes; provenance-field content on the served activity row; live first-page subscribe acceptance and cursor-bearing subscribe refusal; and reopened served capability/function/schema identity equality against the receipt. Redefine "zero skips" as zero skips within each applicability class. Either justify excluding server-transactional injection rows from the served class by identity of the persisted executor binary (proven via the bound image digest), or specify an admission-gated conformance mode with a verifier row proving that mode absent/disabled in the advertising deployment. Done when 0105's "LLP 0104 corpus against the same served release" row is decidable and satisfiable without a served injection surface.
+
+**Details:** D1 — state that cold-installs use the receipt-bound tarballs and that the published nine packages must be digest-identical to them. D2 — enumerate the nine packages or reference the Rust-owned inventory identity. D3 — add a stability check to the fixed extractor (pre/post state-digest equality or in-command Caddy stop/start) and define "one-use" as one *applied* extraction with `notApplied` attempts retryable under fresh journaled intents. D4 — name the provider-transit key exposure as an explicit residual. D5/D6 — specify read-command sourcing and the registry upload path/credential custody; state whether supervisor-side confirmation covers backup/rollback. D7 — define the reverse-transition window's closing condition. D8 — define the legacy sentinel or its pinned-identity substitute. D9 — require the supervisor image to be built from the bound source SHA or record the skew policy. D10/D11 — one clarifying sentence each. D12 — schedule a consolidation pass (non-gating).
+
+## 5. Per-target readiness
+
+**LLP 0104 — NOT READY.** The first-publication execution plan is internally coherent, honestly narrowed (existing-owner-only, create-owner reserved and rejected, session product proof with a labeled persona nonclaim), and anti-laundering by construction, and its local gates (1–3, 5–6) are executable as specified modulo the D10 ordering clarification. It is blocked only at its gate-4 coupled boundary by M1 and M2, which it shares with LLP 0105. With those two resolved (in either document, cross-referenced), this document is ready.
+
+**LLP 0105 — NOT READY.** The post-bakeoff amendment repairs the round-3 legacy-channel incoherence with a bounded, fail-closed, one-use bootstrap; closes the public package/command/authority surface; and defines a strong served-evidence gate with honest stop conditions and last-good preservation. M1 and M2 bind at its served-evidence/release gate; the details (D1–D9) are individually non-gating but D1, D3, and D7 should land with the material fixes.
+
+## 6. Set-level conclusion
+
+The coupled delta is two bounded normative additions away from ready. The documents' own execution attempt already surfaced and fixed the hardest problem (legacy certificate custody), the publication gates are honest and preserve the last publicly correct generation on every failure path, and I found no circular prerequisites once the packed-tarball and atomic-candidate readings are made explicit. What remains is that the final, load-bearing act — the served target beginning to advertise `ephemeralHostedAdapter`, `container-vm-migration-executor.v1`, `bounded_children_v1`, and `write_activity_v1` — is currently specified by two requirements that cannot be simultaneously executed without a mechanism and a corpus partition neither document names. Because those two gaps sit exactly on the coupled execution boundary this review gates, and because the set's own standard is exhaustive carrier and receipt closure, the set is not yet ready for implementation.
+
+VERDICT: NOT READY
