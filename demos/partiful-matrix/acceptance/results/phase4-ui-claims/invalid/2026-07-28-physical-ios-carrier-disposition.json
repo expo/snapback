@@ -1,7 +1,12 @@
 {
   "$schema": "partitime-step4-physical-ios-carrier-disposition/v1",
   "recordedAt": "2026-07-28",
-  "status": "proposed-instrument-correction-awaiting-owner-ratification",
+  "status": "ratified-instrument-correction",
+  "ratification": {
+    "owner": "Charlie Cheever",
+    "date": "2026-07-28",
+    "statement": "I ratify partitime-step4-physical-ios-carrier-v2-2026-07-28."
+  },
   "governingProcedure": "LLP 0063#product-choice",
   "retiredInstrument": {
     "snapbackRevision": "dc29282023a8fe9b8c9f0ecf0578ba0bda4b86e8",
@@ -10,7 +15,7 @@
     "networkHost": "172.16.0.110"
   },
   "proposedReplacement": {
-    "instrumentId": "partitime-step4-physical-ios-carrier-v2-proposed-2026-07-28",
+    "instrumentId": "partitime-step4-physical-ios-carrier-v2-2026-07-28",
     "browser": "ios-safari-device",
     "networkHost": "169.254.178.189",
     "claims": [
@@ -60,5 +65,5 @@
       "description": "Use randomUUID when available, getRandomValues otherwise, and a process-local monotonic fallback only for non-security connection/document labels. Credentials, authorization identities, public IDs, and persisted data IDs are unchanged."
     }
   ],
-  "rerunPolicy": "After owner ratification, rerun all four React/Contract × keyboard/reduced-motion cells prospectively. No invalid artifact is eligible for claim aggregation."
+  "rerunPolicy": "Rerun all four React/Contract × keyboard/reduced-motion cells prospectively after the recorded ratification. No invalid artifact is eligible for claim aggregation."
 }
