@@ -396,6 +396,9 @@ await runAcceptance(
           route: '/release-probe',
           queries: [{ function: api.listIncidents.name, args: {} }],
         },
+        authorizationNamespaces: [
+          session.client.allocateLiveQueryNamespace(api.listIncidents, {}),
+        ],
         authInvalidationProtocol: 1,
       });
       const released = await session.client.releaseConnection(
