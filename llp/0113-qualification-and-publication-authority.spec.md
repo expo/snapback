@@ -9,7 +9,11 @@
 live-subscribe use transport, non-recursive sender-proof binding, total durable
 replay, ten-minute device-bound grants, production-schema identity,
 observation-principal provisional activation, static experimental maturity,
-purpose-limited service intermediates, and publication-request authority)
+purpose-limited service intermediates, and publication-request authority).
+2026-07-28 (publication evidence reconciliation: the final package-ledger
+extension retains a closed, API-reopened GitHub matrix identity and two
+artifact identities/digests; producers measure clean checkout provenance and
+the publication authority consumes a fresh challenge-bound acquired head)
 **Related:** LLP 0037, LLP 0053, LLP 0058, LLP 0094, LLP 0099, LLP 0110, LLP 0111
 
 ## Summary
@@ -578,6 +582,17 @@ publication-ledger extension whose `previousLedgerSha256` equals the embedded
 candidate-ledger digest and whose nine package rows bind name, version,
 candidate tarball SHA-256, registry integrity, registry tarball SHA-256, and
 dist-tag observation.
+Each final platform row also retains the exact GitHub repository, workflow
+path/ref/head, run id and attempt, release operation id, dispatch/run/collection
+times, and a distinct artifact id with matching API archive digest, downloaded
+archive SHA-256, and extracted receipt SHA-256. The receipt producer measures
+the checked-out source HEAD and dirty state rather than copying those claims
+from the ledger. Qualification accepts only clean GitHub-hosted rows whose
+checkout equals the candidate revision and whose two artifacts belong to the
+same API-reopened workflow-dispatch run. Immediately before the publication
+ledger extension is closed, the publisher reopens the exact nine-package
+registry vector and a fresh challenge-bound signed acquired authority head;
+both observations are retained in the extension.
 
 The provisional activation CAS requires:
 
@@ -659,6 +674,9 @@ Acceptance requires committed, rerunnable evidence for:
 - service-intermediate wrong-purpose/domain/root/serial/generation/time
   negatives and publication request/scope substitution;
 - candidate-ledger embedding and final-ledger lineage across all nine packages;
+- checkout-measured producer provenance plus wrong repository/workflow/ref/
+  head/run-attempt/operation/artifact-id/artifact-digest and stale-dispatch
+  negatives for the two final GitHub-hosted package receipts;
 - comparator receipts binding the exact executing CLI and client package-file
   closures, with verification refusing any later byte or inventory drift;
 - failed provisional CAS leaving the active graph, database, claims, and

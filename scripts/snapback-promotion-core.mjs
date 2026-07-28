@@ -35,6 +35,8 @@ const POST_PROMOTION_LEDGER_KEYS = [
   'operationId',
   'packages',
   'postPromotionLedgerSha256',
+  'preCloseAuthorityHead',
+  'preCloseRegistryObservation',
   'previousLedgerSha256',
   'publicationEpoch',
   'publisherInstanceId',
@@ -50,6 +52,35 @@ const POST_PROMOTION_PACKAGE_KEYS = [
   'sourceName',
   'version',
 ];
+const LATEST_ROOT_RECEIPT_KEYS = [
+  'browserCaptureSha256',
+  'browserExecutableSha256',
+  'browserPackageTreeSha256',
+  'github',
+  'latestRootResolution',
+  'machine',
+  'platform',
+  'sha256',
+];
+const LATEST_ROOT_GITHUB_KEYS = [
+  'artifactApiDigest',
+  'artifactArchiveSha256',
+  'artifactId',
+  'artifactName',
+  'collectedAt',
+  'dispatchStartedAt',
+  'operationId',
+  'ref',
+  'repository',
+  'runAttempt',
+  'runCreatedAt',
+  'runHeadSha',
+  'runId',
+  'runStartedAt',
+  'workflow',
+  'workflowId',
+  'workflowPath',
+];
 
 function vectorsEqual(left, right, names) {
   return names.every((name) => (left[name] ?? null) === (right[name] ?? null));
@@ -57,6 +88,14 @@ function vectorsEqual(left, right, names) {
 
 function changedNames(before, after, names) {
   return names.filter((name) => (before[name] ?? null) !== (after[name] ?? null));
+}
+
+async function observeVector(readVector, names) {
+  try {
+    return { ok: true, value: await readVector(names), error: null };
+  } catch (error) {
+    return { ok: false, value: null, error: error.message };
+  }
 }
 
 function requireLeaseHead(head, lease, authorityPublicKey) {
@@ -90,12 +129,34 @@ function requireCurrentLease(lease, now) {
   }
 }
 
+export function validatePreClosePublicationState({
+  lease,
+  authorityPublicKey,
+  expectedVector,
+  observedVector,
+  head,
+  now = Date.now(),
+}) {
+  const names = lease.packages.map((row) => row.name);
+  if (!vectorsEqual(observedVector, expectedVector, names)) {
+    throw new Error('default-tag vector drift after latest-root proof');
+  }
+  requireLeaseHead(head, lease, authorityPublicKey);
+  requireCurrentLease(lease, now);
+  return {
+    head,
+    vector: structuredClone(observedVector),
+  };
+}
+
 export function buildPostPromotionLedger({
   candidateLedger,
   lease,
   events,
   vector,
   latestRootReceipts,
+  preCloseAuthorityHead,
+  preCloseRegistryObservation,
 }) {
   if (
     candidateLedger?.candidateLedgerSha256 !== lease.candidateLedgerSha256
@@ -104,6 +165,10 @@ export function buildPostPromotionLedger({
     || !Array.isArray(events)
     || !Array.isArray(latestRootReceipts)
     || latestRootReceipts.length !== 2
+    || preCloseAuthorityHead === null
+    || typeof preCloseAuthorityHead !== 'object'
+    || preCloseRegistryObservation === null
+    || typeof preCloseRegistryObservation !== 'object'
   ) {
     throw new TypeError('post-promotion ledger inputs are not closed');
   }
@@ -127,6 +192,8 @@ export function buildPostPromotionLedger({
     tagEvents: structuredClone(events),
     finalVector: structuredClone(vector),
     latestRootReceipts: structuredClone(latestRootReceipts),
+    preCloseAuthorityHead: structuredClone(preCloseAuthorityHead),
+    preCloseRegistryObservation: structuredClone(preCloseRegistryObservation),
   };
   ledger.postPromotionLedgerSha256 = sha256Hex(canonicalJcs(ledger));
   return validatePostPromotionLedger(ledger);
@@ -149,6 +216,29 @@ export function validatePostPromotionLedger(ledger) {
     || ledger.tagEvents.length !== PACKAGE_COUNT
   ) {
     throw new Error('post-promotion ledger closure is incomplete');
+  }
+  requireExactKeys(
+    ledger.preCloseRegistryObservation,
+    ['observedAt', 'vector'],
+    'pre-close registry observation',
+  );
+  parseTimestamp(
+    ledger.preCloseRegistryObservation.observedAt,
+    'pre-close registry observedAt',
+  );
+  if (
+    canonicalJcs(ledger.preCloseRegistryObservation.vector)
+      !== canonicalJcs(ledger.finalVector)
+  ) {
+    throw new Error('pre-close registry observation drifted');
+  }
+  if (
+    ledger.preCloseAuthorityHead?.status !== 'acquired'
+    || ledger.preCloseAuthorityHead?.outcome !== null
+    || ledger.preCloseAuthorityHead?.operationId !== ledger.operationId
+    || ledger.preCloseAuthorityHead?.publicationEpoch !== ledger.publicationEpoch
+  ) {
+    throw new Error('pre-close authority head drifted');
   }
   const packageNames = new Set();
   for (const [index, row] of ledger.packages.entries()) {
@@ -182,10 +272,73 @@ export function validatePostPromotionLedger(ledger) {
   }
   for (const [index, platform] of ['darwin-arm64', 'linux-x64'].entries()) {
     const receipt = ledger.latestRootReceipts[index];
+    requireExactKeys(receipt, LATEST_ROOT_RECEIPT_KEYS, `latest receipt ${index}`);
+    requireExactKeys(receipt.github, LATEST_ROOT_GITHUB_KEYS, `latest receipt ${index} GitHub`);
     if (receipt?.platform !== platform) {
       throw new Error(`post-promotion latest receipt ${index} drifted`);
     }
     assertHexSha256(receipt.sha256, `post-promotion latest receipt ${index}.sha256`);
+    assertHexSha256(
+      receipt.github.artifactArchiveSha256,
+      `post-promotion latest receipt ${index}.github.artifactArchiveSha256`,
+    );
+    const githubTimes = {};
+    for (const field of [
+      'dispatchStartedAt',
+      'runCreatedAt',
+      'runStartedAt',
+      'collectedAt',
+    ]) {
+      githubTimes[field] = parseTimestamp(
+        receipt.github[field],
+        `latest receipt ${index}.github.${field}`,
+      );
+    }
+    if (
+      receipt.github.repository !== 'ccheever/snapback'
+      || receipt.github.workflow !== 'public-package-proof.yml'
+      || receipt.github.operationId !== ledger.operationId
+      || receipt.github.artifactApiDigest
+        !== `sha256:${receipt.github.artifactArchiveSha256}`
+      || !Number.isSafeInteger(receipt.github.runId)
+      || receipt.github.runId < 1
+      || !Number.isSafeInteger(receipt.github.runAttempt)
+      || receipt.github.runAttempt < 1
+      || !Number.isSafeInteger(receipt.github.artifactId)
+      || receipt.github.artifactId < 1
+      || githubTimes.runCreatedAt < githubTimes.dispatchStartedAt - 5_000
+      || githubTimes.runCreatedAt > githubTimes.dispatchStartedAt + 90_000
+      || githubTimes.runStartedAt < githubTimes.runCreatedAt - 5_000
+      || githubTimes.collectedAt < githubTimes.runStartedAt
+      || githubTimes.collectedAt - githubTimes.dispatchStartedAt > 15 * 60_000
+    ) {
+      throw new Error(`post-promotion latest receipt ${index} GitHub evidence drifted`);
+    }
+  }
+  const [darwinGithub, linuxGithub] = ledger.latestRootReceipts.map(
+    (receipt) => receipt.github,
+  );
+  for (const field of [
+    'repository',
+    'workflow',
+    'workflowId',
+    'workflowPath',
+    'ref',
+    'runId',
+    'runAttempt',
+    'runHeadSha',
+    'operationId',
+    'dispatchStartedAt',
+    'runCreatedAt',
+    'runStartedAt',
+    'collectedAt',
+  ]) {
+    if (darwinGithub[field] !== linuxGithub[field]) {
+      throw new Error(`post-promotion latest receipt GitHub ${field} diverged`);
+    }
+  }
+  if (darwinGithub.artifactId === linuxGithub.artifactId) {
+    throw new Error('post-promotion latest receipts reuse one GitHub artifact');
   }
   return ledger;
 }
@@ -304,31 +457,47 @@ export async function promoteDefaultVector({
     // is the only legal first rollback checkpoint.
     let rollbackExpected = structuredClone(expected);
     for (const row of [...changed].reverse()) {
+      let beforeLeaseHead = null;
+      let before = null;
+      let after = null;
+      let mutationError = null;
       try {
-        const beforeLeaseHead = await readLeaseHead();
+        beforeLeaseHead = await readLeaseHead();
         const beforeAuthorityTime = now();
         requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
         requireCurrentLease(lease, beforeAuthorityTime);
-        const before = await readVector(names);
+        before = await readVector(names);
         if (!vectorsEqual(before, rollbackExpected, names)
             || (before[row.name] ?? null) !== row.newVersion) {
           throw new Error(`rollback expected-value drift for ${row.name}`);
         }
         requireCurrentLease(lease, now());
-        if (row.expectedPriorVersion === null) await removeTag(row.name);
-        else await setTag(row.name, row.expectedPriorVersion);
-        const after = await readVector(names);
+        try {
+          if (row.expectedPriorVersion === null) await removeTag(row.name);
+          else await setTag(row.name, row.expectedPriorVersion);
+        } catch (error) {
+          mutationError = error;
+        }
+        // A command can apply remotely and then lose its response. Registry
+        // truth, not the transport status, decides whether the reverse
+        // checkpoint advanced.
+        after = await readVector(names);
         const next = { ...rollbackExpected, [row.name]: row.expectedPriorVersion };
         const changedNow = changedNames(before, after, names);
         if (changedNow.length !== 1 || changedNow[0] !== row.name
             || !vectorsEqual(after, next, names)) {
-          throw new Error(`rollback vector drift after ${row.name}`);
+          throw new Error(
+            mutationError?.message ?? `rollback vector drift after ${row.name}`,
+            { cause: mutationError ?? undefined },
+          );
         }
+        // Journal the observed reverse mutation before any later fallible
+        // authority read, just as the forward path does.
+        rollbackExpected = next;
         const afterLeaseHead = await readLeaseHead();
         const afterAuthorityTime = now();
         requireLeaseHead(afterLeaseHead, lease, authorityPublicKey, afterAuthorityTime);
         requireCurrentLease(lease, afterAuthorityTime);
-        rollbackExpected = next;
         const event = {
           phase: 'rollback',
           package: row.name,
@@ -337,16 +506,24 @@ export async function promoteDefaultVector({
           before,
           after,
           afterLeaseHead,
+          commandReportedError: mutationError?.message ?? null,
         };
         rollback.push(event);
         emit(event);
       } catch (rollbackCause) {
+        const observation = after === null
+          ? await observeVector(readVector, names)
+          : { ok: true, value: after, error: null };
         const event = {
           phase: 'rollback',
           package: row.name,
           ok: false,
           error: rollbackCause.message,
-          observed: await readVector(names),
+          beforeLeaseHead,
+          before,
+          commandReportedError: mutationError?.message ?? null,
+          observed: observation.value,
+          observationError: observation.error,
         };
         rollback.push(event);
         emit(event);
@@ -354,11 +531,13 @@ export async function promoteDefaultVector({
         // refuse unless the complete vector independently returns to it.
       }
     }
+    const finalObservation = await observeVector(readVector, names);
     const error = new Error(cause.message, { cause });
     error.result = {
       ok: false,
       events,
-      vector: await readVector(names),
+      vector: finalObservation.value,
+      vectorObservationError: finalObservation.error,
       rollback,
     };
     throw error;

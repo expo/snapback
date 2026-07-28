@@ -10,7 +10,7 @@ import {
 // — this module is the one package-owned wire/signature authority shared by
 // the standing service and the registry publisher.
 export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v2\0');
-export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v2\0');
+export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v3\0');
 export const RECEIPT_DOMAIN = Buffer.from(
   'snapback-publication-authority-transition-receipt-v2\0',
 );
@@ -96,6 +96,7 @@ export const AUTHORITY_HEAD_KEYS = Object.freeze([
   'authorityGeneration',
   'authorityInstallationId',
   'authorityOrigin',
+  'challenge',
   'expiresAt',
   'headSha256',
   'leaseSha256',
@@ -549,6 +550,7 @@ export function createPublicationAuthorityReceipt({
 
 export function publicationAuthorityHeadSha256(unsignedHead) {
   const {
+    challenge: _challenge,
     headSha256: _headSha256,
     signature: _signature,
     schemaVersion: _schemaVersion,
@@ -574,12 +576,20 @@ export function validatePublicationAuthorityHead({
   publicKey,
   authorityInstallationId,
   authorityOrigin,
+  expectedChallenge,
 }) {
   requireExactKeys(head, AUTHORITY_HEAD_KEYS, 'publication authority head');
-  if (head.schemaVersion !== 'snapback.publication-authority-head.v2') {
+  if (head.schemaVersion !== 'snapback.publication-authority-head.v3') {
     throw new Error('unsupported publication authority head schema');
   }
   validateAuthorityBinding(head, { authorityInstallationId, authorityOrigin });
+  assertHexSha256(head.challenge, 'publication authority head challenge');
+  if (
+    expectedChallenge !== undefined
+    && head.challenge !== expectedChallenge
+  ) {
+    throw new Error('publication authority head challenge mismatch');
+  }
   if (!Number.isSafeInteger(head.authorityGeneration) || head.authorityGeneration < 0) {
     throw new Error('authorityGeneration must be a non-negative safe integer');
   }

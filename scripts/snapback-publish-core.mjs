@@ -66,9 +66,11 @@ const CANDIDATE_LEDGER_KEYS = [
 ];
 const QUALIFIED_PACKAGE_KEYS = [
   'dependencies',
+  'devDependencies',
   'files',
   'name',
   'optionalDependencies',
+  'peerDependencies',
   'publicationOrder',
   'runtimeBinarySha256',
   'runtimeSupportSha256',
@@ -82,9 +84,11 @@ const QUALIFIED_PACKAGE_KEYS = [
 const CANDIDATE_PACKAGE_KEYS = [
   'candidateTagVerified',
   'dependencies',
+  'devDependencies',
   'files',
   'name',
   'optionalDependencies',
+  'peerDependencies',
   'publicationOrder',
   'registryIntegrity',
   'registrySha256',
@@ -99,6 +103,17 @@ const CANDIDATE_PACKAGE_KEYS = [
   'version',
 ];
 const PLATFORM_RECEIPT_KEYS = ['platform', 'sha256'];
+const SOURCE_CHECKOUT_KEYS = ['dirty', 'headSha'];
+const GITHUB_PROOF_KEYS = [
+  'eventName',
+  'operationId',
+  'ref',
+  'repository',
+  'runAttempt',
+  'runHeadSha',
+  'runId',
+  'workflowRef',
+];
 const BROWSER_JOURNEY_KEYS = [
   'browserPackage',
   'browserPackageVersion',
@@ -208,6 +223,50 @@ function assertSha256(value, field) {
   if (!/^[0-9a-f]{64}$/u.test(value ?? '')) {
     throw new TypeError(`${field} must be a lowercase SHA-256`);
   }
+}
+
+export function validatePublicationReceiptProvenance(
+  receipt,
+  {
+    expectedRevision,
+    expectedWorkflow,
+    expectedOperationId = undefined,
+  },
+) {
+  requireExactKeys(receipt?.sourceCheckout, SOURCE_CHECKOUT_KEYS, 'receipt source checkout');
+  if (
+    receipt.sourceCheckout.headSha !== expectedRevision
+    || receipt.sourceCheckout.dirty !== false
+  ) {
+    throw new TypeError('publication receipt source checkout is not the exact clean revision');
+  }
+  requireExactKeys(receipt?.githubProof, GITHUB_PROOF_KEYS, 'receipt GitHub proof');
+  const proof = receipt.githubProof;
+  if (
+    proof.repository !== 'ccheever/snapback'
+    || !/^[0-9]+$/u.test(proof.runId ?? '')
+    || !/^[1-9][0-9]*$/u.test(proof.runAttempt ?? '')
+    || !/^[0-9a-f]{40}$/u.test(proof.runHeadSha ?? '')
+    || proof.workflowRef
+      !== `ccheever/snapback/.github/workflows/${expectedWorkflow}@${proof.ref}`
+    || !/^refs\/(?:heads|tags)\/[A-Za-z0-9._/-]+$/u.test(proof.ref ?? '')
+    || !['push', 'workflow_dispatch'].includes(proof.eventName)
+    || receipt.machine?.runnerEnvironment !== 'github-hosted'
+    || receipt.machine?.separatelyProvisionedCleanMachine !== true
+    || String(receipt.machine?.githubRunId) !== proof.runId
+    || String(receipt.machine?.githubRunAttempt) !== proof.runAttempt
+    || receipt.machine?.githubRepository !== proof.repository
+    || receipt.machine?.githubWorkflowSha !== proof.runHeadSha
+  ) {
+    throw new TypeError('publication receipt lacks exact GitHub-hosted provenance');
+  }
+  if (
+    expectedOperationId !== undefined
+    && proof.operationId !== expectedOperationId
+  ) {
+    throw new TypeError('publication receipt operation correlation drifted');
+  }
+  return proof;
 }
 
 export function validateColdInstallBrowserEvidence(receipt) {
@@ -348,13 +407,18 @@ function withoutField(value, field) {
   return clone;
 }
 
-function assertInternalDependencyClosure(row, version) {
+export const PACKAGE_DEPENDENCY_SECTIONS = Object.freeze([
+  'dependencies',
+  'optionalDependencies',
+  'peerDependencies',
+  'devDependencies',
+]);
+
+export function validateInternalDependencyClosure(row, version) {
   const publicNames = new Set(PACKAGE_INVENTORY.map(([, name]) => name));
   const publicBySource = new Map(PACKAGE_INVENTORY);
-  for (const [section, entries] of [
-    ['dependencies', row.dependencies],
-    ['optionalDependencies', row.optionalDependencies],
-  ]) {
+  for (const section of PACKAGE_DEPENDENCY_SECTIONS) {
+    const entries = row[section] ?? {};
     if (entries === null || typeof entries !== 'object' || Array.isArray(entries)) {
       throw new TypeError(`${row.name}.${section} must be an object`);
     }
@@ -362,18 +426,31 @@ function assertInternalDependencyClosure(row, version) {
       if (/^(?:workspace:|file:|link:)/u.test(String(value))) {
         throw new TypeError(`${row.name}.${section}.${dependency} is not registry-closed`);
       }
+      if (
+        publicNames.has(dependency)
+        || dependency.startsWith('@ccheever/snapback-')
+      ) {
+        throw new TypeError(
+          `${row.name}.${section}.${dependency} must use the normative @snapback source key`,
+        );
+      }
       const alias = String(value).match(
         /^npm:(@ccheever\/snapback-[a-z0-9-]+)@(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/u,
       );
       if (String(value).includes('@ccheever/snapback-') && !alias) {
         throw new TypeError(`${row.name}.${section}.${dependency} is not an exact alias`);
       }
-      if (publicBySource.has(dependency)
-          && (!alias || alias[1] !== publicBySource.get(dependency))) {
-        throw new TypeError(`${row.name}.${section}.${dependency} is not the decided public alias`);
-      }
-      if (dependency.startsWith('@snapback/') && !publicBySource.has(dependency)) {
-        throw new TypeError(`${row.name}.${section}.${dependency} is outside the package inventory`);
+      if (dependency.startsWith('@snapback/')) {
+        if (!publicBySource.has(dependency)) {
+          throw new TypeError(`${row.name}.${section}.${dependency} is outside the package inventory`);
+        }
+        if (!alias || alias[1] !== publicBySource.get(dependency)) {
+          throw new TypeError(`${row.name}.${section}.${dependency} is not the decided public alias`);
+        }
+      } else if (alias) {
+        throw new TypeError(
+          `${row.name}.${section}.${dependency} aliases an internal package from a non-normative key`,
+        );
       }
       if (alias && (!publicNames.has(alias[1]) || alias[2] !== version)) {
         throw new TypeError(`${row.name}.${section}.${dependency} escapes the candidate vector`);
@@ -416,7 +493,7 @@ function validatePackageRows(ledger, keys, statuses) {
       if (runtime) assertSha256(value, `${row.name}.${field}`);
       else if (value !== null) throw new TypeError(`${row.name}.${field} must be null`);
     }
-    assertInternalDependencyClosure(row, ledger.version);
+    validateInternalDependencyClosure(row, ledger.version);
   }
 }
 
@@ -522,6 +599,11 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
   const byPlatform = new Map();
   for (const record of records) {
     const receipt = record.receipt;
+    validatePublicationReceiptProvenance(receipt, {
+      expectedRevision: ledger.revision,
+      expectedWorkflow: 'qualified-package-staging.yml',
+      expectedOperationId: null,
+    });
     if (
       receipt?.schemaVersion !== 'snapback.package-cold-install.v1'
       || receipt.ok !== true

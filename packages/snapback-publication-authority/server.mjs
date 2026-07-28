@@ -39,6 +39,16 @@ function authorized(request, expectedTokenDigest) {
   return timingSafeEqual(tokenDigest(match[1]), expectedTokenDigest);
 }
 
+function exactHeader(request, name) {
+  const values = [];
+  for (let index = 0; index < request.rawHeaders.length; index += 2) {
+    if (request.rawHeaders[index].toLowerCase() === name) {
+      values.push(request.rawHeaders[index + 1]);
+    }
+  }
+  return values.length === 1 ? values[0] : null;
+}
+
 async function readCanonicalRequest(request, limit = 128 * 1024) {
   if (request.headers['content-type'] !== 'application/json') {
     throw new PublicationAuthorityError(
@@ -154,7 +164,15 @@ export function createPublicationAuthorityServer({ authority, bearerToken }) {
         return;
       }
       if (url.pathname === '/v1/head' && request.method === 'GET') {
-        send(response, 200, authority.head());
+        const challenge = exactHeader(request, 'x-snapback-publication-challenge');
+        if (!/^[0-9a-f]{64}$/u.test(challenge ?? '')) {
+          send(response, 400, errorBody(
+            'SNAPBACK_PUBLICATION_HEAD_CHALLENGE_REQUIRED',
+            'publication authority head reads require one fresh challenge',
+          ));
+          return;
+        }
+        send(response, 200, authority.head(challenge));
         return;
       }
       const routes = new Map([

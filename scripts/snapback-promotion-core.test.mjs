@@ -18,6 +18,7 @@ import {
   unsignedLease,
   validatePublicationLease,
   validatePublicationAuthorityReceipt,
+  validatePreClosePublicationState,
   validatePostPromotionLedger,
   vectorFromLease,
 } from './snapback-promotion-core.mjs';
@@ -63,9 +64,10 @@ function fixture() {
 
 function acquiredHead(lease, privateKey, overrides = {}) {
   const unsigned = {
-    schemaVersion: 'snapback.publication-authority-head.v2',
+    schemaVersion: 'snapback.publication-authority-head.v3',
     authorityInstallationId: lease.authorityInstallationId,
     authorityOrigin: lease.authorityOrigin,
+    challenge: 'd'.repeat(64),
     signingKeyId: lease.signingKeyId,
     authorityGeneration: 2,
     publicationEpoch: lease.publicationEpoch,
@@ -310,6 +312,94 @@ test('an ambiguous command error is reconciled from the registry and rolled back
   assert.deepEqual(vector, prior);
 });
 
+test('rollback reconciles an apply-then-throw response loss and continues in reverse', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const prior = structuredClone(vector);
+  const head = acquiredHead(lease, privateKey);
+  let lostRollbackResponse = false;
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      setTag: async (name, version) => {
+        vector[name] = version;
+        if (
+          version === '0.1.0'
+          && name === lease.packages.at(-1).name
+          && !lostRollbackResponse
+        ) {
+          lostRollbackResponse = true;
+          throw new Error('simulated lost rollback response');
+        }
+      },
+      removeTag: async (name) => { vector[name] = null; },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      afterPromotion: async () => {
+        throw new Error('force complete-vector rollback');
+      },
+    }),
+    (error) => {
+      assert.equal(error.result.rollback.length, 9);
+      assert.ok(error.result.rollback.every((row) => row.ok));
+      assert.equal(
+        error.result.rollback[0].commandReportedError,
+        'simulated lost rollback response',
+      );
+      return true;
+    },
+  );
+  assert.equal(lostRollbackResponse, true);
+  assert.deepEqual(vector, prior);
+});
+
+test('rollback preserves an observation failure without attempting an unsafe overwrite', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const head = acquiredHead(lease, privateKey);
+  let failNextObservation = false;
+  let rollbackWrites = 0;
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => {
+        if (failNextObservation) {
+          failNextObservation = false;
+          throw new Error('simulated registry observation outage');
+        }
+        return structuredClone(vector);
+      },
+      readLeaseHead: async () => structuredClone(head),
+      setTag: async (name, version) => {
+        if (version === '0.1.0') {
+          rollbackWrites += 1;
+          vector[name] = version;
+          failNextObservation = true;
+        } else {
+          vector[name] = version;
+        }
+      },
+      removeTag: async (name) => { vector[name] = null; },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      afterPromotion: async () => {
+        throw new Error('force complete-vector rollback');
+      },
+    }),
+    (error) => {
+      assert.match(
+        error.result.rollback[0].error,
+        /registry observation outage/u,
+      );
+      assert.equal(rollbackWrites, 1);
+      assert.ok(error.result.rollback.slice(1).every((row) => row.ok === false));
+      return true;
+    },
+  );
+});
+
 test('rollback never clobbers an independently advanced tag', async () => {
   const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
@@ -471,8 +561,44 @@ test('external authority acquisition and close receipts are exact-value bound', 
   );
 });
 
+test('pre-close gate reopens the complete vector and current acquired authority head', () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  assert.deepEqual(validatePreClosePublicationState({
+    lease,
+    authorityPublicKey: publicKey,
+    expectedVector: vector,
+    observedVector: vector,
+    head,
+    now: Date.parse('2026-07-28T19:05:00.000Z'),
+  }).vector, vector);
+  assert.throws(
+    () => validatePreClosePublicationState({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      observedVector: { ...vector, [lease.packages[0].name]: '0.2.0' },
+      head,
+      now: Date.parse('2026-07-28T19:05:00.000Z'),
+    }),
+    /vector drift/u,
+  );
+  assert.throws(
+    () => validatePreClosePublicationState({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      observedVector: vector,
+      head: acquiredHead(lease, privateKey, { status: 'closed', outcome: 'promoted' }),
+      now: Date.parse('2026-07-28T19:05:00.000Z'),
+    }),
+    /lease head drifted/u,
+  );
+});
+
 test('post-promotion ledger closes candidate lineage, tags, and final receipts', () => {
-  const { lease } = fixture();
+  const { lease, privateKey } = fixture();
   const vector = Object.fromEntries(names.map((name) => [name, '0.1.1']));
   const candidateLedger = {
     candidateLedgerSha256: lease.candidateLedgerSha256,
@@ -487,15 +613,49 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
   };
   const events = names.map((name) => ({ phase: 'promote', package: name }));
   const latestRootReceipts = [
-    { platform: 'darwin-arm64', sha256: 'b'.repeat(64) },
-    { platform: 'linux-x64', sha256: 'c'.repeat(64) },
-  ];
+    ['darwin-arm64', 'b'],
+    ['linux-x64', 'c'],
+  ].map(([platform, fill], index) => ({
+    platform,
+    sha256: fill.repeat(64),
+    github: {
+      repository: 'ccheever/snapback',
+      workflow: 'public-package-proof.yml',
+      workflowId: 42,
+      workflowPath: '.github/workflows/public-package-proof.yml@refs/heads/main',
+      ref: 'main',
+      runId: 100,
+      runAttempt: 1,
+      runHeadSha: 'd'.repeat(40),
+      operationId: lease.operationId,
+      dispatchStartedAt: '2026-07-28T19:00:00.000Z',
+      runCreatedAt: '2026-07-28T19:00:01.000Z',
+      runStartedAt: '2026-07-28T19:00:02.000Z',
+      collectedAt: '2026-07-28T19:04:00.000Z',
+      artifactId: 200 + index,
+      artifactName: `artifact-${platform}`,
+      artifactApiDigest: `sha256:${'e'.repeat(64)}`,
+      artifactArchiveSha256: 'e'.repeat(64),
+    },
+    machine: {},
+    latestRootResolution: {},
+    browserCaptureSha256: 'f'.repeat(64),
+    browserExecutableSha256: '1'.repeat(64),
+    browserPackageTreeSha256: '2'.repeat(64),
+  }));
+  const preCloseAuthorityHead = acquiredHead(lease, privateKey);
+  const preCloseRegistryObservation = {
+    observedAt: '2026-07-28T19:05:00.000Z',
+    vector,
+  };
   const post = buildPostPromotionLedger({
     candidateLedger,
     lease,
     events,
     vector,
     latestRootReceipts,
+    preCloseAuthorityHead,
+    preCloseRegistryObservation,
   });
   assert.equal(post.previousLedgerSha256, lease.candidateLedgerSha256);
   assert.equal(validatePostPromotionLedger(post), post);

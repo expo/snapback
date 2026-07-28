@@ -88,6 +88,24 @@ complete candidate closure. Exact-root aggregation remains the ordinary
 post-publication mode. This is an instrument only; no registry mutation is
 claimed by this revision.)
 
+**Revised (final publication-proof hardening):** 2026-07-28 (the latest-root
+plan is now closed data consumed only by the digest-pinned package-owned GitHub
+helper; arbitrary commands and argv are no longer accepted. The retained
+collection and both platform evidence rows bind repository, workflow,
+workflow ref/head, run id/attempt, operation id, dispatch freshness, and
+artifact ids plus API/download/receipt digests, and the helper reopens the run
+and artifacts through GitHub before close. Qualified receipt producers now
+measure their actual checkout HEAD/dirty state and validators require clean
+GitHub-hosted provenance. Publication dependency closure covers dependencies,
+optional, peer, and development dependencies and rejects direct public
+Snapback keys. Rollback reconciles apply-then-lost-response outcomes from a
+complete registry read, authority clients abort bounded response streams, and
+every head read uses a fresh signature-bound challenge. Immediately after
+final proof, the promoter reopens the complete registry vector and fresh
+acquired head before constructing the post ledger and close. These are
+corrective implementation details of this amendment, not a new release
+claim.)
+
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
 GitHub-hosted macOS/arm64 and Linux/x64 machines. Both platform receipts prove
@@ -264,11 +282,17 @@ The two final receipts come from one correlated
 the tag vector reaches the intended value, waits for a successful terminal run
 within the publication-lease budget, downloads the exact run-id-named
 `darwin-arm64` and `linux-x64` artifacts, and refuses local, stale, exact-root,
-or differently correlated receipts. The publication proof plan remains two
-bounded argv-only commands: the first performs the correlated dispatch and
-materializes both receipts; the second reopens the already-materialized Linux
-receipt. The promoter then performs the full candidate-ledger validation over
-both files before external-authority close.
+or differently correlated receipts. The publication proof plan is a closed
+data object. It names the fixed repository/workflow/ref, expected workflow
+HEAD, committed candidate-ledger path, release operation id, output paths, two
+bounded time budgets, and the SHA-256 of the package-owned helper; it cannot
+name an executable or arbitrary argv. The promoter invokes that helper first
+to dispatch/materialize both receipts and then to reopen the retained
+collection. The helper and promoter require one exact GitHub repository,
+workflow path/ref/head, run id/attempt, operation id, fresh dispatch window,
+and two distinct artifact ids whose API, downloaded archive, and extracted
+receipt digests agree. The promoter then performs the full candidate-ledger
+validation over both files before external-authority close.
 
 The release receipt is not a bag of hashes. It proves a directed provenance
 chain:
@@ -290,7 +314,13 @@ and proves every internal dependency and optional dependency is an exact
 package's prior tag state and identifies first-publish packages such as React,
 for which rollback means removing the newly created default tag rather than
 restoring a prior one. A missing tarball, range, alias mismatch, or unknown
-prior tag fails the release receipt before any tag changes.
+prior tag fails the release receipt before any tag changes. All four package
+dependency maps (`dependencies`, `optionalDependencies`, `peerDependencies`,
+and `devDependencies`) participate in this closure. Internal edges use the
+normative `@snapback/*` source key with an exact
+`npm:@ccheever/snapback-*` alias at the selected vector version. A direct
+`@ccheever/snapback-*` key, range, tag, non-normative alias key, or unknown
+internal package refuses even when npm would otherwise resolve it.
 
 The post-promotion ledger is a canonical extension of the candidate ledger:
 it retains the candidate-ledger digest as `previousLedgerSha256`, adds the
@@ -335,6 +365,14 @@ change stops promotion before the next mutation. The publisher records both
 registry observations, the lease observation, request result, and resulting
 vector; it never treats an npm command's exit status alone as proof.
 
+Every head request supplies a fresh 256-bit challenge. The authority includes
+that challenge in the v3 head signature while excluding it from the stable
+state-head digest; the client requires exact equality. A recorded acquired
+head therefore cannot be replayed after authority close even while the lease's
+wall-clock interval remains open. Every authority client streams at most
+128 KiB and aborts/cancels oversized, malformed, or 15-second-stalled success
+and error bodies.
+
 Rollback covers the full vector of successfully changed packages, including a
 root move, and visits them in the reverse of their actual mutation order. For
 each package it first re-reads the complete registry vector and external lease
@@ -350,12 +388,26 @@ receipt remains failed and no capability carrier may cite it unless the final
 full vector equals the recorded prior vector and the external authority closes
 the exact lease epoch as rolled back.
 
+If a rollback command applies and then loses its response, the publisher reads
+the complete registry vector before deciding the step. An exact intended next
+vector advances the reverse checkpoint while retaining the command error; an
+unreadable or different vector records both the failure and any later bounded
+observation, performs no speculative overwrite, and lets earlier steps proceed
+only when their complete checkpoint is independently provable.
+
+After both GitHub-hosted latest-root proofs validate, and before constructing
+the post-promotion ledger or sending close, the publisher re-reads the complete
+nine-package official-registry vector and a fresh challenge-bound signed
+`acquired` head. Both observations are retained in the post ledger and must
+still equal the intended terminal vector and exact lease.
+
 #### Standing publication authority as built
 
 `@snapback/publication-authority` is the natural owner of this client/service
 protocol under LLP 0037's non-Rust-artifact revisit rule. Its one shared
 `protocol.mjs` module and closed package-local JSON Schemas define
-`AuthorizedPublicationLeaseV2`, the issue request, public head, authority
+`AuthorizedPublicationLeaseV2`, the issue request, challenge-bound v3 public
+head, authority
 transition, and transition receipt. The existing promotion engine imports
 that module; it does not carry a second signature or transition definition.
 Lease, head, and receipt signatures use distinct preimage domains. Heads and
@@ -388,6 +440,8 @@ digest, state transition, status, and generation in addition to the outer
 digest. `GET /healthz` reveals readiness only; all authority state requires a
 single Bearer header. Header, request, canonical body, keep-alive, and
 per-socket request bounds are explicit; GET bodies are rejected and drained.
+Head GETs require one exact fresh challenge, and every client response stream
+is independently size- and deadline-bounded and canceled on refusal.
 POST bodies are canonical JCS bytes, so duplicate, non-canonical, unknown, or
 missing members cannot be silently normalized. TLS is terminated by the
 private service ingress; request and promotion clients refuse cleartext except

@@ -24,6 +24,7 @@ import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 import {
   PACKAGE_INVENTORY,
   validateColdInstallBrowserEvidence,
+  validateInternalDependencyClosure,
   validateQualifiedPlatformReceipts,
   validateQualifiedStagingLedger,
   validateQualifiedTarballs,
@@ -172,6 +173,40 @@ function browserReceiptEvidence(
       packedReactRealBrowserSeedLiveReload: true,
       browserPrivateSurfaceAbsence: true,
       ...(overrides.checks ?? {}),
+    },
+  };
+}
+
+function githubReceiptProvenance({
+  revision,
+  workflow,
+  operationId = null,
+  ref = 'refs/heads/main',
+  runId = '123456789',
+  runAttempt = '1',
+  runHeadSha = 'f'.repeat(40),
+}) {
+  return {
+    sourceCheckout: { headSha: revision, dirty: false },
+    githubProof: {
+      repository: 'ccheever/snapback',
+      workflowRef: `ccheever/snapback/.github/workflows/${workflow}@${ref}`,
+      ref,
+      eventName: workflow === 'qualified-package-staging.yml'
+        ? 'push'
+        : 'workflow_dispatch',
+      runId,
+      runAttempt,
+      runHeadSha,
+      operationId,
+    },
+    machine: {
+      runnerEnvironment: 'github-hosted',
+      separatelyProvisionedCleanMachine: true,
+      githubRunId: runId,
+      githubRunAttempt: runAttempt,
+      githubRepository: 'ccheever/snapback',
+      githubWorkflowSha: runHeadSha,
     },
   };
 }
@@ -377,6 +412,8 @@ function closedCandidateFixture() {
       version,
       dependencies: {},
       optionalDependencies: {},
+      peerDependencies: {},
+      devDependencies: {},
       tarball: `package-${publicationOrder}.tgz`,
       sha256: 'a'.repeat(64),
       runtimeBinarySha256: sourceName.startsWith('@snapback/runtime-')
@@ -397,6 +434,38 @@ function closedCandidateFixture() {
   candidate.candidateLedgerSha256 = sha256Hex(canonicalJcs(candidate));
   return candidate;
 }
+
+test('all dependency classes require normative source-keyed exact npm aliases', () => {
+  for (const section of [
+    'dependencies',
+    'optionalDependencies',
+    'peerDependencies',
+    'devDependencies',
+  ]) {
+    const valid = {
+      name: '@ccheever/snapback-react',
+      [section]: {
+        '@snapback/client': 'npm:@ccheever/snapback-client@0.1.1',
+      },
+    };
+    assert.equal(validateInternalDependencyClosure(valid, '0.1.1'), undefined);
+    for (const [dependency, value] of [
+      ['@ccheever/snapback-client', '0.1.1'],
+      ['@ccheever/snapback-client', '^0.1.1'],
+      ['@ccheever/snapback-client', 'latest'],
+      ['@snapback/client', 'npm:@ccheever/snapback-client@latest'],
+      ['@snapback/client', 'npm:@ccheever/snapback-client@0.1.0'],
+    ]) {
+      assert.throws(
+        () => validateInternalDependencyClosure({
+          name: '@ccheever/snapback-react',
+          [section]: { [dependency]: value },
+        }, '0.1.1'),
+        /normative|exact alias|candidate vector/u,
+      );
+    }
+  }
+});
 
 test('public-install ledger validation requires the complete immutable closure', () => {
   const sourceNames = [
@@ -514,6 +583,8 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       version: row.version,
       dependencies: row.dependencies,
       optionalDependencies: row.optionalDependencies,
+      peerDependencies: row.peerDependencies,
+      devDependencies: row.devDependencies,
       tarball: row.tarball,
       sha256: row.sha256,
       runtimeBinarySha256: row.runtimeBinarySha256,
@@ -528,6 +599,11 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
   const record = (platform, architecture, sha256) => ({
     sha256,
     receipt: {
+      ...githubReceiptProvenance({
+        revision: qualified.revision,
+        workflow: 'qualified-package-staging.yml',
+        ref: 'refs/tags/qualified-package-staging-test',
+      }),
       schemaVersion: 'snapback.package-cold-install.v1',
       ok: true,
       installSource: 'staged',
@@ -538,9 +614,13 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       version: qualified.version,
       scopePreset: qualified.scopePreset,
       machine: {
+        ...githubReceiptProvenance({
+          revision: qualified.revision,
+          workflow: 'qualified-package-staging.yml',
+          ref: 'refs/tags/qualified-package-staging-test',
+        }).machine,
         platform,
         architecture,
-        separatelyProvisionedCleanMachine: true,
       },
       packages: qualified.packages.map((row) => ({
         sourceName: row.sourceName,
@@ -597,6 +677,8 @@ test('real publication consumes the exact qualified tarballs without restaging',
         version: row.version,
         dependencies: row.dependencies,
         optionalDependencies: row.optionalDependencies,
+        peerDependencies: row.peerDependencies,
+        devDependencies: row.devDependencies,
         tarball: row.tarball,
         sha256: digest,
         runtimeBinarySha256: row.runtimeBinarySha256,
@@ -668,13 +750,34 @@ test('latest-root proof binds the root closure and complete default-tag vector',
 
 test('final latest-root receipts are candidate- and platform-closed', () => {
   const candidate = closedCandidateFixture();
+  const operationId = 'release-final-proof-test';
+  const runId = 123456789;
+  const runHeadSha = 'f'.repeat(40);
   const record = (platform, architecture, receiptSha256) => {
     const hostRuntime = platform === 'darwin'
       ? '@snapback/runtime-darwin-arm64'
       : '@snapback/runtime-linux-x64';
     return {
       sha256: receiptSha256,
+      githubArtifact: {
+        platform: `${platform}-${architecture}`,
+        artifactId: platform === 'darwin' ? 700 : 701,
+        artifactName:
+          `snapback-${platform}-${architecture}-latest-public-package-receipt-${runId}`,
+        apiDigest: `sha256:${'6'.repeat(64)}`,
+        archiveSha256: '6'.repeat(64),
+        receiptFilename:
+          `snapback-${platform}-${architecture}-public-package-receipt.json`,
+        receiptSha256,
+      },
       receipt: {
+      ...githubReceiptProvenance({
+        revision: candidate.revision,
+        workflow: 'public-package-proof.yml',
+        operationId,
+        runId: String(runId),
+        runHeadSha,
+      }),
       schemaVersion: 'snapback.package-cold-install.v1',
       ok: true,
       rootSelector: 'latest',
@@ -701,10 +804,16 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
       installSource: 'public',
       registry: PUBLIC_NPM_REGISTRY,
       machine: {
+        ...githubReceiptProvenance({
+          revision: candidate.revision,
+          workflow: 'public-package-proof.yml',
+          operationId,
+          runId: String(runId),
+          runHeadSha,
+        }).machine,
         platform,
         architecture,
         runtimePackage: hostRuntime,
-        separatelyProvisionedCleanMachine: true,
       },
       packages: candidate.packages.map((row) => ({
         sourceName: row.sourceName,
@@ -726,9 +835,25 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     record('darwin', 'arm64', '7'.repeat(64)),
     record('linux', 'x64', '8'.repeat(64)),
   ];
+  const githubCollection = {
+    schemaVersion: 'snapback.github-latest-root-proof-collection.v2',
+    repository: 'ccheever/snapback',
+    workflow: 'public-package-proof.yml',
+    workflowId: 42,
+    workflowPath: '.github/workflows/public-package-proof.yml@refs/heads/main',
+    ref: 'main',
+    expectedHeadSha: runHeadSha,
+    runHeadSha,
+    operationId,
+    ledgerRevision: candidate.revision,
+    runId,
+    runAttempt: 1,
+    artifacts: records.map((row) => row.githubArtifact),
+  };
   const final = validateFinalLatestReceipts({
     ledger: candidate,
     records,
+    githubCollection,
   });
   assert.deepEqual(final.map((row) => row.platform), ['darwin-arm64', 'linux-x64']);
   assert.equal(final[0].browserCaptureSha256, records[0].receipt.browserJourney.captureSha256);
@@ -741,19 +866,31 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     candidate.packages[0].name
   ] = '0.1.0';
   assert.throws(
-    () => validateFinalLatestReceipts({ ledger: candidate, records: vectorDrift }),
+    () => validateFinalLatestReceipts({
+      ledger: candidate,
+      records: vectorDrift,
+      githubCollection,
+    }),
     /tag vector drifted/u,
   );
   const packageDrift = structuredClone(records);
   packageDrift[1].receipt.packages[2].registrySha256 = '9'.repeat(64);
   assert.throws(
-    () => validateFinalLatestReceipts({ ledger: candidate, records: packageDrift }),
+    () => validateFinalLatestReceipts({
+      ledger: candidate,
+      records: packageDrift,
+      githubCollection,
+    }),
     /package evidence drifted/u,
   );
   const installedDrift = structuredClone(records);
   installedDrift[0].receipt.latestRootResolution.installed['@snapback/codegen'] = '0.1.0';
   assert.throws(
-    () => validateFinalLatestReceipts({ ledger: candidate, records: installedDrift }),
+    () => validateFinalLatestReceipts({
+      ledger: candidate,
+      records: installedDrift,
+      githubCollection,
+    }),
     /installed closure drifted/u,
   );
 });
@@ -783,6 +920,11 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     })),
   };
   const platformReceipt = (platform, architecture) => ({
+    ...githubReceiptProvenance({
+      revision: ledger.revision,
+      workflow: 'public-package-proof.yml',
+      operationId: 'public-exact-proof',
+    }),
     schemaVersion: 'snapback.package-cold-install.v1',
     ok: true,
     platformClaimSatisfied: true,
@@ -794,12 +936,16 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     scopePreset: 'ccheever',
     version: '0.1.0',
     machine: {
+      ...githubReceiptProvenance({
+        revision: ledger.revision,
+        workflow: 'public-package-proof.yml',
+        operationId: 'public-exact-proof',
+      }).machine,
       platform,
       architecture,
       runtimePackage: platform === 'darwin'
         ? '@snapback/runtime-darwin-arm64'
         : '@snapback/runtime-linux-x64',
-      separatelyProvisionedCleanMachine: true,
     },
     packages: ledger.packages.map((entry) => ({
       sourceName: entry.sourceName,

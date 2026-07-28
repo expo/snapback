@@ -21,11 +21,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 import {
+  PACKAGE_DEPENDENCY_SECTIONS,
   sha256File,
   validateCandidateLedger,
   validateQualifiedPlatformReceipts,
   validateQualifiedStagingLedger,
   validateQualifiedTarballs,
+  validateInternalDependencyClosure,
 } from './snapback-publish-core.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -202,11 +204,12 @@ function bindRegistryArtifact(row, out) {
     if (manifest.name !== row.name || manifest.version !== row.version) {
       fail(`published registry identity drift for ${row.name}@${row.version}`);
     }
-    if (JSON.stringify(manifest.dependencies ?? {}) !== JSON.stringify(row.dependencies)
-        || JSON.stringify(manifest.optionalDependencies ?? {})
-          !== JSON.stringify(row.optionalDependencies)) {
-      fail(`published registry dependency closure drift for ${row.name}@${row.version}`);
+    for (const section of PACKAGE_DEPENDENCY_SECTIONS) {
+      if (JSON.stringify(manifest[section] ?? {}) !== JSON.stringify(row[section])) {
+        fail(`published registry ${section} closure drift for ${row.name}@${row.version}`);
+      }
     }
+    validateInternalDependencyClosure(manifest, row.version);
     row.registrySha256 = sha256(downloaded);
     if (row.registrySha256 !== row.sha256) {
       fail(
@@ -270,8 +273,16 @@ function stage(options) {
       manifest.version = options.version;
       delete manifest.private;
       delete manifest.scripts;
-      for (const section of ['dependencies', 'optionalDependencies']) {
+      for (const section of PACKAGE_DEPENDENCY_SECTIONS) {
         for (const [dependency, value] of Object.entries(manifest[section] ?? {})) {
+          if (
+            [...nameMap.values()].includes(dependency)
+            || dependency.startsWith('@ccheever/snapback-')
+          ) {
+            fail(
+              `${sourceManifest.name} uses direct public internal key ${section}.${dependency}`,
+            );
+          }
           if (!nameMap.has(dependency)) {
             if (/^(?:workspace:|file:|link:)/.test(String(value))) {
               fail(`${sourceManifest.name} has unpublished ${section}.${dependency}=${value}`);
@@ -284,6 +295,7 @@ function stage(options) {
             : `npm:${mapped}@${options.version}`;
         }
       }
+      validateInternalDependencyClosure(manifest, options.version);
       writeFileSync(join(stageDir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
       const packed = run('npm', ['pack', stageDir, '--pack-destination', out, '--json']);
       if (packed.status !== 0) fail(`npm pack failed for ${manifest.name}:\n${packed.stderr}`);
@@ -302,6 +314,8 @@ function stage(options) {
         version: options.version,
         dependencies: packedManifest.dependencies ?? {},
         optionalDependencies: packedManifest.optionalDependencies ?? {},
+        peerDependencies: packedManifest.peerDependencies ?? {},
+        devDependencies: packedManifest.devDependencies ?? {},
         tarball: record.filename,
         sha256: sha256(tarballPath),
         runtimeBinarySha256: directory.startsWith('snapback-runtime-')

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -9,7 +10,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   buildPostPromotionLedger,
@@ -20,6 +22,7 @@ import {
   validatePublicationAuthorityHead,
   validatePublicationLease,
   validatePublicationAuthorityReceipt,
+  validatePreClosePublicationState,
 } from './snapback-promotion-core.mjs';
 import {
   sha256File,
@@ -28,8 +31,17 @@ import {
 import {
   validateFinalLatestReceipts,
 } from './snapback-package-cold-install-lib.mjs';
+import {
+  fetchPublicationAuthorityJson,
+} from '../packages/snapback-publication-authority/request.mjs';
 
 const registry = 'https://registry.npmjs.org';
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const latestProofHelper = join(
+  repositoryRoot,
+  'scripts',
+  'snapback-github-latest-proof.mjs',
+);
 const usage = `usage: node scripts/snapback-promote.mjs
   --ledger <candidate-ledger.json> --lease <authorized-lease.json>
   --public-key <ed25519-public-key.pem>
@@ -40,9 +52,10 @@ const usage = `usage: node scripts/snapback-promote.mjs
 Default-tag promotion is always a real registry operation. It requires
 SNAPBACK_PUBLISH_CONFIRM=yes-really and an externally authorized, current
 publication lease. SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE names the mounted
-Bearer-token file for the lease-bound authority origin. The proof plan contains
-two bounded, argv-only commands which produce fresh macOS/arm64 and Linux/x64
-latest-root receipts after the tag vector moves. Any proof or authority-close
+Bearer-token file for the lease-bound authority origin. The proof plan is
+closed data for the package-owned GitHub helper; it cannot name commands or
+arbitrary argv. The helper dispatches and reopens one fresh macOS/arm64 +
+Linux/x64 matrix after the tag vector moves. Any proof or authority-close
 failure enters the same strict reverse-order rollback path.`;
 
 function fail(message, code = 1) {
@@ -207,10 +220,23 @@ async function preflightPriorDefaultClosure() {
         throw new Error(`prior registry identity drift for ${row.name}`);
       }
       const dependencyAliases = [];
-      for (const section of ['dependencies', 'optionalDependencies']) {
+      for (const section of [
+        'dependencies',
+        'optionalDependencies',
+        'peerDependencies',
+        'devDependencies',
+      ]) {
         for (const [dependency, value] of Object.entries(manifest[section] ?? {})) {
           if (/^(?:workspace:|file:|link:)/.test(String(value))) {
             throw new Error(`prior ${row.name} contains non-registry ${section}.${dependency}`);
+          }
+          if (
+            selected.has(dependency)
+            || dependency.startsWith('@ccheever/snapback-')
+          ) {
+            throw new Error(
+              `prior ${row.name} contains direct public internal key ${section}.${dependency}`,
+            );
           }
           const match = String(value).match(
             /^npm:(@ccheever\/snapback-[a-z0-9-]+)@(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/,
@@ -218,9 +244,22 @@ async function preflightPriorDefaultClosure() {
           if (String(value).includes('@ccheever/snapback-') && !match) {
             throw new Error(`prior ${row.name} contains non-exact Snapback alias ${section}.${dependency}`);
           }
+          if (dependency.startsWith('@snapback/') && !match) {
+            throw new Error(
+              `prior ${row.name} contains non-exact Snapback alias ${section}.${dependency}`,
+            );
+          }
           if (!match) continue;
           const [, target, version] = match;
-          if (!selected.has(target) || selected.get(target) !== version) {
+          const expectedSourceKey = target.replace(
+            '@ccheever/snapback-',
+            '@snapback/',
+          );
+          if (
+            dependency !== expectedSourceKey
+            || !selected.has(target)
+            || selected.get(target) !== version
+          ) {
             throw new Error(`prior ${row.name} alias ${target}@${version} escapes the authorized vector`);
           }
           dependencyAliases.push({ section, dependency, target, version });
@@ -241,20 +280,21 @@ async function preflightPriorDefaultClosure() {
 }
 
 async function readLeaseHead() {
-  const response = await fetch(`${options.authorityUrl}/v1/head`, {
+  const challenge = randomBytes(32).toString('hex');
+  const response = await fetchPublicationAuthorityJson(`${options.authorityUrl}/v1/head`, {
     headers: {
       accept: 'application/json',
       authorization: `Bearer ${authorityToken}`,
+      'x-snapback-publication-challenge': challenge,
     },
-    redirect: 'error',
-    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`external lease head returned HTTP ${response.status}`);
   return validatePublicationAuthorityHead({
-    head: await response.json(),
+    head: response.value,
     publicKey: authorityPublicKey,
     authorityInstallationId: lease.authorityInstallationId,
     authorityOrigin: options.authorityUrl,
+    expectedChallenge: challenge,
   });
 }
 
@@ -268,18 +308,16 @@ function authorityHeaders() {
 }
 
 async function transitionAuthority(path, transition) {
-  const response = await fetch(`${options.authorityUrl}${path}`, {
+  const response = await fetchPublicationAuthorityJson(`${options.authorityUrl}${path}`, {
     method: 'POST',
     headers: authorityHeaders(),
     body: canonicalJcs(transition),
-    redirect: 'error',
-    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) {
     throw new Error(`external publication authority returned HTTP ${response.status}`);
   }
   return validatePublicationAuthorityReceipt({
-    receipt: await response.json(),
+    receipt: response.value,
     transition,
     publicKey: authorityPublicKey,
     authorityInstallationId: lease.authorityInstallationId,
@@ -290,63 +328,135 @@ async function transitionAuthority(path, transition) {
 function loadLatestProofPlan() {
   const plan = JSON.parse(readFileSync(options.latestProofPlan, 'utf8'));
   const keys = Object.keys(plan).sort();
+  const expectedKeys = [
+    'collection',
+    'darwinReceipt',
+    'dispatchTimeoutMs',
+    'expectedHeadSha',
+    'helperSha256',
+    'ledgerPath',
+    'linuxReceipt',
+    'operationId',
+    'ref',
+    'repository',
+    'schemaVersion',
+    'verifyTimeoutMs',
+    'workflow',
+  ].sort();
   if (
-    keys.join(',') !== 'commands,schemaVersion'
-    || plan.schemaVersion !== 'snapback.latest-root-proof-plan.v1'
-    || !Array.isArray(plan.commands)
-    || plan.commands.length !== 2
+    keys.join(',') !== expectedKeys.join(',')
+    || plan.schemaVersion !== 'snapback.latest-root-proof-plan.v2'
+    || plan.repository !== 'ccheever/snapback'
+    || plan.workflow !== 'public-package-proof.yml'
+    || plan.operationId !== lease.operationId
+    || !/^[A-Za-z0-9._/-]{1,200}$/u.test(plan.ref ?? '')
+    || plan.ref.includes('..')
+    || !/^[0-9a-f]{40}$/u.test(plan.expectedHeadSha ?? '')
+    || !/^[0-9a-f]{64}$/u.test(plan.helperSha256 ?? '')
+    || plan.helperSha256 !== sha256File(latestProofHelper)
+    || !Number.isSafeInteger(plan.dispatchTimeoutMs)
+    || plan.dispatchTimeoutMs < 1_000
+    || plan.dispatchTimeoutMs > 450_000
+    || !Number.isSafeInteger(plan.verifyTimeoutMs)
+    || plan.verifyTimeoutMs < 1_000
+    || plan.verifyTimeoutMs > 30_000
+    || plan.dispatchTimeoutMs + plan.verifyTimeoutMs > 8 * 60_000
   ) {
-    throw new Error('latest-root proof plan must be a closed two-command plan');
+    throw new Error('latest-root proof plan is not the closed package-owned plan');
   }
-  const platforms = ['darwin-arm64', 'linux-x64'];
-  for (const [index, command] of plan.commands.entries()) {
+  const ledgerRelative = relative(repositoryRoot, options.ledger).replaceAll('\\', '/');
+  if (
+    plan.ledgerPath !== ledgerRelative
+    || ledgerRelative.startsWith('../')
+    || ledgerRelative === ''
+  ) {
+    throw new Error('latest-root proof plan ledger path drifted');
+  }
+  for (const field of ['darwinReceipt', 'linuxReceipt', 'collection']) {
+    const value = plan[field];
     if (
-      Object.keys(command).sort().join(',') !== 'args,command,platform,receipt,timeoutMs'
-      || command.platform !== platforms[index]
-      || typeof command.command !== 'string'
-      || command.command.length === 0
-      || !Array.isArray(command.args)
-      || command.args.some((value) => typeof value !== 'string')
-      || typeof command.receipt !== 'string'
-      || !Number.isSafeInteger(command.timeoutMs)
-      || command.timeoutMs < 1_000
-      || command.timeoutMs > 600_000
+      typeof value !== 'string'
+      || value.startsWith('/')
+      || value.split('/').some((part) => part === '' || part === '..')
     ) {
-      throw new Error(`invalid latest-root proof command ${index}`);
+      throw new Error(`latest-root proof plan ${field} must be normalized and relative`);
     }
   }
-  if (plan.commands.reduce((total, command) => total + command.timeoutMs, 0) > 8 * 60_000) {
-    throw new Error('latest-root proof plan exceeds the publication-lease time budget');
+  const checkoutHead = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  }).trim();
+  const checkoutDirty = execFileSync(
+    'git',
+    ['status', '--porcelain', '--untracked-files=no'],
+    { cwd: repositoryRoot, encoding: 'utf8' },
+  ).length > 0;
+  if (checkoutHead !== plan.expectedHeadSha || checkoutDirty) {
+    throw new Error('latest-root proof helper checkout provenance drifted');
   }
   return plan;
 }
 
 function executeLatestProofPlan() {
   const plan = loadLatestProofPlan();
-  const records = [];
-  for (const command of plan.commands) {
-    const result = spawnSync(command.command, command.args, {
+  const planRoot = dirname(options.latestProofPlan);
+  const darwinReceipt = resolve(planRoot, plan.darwinReceipt);
+  const linuxReceipt = resolve(planRoot, plan.linuxReceipt);
+  const collectionPath = resolve(planRoot, plan.collection);
+  const commonArgs = [
+    '--repository', plan.repository,
+    '--workflow', plan.workflow,
+    '--ref', plan.ref,
+    '--expected-head-sha', plan.expectedHeadSha,
+    '--ledger-path', plan.ledgerPath,
+    '--operation-id', plan.operationId,
+    '--darwin-receipt', darwinReceipt,
+    '--linux-receipt', linuxReceipt,
+    '--collection', collectionPath,
+  ];
+  for (const [mode, timeoutMs] of [
+    ['dispatch', plan.dispatchTimeoutMs],
+    ['verify-collection', plan.verifyTimeoutMs],
+  ]) {
+    const result = spawnSync(process.execPath, [
+      latestProofHelper,
+      mode,
+      ...commonArgs,
+      '--timeout-ms', String(timeoutMs),
+    ], {
       encoding: 'utf8',
       maxBuffer: 8 * 1024 * 1024,
-      timeout: command.timeoutMs,
+      timeout: timeoutMs,
+      cwd: repositoryRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     if (result.status !== 0) {
       throw new Error(
-        `latest-root ${command.platform} proof command failed with ${result.status ?? result.signal ?? 'unknown'}`,
+        `latest-root package-owned ${mode} failed with ${result.status ?? result.signal ?? 'unknown'}`,
       );
     }
-    const path = resolve(dirname(options.latestProofPlan), command.receipt);
+  }
+  const collection = JSON.parse(readFileSync(collectionPath, 'utf8'));
+  const records = [];
+  for (const [platform, path] of [
+    ['darwin-arm64', darwinReceipt],
+    ['linux-x64', linuxReceipt],
+  ]) {
     if (!existsSync(path)) {
-      throw new Error(`latest-root ${command.platform} proof omitted its receipt`);
+      throw new Error(`latest-root ${platform} proof omitted its receipt`);
     }
     records.push({
       path,
       sha256: sha256File(path),
       receipt: JSON.parse(readFileSync(path, 'utf8')),
+      githubArtifact: collection.artifacts?.find((row) => row.platform === platform),
     });
   }
-  return validateFinalLatestReceipts({ ledger, records });
+  return validateFinalLatestReceipts({
+    ledger,
+    records,
+    githubCollection: collection,
+  });
 }
 
 async function setTag(name, version) {
@@ -408,6 +518,20 @@ try {
     },
     async afterPromotion({ vector, events }) {
       const latestRootReceipts = executeLatestProofPlan();
+      // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
+      // — reopen registry truth and a nonce-bound acquired head after proof,
+      // immediately before constructing the terminal ledger and close.
+      const preCloseVector = await readVector(
+        lease.packages.map((row) => row.name),
+      );
+      const preCloseAuthorityHead = await readLeaseHead();
+      validatePreClosePublicationState({
+        lease,
+        authorityPublicKey,
+        expectedVector: vector,
+        observedVector: preCloseVector,
+        head: preCloseAuthorityHead,
+      });
       validatePublicationLease({
         lease,
         publicKey: authorityPublicKey,
@@ -422,6 +546,11 @@ try {
         events,
         vector,
         latestRootReceipts,
+        preCloseAuthorityHead,
+        preCloseRegistryObservation: {
+          observedAt: new Date().toISOString(),
+          vector: preCloseVector,
+        },
       });
       mkdirSync(dirname(options.postLedger), { recursive: true });
       writeFileSync(

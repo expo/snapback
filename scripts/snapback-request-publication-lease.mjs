@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import {
   canonicalJcs,
@@ -20,6 +20,7 @@ import {
 } from '../packages/snapback-publication-authority/protocol.mjs';
 import {
   createPublicationLeaseIssueRequest,
+  fetchPublicationAuthorityJson,
   validateObservedPriorVector,
 } from '../packages/snapback-publication-authority/request.mjs';
 import { validateCandidateLedger } from './snapback-publish-core.mjs';
@@ -126,18 +127,8 @@ function headers(token) {
 }
 
 async function authorityJson(url, init = {}) {
-  const response = await fetch(url, {
-    ...init,
-    redirect: 'error',
-    signal: AbortSignal.timeout(15_000),
-  });
-  const body = await response.text();
-  let value;
-  try {
-    value = JSON.parse(body);
-  } catch {
-    throw new Error(`authority returned non-JSON HTTP ${response.status}`);
-  }
+  const response = await fetchPublicationAuthorityJson(url, init);
+  const value = response.value;
   if (!response.ok) {
     throw new Error(`authority refused HTTP ${response.status}: ${value.code ?? 'unknown'}`);
   }
@@ -198,13 +189,20 @@ try {
 }
 let lease;
 try {
+  const headChallenge = randomBytes(32).toString('hex');
   const head = validatePublicationAuthorityHead({
     head: await authorityJson(
       `${options.authorityUrl}/v1/head`,
-      { headers: headers(token) },
+      {
+        headers: {
+          ...headers(token),
+          'x-snapback-publication-challenge': headChallenge,
+        },
+      },
     ),
     publicKey,
     authorityOrigin: options.authorityUrl,
+    expectedChallenge: headChallenge,
   });
   const request = createPublicationLeaseIssueRequest({
     ledger,

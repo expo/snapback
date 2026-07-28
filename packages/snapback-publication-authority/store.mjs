@@ -121,9 +121,10 @@ function validateRetainedTransition({
 
 function retainedHeadSha256(record, generation, context) {
   return publicationAuthorityHeadSha256({
-    schemaVersion: 'snapback.publication-authority-head.v2',
+    schemaVersion: 'snapback.publication-authority-head.v3',
     authorityInstallationId: context.authorityInstallationId,
     authorityOrigin: context.authorityOrigin,
+    challenge: '0'.repeat(64),
     signingKeyId: context.signingKeyId,
     authorityGeneration: generation,
     publicationEpoch: record.lease.publicationEpoch,

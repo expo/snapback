@@ -38,12 +38,16 @@ function currentRecord(state) {
   return state.records.at(-1) ?? null;
 }
 
-export function projectPublicationAuthorityHead(state, privateKey) {
+export function projectPublicationAuthorityHead(state, privateKey, challenge) {
+  if (!/^[0-9a-f]{64}$/u.test(challenge ?? '')) {
+    throw new TypeError('publication authority head challenge must be lowercase sha256');
+  }
   const record = currentRecord(state);
   const common = {
-    schemaVersion: 'snapback.publication-authority-head.v2',
+    schemaVersion: 'snapback.publication-authority-head.v3',
     authorityInstallationId: state.authorityInstallationId,
     authorityOrigin: state.authorityOrigin,
+    challenge,
     signingKeyId: state.signingKeyId,
     authorityGeneration: state.generation,
   };
@@ -159,17 +163,18 @@ export class PublicationLeaseAuthority {
       generation: 0,
       publicationEpoch: 0,
       records: [],
-    }, this.privateKey);
+    }, this.privateKey, '0'.repeat(64));
     validatePublicationAuthorityHead({
       head: readiness,
       publicKey: this.publicKey,
       authorityInstallationId: this.authorityInstallationId,
       authorityOrigin: this.authorityOrigin,
+      expectedChallenge: '0'.repeat(64),
     });
   }
 
-  head() {
-    return projectPublicationAuthorityHead(this.store.read(), this.privateKey);
+  head(challenge = '0'.repeat(64)) {
+    return projectPublicationAuthorityHead(this.store.read(), this.privateKey, challenge);
   }
 
   issue(request) {
@@ -200,7 +205,11 @@ export class PublicationLeaseAuthority {
         return transactionResult(duplicate.lease);
       }
 
-      const head = projectPublicationAuthorityHead(state, this.privateKey);
+      const head = projectPublicationAuthorityHead(
+        state,
+        this.privateKey,
+        '0'.repeat(64),
+      );
       if (
         request.expectedPublicationEpoch !== state.publicationEpoch
         || request.expectedHeadSha256 !== head.headSha256

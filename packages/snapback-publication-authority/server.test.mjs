@@ -9,6 +9,7 @@ import {
   PROMOTION_PACKAGE_NAMES,
   publicationAuthoritySigningKeyId,
   publicationAuthorityTransition,
+  validatePublicationAuthorityHead,
   vectorFromLease,
 } from './protocol.mjs';
 import { createPublicationAuthorityServer } from './server.mjs';
@@ -17,6 +18,7 @@ import { InMemoryPublicationAuthorityStore } from './store.mjs';
 const TOKEN = 'publication-authority-test-bearer-token';
 const AUTHORITY_INSTALLATION_ID = 'snapback-publication-http';
 const AUTHORITY_ORIGIN = 'https://publication-authority.example';
+const HEAD_CHALLENGE = 'c'.repeat(64);
 let testSigningKeyId;
 
 function issueRequest() {
@@ -85,8 +87,19 @@ test('health is unprivileged while head and mutation endpoints require Bearer au
       headers: { authorization: 'Bearer this-token-is-definitely-wrong' },
     });
     assert.equal(wrong.status, 401);
-    const head = await fetch(`${base}/v1/head`, {
+    const noChallenge = await fetch(`${base}/v1/head`, {
       headers: { authorization: `Bearer ${TOKEN}` },
+    });
+    assert.equal(noChallenge.status, 400);
+    assert.equal(
+      (await noChallenge.json()).code,
+      'SNAPBACK_PUBLICATION_HEAD_CHALLENGE_REQUIRED',
+    );
+    const head = await fetch(`${base}/v1/head`, {
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        'x-snapback-publication-challenge': HEAD_CHALLENGE,
+      },
     });
     assert.equal(head.status, 200);
     assert.equal((await head.json()).status, 'empty');
@@ -148,7 +161,10 @@ test('HTTP acquire, head, and close preserve exact authority state', async () =>
     const acquired = await post('/v1/leases/acquire', acquire);
     assert.equal(acquired.closed, false);
     const acquiredHead = await fetch(`${base}/v1/head`, {
-      headers: { authorization: `Bearer ${TOKEN}` },
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        'x-snapback-publication-challenge': HEAD_CHALLENGE,
+      },
     }).then((response) => response.json());
     assert.equal(acquiredHead.status, 'acquired');
 
@@ -161,17 +177,75 @@ test('HTTP acquire, head, and close preserve exact authority state', async () =>
     const closed = await post('/v1/leases/close', close);
     assert.equal(closed.closed, true);
     const closedHead = await fetch(`${base}/v1/head`, {
-      headers: { authorization: `Bearer ${TOKEN}` },
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        'x-snapback-publication-challenge': HEAD_CHALLENGE,
+      },
     }).then((response) => response.json());
     assert.equal(closedHead.status, 'closed');
     assert.equal(closedHead.outcome, 'promoted');
   });
 });
 
+test('a replayed pre-close head cannot satisfy a fresh authenticated challenge', async () => {
+  await withServer(async (base, publicKey) => {
+    const headers = {
+      authorization: `Bearer ${TOKEN}`,
+      'content-type': 'application/json',
+    };
+    const post = async (path, value) => fetch(`${base}${path}`, {
+      method: 'POST',
+      headers,
+      body: canonicalJcs(value),
+    }).then((response) => response.json());
+    const lease = await post('/v1/leases/issue', issueRequest());
+    await post('/v1/leases/acquire', publicationAuthorityTransition({
+      lease,
+      outcome: 'acquired',
+      vector: vectorFromLease(lease, 'prior'),
+    }));
+    const firstChallenge = '1'.repeat(64);
+    const acquired = await fetch(`${base}/v1/head`, {
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        'x-snapback-publication-challenge': firstChallenge,
+      },
+    }).then((response) => response.json());
+    assert.equal(acquired.status, 'acquired');
+    await post('/v1/leases/close', publicationAuthorityTransition({
+      lease,
+      outcome: 'rolled-back',
+      vector: vectorFromLease(lease, 'prior'),
+    }));
+    const freshChallenge = '2'.repeat(64);
+    assert.throws(
+      () => validatePublicationAuthorityHead({
+        head: acquired,
+        publicKey,
+        authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+        authorityOrigin: AUTHORITY_ORIGIN,
+        expectedChallenge: freshChallenge,
+      }),
+      /challenge mismatch/u,
+    );
+    const closed = await fetch(`${base}/v1/head`, {
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        'x-snapback-publication-challenge': freshChallenge,
+      },
+    }).then((response) => response.json());
+    assert.equal(closed.status, 'closed');
+    assert.equal(closed.challenge, freshChallenge);
+  });
+});
+
 test('duplicate Authorization headers and route/query smuggling refuse', async () => {
   await withServer(async (base) => {
     const query = await fetch(`${base}/v1/head?head=other`, {
-      headers: { authorization: `Bearer ${TOKEN}` },
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        'x-snapback-publication-challenge': HEAD_CHALLENGE,
+      },
     });
     assert.equal(query.status, 404);
     const duplicate = await new Promise((resolve, reject) => {

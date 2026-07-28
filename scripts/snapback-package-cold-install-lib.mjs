@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 import {
   validateColdInstallBrowserEvidence,
   validateCandidateLedger,
+  validatePublicationReceiptProvenance,
   validateQualifiedStagingLedger,
 } from './snapback-publish-core.mjs';
 
@@ -409,10 +410,30 @@ export function validateLatestRootResolution({
   };
 }
 
-export function validateFinalLatestReceipts({ ledger, records }) {
+export function validateFinalLatestReceipts({
+  ledger,
+  records,
+  githubCollection,
+}) {
   validateCandidateLedger(ledger);
   if (!Array.isArray(records) || records.length !== 2) {
     throw new TypeError('final promotion requires two latest-root receipts');
+  }
+  if (
+    githubCollection?.schemaVersion
+      !== 'snapback.github-latest-root-proof-collection.v2'
+    || githubCollection.repository !== 'ccheever/snapback'
+    || githubCollection.workflow !== 'public-package-proof.yml'
+    || githubCollection.ledgerRevision !== ledger.revision
+    || githubCollection.runHeadSha !== githubCollection.expectedHeadSha
+    || !Number.isSafeInteger(githubCollection.runId)
+    || githubCollection.runId < 1
+    || !Number.isSafeInteger(githubCollection.runAttempt)
+    || githubCollection.runAttempt < 1
+    || !Array.isArray(githubCollection.artifacts)
+    || githubCollection.artifacts.length !== 2
+  ) {
+    throw new TypeError('final promotion lacks one closed GitHub proof collection');
   }
   const byPlatform = new Map();
   for (const record of records) {
@@ -423,6 +444,11 @@ export function validateFinalLatestReceipts({ ledger, records }) {
       : platform === 'linux-x64'
         ? '@snapback/runtime-linux-x64'
         : null;
+    validatePublicationReceiptProvenance(receipt, {
+      expectedRevision: ledger.revision,
+      expectedWorkflow: 'public-package-proof.yml',
+      expectedOperationId: githubCollection.operationId,
+    });
     if (
       receipt?.schemaVersion !== 'snapback.package-cold-install.v1'
       || receipt.ok !== true
@@ -438,6 +464,10 @@ export function validateFinalLatestReceipts({ ledger, records }) {
       || receipt.machine?.separatelyProvisionedCleanMachine !== true
       || receipt.checks?.latestRootCandidateClosure !== true
       || receipt.checks?.publicRegistryTarballDigestMatch !== true
+      || receipt.githubProof.runId !== String(githubCollection.runId)
+      || receipt.githubProof.runAttempt !== String(githubCollection.runAttempt)
+      || receipt.githubProof.runHeadSha !== githubCollection.expectedHeadSha
+      || receipt.githubProof.ref !== `refs/heads/${githubCollection.ref}`
     ) {
       throw new TypeError(`invalid final latest-root receipt: ${platform}`);
     }
@@ -518,9 +548,42 @@ export function validateFinalLatestReceipts({ ledger, records }) {
     if (!/^[0-9a-f]{64}$/u.test(record.sha256 ?? '')) {
       throw new TypeError(`${platform} final receipt has no file digest`);
     }
+    const artifact = record.githubArtifact;
+    const retainedArtifact = githubCollection.artifacts.find(
+      (row) => row.platform === platform,
+    );
+    if (
+      JSON.stringify(retainedArtifact) !== JSON.stringify(artifact)
+      || artifact?.receiptSha256 !== record.sha256
+      || !Number.isSafeInteger(artifact?.artifactId)
+      || artifact.artifactId < 1
+      || !/^sha256:[0-9a-f]{64}$/u.test(artifact.apiDigest ?? '')
+      || artifact.apiDigest !== `sha256:${artifact.archiveSha256}`
+    ) {
+      throw new TypeError(`${platform} final GitHub artifact evidence drifted`);
+    }
     byPlatform.set(platform, {
       platform,
       sha256: record.sha256,
+      github: {
+        repository: githubCollection.repository,
+        workflow: githubCollection.workflow,
+        workflowId: githubCollection.workflowId,
+        workflowPath: githubCollection.workflowPath,
+        ref: githubCollection.ref,
+        runId: githubCollection.runId,
+        runAttempt: githubCollection.runAttempt,
+        runHeadSha: githubCollection.runHeadSha,
+        operationId: githubCollection.operationId,
+        dispatchStartedAt: githubCollection.dispatchStartedAt,
+        runCreatedAt: githubCollection.runCreatedAt,
+        runStartedAt: githubCollection.runStartedAt,
+        collectedAt: githubCollection.collectedAt,
+        artifactId: artifact.artifactId,
+        artifactName: artifact.artifactName,
+        artifactApiDigest: artifact.apiDigest,
+        artifactArchiveSha256: artifact.archiveSha256,
+      },
       machine: receipt.machine,
       latestRootResolution: resolution,
       browserCaptureSha256: receipt.browserJourney.captureSha256,
@@ -546,6 +609,10 @@ export function aggregatePublicPackageProofs({
   const byPlatform = new Map();
   for (const record of receipts) {
     const receipt = record?.receipt;
+    validatePublicationReceiptProvenance(receipt, {
+      expectedRevision: ledger.revision,
+      expectedWorkflow: 'public-package-proof.yml',
+    });
     if (receipt?.schemaVersion !== 'snapback.package-cold-install.v1' || receipt.ok !== true) {
       throw new TypeError(`invalid platform receipt: ${record?.path ?? '<unknown>'}`);
     }

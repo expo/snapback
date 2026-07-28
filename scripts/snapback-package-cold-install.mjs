@@ -85,6 +85,36 @@ function run(command, commandArgs, options = {}) {
   return result.stdout;
 }
 
+function measureSourceCheckout() {
+  const head = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 15_000,
+    maxBuffer: 1024 * 1024,
+  });
+  const status = spawnSync(
+    'git',
+    ['status', '--porcelain', '--untracked-files=all'],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 15_000,
+      maxBuffer: 8 * 1024 * 1024,
+    },
+  );
+  if (
+    head.status !== 0
+    || status.status !== 0
+    || !/^[0-9a-f]{40}$/u.test(head.stdout.trim())
+  ) {
+    fail('could not measure the source checkout provenance');
+  }
+  return {
+    headSha: head.stdout.trim(),
+    dirty: status.stdout.length > 0,
+  };
+}
+
 async function runAsyncOrFail(command, commandArgs, options = {}) {
   try {
     return await runAsync(command, commandArgs, options);
@@ -1501,6 +1531,17 @@ await build({
   const tree = JSON.parse(run('npm', ['ls', '--all', '--json'], { cwd: appRoot }));
   const cleanMachine = process.env.GITHUB_ACTIONS === 'true'
     && process.env.RUNNER_ENVIRONMENT === 'github-hosted';
+  const sourceCheckout = measureSourceCheckout();
+  const githubProof = cleanMachine ? {
+    repository: process.env.GITHUB_REPOSITORY ?? null,
+    workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null,
+    ref: process.env.GITHUB_REF ?? null,
+    eventName: process.env.GITHUB_EVENT_NAME ?? null,
+    runId: process.env.GITHUB_RUN_ID ?? null,
+    runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+    runHeadSha: process.env.GITHUB_SHA ?? null,
+    operationId: process.env.SNAPBACK_PROOF_OPERATION_ID ?? null,
+  } : null;
   const receipt = {
     schemaVersion: 'snapback.package-cold-install.v1',
     ok: true,
@@ -1509,6 +1550,8 @@ await build({
     platformClaimSatisfied: installSource === 'public' && cleanMachine,
     sourceRevision: ledger.revision,
     sourceDirty: ledger.sourceDirty,
+    sourceCheckout,
+    githubProof,
     publicationMode: ledger.mode,
     publicationLedgerSchema: ledger.schemaVersion,
     publicationTag: ledger.tag,

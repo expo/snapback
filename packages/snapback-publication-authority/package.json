@@ -30,6 +30,6 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "test": "node authority.test.mjs && node server.test.mjs && node schema.test.mjs"
+    "test": "node authority.test.mjs && node server.test.mjs && node request.test.mjs && node schema.test.mjs"
   }
 }

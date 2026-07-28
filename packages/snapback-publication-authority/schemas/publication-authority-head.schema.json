@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/publication-authority-head.v2.json",
-  "title": "PublicationAuthorityHeadV2",
+  "$id": "https://snapback.dev/schemas/publication-authority-head.v3.json",
+  "title": "PublicationAuthorityHeadV3",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
     "authorityInstallationId",
     "authorityOrigin",
+    "challenge",
     "signingKeyId",
     "authorityGeneration",
     "publicationEpoch",
@@ -21,7 +22,7 @@
     "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.publication-authority-head.v2" },
+    "schemaVersion": { "const": "snapback.publication-authority-head.v3" },
     "authorityInstallationId": {
       "type": "string",
       "pattern": "^[A-Za-z0-9._:-]{8,160}$"
@@ -34,6 +35,10 @@
           "pattern": "^http://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?$"
         }
       ]
+    },
+    "challenge": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     },
     "signingKeyId": {
       "type": "string",

@@ -85,6 +85,7 @@ jobs:
       - name: Prove the public package loop
         env:
           RECEIPT_PATH: ${{ runner.temp }}/snapback-${{ matrix.id }}-public-package-receipt.json
+          SNAPBACK_PROOF_OPERATION_ID: ${{ inputs.operation_id }}
         run: |
           node scripts/snapback-package-cold-install.mjs \
             --ledger "$RUNNER_TEMP/snapback-publication-ledger.json" \
