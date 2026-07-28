@@ -776,8 +776,8 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
   }
   let browserSupportIdentity;
   let browserDistributionIdentity;
-  try {
-    browserSupportIdentity = await digestBoundedBrowserFilesystem({
+  const measureBrowserFilesystemIdentity = async () => ({
+    support: await digestBoundedBrowserFilesystem({
       domain: 'snapback-browser-support-files-v1',
       roots: [
         ['playwright', dirname(requireFromScaffold.resolve('playwright/package.json'))],
@@ -790,15 +790,20 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       maxEntries: BROWSER_MAX_FILES,
       maxTotalBytes: BROWSER_MAX_FILES_TOTAL_BYTES,
       maxFileBytes: BROWSER_MAX_FILE_BYTES,
-    });
-    browserDistributionIdentity = await digestBoundedBrowserFilesystem({
+    }),
+    distribution: await digestBoundedBrowserFilesystem({
       domain: 'snapback-browser-distribution-v1',
       roots: [['chromium-headless-shell', installedBrowser.distributionRoot]],
       executablePath: browserExecutablePath,
       maxEntries: BROWSER_MAX_FILES,
       maxTotalBytes: BROWSER_MAX_FILES_TOTAL_BYTES,
       maxFileBytes: BROWSER_MAX_FILE_BYTES,
-    });
+    }),
+  });
+  try {
+    const measured = await measureBrowserFilesystemIdentity();
+    browserSupportIdentity = measured.support;
+    browserDistributionIdentity = measured.distribution;
   } catch (error) {
     fail(`real-browser filesystem identity refused: ${error.message}`);
   }
@@ -1448,6 +1453,19 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
     } finally {
       await context.close();
       await browser.close();
+    }
+    let finalBrowserFilesystemIdentity;
+    try {
+      finalBrowserFilesystemIdentity = await measureBrowserFilesystemIdentity();
+    } catch (error) {
+      fail(`real-browser final filesystem identity refused: ${error.message}`);
+    }
+    if (
+      finalBrowserFilesystemIdentity.support.sha256 !== browserSupportIdentity.sha256
+      || finalBrowserFilesystemIdentity.distribution.sha256
+        !== browserDistributionIdentity.sha256
+    ) {
+      fail('real-browser filesystem identity changed across the browser journey');
     }
     return {
       relativeBasePath: '/__snapback',
