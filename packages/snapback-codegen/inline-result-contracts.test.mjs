@@ -24,6 +24,7 @@ const backend = () => {
 const validFunctions = (suffix = '') => `
   import {
     defineAction,
+    defineJsLiveQuery,
     defineJsMutation,
     defineJsQuery,
     results,
@@ -44,6 +45,12 @@ const validFunctions = (suffix = '') => `
     result: results.value(v.id('todos')),
     handler: async (ctx, args) => ctx.db.insert('todos', { title: args.title }),
   });
+  export const watchTodos = defineJsLiveQuery({
+    args: {},
+    reads: ['todos'],
+    result: results.documents('todos'),
+    handler: async (ctx) => ctx.db.query('todos').collect(),
+  });
   export const echo = defineAction({
     args: { value: v.string() },
     result: results.value(v.string()),
@@ -61,12 +68,16 @@ try {
   const firstBytes = readFileSync(manifestPath, 'utf8');
   const first = JSON.parse(firstBytes);
   const query = first.functions.find(({ name }) => name === 'listTodos');
+  const liveQuery = first.functions.find(({ name }) => name === 'watchTodos');
   const mutation = first.functions.find(({ name }) => name === 'createTodo');
   const action = first.functions.find(({ name }) => name === 'echo');
   assert.equal(query.handlerForm, 'inline');
   assert.equal(query.sourceSpan.file, 'functions.mjs');
   assert.equal(query.resultContract.kind, 'documents');
   assert.equal(query.resultContract.document.allowExtra, false);
+  assert.equal(liveQuery.kind, 'LiveQuery');
+  assert.equal(liveQuery.handlerForm, 'inline');
+  assert.equal(liveQuery.resultContract.kind, 'documents');
   assert.equal(mutation.resultContract.kind, 'value');
   assert.equal(action.handlerForm, 'inline');
   assert.equal(action.resultContract.kind, 'value');
@@ -111,6 +122,40 @@ try {
     ({ code }) => code === 'SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED',
   ));
   assert.equal(readFileSync(manifestPath, 'utf8'), lastGood);
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+    const legacy = { source: 'handlers.mjs', exportName: 'listTodos' };
+    export const listTodos = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      handler: async () => [],
+      ...legacy,
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(generated.diagnostics.some(
+    ({ code, sourceSpan }) => (
+      code === 'SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED'
+      && sourceSpan?.file === 'functions.mjs'
+    ),
+  ), 'a spread cannot ambiguously replace or mix an inline handler form');
+  assert.equal(readFileSync(manifestPath, 'utf8'), lastGood);
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+    export const listTodos = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      ['handler']: async () => [],
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(generated.diagnostics.some(
+    ({ code }) => code === 'SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED',
+  ), 'a computed handler property must fail with the stable direct-literal code');
 
   writeFileSync(join(dir, 'functions.mjs'), `
     import { defineJsQuery } from ${JSON.stringify(defineUrl)};
@@ -210,6 +255,23 @@ try {
       && identifiers.includes('globalThis')
     ),
   ), 'globalThis cannot act as a computed escape to forbidden ambient authority');
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+    export const listTodos = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      handler: async () => Object.constructor('return []')(),
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  assert(generated.diagnostics.some(
+    ({ code, message }) => (
+      code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+      && /constructor reflection/u.test(message)
+    ),
+  ), 'static constructor reflection must not become an eval-like escape');
 
   writeFileSync(join(dir, 'functions.mjs'), `
     import { defineAction, results, v } from ${JSON.stringify(defineUrl)};

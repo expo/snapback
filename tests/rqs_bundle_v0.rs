@@ -19,6 +19,7 @@ use snapback::manifest::{
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 fn bundle_schema() -> SchemaManifest {
@@ -353,6 +354,37 @@ async fn bundle_refusals_are_coded() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(diagnostic_code(&body), "SNAPBACK_BUNDLE_MODE_INVALID");
 
+    // Connection negotiation is register-only.
+    let mut read_with_protocol = bundle_body(
+        Some("read"),
+        None,
+        "/home",
+        queries_one.clone(),
+        Some("user_1"),
+    );
+    read_with_protocol["authInvalidationProtocol"] = json!(1);
+    let (status, body) = send(&app, post_json("/app/bundle", read_with_protocol)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(diagnostic_code(&body), "SNAPBACK_BUNDLE_MODE_INVALID");
+
+    // Per-child namespaces are meaningful only with an exact protocol-1
+    // connection negotiation.
+    let mut register_without_protocol = bundle_body(
+        Some("register"),
+        Some(KEY_A),
+        "/home",
+        queries_one.clone(),
+        Some("user_1"),
+    );
+    register_without_protocol["authorizationNamespaces"] = json!([{
+        "clientStoreId": "store-a",
+        "queryKey": "listPosts:{}",
+        "queryInstanceId": 1
+    }]);
+    let (status, body) = send(&app, post_json("/app/bundle", register_without_protocol)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(diagnostic_code(&body), "SNAPBACK_BUNDLE_MODE_INVALID");
+
     // Idempotency key in read mode.
     let (status, body) = send(
         &app,
@@ -370,6 +402,22 @@ async fn bundle_refusals_are_coded() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(diagnostic_code(&body), "SNAPBACK_BUNDLE_MODE_INVALID");
+
+    let mut register_protocol1 = bundle_body(
+        Some("register"),
+        Some(KEY_B),
+        "/home",
+        queries_one.clone(),
+        Some("user_1"),
+    );
+    register_protocol1["authInvalidationProtocol"] = json!(1);
+    register_protocol1["authorizationNamespaces"] = json!([null]);
+    let (status, body) = send(&app, post_json("/app/bundle", register_protocol1)).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the exact protocol-1 namespace negotiation is admitted: {body}",
+    );
 
     // No served route manifest and no inline dev entry.
     let mut body_no_entry = bundle_body(
@@ -718,6 +766,78 @@ async fn register_retry_same_key_supersedes_with_rotated_secret() {
         status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN,
         "rotated-away grant secret must be refused, got {status}"
     );
+}
+
+/// A pre-upgrade wire-version refusal must not consume the pending owner.
+/// The same idempotency key remains retryable instead of stranding armed
+/// demand after a failed socket handshake.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn refused_socket_preflight_leaves_pending_bundle_replayable() {
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+
+    let (app, state) = app_with_seeded_state().await;
+    let request = || {
+        post_json(
+            "/app/bundle",
+            bundle_body(
+                Some("register"),
+                Some(KEY_A),
+                "/home",
+                both_queries(),
+                Some("user_1"),
+            ),
+        )
+    };
+    let (status, first) = send(&app, request()).await;
+    assert_eq!(status, StatusCode::OK, "register bundle: {first}");
+    let connection_id = first["connection"]["connectionId"]
+        .as_str()
+        .expect("connection id")
+        .to_owned();
+    let grant = first["connection"]["grant"]
+        .as_str()
+        .expect("connection grant")
+        .to_owned();
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let address = listener.local_addr().expect("listener address");
+    let server_app = snapback::server::app(state.clone());
+    let server = tokio::spawn(async move {
+        server_app
+            .bind(listener)
+            .expect("bind app")
+            .serve()
+            .await
+            .expect("serve app");
+    });
+    let mut upgrade = format!("ws://{address}/live/{connection_id}/stream")
+        .into_client_request()
+        .expect("websocket request");
+    upgrade.headers_mut().insert(
+        "x-snapback-connection-token",
+        grant.parse().expect("grant header"),
+    );
+    let refusal = tokio_tungstenite::connect_async(upgrade)
+        .await
+        .expect_err("offerless socket must refuse");
+    let status = match refusal {
+        tokio_tungstenite::tungstenite::Error::Http(response) => response.status(),
+        other => panic!("expected HTTP refusal, got {other:?}"),
+    };
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        state.bundle_pending.pending_len(),
+        1,
+        "wire refusal must not consume the pending-registration owner",
+    );
+
+    let (status, replay) = send(&app, request()).await;
+    assert_eq!(status, StatusCode::OK, "pending retry: {replay}");
+    assert_eq!(
+        replay["connection"]["connectionId"], first["connection"]["connectionId"],
+        "the refused attach leaves the original pending owner replayable",
+    );
+    server.abort();
 }
 
 /// Two concurrent same-user boots hold distinct keys and produce distinct

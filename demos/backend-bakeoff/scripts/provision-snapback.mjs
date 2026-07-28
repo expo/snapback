@@ -16,6 +16,12 @@ const client = new SnapbackClient(ready.serverUrl, { adminToken });
 await client.ensureApp({
   schema: await generatedJson('schema.manifest.json'),
   functions: await generatedJson('functions.manifest.json'),
-  seed: JSON.parse(await readFile(join(demoRoot, 'snapback', 'seed.json'), 'utf8')),
+  routes: await generatedJson('routes.manifest.json'),
+  intent: 'provision',
+  requestedMode: 'sessions',
 });
+await client.ensureVersionedSeed(
+  await generatedJson('seed.artifact.json'),
+  { requestedMode: 'sessions' },
+);
 process.stdout.write(`Signal Desk provisioned at ${ready.serverUrl}.\n`);

@@ -1465,8 +1465,20 @@ process.stdout.write(JSON.stringify(response));
   chmodSync(recordingRuntime, 0o755);
   const backend = join(root, 'seed-once', 'snapback');
   mkdirSync(join(backend, 'generated'), { recursive: true });
+  writeFileSync(
+    join(backend, 'generated', 'schema.manifest.json'),
+    '{"appId":"seed-once","auth":{"mode":"dev"}}\n',
+  );
+  writeFileSync(
+    join(backend, 'generated', 'functions.manifest.json'),
+    '{"appId":"seed-once"}\n',
+  );
+  writeFileSync(
+    join(backend, 'generated', 'artifacts.json'),
+    '{"artifactKind":"artifactIndex","artifacts":["functions.manifest.json","schema.manifest.json"]}\n',
+  );
   writeFileSync(join(backend, 'seed.json'), '{"tables":{}}\n');
-  __test.loadGenerated(
+  await __test.loadGenerated(
     recordingRuntime,
     join(root, 'seed-once'),
     backend,
@@ -1474,7 +1486,7 @@ process.stdout.write(JSON.stringify(response));
     null,
     { seed: true },
   );
-  __test.loadGenerated(
+  await __test.loadGenerated(
     recordingRuntime,
     join(root, 'seed-once'),
     backend,

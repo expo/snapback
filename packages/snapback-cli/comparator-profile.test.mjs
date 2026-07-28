@@ -224,6 +224,39 @@ try {
     '--json',
   ]), 1, 'receipt verification must preserve the recorded comparator outcome');
 
+  // Exercise the same no-injected-target path used by an installed
+  // `snapback accept comparator` command. The packaged example is
+  // intentionally a dev-auth application; this catches attempts to use the
+  // unavailable session provider instead of dev body impersonation.
+  const packagedDevSchema = JSON.parse(readFileSync(
+    new URL('./fixtures/comparator/app/snapback/generated/schema.manifest.json', import.meta.url),
+    'utf8',
+  ));
+  assert.equal(packagedDevSchema.schemaVersion, 'snapback.v0');
+  assert.equal(packagedDevSchema.auth ?? null, null);
+  const packagedDevReceiptPath = join(root, 'packaged-dev-receipt.json');
+  const packagedDevExit = await runCli([
+    'accept',
+    'comparator',
+    '--config',
+    new URL('./fixtures/comparator/green.config.mjs', import.meta.url).pathname,
+    '--receipt',
+    packagedDevReceiptPath,
+    '--timeout-ms',
+    '15000',
+    '--json',
+  ]);
+  assert.equal(packagedDevExit, 0);
+  const packagedDevReceipt = readComparatorReceipt(packagedDevReceiptPath);
+  assert.equal(packagedDevReceipt.status, 'passed');
+  assert.equal(packagedDevReceipt.identity.target.available, true);
+  assert.equal(packagedDevReceipt.identity.binary.available, true);
+  assert.deepEqual(
+    packagedDevReceipt.checks.map(({ id, status }) => ({ id, status })),
+    COMPARATOR_CHECKS.map(({ id }) => ({ id, status: 'passed' })),
+  );
+  assert.equal(packagedDevReceipt.cleanup.ok, true);
+
   const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
   assert.equal(packageManifest.exports['./comparator'], './comparator-profile.mjs');
   assert.equal(

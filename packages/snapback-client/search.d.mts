@@ -7,6 +7,7 @@ export type {
   SearchMatchRangeV1,
   SearchPageV1,
   SearchQueryAstV1,
+  SearchRequestV1,
 } from './index.mjs';
 
 export {

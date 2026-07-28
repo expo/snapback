@@ -1243,33 +1243,43 @@ revive the rejected React-owned bundle, authority, hydration, or cache owners.
 
 ### Bundle-primed generated query groups
 
-Codegen projects every admitted `routes.manifest.json` entry into one exact
-`queryGroupReference` under the generated `groups[routePattern]` map. The
-reference binds the app, route pattern, canonical route definition hash,
-complete child function references, deterministic child labels, literal
-argument mappings, and typed route parameters. A prepared binding reconstructs
-and admits that reference from the generated routes and already-admitted
-function manifests; a stale, partial, forged, cross-app, non-live child, or
-wrong-parameter reference refuses before a bundle request.
+LLP 0107 now owns the complete generated-reference, target-capability,
+preparation-transfer, registered-adoption, and fallback contract for this
+section. The paragraphs below retain LLP 0102's React ownership summary but
+defer exact identity bytes, bounds, diagnostics, and cleanup to LLP 0107; where
+older wording conflicts, LLP 0107 is authoritative.
+
+Codegen projects every register-eligible (one through 32, all-`LiveQuery`)
+`routes.manifest.json` entry into one exact `queryGroupReference` under the
+generated `groups[routePattern]` map. The reference binds the app, route
+pattern, canonical route definition hash, complete child function references,
+collision-free deterministic child labels, literal argument mappings, and
+typed route parameters. A prepared binding reconstructs and admits that
+reference from the generated routes and already-admitted function manifests;
+a stale, partial, forged, cross-app, non-live child, wrong-parameter, or
+route-manifest-identity mismatch refuses before a bundle request.
 
 `binding.prepareQueryGroup(reference, params)` is the pre-mount acquisition
 seam. It asks the bound headless client for one LLP 0090 register-mode route
 bundle, verifies that the closed response contains exactly the generated
-children, retains no returned grant secret, and returns an opaque prepared
-group carrying only child registrations, the caller-known connection label,
-and `{commitVersion,generation,versionStream}` provenance. The provider must
-adopt that connection label and consumes each registration once when the
-canonical child store starts. A single-query consumer and a generated group
-still share the same store. No ordinary snapshot subscribe may race the
-registered child. Unconsumed pending registrations remain owned by the same
-connection and are removed by provider disconnect.
+children, and returns an opaque one-shot prepared owner. The client retains
+the grant in its existing custody store; public inspection carries only child
+registrations, the caller-known connection label, attach deadline, and
+`{commitVersion,generation,versionStream}` provenance. One provider atomically
+consumes that owner and lazily consumes each registration when the canonical
+child store starts. A single-query consumer and a generated group still share
+the same store. No ordinary snapshot subscribe may race the registered child.
+Unconsumed pending registrations remain provider-owned on the same connection
+and are removed by provider disconnect.
 
-An explicit `fallbackToLive: true` handles only coded
-`SNAPBACK_BUNDLE_*` target refusals. It returns the same generated group with
-`boot:null` and ordinary live subscriptions; it never calls a failed bundle a
-single-commit boot. `boot` is immutable provenance for the initial registered
-cut, not a claim that later independently delivered child states remain
-transactionally aligned.
+An explicit `fallbackToLive: true` handles only absence of LLP 0107's
+target-authored `registered_bundle_boot_v1` capability and performs no bundle
+request. Existing `SNAPBACK_BUNDLE_*` target refusals never downgrade. LLP
+0092's separate attach-deadline recovery returns the same generated group with
+visible `source:"live-recovery"` and `boot:null`; neither path calls a failed
+or expired bundle a single-commit boot. `boot` is immutable provenance for the
+initial registered cut, not a claim that later independently delivered child
+states remain transactionally aligned.
 
 ### Strict Mode, HMR replacement, and late work
 

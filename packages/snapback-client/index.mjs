@@ -49,7 +49,9 @@ export {
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
+  abandonConsumedReactQueryGroup,
   assertPreparedReactBinding,
+  consumePreparedReactQueryGroup,
   isPreparedReactQueryGroup,
   prepareReactQueryGroupForBinding,
   preparedReactResultContract,
@@ -176,6 +178,7 @@ const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
 const SENDER_ISSUANCE_PROTOCOL = 'snapback.sender-issuance.v2';
 const SENDER_NONCE_TTL_MS = 120_000;
 const CONNECTION_TOKEN_HEADER = 'x-snapback-connection-token';
+const EPHEMERAL_AUTHORITY_INSTANCE_HEADER = 'x-snapback-ephemeral-authority-instance';
 // Module-private capability used only by predecessor T-UNSUB and successor
 // fresh-subscribe work owned by replaceBearerToken(). Public work must wait
 // outside that transition even though these lifecycle operations run inside it.
@@ -2008,6 +2011,21 @@ export class SnapbackClient {
     return this.authorityFence?.capture?.() ?? null;
   }
 
+  isAuthorityCaptureCurrent(capture) {
+    this.#assertAuthCountersAvailable();
+    if (!this.authorityFence) return capture === null;
+    return capture !== null && this.authorityFence.isCurrent?.(capture) === true;
+  }
+
+  allocateLiveQueryNamespace(ref, args = {}) {
+    const name = functionName(ref);
+    return createLiveQueryNamespace({
+      clientStoreId: this.clientStoreId,
+      queryKey: retainedQueryKey(name, args),
+      queryInstanceId: this.__liveQueryAllocator.allocate(),
+    });
+  }
+
   authorityCaptureFor(value) {
     return value?.[AUTHORITY_CAPTURE] ?? null;
   }
@@ -2956,6 +2974,23 @@ export class SnapbackClient {
         };
         throw error;
       }
+      if (
+        this.authProtocols.ephemeralAuthority != null
+        && (
+          typeof granted?.ephemeralAuthorityInstance !== 'string'
+          || !/^eai1\.[A-Za-z0-9_-]{43}$/u.test(granted.ephemeralAuthorityInstance)
+        )
+      ) {
+        const error = new Error(
+          'SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED: server omitted the authority witness',
+        );
+        error.code = 'SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED';
+        error.diagnostic = {
+          code: error.code,
+          message: 'server omitted the negotiated ephemeral authority instance',
+        };
+        throw error;
+      }
       if (granted?.ephemeralExpiryProtocol === this.authProtocols.ephemeralExpiry) {
         this.__ephemeralExpirySupported = true;
       } else if (granted?.ephemeralExpiryProtocol != null) {
@@ -3100,6 +3135,10 @@ export class SnapbackClient {
           ephemeralAuthorityProtocol: Number.isSafeInteger(granted.ephemeralAuthorityProtocol)
             ? granted.ephemeralAuthorityProtocol
             : null,
+          ephemeralAuthorityInstance:
+            typeof granted.ephemeralAuthorityInstance === 'string'
+              ? granted.ephemeralAuthorityInstance
+              : null,
           ephemeralExpiryProtocol: Number.isSafeInteger(granted.ephemeralExpiryProtocol)
             ? granted.ephemeralExpiryProtocol
             : null,
@@ -4177,9 +4216,6 @@ export class SnapbackClient {
       if (requestedMode !== 'dev' && requestedMode !== 'sessions') {
         throw new TypeError("ensureApp requestedMode must be 'dev' or 'sessions'");
       }
-      if (routes !== null) {
-        throw new TypeError('explicit auth-mode provisioning does not yet accept a routes manifest');
-      }
     }
     const body = {
       ...(explicitProvision ? { intent: 'provision', requestedMode } : {}),
@@ -4367,6 +4403,9 @@ export class SnapbackClient {
     idempotencyKey = null,
     devManifestEntry = null,
     userId,
+    authorityCapture = null,
+    authorizationNamespaces = [],
+    authInvalidationProtocol = this.authProtocols.authInvalidation ?? null,
   } = {}) {
     if (typeof route !== 'string' || route.length === 0) {
       throw new TypeError('Snapback fetchBundle requires a route pattern string');
@@ -4374,20 +4413,56 @@ export class SnapbackClient {
     const body = { route, params, mode, auth: SnapbackClient.auth(userId) };
     if (mode === 'register') {
       body.idempotencyKey = idempotencyKey ?? SnapbackClient.mintBundleBootKey();
+      if (
+        authorizationNamespaces.length > 0
+        && authInvalidationProtocol !== 1
+      ) {
+        throw new TypeError(
+          'Snapback fetchBundle authorizationNamespaces require authInvalidationProtocol 1',
+        );
+      }
+      if (authInvalidationProtocol != null) {
+        body.authInvalidationProtocol = authInvalidationProtocol;
+      }
+      if (authorizationNamespaces.length > 0) {
+        body.authorizationNamespaces = authorizationNamespaces;
+      }
     } else if (idempotencyKey != null) {
       body.idempotencyKey = idempotencyKey;
     }
     if (devManifestEntry) body.devManifestEntry = devManifestEntry;
-    const response = await this.#req('POST', '/app/bundle', body);
+    const response = await this.#req(
+      'POST',
+      '/app/bundle',
+      body,
+      undefined,
+      { expectedAuthorityCapture: authorityCapture },
+    );
     const connection = response?.connection;
     if (connection?.connectionId && connection?.grant) {
+      let authorizationInvalidation;
+      try {
+        authorizationInvalidation = connection.authorizationInvalidation == null
+          ? null
+          : validateAuthorizationInvalidationConnection(
+            connection.authorizationInvalidation,
+          );
+      } catch (error) {
+        // @ref LLP 0107#authority-races-and-cleanup — post-registration validation
+        // failure tears down the pending owner even before grant adoption.
+        // Register-mode bundle evaluation has already created the pending
+        // owner. A malformed negotiated projection must not strand it merely
+        // because it failed before the grant entered the client cache.
+        await this.disconnect(connection.connectionId).catch(() => {});
+        throw error;
+      }
       this.__connectionGrants.set(
         connection.connectionId,
-        Promise.resolve({
+        Promise.resolve(markAuthorityCapture({
           id: connection.connectionId,
           token: connection.grant,
-          authorizationInvalidation: null,
-        }),
+          authorizationInvalidation,
+        }, response?.[AUTHORITY_CAPTURE] ?? authorityCapture)),
       );
     }
     return response;
@@ -5444,10 +5519,15 @@ export class SnapbackClient {
     let current = null;
     let disposed = false;
     let cleanup = Promise.resolve();
-    const { supersedes = null, ...liveOptions } = options;
+    const {
+      supersedes = null,
+      supersedesSubscriptionId = null,
+      ...liveOptions
+    } = options;
     const start = this.liveQuery(ref, {
       ...liveOptions,
-      supersedesSubscriptionId: supersedes?.current?.subscriptionId ?? null,
+      supersedesSubscriptionId:
+        supersedes?.current?.subscriptionId ?? supersedesSubscriptionId,
     }).then(async (handle) => {
       current = handle;
       if (disposed) {
@@ -7338,15 +7418,61 @@ export class SnapbackClient {
     // Register-mode adoption (LLP 0090 D4 / LLP 0031 dated amendment): the
     // bundle already created this subscription at its single-commit cut and
     // returned the fresh snapshot in the same response — adopting it here is
-    // what makes "no duplicate fresh snapshot" true on the wire. Sessions-mode
-    // auth-invalidation expectations need the full subscribe-output
-    // projections (scope identity negotiation), which the bundle entry does
-    // not carry in v1; those handles fall back to an ordinary fresh
-    // subscribe rather than adopting partially.
-    const adoptRegisteredSubscription = () => {
-      if (!registeredSubscription || queryNamespace !== null) return false;
-      const { subscriptionId, rows, version, resume } = registeredSubscription;
+    // what makes "no duplicate fresh snapshot" true on the wire.
+    // @ref LLP 0107#registered-boot — auth-scoped registered entries install
+    // the exact scope/invalidation and connection expectation before their
+    // rows become observable; adoption never fresh-subscribes around a
+    // partial authorization projection.
+    const adoptRegisteredSubscription = async () => {
+      if (!registeredSubscription) return false;
+      const {
+        subscriptionId,
+        rows,
+        version,
+        resume,
+        authorization = null,
+      } = registeredSubscription;
       if (typeof subscriptionId !== 'string' || subscriptionId.length === 0) return false;
+      if (authorization !== null) {
+        if (!authorizationProtocolEnabled) {
+          throw new Error(
+            'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED: registered auth-scoped rows require the negotiated invalidation protocol',
+          );
+        }
+        const normalizedScope = validateScopeId(
+          authorization.scope,
+          'registeredSubscription.authorization.scope',
+        );
+        if (
+          normalizedScope.kind !== 'subscription'
+          || queryNamespace === null
+          || JSON.stringify(normalizedScope.namespace) !== JSON.stringify(queryNamespace)
+          || normalizedScope.subscriptionId !== subscriptionId
+        ) {
+          throw new Error(
+            'SNAPBACK_AUTH_INVALIDATION_CORRUPT: registered authorization scope crossed subscription identity',
+          );
+        }
+        const grant = await client.connectionGrant(connectionId);
+        const syntheticSubscribe = {
+          subscription_id: subscriptionId,
+          snapshot: {
+            rows: Array.isArray(rows) ? rows : [],
+            version: typeof version === 'number' ? version : 0,
+          },
+          authorizationScope: authorization.scope,
+          authorizationInvalidation: authorization.invalidation ?? null,
+          scopeRetirements: [],
+        };
+        Object.defineProperty(syntheticSubscribe, AUTHORIZATION_CONNECTION, {
+          value: grant.authorizationInvalidation,
+        });
+        await installAuthorizationSubscription(syntheticSubscribe);
+      } else {
+        // Authority-independent registered children own no LLP 0053 query
+        // namespace. Their later recovery subscribe re-enters without one.
+        queryNamespace = null;
+      }
       handle.subscriptionId = subscriptionId;
       handle.rows = Array.isArray(rows) ? rows : [];
       handle.version = typeof version === 'number' ? version : 0;
@@ -7374,7 +7500,36 @@ export class SnapbackClient {
     // liveQuery() fails loudly and leaves nothing running.
     const establish = async () => {
       setConnection('connecting');
-      const adoptedRegistration = adoptRegisteredSubscription();
+      if (registeredSubscription && transport === 'stream') {
+        detachStream = attachStream();
+        const attachDeadline = registeredSubscription.attachDeadline;
+        const remaining = Number.isSafeInteger(attachDeadline)
+          ? attachDeadline - Date.now()
+          : 0;
+        if (remaining <= 0) {
+          const error = new Error(
+            'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED: registered bundle attach deadline elapsed',
+          );
+          error.code = 'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED';
+          throw error;
+        }
+        try {
+          await client.liveStreamManager(connectionId, streamOptions).waitUntilReady({
+            timeoutMs: remaining,
+          });
+        } catch (cause) {
+          if (Date.now() >= attachDeadline) {
+            const error = new Error(
+              'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED: registered bundle could not attach before its deadline',
+              { cause },
+            );
+            error.code = 'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED';
+            throw error;
+          }
+          throw cause;
+        }
+      }
+      const adoptedRegistration = await adoptRegisteredSubscription();
       // Channel B relaunch flow (LLP 0090 D3): load + verify the persisted
       // entry, render-first as retained, and let the fresh subscribe below
       // carry the seeded token. Seeding failures leave today's cold boot.
@@ -7383,7 +7538,7 @@ export class SnapbackClient {
       if (!adoptedRegistration && ((resumeStore && resumeStoreKey) || preloadedResume)) {
         try { await seedFromResumeState(); } catch { /* cold boot */ }
       }
-      if (transport === 'stream') {
+      if (transport === 'stream' && detachStream === null) {
         detachStream = attachStream();
       }
       if (adoptedRegistration) {
@@ -8975,11 +9130,21 @@ export class EphemeralOverlay {
 // (browser WebSockets cannot set headers), alongside `snapback.v1` so the
 // server has a legal subprotocol to echo.
 function connectionTokenHeader(grant) {
-  return { [CONNECTION_TOKEN_HEADER]: grant.token };
+  return {
+    [CONNECTION_TOKEN_HEADER]: grant.token,
+    ...(typeof grant.ephemeralAuthorityInstance === 'string'
+      ? { [EPHEMERAL_AUTHORITY_INSTANCE_HEADER]: grant.ephemeralAuthorityInstance }
+      : {}),
+  };
 }
 
 function liveStreamProtocols(grant, protocols = {}) {
   const offered = ['snapback.v1', `snapback.connection-token.${grant.token}`];
+  if (typeof grant.ephemeralAuthorityInstance === 'string') {
+    offered.push(
+      `snapback.ephemeral-authority-instance.${grant.ephemeralAuthorityInstance}`,
+    );
+  }
   if (protocols.authClient != null) {
     offered.push(`snapback.auth-client.${protocols.authClient}`);
   }

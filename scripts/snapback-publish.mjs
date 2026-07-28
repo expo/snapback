@@ -30,6 +30,7 @@ const commonPackages = [
   'snapback-contract',
   'snapback-client',
   'snapback-codegen',
+  'snapback-vite',
   'snapback-react',
   'snapback-app-cli',
   'snapback-cli',

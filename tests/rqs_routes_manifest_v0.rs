@@ -165,6 +165,7 @@ fn wall_routes() -> RoutesManifest {
                     json!({ "boardId": { "$param": "boardId" } }),
                 )],
                 persist: None,
+                register_group_eligible: true,
             },
             BundleRouteEntry {
                 route: "/ranked/:rank".to_owned(),
@@ -173,6 +174,7 @@ fn wall_routes() -> RoutesManifest {
                     json!({ "rank": { "$param": "rank" } }),
                 )],
                 persist: None,
+                register_group_eligible: false,
             },
         ],
     }
@@ -407,6 +409,7 @@ fn routes_manifest_admission_refusals_are_coded() {
             route: "/x".to_owned(),
             queries: vec![query_spec("nope", json!({}))],
             persist: None,
+            register_group_eligible: false,
         }]),
         "unknown function",
     );
@@ -416,6 +419,7 @@ fn routes_manifest_admission_refusals_are_coded() {
             route: "/x".to_owned(),
             queries: vec![query_spec("paintCell", json!({}))],
             persist: None,
+            register_group_eligible: false,
         }]),
         "non-query function",
     );
@@ -428,6 +432,7 @@ fn routes_manifest_admission_refusals_are_coded() {
                 json!({ "boardId": { "$param": "missing" } }),
             )],
             persist: None,
+            register_group_eligible: false,
         }]),
         "dangling param reference",
     );
@@ -440,6 +445,7 @@ fn routes_manifest_admission_refusals_are_coded() {
                 json!({ "boardId": "wall", "extra": { "$param": "name" } }),
             )],
             persist: None,
+            register_group_eligible: false,
         }]),
         "reference into an arg with no schema-derived type",
     );
@@ -449,8 +455,22 @@ fn routes_manifest_admission_refusals_are_coded() {
             route: "/x".to_owned(),
             queries: vec![query_spec("listCells", json!({}))],
             persist: None,
+            register_group_eligible: false,
         }]),
         "required arg not covered",
+    );
+    refuses(
+        &mut snapback,
+        manifest(vec![BundleRouteEntry {
+            route: "/ranked/:rank".to_owned(),
+            queries: vec![query_spec(
+                "listRanked",
+                json!({ "rank": { "$param": "rank" } }),
+            )],
+            persist: None,
+            register_group_eligible: true,
+        }]),
+        "registerGroupEligible with a non-string route-param target",
     );
     refuses(
         &mut snapback,
@@ -462,11 +482,13 @@ fn routes_manifest_admission_refusals_are_coded() {
                     json!({ "boardId": { "$param": "boardId" } }),
                 )],
                 persist: None,
+                register_group_eligible: false,
             },
             BundleRouteEntry {
                 route: "/board/wall".to_owned(),
                 queries: vec![query_spec("listCells", json!({ "boardId": "wall" }))],
                 persist: None,
+                register_group_eligible: false,
             },
         ]),
         "overlapping patterns",
@@ -475,6 +497,7 @@ fn routes_manifest_admission_refusals_are_coded() {
         route: "/x".to_owned(),
         queries: vec![query_spec("listCells", json!({ "boardId": "wall" }))],
         persist: None,
+        register_group_eligible: false,
     }]);
     wrong_version.format_version = 2;
     refuses(&mut snapback, wrong_version, "unknown format version");
@@ -482,6 +505,7 @@ fn routes_manifest_admission_refusals_are_coded() {
         route: "/x".to_owned(),
         queries: vec![query_spec("listCells", json!({ "boardId": "wall" }))],
         persist: None,
+        register_group_eligible: false,
     }]);
     wrong_app.app = "elsewhere".to_owned();
     refuses(&mut snapback, wrong_app, "app mismatch");

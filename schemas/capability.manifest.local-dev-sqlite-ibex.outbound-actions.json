@@ -20,6 +20,7 @@
   ],
   "capabilityMaturity": {
     "inline_handler_v1": "experimental",
+    "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
     "versioned_seed_install_v1": "experimental",
     "versioned_seed_reset_v1": "experimental"
@@ -199,6 +200,7 @@
     "live_subscriptions",
     "mutation_read_set_validation",
     "permission_epoch_resync",
+    "registered_bundle_boot_v1",
     "relational_query_v1",
     "migration_keyset_scan_v1",
     "full_text_search_v1",

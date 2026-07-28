@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { snapbackDev } from '@snapback/vite';
 
 export default defineConfig({
-  plugins: [react()],
-  define: {
-    __SNAPBACK_URL__: JSON.stringify(process.env.SNAPBACK_URL ?? 'http://127.0.0.1:3000'),
-  },
+  plugins: [
+    react(),
+    snapbackDev({
+      server: { mode: 'attach' },
+      generatedRoots: ['snapback/generated'],
+    }),
+  ],
 });

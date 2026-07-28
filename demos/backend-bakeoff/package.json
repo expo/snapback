@@ -16,7 +16,7 @@
     "test:snapback:comparator": "snapback accept comparator --config ./snapback-comparator.config.mjs --receipt ./.snapback/comparator-receipt.json --timeout-ms 30000",
     "test:snapback:extras": "node tests/snapback-extras.mjs",
     "test": "bun run test:snapback && bun run test:react",
-    "test:react": "node tests/react.mjs",
+    "test:react": "node tests/react.mjs && node tests/react-query-group.mjs && node tests/react-query-group-receipt.mjs",
     "test:convex": "node tests/convex.mjs",
     "test:supabase": "node tests/supabase.mjs"
   },

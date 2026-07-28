@@ -17,10 +17,13 @@ use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::deployment::{HostedAdmission, HostedServingAuthority};
+use super::deployment::{
+    HOSTED_ADMISSION_MAX_SAFE_INTEGER, HostedAdmission, HostedServingAuthority,
+};
 /// Re-exported so the off-machine control-plane signer can build the exact
 /// throttle configuration the deployment will validate.
 pub use super::throttle::{AuthenticationBucketPolicy, SharedAuthenticationThrottleConfig};
+use crate::deploy::{HostedAdmissionV2, HostedAdmissionV2Version};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
 /// The only adapter profile this build implements.
@@ -29,6 +32,7 @@ pub const HOSTED_EDGE_PROFILE: &str = "loopback-terminated-single-instance.v1";
 /// Domain separator for the admission signing input. A signature that could be
 /// reinterpreted under another protocol is not a signature over this one.
 const ADMISSION_SIGNING_DOMAIN: &[u8] = b"snapback.hosted-admission.v1";
+const TARGET_ADMISSION_SIGNING_DOMAIN: &[u8] = b"snapback.hosted-admission.v2";
 
 /// Durable high-water marks live in their own table so an admission rollback is
 /// refused even across a process restart.
@@ -97,8 +101,116 @@ pub struct HostedAdmissionEnvelope {
     pub first_contact_transport: FirstContactTransport,
     pub renewal: AdmissionRenewal,
     pub admission: HostedAdmission,
+    /// LLP 0105's routed-Machine authority. Mandatory for online renewal and
+    /// independently signed by the same release-bound key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hosted_target_admission: Option<HostedAdmissionV2>,
     /// Unpadded base64url Ed25519 signature over the canonical signing input.
     pub signature: String,
+}
+
+fn prefixed_sha256(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    })
+}
+
+pub fn target_admission_signing_input(admission: &HostedAdmissionV2) -> Vec<u8> {
+    let version = match admission.schema_version {
+        HostedAdmissionV2Version::V2 => "snapback.hosted-admission.v2",
+    };
+    let parts = [
+        TARGET_ADMISSION_SIGNING_DOMAIN.to_vec(),
+        version.as_bytes().to_vec(),
+        admission.target_id.as_bytes().to_vec(),
+        admission.deployment_id.as_bytes().to_vec(),
+        admission.binding_generation.to_string().into_bytes(),
+        admission.target_binding_sha256.as_bytes().to_vec(),
+        admission.control_head_sha256.as_bytes().to_vec(),
+        admission.supervisor_incarnation.as_bytes().to_vec(),
+        admission.exact_roster_sha256.as_bytes().to_vec(),
+        admission.routed_machine_id.as_bytes().to_vec(),
+        admission.hosted_auth_expires_at_ms.to_string().into_bytes(),
+        admission
+            .routed_machine_expires_at_ms
+            .to_string()
+            .into_bytes(),
+        admission.replay_floor.to_string().into_bytes(),
+        admission.admission_generation.to_string().into_bytes(),
+        admission.issued_at_ms.to_string().into_bytes(),
+    ];
+    let mut input = Vec::new();
+    for part in parts {
+        input.extend_from_slice(&(part.len() as u64).to_be_bytes());
+        input.extend_from_slice(&part);
+    }
+    input
+}
+
+fn verify_target_admission(
+    target: &HostedAdmissionV2,
+    edge: &HostedAdmission,
+    admission_public_key: &[u8],
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let signature = URL_SAFE_NO_PAD.decode(&target.signature).map_err(|_| {
+        refuse(
+            "SNAPBACK_HOSTED_ADMISSION_V2_UNAUTHENTICATED",
+            "hosted target admission signature is not canonical base64url",
+        )
+    })?;
+    if signature.len() != 64 || URL_SAFE_NO_PAD.encode(&signature) != target.signature {
+        return Err(refuse(
+            "SNAPBACK_HOSTED_ADMISSION_V2_UNAUTHENTICATED",
+            "hosted target admission signature is not a canonical Ed25519 signature",
+        ));
+    }
+    UnparsedPublicKey::new(&ED25519, admission_public_key)
+        .verify(&target_admission_signing_input(target), &signature)
+        .map_err(|_| {
+            refuse(
+                "SNAPBACK_HOSTED_ADMISSION_V2_UNAUTHENTICATED",
+                "hosted target admission is not signed by the release-bound control-plane key",
+            )
+        })?;
+    if target.target_id.is_empty()
+        || target.deployment_id != edge.deployment_id
+        || target.binding_generation < 1
+        || target.binding_generation > HOSTED_ADMISSION_MAX_SAFE_INTEGER
+        || !prefixed_sha256(&target.target_binding_sha256)
+        || !prefixed_sha256(&target.control_head_sha256)
+        || target.supervisor_incarnation.is_empty()
+        || !prefixed_sha256(&target.exact_roster_sha256)
+        || target.routed_machine_id.is_empty()
+        || target.hosted_auth_expires_at_ms > HOSTED_ADMISSION_MAX_SAFE_INTEGER
+        || target.routed_machine_expires_at_ms > HOSTED_ADMISSION_MAX_SAFE_INTEGER
+        || target.replay_floor > HOSTED_ADMISSION_MAX_SAFE_INTEGER
+        || target.admission_generation > HOSTED_ADMISSION_MAX_SAFE_INTEGER
+        || target.issued_at_ms > HOSTED_ADMISSION_MAX_SAFE_INTEGER
+        || target.hosted_auth_expires_at_ms != edge.expires_at_ms
+        || target.routed_machine_expires_at_ms < target.hosted_auth_expires_at_ms
+        || target.replay_floor != edge.sender_replay_epoch_floor
+        || target.admission_generation != edge.admission_epoch
+        || target.issued_at_ms != edge.issued_at_ms
+    {
+        return Err(refuse(
+            "SNAPBACK_HOSTED_ADMISSION_V2_INVALID",
+            "hosted target admission does not match the edge admission and exact target binding",
+        ));
+    }
+    if now_ms < target.issued_at_ms
+        || now_ms > target.hosted_auth_expires_at_ms
+        || now_ms > target.routed_machine_expires_at_ms
+    {
+        return Err(refuse(
+            "SNAPBACK_HOSTED_ADMISSION_V2_STALE",
+            "hosted target admission is outside its routed-Machine authority window",
+        ));
+    }
+    Ok(())
 }
 
 /// The adapter's local configuration.
@@ -583,6 +695,10 @@ impl VerifiedHostedAdmission {
     pub(crate) fn issued_at_ms(&self) -> u64 {
         self.envelope.admission.issued_at_ms
     }
+
+    pub(crate) fn hosted_target_admission(&self) -> Option<&HostedAdmissionV2> {
+        self.envelope.hosted_target_admission.as_ref()
+    }
 }
 
 /// Run every LLP 0098 §3.1 clause that does not require durable state.
@@ -611,6 +727,24 @@ pub(crate) fn verify_admission_envelope_prebind(
 
     // 2. Signature, before any field is interpreted.
     envelope.verify_signature(admission_public_key)?;
+    match (envelope.renewal, envelope.hosted_target_admission.as_ref()) {
+        (AdmissionRenewal::Online, Some(target)) => {
+            verify_target_admission(target, &envelope.admission, admission_public_key, now_ms)?;
+        }
+        (AdmissionRenewal::Online, None) => {
+            return Err(refuse(
+                "SNAPBACK_HOSTED_ADMISSION_V2_MISSING",
+                "online hosted serving requires a signed routed-Machine admission",
+            ));
+        }
+        (AdmissionRenewal::PresignedWindow, Some(_)) => {
+            return Err(refuse(
+                "SNAPBACK_HOSTED_ADMISSION_V2_INVALID",
+                "a routed-Machine admission cannot be attached to a pre-signed edge window",
+            ));
+        }
+        (AdmissionRenewal::PresignedWindow, None) => {}
+    }
 
     // 3. Closed facts (LLP 0060 D5's conjunction, already shipped).
     if !envelope.admission.closed_admission_facts_hold() {
@@ -697,12 +831,13 @@ pub(crate) fn install_verified_admission(
         ));
     }
 
-    let authority = HostedServingAuthority::from_authenticated_target(
+    let mut authority = HostedServingAuthority::from_authenticated_target(
         verified.envelope.public_origin.clone(),
         admission.clone(),
         now_ms,
         verified.throttle_key,
     )?;
+    authority.install_hosted_target_admission(verified.envelope.hosted_target_admission.clone());
 
     advance_watermark(
         connection,
@@ -822,6 +957,11 @@ mod tests {
         envelope.signature = URL_SAFE_NO_PAD.encode(key.sign(&input).as_ref());
     }
 
+    fn sign_target(key: &Ed25519KeyPair, target: &mut HostedAdmissionV2) {
+        target.signature =
+            URL_SAFE_NO_PAD.encode(key.sign(&target_admission_signing_input(target)).as_ref());
+    }
+
     fn envelope(key: &Ed25519KeyPair) -> HostedAdmissionEnvelope {
         let public_key = key.public_key().as_ref().to_vec();
         let mut envelope = HostedAdmissionEnvelope {
@@ -830,8 +970,35 @@ mod tests {
             first_contact_transport: FirstContactTransport::HstsPreloadedSuffix,
             renewal: AdmissionRenewal::PresignedWindow,
             admission: admission(&public_key),
+            hosted_target_admission: None,
             signature: String::new(),
         };
+        sign(key, &mut envelope);
+        envelope
+    }
+
+    fn online_envelope(key: &Ed25519KeyPair) -> HostedAdmissionEnvelope {
+        let mut envelope = envelope(key);
+        envelope.renewal = AdmissionRenewal::Online;
+        let mut target = HostedAdmissionV2 {
+            schema_version: HostedAdmissionV2Version::V2,
+            target_id: "target-1".to_string(),
+            deployment_id: envelope.admission.deployment_id.clone(),
+            binding_generation: 3,
+            target_binding_sha256: format!("sha256:{}", "c".repeat(64)),
+            control_head_sha256: format!("sha256:{}", "d".repeat(64)),
+            supervisor_incarnation: "supervisor-1".to_string(),
+            exact_roster_sha256: format!("sha256:{}", "e".repeat(64)),
+            routed_machine_id: "machine-1".to_string(),
+            hosted_auth_expires_at_ms: envelope.admission.expires_at_ms,
+            routed_machine_expires_at_ms: envelope.admission.expires_at_ms,
+            replay_floor: envelope.admission.sender_replay_epoch_floor,
+            admission_generation: envelope.admission.admission_epoch,
+            issued_at_ms: envelope.admission.issued_at_ms,
+            signature: String::new(),
+        };
+        sign_target(key, &mut target);
+        envelope.hosted_target_admission = Some(target);
         sign(key, &mut envelope);
         envelope
     }
@@ -885,6 +1052,108 @@ mod tests {
         let mut connection = connection();
         verify(&envelope(&key), &key, &self_facts(&key), &mut connection)
             .expect("valid envelope installs");
+    }
+
+    #[test]
+    fn online_admission_requires_and_verifies_v2_target_authority() {
+        let key = control_plane_key();
+        let facts = self_facts(&key);
+        let candidate = online_envelope(&key);
+        verify_admission_envelope_prebind(
+            &candidate,
+            key.public_key().as_ref(),
+            &facts,
+            NOW_MS + 1_000,
+        )
+        .expect("signed V2 target authority passes");
+
+        let mut missing = candidate.clone();
+        missing.hosted_target_admission = None;
+        sign(&key, &mut missing);
+        assert_eq!(
+            code(
+                verify_admission_envelope_prebind(
+                    &missing,
+                    key.public_key().as_ref(),
+                    &facts,
+                    NOW_MS + 1_000,
+                )
+                .unwrap_err(),
+            ),
+            "SNAPBACK_HOSTED_ADMISSION_V2_MISSING",
+        );
+
+        let mut tampered = candidate.clone();
+        tampered
+            .hosted_target_admission
+            .as_mut()
+            .expect("target")
+            .routed_machine_id = "machine-other".to_string();
+        assert_eq!(
+            code(
+                verify_admission_envelope_prebind(
+                    &tampered,
+                    key.public_key().as_ref(),
+                    &facts,
+                    NOW_MS + 1_000,
+                )
+                .unwrap_err(),
+            ),
+            "SNAPBACK_HOSTED_ADMISSION_V2_UNAUTHENTICATED",
+        );
+
+        let mut stale = candidate.clone();
+        stale.admission.expires_at_ms = NOW_MS;
+        stale
+            .hosted_target_admission
+            .as_mut()
+            .expect("target")
+            .hosted_auth_expires_at_ms = NOW_MS;
+        stale
+            .hosted_target_admission
+            .as_mut()
+            .expect("target")
+            .routed_machine_expires_at_ms = NOW_MS;
+        sign_target(
+            &key,
+            stale.hosted_target_admission.as_mut().expect("target"),
+        );
+        sign(&key, &mut stale);
+        assert_eq!(
+            code(
+                verify_admission_envelope_prebind(
+                    &stale,
+                    key.public_key().as_ref(),
+                    &facts,
+                    NOW_MS + 1_000,
+                )
+                .unwrap_err(),
+            ),
+            "SNAPBACK_HOSTED_ADMISSION_V2_STALE",
+        );
+
+        let mut oversized = candidate;
+        oversized
+            .hosted_target_admission
+            .as_mut()
+            .expect("target")
+            .binding_generation = HOSTED_ADMISSION_MAX_SAFE_INTEGER + 1;
+        sign_target(
+            &key,
+            oversized.hosted_target_admission.as_mut().expect("target"),
+        );
+        assert_eq!(
+            code(
+                verify_admission_envelope_prebind(
+                    &oversized,
+                    key.public_key().as_ref(),
+                    &facts,
+                    NOW_MS + 1_000,
+                )
+                .unwrap_err(),
+            ),
+            "SNAPBACK_HOSTED_ADMISSION_V2_INVALID",
+        );
     }
 
     // A2

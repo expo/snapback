@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "snapback.hosted-target-onboarding-receipt.v1",
+  "status": "staged",
+  "targetId": "snapback-drill-hosted-v2-20260728",
+  "deploymentId": "snapback-drill-hosted-v2-1",
+  "publicOrigin": "https://snapback-drill.fly.dev",
+  "ownershipSentinel": "snapback:hosted-target:v2:d42a9fdcf648d2d49aa5bb16",
+  "planSha256": "sha256:d50c8db316cfc815893d5ee4541b23ea4ae2397c23806095cf97814bb26e8cf6",
+  "supervisorMachineId": "683660df63e748",
+  "supervisorMachineVersion": "01KYKKJKHPH687KFJBRDW6W8AM",
+  "supervisorRestarted": false,
+  "legacyMachineObservedOnly": "849764f2e7dd58",
+  "legacyMachineUpdated": false,
+  "admissionPublicKey": "fsoDTQBUILXkSYZp93vKG2-kYIlLGkBTrK67_5lvzXk",
+  "targetClientCertificateSha256": "sha256:2511074f768512a1bc65f365b9904cbd917a2aa09b7659bd0bf5276500087c6d",
+  "credentials": {
+    "flyControl": "sha256:36550f89f22ec94bfad6144d53aa084335207bcc4d7d4be0eac59ef23eba94d2",
+    "flyRegistry": "sha256:ff42e5245901252376cb04c036d0ca54cdf6cd44f82971337c3ec8f80150fc12",
+    "admissionSigning": "sha256:13f72c24961cd758e16d89f26ca6671b5a727c0543f073f5315a86fcebfa4469",
+    "outboundMtls": "sha256:2511074f768512a1bc65f365b9904cbd917a2aa09b7659bd0bf5276500087c6d",
+    "tigris": {
+      "artifact": "sha256:d68f1d45886219275e139566a40a22af64a837e9bb81d975b61f7387d9bd3ca9",
+      "backup": "sha256:52d9a66269612cdb123a79b90be8f3e4380f309d3865a13904fd2f9f20bed1fe",
+      "control-state": "sha256:b512f68857fd9dfeab74418fbe967c8807a7e6fb924f67da834acc1b39377423",
+      "audit": "sha256:02f72a9438d8f70b26d5b46cfce9c86f0ba96366a632a2380e5e3d49f4acb54d",
+      "logs": "sha256:120f5491876d7741db6395758dd14ad6c97fd73261a2edd19e497199a1fdf235",
+      "cleanup": "sha256:c90f6727471afd40c0bffe01c663f3b9e62e320d1932ddb3ad02c09ed0893794"
+    }
+  },
+  "tigrisRoleIsolation": [
+    {
+      "role": "artifact",
+      "ownPrefixReadBack": true,
+      "wrongRole": "backup",
+      "wrongRoleDenied": true,
+      "writeDenied": true
+    },
+    {
+      "role": "backup",
+      "ownPrefixReadBack": true,
+      "wrongRole": "artifact",
+      "wrongRoleDenied": true,
+      "writeDenied": null
+    },
+    {
+      "role": "control-state",
+      "ownPrefixReadBack": true,
+      "wrongRole": "artifact",
+      "wrongRoleDenied": true,
+      "writeDenied": null
+    },
+    {
+      "role": "audit",
+      "ownPrefixReadBack": true,
+      "wrongRole": "artifact",
+      "wrongRoleDenied": true,
+      "writeDenied": null
+    },
+    {
+      "role": "logs",
+      "ownPrefixReadBack": true,
+      "wrongRole": "artifact",
+      "wrongRoleDenied": true,
+      "writeDenied": null
+    },
+    {
+      "role": "cleanup",
+      "ownPrefixReadBack": null,
+      "wrongRole": "artifact",
+      "wrongRoleDenied": true,
+      "writeDenied": true,
+      "crossPrefixDelete": true,
+      "targetPrefixInventory": true,
+      "listBucketProviderScope": "bucket",
+      "listBucketCustodySeparated": true
+    }
+  ],
+  "providerLimitations": {
+    "tigrisCleanupListBucket": {
+      "requestedScope": "snapback-hosted-v2/*",
+      "enforcedScope": "snapback-drill-backups",
+      "reason": "Tigris IAM rejects S3 prefix policy conditions",
+      "mitigation": "supervisor-only custody; exact-prefix object verbs; wrong-role negative tests"
+    }
+  },
+  "created": {
+    "flyControl": false,
+    "flyRegistry": false,
+    "admissionSigning": false,
+    "outboundMtls": false,
+    "tigrisBootstrapExtracted": false,
+    "tigris": {
+      "artifact": false,
+      "backup": false,
+      "control-state": false,
+      "audit": false,
+      "logs": false,
+      "cleanup": false
+    },
+    "tigrisPoliciesRotated": {
+      "artifact": false,
+      "backup": false,
+      "control-state": false,
+      "audit": false,
+      "logs": false,
+      "cleanup": true
+    }
+  },
+  "capabilityAdvertised": false,
+  "blockers": [
+    "fresh successor Machine and encrypted volume are not provisioned",
+    "target binding and hosted target enrollment are not registered",
+    "same-origin certificate transfer and route handoff have not run"
+  ],
+  "receiptSha256": "sha256:3ac1953e29ee9c661849fba1bb4070269b681933aa5ae7730e1060c1846ef726"
+}

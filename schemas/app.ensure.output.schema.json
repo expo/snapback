@@ -103,6 +103,12 @@
         "profile": {
           "type": "string"
         },
+        "routes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "schema": {
           "type": "string"
         },

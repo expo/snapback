@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "snapback.real-adapter-query-group-receipt.v1",
+  "generatedAt": "2026-07-28T09:00:20.874Z",
+  "appId": "backend-bakeoff",
+  "generated": {
+    "artifactManifest": {
+      "path": "snapback/generated/artifacts.json",
+      "sha256": "sha256:3b415a21530fbb0a11323227a96c2a06d688d57a196a1dc0c01d1fac02ef6c4e"
+    },
+    "routeSource": {
+      "path": "snapback/routes.mjs",
+      "sha256": "sha256:cb8b41b88795132fac22e6e60cb9202a43ac0211f2f730d238902e348bced13a"
+    },
+    "runtime": {
+      "path": "snapback/generated/api.mjs",
+      "sha256": "sha256:0a51084f851538c94699be5cc56dc0d6cec4f71413bd1b00e4b75aff43c1f189"
+    },
+    "declarations": {
+      "path": "snapback/generated/api.d.ts",
+      "sha256": "sha256:a993d58b50614a1e4d1091ce2a2d39bfd21820c0e092b6fe2ce0f925134a29c0"
+    },
+    "group": {
+      "id": "backend-bakeoff:query-group:/",
+      "route": "/",
+      "definitionHash": "sha256:6bf8b3c9ccd02f7fa5304e1bff89979777dda4e4edfbeb79584380175239a4b1",
+      "queryNames": [
+        "listIncidents",
+        "allTasks",
+        "allComments",
+        "allActivity"
+      ]
+    }
+  },
+  "binding": {
+    "preparation": "SnapbackClient.prepareReactBinding",
+    "evidence": "exact generated-manifest admission before adapter setup",
+    "generatedManifest": {
+      "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
+      "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68",
+      "targetProfileId": "local-dev-sqlite-ibex",
+      "routeCount": 1
+    },
+    "result": {
+      "appId": "backend-bakeoff",
+      "profile": "local-dev-sqlite-ibex",
+      "authMode": "sessions",
+      "routeManifestHash": "sha256:40d1c9f6282a8732dcaa9dd0ce34fb2781973498082440c982b95f525793fefb",
+      "registeredBundleAvailable": true,
+      "deploymentIdentity": {
+        "targetProfileId": "local-dev-sqlite-ibex",
+        "target": "local-dev-sqlite-ibex",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
+        "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:5751ab2648c20b0b7abedb3132bc606a50718cb76e4f881d72cfab68948f8619"
+      },
+      "groupIds": [
+        "backend-bakeoff:query-group:/"
+      ]
+    }
+  },
+  "adapter": {
+    "source": {
+      "path": "src/backends/snapback.ts",
+      "sha256": "sha256:d72de1552f72577bb9f579794750f2e6076483f94cb81a694a9bac4bb40d9df3"
+    },
+    "compiledBundleSha256": "sha256:b4ac06ab786046e6a68abd3c458b5aa4fb40fd224ffdb13415bffdbb7d98e88a",
+    "kind": "snapback",
+    "label": "Snapback",
+    "transport": "native WebSocket live queries + ephemeral overlay",
+    "setupCompleted": true
+  },
+  "adoption": {
+    "source": "registered-bundle",
+    "bootSource": "registered-bundle",
+    "commitVersion": 1,
+    "generation": "gen1:722ff293bc4afc084179ec1edf84cde149dcb606697ebb643d18be9f5dc90af8",
+    "versionStream": "019fa7f4-2f33-7fe0-b5a8-b1848ed1cefc",
+    "opaquePreparation": true,
+    "providerCustody": true,
+    "adapterConsumer": "SnapbackAdapter.subscribeWorkspace"
+  },
+  "skips": 0,
+  "title": "backend bakeoff / real Snapback adapter query group v1",
+  "passed": 3,
+  "skipped": 0,
+  "failed": 0,
+  "total": 3,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated-registered-bundle-boot",
+      "ok": true,
+      "details": {
+        "source": "registered-bundle",
+        "commitVersion": 1,
+        "providerCustody": true
+      }
+    },
+    {
+      "name": "real-adapter-mutation-and-live-delivery",
+      "ok": true,
+      "details": {
+        "initialIncidentCount": 2,
+        "mutation": "addComment",
+        "liveBody": "Real generated-group adapter witness"
+      }
+    },
+    {
+      "name": "real-adapter-cleanup",
+      "ok": true,
+      "details": {
+        "terminal": true,
+        "stores": 0,
+        "consumers": 0,
+        "serverSubscriptions": 0,
+        "preparedRegistrations": 0
+      }
+    }
+  ],
+  "expectedChecks": 3,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

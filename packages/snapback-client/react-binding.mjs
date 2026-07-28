@@ -1,5 +1,11 @@
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import { compileResultContractValidator } from '@snapback/contract/result-contract-validator';
+import { validateScopeId } from '@snapback/contract/auth-invalidation';
+import {
+  argsHash,
+  queryArtifactHash,
+  rowsMatchDigest,
+} from './rqs.mjs';
 
 // @ref LLP 0102#prepared-binding-and-provider-ownership — asynchronous
 // deployment admission is completed before a synchronous React provider may
@@ -7,6 +13,8 @@ import { compileResultContractValidator } from '@snapback/contract/result-contra
 
 const PREPARED_REACT_BINDING = Symbol('snapback.prepared-react-binding.v1');
 const PREPARED_REACT_QUERY_GROUP = Symbol('snapback.prepared-react-query-group.v1');
+const preparedReactQueryGroupOwners = new WeakMap();
+const REGISTERED_BUNDLE_CAPABILITY = 'registered_bundle_boot_v1';
 const utf8 = new TextEncoder();
 
 function diagnosticError(code, message, details = {}) {
@@ -124,10 +132,16 @@ function exactDeploymentFunction(definition) {
   ].join('\u0000');
 }
 
-function queryGroupEntryName(functionName, occurrences) {
-  const count = (occurrences.get(functionName) ?? 0) + 1;
+function queryGroupEntryName(functionName, occurrences, usedNames) {
+  let count = (occurrences.get(functionName) ?? 0) + 1;
+  let candidate = count === 1 ? functionName : `${functionName}${count}`;
+  while (usedNames.has(candidate)) {
+    count += 1;
+    candidate = `${functionName}${count}`;
+  }
   occurrences.set(functionName, count);
-  return count === 1 ? functionName : `${functionName}${count}`;
+  usedNames.add(candidate);
+  return candidate;
 }
 
 function routeParams(route) {
@@ -155,8 +169,30 @@ function materializeGroupArgs(mapping, params) {
   return deepFreeze(output);
 }
 
-function groupEntryKey(functionName, args) {
-  return `${functionName}\u0000${canonicalizeClientValueV1(args)}`;
+function groupResponseArgsMatch(mapping, params, actual) {
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return false;
+  const expectedKeys = Object.keys(mapping ?? {}).sort();
+  const actualKeys = Object.keys(actual).sort();
+  if (
+    expectedKeys.length !== actualKeys.length
+    || expectedKeys.some((key, index) => key !== actualKeys[index])
+  ) return false;
+  return expectedKeys.every((name) => {
+    const template = mapping[name];
+    if (
+      template
+      && typeof template === 'object'
+      && !Array.isArray(template)
+      && Object.keys(template).length === 1
+      && typeof template.$param === 'string'
+    ) {
+      const raw = params[template.$param];
+      const decoded = actual[name];
+      return typeof decoded === 'string' && decoded === raw;
+    }
+    return canonicalizeClientValueV1(template)
+      === canonicalizeClientValueV1(actual[name]);
+  });
 }
 
 export async function prepareReactBindingForClient(client, options = {}) {
@@ -192,14 +228,27 @@ export async function prepareReactBindingForClient(client, options = {}) {
   const references = Object.create(null);
   const referencesById = new Map();
   const resultContractsById = new Map();
+  const queryArtifactsById = new Map();
+  const authorityIndependentById = new Map();
+  // Generated function references belong to the public generated-artifact
+  // grammar (`snapback.v0` today), while the admitted function manifest may
+  // use the sessions carrier grammar (`snapback.v1`). The capability manifest
+  // carries the former and keeps prepared refs byte-identical to api.mjs.
+  const referenceSchemaVersion = generated.capabilityManifest?.schemaVersion
+    ?? generated.functions.schemaVersion;
   for (const definition of generated.functions.functions) {
     const reference = publicReference(
       definition,
       generated.functions.appId,
-      generated.functions.schemaVersion,
+      referenceSchemaVersion,
     );
     const actual = deployedFunctions.get(reference.id);
-    if (!actual || exactDeploymentFunction(actual) !== exactDeploymentFunction(reference)) {
+    if (
+      !actual
+      || exactDeploymentFunction(actual) !== exactDeploymentFunction(reference)
+      || (actual.authorityIndependent === true)
+        !== (definition.authorityIndependent === true)
+    ) {
       throw diagnosticError(
         'SNAPBACK_REACT_BINDING_MISMATCH',
         `generated reference ${reference.name} does not match the connected deployment`,
@@ -214,6 +263,11 @@ export async function prepareReactBindingForClient(client, options = {}) {
     }
     references[reference.name] = reference;
     referencesById.set(reference.id, reference);
+    queryArtifactsById.set(reference.id, queryArtifactHash(definition));
+    authorityIndependentById.set(
+      reference.id,
+      definition.authorityIndependent === true,
+    );
     const descriptor = deepFreeze(
       structuredClone(definition.resultContract ?? { kind: 'unknown' }),
     );
@@ -329,6 +383,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
   }
   const queryGroups = Object.create(null);
   const queryGroupsById = new Map();
+  let routeManifestHash = 'absent';
   if (generated.routes !== null) {
     if (
       generated.routes?.formatVersion !== 1
@@ -338,6 +393,17 @@ export async function prepareReactBindingForClient(client, options = {}) {
       throw diagnosticError(
         'SNAPBACK_REACT_MANIFEST_INVALID',
         'generated routes manifest does not match the prepared app',
+      );
+    }
+    routeManifestHash = await sha256Canonical(generated.routes);
+    if (inspection.routeManifestHash !== routeManifestHash) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_BINDING_MISMATCH',
+        'generated routes manifest does not match the served route identity',
+        {
+          expectedRouteManifestHash: routeManifestHash,
+          actualRouteManifestHash: inspection.routeManifestHash ?? null,
+        },
       );
     }
     for (const routeEntry of generated.routes.routes) {
@@ -353,19 +419,21 @@ export async function prepareReactBindingForClient(client, options = {}) {
           { route: routeEntry?.route ?? null },
         );
       }
+      if (routeEntry.registerGroupEligible !== true) continue;
       const occurrences = new Map();
+      const usedNames = new Set();
       const queries = [];
       for (const query of routeEntry.queries) {
         const reference = references[query?.function];
-        if (!reference || !['Query', 'LiveQuery'].includes(reference.kind)) {
+        if (!reference || reference.kind !== 'LiveQuery') {
           throw diagnosticError(
             'SNAPBACK_REACT_MANIFEST_INVALID',
-            'generated query group names an unknown or non-query function',
+            'generated register-eligible query group names an unknown or non-live function',
             { route: routeEntry.route, function: query?.function ?? null },
           );
         }
         queries.push(Object.freeze({
-          name: queryGroupEntryName(reference.name, occurrences),
+          name: queryGroupEntryName(reference.name, occurrences, usedNames),
           ref: reference,
           args: deepFreeze(structuredClone(query.args ?? {})),
         }));
@@ -378,7 +446,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
       const reference = Object.freeze({
         artifactKind: 'queryGroupReference',
         formatVersion: 1,
-        schemaVersion: generated.functions.schemaVersion,
+        schemaVersion: referenceSchemaVersion,
         appId: generated.functions.appId,
         id: `${generated.functions.appId}:query-group:${routeEntry.route}`,
         route: routeEntry.route,
@@ -397,6 +465,11 @@ export async function prepareReactBindingForClient(client, options = {}) {
   Object.freeze(queryGroups);
   const functionCatalogDigest = await sha256Canonical(Object.values(references));
   const capabilityDigest = await sha256Canonical(inspection.capabilityManifest);
+  const registeredBundleAvailable = Array.isArray(
+    inspection.capabilityManifest?.supportedCapabilities,
+  ) && inspection.capabilityManifest.supportedCapabilities.includes(
+    REGISTERED_BUNDLE_CAPABILITY,
+  );
   if (generated.capabilityManifest) {
     const declaredProfile = generated.capabilityManifest.targetProfileId;
     if (declaredProfile && declaredProfile !== inspection.targetProfileId) {
@@ -419,6 +492,8 @@ export async function prepareReactBindingForClient(client, options = {}) {
     profile: inspection.targetProfileId,
     deploymentIdentity,
     authMode: session?.activeMode ?? null,
+    routeManifestHash,
+    registeredBundleAvailable,
     functionCatalogDigest,
     capabilityDigest,
     references,
@@ -433,6 +508,8 @@ export async function prepareReactBindingForClient(client, options = {}) {
     client: { value: client },
     referencesById: { value: referencesById },
     resultContractsById: { value: resultContractsById },
+    queryArtifactsById: { value: queryArtifactsById },
+    authorityIndependentById: { value: authorityIndependentById },
     ephemeralDefinitionsById: { value: ephemeralDefinitionsById },
     queryGroupsById: { value: queryGroupsById },
   });
@@ -473,11 +550,115 @@ export function isPreparedReactQueryGroup(value) {
   return value?.[PREPARED_REACT_QUERY_GROUP] === true;
 }
 
+async function releasePreparedQueryGroupOwner(owner, { transferred = false } = {}) {
+  if (!owner) return;
+  if (owner.status === 'disposed') return owner.cleanup;
+  if (owner.status === 'transferred' && !transferred) return;
+  owner.status = 'disposed';
+  if (owner.expiryTimer !== null) {
+    clearTimeout(owner.expiryTimer);
+    owner.expiryTimer = null;
+  }
+  owner.cleanup ??= owner.connectionId === null
+    ? Promise.resolve()
+    : Promise.resolve(owner.binding.client.disconnect?.(owner.connectionId)).catch(() => {});
+  return owner.cleanup;
+}
+
+export function consumePreparedReactQueryGroup(binding, value) {
+  const prepared = assertPreparedReactBinding(binding);
+  if (!isPreparedReactQueryGroup(value)) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_GROUP_REFERENCE_INVALID',
+      'provider construction requires a prepared query-group capability',
+    );
+  }
+  const owner = preparedReactQueryGroupOwners.get(value);
+  if (!owner || owner.binding !== prepared) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_GROUP_OWNER_MISMATCH',
+      'prepared query group belongs to another binding',
+      { groupId: value.reference?.id ?? null },
+    );
+  }
+  if (owner.status !== 'available') {
+    throw diagnosticError(
+      'SNAPBACK_REACT_GROUP_ALREADY_CONSUMED',
+      'prepared query group has already been transferred or disposed',
+      { groupId: value.reference?.id ?? null, state: owner.status },
+    );
+  }
+  if (
+    typeof prepared.client.isAuthorityCaptureCurrent === 'function'
+    && !prepared.client.isAuthorityCaptureCurrent(owner.authorityCapture)
+  ) {
+    void releasePreparedQueryGroupOwner(owner);
+    throw diagnosticError(
+      'SNAPBACK_REACT_GROUP_AUTHORITY_STALE',
+      'prepared query group authority changed before provider adoption',
+      { groupId: value.reference?.id ?? null },
+    );
+  }
+  owner.status = 'transferred';
+  if (owner.expiryTimer !== null) {
+    clearTimeout(owner.expiryTimer);
+    owner.expiryTimer = null;
+  }
+  if (
+    value.source === 'registered-bundle'
+    && Number.isSafeInteger(owner.attachDeadline)
+    && Date.now() >= owner.attachDeadline
+  ) {
+    void releasePreparedQueryGroupOwner(owner, { transferred: true });
+    const recovered = {
+      ...value,
+      source: 'live-recovery',
+      reason: 'attach-deadline-expired',
+      connectionId: null,
+      boot: null,
+      entries: Object.freeze(owner.entries.map((entry) => Object.freeze({
+        ...entry,
+        registeredSubscription: null,
+      }))),
+    };
+    Object.defineProperty(recovered, PREPARED_REACT_QUERY_GROUP, { value: true });
+    preparedReactQueryGroupOwners.set(recovered, owner);
+    Object.defineProperty(recovered, 'devUserId', {
+      value: owner.devUserId,
+      enumerable: false,
+    });
+    return Object.freeze(recovered);
+  }
+  const transferred = {
+    ...value,
+    connectionId: owner.connectionId,
+    boot: owner.boot,
+    entries: owner.entries,
+  };
+  Object.defineProperty(transferred, PREPARED_REACT_QUERY_GROUP, { value: true });
+  preparedReactQueryGroupOwners.set(transferred, owner);
+  Object.defineProperty(transferred, 'devUserId', {
+    value: owner.devUserId,
+    enumerable: false,
+  });
+  return Object.freeze(transferred);
+}
+
+export function abandonConsumedReactQueryGroup(value) {
+  return releasePreparedQueryGroupOwner(
+    preparedReactQueryGroupOwners.get(value),
+    { transferred: true },
+  );
+}
+
 // @ref LLP 0090#d12-snapshot-bundle-fetch — register mode creates every
 // closed child subscription at the same commit cut; React adopts those exact
 // registrations rather than racing a manual prime against later live work.
 // @ref LLP 0102#bundle-primed-generated-query-groups — bundle acquisition is
 // pre-mount and group-scoped; hooks never arm registrations in an effect.
+// @ref LLP 0107#preparation-and-admission — generated identity, exact route
+// parameters, capability admission, and one-shot ownership are all settled
+// before React can receive the group.
 export async function prepareReactQueryGroupForBinding(
   binding,
   reference,
@@ -507,42 +688,147 @@ export async function prepareReactQueryGroupForBinding(
       { expected: expectedParams, actual: actualParams },
     );
   }
+  if (
+    userId !== undefined
+    && (prepared.profile !== 'local-dev-sqlite-ibex' || prepared.authMode !== 'dev')
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_GROUP_DEV_IDENTITY_FORBIDDEN',
+      'query-group userId is admitted only by the settled local dev auth profile',
+      { targetProfileId: prepared.profile, authMode: prepared.authMode },
+    );
+  }
+  const authorityCapture = prepared.client.captureAuthority?.() ?? null;
   const entries = admitted.queries.map((query) => Object.freeze({
     name: query.name,
     ref: query.ref,
     args: materializeGroupArgs(query.args, params),
+    argsTemplate: query.args,
     registeredSubscription: null,
   }));
-  const makePrepared = ({ source, boot = null, connectionId = null, resolvedEntries = entries }) => {
+  const canonicalChildren = new Set();
+  for (const entry of entries) {
+    const identity = `${entry.ref.id}\u0000${canonicalizeClientValueV1(entry.args)}`;
+    if (canonicalChildren.has(identity)) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_GROUP_DUPLICATE_CHILD',
+        'registered query groups cannot repeat an identical function and canonical args',
+        { groupId: admitted.id, child: entry.name },
+      );
+    }
+    canonicalChildren.add(identity);
+  }
+  const makePrepared = ({
+    source,
+    reason = null,
+    boot = null,
+    connectionId = null,
+    attachDeadline = null,
+    resolvedEntries = entries,
+  }) => {
+    const owner = {
+      binding: prepared,
+      status: 'available',
+      connectionId,
+      attachDeadline,
+      boot,
+      authorityCapture,
+      devUserId: userId ?? null,
+      entries: Object.freeze(resolvedEntries),
+      cleanup: null,
+      expiryTimer: null,
+    };
+    if (connectionId !== null && Number.isSafeInteger(attachDeadline)) {
+      owner.expiryTimer = setTimeout(() => {
+        if (owner.status === 'available') void releasePreparedQueryGroupOwner(owner);
+      }, Math.max(0, attachDeadline - Date.now()));
+      owner.expiryTimer.unref?.();
+    }
     const result = {
       artifactKind: 'preparedReactQueryGroup',
       source,
+      ...(reason === null ? {} : { reason }),
       reference: admitted,
       params: deepFreeze(structuredClone(params)),
-      connectionId,
       boot,
-      entries: Object.freeze(resolvedEntries),
+      entries: Object.freeze(resolvedEntries.map((entry) => Object.freeze({
+        name: entry.name,
+        ref: entry.ref,
+        args: entry.args,
+      }))),
     };
     Object.defineProperty(result, PREPARED_REACT_QUERY_GROUP, { value: true });
+    preparedReactQueryGroupOwners.set(result, owner);
+    Object.defineProperty(result, 'dispose', {
+      value: () => releasePreparedQueryGroupOwner(owner),
+      enumerable: false,
+    });
+    Object.defineProperty(result, 'devUserId', {
+      value: userId ?? null,
+      enumerable: false,
+    });
     return Object.freeze(result);
   };
-  let bundle;
-  try {
-    bundle = await prepared.client.fetchBundle({
-      route: admitted.route,
-      params,
-      mode: 'register',
-      ...(userId === undefined ? {} : { userId }),
-    });
-  } catch (error) {
-    const code = error?.diagnostic?.code ?? error?.code ?? '';
-    if (fallbackToLive && String(code).startsWith('SNAPBACK_BUNDLE_')) {
-      return makePrepared({ source: 'live-fallback' });
+  if (!prepared.registeredBundleAvailable) {
+    if (fallbackToLive) {
+      return makePrepared({
+        source: 'live-fallback',
+        reason: 'registered_bundle_boot_v1-unavailable',
+      });
     }
-    throw error;
+    throw diagnosticError(
+      'SNAPBACK_REACT_GROUP_REGISTER_UNAVAILABLE',
+      'target does not advertise registered_bundle_boot_v1',
+      { capability: REGISTERED_BUNDLE_CAPABILITY },
+    );
   }
   if (
-    !Number.isSafeInteger(bundle?.commitVersion)
+    prepared.authMode === 'sessions'
+    && prepared.client.authProtocols?.authInvalidation !== 1
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_GROUP_AUTH_INVALIDATION_REQUIRED',
+      'sessions-mode registered groups require authInvalidationProtocol 1',
+      { groupId: admitted.id },
+    );
+  }
+  const authorizationNamespaces = prepared.authMode === 'sessions'
+    && prepared.client.authProtocols?.authInvalidation === 1
+    ? entries.map((entry) => (
+        prepared.authorityIndependentById.get(entry.ref.id) === true
+          ? null
+          : prepared.client.allocateLiveQueryNamespace(entry.ref, entry.args)
+      ))
+    : [];
+  let bundle;
+  bundle = await prepared.client.fetchBundle({
+    route: admitted.route,
+    params,
+    mode: 'register',
+    authorityCapture,
+    authorizationNamespaces,
+    authInvalidationProtocol: prepared.authMode === 'sessions' ? 1 : null,
+    ...(userId === undefined ? {} : { userId }),
+  });
+  const bundleKeys = Object.keys(bundle ?? {}).sort();
+  const connectionKeys = Object.keys(bundle?.connection ?? {}).sort();
+  const allowedBundleKeys = [
+    'commitVersion',
+    'connection',
+    'entries',
+    'generation',
+    'versionStream',
+  ];
+  const allowedConnectionKeys = [
+    'attachDeadline',
+    'authorizationInvalidation',
+    'connectionId',
+    'grant',
+  ];
+  if (
+    bundleKeys.length !== allowedBundleKeys.length
+    || bundleKeys.some((key, index) => key !== allowedBundleKeys[index])
+    || !Number.isSafeInteger(bundle?.commitVersion)
     || bundle.commitVersion < 0
     || typeof bundle.generation !== 'string'
     || bundle.generation.length === 0
@@ -550,68 +836,242 @@ export async function prepareReactQueryGroupForBinding(
     || bundle.versionStream.length === 0
     || typeof bundle.connection?.connectionId !== 'string'
     || bundle.connection.connectionId.length === 0
+    || typeof bundle.connection.grant !== 'string'
+    || bundle.connection.grant.length === 0
+    || !Number.isSafeInteger(bundle.connection.attachDeadline)
+    || bundle.connection.attachDeadline < 0
+    || connectionKeys.some((key) => !allowedConnectionKeys.includes(key))
+    || !['attachDeadline', 'connectionId', 'grant'].every((key) => (
+      Object.prototype.hasOwnProperty.call(bundle.connection, key)
+    ))
     || !Array.isArray(bundle.entries)
     || bundle.entries.length !== entries.length
   ) {
+    if (typeof bundle?.connection?.connectionId === 'string') {
+      await prepared.client.disconnect?.(bundle.connection.connectionId).catch(() => {});
+    }
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
       'register-mode query-group bundle is incomplete',
       { groupId: admitted.id },
     );
   }
-  const received = new Map();
-  for (const entry of bundle.entries) {
-    const key = groupEntryKey(entry?.function, entry?.args ?? {});
-    if (received.has(key)) {
-      throw diagnosticError(
-        'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
-        'register-mode query-group bundle repeats a child',
-        { groupId: admitted.id, function: entry?.function ?? null },
+  let resolvedEntries;
+  try {
+    const subscriptionIds = new Set();
+    let sawAuthorization = false;
+    resolvedEntries = entries.map((entry, index) => {
+      const response = bundle.entries[index];
+      const responseKeys = Object.keys(response ?? {}).sort();
+      const allowedKeys = [
+        'args',
+        'authorization',
+        'function',
+        'resume',
+        'rows',
+        'subscriptionId',
+      ];
+      if (
+        !response
+        || response.function !== entry.ref.name
+        || !Object.prototype.hasOwnProperty.call(response, 'args')
+        || !groupResponseArgsMatch(entry.argsTemplate, params, response.args)
+        || typeof response.subscriptionId !== 'string'
+        || response.subscriptionId.length === 0
+        || subscriptionIds.has(response.subscriptionId)
+        || !Array.isArray(response.rows)
+        || !Object.prototype.hasOwnProperty.call(response, 'resume')
+        || responseKeys.some((key) => !allowedKeys.includes(key))
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+          'register-mode query-group bundle does not exactly match manifest order',
+          { groupId: admitted.id, child: entry.name, index },
+        );
+      }
+      subscriptionIds.add(response.subscriptionId);
+      let resume = null;
+      if (response.resume !== null) {
+        const resumeKeys = Object.keys(response.resume ?? {}).sort();
+        const metaKeys = Object.keys(response.resume?.meta ?? {}).sort();
+        const expectedMetaKeys = [
+          'app',
+          'argsHash',
+          'contentDigest',
+          'generation',
+          'queryArtifact',
+          'version',
+          'versionStream',
+        ];
+        if (
+          !response.resume
+          || typeof response.resume !== 'object'
+          || resumeKeys.length !== 2
+          || resumeKeys[0] !== 'meta'
+          || resumeKeys[1] !== 'token'
+          || typeof response.resume.token !== 'string'
+          || response.resume.token.length === 0
+          || response.resume.token.length > 1_024
+          || !response.resume.token.startsWith('sbrt1.')
+          || !response.resume.meta
+          || typeof response.resume.meta !== 'object'
+          || Array.isArray(response.resume.meta)
+          || metaKeys.length !== expectedMetaKeys.length
+          || metaKeys.some((key, index) => key !== expectedMetaKeys[index])
+          || !Number.isSafeInteger(response.resume.meta.version)
+          || response.resume.meta.version < 0
+          || expectedMetaKeys
+            .filter((key) => key !== 'version')
+            .some((key) => (
+              typeof response.resume.meta[key] !== 'string'
+              || response.resume.meta[key].length === 0
+            ))
+          || response.resume.meta.version !== bundle.commitVersion
+          || response.resume.meta.app !== prepared.appId
+          || response.resume.meta.generation !== bundle.generation
+          || response.resume.meta.versionStream !== bundle.versionStream
+          || response.resume.meta.queryArtifact
+            !== prepared.queryArtifactsById.get(entry.ref.id)
+          || response.resume.meta.argsHash !== argsHash(response.args)
+          || !rowsMatchDigest(response.rows, response.resume.meta.contentDigest)
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+            'register-mode query-group bundle carries an invalid resume value',
+            { groupId: admitted.id, child: entry.name },
+          );
+        }
+        canonicalizeClientValueV1(response.resume);
+        resume = deepFreeze(structuredClone(response.resume));
+      }
+      let authorization = null;
+      const expectsAuthorization = prepared.authMode === 'sessions'
+        && prepared.authorityIndependentById.get(entry.ref.id) !== true;
+      const carriesAuthorization = Object.prototype.hasOwnProperty.call(
+        response,
+        'authorization',
       );
-    }
-    received.set(key, entry);
-  }
-  const resolvedEntries = entries.map((entry) => {
-    const response = received.get(groupEntryKey(entry.ref.name, entry.args));
+      if (carriesAuthorization !== expectsAuthorization) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+          expectsAuthorization
+            ? 'auth-scoped registered child lacks the closed authorization projection'
+            : 'authority-independent registered child unexpectedly carries an authorization projection',
+          { groupId: admitted.id, child: entry.name },
+        );
+      }
+      if (carriesAuthorization) {
+        const keys = Object.keys(response.authorization ?? {}).sort();
+        if (
+          keys.length !== 2
+          || keys[0] !== 'invalidation'
+          || keys[1] !== 'scope'
+          || !response.authorization.scope
+          || typeof response.authorization.scope !== 'object'
+          || response.authorization.invalidation === undefined
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+            'auth-scoped registered child lacks the closed authorization projection',
+            { groupId: admitted.id, child: entry.name },
+          );
+        }
+        let normalizedScope;
+        try {
+          normalizedScope = validateScopeId(
+            response.authorization.scope,
+            `bundle.entries[${index}].authorization.scope`,
+          );
+        } catch {
+          throw diagnosticError(
+            'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+            'auth-scoped registered child carries an invalid scope',
+            { groupId: admitted.id, child: entry.name },
+          );
+        }
+        const expectedNamespace = authorizationNamespaces[index] ?? null;
+        if (
+          normalizedScope.kind !== 'subscription'
+          || normalizedScope.subscriptionId !== response.subscriptionId
+          || expectedNamespace === null
+          || canonicalizeClientValueV1(normalizedScope.namespace)
+            !== canonicalizeClientValueV1(expectedNamespace)
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+            'auth-scoped registered child crossed its positional namespace',
+            { groupId: admitted.id, child: entry.name },
+          );
+        }
+        canonicalizeClientValueV1(response.authorization.invalidation);
+        authorization = deepFreeze(structuredClone(response.authorization));
+        sawAuthorization = true;
+      }
+      const contract = prepared.resultContractsById.get(entry.ref.id);
+      const verdict = contract?.validator.validate(response.rows);
+      if (!verdict?.ok) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+          'registered child rows fail the generated result contract',
+          {
+            groupId: admitted.id,
+            child: entry.name,
+            path: verdict?.path ?? null,
+          },
+        );
+      }
+      return Object.freeze({
+        name: entry.name,
+        ref: entry.ref,
+        args: deepFreeze(structuredClone(response.args)),
+        registeredSubscription: Object.freeze({
+          subscriptionId: response.subscriptionId,
+          rows: deepFreeze(structuredClone(verdict.value)),
+          version: bundle.commitVersion,
+          resume,
+          authorization,
+          authorizationNamespace: authorizationNamespaces[index] ?? null,
+          attachDeadline: bundle.connection.attachDeadline,
+        }),
+      });
+    });
     if (
-      !response
-      || typeof response.subscriptionId !== 'string'
-      || response.subscriptionId.length === 0
-      || !Array.isArray(response.rows)
+      sawAuthorization
+      && (
+        !bundle.connection.authorizationInvalidation
+        || typeof bundle.connection.authorizationInvalidation !== 'object'
+      )
     ) {
       throw diagnosticError(
         'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
-        'register-mode query-group bundle does not exactly match its generated children',
-        { groupId: admitted.id, function: entry.ref.name },
+        'auth-scoped registered bundle lacks its connection authorization projection',
+        { groupId: admitted.id },
       );
     }
-    return Object.freeze({
-      ...entry,
-      registeredSubscription: Object.freeze({
-        subscriptionId: response.subscriptionId,
-        rows: deepFreeze(structuredClone(response.rows)),
-        version: bundle.commitVersion,
-        resume: response.resume && typeof response.resume.token === 'string'
-          ? deepFreeze(structuredClone(response.resume))
-          : null,
-      }),
-    });
-  });
-  if (received.size !== resolvedEntries.length) {
-    throw diagnosticError(
-      'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
-      'register-mode query-group bundle contains an unexpected child',
-      { groupId: admitted.id },
-    );
+    if (
+      typeof prepared.client.isAuthorityCaptureCurrent === 'function'
+      && !prepared.client.isAuthorityCaptureCurrent(authorityCapture)
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_GROUP_AUTHORITY_STALE',
+        'query-group authority changed before bundle publication',
+        { groupId: admitted.id },
+      );
+    }
+  } catch (error) {
+    await prepared.client.disconnect?.(bundle.connection.connectionId).catch(() => {});
+    throw error;
   }
   return makePrepared({
     source: 'registered-bundle',
     connectionId: bundle.connection.connectionId,
+    attachDeadline: bundle.connection.attachDeadline,
     boot: Object.freeze({
       source: 'registered-bundle',
       commitVersion: bundle.commitVersion,
       generation: bundle.generation,
       versionStream: bundle.versionStream,
+      attachDeadline: bundle.connection.attachDeadline,
     }),
     resolvedEntries,
   });

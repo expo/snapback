@@ -1,6 +1,6 @@
 # Package-owned comparator acceptance kit
 
-**Status:** Resolved
+**Status:** Reopened — packaged revalidation
 **Impact:** 4  
 **Urgency:** 3  
 **Ease:** 2  
@@ -46,7 +46,7 @@ to a package-owned helper.
 - One documented command works from a packed/public installation without
   repository-relative imports.
 
-## Resolution — 2026-07-28
+## Implementation checkpoint — 2026-07-28
 
 The package-owned `snapback accept comparator` profile now owns the isolated
 server/database lifecycle, generated-reference admission, two-client native
@@ -59,11 +59,23 @@ property.
 
 Signal Desk is a thin `snapback-comparator.config.mjs` configuration and keeps
 its six domain claims without importing the repository-private harness. The
-immutable staged-package cold-install receipt at
-`demos/backend-bakeoff/acceptance/cold-install-react.v1.json` proves the CLI
-and comparator closure install without sibling-source resolution; public npm
-publication remains an explicit nonclaim of that receipt and is tracked by the
-starter/release gate rather than this repository implementation ticket.
+earlier staged-package cold-install receipt at
+`demos/backend-bakeoff/acceptance/cold-install-react.v1.json` proved the CLI
+closure installed without sibling-source resolution, but did not execute the
+installed comparator's default local-target path. When that stronger
+revalidation was added, the packaged dev-mode green fixture failed before any
+check because the runner tried the session provider unconditionally.
 
-Verified with the full `@snapback/cli` package suite, Signal Desk comparator
-acceptance, package inventory, and the staged cold-install proof.
+The runner now reads the process-scoped `/auth/session` handshake and selects
+the existing auth-mode-specific client mechanism: body-carried asserted users
+for `dev`, provider-minted bearers for `sessions`. The package suite executes
+the default managed lifecycle against the deliberately dev-mode packaged
+fixture and requires all five checks, target/binary identity, and cleanup to
+pass. Verified from source with:
+
+- `SNAPBACK_RUNTIME_BINARY=packages/snapback-runtime-darwin-arm64/bin/snapback node packages/snapback-cli/comparator-profile.test.mjs`
+- `node packages/snapback-cli/cli.mjs accept comparator --config packages/snapback-cli/fixtures/comparator/green.config.mjs --receipt /tmp/snapback-comparator-dev-after.json --timeout-ms 15000 --json`
+
+This source-tree verification is not a replacement for the installed-package
+cold proof. Close this ticket again only after the release lane reruns the
+staged/public-style cold install and retains its refreshed receipt.

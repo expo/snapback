@@ -81,6 +81,7 @@ import {
   effectiveResultContract,
   resultContractHash,
   resultContractType,
+  searchPageResultType,
   validatorResultValue,
 } from './result-contracts.mjs';
 import {
@@ -141,6 +142,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'live_subscriptions',
   'mutation_read_set_validation',
   'permission_epoch_resync',
+  'registered_bundle_boot_v1',
   'relational_query_v1',
   'result_contract_v1',
 ]);
@@ -156,6 +158,7 @@ const TARGET_CAPABILITY_IDS = new Set([
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'full_text_search_v1',
   'inline_handler_v1',
+  'registered_bundle_boot_v1',
   'result_contract_v1',
 ]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
@@ -2393,7 +2396,7 @@ export async function generateInProcess(backendDir, options = {}) {
       functions: functionManifest.functions,
       ephemeralCollections,
       fileRecords: files,
-      diagnostics,
+      diagnostics: [...diagnostics, ...infoDiagnostics],
       sourceSpans: exportedDefinitionSourceSpans(graphEntrySource(functionsGraph, functionsPath)),
       schemaFieldSpans: authoredPropertySourceSpans(graphEntrySource(schemaGraph, schemaPath), 'schema.mjs'),
       outputDirectory: targetConfig.outputDirectory,
@@ -3944,10 +3947,24 @@ function compileRoutesManifest(routesModule, functionsModule, appId, err) {
         assertLiteral(mapping, 'args');
       }
     }
+    const registerGroupEligible = queries.every((spec) => {
+      const fn = functionsModule[spec.function];
+      if (fn?.__kind !== 'LiveQuery') return false;
+      return Object.entries(spec.args ?? {}).every(([key, value]) => (
+        !(
+          value
+          && typeof value === 'object'
+          && !Array.isArray(value)
+          && Object.hasOwn(value, '$param')
+        )
+        || fn.args?.[key]?.primitive === 'string'
+      ));
+    });
     compiled.push({
       route,
       queries: queries.map((spec) => ({ function: spec.function, args: spec.args ?? {} })),
       ...(entry.persist === false ? { persist: false } : {}),
+      ...(registerGroupEligible ? { registerGroupEligible: true } : {}),
     });
   }
   return { formatVersion: 1, app: appId, routes: compiled };
@@ -5549,24 +5566,58 @@ function sourcePosition(source, offset) {
   return { line: lines.length, column: lines.at(-1).length + 1 };
 }
 
-function queryGroupEntryName(functionName, occurrences) {
-  const count = (occurrences.get(functionName) ?? 0) + 1;
+function queryGroupEntryName(functionName, occurrences, usedNames) {
+  let count = (occurrences.get(functionName) ?? 0) + 1;
+  let candidate = count === 1 ? functionName : `${functionName}${count}`;
+  while (usedNames.has(candidate)) {
+    count += 1;
+    candidate = `${functionName}${count}`;
+  }
   occurrences.set(functionName, count);
-  return count === 1 ? functionName : `${functionName}${count}`;
+  usedNames.add(candidate);
+  return candidate;
+}
+
+// @ref LLP 0107#generated-reference — generated bundle groups are the bounded
+// LiveQuery-only projection of the broader preload manifest, and runtime
+// values and declarations share one admission function.
+function generatedQueryGroupRoutes(functions, routesManifest) {
+  const byName = new Map(functions.map((fn) => [fn.name, fn]));
+  return (routesManifest?.routes ?? []).filter((routeEntry) => (
+    routeEntry.registerGroupEligible === true
+    &&
+    routeEntry.queries.length >= 1
+    && routeEntry.queries.length <= 32
+    && routeEntry.queries.every((query) => byName.get(query.function)?.kind === 'LiveQuery')
+  ));
+}
+
+function queryGroupDefinition(routeEntry) {
+  return {
+    route: routeEntry.route,
+    queries: routeEntry.queries,
+    ...(routeEntry.persist === false ? { persist: false } : {}),
+  };
+}
+
+function queryGroupDefinitionHash(routeEntry) {
+  const canonicalDefinition = stableJson(queryGroupDefinition(routeEntry), 0);
+  return `sha256:${sha256(`snapback:query-group-reference:v1\n${canonicalDefinition}`)}`;
 }
 
 function renderQueryGroupReferences(appId, functions, routesManifest) {
   const byName = new Map(functions.map((fn) => [fn.name, fn]));
   const groups = dict();
-  for (const routeEntry of routesManifest?.routes ?? []) {
+  for (const routeEntry of generatedQueryGroupRoutes(functions, routesManifest)) {
     const occurrences = new Map();
+    const usedNames = new Set();
     const queries = routeEntry.queries.map((query) => {
       const fn = byName.get(query.function);
       if (!fn) {
         throw new Error(`codegen internal error: query group references unknown function ${query.function}`);
       }
       return {
-        name: queryGroupEntryName(query.function, occurrences),
+        name: queryGroupEntryName(query.function, occurrences, usedNames),
         ref: {
           artifactKind: 'functionReference',
           schemaVersion: SCHEMA_VERSION,
@@ -5581,11 +5632,6 @@ function renderQueryGroupReferences(appId, functions, routesManifest) {
         args: query.args ?? {},
       };
     });
-    const definition = {
-      route: routeEntry.route,
-      queries: routeEntry.queries,
-      ...(routeEntry.persist === false ? { persist: false } : {}),
-    };
     groups[routeEntry.route] = {
       artifactKind: 'queryGroupReference',
       formatVersion: 1,
@@ -5593,9 +5639,7 @@ function renderQueryGroupReferences(appId, functions, routesManifest) {
       appId,
       id: `${appId}:query-group:${routeEntry.route}`,
       route: routeEntry.route,
-      definitionHash: `sha256:${sha256(
-        `snapback:query-group-reference:v1\n${stableJson(definition)}`,
-      )}`,
+      definitionHash: queryGroupDefinitionHash(routeEntry),
       queries,
       ...(routeEntry.persist === false ? { persist: false } : {}),
     };
@@ -5678,8 +5722,10 @@ function renderApiTypes(
     'export interface SearchRequestV1 { query: SearchQueryAstV1; limit?: number; after?: string }',
     'export interface SearchMatchRangeV1 { start: number; end: number }',
     'export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }',
-    'export interface SearchItemV1 { rowId: string; score: number; fields: Readonly<Record<string, unknown>>; highlights: readonly SearchHighlightV1[] }',
-    'export interface SearchPageV1 { items: readonly SearchItemV1[]; cursor: string | null; hasMore: boolean }',
+    // @ref LLP 0073#ranking-order-and-cursors — each generated search ref
+    // instantiates these carriers with its closed stored-field and row-id types.
+    'export interface SearchItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; score: number; fields: Fields; highlights: readonly SearchHighlightV1[] }',
+    'export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
@@ -5699,21 +5745,29 @@ function renderApiTypes(
     "export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
     "export type MutationInvocation<Ref extends FunctionReference<string, 'Mutation', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
     "export type ActionInvocation<Ref extends FunctionReference<string, 'Action', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
-    'export interface QueryGroupReference<Route extends string, Params, Entries> {',
-    "  artifactKind: 'queryGroupReference';",
-    '  formatVersion: 1;',
-    '  schemaVersion: SchemaVersion;',
-    '  appId: string;',
-    '  id: string;',
-    '  route: Route;',
-    '  definitionHash: string;',
-    '  queries: readonly Readonly<{ name: string; ref: FunctionReference<string, "Query" | "LiveQuery", unknown, unknown>; args: Readonly<Record<string, unknown>> }>[];',
-    '  persist?: false;',
-    '  readonly __params?: Params;',
-    '  readonly __entries?: Entries;',
+    'export interface QueryGroupEntry<Name extends string = string, Ref extends FunctionReference<string, "LiveQuery", unknown, unknown> = FunctionReference<string, "LiveQuery", unknown, unknown>, Args extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {',
+    '  readonly name: Name;',
+    '  readonly ref: Ref;',
+    '  readonly args: Args;',
     '}',
-    'export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, unknown> ? Params : never;',
-    'export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Entries> ? Entries : never;',
+    'export type QueryGroupEntryResults<Queries extends readonly QueryGroupEntry[]> = {',
+    '  readonly [Entry in Queries[number] as Entry["name"]]: { readonly ref: Entry["ref"]; readonly args: FunctionArgs<Entry["ref"]> };',
+    '};',
+    'export interface QueryGroupReference<Route extends string, Params, Queries extends readonly QueryGroupEntry[]> {',
+    "  readonly artifactKind: 'queryGroupReference';",
+    '  readonly formatVersion: 1;',
+    '  readonly schemaVersion: SchemaVersion;',
+    '  readonly appId: string;',
+    '  readonly id: `${string}:query-group:${Route}`;',
+    '  readonly route: Route;',
+    '  readonly definitionHash: `sha256:${string}`;',
+    '  readonly queries: Queries;',
+    '  readonly persist?: false;',
+    '  readonly __params?: Params;',
+    '  readonly __entries?: QueryGroupEntryResults<Queries>;',
+    '}',
+    'export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;',
+    'export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;',
     'export interface EphemeralCollectionReference<Name extends string, Scope, Value, KeyMode extends EphemeralKeyMode = EphemeralKeyMode> {',
     "  artifactKind: 'ephemeralCollectionReference';",
     '  schemaVersion: SchemaVersion;',
@@ -5833,11 +5887,12 @@ function renderApiTypes(
     'export interface GeneratedQueryGroups {',
   );
   const functionsByName = new Map(functions.map((fn) => [fn.name, fn]));
-  for (const routeEntry of routesManifest?.routes ?? []) {
+  for (const routeEntry of generatedQueryGroupRoutes(functions, routesManifest)) {
     const routeParams = parseRoutePattern(routeEntry.route, () => {}) ?? [];
     const paramTypes = new Map(routeParams.map((name) => [name, 'string']));
     const occurrences = new Map();
-    const entryTypes = [];
+    const usedNames = new Set();
+    const queryTypes = [];
     for (const query of routeEntry.queries) {
       const fn = functionsByName.get(query.function);
       const def = functionsModule[query.function];
@@ -5847,30 +5902,14 @@ function renderApiTypes(
         (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
       );
       const refType = `FunctionReference<'${query.function}', '${fn?.kind ?? 'Query'}', ${argsType}, ${resultType}>`;
-      const entryName = queryGroupEntryName(query.function, occurrences);
-      entryTypes.push(`${JSON.stringify(entryName)}: { readonly ref: ${refType}; readonly args: ${argsType} }`);
-      for (const [argName, value] of Object.entries(query.args ?? {})) {
-        if (
-          value
-          && typeof value === 'object'
-          && !Array.isArray(value)
-          && Object.keys(value).length === 1
-          && typeof value.$param === 'string'
-        ) {
-          const validator = def?.args?.[argName];
-          paramTypes.set(
-            value.$param,
-            { string: 'string', number: 'number', boolean: 'boolean' }[validator?.primitive]
-              ?? 'string',
-          );
-        }
-      }
+      const entryName = queryGroupEntryName(query.function, occurrences, usedNames);
+      queryTypes.push(`Readonly<{ name: ${JSON.stringify(entryName)}; ref: ${refType}; args: ${typeForQueryGroupTemplate(query.args ?? {})} }>`);
     }
     const paramsType = routeParams.length === 0
       ? 'Record<string, never>'
       : `{ ${routeParams.map((name) => `${JSON.stringify(name)}: ${paramTypes.get(name) ?? 'string'}`).join('; ')} }`;
     lines.push(
-      `  ${JSON.stringify(routeEntry.route)}: QueryGroupReference<${JSON.stringify(routeEntry.route)}, ${paramsType}, { readonly ${entryTypes.join('; readonly ')} }>;`,
+      `  ${JSON.stringify(routeEntry.route)}: QueryGroupReference<${JSON.stringify(routeEntry.route)}, ${paramsType}, readonly [${queryTypes.join(', ')}]>;`,
     );
   }
   lines.push(
@@ -5881,7 +5920,7 @@ function renderApiTypes(
     const def = functionsModule[fn.name];
     const search = fn.runtime?.HostPlan?.SearchQuery;
     const result = search
-      ? 'SearchPageV1'
+      ? searchPageResultType(fn.resultContract)
       : resultContractType(
         fn.resultContract ?? { kind: 'unknown' },
         (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
@@ -6222,6 +6261,24 @@ function typeForGeneratedArgs(args) {
   return `{ ${entries.map(([name, val]) => `${name}${val?.optional ? '?' : ''}: ${typeForGeneratedValidator(val).replace(/ \| undefined$/, '')}`).join('; ')} }`;
 }
 
+function typeForQueryGroupTemplate(value) {
+  if (value === null) return 'null';
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return `readonly [${value.map(typeForQueryGroupTemplate).join(', ')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const fields = Object.keys(value)
+      .sort()
+      .map((name) => `readonly ${JSON.stringify(name)}: ${typeForQueryGroupTemplate(value[name])}`);
+    return fields.length === 0
+      ? 'Readonly<Record<string, never>>'
+      : `{ ${fields.join('; ')} }`;
+  }
+  return 'never';
+}
+
 function typeForGeneratedValidator(val) {
   if (!val || !val.__validator) return 'unknown';
   let type;
@@ -6414,7 +6471,7 @@ function generatedAtMillis() {
 }
 
 // Deterministic JSON with recursively sorted object keys (stable diffs).
-function stableJson(value) {
+function stableJson(value, indent = 2) {
   const sort = (v) => {
     if (Array.isArray(v)) return v.map(sort);
     if (v && typeof v === 'object') {
@@ -6424,7 +6481,7 @@ function stableJson(value) {
     }
     return v;
   };
-  return JSON.stringify(sort(value), null, 2);
+  return JSON.stringify(sort(value), null, indent);
 }
 
 // Summary links are an author aid, not generated identity. They point to the

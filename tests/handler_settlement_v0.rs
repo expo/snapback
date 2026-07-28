@@ -52,8 +52,17 @@ globalThis.__snapbackHandlers = {
   async listItems(ctx) {
     return await ctx.db.query('items').order('_createdAt', 'asc').collect();
   },
+  async listItemsLive(ctx) {
+    return await ctx.db.query('items').order('_createdAt', 'asc').collect();
+  },
   async listItemsWrongContract(ctx) {
     return await ctx.db.query('items').order('_createdAt', 'asc').collect();
+  },
+  async echoAction(_ctx, args) {
+    return { accepted: args.accepted };
+  },
+  async echoActionWrongContract() {
+    return { accepted: "not-a-boolean" };
   }
 };
 "#;
@@ -90,6 +99,12 @@ fn functions() -> FunctionManifest {
             }),
         )
     };
+    let mark_inline = |function: &mut FunctionDefinition| {
+        function.handler_form = Some("inline".to_owned());
+        function
+            .required_capabilities
+            .push("inline_handler_v1".to_owned());
+    };
     let contract = FunctionResultContract::Value {
         value: ResultValueContract::Object {
             fields: vec![ResultObjectFieldContract {
@@ -113,7 +128,8 @@ fn functions() -> FunctionManifest {
             .push("result_contract_v1".to_owned());
     };
     let mut invalid_mutation = define("insertThenReturnWrongContract", FunctionKind::Mutation);
-    install_contract(&mut invalid_mutation, contract);
+    mark_inline(&mut invalid_mutation);
+    install_contract(&mut invalid_mutation, contract.clone());
 
     let mut invalid_query = define("listItemsWrongContract", FunctionKind::Query);
     install_contract(
@@ -130,8 +146,91 @@ fn functions() -> FunctionManifest {
         },
     );
 
+    let document_row = ResultValueContract::Object {
+        fields: vec![
+            ResultObjectFieldContract {
+                name: "_id".to_owned(),
+                required: true,
+                value: ResultValueContract::Id {
+                    table: "items".to_owned(),
+                },
+            },
+            ResultObjectFieldContract {
+                name: "_version".to_owned(),
+                required: true,
+                value: ResultValueContract::Integer {
+                    min: 0,
+                    max: 9_007_199_254_740_991,
+                },
+            },
+            ResultObjectFieldContract {
+                name: "_createdAt".to_owned(),
+                required: true,
+                value: ResultValueContract::Integer {
+                    min: 0,
+                    max: 9_007_199_254_740_991,
+                },
+            },
+            ResultObjectFieldContract {
+                name: "_updatedAt".to_owned(),
+                required: true,
+                value: ResultValueContract::Integer {
+                    min: 0,
+                    max: 9_007_199_254_740_991,
+                },
+            },
+            ResultObjectFieldContract {
+                name: "n".to_owned(),
+                required: true,
+                value: ResultValueContract::Integer {
+                    min: -9_007_199_254_740_991,
+                    max: 9_007_199_254_740_991,
+                },
+            },
+        ],
+        allow_extra: false,
+    };
+    let mut inline_query = define("listItems", FunctionKind::Query);
+    mark_inline(&mut inline_query);
+    install_contract(
+        &mut inline_query,
+        FunctionResultContract::Documents {
+            table: "items".to_owned(),
+            document: document_row.clone(),
+        },
+    );
+    let mut inline_live_query = define("listItemsLive", FunctionKind::LiveQuery);
+    mark_inline(&mut inline_live_query);
+    install_contract(
+        &mut inline_live_query,
+        FunctionResultContract::Documents {
+            table: "items".to_owned(),
+            document: document_row,
+        },
+    );
+    let mut inline_mutation = define("insertOne", FunctionKind::Mutation);
+    mark_inline(&mut inline_mutation);
+    install_contract(
+        &mut inline_mutation,
+        FunctionResultContract::Value {
+            value: ResultValueContract::Object {
+                fields: Vec::new(),
+                allow_extra: false,
+            },
+        },
+    );
+    let mut inline_action = define("echoAction", FunctionKind::Action);
+    mark_inline(&mut inline_action);
+    install_contract(&mut inline_action, contract.clone());
+    let mut invalid_action = define("echoActionWrongContract", FunctionKind::Action);
+    mark_inline(&mut invalid_action);
+    install_contract(&mut invalid_action, contract);
+
     FunctionManifest {
-        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
+        acknowledged_experimental_capabilities: vec![
+            "inline_handler_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+        ],
         functions: vec![
             define("insertThenHang", FunctionKind::Mutation),
             define("hangForever", FunctionKind::Query),
@@ -139,10 +238,13 @@ fn functions() -> FunctionManifest {
             define("returnsUndefined", FunctionKind::Mutation),
             define("returnsNull", FunctionKind::Mutation),
             define("insertThenReturnFunction", FunctionKind::Mutation),
-            define("insertOne", FunctionKind::Mutation),
+            inline_mutation,
             invalid_mutation,
-            define("listItems", FunctionKind::Query),
+            inline_query,
+            inline_live_query,
             invalid_query,
+            inline_action,
+            invalid_action,
         ],
         ..FunctionManifest::default()
     }
@@ -310,4 +412,40 @@ fn declared_result_contract_refuses_before_query_publication() {
         1,
         "query result refusal cannot mutate source state"
     );
+}
+
+#[test]
+fn inline_query_live_mutation_and_action_execute_with_precise_contracts() {
+    // @ref LLP 0101#final-author-reconciliation-after-round-3 — the generated
+    // inline form uses the ordinary native runtime after load-time admission;
+    // every operation kind still crosses the same effective result validator.
+    let mut snapback = configured();
+    let mutation = snapback
+        .invoke_mutation("insertOne", input(json!({ "n": 7 })))
+        .expect("inline mutation");
+    assert_eq!(mutation.result, json!({}));
+
+    let query = snapback
+        .invoke_query("listItems", input(json!({})))
+        .expect("inline query");
+    let live_query = snapback
+        .invoke_query("listItemsLive", input(json!({})))
+        .expect("inline live query");
+    assert_eq!(live_query.rows, query.rows);
+
+    let action = snapback.run_app_action("echoAction", input(json!({ "accepted": true })));
+    assert!(action.ok, "{:?}", action.diagnostic);
+    assert_eq!(action.result, Some(json!({ "accepted": true })));
+}
+
+#[test]
+fn declared_action_result_contract_refuses_before_publication() {
+    let mut snapback = configured();
+    let action = snapback.run_app_action("echoActionWrongContract", input(json!({})));
+    assert!(!action.ok, "an invalid action result must not be published");
+    assert_eq!(
+        action.diagnostic.map(|diagnostic| diagnostic.code),
+        Some("SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION".to_owned()),
+    );
+    assert_eq!(action.result, None);
 }

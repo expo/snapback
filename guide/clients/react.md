@@ -4,7 +4,7 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0101-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0106-react-presence-and-optimistic-lifecycle.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0101-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0106-react-presence-and-optimistic-lifecycle.spec.md, llp/0107-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/backend-bakeoff/src/backends/snapback.ts, demos/backend-bakeoff/tests/react.mjs, demos/backend-bakeoff/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
@@ -96,14 +96,37 @@ const provider = createSnapbackReactProvider(binding, {
 const workspace = useSnapbackQueries(workspaceGroup);
 ```
 
-The generated reference closes the child refs, argument mappings, route
-parameters, app, and definition digest. The prepared group contains no grant
-secret. On a successful registered boot, `workspace.boot` records the one
-initial `{commitVersion, generation, versionStream}` and each canonical child
-store adopts its registration without an ordinary prime/subscribe race. That
-field is initial provenance only; later child deltas are independently live.
-An explicit coded target fallback returns `boot: null` and opens ordinary live
-subscriptions, so it makes no single-commit claim.
+The generated reference closes the child refs, argument mappings, string route
+parameters, app, and definition digest. The prepared group is opaque: its
+`$param` mappings target string args only; numeric/boolean parameter routes
+remain available through ordinary read bundles but do not receive a registered
+group reference. Literal numeric/boolean args are fine. The prepared group's
+public entries contain safe generated identity, never rows, subscription ids,
+resume receipts, authorization projections, namespaces, grants, or a
+connection handle, and the private transferred owner is not reachable through
+provider properties. The provider publishes registered rows only after
+positive server-confirmed socket attach. On a successful registered boot,
+`workspace.boot` records the one initial
+`{commitVersion, generation, versionStream, attachDeadline}` and each canonical
+child store adopts its registration without an ordinary prime/subscribe race.
+That field is initial provenance only; later child deltas are independently
+live.
+
+Fallback is intentionally narrow. Only a target whose served capability
+manifest lacks experimental `registered_bundle_boot_v1` can produce
+`source: "live-fallback"` when the author set `fallbackToLive: true`.
+Authentication, authorization, integrity, limit, timeout, and malformed
+bundle failures still refuse. If a valid registered preparation reaches its
+attach deadline before provider adoption, the provider reports
+`source: "live-recovery"`, `reason: "attach-deadline-expired"`, and
+`boot: null`; it discards the expired rows and opens ordinary fresh live
+subscriptions.
+
+A lazy child is also fail-closed: if its registered subscription receives a
+delta before that child store adopts it, the provider reports
+`source: "live-recovery"`, `reason: "unadopted-delta"`, and `boot: null`.
+First demand opens a fresh subscription that supersedes the dirty registration
+instead of exposing the older bundle rows.
 
 For view-local group membership that is not a route bundle, pass the existing
 typed object map directly:

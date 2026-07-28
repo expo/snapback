@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::auth::invalidation::{AuthorizationInvalidationProjection, QueryNamespace, ScopeId};
 use crate::live_wire::ResumeWire;
 
 /// Stable `SNAPBACK_BUNDLE_*` refusal-code registry (LLP 0092 §0D.2).
@@ -53,6 +54,7 @@ pub const BUNDLE_MAX_PENDING_PER_AUTHORITY: usize = 8;
 /// so an unknown mode refuses with the coded `SNAPBACK_BUNDLE_MODE_INVALID`
 /// rather than an untyped serde rejection.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BundleRequest {
     /// Exact manifest route pattern (LLP 0092 §0C.1) — matched by string
     /// equality against the served route manifest; the endpoint never does
@@ -73,6 +75,27 @@ pub struct BundleRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub idempotency_key: Option<String>,
+    /// Register-mode connection negotiation. This is the same must-understand
+    /// offer carried by `POST /connection/open`; a bundled connection must
+    /// not silently lose the authorization-invalidation protocol that its
+    /// adopted subscriptions require.
+    #[serde(
+        default,
+        rename = "authInvalidationProtocol",
+        alias = "auth_invalidation_protocol",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub auth_invalidation_protocol: Option<u32>,
+    /// One positional namespace per route child. Register-mode clients
+    /// allocate these before the bundle cut so auth-scoped subscriptions can
+    /// create LLP 0053 obligations atomically with their first rows.
+    #[serde(
+        default,
+        rename = "authorizationNamespaces",
+        alias = "authorization_namespaces",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
     /// Dev/test-only inline manifest entry, refused by design whenever a
     /// served route manifest exists for the app (ENG-25448/ENG-25454): with
     /// the cluster-0C authoring surface landed (`snapback/routes.mjs` →
@@ -95,6 +118,7 @@ pub struct BundleRequest {
 /// One route entry: every query the route needs — the unit the bundle
 /// evaluates at one commit (LLP 0092 §0C.1).
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BundleRouteEntry {
     /// Route pattern: `/`-separated static segments plus `:name` params.
     pub route: String,
@@ -104,9 +128,21 @@ pub struct BundleRouteEntry {
     /// schema completeness — the client store consumes it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub persist: Option<bool>,
+    /// Codegen-derived eligibility for LLP 0107 registered query-group
+    /// adoption. It is true only for all-LiveQuery routes whose `$param`
+    /// references target string args, so clients need not duplicate server
+    /// route-parameter coercion before I/O.
+    #[serde(
+        default,
+        rename = "registerGroupEligible",
+        alias = "register_group_eligible",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub register_group_eligible: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BundleQuerySpec {
     /// Exported function name in the served functions manifest.
     pub function: String,
@@ -118,6 +154,7 @@ pub struct BundleQuerySpec {
 
 /// `POST /app/bundle` response (LLP 0092 §0D.1).
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BundleResponse {
     /// Single shared commit version — every entry was evaluated at this cut.
     #[serde(rename = "commitVersion")]
@@ -138,6 +175,7 @@ pub struct BundleResponse {
 /// `subscriptionId` appears in register mode only; `authorization` appears
 /// for register-mode auth-scoped entries only.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BundleEntry {
     pub function: String,
     /// Fully substituted, validated args.
@@ -155,11 +193,22 @@ pub struct BundleEntry {
     /// LLP 0053 scope/invalidation projections for register-mode auth-scoped
     /// entries.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub authorization: Option<Value>,
+    pub authorization: Option<BundleAuthorization>,
+}
+
+/// The exact LLP 0053 authorization projection adopted with a registered
+/// child. Keeping this typed and closed prevents bundle boot from becoming a
+/// looser wire dialect than ordinary live subscribe.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BundleAuthorization {
+    pub scope: ScopeId,
+    pub invalidation: Option<AuthorizationInvalidationProjection>,
 }
 
 /// Register-mode connection mint (LLP 0092 §0D.1/§0D.4).
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BundleConnection {
     #[serde(rename = "connectionId")]
     pub connection_id: String,
@@ -168,6 +217,20 @@ pub struct BundleConnection {
     /// Absolute server-clock ms deadline for socket attach.
     #[serde(rename = "attachDeadline")]
     pub attach_deadline: u64,
+    /// The same negotiated authorization-invalidation connection descriptor
+    /// returned by an ordinary connection open. Register-mode adoption needs
+    /// it to install LLP 0053's authenticated expectation before the bundle
+    /// rows become observable.
+    ///
+    /// @ref LLP 0107#registered-boot — auth-scoped registered children adopt
+    /// the complete connection and per-child authorization projections.
+    #[serde(
+        default,
+        rename = "authorizationInvalidation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_invalidation:
+        Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
 }
 
 /// The served route→query manifest (LLP 0092 §0C.1): a schema-adjacent
@@ -608,13 +671,11 @@ fn validate_mapping_references(
 
 /// The replay-validity tuple of the LLP 0031 dated amendment: (authority,
 /// sender-key identity, credential incarnation, `generation`, manifest
-/// entry, canonical args). Sender identity and incarnation are interim
-/// projections of the resolved authority — the RFC 7638 JWK thumbprint /
-/// `sender_replay_epoch` binding requires sender-constrained custody wiring
-/// on this HTTP route that does not exist yet.
-/// TODO(ENG-25453 follow-up, sender-thumbprint binding): bind LLP 0077's
-/// exact wire identities once the bundle route carries sender-constrained
-/// proofs.
+/// entry, canonical args, connection protocol, per-child authorization
+/// namespaces). On a hosted sender-constrained request, sender identity is
+/// the verified RFC 7638 JWK thumbprint and incarnation is the durable
+/// `sender_replay_epoch`; other credential families retain their native
+/// resolved-authority identity.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BundleReplayScope {
     pub authority_key: String,
@@ -623,6 +684,8 @@ pub struct BundleReplayScope {
     pub generation: String,
     pub entry_identity: String,
     pub args_identity: String,
+    pub auth_invalidation_protocol: Option<u32>,
+    pub authorization_namespaces: Vec<Option<QueryNamespace>>,
 }
 
 /// One pending-registration owner (LLP 0031 amendment): the bounded server
@@ -906,6 +969,91 @@ mod tests {
     }
 
     #[test]
+    fn bundle_nested_request_shapes_are_closed() {
+        let route_unknown = json!({
+            "route": "/home",
+            "queries": [],
+            "unexpected": true,
+        });
+        assert!(
+            serde_json::from_value::<BundleRouteEntry>(route_unknown).is_err(),
+            "route entries must reject unknown fields",
+        );
+        let query_unknown = json!({
+            "function": "listPosts",
+            "args": {},
+            "unexpected": true,
+        });
+        assert!(
+            serde_json::from_value::<BundleQuerySpec>(query_unknown).is_err(),
+            "query specs must reject unknown fields",
+        );
+
+        let entry = BundleEntry {
+            function: "listTodos".to_owned(),
+            args: json!({}),
+            rows: Vec::new(),
+            resume: None,
+            subscription_id: Some("sub-1".to_owned()),
+            authorization: Some(BundleAuthorization {
+                scope: ScopeId::ClientQuery {
+                    namespace: QueryNamespace {
+                        client_store_id: "store-a".to_owned(),
+                        query_key: "listTodos:{}".to_owned(),
+                        query_instance_id: 1,
+                    },
+                },
+                invalidation: None,
+            }),
+        };
+        let mut encoded = serde_json::to_value(entry).expect("serialize typed authorization");
+        serde_json::from_value::<BundleEntry>(encoded.clone())
+            .expect("typed authorization round-trips");
+        encoded["authorization"]["unexpected"] = json!(true);
+        assert!(
+            serde_json::from_value::<BundleEntry>(encoded).is_err(),
+            "authorization projections must reject unknown fields",
+        );
+    }
+
+    #[test]
+    fn replay_scope_binds_connection_protocol_and_authorization_namespaces() {
+        let registry = PendingBundleRegistry::default();
+        let base = BundleReplayScope {
+            authority_key: "session:user-1".to_owned(),
+            sender_identity: "jkt:sender-a".to_owned(),
+            credential_incarnation: 7,
+            generation: "gen1:test".to_owned(),
+            entry_identity: "entry-a".to_owned(),
+            args_identity: "args-a".to_owned(),
+            auth_invalidation_protocol: None,
+            authorization_namespaces: Vec::new(),
+        };
+        assert!(matches!(
+            registry.begin_register("AAAAAAAAAAAAAAAAAAAAAA", &base),
+            Ok(RegisterAdmission::New)
+        ));
+
+        let mut changed_protocol = base.clone();
+        changed_protocol.auth_invalidation_protocol = Some(1);
+        assert!(matches!(
+            registry.begin_register("AAAAAAAAAAAAAAAAAAAAAA", &changed_protocol),
+            Err(code::IDEMPOTENCY_SCOPE_MISMATCH)
+        ));
+
+        let mut changed_namespace = base;
+        changed_namespace.authorization_namespaces = vec![Some(QueryNamespace {
+            client_store_id: "store-a".to_owned(),
+            query_key: "listPosts:{}".to_owned(),
+            query_instance_id: 1,
+        })];
+        assert!(matches!(
+            registry.begin_register("AAAAAAAAAAAAAAAAAAAAAA", &changed_namespace),
+            Err(code::IDEMPOTENCY_SCOPE_MISMATCH)
+        ));
+    }
+
+    #[test]
     fn route_patterns_are_exact_v1_shapes() {
         assert_eq!(route_pattern_params("/").unwrap(), Vec::<String>::new());
         assert_eq!(
@@ -1022,6 +1170,7 @@ mod tests {
                 args: json!({ "boardId": { "$param": "boardId" } }),
             }],
             persist: None,
+            register_group_eligible: false,
         };
         let manifest = RoutesManifest {
             format_version: 1,
@@ -1043,6 +1192,7 @@ mod tests {
                 args: json!({ "boardId": "wall" }),
             }],
             persist: None,
+            register_group_eligible: false,
         });
         assert!(validate_routes_manifest_shape(&overlapping).is_err());
         // Distinct static routes are fine.
@@ -1054,6 +1204,7 @@ mod tests {
                 args: json!({ "boardId": "wall" }),
             }],
             persist: None,
+            register_group_eligible: false,
         });
         assert!(validate_routes_manifest_shape(&disjoint).is_ok());
         // A dangling reference refuses at shape validation.
@@ -1075,6 +1226,7 @@ mod tests {
                 args: json!({ "board": { "$param": "boardId" } }),
             }],
             persist: None,
+            register_group_eligible: false,
         };
         let exact: BTreeMap<String, String> = [("boardId".to_owned(), "b".to_owned())]
             .into_iter()
@@ -1109,6 +1261,7 @@ mod tests {
                 args: json!({ "board": { "$param": "boardId" } }),
             }],
             persist: None,
+            register_group_eligible: false,
         };
         assert_eq!(
             validate_entry_against_params(&dangling, "/board", &BTreeMap::new()),
@@ -1125,6 +1278,7 @@ mod tests {
                 BUNDLE_MAX_QUERIES + 1
             ],
             persist: None,
+            register_group_eligible: false,
         };
         assert_eq!(
             validate_entry_against_params(&oversized, "/board", &BTreeMap::new()),

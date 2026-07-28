@@ -25,22 +25,15 @@
     "source": "snapback/schema.mjs + snapback/functions.mjs (colocated handlers)",
     "codegen": "bunx snapback generate snapback",
     "generated": [
-      "snapback/generated/schema.manifest.json",
-      "snapback/generated/functions.manifest.json",
-      "snapback/generated/capability.manifest.json",
-      "snapback/generated/contract-data.manifest.json",
-      "snapback/generated/api.mjs",
-      "snapback/generated/api.d.ts",
-      "snapback/generated/provider-bindings.json",
-      "snapback/generated/provider-bindings.d.ts",
-      "snapback/generated/artifacts.json",
-      "snapback/generated/contract/*"
+      "snapback/generated/artifacts.json"
     ],
-    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+    "stalenessPolicy": "artifacts.json is the committed review manifest; projections are ignored content-addressed cache entries resolved and verified by complete inputsHash"
   },
   "seed": {
     "profile": "deterministic",
+    "version": "2026-07-28.1",
     "file": "snapback/seed.json",
+    "generatedIdentity": "snapback/generated/seed.artifact.json through artifacts.json",
     "rows": {
       "incidents": 2,
       "tasks": 3,

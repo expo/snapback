@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -653,6 +655,13 @@ export const listTodos = defineLiveQuery({
   authorityIndependent: true,
   publicInline: true,
 });
+export const todosByRank = defineLiveQuery({
+  table: 'todos',
+  args: { rank: v.integer() },
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
+});
 `;
 
 {
@@ -685,6 +694,8 @@ import { defineRoutes, routeParam } from '${defineUrl}';
 export default defineRoutes([
   { route: '/', queries: [{ function: 'listTodos', args: { title: 'hello' } }] },
   { route: '/t/:title', queries: [{ function: 'listTodos', args: { title: routeParam('title') } }] },
+  { route: '/rank/:rank', queries: [{ function: 'todosByRank', args: { rank: routeParam('rank') } }] },
+  { route: '/unicode/雪/deep', queries: [{ function: 'listTodos', args: { title: 'café ☃' } }], persist: false },
 ]);
 `,
     },
@@ -693,15 +704,42 @@ export default defineRoutes([
   assert.equal(fn.publicInline, true, 'publicInline compiles into the manifest');
   const routes = JSON.parse(readFileSync(join(result.outDir, 'routes.manifest.json'), 'utf8'));
   assert.equal(routes.formatVersion, 1);
-  assert.equal(routes.routes.length, 2);
+  assert.equal(routes.routes.length, 4);
   assert.deepEqual(routes.routes[1].queries[0].args, { title: { $param: 'title' } });
+  assert.equal(routes.routes[1].registerGroupEligible, true);
+  assert.equal(
+    Object.hasOwn(routes.routes[2], 'registerGroupEligible'),
+    false,
+    'numeric route params remain valid read-bundle routes but are not register-group eligible',
+  );
   const apiModule = await import(`${pathToFileURL(join(result.outDir, 'api.mjs')).href}?groups`);
   assert.equal(apiModule.groups['/t/:title'].artifactKind, 'queryGroupReference');
+  assert.equal(apiModule.groups['/t/:title'].id, `${routes.app}:query-group:/t/:title`);
   assert.equal(apiModule.groups['/t/:title'].queries[0].name, 'listTodos');
   assert.deepEqual(
     apiModule.groups['/t/:title'].queries[0].args,
     { title: { $param: 'title' } },
   );
+  const definitionHash = (canonical) => `sha256:${createHash('sha256')
+    .update(`snapback:query-group-reference:v1\n${canonical}`)
+    .digest('hex')}`;
+  assert.equal(
+    apiModule.groups['/t/:title'].definitionHash,
+    definitionHash('{"queries":[{"args":{"title":{"$param":"title"}},"function":"listTodos"}],"route":"/t/:title"}'),
+    'parameterized group identity uses compact recursively key-sorted JSON',
+  );
+  assert.equal(
+    apiModule.groups['/unicode/雪/deep'].definitionHash,
+    definitionHash('{"persist":false,"queries":[{"args":{"title":"café ☃"},"function":"listTodos"}],"route":"/unicode/雪/deep"}'),
+    'group identity hashes exact UTF-8 Unicode and persistence bytes',
+  );
+  assert.equal(apiModule.groups['/unicode/雪/deep'].persist, false);
+  assert.equal(
+    Object.hasOwn(apiModule.groups, '/rank/:rank'),
+    false,
+    'codegen omits registered groups that would require client-side numeric coercion',
+  );
+  assert.equal(Object.hasOwn(apiModule.groups['/'], 'persist'), false);
   assert.deepEqual(apiModule.api.groups, apiModule.groups);
   const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
   assert(
@@ -710,13 +748,124 @@ export default defineRoutes([
     ),
     'generated route params and group reference stay exact in api.d.ts',
   );
+  assert.equal(
+    apiTypes.includes('"/rank/:rank": QueryGroupReference<'),
+    false,
+    'declarations omit routes that cannot preserve pre-I/O string materialization',
+  );
+  assert(
+    apiTypes.includes(
+      'args: { readonly "title": { readonly "$param": "title" } }',
+    ),
+    'generated query tuples preserve the parameter template rather than claiming resolved args',
+  );
+  assert(
+    apiTypes.includes('readonly definitionHash: `sha256:${string}`;')
+      && apiTypes.includes('readonly id: `${string}:query-group:${Route}`;'),
+    'generated identity declarations retain their exact domains',
+  );
+  const typesFixture = join(result.outDir, 'query-group-types.fixture.ts');
+  writeFileSync(typesFixture, `
+import { groups, type QueryGroupEntries, type QueryGroupParams } from './api.js';
+const group = groups['/t/:title'];
+const params: QueryGroupParams<typeof group> = { title: 'open' };
+const template: { readonly title: { readonly $param: 'title' } } = group.queries[0].args;
+const resolvedArgs: QueryGroupEntries<typeof group>['listTodos']['args'] = { title: params.title };
+const label: 'listTodos' = group.queries[0].name;
+const hash: \`sha256:\${string}\` = group.definitionHash;
+const id: \`\${string}:query-group:/t/:title\` = group.id;
+void [template, resolvedArgs, label, hash, id];
+// @ts-expect-error route parameter title is generated as a string
+const wrongParams: QueryGroupParams<typeof group> = { title: 1 };
+void wrongParams;
+`);
+  const typecheck = spawnSync(
+    fileURLToPath(new URL('../../node_modules/.bin/tsc', import.meta.url)),
+    [
+      '--noEmit',
+      '--strict',
+      '--target', 'es2022',
+      '--module', 'esnext',
+      '--moduleResolution', 'bundler',
+      typesFixture,
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(
+    typecheck.status,
+    0,
+    `generated query-group declarations failed exact typecheck\n${typecheck.stdout}\n${typecheck.stderr}`,
+  );
   const index = JSON.parse(readFileSync(join(result.outDir, 'artifacts.json'), 'utf8'));
   assert(index.artifacts.includes('routes.manifest.json'), 'artifact index lists the routes manifest');
 }
 
 {
+  // Generated register-mode groups are the 1..32 all-LiveQuery projection of
+  // the broader preload route manifest. Child labels remain globally unique
+  // when a real function name resembles another function's occurrence suffix.
+  const maxQueries = Array.from({ length: 32 }, () => "{ function: 'foo', args: {} }").join(',\n');
+  const result = await validCase({
+    functions: `
+import { defineLiveQuery, defineQuery } from '${defineUrl}';
+export const foo = defineLiveQuery({ table: 'todos', args: {} });
+export const foo2 = defineLiveQuery({ table: 'todos', args: {} });
+export const snapshot = defineQuery({ table: 'todos', args: {} });
+`,
+    handlers: {
+      'routes.mjs': `
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([
+  { route: '/collision', queries: [
+    { function: 'foo', args: {} },
+    { function: 'foo2', args: {} },
+    { function: 'foo', args: {} },
+  ] },
+  { route: '/mixed', queries: [
+    { function: 'foo', args: {} },
+    { function: 'snapshot', args: {} },
+  ] },
+  { route: '/query-only', queries: [{ function: 'snapshot', args: {} }] },
+  { route: '/max', queries: [${maxQueries}] },
+]);
+`,
+    },
+  });
+  const routes = JSON.parse(readFileSync(join(result.outDir, 'routes.manifest.json'), 'utf8'));
+  assert.equal(routes.routes.length, 4, 'ordinary and mixed query routes remain valid preload entries');
+  const apiModule = await import(`${pathToFileURL(join(result.outDir, 'api.mjs')).href}?group-admission`);
+  assert.deepEqual(Object.keys(apiModule.groups), ['/collision', '/max']);
+  assert.deepEqual(
+    apiModule.groups['/collision'].queries.map(({ name }) => name),
+    ['foo', 'foo2', 'foo3'],
+  );
+  assert.equal(apiModule.groups['/max'].queries.length, 32);
+  assert.equal(apiModule.groups['/max'].queries.at(-1).name, 'foo32');
+  assert(
+    apiModule.groups['/collision'].queries.every(({ ref }) => ref.kind === 'LiveQuery'),
+    'every generated group child is a LiveQuery',
+  );
+  const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
+  assert(apiTypes.includes('"/collision": QueryGroupReference<'));
+  assert(apiTypes.includes('"/max": QueryGroupReference<'));
+  assert.equal(apiTypes.includes('"/mixed": QueryGroupReference<'), false);
+  assert.equal(apiTypes.includes('"/query-only": QueryGroupReference<'), false);
+  assert(
+    apiTypes.includes('name: "foo3"; ref: FunctionReference<\'foo\', \'LiveQuery\''),
+    'runtime collision resolution and declaration labels agree',
+  );
+  const firstApi = readFileSync(join(result.outDir, 'api.mjs'), 'utf8');
+  const firstTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
+  const repeated = await generate(dirname(result.outDir));
+  assert.equal(repeated.ok, true, `repeat generation failed: ${JSON.stringify(repeated.diagnostics)}`);
+  assert.equal(readFileSync(join(result.outDir, 'api.mjs'), 'utf8'), firstApi);
+  assert.equal(readFileSync(join(result.outDir, 'api.d.ts'), 'utf8'), firstTypes);
+}
+
+{
   // Routes refusals are compile errors: unknown function, dangling params,
-  // overlapping patterns, uncovered required args, nested references.
+  // overlapping patterns, uncovered required args, nested references, and
+  // bundle-width overflow.
   const routesCase = (routesSource) => invalidCase({
     functions: publicInlineFunctions,
     handlers: { 'routes.mjs': routesSource },
@@ -748,6 +897,14 @@ expectCode(await routesCase(`
 import { defineRoutes, routeParam } from '${defineUrl}';
 export default defineRoutes([{ route: '/t/:title', queries: [{ function: 'listTodos', args: { title: 'x', extra: [routeParam('title')] } }] }]);
 `), 'ROUTES_ARGS_INVALID');
+  const tooManyQueries = Array.from(
+    { length: 33 },
+    () => "{ function: 'listTodos', args: { title: 'x' } }",
+  ).join(',\n');
+  expectCode(await routesCase(`
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([{ route: '/too-many', queries: [${tooManyQueries}] }]);
+`), 'ROUTES_QUERY_COUNT_INVALID');
 }
 
 {

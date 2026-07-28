@@ -1404,6 +1404,7 @@ fn representative_inspect() -> InspectState {
             ..FunctionManifest::default()
         },
         capability_manifest: CapabilityManifest::local_v0(vec!["postgres".to_owned()]),
+        route_manifest_hash: "sha256:route-manifest-fixture".to_owned(),
         subscriptions: vec![],
         active_connections: 0,
         reaped_connections: 0,
@@ -2737,6 +2738,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             authorization_invalidation: None,
             wire_version: None,
             ephemeral_authority_protocol: None,
+            ephemeral_authority_instance: None,
             ephemeral_expiry_protocol: None,
         })
         .unwrap(),
@@ -2753,6 +2755,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             ephemeral_authority_protocol: Some(
                 snapback::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1,
             ),
+            ephemeral_authority_instance: Some(format!("eai1.{}", "a".repeat(43))),
             ephemeral_expiry_protocol: Some(snapback::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1),
         })
         .unwrap(),

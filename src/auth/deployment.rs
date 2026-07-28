@@ -11,6 +11,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use clap::ValueEnum;
 use ring::hmac;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
 use std::fmt;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
@@ -504,10 +505,24 @@ impl HostedServingHandle {
         self.current.read().ok().map(|guard| guard.clone())
     }
 
+    pub(crate) fn hosted_target_authority_instance_at(
+        &self,
+        now_ms: u64,
+        authorization_incarnation: &str,
+        boot_nonce: &str,
+    ) -> SnapbackResult<Option<String>> {
+        self.current()
+            .ok_or_else(|| hosted_admission_invalid("hosted serving authority is unavailable"))?
+            .hosted_target_authority_instance_at(now_ms, authorization_incarnation, boot_nonce)
+    }
+
     /// Replace the incumbent with an independently verified successor.
     pub(crate) fn install(&self, authority: HostedServingAuthority) -> bool {
         match self.current.write() {
             Ok(mut guard) => {
+                if !guard.same_hosted_target_process(&authority) {
+                    return false;
+                }
                 *guard = Arc::new(authority);
                 true
             }
@@ -524,6 +539,7 @@ pub(crate) struct HostedServingAuthority {
     admission_key_id: Option<Arc<str>>,
     admission_verification_key: Option<Arc<hmac::Key>>,
     authentication_throttle_key: Arc<AuthenticationThrottleKey>,
+    hosted_target_admission: Option<Arc<crate::deploy::HostedAdmissionV2>>,
 }
 
 impl fmt::Debug for HostedServingAuthority {
@@ -601,7 +617,82 @@ impl HostedServingAuthority {
             authentication_throttle_key: Arc::new(AuthenticationThrottleKey::from_bytes(
                 authentication_throttle_key,
             )),
+            hosted_target_admission: None,
         })
+    }
+
+    pub(crate) fn install_hosted_target_admission(
+        &mut self,
+        admission: Option<crate::deploy::HostedAdmissionV2>,
+    ) {
+        self.hosted_target_admission = admission.map(Arc::new);
+    }
+
+    fn same_hosted_target_process(&self, successor: &Self) -> bool {
+        match (
+            self.hosted_target_admission.as_deref(),
+            successor.hosted_target_admission.as_deref(),
+        ) {
+            (None, None) => true,
+            (Some(current), Some(next)) => {
+                current.target_id == next.target_id
+                    && current.deployment_id == next.deployment_id
+                    && current.binding_generation == next.binding_generation
+                    && current.target_binding_sha256 == next.target_binding_sha256
+                    && current.control_head_sha256 == next.control_head_sha256
+                    && current.supervisor_incarnation == next.supervisor_incarnation
+                    && current.exact_roster_sha256 == next.exact_roster_sha256
+                    && current.routed_machine_id == next.routed_machine_id
+                    && current.replay_floor == next.replay_floor
+                    && current.admission_generation == next.admission_generation
+                    && next.issued_at_ms >= current.issued_at_ms
+                    && next.hosted_auth_expires_at_ms >= current.hosted_auth_expires_at_ms
+                    && next.routed_machine_expires_at_ms >= current.routed_machine_expires_at_ms
+            }
+            _ => false,
+        }
+    }
+
+    pub(crate) fn hosted_target_authority_instance_at(
+        &self,
+        now_ms: u64,
+        authorization_incarnation: &str,
+        boot_nonce: &str,
+    ) -> SnapbackResult<Option<String>> {
+        self.admission_epoch_at(now_ms)?;
+        let Some(target) = self.hosted_target_admission.as_deref() else {
+            return Ok(None);
+        };
+        if now_ms < target.issued_at_ms
+            || now_ms > target.hosted_auth_expires_at_ms
+            || now_ms > target.routed_machine_expires_at_ms
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_HOSTED_ADMISSION_V2_STALE",
+                "auth-deployment",
+                "hosted routed-Machine authority is not current",
+            ));
+        }
+        let facts = serde_json::json!({
+            "targetId": target.target_id,
+            "deploymentId": target.deployment_id,
+            "machineId": target.routed_machine_id,
+            "authorizationIncarnation": authorization_incarnation,
+            "bootSequence": target.admission_generation,
+            "bootNonce": boot_nonce,
+            "profile": "single-instance-sticky-memory.v1",
+        });
+        let mut canonical = Vec::new();
+        write_canonical_json(&mut canonical, &facts).map_err(|_| {
+            hosted_admission_invalid("ephemeral authority instance could not be canonicalized")
+        })?;
+        let mut digest = Sha256::new();
+        digest.update(b"snapback:ephemeral-authority-instance:v1\n");
+        digest.update(canonical);
+        Ok(Some(format!(
+            "eai1.{}",
+            URL_SAFE_NO_PAD.encode(digest.finalize())
+        )))
     }
 
     /// Authenticate the provider-produced boot envelope before database open

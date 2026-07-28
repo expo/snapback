@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { SnapbackClient } from '@snapback/client';
 import { startServer } from '../../_kit/server-process.mjs';
 import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
+import { resetInstallGeneratedSeed } from './versioned-seed.mjs';
 
 // @ref LLP 0031#server-binary-identity-on-health — an explicit fallback
 // binary must retain the harness's independent stamp-mismatch verdict.
@@ -26,10 +27,17 @@ const server = await startServer({
   },
 });
 const client = new SnapbackClient(server.baseUrl, server.clientOptions);
-await client.loadSchema(await generatedJson('schema.manifest.json'));
-await client.loadFunctions(await generatedJson('functions.manifest.json'));
-await client.reset();
-await client.seed(JSON.parse(await readFile(join(demoRoot, 'snapback', 'seed.json'), 'utf8')));
+await client.ensureApp({
+  schema: await generatedJson('schema.manifest.json'),
+  functions: await generatedJson('functions.manifest.json'),
+  routes: await generatedJson('routes.manifest.json'),
+  intent: 'provision',
+  requestedMode: 'sessions',
+});
+await resetInstallGeneratedSeed(
+  client,
+  await generatedJson('seed.artifact.json'),
+);
 process.stdout.write(`Signal Desk Snapback backend ready at ${server.baseUrl}.\n`);
 
 let stopping = false;

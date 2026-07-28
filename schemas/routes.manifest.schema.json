@@ -1,6 +1,7 @@
 {
   "$defs": {
     "BundleQuerySpec": {
+      "additionalProperties": false,
       "properties": {
         "args": {
           "default": null,
@@ -17,6 +18,7 @@
       "type": "object"
     },
     "BundleRouteEntry": {
+      "additionalProperties": false,
       "description": "One route entry: every query the route needs — the unit the bundle\nevaluates at one commit (LLP 0092 §0C.1).",
       "properties": {
         "persist": {
@@ -32,6 +34,10 @@
             "$ref": "#/$defs/BundleQuerySpec"
           },
           "type": "array"
+        },
+        "registerGroupEligible": {
+          "description": "Codegen-derived eligibility for LLP 0107 registered query-group\nadoption. It is true only for all-LiveQuery routes whose `$param`\nreferences target string args, so clients need not duplicate server\nroute-parameter coercion before I/O.",
+          "type": "boolean"
         },
         "route": {
           "description": "Route pattern: `/`-separated static segments plus `:name` params.",

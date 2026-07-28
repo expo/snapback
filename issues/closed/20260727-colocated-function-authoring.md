@@ -1,6 +1,6 @@
 # Colocated function declaration and handler authoring
 
-**Status:** Open  
+**Status:** Closed  
 **Impact:** 5  
 **Urgency:** 4  
 **Ease:** 2  
@@ -52,3 +52,35 @@ self-contained handler literals or introduces a bounded bundling model.
   and registry wiring without losing acceptance coverage.
 - LLP/guide implementation notes, `@ref`s, package inventory, and legacy
   compatibility tests land with the code.
+
+## Resolution
+
+Resolved 2026-07-28 by the LLP 0101 implementation slice.
+
+- `defineJsQuery`, `defineJsLiveQuery`, `defineJsMutation`, and `defineAction`
+  accept one direct inline handler expression. Codegen extracts its authored
+  AST and span before isolated definition evaluation, replaces it with an
+  authenticated marker, and emits one private runtime module per operation.
+- Mixed legacy/inline forms, indirect handlers, free identifiers, dynamic
+  import, ambient `this`/`super`, class syntax, `globalThis` escape attempts,
+  static constructor reflection, spreads, computed handler properties, and
+  accessors fail with stable source-located diagnostics before the previous
+  complete generated graph can be replaced.
+- The canonical inline AST participates in `implementationHash`; unchanged
+  regeneration is byte-identical, while a handler-byte change rotates the
+  implementation and complete artifact identity. Public API/provider/inspect
+  artifacts carry hashes and contracts but no executable source or source
+  location.
+- Signal Desk now keeps its JS operations entirely in
+  `demos/backend-bakeoff/snapback/functions.mjs`; the parallel
+  `handlers.mjs` registry and all `source`/`exportName` wiring are gone.
+  Its app-specific acceptance remains 3/3.
+- Focused evidence is `volta run --node 24 npm test` in
+  `packages/snapback-codegen`, `cargo test --test handler_settlement_v0`
+  (11/11, including inline query/live-query/mutation/action), and
+  `volta run --node 24 npm run test:snapback:extras` in Signal Desk.
+
+The legacy module form remains compatible. `inline_handler_v1` remains an
+experimental, explicit admission capability while LLP 0101 is in Review; this
+ticket closes the implemented repository work without claiming proposal
+ratification or a broader static module-bundling profile.

@@ -11,6 +11,10 @@ export const ephemeral = Object.freeze({
     "maxTtlMs": 30000,
     "maxValueBytes": 1024,
     "name": "fixturePresence",
+    "publishRate": {
+      "burst": 60,
+      "sustainedHz": 20
+    },
     "routingFields": [
       "roomId"
     ],
@@ -20,6 +24,8 @@ export const ephemeral = Object.freeze({
     ]
   }
 });
+/** @type {import('./api.d.ts').GeneratedQueryGroups} */
+export const groups = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "activityRows": {
@@ -44,6 +50,10 @@ export const api = Object.freeze({
       "maxTtlMs": 30000,
       "maxValueBytes": 1024,
       "name": "fixturePresence",
+      "publishRate": {
+        "burst": 60,
+        "sustainedHz": 20
+      },
       "routingFields": [
         "roomId"
       ],
@@ -53,6 +63,7 @@ export const api = Object.freeze({
       ]
     }
   },
+  "groups": {},
   "liveRows": {
     "appId": "app",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",

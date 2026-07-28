@@ -4,11 +4,13 @@ import {
   SupervisorRefusal,
   createCertificateRecipient,
   lifecycleRequestDigest,
+  machineIsProductionRouted,
   openCertificateTransfer,
   plannedBindingDigest,
   sealCertificateTransfer,
   semanticEffectId,
   sha256,
+  verifyBoundFlyMachineRoster,
 } from './index.mjs';
 
 const digest = (label) => sha256(Buffer.from(label));
@@ -26,8 +28,70 @@ const create = (options = {}) => new HostedSupervisor({
   ...options,
 });
 
+assert.equal(machineIsProductionRouted({ config: { services: [] } }, ['app']), false);
+assert.equal(machineIsProductionRouted({
+  config: { services: [{ internal_port: 8443, processes: ['app'] }] },
+}, ['app']), true);
+assert.equal(machineIsProductionRouted({
+  config: { containers: [{ services: [{ internal_port: 8443, processes: ['worker'] }] }] },
+}, ['app']), false);
+
 function refusal(code, callback) {
   assert.throws(callback, (error) => error instanceof SupervisorRefusal && error.code === code);
+}
+
+{
+  const binding = {
+    machineRoster: ['machine-1'],
+    activeMachineId: 'machine-1',
+    region: 'sjc',
+    ociRepository: 'registry.fly.io/app',
+    ociDigest: 'sha256:'.concat('a'.repeat(64)),
+    volumeId: 'vol-1',
+    serviceProcessGroups: ['app'],
+    autostopEnabled: true,
+    autostartEnabled: false,
+  };
+  const machine = {
+    id: 'machine-1',
+    state: 'started',
+    region: 'sjc',
+    config: {
+      image: `${binding.ociRepository}@${binding.ociDigest}`,
+      mounts: [{ volume: 'vol-1', path: '/data' }],
+      services: [{
+        internal_port: 8443,
+        processes: ['app'],
+        autostop: 'stop',
+        autostart: false,
+      }],
+    },
+  };
+  assert.equal(verifyBoundFlyMachineRoster(binding, [machine]), machine);
+  refusal(
+    'SNAPBACK_EPHEMERAL_ROUTING_UNSAFE',
+    () => verifyBoundFlyMachineRoster(binding, [machine, { ...machine, id: 'machine-2' }]),
+  );
+  for (const drifted of [
+    { ...machine, region: 'iad' },
+    { ...machine, config: { ...machine.config, image: 'registry.fly.io/app@sha256:bad' } },
+    {
+      ...machine,
+      config: { ...machine.config, mounts: [{ volume: 'vol-2', path: '/data' }] },
+    },
+    {
+      ...machine,
+      config: {
+        ...machine.config,
+        services: [{ ...machine.config.services[0], autostart: true }],
+      },
+    },
+  ]) {
+    refusal(
+      'SNAPBACK_HOSTED_ACTIVE_MACHINE_CONFIG_DRIFTED',
+      () => verifyBoundFlyMachineRoster(binding, [drifted]),
+    );
+  }
 }
 
 // Exact digest domains are stable and bearer-independent.
@@ -197,6 +261,122 @@ function refusal(code, callback) {
   }));
 }
 
+// Target bindings are closed, generation-fenced, and cannot authorize a
+// second routed Machine or autoscaler.
+{
+  const supervisor = create();
+  const binding = {
+    schemaVersion: 'snapback.fly-target-binding.v2',
+    targetId: 'target-1',
+    bindingGeneration: 1,
+    predecessorBindingSha256: null,
+    organizationId: 'personal',
+    appId: 'app-1',
+    region: 'sjc',
+    publicOrigin: 'https://app-1.fly.dev',
+    activeMachineId: 'machine-1',
+    machineRoster: ['machine-1'],
+    routedMachineIds: ['machine-1'],
+    serviceProcessGroups: ['app'],
+    autostopEnabled: false,
+    autostartEnabled: true,
+    autoscaleEnabled: false,
+    volumeId: 'volume-1',
+    ociRepository: 'registry.fly.io/app-1',
+    ociDigest: digest('app-image'),
+    tigrisBucket: 'bucket-1',
+    artifactPrefix: 'artifacts/',
+    backupPrefix: 'backups/',
+    controlStatePrefix: 'control/',
+    auditPrefix: 'audit/',
+    logPrefix: 'logs/',
+    cleanupPrefix: 'cleanup/',
+    tlsIssuer: 'letsencrypt-staging',
+    certificatePosture: 'same-volume-loopback-caddy',
+    externalHeadKey: 'control/head.json',
+    ownershipSentinel: 'sentinel-1',
+    supervisorInstallationId: installationReceipt.installationId,
+    supervisorOciDigest: digest('supervisor-image'),
+    credentials: [{
+      role: 'flyRead',
+      credentialRef: 'provider-secret://supervisor/fly-read',
+      fingerprint: digest('fly-read'),
+      allowedVerbs: ['read'],
+      resourcePrefixes: ['app-1'],
+    }],
+    observedAtMs: 1,
+    expiresAtMs: 60_001,
+  };
+  const registered = supervisor.registerTargetBinding(binding);
+  assert.match(registered.bindingSha256, /^sha256:[0-9a-f]{64}$/);
+  refusal('SNAPBACK_FLY_TARGET_BINDING_INVALID', () => supervisor.registerTargetBinding({
+    ...binding,
+    bindingGeneration: 2,
+    predecessorBindingSha256: registered.bindingSha256,
+    autoscaleEnabled: true,
+  }));
+  const second = supervisor.registerTargetBinding({
+    ...binding,
+    bindingGeneration: 2,
+    predecessorBindingSha256: registered.bindingSha256,
+    observedAtMs: 2,
+    expiresAtMs: 60_002,
+  });
+  assert.equal(second.binding.bindingGeneration, 2);
+  const enrollment = supervisor.registerHostedTargetEnrollment({
+    schemaVersion: 'snapback.hosted-target-enrollment.v1',
+    targetId: 'target-1',
+    deploymentId: 'deployment-1',
+    publicOrigin: binding.publicOrigin,
+    firstContactTransport: 'hstsPreloadedSuffix',
+    admissionPublicKey: 'A'.repeat(43),
+    supportSha256: 'a'.repeat(64),
+    signingSeedCredentialRef: '/run/secrets/target-1-admission-seed',
+    clientCertificateSha256: digest('target-1-client-certificate'),
+  });
+  assert.equal(enrollment.deploymentId, 'deployment-1');
+  const firstAdmission = supervisor.reserveOnlineAdmission({
+    targetId: 'target-1',
+    machineId: 'machine-1',
+    processBootId: '01965f5e-1234-7abc-8def-0123456789ab',
+    providerFactsSha256: digest('provider-roster-1'),
+    issuedAtMs: 100,
+  });
+  const renewedAdmission = supervisor.reserveOnlineAdmission({
+    targetId: 'target-1',
+    machineId: 'machine-1',
+    processBootId: '01965f5e-1234-7abc-8def-0123456789ab',
+    providerFactsSha256: digest('provider-roster-2'),
+    issuedAtMs: 101,
+  });
+  assert.equal(renewedAdmission.admissionEpoch, firstAdmission.admissionEpoch);
+  assert.equal(
+    renewedAdmission.senderReplayEpochFloor,
+    firstAdmission.senderReplayEpochFloor,
+  );
+  const nextBootAdmission = supervisor.reserveOnlineAdmission({
+    targetId: 'target-1',
+    machineId: 'machine-1',
+    processBootId: '01965f5e-5678-7abc-8def-0123456789ab',
+    providerFactsSha256: digest('provider-roster-3'),
+    issuedAtMs: 102,
+  });
+  assert.ok(nextBootAdmission.admissionEpoch > renewedAdmission.admissionEpoch);
+  refusal('SNAPBACK_HOSTED_TARGET_ENROLLMENT_IMMUTABLE', () => {
+    supervisor.registerHostedTargetEnrollment({
+      ...enrollment,
+      deploymentId: 'deployment-other',
+    });
+  });
+  refusal('SNAPBACK_FLY_TARGET_BINDING_INVALID', () => supervisor.registerTargetBinding({
+    ...binding,
+    bindingGeneration: 3,
+    predecessorBindingSha256: second.bindingSha256,
+    machineRoster: ['machine-1', 'machine-2'],
+    routedMachineIds: ['machine-1', 'machine-2'],
+  }));
+}
+
 // Exact roster admission is fail-closed for every protected hosted path.
 {
   const supervisor = create();
@@ -214,6 +394,11 @@ function refusal(code, callback) {
     { machines: [{ id: 'machine-1', productionRouted: true }, { id: 'machine-2', productionRouted: true }], autoscaleEnabled: false },
     { machines: [{ id: 'machine-1', productionRouted: true }], autoscaleEnabled: true },
     { machines: [{ id: 'machine-other', productionRouted: true }], autoscaleEnabled: false },
+    {
+      machines: [{ id: 'machine-1', productionRouted: true }],
+      autoscaleEnabled: false,
+      expiresAtMs: 70_011,
+    },
   ]) {
     refusal('SNAPBACK_EPHEMERAL_ROUTING_UNSAFE', () => supervisor.admitRoster({
       targetId: 'target-1',

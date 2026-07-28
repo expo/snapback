@@ -219,6 +219,7 @@ const XOF_TAG = encoder.encode('snapback-rqs-xof-v1\0');
 const STATE_TAG = encoder.encode('snapback-rqs-state-v1\0');
 const SEQ_TAG = encoder.encode('snapback-rqs-seq-v1\0');
 const ARGS_TAG = encoder.encode('snapback-rqs-args-v1\0');
+const QUERY_ARTIFACT_TAG = encoder.encode('snapback-rqs-query-artifact-v1\0');
 const MAC_DOMAIN = 'snapback.resume-token.v1';
 
 export function rowHash(row) {
@@ -278,6 +279,13 @@ export function seq1Digest(rows) {
 
 export function argsHash(args) {
   return `sha256:${hex(sha256(concatBytes(ARGS_TAG, jcsBytes(args))))}`;
+}
+
+export function queryArtifactHash(functionDefinition) {
+  return `sha256:${hex(sha256(concatBytes(
+    QUERY_ARTIFACT_TAG,
+    jcsBytes(functionDefinition),
+  )))}`;
 }
 
 /// Compute the published content digest of a held row set for the kind named

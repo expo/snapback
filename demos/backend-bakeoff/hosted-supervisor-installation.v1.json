@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "snapback.hosted-supervisor-installation-witness.v1",
+  "status": "passed",
+  "observedAt": "2026-07-28T05:38:30Z",
+  "planSha256": "sha256:34e2b7459b96d1b4b705e6bff3b2071b6088d411bdfbe606082330b496e9bf0d",
+  "installationReceiptSha256": "sha256:64bf6e3f84513275c5d9afa2aa1176a9ab45929fa734efa93d805bfa4e73dfd5",
+  "installationId": "shared:personal:sjc:snapback-hosted-supervisor-sjc",
+  "ownershipSentinel": "snapback:hosted-supervisor:v1:fa973629d064e1c6165dd19d",
+  "provider": {
+    "organization": "personal",
+    "region": "sjc",
+    "app": "snapback-hosted-supervisor-sjc",
+    "machineId": "683660df63e748",
+    "providerMachineVersion": "01KYKKJKHPH687KFJBRDW6W8AM",
+    "machineRosterCount": 1,
+    "machineServices": 0,
+    "volumeId": "vol_vz8dn7yz0x1pmzzv",
+    "volumeEncrypted": true,
+    "volumeSizeGb": 1,
+    "imageDigest": "sha256:d718a52ea29583a5d2e2df4810ad838a7ed3a0479ba87dfa5e7a2f9b735894dd",
+    "bucket": "snapback-hosted-supervisor-state"
+  },
+  "authority": {
+    "generation": 1,
+    "rootIncarnationAnchorSha256": "sha256:be9e30f07e2b56a3bb192313e4a26982566aa935806c386a07d60231fc8e4c5d",
+    "currentIncarnationAnchorSha256": "sha256:7063acc56be2860e2002546b2b5f58bcb42461e3654d5adc85b2b427af894af2",
+    "journalMirrorSha256": "sha256:c5508c351c6538d0975751eafb0946db8db586c13d318f37d3fef20ec24e44f2",
+    "externalReadBackVerified": true,
+    "externalChainToGenerationZeroVerified": true,
+    "volumeDatabase": "sqlite-full-sync",
+    "controlTransport": "mutual-tls",
+    "mutualTlsAccepted": true,
+    "missingClientCertificateRefused": true,
+    "cleanPackageInstallPassed": true,
+    "durableWriteProof": {
+      "command": "createSpendLedger",
+      "journeyId": "installation-write-proof-20260728",
+      "maximumMicros": 1000,
+      "cleanupReserveMicros": 100,
+      "sqliteThenMirrorThenConditionalAnchor": true,
+      "realTigrisIfMatchApplied": true,
+      "staleTigrisIfMatchRefused": true,
+      "supervisorRestartRecoveredGeneration": 1
+    }
+  },
+  "credentialCustody": {
+    "flyRead": "provider-enforced-org-readonly",
+    "flyControl": "provider-enforced-app-deploy",
+    "flyRegistry": "custody-separated-app-deploy",
+    "tigrisRoles": [
+      "anchor",
+      "artifacts",
+      "backups",
+      "cleanup",
+      "control-state",
+      "journal",
+      "logs"
+    ],
+    "nonCleanupWrongRolePutDenials": 6,
+    "secretValuesInReceipt": false
+  },
+  "spend": {
+    "currency": "USD",
+    "maximumMonthlyMicros": 2633000,
+    "refusalBoundaryMicros": 3000000,
+    "providerEnforcedCap": false,
+    "tariffSources": [
+      "https://fly.io/docs/about/pricing/",
+      "https://www.tigrisdata.com/pricing/"
+    ]
+  },
+  "cleanupLedger": {
+    "failedMachines": [
+      {
+        "machineId": "d8d55d9b067d68",
+        "providerState": "destroyed",
+        "absentFromLiveRoster": true
+      },
+      {
+        "machineId": "2879914a17e068",
+        "providerState": "destroyed",
+        "absentFromLiveRoster": true
+      }
+    ],
+    "obsoleteRegistryImagesDeleted": [
+      "sha256:309b419761cbf9be4bb439f408e6d27ba009ae1427497b570ebee0a002ff55e4",
+      "sha256:99b119448c60b039a3109414574bf960a7b3bffce153bbcad06c852b954db487",
+      "sha256:df9936a732fd4c9d1b174d5fe69faa731d642451c8fd0d0886784dafd40671c0",
+      "sha256:412a833508965196c824c50ae9d560d1a15ecf864932c6549e64d1543ea25534",
+      "sha256:0401e6fa274a643fe05dfa9c3f59a9062b977cd3b534d13641a9d11aa2dd43bf",
+      "sha256:e6e9b9fb17b28045d38fe67c141db704569409753259ea87299bceacd048140d",
+      "sha256:32d74bc888ba036c31effb5b8821877689cf76345eb64165a82acf7924a6876f",
+      "sha256:9d3a8b69717abdf6e5b227b1d071b3fb96ea54e854385e8473bbf46a96db2352"
+    ],
+    "obsoleteRegistryImagesAbsent": true,
+    "retainedAuthorityObjectCount": 5,
+    "retainedAuthorityObjectBytes": 4334,
+    "retainedIntentionally": [
+      "one standing sentinel-owned Machine",
+      "one standing encrypted volume",
+      "one private Tigris bucket and immutable generation-0 and generation-1 authority objects",
+      "scoped standing supervisor credentials",
+      "one zero-resource-cost installation write-proof spend ledger",
+      "one active content-addressed registry image sha256:d718a52ea29583a5d2e2df4810ad838a7ed3a0479ba87dfa5e7a2f9b735894dd"
+    ],
+    "credentialsRevoked": false,
+    "reason": "These scoped credentials and standing resources are the preprovisioned shared LLP 0105 installation, not temporary product-journey resources."
+  },
+  "claimBoundary": {
+    "supervisorInstallationReady": true,
+    "hostedProductJourneyPassed": false,
+    "hostedEphemeralCapabilityAdvertised": false
+  }
+}

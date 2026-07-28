@@ -5,7 +5,11 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-27 (local SQLite implementation gate complete: closes
+**Revised:** 2026-07-27 (generated result-contract closure: search operations
+now derive a closed runtime contract and operation-specific TypeScript page
+from the index's exact stored-field projection, including present-null storage
+optionals and the source-table row-id brand; the Signal Desk review summary no
+longer reports an inapplicable degraded result). 2026-07-27 (local SQLite implementation gate complete: closes
 all-participating-field classification, manifest-digest rebuilds, retired
 generation purge, corruption/backup/restore, concurrent pinned-reader switch,
 paired-owner observation, and preregistered large-corpus evidence; promotes
@@ -709,9 +713,12 @@ possibly corrupt match set as current.
 The repository contains the implemented local SQLite profile of the
 portable v1 slice. Codegen owns the closed `.searchIndex(...)` declaration and
 `defineSearchQuery(...)` plan; generated API references name the structured
-request/page carriers. Rust owns manifest validation, the generated
-Unicode-17 analyzer tables and digest, AST canonicalization, exact integer
-scoring, grapheme-safe highlights, synchronous transactional source/posting
+request/page carriers. Each operation's effective result contract closes the
+transport row over exactly its declared stored fields, and the generated page
+type preserves that stored-field shape plus the source-table row-id brand
+through `client.search()` without a cast. Rust owns manifest validation, the
+generated Unicode-17 analyzer tables and digest, AST canonicalization, exact
+integer scoring, grapheme-safe highlights, synchronous transactional source/posting
 maintenance, generation activation, posting-anchored bounded query execution,
 current-source/owner recheck, and XChaCha20-Poly1305/HKDF cursors. The
 framework-neutral client supplies structured builders and the versioned small

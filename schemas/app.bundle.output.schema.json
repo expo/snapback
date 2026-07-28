@@ -1,6 +1,137 @@
 {
   "$defs": {
+    "AuthenticatedBootIssuer": {
+      "additionalProperties": false,
+      "properties": {
+        "issuerId": {
+          "$ref": "#/$defs/IssuerId"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "mac": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "issuerId",
+        "keyId",
+        "mac"
+      ],
+      "type": "object"
+    },
+    "AuthorizationInvalidationConnection": {
+      "additionalProperties": false,
+      "description": "The connection-visible negotiated expectation. The authenticated\ndescriptor remains server-held; once startup has verified it, the client\nreceives the exact issuer id over the authenticated connection bootstrap.",
+      "properties": {
+        "authorization": {
+          "$ref": "#/$defs/AuthorizationVersion",
+          "description": "Closed initial client expectation. A clean subscription with no\npending projection must never invent epoch zero."
+        },
+        "connectionGeneration": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "issuerId": {
+          "$ref": "#/$defs/IssuerId"
+        },
+        "issuerRetirement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IssuerRetirement"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "issuerId",
+        "connectionGeneration",
+        "authorization",
+        "versionStream"
+      ],
+      "type": "object"
+    },
+    "AuthorizationInvalidationProjection": {
+      "additionalProperties": false,
+      "description": "One level-triggered live projection. Delivery is only a hint; the exact\nobligation remains authoritative until the optional resolution ticket is\nacknowledged after the client commits its local transition.",
+      "properties": {
+        "obligation": {
+          "$ref": "#/$defs/ResyncObligation"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResolutionTicket"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "obligation"
+      ],
+      "type": "object"
+    },
+    "AuthorizationVersion": {
+      "description": "The one durable authorization-stream witness. The incarnation closes reset\nand restore ABA; the JS-safe epoch advances for ordinary authorization\nevents within that stream.\n\n@ref LLP 0053#the-authorization-version — v1 has one global durable pair.",
+      "properties": {
+        "epoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incarnation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "incarnation",
+        "epoch"
+      ],
+      "type": "object"
+    },
+    "BundleAuthorization": {
+      "additionalProperties": false,
+      "description": "The exact LLP 0053 authorization projection adopted with a registered\nchild. Keeping this typed and closed prevents bundle boot from becoming a\nlooser wire dialect than ordinary live subscribe.",
+      "properties": {
+        "invalidation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorizationInvalidationProjection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/ScopeId"
+        }
+      },
+      "required": [
+        "scope"
+      ],
+      "type": "object"
+    },
     "BundleConnection": {
+      "additionalProperties": false,
       "description": "Register-mode connection mint (LLP 0092 §0D.1/§0D.4).",
       "properties": {
         "attachDeadline": {
@@ -8,6 +139,17 @@
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
+        },
+        "authorizationInvalidation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorizationInvalidationConnection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The same negotiated authorization-invalidation connection descriptor\nreturned by an ordinary connection open. Register-mode adoption needs\nit to install LLP 0053's authenticated expectation before the bundle\nrows become observable.\n\n@ref LLP 0107#registered-boot — auth-scoped registered children adopt\nthe complete connection and per-child authorization projections."
         },
         "connectionId": {
           "type": "string"
@@ -25,12 +167,21 @@
       "type": "object"
     },
     "BundleEntry": {
+      "additionalProperties": false,
       "description": "Per-entry closed union (LLP 0092 §0D.1): `resume` is present iff the\nquery is `rqsEligible` and explicitly `null` otherwise, in BOTH modes;\n`subscriptionId` appears in register mode only; `authorization` appears\nfor register-mode auth-scoped entries only.",
       "properties": {
         "args": {
           "description": "Fully substituted, validated args."
         },
         "authorization": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleAuthorization"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "LLP 0053 scope/invalidation projections for register-mode auth-scoped\nentries."
         },
         "function": {
@@ -62,6 +213,184 @@
         "function",
         "args",
         "rows"
+      ],
+      "type": "object"
+    },
+    "CompositeWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization": {
+          "$ref": "#/$defs/AuthorizationVersion"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataWitness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "authorization"
+      ],
+      "type": "object"
+    },
+    "DataWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "minCommitVersion": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "versionStream",
+        "minCommitVersion"
+      ],
+      "type": "object"
+    },
+    "InvalidationDisposition": {
+      "enum": [
+        "retain",
+        "quarantine",
+        "delete"
+      ],
+      "type": "string"
+    },
+    "IssuerId": {
+      "additionalProperties": false,
+      "description": "A boot identity is never reused, even when process-local counters restart.",
+      "properties": {
+        "authorizationIncarnation": {
+          "type": "string"
+        },
+        "bootNonce": {
+          "type": "string"
+        },
+        "bootSequence": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizationIncarnation",
+        "bootSequence",
+        "bootNonce"
+      ],
+      "type": "object"
+    },
+    "IssuerRetirement": {
+      "additionalProperties": false,
+      "description": "Server-authenticated proof that every live scope issued by an older boot in\nthe same authorization incarnation is extinct. It cannot release retained\nbytes by itself; a current fresh snapshot must still satisfy their witness.",
+      "properties": {
+        "authorizationExpectation": {
+          "$ref": "#/$defs/AuthorizationVersion"
+        },
+        "currentIssuer": {
+          "$ref": "#/$defs/AuthenticatedBootIssuer"
+        },
+        "mac": {
+          "type": "string"
+        },
+        "retireThroughBootSequence": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "currentIssuer",
+        "retireThroughBootSequence",
+        "authorizationExpectation",
+        "mac"
+      ],
+      "type": "object"
+    },
+    "QueryNamespace": {
+      "additionalProperties": false,
+      "properties": {
+        "clientStoreId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "queryKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientStoreId",
+        "queryKey",
+        "queryInstanceId"
+      ],
+      "type": "object"
+    },
+    "ResolutionKind": {
+      "enum": [
+        "snapshot",
+        "terminalDelete"
+      ],
+      "type": "string"
+    },
+    "ResolutionTicket": {
+      "additionalProperties": false,
+      "properties": {
+        "ackToken": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResolutionKind"
+        },
+        "maxDisposition": {
+          "$ref": "#/$defs/InvalidationDisposition"
+        },
+        "ownerContinuityId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "revision": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "scopeId": {
+          "$ref": "#/$defs/ScopeId"
+        },
+        "witness": {
+          "$ref": "#/$defs/CompositeWitness"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "kind",
+        "scopeId",
+        "revision",
+        "witness",
+        "maxDisposition",
+        "ackToken"
       ],
       "type": "object"
     },
@@ -120,10 +449,141 @@
         "meta"
       ],
       "type": "object"
+    },
+    "ResyncObligation": {
+      "additionalProperties": false,
+      "properties": {
+        "maxDisposition": {
+          "$ref": "#/$defs/InvalidationDisposition"
+        },
+        "ownerContinuityId": {
+          "description": "Cleanup ownership for the client-side pending token. This is not part\nof scope/revision identity; retirement may finish only after this exact\ncontinuity ends (except an already-applied terminal delete).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "retryEpisodeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "scopeId": {
+          "$ref": "#/$defs/ScopeId"
+        },
+        "witness": {
+          "$ref": "#/$defs/CompositeWitness"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "scopeId",
+        "revision",
+        "maxDisposition",
+        "witness"
+      ],
+      "type": "object"
+    },
+    "ScopeId": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "connectionGeneration": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "issuerId": {
+              "$ref": "#/$defs/IssuerId"
+            },
+            "kind": {
+              "const": "subscription",
+              "type": "string"
+            },
+            "namespace": {
+              "$ref": "#/$defs/QueryNamespace"
+            },
+            "scopeSequence": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "subscriptionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "issuerId",
+            "namespace",
+            "scopeSequence",
+            "connectionGeneration",
+            "subscriptionId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "connectionGeneration": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "issuerId": {
+              "$ref": "#/$defs/IssuerId"
+            },
+            "kind": {
+              "const": "connection",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "issuerId",
+            "connectionGeneration"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "clientQuery",
+              "type": "string"
+            },
+            "namespace": {
+              "$ref": "#/$defs/QueryNamespace"
+            }
+          },
+          "required": [
+            "kind",
+            "namespace"
+          ],
+          "type": "object"
+        }
+      ]
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/app.bundle.output.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
   "description": "`POST /app/bundle` response (LLP 0092 §0D.1).",
   "properties": {
     "commitVersion": {

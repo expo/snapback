@@ -13,11 +13,13 @@
   "properties": {
     "admissionGeneration": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
     "bindingGeneration": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
@@ -32,21 +34,25 @@
     },
     "hostedAuthExpiresAtMs": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
     "issuedAtMs": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
     "replayFloor": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
     "routedMachineExpiresAtMs": {
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },

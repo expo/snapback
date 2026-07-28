@@ -18,6 +18,8 @@ import {
   preparedReactResultContract,
   preparedReactBindingClient,
   isPreparedReactQueryGroup,
+  consumePreparedReactQueryGroup,
+  abandonConsumedReactQueryGroup,
 } from '@snapback/client';
 export { bindSnapbackAppLifecycle } from '@snapback/client';
 
@@ -39,6 +41,11 @@ const PRESENCE_PUBLISHER_CAP = 64;
 const OPTIMISTIC_LAYER_CAP = 256;
 const providerContext = createContext(null);
 let providerSequence = 0;
+const preparedGroupReadersByRegistry = new WeakMap();
+
+function preparedGroupForProvider(provider) {
+  return preparedGroupReadersByRegistry.get(provider.registry)?.() ?? null;
+}
 
 const CONNECTION_ORDER = Object.freeze({
   error: 0,
@@ -201,7 +208,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const diagnostics = [];
   const connectionListeners = new Set();
   const allHandles = new Set();
-  const preparedGroup = options.preparedGroup ?? null;
+  let preparedGroup = options.preparedGroup ?? null;
   if (preparedGroup !== null && !isPreparedReactQueryGroup(preparedGroup)) {
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_PREPARATION_INVALID',
@@ -209,6 +216,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
   }
   if (preparedGroup !== null) admittedReactQueryGroup(binding, preparedGroup.reference);
+  const preparedDevUserId = preparedGroup?.devUserId ?? null;
+  const preparedPersistResume = preparedGroup?.reference?.persist !== false;
   if (
     preparedGroup?.connectionId
     && options.connectionId
@@ -226,19 +235,21 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const connectionId = options.connectionId
     ?? preparedGroup?.connectionId
     ?? `snapback_react_${providerInstanceId}`;
-  const preparedRegistrationKey = (reference, args) => [
-    reference.id,
-    canonicalizeClientValueV1(args),
-  ].join('\u0000');
   const preparedRegistrations = new Map(
     (preparedGroup?.entries ?? [])
       .filter((entry) => entry.registeredSubscription !== null)
       .map((entry) => [
-        preparedRegistrationKey(entry.ref, entry.args),
+        entry.name,
         entry.registeredSubscription,
       ]),
   );
-  const manager = typeof client.liveStreamManager === 'function'
+  const unadoptedPreparedSubscriptions = new Map(
+    [...preparedRegistrations.values()].map((registration) => [
+      registration.subscriptionId,
+      registration,
+    ]),
+  );
+  let manager = typeof client.liveStreamManager === 'function'
     ? client.liveStreamManager(connectionId)
     : null;
   let consumers = 0;
@@ -247,6 +258,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let terminal = false;
   let custodyPaused = false;
   let leaseSequence = 0;
+  let registeredConnectionAttached = false;
+  let registeredRecovery = null;
+  const dirtyPreparedSubscriptions = new Set();
   let connectionSnapshotKey = null;
   let connectionSnapshot = Object.freeze({
     status: 'idle',
@@ -264,6 +278,98 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (diagnostics.length > 64) diagnostics.shift();
     try { options.onDiagnostic?.(diagnostics.at(-1)); } catch { /* observational */ }
     notifyConnection();
+  };
+  const invalidatePreparedRegistrations = (reason) => {
+    if (
+      preparedGroup === null
+      || (
+        unadoptedPreparedSubscriptions.size === 0
+        && !preparedGroup.entries.some(
+          (entry) => entry.registeredSubscription !== null,
+        )
+      )
+    ) return;
+    preparedRegistrations.clear();
+    unadoptedPreparedSubscriptions.clear();
+    for (const store of stores.values()) store.registeredSubscription = null;
+    preparedGroup = Object.freeze({
+      ...preparedGroup,
+      source: 'live-recovery',
+      reason,
+      connectionId: null,
+      boot: null,
+      entries: Object.freeze(preparedGroup.entries.map((entry) => Object.freeze({
+        name: entry.name,
+        ref: entry.ref,
+        args: entry.args,
+        registeredSubscription: null,
+      }))),
+    });
+  };
+  const markPreparedGroupRecovery = (reason) => {
+    if (preparedGroup?.source !== 'registered-bundle') return;
+    preparedGroup = Object.freeze({
+      ...preparedGroup,
+      source: 'live-recovery',
+      reason,
+      boot: null,
+    });
+  };
+  // @ref LLP 0107#registered-boot — once the shared connection attaches,
+  // frames for a not-yet-demanded child cannot be dropped and followed by an
+  // older bundle snapshot presented as current. Mark it for a fresh
+  // superseding subscribe before its first store can publish.
+  const unregisterPreparedFrameGuard = typeof client.registerDurableConsumer === 'function'
+    ? client.registerDurableConsumer(
+      connectionId,
+      (frame) => {
+        const subscriptionId = frame?.subscription_id ?? frame?.subscriptionId ?? null;
+        if (typeof subscriptionId !== 'string') return;
+        const pending = unadoptedPreparedSubscriptions.get(subscriptionId);
+        if (!pending) return;
+        if (dirtyPreparedSubscriptions.has(subscriptionId)) return;
+        dirtyPreparedSubscriptions.add(subscriptionId);
+        markPreparedGroupRecovery('unadopted-delta');
+        const claimedStore = [...stores.values()].find(
+          (store) => store.unadoptedSubscriptionId === subscriptionId,
+        );
+        if (claimedStore) {
+          claimedStore.blockedPreparedPublication = true;
+          queueMicrotask(() => {
+            if (
+              terminal
+              || claimedStore.unadoptedSubscriptionId !== subscriptionId
+            ) return;
+            unadoptedPreparedSubscriptions.delete(subscriptionId);
+            claimedStore.unadoptedSubscriptionId = null;
+            stopStore(claimedStore, { blank: true });
+            claimedStore.registeredSubscription = null;
+            claimedStore.supersedesSubscriptionId = subscriptionId;
+            claimedStore.blockedPreparedPublication = false;
+            startStore(claimedStore);
+          });
+        }
+      },
+    )
+    : () => {};
+  const recoverExpiredRegisteredConnection = () => {
+    if (registeredRecovery !== null) return registeredRecovery;
+    custodyPaused = true;
+    invalidatePreparedRegistrations('attach-deadline-expired');
+    manager?.close?.();
+    registeredRecovery = Promise.resolve(client.disconnect?.(connectionId))
+      .catch(recordDiagnostic)
+      .then(() => {
+        if (terminal) return;
+        manager = typeof client.liveStreamManager === 'function'
+          ? client.liveStreamManager(connectionId)
+          : null;
+        custodyPaused = false;
+        for (const store of stores.values()) startStore(store);
+        for (const room of rooms.values()) startRoom(room);
+      })
+      .finally(() => { registeredRecovery = null; });
+    return registeredRecovery;
   };
   const activeStores = () => [...stores.values()].filter((store) => store.handle !== null);
 
@@ -382,6 +488,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const startStore = (store, supersedes = null) => {
     if (terminal || custodyPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    if (
+      store.registeredSubscription !== null
+      && !registeredConnectionAttached
+      && Number.isSafeInteger(store.registeredSubscription.attachDeadline)
+      && Date.now() >= store.registeredSubscription.attachDeadline
+    ) {
+      void recoverExpiredRegisteredConnection();
+      return;
+    }
     const generation = ++store.generation;
     store.snapshot = pending('connecting');
     let handle;
@@ -391,10 +506,23 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       transport: 'stream',
       fallbackToPoll: false,
       supersedes,
+      ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
+      persistResume: preparedPersistResume,
+      ...(store.registeredSubscription?.authorizationNamespace == null
+        ? {}
+        : { authorizationNamespace: store.registeredSubscription.authorizationNamespace }),
+      ...(store.supersedesSubscriptionId === null
+        ? {}
+        : { supersedesSubscriptionId: store.supersedesSubscriptionId }),
       ...(store.registeredSubscription === null
         ? {}
         : { registeredSubscription: store.registeredSubscription }),
       onUpdate(rows) {
+        if (store.blockedPreparedPublication) return;
+        if (store.unadoptedSubscriptionId !== null) {
+          unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
+          store.unadoptedSubscriptionId = null;
+        }
         publishAuthoritative(store, rows ?? [], generation);
       },
       onConnectionChange(connection, detail) {
@@ -406,18 +534,32 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         );
       },
     });
+    if (store.registeredSubscription !== null) registeredConnectionAttached = true;
     store.registeredSubscription = null;
     store.handle = handle;
     allHandles.add(handle);
     void handle.started().then(() => {
       if (store.generation !== generation || store.handle !== handle) return;
+      if (store.blockedPreparedPublication) return;
+      if (store.unadoptedSubscriptionId !== null) {
+        unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
+        store.unadoptedSubscriptionId = null;
+      }
       if (store.snapshot.status === 'pending' && Array.isArray(handle.current?.rows)) {
         publishAuthoritative(store, handle.current.rows, generation);
       }
     }, (error) => {
       if (store.generation !== generation || store.handle !== handle) return;
+      if (store.unadoptedSubscriptionId !== null) {
+        unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
+        store.unadoptedSubscriptionId = null;
+      }
       store.handle = null;
       allHandles.delete(handle);
+      if (error?.code === 'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED') {
+        void recoverExpiredRegisteredConnection();
+        return;
+      }
       publish(store, Object.freeze({
         status: 'error',
         data: undefined,
@@ -438,6 +580,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         { cap: QUERY_CACHE_CAP },
       );
     }
+    const preparedRegistration = preparedRegistrations.get(
+      descriptor.preparedEntryName,
+    ) ?? null;
+    const mustResubscribe = preparedRegistration !== null
+      && dirtyPreparedSubscriptions.has(preparedRegistration.subscriptionId);
     const store = {
       key: descriptor.key,
       reference: descriptor.reference,
@@ -455,12 +602,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       optimisticLayers: [],
       pendingMutations: new Map(),
       pins: 0,
-      registeredSubscription: preparedRegistrations.get(
-        preparedRegistrationKey(descriptor.reference, descriptor.args),
-      ) ?? null,
+      registeredSubscription: mustResubscribe ? null : preparedRegistration,
+      unadoptedSubscriptionId: preparedRegistration?.subscriptionId ?? null,
+      blockedPreparedPublication: false,
+      supersedesSubscriptionId: mustResubscribe
+        ? preparedRegistration.subscriptionId
+        : null,
     };
     preparedRegistrations.delete(
-      preparedRegistrationKey(descriptor.reference, descriptor.args),
+      descriptor.preparedEntryName,
     );
     stores.set(store.key, store);
     return store;
@@ -1411,6 +1561,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       await Promise.allSettled([
         ...[...allHandles].map((handle) => handle.settled()),
         ...[...rooms.values()].map((room) => room.cleanup),
+        ...(registeredRecovery === null ? [] : [registeredRecovery]),
       ]);
     },
     blank() {
@@ -1430,10 +1581,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
       notifyConnection();
     },
-    clearMemory() {},
+    clearMemory() {
+      // @ref LLP 0107#authority-races-and-cleanup — a successor authority
+      // may never lazily adopt predecessor bundle registrations or boot rows.
+      invalidatePreparedRegistrations('authority-replaced');
+    },
     async commitDurable() {},
     async resume() {
       if (terminal) return;
+      manager = typeof client.liveStreamManager === 'function'
+        ? client.liveStreamManager(connectionId)
+        : null;
       custodyPaused = false;
       for (const store of stores.values()) startStore(store);
       for (const room of rooms.values()) startRoom(room);
@@ -1441,8 +1599,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
   const unregisterBarrier = client.registerAuthBarrierParticipant(barrierParticipant);
 
-  return Object.freeze({
-    descriptor(reference, args, groupBoot = null) {
+  const registry = Object.freeze({
+    descriptor(reference, args, groupBoot = null, preparedEntryName = null) {
       const admitted = admittedReactReference(binding, reference, 'LiveQuery');
       const resultContract = preparedReactResultContract(binding, admitted);
       if (args === skip) return Object.freeze({
@@ -1452,6 +1610,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         key: null,
         resultContract,
         groupBoot,
+        preparedEntryName,
       });
       const key = canonicalReactStoreKeyV1(providerInstanceId, admitted, args);
       return Object.freeze({
@@ -1461,6 +1620,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         key,
         resultContract,
         groupBoot,
+        preparedEntryName,
       });
     },
     subscribe(descriptor, listener, previousLease = null) {
@@ -1473,7 +1633,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     subscribePresence,
     presenceSnapshot,
     snapshot,
-    connectionId,
+    get connectionId() { return connectionId; },
     aggregateConnection,
     subscribeConnection(listener) {
       connectionListeners.add(listener);
@@ -1506,6 +1666,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           + connectionListeners.size,
         diagnostics: Object.freeze([...diagnostics]),
         preparedRegistrations: preparedRegistrations.size,
+        preparedGroupSource: preparedGroup?.source ?? null,
+        preparedGroupReason: preparedGroup?.reason ?? null,
+        preparedGroupBoot: preparedGroup?.boot ?? null,
       });
     },
     async dispose() {
@@ -1519,23 +1682,41 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       await Promise.allSettled([
         ...[...allHandles].map((handle) => handle.settled()),
         ...[...rooms.values()].map((room) => room.cleanup),
+        ...(registeredRecovery === null ? [] : [registeredRecovery]),
       ]);
       manager?.close?.();
       try { await manager?.settled?.(); } catch (error) { recordDiagnostic(error); }
       try { await client.disconnect?.(connectionId); } catch (error) { recordDiagnostic(error); }
       stores.clear();
       preparedRegistrations.clear();
+      unadoptedPreparedSubscriptions.clear();
+      dirtyPreparedSubscriptions.clear();
       rooms.clear();
       connectionListeners.clear();
+      unregisterPreparedFrameGuard();
       try { await unregisterBarrier(); } catch (error) { recordDiagnostic(error); }
     },
   });
+  preparedGroupReadersByRegistry.set(registry, () => preparedGroup);
+  return registry;
 }
 
 export function createSnapbackReactProvider(binding, options = {}) {
   const prepared = assertPreparedReactBinding(binding);
   const providerInstanceId = `provider-${++providerSequence}-${globalThis.crypto.randomUUID()}`;
-  const registry = createRegistry(prepared, providerInstanceId, options);
+  const preparedGroup = options.preparedGroup == null
+    ? null
+    : consumePreparedReactQueryGroup(prepared, options.preparedGroup);
+  let registry;
+  try {
+    registry = createRegistry(prepared, providerInstanceId, {
+      ...options,
+      ...(preparedGroup === null ? {} : { preparedGroup }),
+    });
+  } catch (error) {
+    if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
+    throw error;
+  }
   return Object.freeze({
     kind: 'snapback.react-provider.v1',
     providerInstanceId,
@@ -1619,8 +1800,16 @@ export function useSnapbackPresence(reference, options) {
 }
 
 function validateEntries(provider, entries) {
-  const preparedGroup = isPreparedReactQueryGroup(entries) ? entries : null;
-  if (preparedGroup !== null) {
+  const suppliedGroup = isPreparedReactQueryGroup(entries) ? entries : null;
+  if (suppliedGroup !== null) {
+    // Provider construction may deliberately convert a just-expired
+    // registered boot into a visible live-recovery group. Consumers keep the
+    // original one-shot capability, so descriptor creation must use the
+    // provider-owned effective group rather than resurrecting expired rows.
+    const providerGroup = preparedGroupForProvider(provider);
+    const preparedGroup = providerGroup?.reference?.id === suppliedGroup.reference?.id
+      ? providerGroup
+      : suppliedGroup;
     const admitted = admittedReactQueryGroup(provider.binding, preparedGroup.reference);
     if (
       admitted.id !== preparedGroup.reference.id
@@ -1637,7 +1826,12 @@ function validateEntries(provider, entries) {
     }
     return Object.freeze(preparedGroup.entries.map((entry) => Object.freeze({
       name: entry.name,
-      ...provider.registry.descriptor(entry.ref, entry.args, preparedGroup.boot),
+      ...provider.registry.descriptor(
+        entry.ref,
+        entry.args,
+        preparedGroup.boot,
+        entry.name,
+      ),
     })));
   }
   if (!entries || typeof entries !== 'object' || Array.isArray(entries)) {
@@ -1682,13 +1876,19 @@ function groupSnapshot(provider, descriptors) {
       : active.some((query) => query.status === 'refreshing')
         ? 'refreshing'
         : 'ready';
-  const boot = descriptors.length > 0
-    && descriptors.every((descriptor) => descriptor.groupBoot !== null)
-    && descriptors.every(
-      (descriptor) => descriptor.groupBoot === descriptors[0].groupBoot,
-    )
-    ? descriptors[0].groupBoot
+  const preparedGroup = descriptors.length > 0
+    && descriptors.every((descriptor) => descriptor.preparedEntryName !== null)
+    ? preparedGroupForProvider(provider)
     : null;
+  const boot = preparedGroup !== null
+    ? preparedGroup.boot
+    : descriptors.length > 0
+      && descriptors.every((descriptor) => descriptor.groupBoot !== null)
+      && descriptors.every(
+        (descriptor) => descriptor.groupBoot === descriptors[0].groupBoot,
+      )
+      ? descriptors[0].groupBoot
+      : null;
   return Object.freeze({
     queries,
     status,

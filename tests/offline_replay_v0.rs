@@ -4,11 +4,13 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use snapback::admin::{AppState, ServerContext};
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    AuthInput, CtxAnswerLedger, FunctionManifest, HandlerInput, MutationRequest,
-    PORTABLE_TIMESTAMP_MAX_MS, PermissionScopeExpr, SchemaManifest, auth_fingerprint,
+    AuthInput, CtxAnswerLedger, FunctionManifest, FunctionResultContract, HandlerInput,
+    MutationRequest, PORTABLE_TIMESTAMP_MAX_MS, PermissionScopeExpr, ResultValueContract,
+    SchemaManifest, auth_fingerprint,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -43,6 +45,23 @@ fn artifacts() -> (SchemaManifest, FunctionManifest) {
             .required_capabilities
             .push("permission_epoch_resync".to_owned());
     }
+    // @ref LLP 0101#final-author-reconciliation-after-round-3 — exercise the
+    // existing durable settlement lane with one frozen precise result
+    // contract, including process-reopen replay of the validated payload.
+    let contract = FunctionResultContract::Value {
+        value: ResultValueContract::Id {
+            table: "todos".to_owned(),
+        },
+    };
+    let canonical = snapback::rqs::jcs(
+        &serde_json::to_value(&contract).expect("serialize precise result contract"),
+    )
+    .expect("canonical precise result contract");
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:function-result:v1\n");
+    hash.update(canonical.as_bytes());
+    create.result_contract = contract;
+    create.result_contract_hash = Some(format!("sha256:{:x}", hash.finalize()));
     (schema, functions)
 }
 
@@ -199,6 +218,10 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
     let first_receipt = first_receipt.into_value();
     let first = first.expect("first commit");
     assert_eq!(first.changed_count, 1);
+    assert!(
+        first.result.as_str().is_some_and(|id| !id.is_empty()),
+        "the precise id result contract must validate before settlement retention",
+    );
     assert_eq!(first_receipt["mutationId"], json!(mutation_id));
     let version = snapback.durable_version().expect("version");
     assert_eq!(epoch(&mut snapback, "epoch_after_first"), 1);
@@ -232,6 +255,10 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
         .0
         .expect("reopened duplicate result");
     assert_eq!(duplicate_after_reopen, first);
+    assert_eq!(
+        duplicate_after_reopen.result, first.result,
+        "reopen replay must retain the original validated typed payload",
+    );
     assert_eq!(reopened.durable_version().unwrap(), version);
     let rows = reopened
         .invoke_query("listTodos", input_for(USER, json!({})))

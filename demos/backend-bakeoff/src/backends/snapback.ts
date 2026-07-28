@@ -36,12 +36,24 @@ export class SnapbackAdapter implements BackendAdapter {
   readonly kind = 'snapback' as const;
   readonly label = 'Snapback';
   readonly transport = 'native WebSocket live queries + ephemeral overlay';
-  private client = new SnapbackClient(__SNAPBACK_URL__);
+  private client: SnapbackClient;
+  private fallbackToLive: boolean;
   private provider: SnapbackReactProvider | null = null;
   private workspaceGroup:
     PreparedReactQueryGroup<typeof generatedGroups['/']> | null = null;
   private providerSettlement: Promise<void> = Promise.resolve();
+  private lastProviderInspection: Record<string, unknown> | null = null;
   private disposers = new Set<Unsubscribe>();
+
+  constructor(client?: SnapbackClient, { fallbackToLive = true } = {}) {
+    this.client = client ?? new SnapbackClient(__SNAPBACK_URL__, {
+      authClientProtocol: 1,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      authorizedLeaseProtocol: 1,
+    });
+    this.fallbackToLive = fallbackToLive;
+  }
 
   async setup() {
     await this.client.health();
@@ -51,10 +63,37 @@ export class SnapbackAdapter implements BackendAdapter {
     this.workspaceGroup = await binding.prepareQueryGroup(
       generatedGroups['/'],
       {},
-      { fallbackToLive: true, userId: 'bakeoff-react' },
+      {
+        fallbackToLive: this.fallbackToLive,
+        ...(binding.authMode === 'dev' ? { userId: 'bakeoff-react' } : {}),
+      },
     );
     this.provider = createSnapbackReactProvider(binding, {
       preparedGroup: this.workspaceGroup,
+    });
+  }
+
+  // @ref LLP 0107#evidence-and-acceptance — the product adapter exposes only
+  // non-secret boot provenance and bounded owner counts so its retained
+  // receipt can distinguish real registered adoption from a lower-level fake.
+  inspection() {
+    const provider = this.provider?.inspection() ?? this.lastProviderInspection;
+    const effectiveSource = typeof provider?.preparedGroupSource === 'string'
+      ? provider.preparedGroupSource
+      : this.workspaceGroup?.source;
+    const effectiveReason = typeof provider?.preparedGroupReason === 'string'
+      ? provider.preparedGroupReason
+      : this.workspaceGroup?.reason;
+    const effectiveBoot = provider?.preparedGroupBoot ?? this.workspaceGroup?.boot;
+    return Object.freeze({
+      group: this.workspaceGroup === null
+        ? null
+        : Object.freeze({
+          source: effectiveSource,
+          reason: effectiveReason ?? null,
+          boot: effectiveBoot,
+        }),
+      provider,
     });
   }
 
@@ -214,9 +253,11 @@ export class SnapbackAdapter implements BackendAdapter {
     for (const dispose of this.disposers) dispose();
     this.disposers.clear();
     if (this.provider) {
-      this.providerSettlement = this.provider.dispose();
+      const provider = this.provider;
+      this.providerSettlement = provider.dispose().then(() => {
+        this.lastProviderInspection = provider.inspection();
+      });
       this.provider = null;
-      this.workspaceGroup = null;
     }
   }
   async settled() {

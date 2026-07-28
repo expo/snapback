@@ -41,6 +41,7 @@
       "dependencies": {
         "@snapback/client": "0.1.0",
         "@snapback/codegen": "0.1.0",
+        "@snapback/contract": "0.1.0",
       },
       "optionalDependencies": {
         "@snapback/runtime-darwin-arm64": "0.1.0",

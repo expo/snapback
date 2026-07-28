@@ -101,8 +101,10 @@ fn mint() {
         .unwrap_or_else(|| "1".to_string())
         .parse()
         .expect("integer floor");
-    // Number of consecutive snapshots to pre-sign. One means online renewal
-    // semantics for a single window.
+    // Number of consecutive snapshots to pre-sign. Online renewal is owned
+    // by the provider-authenticated supervisor because it must also carry a
+    // fresh HostedAdmissionV2; this offline tool always emits presigned
+    // windows, including a one-element window.
     let chain: u64 = argument("--chain")
         .unwrap_or_else(|| "1".to_string())
         .parse()
@@ -111,11 +113,7 @@ fn mint() {
         .unwrap_or_else(|| (5 * 60 * 1_000).to_string())
         .parse()
         .expect("integer lifetime");
-    let renewal = if chain > 1 {
-        AdmissionRenewal::PresignedWindow
-    } else {
-        AdmissionRenewal::Online
-    };
+    let renewal = AdmissionRenewal::PresignedWindow;
 
     let now_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -187,6 +185,7 @@ fn mint() {
             first_contact_transport: config.first_contact_transport,
             renewal,
             admission,
+            hosted_target_admission: None,
             signature: URL_SAFE_NO_PAD.encode(key.sign(&input).as_ref()),
         });
     }

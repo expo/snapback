@@ -78,7 +78,7 @@ export interface SnapbackQueryGroupReference<
   readonly definitionHash: string;
   readonly queries: readonly Readonly<{
     name: string;
-    ref: SnapbackFunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>;
+    ref: SnapbackFunctionReference<string, 'LiveQuery', unknown, unknown>;
     args: Readonly<Record<string, unknown>>;
   }>[];
   readonly persist?: false;
@@ -151,6 +151,11 @@ export type SearchAtomV1 = SearchClauseV1;
 export interface SearchQueryAstV1 {
   readonly all: readonly SearchClauseV1[];
 }
+export interface SearchRequestV1 {
+  readonly query: SearchQueryAstV1;
+  readonly limit?: number;
+  readonly after?: string;
+}
 export interface SearchMatchRangeV1 {
   readonly start: number;
   readonly end: number;
@@ -160,14 +165,22 @@ export interface SearchHighlightV1 {
   readonly text: string;
   readonly matches: readonly SearchMatchRangeV1[];
 }
-export interface SearchItemV1 {
-  readonly rowId: string;
+/** @ref LLP 0073#ranking-order-and-cursors — generated operation refs bind
+ * these generic defaults to one exact stored-field projection and row-id. */
+export interface SearchItemV1<
+  Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
+  RowId extends string = string,
+> {
+  readonly rowId: RowId;
   readonly score: number;
-  readonly fields: Readonly<Record<string, unknown>>;
+  readonly fields: Fields;
   readonly highlights: readonly SearchHighlightV1[];
 }
-export interface SearchPageV1 {
-  readonly items: readonly SearchItemV1[];
+export interface SearchPageV1<
+  Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
+  RowId extends string = string,
+> {
+  readonly items: readonly SearchItemV1<Fields, RowId>[];
   readonly cursor: string | null;
   readonly hasMore: boolean;
 }
@@ -217,6 +230,8 @@ export interface PreparedReactBinding {
     inputsHash: string | null;
   }>;
   readonly authMode: AuthMode | null;
+  readonly routeManifestHash: string;
+  readonly registeredBundleAvailable: boolean;
   readonly functionCatalogDigest: string;
   readonly capabilityDigest: string;
   readonly references: Readonly<Record<string, SnapbackFunctionReference>>;
@@ -236,21 +251,27 @@ export interface PreparedReactQueryGroup<
   Ref extends SnapbackQueryGroupReference = SnapbackQueryGroupReference,
 > {
   readonly artifactKind: 'preparedReactQueryGroup';
-  readonly source: 'registered-bundle' | 'live-fallback';
+  readonly source: 'registered-bundle' | 'live-fallback' | 'live-recovery';
+  readonly reason?:
+    | 'registered_bundle_boot_v1-unavailable'
+    | 'attach-deadline-expired'
+    | 'unadopted-delta'
+    | 'authority-replaced';
   readonly reference: Ref;
   readonly params: QueryGroupParams<Ref>;
-  readonly connectionId: string | null;
   readonly boot: null | Readonly<{
     source: 'registered-bundle';
     commitVersion: number;
     generation: string;
     versionStream: string;
+    attachDeadline: number;
   }>;
   readonly entries: readonly Readonly<{
     name: string;
     ref: SnapbackFunctionReference<string, 'LiveQuery', unknown, unknown>;
     args: Readonly<Record<string, unknown>>;
   }>[];
+  dispose(): Promise<void>;
 }
 
 export function prepareReactQueryGroupForBinding<
@@ -264,6 +285,15 @@ export function prepareReactQueryGroupForBinding<
     readonly userId?: string;
   },
 ): Promise<PreparedReactQueryGroup<Ref>>;
+export function consumePreparedReactQueryGroup<
+  Ref extends SnapbackQueryGroupReference,
+>(
+  binding: PreparedReactBinding,
+  value: PreparedReactQueryGroup<Ref>,
+): PreparedReactQueryGroup<Ref>;
+export function abandonConsumedReactQueryGroup(
+  value: PreparedReactQueryGroup,
+): Promise<void>;
 
 export interface EphemeralEntry<Value> {
   readonly key: string;
@@ -397,6 +427,12 @@ export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
   health(): Promise<unknown>;
   inspect(): Promise<unknown>;
+  captureAuthority(): unknown;
+  allocateLiveQueryNamespace(
+    ref: NamedReference,
+    args?: Readonly<Record<string, unknown>>,
+  ): unknown;
+  isAuthorityCaptureCurrent(capture: unknown): boolean;
   localResourceInspection(connectionIds?: Iterable<string> | null): SnapbackLocalResourceInspection;
   prepareReactBinding(options: {
     readonly generatedManifest:
@@ -441,6 +477,17 @@ export class SnapbackClient {
     readonly requestedMode?: AuthMode;
     readonly expectedDataVersionStream: ExpectedDataVersionStreamV1;
   }): Promise<unknown>;
+  fetchBundle(options: {
+    readonly route: string;
+    readonly params?: Readonly<Record<string, string>>;
+    readonly mode?: 'read' | 'register';
+    readonly idempotencyKey?: string | null;
+    readonly devManifestEntry?: unknown;
+    readonly userId?: string;
+    readonly authorityCapture?: unknown;
+    readonly authorizationNamespaces?: readonly unknown[];
+    readonly authInvalidationProtocol?: 1 | null;
+  }): Promise<unknown>;
   query<Ref extends FunctionRef<'Query' | 'LiveQuery'>>(
     ref: Ref,
     options?: { readonly args?: FunctionArgs<Ref>; readonly userId?: string },
@@ -449,8 +496,22 @@ export class SnapbackClient {
     ref: NamedReference,
     options?: { readonly args?: Record<string, unknown>; readonly userId?: string },
   ): Promise<QueryOutput<Result>>;
+  search<Ref extends SnapbackFunctionReference<
+    string,
+    'Query' | 'LiveQuery',
+    SearchRequestV1,
+    SearchPageV1
+  >>(
+    ref: Ref,
+    options: {
+      readonly query: SearchQueryAstV1;
+      readonly limit?: number;
+      readonly after?: string | null;
+      readonly userId?: string;
+    },
+  ): Promise<FunctionResult<Ref>>;
   search(
-    ref: FunctionRef<'Query' | 'LiveQuery'>,
+    ref: NamedReference,
     options: {
       readonly query: SearchQueryAstV1;
       readonly limit?: number;

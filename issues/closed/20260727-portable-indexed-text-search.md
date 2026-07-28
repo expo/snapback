@@ -1,6 +1,6 @@
 # Portable indexed full-text search v1
 
-**Status:** Closed
+**Status:** Closed — reverified after exact result-contract repair
 **Impact:** 5  
 **Urgency:** 4  
 **Ease:** 1  
@@ -88,3 +88,21 @@ to a canonical content digest and checks the exact derived state before
 release, including mutation-triggered quarantine and deterministic
 grapheme-safe highlight vectors. Focused search tests pass 23/23; the complete
 repository proof owns the final integration gate.
+
+### Exact generated result follow-up
+
+An integration audit found that the initial search transport contract still
+declared `fields` as bounded JSON and that every generated search reference
+therefore collapsed to a global `Readonly<Record<string, unknown>>`. That did
+not satisfy this ticket's no-cast acceptance criterion and caused codegen to
+report an inapplicable degraded result for `searchIncidents`.
+
+The repaired generator derives the runtime transport-row contract from the
+named search index and source schema. Stored keys are closed and exactly typed;
+optional source values use the runtime's present-null storage shape; the row id
+retains its source-table brand; provider metadata and the generated
+`SearchPageV1` use the same contract. A focused fixture compiles a real
+`SnapbackClient.search(api.searchIncidents, ...)` consumer, rejects undeclared
+keys and wrong field types, and runs the generated contract validator against
+valid, extra-key, missing-key, and wrong-type rows. Signal Desk regenerates
+with `degradedResults: 0` and its TypeScript project compiles without casts.

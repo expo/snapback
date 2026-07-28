@@ -175,14 +175,18 @@ await client.ensureApp({
   schema,
   functions,
   seed,
+  routes,
 });
 ```
 
 The client sends that variant through its admin transport. Missing credentials
 are an authorization error; matching hashes do not bypass the gate. A fresh
 mode transition requires the server restart named by its staged-mode response.
-The explicit variant currently refuses `routes`; ensure routes separately only
-on the legacy `dev` path. Never reset as a mount side effect.
+The explicit variant validates and installs `routes` against the same candidate
+schema/functions pair. On a cross-mode provision the routes stay staged with
+that pair and become active only after the required restart; same-mode
+sessions provisioning installs them in the same coordinated operation. Never
+reset as a mount side effect.
 
 ### Versioned seed lifecycle is capability-gated
 
@@ -267,10 +271,19 @@ generation counter. React apps should normally consume the thin
 When a generated route group needs one-commit boot, call
 `binding.prepareQueryGroup(groupRef, params)` before mount. That helper is a
 strict projection over the headless client's existing register-mode
-`fetchBundle` owner: it validates the closed response, retains no grant secret,
-and hands child registrations plus public commit/generation provenance to the
-React provider. A coded `fallbackToLive` result has `boot: null`; it is an
-ordinary live group, not a degraded single-commit claim.
+`fetchBundle` owner: it validates the closed response and keeps rows,
+registrations, resume receipts, namespaces, authorization projections, the
+connection handle, and grant in private client custody. Only all-`LiveQuery`
+routes whose `$param` targets are strings receive this
+generated register reference; the broader read-bundle route grammar still
+supports server-decoded numeric and boolean parameters. The provider publishes
+registered rows only after the stream returns a positive server readiness
+witness. Only absence of the target-owned `registered_bundle_boot_v1`
+capability can produce an author-enabled `fallbackToLive` result. It has
+`boot: null` and is an ordinary live group, not a degraded single-commit claim;
+all bundle request failures refuse. A frame racing a still-lazy child marks
+that registration dirty and requires a fresh superseding subscription before
+the child can publish.
 
 Providers must declare `externalStoreProtocol: "snapback.external-store.v1"`.
 If a resolved handle also declares a protocol, an incompatible token publishes

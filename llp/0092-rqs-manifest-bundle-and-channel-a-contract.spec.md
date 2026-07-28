@@ -100,7 +100,8 @@ routesManifest = { formatVersion: 1,
                    routes: [ routeEntry ] }
 routeEntry    = { route: string,            // pattern, e.g. "/board/:boardId"
                   queries: [ querySpec ],   // 1..32 (0D.2 query-count limit)
-                  persist?: boolean }       // default true; LLP 0091 §0A.5 opt-out
+                  persist?: boolean,        // default true; LLP 0091 §0A.5 opt-out
+                  registerGroupEligible?: true } // codegen-derived; LLP 0107
 querySpec     = { function: string,         // exported function name
                   args: argsMapping }       // §0E.6 (Q2), mapping version "params-v1"
 ```
@@ -114,6 +115,11 @@ querySpec     = { function: string,         // exported function name
   and never does URL matching.
 - Entries are per-route, not per-query: one `routeEntry` names every query
   the route needs, which is the unit the bundle evaluates at one commit.
+- `registerGroupEligible:true` is a codegen-derived client-adoption fact, not
+  bundle invocation authority. Codegen emits it only when every child is a
+  `LiveQuery` and every `$param` target is string-typed; served-manifest
+  admission rechecks any asserted `true`. Absence preserves the broader read
+  bundle route while omitting LLP 0107's generated register reference.
 - `publicInline` is deliberately **not** a `routeEntry` field. Whether a
   route is Channel A-eligible is derived: every named query must carry the
   codegen-compiled `publicInline` fact (§0C.3). A route-manifest author can
@@ -285,7 +291,10 @@ LLP 0051 gates.
 request  = { route: string,              // exact manifest route pattern (§0C.1)
              params: { [name]: string }, // route params, all strings
              mode: "read" | "register",
-             idempotencyKey?: string }   // register mode only, required there
+             idempotencyKey?: string,    // register mode only, required there
+             authInvalidationProtocol?: 1,
+             authorizationNamespaces?:  // register mode, exact manifest order
+               [ queryNamespace | null ] }
 
 response = { commitVersion: u64,         // PORTABLE_STORAGE_VERSION_MAX cap
              generation: string,         // LLP 0091 §0A.6
@@ -293,7 +302,8 @@ response = { commitVersion: u64,         // PORTABLE_STORAGE_VERSION_MAX cap
              entries: [ entry ],         // one per querySpec, manifest order
              connection?: { connectionId: string,   // register mode only
                             grant: string,
-                            attachDeadline: u64 } } // ms epoch, §0D.4
+                            attachDeadline: u64,     // ms epoch, §0D.4
+                            authorizationInvalidation?: object } }
 ```
 
 **Per-entry closed union** (schema parity fixtures are a conformance
@@ -322,6 +332,31 @@ entry = { function: string,
   additionally creates the live registrations at the same commit cut under
   the pending-registration owner of the LLP 0031 amendment; it is scoped
   to credentialed callers (§0D.3).
+
+**Registered authorization-adoption amendment (2026-07-28, LLP 0107).**
+`authInvalidationProtocol: 1` opts the registered connection into LLP 0053
+authorization invalidation. The server refuses an unknown protocol value; a
+nonempty `authorizationNamespaces` array requires protocol 1 and must have
+exactly one position per manifest query. Each auth-scoped position supplies
+the caller's never-reused namespace for that child subscription; an explicitly
+`authorityIndependent` position is exactly `null`. `public`,
+`publicInline`, and `AuthRequirement::Public` do not change that predicate: a
+public query whose results can still vary with caller authority remains
+auth-scoped. Sessions-mode register adoption requires protocol 1; the
+protocol-free form is confined to the settled local-development dev authority
+and returns no authorization projections. Read mode refuses both fields. The
+protocol value and positional namespace array are part of the idempotency
+replay-validity scope. This preserves the ordinary live-query invalidation
+identity instead of inventing a bundle-local one.
+
+When the negotiated connection has LLP 0053 authorization invalidation,
+`connection.authorizationInvalidation` is the exact closed
+`AuthorizationInvalidationConnection` descriptor an ordinary connection-open
+response would carry. It is absent otherwise. Together with each auth-scoped
+entry's `{scope,invalidation}` projection, this lets a registered client
+install the authenticated expectation before publishing bundle rows; omitting
+the connection descriptor on an auth-scoped registered response is a malformed
+response, never permission to fresh-subscribe silently.
 
 **HTTP status mapping** (codes are authoritative; statuses advisory):
 400 malformed request / `SNAPBACK_BUNDLE_PARAMS_INVALID` /
@@ -387,7 +422,8 @@ authoritative; this section adds only wire parameters:
   (16 random bytes), the repo's id shape. Two concurrent same-user boots
   hold distinct keys and produce distinct registration sets.
 - **Replay-validity tuple:** (authority, sender-key identity, credential
-  incarnation, `generation`, manifest entry, canonical args) — with the
+  incarnation, `generation`, manifest entry, canonical args,
+  `authInvalidationProtocol`, positional `authorizationNamespaces`) — with the
   identity vocabulary being **LLP 0077's exact wire identities**:
   sender-key identity is the session family's **RFC 7638 JWK thumbprint**,
   credential incarnation is the issuance **`sender_replay_epoch`** (the

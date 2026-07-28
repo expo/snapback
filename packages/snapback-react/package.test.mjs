@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import React, { StrictMode, useMemo } from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
@@ -73,17 +74,32 @@ const generatedManifest = Object.freeze({
   functions: Object.freeze([feed, details, publish, ...capacityFeeds]),
 });
 
-function createFakeClient() {
+function createFakeClient({
+  registeredBundleAvailable = true,
+  attachDeadlineOffsetMs = 60_000,
+  bundleError = null,
+  authMode = 'dev',
+  authInvalidationProtocol = 1,
+  routeManifestHash = 'sha256:f5f932754bef8663f6097c5e1cb5135cabdb522f19e277a244d4e9646b7cd1c8',
+  deferRegisteredFunction = null,
+} = {}) {
   const handles = new Set();
   const byFunction = new Map();
+  const durableConsumers = new Set();
+  const startOptions = [];
   let starts = 0;
   let mutations = 0;
   let bundleFetches = 0;
   let registeredStarts = 0;
   let ordinaryStarts = 0;
+  let namespaceSequence = 0;
+  let disconnects = 0;
   const barriers = [];
   let barrierUnregistered = 0;
   const client = {
+    authProtocols: authInvalidationProtocol === null
+      ? {}
+      : { authInvalidation: authInvalidationProtocol },
     liveQuery() {},
     async inspect() {
       return {
@@ -91,21 +107,44 @@ function createFakeClient() {
         target: 'local-dev-sqlite-ibex',
         schema: { schemaHash: 'sha256:schema' },
         functions: generatedManifest,
+        routeManifestHash,
         capabilityManifest: {
           artifactKind: 'capabilityManifest',
           schemaVersion: 'snapback.v0',
           targetProfileId: 'local-dev-sqlite-ibex',
-          supportedCapabilities: ['live_subscriptions'],
+          supportedCapabilities: [
+            'live_subscriptions',
+            ...(registeredBundleAvailable ? ['registered_bundle_boot_v1'] : []),
+          ],
         },
       };
     },
-    async authSession() { return { activeMode: 'dev' }; },
+    async authSession() { return { activeMode: authMode }; },
+    allocateLiveQueryNamespace(ref, args) {
+      namespaceSequence += 1;
+      return Object.freeze({
+        clientStoreId: 'react-package-store',
+        queryKey: `${ref.name}:${canonicalizeClientValueV1(args)}`,
+        queryInstanceId: namespaceSequence,
+      });
+    },
+    async disconnect() { disconnects += 1; },
     registerAuthBarrierParticipant(participant) {
       barriers.push(participant);
       return async () => { barrierUnregistered += 1; };
     },
+    registerDurableConsumer(_connectionId, consumer) {
+      durableConsumers.add(consumer);
+      return () => durableConsumers.delete(consumer);
+    },
     startLiveQuery(ref, options) {
       starts += 1;
+      startOptions.push(Object.freeze({
+        function: ref.name,
+        supersedesSubscriptionId: options.supersedesSubscriptionId ?? null,
+        registered: options.registeredSubscription !== undefined,
+        userId: options.userId ?? null,
+      }));
       if (options.registeredSubscription) registeredStarts += 1;
       else ordinaryStarts += 1;
       let disposed = false;
@@ -117,12 +156,17 @@ function createFakeClient() {
         rows,
         connection: 'live',
       };
+      let resolveStarted = () => {};
+      const started = deferRegisteredFunction === ref.name && options.registeredSubscription
+        ? new Promise((resolve) => { resolveStarted = resolve; })
+        : Promise.resolve();
       const handle = {
         current,
-        started: async () => {},
+        started: () => started,
         dispose() {
           if (disposed) return;
           disposed = true;
+          resolveStarted();
           handles.delete(handle);
           byFunction.get(ref.id)?.delete(handle);
         },
@@ -143,10 +187,25 @@ function createFakeClient() {
       mutations += 1;
       return { result: `${ref.name}:${args.value}`, version: mutations };
     },
-    async fetchBundle({ route, params, mode }) {
+    async fetchBundle({
+      route,
+      params,
+      mode,
+      authorizationNamespaces,
+      authInvalidationProtocol: requestedAuthInvalidationProtocol,
+    }) {
       bundleFetches += 1;
       assert.equal(route, '/workspace/:id');
       assert.equal(mode, 'register');
+      assert.equal(
+        authorizationNamespaces.length,
+        authMode === 'sessions' ? 2 : 0,
+      );
+      assert.equal(
+        requestedAuthInvalidationProtocol,
+        authMode === 'sessions' ? 1 : null,
+      );
+      if (bundleError !== null) throw bundleError;
       return {
         commitVersion: 41,
         generation: 'generation-41',
@@ -154,7 +213,7 @@ function createFakeClient() {
         connection: {
           connectionId: 'registered-react-group',
           grant: '[adopted-by-client-owner]',
-          attachDeadline: 10_000,
+          attachDeadline: Date.now() + attachDeadlineOffsetMs,
         },
         entries: [
           {
@@ -177,6 +236,9 @@ function createFakeClient() {
     emit(ref, rows, connection = 'live') {
       for (const handle of byFunction.get(ref.id) ?? []) handle.emit(rows, connection);
     },
+    emitDurable(frame) {
+      for (const consumer of durableConsumers) consumer(frame);
+    },
     inspection() {
       return {
         starts,
@@ -185,8 +247,12 @@ function createFakeClient() {
         bundleFetches,
         registeredStarts,
         ordinaryStarts,
+        namespaceSequence,
+        disconnects,
         barriers,
         barrierUnregistered,
+        durableConsumers: durableConsumers.size,
+        startOptions,
       };
     },
   };
@@ -401,6 +467,7 @@ const routes = Object.freeze({
   routes: Object.freeze([
     Object.freeze({
       route: '/workspace/:id',
+      registerGroupEligible: true,
       queries: Object.freeze([
         Object.freeze({ function: 'feed', args: { id: { $param: 'id' } } }),
         Object.freeze({ function: 'details', args: { id: { $param: 'id' } } }),
@@ -414,6 +481,62 @@ const primedBinding = await prepareReactBindingForClient(primedFake, {
 const generatedGroup = primedBinding.groups['/workspace/:id'];
 assert.equal(generatedGroup.artifactKind, 'queryGroupReference');
 assert.match(generatedGroup.definitionHash, /^sha256:[0-9a-f]{64}$/);
+const ineligibleRoutes = Object.freeze({
+  formatVersion: 1,
+  app: 'react-fixture',
+  routes: Object.freeze([
+    Object.freeze({
+      route: '/rank/:rank',
+      queries: Object.freeze([
+        Object.freeze({ function: 'feed', args: { id: { $param: 'rank' } } }),
+      ]),
+    }),
+  ]),
+});
+const ineligibleRouteManifestHash = `sha256:${createHash('sha256')
+  .update(canonicalizeClientValueV1(ineligibleRoutes))
+  .digest('hex')}`;
+const ineligibleBinding = await prepareReactBindingForClient(
+  createFakeClient({ routeManifestHash: ineligibleRouteManifestHash }),
+  { generatedManifest: { functions: generatedManifest, routes: ineligibleRoutes } },
+);
+assert.equal(
+  Object.hasOwn(ineligibleBinding.groups, '/rank/:rank'),
+  false,
+  'the binding mirrors codegen eligibility instead of materializing non-string route params',
+);
+const duplicateRoutes = Object.freeze({
+  formatVersion: 1,
+  app: 'react-fixture',
+  routes: Object.freeze([
+    Object.freeze({
+      route: '/duplicate/:id',
+      registerGroupEligible: true,
+      queries: Object.freeze([
+        Object.freeze({ function: 'feed', args: { id: { $param: 'id' } } }),
+        Object.freeze({ function: 'feed', args: { id: { $param: 'id' } } }),
+      ]),
+    }),
+  ]),
+});
+const duplicateRouteManifestHash = `sha256:${createHash('sha256')
+  .update(canonicalizeClientValueV1(duplicateRoutes))
+  .digest('hex')}`;
+const duplicateFake = createFakeClient({
+  routeManifestHash: duplicateRouteManifestHash,
+});
+const duplicateBinding = await prepareReactBindingForClient(duplicateFake, {
+  generatedManifest: { functions: generatedManifest, routes: duplicateRoutes },
+});
+await assert.rejects(
+  duplicateBinding.prepareQueryGroup(
+    duplicateBinding.groups['/duplicate/:id'],
+    { id: 'same' },
+  ),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_DUPLICATE_CHILD',
+  'identical canonical children refuse before positional registrations can leak',
+);
+assert.equal(duplicateFake.inspection().bundleFetches, 0);
 await assert.rejects(
   primedBinding.prepareQueryGroup(
     { ...generatedGroup, definitionHash: 'sha256:forged-group' },
@@ -430,15 +553,46 @@ const primedGroup = await primedBinding.prepareQueryGroup(
   { id: 'incident-41' },
 );
 assert.equal(primedGroup.source, 'registered-bundle');
+assert(
+  Object.getOwnPropertySymbols(primedGroup)
+    .every((symbol) => typeof primedGroup[symbol] !== 'object'),
+  'reflection cannot discover the private preparation owner',
+);
 assert.deepEqual(primedGroup.boot, {
   source: 'registered-bundle',
   commitVersion: 41,
   generation: 'generation-41',
   versionStream: 'stream-41',
+  attachDeadline: primedGroup.boot.attachDeadline,
 });
+assert.equal(
+  Object.prototype.hasOwnProperty.call(primedGroup, 'connectionId'),
+  false,
+  'the public preparation does not expose its connection handle',
+);
+assert.deepEqual(
+  primedGroup.entries.map((entry) => Object.keys(entry).sort()),
+  [['args', 'name', 'ref'], ['args', 'name', 'ref']],
+  'the public preparation exposes safe generated identity only',
+);
+assert.doesNotMatch(
+  JSON.stringify(primedGroup),
+  /registered-feed|registered-details|revision|authorization|resume/,
+  'rows, subscriptions, authorization, and resume state remain private',
+);
 const primedProvider = createSnapbackReactProvider(primedBinding, {
   preparedGroup: primedGroup,
 });
+assert.equal(
+  primedProvider.registry.preparedGroup,
+  undefined,
+  'the transferred preparation owner is not reachable through public provider properties',
+);
+assert.throws(
+  () => createSnapbackReactProvider(primedBinding, { preparedGroup: primedGroup }),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_ALREADY_CONSUMED',
+  'a prepared bundle capability transfers to exactly one provider',
+);
 let primedSnapshot = null;
 const primedObserver = observeSnapbackQueries(
   primedProvider,
@@ -469,12 +623,132 @@ primedObserver.dispose();
 await flush();
 await primedProvider.dispose();
 
-const fallbackFake = createFakeClient();
-fallbackFake.fetchBundle = async () => {
-  const error = new Error('register-mode bundles are unavailable on this target');
-  error.code = 'SNAPBACK_BUNDLE_REGISTER_UNAVAILABLE';
-  throw error;
-};
+const lazyRaceFake = createFakeClient();
+const lazyRaceBinding = await prepareReactBindingForClient(lazyRaceFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const lazyRaceGroup = await lazyRaceBinding.prepareQueryGroup(
+  lazyRaceBinding.groups['/workspace/:id'],
+  { id: 'incident-lazy-race' },
+);
+const lazyRaceProvider = createSnapbackReactProvider(lazyRaceBinding, {
+  preparedGroup: lazyRaceGroup,
+});
+lazyRaceFake.emitDurable({
+  subscription_id: 'registered-details',
+  update: { kind: 'Replace', rows: [{ id: 'details:newer', revision: 42 }] },
+});
+assert.equal(lazyRaceProvider.inspection().preparedGroupSource, 'live-recovery');
+assert.equal(lazyRaceProvider.inspection().preparedGroupReason, 'unadopted-delta');
+let lazyRaceSnapshot = null;
+const lazyRaceObserver = observeSnapbackQueries(
+  lazyRaceProvider,
+  lazyRaceGroup,
+  (snapshot) => { lazyRaceSnapshot = snapshot; },
+);
+await flush();
+assert.equal(lazyRaceSnapshot.boot, null);
+assert.equal(lazyRaceSnapshot.queries.feed.data[0].revision, 41);
+assert.equal(
+  lazyRaceSnapshot.queries.details.data[0].revision,
+  0,
+  'a dirty lazy child never publishes its stale bundle rows',
+);
+assert.equal(lazyRaceFake.inspection().registeredStarts, 1);
+assert.equal(lazyRaceFake.inspection().ordinaryStarts, 1);
+assert.deepEqual(
+  lazyRaceFake.inspection().startOptions.find((entry) => entry.function === 'details'),
+  {
+    function: 'details',
+    supersedesSubscriptionId: 'registered-details',
+    registered: false,
+    userId: null,
+  },
+  'the recovery subscription explicitly supersedes the dirty registration',
+);
+lazyRaceObserver.dispose();
+await flush();
+await lazyRaceProvider.dispose();
+assert.equal(lazyRaceFake.inspection().durableConsumers, 0);
+
+const claimedRaceFake = createFakeClient({ deferRegisteredFunction: 'details' });
+const claimedRaceBinding = await prepareReactBindingForClient(claimedRaceFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const claimedRaceGroup = await claimedRaceBinding.prepareQueryGroup(
+  claimedRaceBinding.groups['/workspace/:id'],
+  { id: 'incident-claimed-race' },
+);
+const claimedRaceProvider = createSnapbackReactProvider(claimedRaceBinding, {
+  preparedGroup: claimedRaceGroup,
+});
+let claimedRaceSnapshot = null;
+const claimedRaceObserver = observeSnapbackQueries(
+  claimedRaceProvider,
+  claimedRaceGroup,
+  (snapshot) => { claimedRaceSnapshot = snapshot; },
+);
+claimedRaceFake.emitDurable({
+  subscription_id: 'registered-details',
+  update: { kind: 'Replace', rows: [{ id: 'details:newer', revision: 42 }] },
+});
+await flush();
+assert.equal(claimedRaceProvider.inspection().preparedGroupReason, 'unadopted-delta');
+assert.equal(claimedRaceSnapshot.boot, null);
+assert.equal(
+  claimedRaceSnapshot.queries.details.data[0].revision,
+  0,
+  'a frame racing a claimed-but-unadopted child blocks stale publication',
+);
+assert.equal(claimedRaceFake.inspection().registeredStarts, 2);
+assert.equal(claimedRaceFake.inspection().ordinaryStarts, 1);
+assert.equal(
+  claimedRaceFake.inspection().startOptions.at(-1).supersedesSubscriptionId,
+  'registered-details',
+);
+claimedRaceObserver.dispose();
+await flush();
+await claimedRaceProvider.dispose();
+
+const authorityRaceFake = createFakeClient();
+const authorityRaceBinding = await prepareReactBindingForClient(authorityRaceFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const authorityRaceGroup = await authorityRaceBinding.prepareQueryGroup(
+  authorityRaceBinding.groups['/workspace/:id'],
+  { id: 'incident-authority-race' },
+  { userId: 'dev-user-authority-a' },
+);
+const authorityRaceProvider = createSnapbackReactProvider(authorityRaceBinding, {
+  preparedGroup: authorityRaceGroup,
+});
+await authorityRaceFake.inspection().barriers[0].quiesce({});
+authorityRaceFake.inspection().barriers[0].blank({});
+authorityRaceFake.inspection().barriers[0].clearMemory({});
+await authorityRaceFake.inspection().barriers[0].resume({});
+assert.equal(authorityRaceProvider.inspection().preparedGroupSource, 'live-recovery');
+assert.equal(authorityRaceProvider.inspection().preparedGroupReason, 'authority-replaced');
+let authorityRaceSnapshot = null;
+const authorityRaceObserver = observeSnapbackQueries(
+  authorityRaceProvider,
+  authorityRaceGroup,
+  (snapshot) => { authorityRaceSnapshot = snapshot; },
+);
+await flush();
+assert.equal(authorityRaceSnapshot.boot, null);
+assert.equal(authorityRaceFake.inspection().registeredStarts, 0);
+assert.equal(authorityRaceFake.inspection().ordinaryStarts, 2);
+assert(
+  authorityRaceFake.inspection().startOptions.every(
+    (entry) => entry.userId === 'dev-user-authority-a',
+  ),
+  'the admitted development identity survives authority recovery unchanged',
+);
+authorityRaceObserver.dispose();
+await flush();
+await authorityRaceProvider.dispose();
+
+const fallbackFake = createFakeClient({ registeredBundleAvailable: false });
 const fallbackBinding = await prepareReactBindingForClient(fallbackFake, {
   generatedManifest: { functions: generatedManifest, routes },
 });
@@ -501,6 +775,104 @@ assert.equal(fallbackFake.inspection().ordinaryStarts, 2);
 fallbackObserver.dispose();
 await flush();
 await fallbackProvider.dispose();
+
+await assert.rejects(
+  fallbackBinding.prepareQueryGroup(
+    fallbackBinding.groups['/workspace/:id'],
+    { id: 'incident-no-capability' },
+  ),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_REGISTER_UNAVAILABLE',
+  'an absent target capability refuses unless fallback is explicit',
+);
+
+const bundleFailure = Object.assign(new Error('SNAPBACK_BUNDLE_QUERY_FAILED: exact failure'), {
+  code: 'SNAPBACK_BUNDLE_QUERY_FAILED',
+});
+const failureFake = createFakeClient({ bundleError: bundleFailure });
+const failureBinding = await prepareReactBindingForClient(failureFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+await assert.rejects(
+  failureBinding.prepareQueryGroup(
+    failureBinding.groups['/workspace/:id'],
+    { id: 'incident-bundle-failure' },
+    { fallbackToLive: true },
+  ),
+  (error) => error === bundleFailure,
+  'a target that advertises register support never hides a bundle failure behind fallback',
+);
+assert.equal(failureFake.inspection().ordinaryStarts, 0);
+
+const protocolMissingFake = createFakeClient({
+  authMode: 'sessions',
+  authInvalidationProtocol: null,
+});
+const protocolMissingBinding = await prepareReactBindingForClient(protocolMissingFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+await assert.rejects(
+  protocolMissingBinding.prepareQueryGroup(
+    protocolMissingBinding.groups['/workspace/:id'],
+    { id: 'incident-protocol-missing' },
+  ),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_AUTH_INVALIDATION_REQUIRED',
+  'sessions-mode registered boot refuses before I/O without protocol 1',
+);
+assert.equal(protocolMissingFake.inspection().bundleFetches, 0);
+
+const projectionMissingFake = createFakeClient({ authMode: 'sessions' });
+const projectionMissingBinding = await prepareReactBindingForClient(projectionMissingFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+await assert.rejects(
+  projectionMissingBinding.prepareQueryGroup(
+    projectionMissingBinding.groups['/workspace/:id'],
+    { id: 'incident-projection-missing' },
+  ),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
+  'sessions-mode auth-scoped children fail closed when projections are omitted',
+);
+assert.equal(projectionMissingFake.inspection().disconnects, 1);
+
+const abandonedFake = createFakeClient({ attachDeadlineOffsetMs: 50 });
+const abandonedBinding = await prepareReactBindingForClient(abandonedFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const abandonedGroup = await abandonedBinding.prepareQueryGroup(
+  abandonedBinding.groups['/workspace/:id'],
+  { id: 'incident-abandoned' },
+);
+await new Promise((resolve) => setTimeout(resolve, 100));
+assert.equal(
+  abandonedFake.inspection().disconnects,
+  1,
+  'an untransferred preparation cleans its connection at the attach deadline',
+);
+await abandonedGroup.dispose();
+assert.equal(abandonedFake.inspection().disconnects, 1, 'deadline cleanup is idempotent');
+
+const expiredFake = createFakeClient({ attachDeadlineOffsetMs: -1 });
+const expiredBinding = await prepareReactBindingForClient(expiredFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const expiredGroup = await expiredBinding.prepareQueryGroup(
+  expiredBinding.groups['/workspace/:id'],
+  { id: 'incident-expired' },
+);
+const expiredProvider = createSnapbackReactProvider(expiredBinding, {
+  preparedGroup: expiredGroup,
+});
+assert.equal(expiredProvider.inspection().preparedGroupSource, 'live-recovery');
+assert.equal(expiredProvider.inspection().preparedGroupReason, 'attach-deadline-expired');
+const expiredObserver = observeSnapbackQueries(expiredProvider, expiredGroup, () => {});
+await flush();
+assert.equal(expiredObserver.snapshot().boot, null);
+assert.equal(expiredFake.inspection().registeredStarts, 0);
+assert.equal(expiredFake.inspection().ordinaryStarts, 2);
+assert.equal(expiredFake.inspection().disconnects, 1);
+expiredObserver.dispose();
+await flush();
+await expiredProvider.dispose();
 
 const capacityProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-capacity-test',

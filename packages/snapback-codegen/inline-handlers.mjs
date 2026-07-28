@@ -71,6 +71,28 @@ function propertyName(node) {
   return null;
 }
 
+function authoredPropertyName(member) {
+  if (!member?.name) return null;
+  if (ts.isComputedPropertyName(member.name)) {
+    const expression = member.name.expression;
+    if (ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)) {
+      return expression.text;
+    }
+    return null;
+  }
+  return propertyName(member.name);
+}
+
+function isStaticConstructorAccess(node) {
+  if (ts.isPropertyAccessExpression(node)) return node.name.text === 'constructor';
+  if (!ts.isElementAccessExpression(node)) return false;
+  const argument = node.argumentExpression;
+  return (
+    ts.isStringLiteral(argument)
+    || ts.isNoSubstitutionTemplateLiteral(argument)
+  ) && argument.text === 'constructor';
+}
+
 function isDeclarationIdentifier(node) {
   const parent = node.parent;
   if (!parent) return false;
@@ -122,6 +144,12 @@ function selfContainedProblems(expression, checker) {
       && node.expression.text === 'Function'
     ) {
       forbidden.push({ node, reason: 'Function construction is forbidden' });
+    }
+    if (isStaticConstructorAccess(node)) {
+      forbidden.push({
+        node,
+        reason: 'constructor reflection is outside inline_handler_v1',
+      });
     }
     ts.forEachChild(node, collect);
   };
@@ -213,13 +241,62 @@ export function extractInlineHandlers(source, {
       ) continue;
       const spec = call.arguments[0];
       const fields = new Map();
+      const directHandlerMembers = [];
+      const invalidHandlerMembers = [];
       for (const member of spec.properties) {
-        if (!ts.isPropertyAssignment(member)) continue;
+        const authoredName = authoredPropertyName(member);
+        if (authoredName === 'handler') {
+          if (
+            ts.isPropertyAssignment(member)
+            && !ts.isComputedPropertyName(member.name)
+          ) {
+            directHandlerMembers.push(member);
+          } else {
+            invalidHandlerMembers.push(member);
+          }
+        }
+        if (
+          !ts.isPropertyAssignment(member)
+          || ts.isComputedPropertyName(member.name)
+        ) continue;
         const key = propertyName(member.name);
         if (key) fields.set(key, member);
       }
+      if (invalidHandlerMembers.length > 0 || directHandlerMembers.length > 1) {
+        const problem = invalidHandlerMembers[0] ?? directHandlerMembers[1];
+        diagnostics.push(diagnostic(
+          'SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED',
+          `${name} handler must be one direct, non-computed data property`,
+          path,
+          problem,
+          sourceFile,
+          { function: name },
+        ));
+        continue;
+      }
       const handler = fields.get('handler');
       if (!handler) continue;
+      const structurallyAmbiguous = spec.properties.find((member) => (
+        ts.isSpreadAssignment(member)
+        || (
+          'name' in member
+          && member.name
+          && ts.isComputedPropertyName(member.name)
+        )
+        || ts.isGetAccessorDeclaration(member)
+        || ts.isSetAccessorDeclaration(member)
+      ));
+      if (structurallyAmbiguous) {
+        diagnostics.push(diagnostic(
+          'SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED',
+          `${name} inline declaration cannot contain spreads, computed properties, or accessors`,
+          path,
+          structurallyAmbiguous,
+          sourceFile,
+          { function: name },
+        ));
+        continue;
+      }
       if (fields.has('source') || fields.has('exportName') || fields.has('js')) {
         diagnostics.push(diagnostic(
           'SNAPBACK_FUNCTION_HANDLER_FORM_INVALID',

@@ -32,6 +32,26 @@ ticket is the honest inventory of what still separates the
 bucketed by what each item needs. The LLP 0081 migration-executor profile
 (OQ7) is sequenced behind this corpus earning remote evidence.
 
+**LLP 0105 checkpoint (2026-07-28):** the independently packed hosted
+supervisor is installed and its real SQLite → immutable mirror → conditional
+anchor write/restart recovery proof passes. An isolated destructive-component
+drill also created a verified backup of the live application SQLite database,
+restored it onto a fresh encrypted volume attached to a zero-service helper
+Machine, matched its digest, and passed SQLite integrity over 29 tables. The
+helper Machine, helper volume, and backup object were then deleted and
+read-back absent; the original production roster was unchanged. See
+`demos/backend-bakeoff/hosted-supervisor-installation.v1.json` and the
+deliberately non-success
+`demos/backend-bakeoff/hosted-product-journey.v1.json`.
+
+This does not close a lifecycle row. The drill used the existing private
+backup executable to validate the remote destructive primitive, not the
+public packed lifecycle train; restore activation, immutable release,
+migration, rollback, served inspection, online admission, relation/activity
+remote qualification, and the remote ephemeral corpus are still missing. The
+public target currently returns `SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED`, so
+the product receipt and ticket remain failed/open.
+
 ## Bucket (b) — code exists, needs remote wiring
 
 - **`inspectAdmin` sourcing**: the driver refuses in-protocol; it needs the
@@ -95,3 +115,34 @@ keychain (operator-staged). Receipts and the registry never carry the value.
 - This ticket does not close, and no supported hosted claim is made, until the
   remote receipt above passes and LLP 0072's required ratification/review gate
   is satisfied.
+
+**Target-onboarding progress (2026-07-28):** distinct target-scoped Fly
+control/registry credentials, a supervisor-only Ed25519 admission seed, and a
+dedicated target outbound mTLS identity are staged for the fresh
+`snapback-drill-hosted-v2-20260728` identity. The admission-capable supervisor
+image is live and healthy, while the legacy routed Machine retains its exact
+old image, services, and cert-only volume. See
+`demos/backend-bakeoff/hosted-target-onboarding.v1.json`. This advances
+credential custody and the outbound channel only; no lifecycle row passes
+until the fresh successor, binding, release, cutover, and complete public CLI
+receipt do.
+
+The same staged receipt now includes six distinct Tigris role fingerprints and
+live own-prefix/wrong-role probes. The provider refused an attempted
+prefix-conditioned `ListBucket` policy, so cleanup inventory is accurately
+recorded as bucket-scoped under supervisor-only custody; cleanup object verbs
+are delete-only and target-prefix-scoped, while its read/write denials and
+cross-prefix target delete were proven. This is retained provider evidence,
+not a completed backup,
+restore, lifecycle, or cleanup row.
+
+**Signed target-admission progress (2026-07-28):** the local supervisor,
+target verifier, packed renewer, and client transport now agree on the closed
+dual-signed online envelope. The supervisor mints only after exact complete
+Fly roster plus image/volume/region/route/autostop/autostart read-back; the
+target installs only a current `HostedAdmissionV2`, derives the opaque `eai1.`
+process authority, and binds requests/frames to it. Tamper, stale, replay,
+roster-drift, schema-drift, and packed-renewer fixtures pass. This does not
+move any item out of bucket (c): the installed supervisor still runs the prior
+image and the fresh successor lifecycle/cutover/remote qualification remains
+unperformed.

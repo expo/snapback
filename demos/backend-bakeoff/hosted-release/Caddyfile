@@ -1,0 +1,19 @@
+# @ref LLP 0105#same-origin-tls-transition — Fly forwards raw TCP and Caddy
+# terminates TLS in the target namespace; its state survives in /data/caddy.
+{
+	http_port 8080
+	https_port 8443
+	storage file_system /data/caddy
+	admin off
+}
+
+{$SNAPBACK_PUBLIC_HOST:snapback-drill.fly.dev} {
+	reverse_proxy 127.0.0.1:4287 {
+		header_up X-Forwarded-For {http.request.remote.host}
+	}
+}
+
+# Never redirect a credential-bearing plaintext request.
+http://{$SNAPBACK_PUBLIC_HOST:snapback-drill.fly.dev} {
+	respond 403
+}

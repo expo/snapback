@@ -10,9 +10,20 @@ const functions = JSON.parse(readFileSync(
   'utf8',
 ));
 const app = readFileSync(new URL('./src/App.tsx', import.meta.url), 'utf8');
+const liveAcceptance = readFileSync(new URL('./acceptance.live.mjs', import.meta.url), 'utf8');
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(functions.functions.map((fn) => fn.name).sort(), ['createTodo', 'listTodos']);
 assert.match(app, /useSnapbackQueries/);
 assert.match(app, /useSnapbackMutation/);
 assert(!app.includes(' as '), 'starter must not need result casts');
+assert.match(
+  liveAcceptance,
+  /event\.state === 'generated-and-loaded' && event\.managed === true/,
+  'live acceptance must wait for the managed CLI load lifecycle, not only the ready file',
+);
+assert.doesNotMatch(
+  liveAcceptance,
+  /ensureApp|\.seed\(/,
+  'live acceptance must not restore browser-side provisioning or seed ownership',
+);
 console.log('react starter acceptance: generated refs and first-party hooks are coherent');

@@ -17,6 +17,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -217,6 +218,69 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
   return { readyFile, database };
 }
 
+async function proveOneCommandReactStarter(scaffoldRoot) {
+  const child = spawn('npm', ['run', 'dev'], {
+    cwd: scaffoldRoot,
+    env: process.env,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const output = () => `${stdout}\n${stderr}`.replaceAll(/\u001b\[[0-9;]*m/gu, '');
+  const waitFor = async (predicate, label, timeoutMs = 60_000) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const value = predicate(output());
+      if (value) return value;
+      if (child.exitCode !== null) {
+        fail(`${label}: one-command starter exited ${child.exitCode}\n${output()}`);
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+    }
+    fail(`${label}: timed out\n${output()}`);
+  };
+  try {
+    await waitFor(
+      (text) => text.includes('"state":"client-started"'),
+      'one-command starter client arm',
+    );
+    const origin = await waitFor((text) => {
+      const match = /http:\/\/localhost:\d+\//u.exec(text);
+      return match?.[0] ?? null;
+    }, 'one-command starter Vite origin');
+    const htmlResponse = await fetch(origin);
+    const html = await htmlResponse.text();
+    if (!htmlResponse.ok || !html.includes('/src/main.tsx')) {
+      fail(`one-command starter did not serve its React entry: ${htmlResponse.status}`);
+    }
+    const moduleResponse = await fetch(new URL('/src/main.tsx', origin));
+    const moduleText = await moduleResponse.text();
+    if (!moduleResponse.ok || !moduleText.includes('virtual:snapback/dev')) {
+      fail(`one-command starter did not transform the relative Snapback client seam: ${moduleResponse.status}`);
+    }
+    const healthResponse = await fetch(new URL('/__snapback/health', origin));
+    const health = await healthResponse.json();
+    if (!healthResponse.ok || health?.ok !== true) {
+      fail(`one-command starter relay did not reach Snapback: ${JSON.stringify(health)}`);
+    }
+    return { origin, relativeBasePath: '/__snapback' };
+  } finally {
+    if (child.exitCode === null) child.stdin.end();
+    const deadline = Date.now() + 15_000;
+    while (child.exitCode === null && Date.now() < deadline) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+    }
+    if (child.exitCode === null) child.kill('SIGTERM');
+    const hardDeadline = Date.now() + 5_000;
+    while (child.exitCode === null && Date.now() < hardDeadline) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+    }
+    if (child.exitCode === null) child.kill('SIGKILL');
+  }
+}
+
 if (!existsSync(ledgerPath)) fail(`publication ledger is missing: ${ledgerPath}`);
 const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8'));
 if (ledger.schemaVersion !== 'snapback.package-publication.v1') fail('unsupported publication ledger');
@@ -234,6 +298,7 @@ const allExpectedPackages = [
   '@snapback/contract',
   '@snapback/client',
   '@snapback/codegen',
+  '@snapback/vite',
   '@snapback/react',
   '@snapback/app-cli',
   '@snapback/cli',
@@ -270,6 +335,7 @@ const expectedPackages = [
   '@snapback/contract',
   '@snapback/client',
   '@snapback/codegen',
+  '@snapback/vite',
   '@snapback/react',
   '@snapback/app-cli',
   '@snapback/cli',
@@ -421,6 +487,47 @@ await build({
   ) {
     fail(`packaged runtime doctor failed: ${JSON.stringify(doctor)}`);
   }
+  const comparatorReceiptPath = join(appRoot, 'comparator-receipt.json');
+  const comparatorConfigPath = join(
+    appRoot,
+    'node_modules',
+    '@snapback',
+    'cli',
+    'fixtures',
+    'comparator',
+    'green.config.mjs',
+  );
+  run(developerCli, [
+    'accept', 'comparator',
+    '--config', comparatorConfigPath,
+    '--receipt', comparatorReceiptPath,
+    '--timeout-ms', '30000',
+    '--json',
+  ], { cwd: appRoot, timeout: 120_000 });
+  const comparatorReceipt = JSON.parse(readFileSync(comparatorReceiptPath, 'utf8'));
+  if (
+    comparatorReceipt.schemaVersion !== 'snapback.comparator-receipt.v1'
+    || comparatorReceipt.status !== 'passed'
+    || comparatorReceipt.exitCode !== 0
+    || comparatorReceipt.checks?.length !== 5
+    || comparatorReceipt.checks.some(({ status }) => status !== 'passed')
+    || comparatorReceipt.cleanup?.ok !== true
+  ) {
+    fail(`packed comparator profile did not pass: ${JSON.stringify(comparatorReceipt)}`);
+  }
+  const comparatorVerification = JSON.parse(run(developerCli, [
+    'accept', 'comparator',
+    '--verify-receipt', comparatorReceiptPath,
+    '--max-age-ms', '60000',
+    '--json',
+  ], { cwd: appRoot }));
+  if (
+    comparatorVerification.schemaVersion !== 'snapback.comparator-verification.v1'
+    || comparatorVerification.ok !== true
+    || comparatorVerification.status !== 'passed'
+  ) {
+    fail(`packed comparator receipt did not verify: ${JSON.stringify(comparatorVerification)}`);
+  }
   const scaffoldRoot = join(appRoot, 'todo-contract');
   run(developerCli, ['new', scaffoldRoot, '--template', 'todo-contract', '--json'], { cwd: appRoot });
   const scaffoldManifestPath = join(scaffoldRoot, 'package.json');
@@ -505,7 +612,7 @@ await build({
       cwd: fixtureRoot,
       timeout: 360_000,
     });
-    for (const name of ['@snapback/client', '@snapback/react']) {
+    for (const name of ['@snapback/client', '@snapback/react', '@snapback/vite']) {
       const installed = join(fixtureRoot, 'node_modules', ...name.split('/'));
       if (!existsSync(installed) || lstatSync(installed).isSymbolicLink()) {
         fail(`${fixtureRoot}: ${name} is not a materialized tarball install`);
@@ -533,7 +640,35 @@ await build({
   run('npm', ['run', 'typecheck'], { cwd: reactScaffoldRoot });
   run('npm', ['test'], { cwd: reactScaffoldRoot });
   run('npm', ['run', 'build'], { cwd: reactScaffoldRoot });
+  const managedStarter = await proveOneCommandReactStarter(reactScaffoldRoot);
   run('npm', ['run', 'test:live'], { cwd: reactScaffoldRoot, timeout: 120_000 });
+  const reactManifest = JSON.parse(readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'));
+  const reactMain = readFileSync(join(reactScaffoldRoot, 'src', 'main.tsx'), 'utf8');
+  const reactViteConfig = readFileSync(join(reactScaffoldRoot, 'vite.config.ts'), 'utf8');
+  const versionedSeed = JSON.parse(readFileSync(
+    join(reactScaffoldRoot, 'snapback', 'generated', 'seed.artifact.json'),
+    'utf8',
+  ));
+  const builtAssets = readdirSync(join(reactScaffoldRoot, 'dist', 'assets'))
+    .filter((name) => name.endsWith('.js'))
+    .map((name) => readFileSync(join(reactScaffoldRoot, 'dist', 'assets', name), 'utf8'))
+    .join('\n');
+  if (
+    reactManifest.scripts?.dev !== 'snapback dev snapback --client . --client-command vite'
+    || reactManifest.scripts?.['snapback:dev'] !== reactManifest.scripts?.dev
+    || reactManifest.scripts?.['client:dev'] !== 'vite'
+    || !Object.hasOwn(reactManifest.dependencies ?? {}, '@snapback/vite')
+    || !reactMain.includes("from 'virtual:snapback/dev'")
+    || reactMain.includes('ensureApp(')
+    || !reactViteConfig.includes("server: { mode: 'attach' }")
+    || versionedSeed.formatVersion !== 'snapback.seed.v1'
+    || typeof versionedSeed.seedVersion !== 'string'
+    || builtAssets.includes('127.0.0.1')
+    || builtAssets.includes('admin-token')
+    || builtAssets.includes('SNAPBACK_ADMIN_TOKEN')
+  ) {
+    fail('React starter did not preserve the one-command versioned relative Vite seam');
+  }
 
   const expoFixtureRoot = join(appRoot, 'react-expo');
   cpSync(
@@ -612,11 +747,15 @@ await build({
       repositoryRelativePublicationPaths: true,
       packagedCliIntrospection: true,
       packagedRuntimeDoctor: true,
+      packagedComparatorProfile: true,
       packagedScaffoldAndOfflineGenerate: true,
       packagedDeployBuildAndVerify: true,
       packagedManagedDevReadyAttachWatchAndStop: true,
       packedReactWebTypecheckTestBuildAndLiveAcceptance: true,
+      packedReactOneCommandBackendViteJourney:
+        managedStarter.relativeBasePath === '/__snapback',
       packedReactExpoTypecheckAndIosExport: true,
+      packagedViteRelativeVersionedSeedSeam: true,
       browserAdapterBundle: true,
       resolvedDependencyCount: Object.keys(tree.dependencies ?? {}).length,
       browserBundleBytes: Buffer.byteLength(browserBundle),

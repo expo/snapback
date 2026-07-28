@@ -1441,16 +1441,22 @@ pub struct HostedAdmissionV2 {
     pub schema_version: HostedAdmissionV2Version,
     pub target_id: String,
     pub deployment_id: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub binding_generation: u64,
     pub target_binding_sha256: String,
     pub control_head_sha256: String,
     pub supervisor_incarnation: String,
     pub exact_roster_sha256: String,
     pub routed_machine_id: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub hosted_auth_expires_at_ms: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub routed_machine_expires_at_ms: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub replay_floor: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub admission_generation: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub issued_at_ms: u64,
     pub signature: String,
 }
@@ -1748,6 +1754,162 @@ pub struct CleanupReceiptV1 {
     pub continuing_cost_micros_per_hour: u64,
     pub completed: bool,
     pub recorded_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum HostedProductJourneyVersion {
+    #[serde(rename = "snapback.hosted-product-journey.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum HostedJourneyStatus {
+    Passed,
+    Failed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyProviderV1 {
+    pub organization: String,
+    pub app: String,
+    pub region: String,
+    pub public_origin: String,
+    pub predecessor_machine_id: String,
+    pub predecessor_volume_id: String,
+    pub release_image_digest: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyComparatorV1 {
+    pub receipt_sha256: String,
+    pub status: HostedJourneyStatus,
+    pub required_checks: u64,
+    pub passed_checks: u64,
+    pub hosted_parity_claimed: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneySingleRouteV1 {
+    pub status: HostedJourneyStatus,
+    pub routed_machine_ids: Vec<String>,
+    pub autoscale_enabled: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyBackupV1 {
+    pub status: HostedJourneyStatus,
+    pub object_key: String,
+    pub bytes: u64,
+    pub backup_sha256: String,
+    pub readback_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyIsolatedRestoreV1 {
+    pub status: HostedJourneyStatus,
+    pub helper_machine_id: String,
+    pub helper_volume_id: String,
+    pub helper_production_services: u64,
+    pub volume_encrypted: bool,
+    pub sqlite_integrity: String,
+    pub sqlite_table_count: u64,
+    pub activated: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyServedPathV1 {
+    pub status: HostedJourneyStatus,
+    pub http_status: u16,
+    pub diagnostic_code: String,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyPackedLifecycleV1 {
+    pub status: HostedJourneyStatus,
+    pub diagnostic_code: String,
+    pub missing: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyRowsV1 {
+    pub single_production_route: HostedJourneySingleRouteV1,
+    pub application_consistent_backup: HostedJourneyBackupV1,
+    pub isolated_restore: HostedJourneyIsolatedRestoreV1,
+    pub public_served_path: HostedJourneyServedPathV1,
+    pub packed_lifecycle: HostedJourneyPackedLifecycleV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyDeletedMachineV1 {
+    pub id: String,
+    pub provider_state: String,
+    pub absent_from_live_roster: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyDeletedVolumeV1 {
+    pub id: String,
+    pub provider_state: String,
+    pub absent_from_live_inventory: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyDeletedObjectV1 {
+    pub key: String,
+    pub readback_status: u16,
+    pub absent: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyCleanupV1 {
+    pub temporary_machine: HostedJourneyDeletedMachineV1,
+    pub temporary_volume: HostedJourneyDeletedVolumeV1,
+    pub temporary_backup_object: HostedJourneyDeletedObjectV1,
+    pub live_roster_after_cleanup: Vec<String>,
+    pub live_volumes_after_cleanup: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyClaimBoundaryV1 {
+    pub supervisor_installation_ready: bool,
+    pub isolated_backup_restore_drill_passed: bool,
+    pub hosted_product_journey_passed: bool,
+    pub hosted_ephemeral_capability_advertised: bool,
+}
+
+/// Machine-readable packed product-journey receipt. A failed receipt is a
+/// first-class artifact: it retains every completed remote row and closed
+/// cleanup inventory without becoming capability evidence.
+///
+/// @ref LLP 0105#4-public-cli-product-journey — the public journey is one
+/// Rust-owned closed receipt, including coded failure and cleanup posture.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedProductJourneyV1 {
+    pub schema_version: HostedProductJourneyVersion,
+    pub status: HostedJourneyStatus,
+    pub observed_at: String,
+    pub comparator: HostedJourneyComparatorV1,
+    pub provider: HostedJourneyProviderV1,
+    pub rows: HostedJourneyRowsV1,
+    pub cleanup: HostedJourneyCleanupV1,
+    pub claim_boundary: HostedJourneyClaimBoundaryV1,
 }
 
 #[cfg(test)]

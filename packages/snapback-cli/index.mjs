@@ -29,6 +29,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SnapbackClient } from '@snapback/client';
 import { formatCodegenSummary, generate } from '@snapback/codegen';
 import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@snapback/contract/auth-coordinator';
+import {
   resolveGeneratedArtifact,
   verifyGeneratedGraph,
 } from '@snapback/codegen/review-surface';
@@ -1308,14 +1312,34 @@ export async function loadGenerated(
 ) {
   const generated = join(backendRoot, 'generated');
   const targetArgs = ['--ready-file', readyFile, ...(adminToken ? ['--token', adminToken] : [])];
-  let versionedSeedPath = null;
-  try {
-    versionedSeedPath = resolveGeneratedArtifact(generated, 'seed.artifact.json');
-  } catch {
-    // Legacy generated graphs intentionally have no versioned seed export.
+  const optionalGeneratedArtifact = (artifactPath) => {
+    let resolved;
+    try {
+      resolved = resolveGeneratedArtifact(generated, artifactPath);
+    } catch (error) {
+      if (error?.code === 'SNAPBACK_CODEGEN_ARTIFACT_NOT_IN_MANIFEST') return null;
+      throw error;
+    }
+    return existsSync(resolved) ? resolved : null;
+  };
+  const schemaPath = resolveGeneratedArtifact(generated, 'schema.manifest.json');
+  const functionsPath = resolveGeneratedArtifact(generated, 'functions.manifest.json');
+  const schemaManifest = JSON.parse(readFileSync(schemaPath, 'utf8'));
+  const requestedMode = schemaManifest?.auth?.mode ?? 'dev';
+  if (requestedMode !== 'dev' && requestedMode !== 'sessions') {
+    throw diagnosticError(
+      'SNAPBACK_DEV_AUTH_MODE_INVALID',
+      'generated schema manifest does not name a supported auth mode',
+      { requestedMode },
+    );
   }
-  const artifact = versionedSeedPath && existsSync(versionedSeedPath)
+  const versionedSeedPath = optionalGeneratedArtifact('seed.artifact.json');
+  const routesPath = optionalGeneratedArtifact('routes.manifest.json');
+  const artifact = versionedSeedPath
     ? JSON.parse(readFileSync(versionedSeedPath, 'utf8'))
+    : null;
+  const routes = routesPath
+    ? JSON.parse(readFileSync(routesPath, 'utf8'))
     : null;
   if (artifact) {
     const capabilityManifest = JSON.parse(
@@ -1333,26 +1357,61 @@ export async function loadGenerated(
   if (!skipSchemaFunctions) {
     requireNativeSuccess(native(binary, [
       'load', ...targetArgs,
-      '--schema', resolveGeneratedArtifact(generated, 'schema.manifest.json'),
-      '--functions', resolveGeneratedArtifact(generated, 'functions.manifest.json'),
+      '--schema', schemaPath,
+      '--functions', functionsPath,
     ], { cwd: projectRoot }), 'SNAPBACK_DEV_SERVER_LOAD_FAILED', 'schema/function load');
   }
-  if (artifact) {
+  if (artifact || routes) {
     const descriptor = validateDevTarget(readReadyDescriptor(readyFile), {
       readyFile,
       database,
     });
-    const client = new SnapbackClient(descriptor.serverUrl, { adminToken });
-    if (seed) {
-      const preview = await client.previewVersionedSeed(artifact, { operation: 'install' });
-      const stream = preview?.requested?.dataVersionStream;
-      await client.resetInstallVersionedSeed(artifact, {
-        expectedDataVersionStream: typeof stream === 'string'
-          ? { state: 'present', value: stream }
-          : { state: 'absent' },
-      });
-    } else {
-      await client.ensureVersionedSeed(artifact);
+    // @ref LLP 0058#kit-ordering — sessions-mode managed tooling establishes
+    // real coordinator custody through /auth/session before Public
+    // inspection or app-data ensure; adminToken is not caller authority.
+    const authCoordinator = requestedMode === 'sessions'
+      ? new AuthCoordinator({
+          appId: schemaManifest.appId,
+          storage: createMemoryAuthCustodyStorage(),
+          broadcastChannelFactory: null,
+          hintStorage: null,
+        })
+      : null;
+    const client = new SnapbackClient(descriptor.serverUrl, {
+      adminToken,
+      ...(authCoordinator ? { authCoordinator } : {}),
+    });
+    try {
+      if (authCoordinator) await client.authSession();
+      if (routes) {
+        await client.ensureApp({
+          routes,
+          ...(requestedMode === 'sessions'
+            ? { intent: 'provision', requestedMode }
+            : {}),
+        });
+      }
+      // @ref LLP 0103#31-new-appensure-intent — a versioned install/reset
+      // names the generated auth mode; tooling must not send the default
+      // `dev` for a sessions artifact pair.
+      if (artifact && seed) {
+        const preview = await client.previewVersionedSeed(artifact, {
+          operation: 'install',
+          requestedMode,
+        });
+        const stream = preview?.requested?.dataVersionStream;
+        await client.resetInstallVersionedSeed(artifact, {
+          requestedMode,
+          expectedDataVersionStream: typeof stream === 'string'
+            ? { state: 'present', value: stream }
+            : { state: 'absent' },
+        });
+      } else if (artifact) {
+        await client.ensureVersionedSeed(artifact, { requestedMode });
+      }
+    } finally {
+      await client.closeAuth();
+      await authCoordinator?.close();
     }
     return;
   }

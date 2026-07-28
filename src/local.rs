@@ -259,6 +259,11 @@ pub struct InspectState {
     pub functions: FunctionManifest,
     #[serde(rename = "capabilityManifest")]
     pub capability_manifest: CapabilityManifest,
+    /// Canonical identity of the served route manifest, or `absent`.
+    /// Public because it binds generated route references without disclosing
+    /// route names or arguments.
+    #[serde(rename = "routeManifestHash")]
+    pub route_manifest_hash: String,
     pub subscriptions: Vec<LiveSubscriptionInfo>,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2 connection
     // reaper counters (counts only; no connection ids beyond the trimmed public
@@ -318,6 +323,8 @@ pub struct PublicInspect {
     pub functions: PublicFunctionManifest,
     #[serde(rename = "capabilityManifest")]
     pub capability_manifest: CapabilityManifest,
+    #[serde(rename = "routeManifestHash")]
+    pub route_manifest_hash: String,
     pub subscriptions: Vec<PublicSubscriptionInfo>,
     #[serde(rename = "activeConnections")]
     pub active_connections: usize,
@@ -563,6 +570,7 @@ impl From<InspectState> for PublicInspect {
             schema,
             functions,
             capability_manifest,
+            route_manifest_hash,
             subscriptions,
             active_connections,
             reaped_connections,
@@ -589,6 +597,7 @@ impl From<InspectState> for PublicInspect {
             schema: schema.into(),
             functions: functions.into(),
             capability_manifest,
+            route_manifest_hash,
             subscriptions: subscriptions
                 .into_iter()
                 .map(
@@ -937,6 +946,8 @@ pub enum EnsureAppExplicitInput {
         functions: Option<Box<FunctionManifest>>,
         #[serde(default)]
         seed: Option<Box<SeedData>>,
+        #[serde(default)]
+        routes: Option<Box<crate::bundle::RoutesManifest>>,
     },
 }
 
@@ -1000,6 +1011,8 @@ pub struct EnsureAppProvisionOutcome {
     pub schema: String,
     pub functions: String,
     pub seed: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routes: Option<String>,
     pub profile: String,
 }
 
@@ -1010,6 +1023,7 @@ impl From<EnsureAppOutcome> for EnsureAppProvisionOutcome {
             schema: outcome.schema,
             functions: outcome.functions,
             seed: outcome.seed,
+            routes: outcome.routes,
             profile: outcome.profile,
         }
     }
@@ -1032,6 +1046,7 @@ pub(crate) struct PreparedAuthProvision {
     requested_mode: AuthMode,
     artifacts: StartupArtifacts,
     deployment: DeploymentIdentity,
+    routes: Option<crate::bundle::RoutesManifest>,
 }
 
 #[derive(Clone, Debug)]
@@ -1157,8 +1172,9 @@ impl EnsureAppExplicitInput {
                 schema,
                 functions,
                 seed,
+                routes,
             } => {
-                if schema.is_none() && functions.is_none() && seed.is_none() {
+                if schema.is_none() && functions.is_none() && seed.is_none() && routes.is_none() {
                     return Err(ensure_request_invalid(
                         "app.ensure provision requires at least one of schema, functions, or seed",
                     ));
@@ -1188,6 +1204,11 @@ impl EnsureAppExplicitInput {
                     return Err(ensure_request_invalid(
                         "app.ensure provision requires a coherent schema/function artifact pair",
                     ));
+                }
+                if let Some(routes) = routes {
+                    crate::bundle::validate_routes_manifest_shape(routes).map_err(|message| {
+                        SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message)
+                    })?;
                 }
                 Ok(())
             }
@@ -2761,6 +2782,7 @@ pub(crate) struct BundleRegisterTarget {
     pub(crate) connection_id: String,
     pub(crate) effect_fence: crate::ephemeral::ConnectionEffectFence,
     pub(crate) invalidation_connection: Option<AuthorizationInvalidationConnection>,
+    pub(crate) authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -4347,6 +4369,17 @@ impl LocalSnapback {
         functions: Option<FunctionManifest>,
         seed: Option<SeedData>,
     ) -> SnapbackResult<PreparedAuthProvision> {
+        self.prepare_auth_provision_with_routes(requested_mode, schema, functions, seed, None)
+    }
+
+    pub(crate) fn prepare_auth_provision_with_routes(
+        &mut self,
+        requested_mode: EnsureAppMode,
+        schema: Option<SchemaManifest>,
+        functions: Option<FunctionManifest>,
+        seed: Option<SeedData>,
+        routes: Option<crate::bundle::RoutesManifest>,
+    ) -> SnapbackResult<PreparedAuthProvision> {
         let requested_mode = requested_mode.auth_mode();
         let snapshot = self.db.auth_mode_snapshot()?;
         Self::require_provision_posture(&snapshot.state, requested_mode)?;
@@ -4358,10 +4391,18 @@ impl LocalSnapback {
             &snapshot.state,
         )?;
         let deployment = self.preflight_auth_artifacts(&artifacts, requested_mode)?;
+        if let Some(routes) = &routes {
+            Self::validate_routes_manifest_against(
+                routes,
+                &artifacts.functions,
+                &artifacts.schema,
+            )?;
+        }
         Ok(PreparedAuthProvision {
             requested_mode,
             artifacts,
             deployment,
+            routes,
         })
     }
 
@@ -4450,8 +4491,17 @@ impl LocalSnapback {
             .is_some_and(|identity| identity.schema_hash == prepared.deployment.schema_hash);
         let functions_matched = comparison
             .is_some_and(|identity| identity.bundle_hash == prepared.deployment.bundle_hash);
+        let routes = prepared.routes.clone();
+        let incoming_routes_hash = routes.as_ref().and_then(|manifest| {
+            serde_json::to_value(manifest)
+                .ok()
+                .and_then(|value| crate::rqs::sha256_identity(&value).ok())
+        });
+        let routes_matched =
+            incoming_routes_hash.is_some() && incoming_routes_hash == self.routes_manifest_hash;
+        let requested_mode_is_active = prepared.requested_mode == before.state.active;
 
-        let (seed_outcome, state, diagnostics) = if prepared.requested_mode == before.state.active {
+        let (seed_outcome, state, diagnostics) = if requested_mode_is_active {
             let publication_generation = self
                 .reserve_function_publication_generation()
                 .map_err(ModeCommitFailure::RolledBack)?;
@@ -4481,6 +4531,16 @@ impl LocalSnapback {
                 prepared.artifacts.functions,
                 publication_generation,
             );
+            if let Some(routes) = routes.as_ref()
+                && !routes_matched
+            {
+                // The candidate routes were preflighted against this exact
+                // schema/function pair before the durable activation cut.
+                // Repeating install after function publication binds the
+                // served route generation to the now-active pair.
+                self.install_routes_manifest(routes.clone())
+                    .map_err(ModeCommitFailure::Uncertain)?;
+            }
             if before.state.active == AuthMode::Sessions
                 && (activation_changed || seed_outcome == NetworkSeedOutcome::Seeded)
             {
@@ -4562,6 +4622,16 @@ impl LocalSnapback {
                 }
                 .to_owned(),
                 seed: seed_outcome.to_owned(),
+                routes: routes.as_ref().map(|_| {
+                    if !requested_mode_is_active {
+                        "skipped-pending-mode"
+                    } else if routes_matched {
+                        "matched"
+                    } else {
+                        "provisioned"
+                    }
+                    .to_owned()
+                }),
                 profile: profile.to_owned(),
             },
             state,
@@ -4917,6 +4987,10 @@ impl LocalSnapback {
             schema: self.db.schema().clone(),
             functions: self.functions.clone(),
             capability_manifest,
+            route_manifest_hash: self
+                .routes_manifest_hash
+                .clone()
+                .unwrap_or_else(|| "absent".to_owned()),
             subscriptions: self
                 .subscriptions
                 .values()
@@ -6545,16 +6619,24 @@ impl LocalSnapback {
         &self,
         manifest: &crate::bundle::RoutesManifest,
     ) -> SnapbackResult<()> {
+        Self::validate_routes_manifest_against(manifest, &self.functions, self.db.schema())
+    }
+
+    fn validate_routes_manifest_against(
+        manifest: &crate::bundle::RoutesManifest,
+        functions: &FunctionManifest,
+        schema: &SchemaManifest,
+    ) -> SnapbackResult<()> {
         crate::bundle::validate_routes_manifest_shape(manifest).map_err(routes_manifest_error)?;
-        if manifest.app != self.functions.app_id {
+        if manifest.app != functions.app_id {
             return Err(routes_manifest_error(format!(
                 "routes manifest app {:?} does not match the served functions manifest app {:?}",
-                manifest.app, self.functions.app_id
+                manifest.app, functions.app_id
             )));
         }
         for entry in &manifest.routes {
             for spec in &entry.queries {
-                let Some(function) = self.functions.function(&spec.function) else {
+                let Some(function) = functions.function(&spec.function) else {
                     return Err(routes_manifest_error(format!(
                         "route {:?} names unknown function {:?}",
                         entry.route, spec.function
@@ -6569,7 +6651,15 @@ impl LocalSnapback {
                         entry.route, spec.function
                     )));
                 }
-                let arg_types = crate::bundle::function_route_arg_types(function, self.db.schema());
+                if entry.register_group_eligible
+                    && function.kind != crate::manifest::FunctionKind::LiveQuery
+                {
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} asserts registerGroupEligible but query {:?} is not a LiveQuery",
+                        entry.route, spec.function
+                    )));
+                }
+                let arg_types = crate::bundle::function_route_arg_types(function, schema);
                 if let Value::Object(map) = &spec.args {
                     for (key, value) in map {
                         let Value::Object(inner) = value else {
@@ -6578,6 +6668,16 @@ impl LocalSnapback {
                         if inner.contains_key("$param") && !arg_types.contains_key(key.as_str()) {
                             return Err(routes_manifest_error(format!(
                                 "route {:?} query {:?} references param into arg {:?}, which has no schema-derived string/number/boolean type",
+                                entry.route, spec.function, key
+                            )));
+                        }
+                        if entry.register_group_eligible
+                            && inner.contains_key("$param")
+                            && arg_types.get(key.as_str())
+                                != Some(&crate::bundle::RouteParamType::String)
+                        {
+                            return Err(routes_manifest_error(format!(
+                                "route {:?} asserts registerGroupEligible but query {:?} param target {:?} is not string-typed",
                                 entry.route, spec.function, key
                             )));
                         }
@@ -7000,7 +7100,7 @@ impl LocalSnapback {
             error
         };
         let result = (|snapback: &mut Self| -> SnapbackResult<Vec<crate::bundle::BundleEntry>> {
-            for spec in &entry.queries {
+            for (query_index, spec) in entry.queries.iter().enumerate() {
                 if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
                     return Err(refuse(
                         code::LIMIT_TIME,
@@ -7029,6 +7129,26 @@ impl LocalSnapback {
                         code::ENTRY_INVALID,
                         "register mode requires live queries",
                     ));
+                }
+                if let Some(target) = &register {
+                    let supplied_namespace = target
+                        .authorization_namespaces
+                        .get(query_index)
+                        .and_then(Option::as_ref);
+                    if authority.active_mode() == AuthMode::Sessions {
+                        if function.authority_independent && supplied_namespace.is_some() {
+                            return Err(refuse(
+                                code::ENTRY_INVALID,
+                                "authority-independent registered children require a null authorization namespace",
+                            ));
+                        }
+                        if !function.authority_independent && supplied_namespace.is_none() {
+                            return Err(refuse(
+                                code::ENTRY_INVALID,
+                                "auth-scoped registered children require an authorization namespace",
+                            ));
+                        }
+                    }
                 }
                 // Schema-driven per-arg decode (LLP 0092 §0E.6): references
                 // decode by the AST-derived type of their target arg.
@@ -7105,7 +7225,13 @@ impl LocalSnapback {
                                 correlation: None,
                                 ctx_ledger: None,
                             },
-                            authorization_namespace: None,
+                            authorization_namespace: register.as_ref().and_then(|target| {
+                                target
+                                    .authorization_namespaces
+                                    .get(query_index)
+                                    .cloned()
+                                    .flatten()
+                            }),
                             supersedes: None,
                             resume_from_token: None,
                         };
@@ -7133,11 +7259,11 @@ impl LocalSnapback {
                             .snapshot
                             .map(|snapshot| snapshot.rows)
                             .unwrap_or_default();
-                        let authorization = output.authorization_scope.as_ref().map(|scope| {
-                            json!({
-                                "scope": scope,
-                                "invalidation": output.authorization_invalidation,
-                            })
+                        let authorization = output.authorization_scope.map(|scope| {
+                            crate::bundle::BundleAuthorization {
+                                scope,
+                                invalidation: output.authorization_invalidation,
+                            }
                         });
                         (
                             rows,

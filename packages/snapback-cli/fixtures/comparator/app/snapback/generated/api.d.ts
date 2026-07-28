@@ -15,8 +15,8 @@ export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
 export interface SearchRequestV1 { query: SearchQueryAstV1; limit?: number; after?: string }
 export interface SearchMatchRangeV1 { start: number; end: number }
 export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }
-export interface SearchItemV1 { rowId: string; score: number; fields: Readonly<Record<string, unknown>>; highlights: readonly SearchHighlightV1[] }
-export interface SearchPageV1 { items: readonly SearchItemV1[]; cursor: string | null; hasMore: boolean }
+export interface SearchItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; score: number; fields: Fields; highlights: readonly SearchHighlightV1[] }
+export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
 export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
@@ -36,18 +36,42 @@ export type FunctionResult<Ref> = Ref extends FunctionReference<string, Function
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
 export type MutationInvocation<Ref extends FunctionReference<string, 'Mutation', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
 export type ActionInvocation<Ref extends FunctionReference<string, 'Action', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
-export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
+export interface QueryGroupEntry<Name extends string = string, Ref extends FunctionReference<string, "LiveQuery", unknown, unknown> = FunctionReference<string, "LiveQuery", unknown, unknown>, Args extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
+  readonly name: Name;
+  readonly ref: Ref;
+  readonly args: Args;
+}
+export type QueryGroupEntryResults<Queries extends readonly QueryGroupEntry[]> = {
+  readonly [Entry in Queries[number] as Entry["name"]]: { readonly ref: Entry["ref"]; readonly args: FunctionArgs<Entry["ref"]> };
+};
+export interface QueryGroupReference<Route extends string, Params, Queries extends readonly QueryGroupEntry[]> {
+  readonly artifactKind: 'queryGroupReference';
+  readonly formatVersion: 1;
+  readonly schemaVersion: SchemaVersion;
+  readonly appId: string;
+  readonly id: `${string}:query-group:${Route}`;
+  readonly route: Route;
+  readonly definitionHash: `sha256:${string}`;
+  readonly queries: Queries;
+  readonly persist?: false;
+  readonly __params?: Params;
+  readonly __entries?: QueryGroupEntryResults<Queries>;
+}
+export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;
+export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;
+export interface EphemeralCollectionReference<Name extends string, Scope, Value, KeyMode extends EphemeralKeyMode = EphemeralKeyMode> {
   artifactKind: 'ephemeralCollectionReference';
   schemaVersion: SchemaVersion;
   appId: string;
   id: string;
   name: Name;
-  keyMode: EphemeralKeyMode;
+  keyMode: KeyMode;
   scopeFields: readonly string[];
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
   maxValueBytes: number;
+  publishRate: { readonly sustainedHz: number; readonly burst: number };
   deliveryMode: 'latest';
   readonly __scope?: Scope;
   readonly __value?: Value;
@@ -75,7 +99,9 @@ export interface GeneratedFunctionContexts {
   writePrimaryAndActivity: GeneratedMutationContext;
 }
 export interface GeneratedEphemeral {
-  fixturePresence: EphemeralCollectionReference<'fixturePresence', { roomId: string }, { state: string }>;
+  fixturePresence: EphemeralCollectionReference<'fixturePresence', { roomId: string }, { state: string }, 'Connection'>;
+}
+export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
   activityRows: FunctionReference<'activityRows', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["activityRows"]>>;
@@ -86,7 +112,9 @@ export interface GeneratedApi {
   rejectionRows: FunctionReference<'rejectionRows', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["rejectionRows"]>>;
   writePrimaryAndActivity: FunctionReference<'writePrimaryAndActivity', 'Mutation', { primary: string; activity: string }, unknown>;
   ephemeral: GeneratedEphemeral;
+  groups: GeneratedQueryGroups;
 }
 export declare const ephemeral: GeneratedEphemeral;
+export declare const groups: GeneratedQueryGroups;
 export declare const api: GeneratedApi;
 export default api;

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9bccccc9ceeeac5f7edacf9c64ad8780a0f43f51"
+    "commit": "92e793e701199b7ea3a046cbc94819aed65cd1ea"
   },
   "nav": {
     ".": [
@@ -864,7 +864,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "f6dc1b5533aa884223fac8da8021ea76956e073522fcc17c32f3fdd51e186bee",
+      "sha256": "655d89ab0b766809b1e42f7581bf60d3f07d86541a1a4216ce1d2783f8cfaa59",
       "snippets": [
         {
           "lang": "js",
@@ -968,7 +968,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "ba4e8ad1b380f791408b43547a8699d15d7b898e8fe8e3148814b90285c156dd",
+      "sha256": "c85b3e1d650969894c1017c1ceb42411b0c4803a17f26619940ef016ac990ddd",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1139,7 +1139,7 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "4c7a73fc9df9acf66da0d3dbb56c8d1df6143458556aa2dba06d98f3c010ad34",
+      "sha256": "79ece76ce6a589cfdb8c5f85ff86584927b803bb9851f74d619b970eb0842434",
       "snippets": [
         {
           "lang": "js",
@@ -1211,6 +1211,7 @@
         "llp/0101-inline-handlers-and-result-contracts.spec.md",
         "llp/0102-first-class-react-and-query-groups.spec.md",
         "llp/0106-react-presence-and-optimistic-lifecycle.spec.md",
+        "llp/0107-generated-query-group-bundle-adoption.spec.md",
         "packages/snapback-client/canonical-client-value.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-contract/result-contract-validator.mjs",
@@ -1230,7 +1231,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "65d02fa2dffacc28fd2d54a8883eeed6a16a9139594bbb730c9258359ee42c39",
+      "sha256": "391ed553a5bd151df01d4e401eb171eec04df32c72d2dcb0602aa2d7f8d90396",
       "snippets": [
         {
           "lang": "ts",
@@ -1489,7 +1490,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "13b4516f8265469b109364eddd970384b744694fbc1a9379660cb193b8873589",
+      "sha256": "7ba2956debf3da973176df3e0cbfd07359d95e08d645df85f9dce2adc7b74b24",
       "snippets": [
         {
           "lang": "js",
@@ -2040,7 +2041,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "a9bd07572ac81d88669e84f94e4692de35d9eaa3208124f447d6087f3bb17f80",
+      "sha256": "06a5a5f2af35a4617b5007ff57a8d3bcceb128c3a999b71b97db5c2eb88068dc",
       "snippets": [
         {
           "lang": "js",
@@ -2133,5 +2134,5 @@
     "routes": 73,
     "hostOps": 19
   },
-  "contentHash": "3d49add29fcf111728e2f90ae8ec303094baf0b0cd1c11f3bc0c6062709e31ac"
+  "contentHash": "67556cb16711e1d82d61a789296acb079ae2959df2da447d57cca241c60266d2"
 }

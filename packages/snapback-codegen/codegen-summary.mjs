@@ -21,7 +21,34 @@ export function createCodegenSummary({
     if (fn.kind === 'LiveQuery') operationCounts.live += 1;
   }
   const warnings = diagnostics.filter(({ severity }) => severity === 'warning');
-  const degradedResults = warnings
+  const degradedByOperation = new Map();
+  for (const diagnostic of diagnostics) {
+    if (diagnostic.code !== 'SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED') continue;
+    const operation = diagnostic.details?.function ?? diagnostic.function;
+    if (typeof operation !== 'string') continue;
+    const definition = functions.find(({ name }) => name === operation);
+    const kind = definition?.kind ?? 'Unknown';
+    const table = definition?.readSetSummary?.[0]
+      ?? definition?.declaredReads?.[0]
+      ?? definition?.writeSetSummary?.[0]
+      ?? definition?.declaredWrites?.[0]
+      ?? null;
+    const query = kind === 'Query' || kind === 'LiveQuery';
+    degradedByOperation.set(operation, {
+      code: diagnostic.code,
+      operation,
+      kind,
+      source: sourceSpans[operation] ?? { path: 'functions.mjs', line: 1, column: 1 },
+      output: {
+        path: `${outputDirectory}/api.d.ts`,
+        symbol: `GeneratedApi[${JSON.stringify(operation)}]`,
+      },
+      remediation: query
+        ? `Add \`result: results.documents(${JSON.stringify(table ?? 'table')})\` for complete stored rows or \`result: results.records(v.object({ ... }))\` for computed rows to \`${operation}\` in functions.mjs and regenerate.`
+        : `Add \`result: results.document(${JSON.stringify(table ?? 'table')})\` for one complete stored row or \`result: results.value(v.object({ ... }))\` for a direct payload to \`${operation}\` in functions.mjs and regenerate.`,
+    });
+  }
+  const providerDegradations = warnings
     .filter(({ code }) => code === 'PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED')
     .map((diagnostic) => ({
       diagnostic,
@@ -32,7 +59,7 @@ export function createCodegenSummary({
       const operation = match[1];
       const degradedField = match[2] ?? null;
       const definition = functions.find(({ name }) => name === operation);
-      const table = definition?.declaredReads?.[0] ?? null;
+      const table = definition?.readSetSummary?.[0] ?? definition?.declaredReads?.[0] ?? null;
       return {
         code: diagnostic.code,
         operation,
@@ -53,6 +80,15 @@ export function createCodegenSummary({
           : `Add a \`result: v.object({ ... })\` declaration to \`${operation}\` in functions.mjs and regenerate.`,
       };
     });
+  for (const degradation of providerDegradations) {
+    if (!degradedByOperation.has(degradation.operation)) {
+      degradedByOperation.set(degradation.operation, degradation);
+    }
+  }
+  const degradedResults = [...degradedByOperation.values()]
+    .sort((left, right) => (
+      left.operation < right.operation ? -1 : left.operation > right.operation ? 1 : 0
+    ));
   const custody = {
     reviewManifest: 1,
     consumerCommitted: fileRecords.filter(({ custody }) => custody === 'consumer-committed').length,

@@ -11,6 +11,7 @@ import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
 } from '@snapback/contract';
+import { resetInstallGeneratedSeed } from '../scripts/versioned-seed.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const demoRoot = join(here, '..');
@@ -21,7 +22,7 @@ const generated = (name) =>
 const { default: api } = await import(
   pathToFileURL(resolveGeneratedArtifact(generatedRoot, 'api.mjs')).href
 );
-const seed = JSON.parse(readFileSync(join(demoRoot, 'snapback', 'seed.json'), 'utf8'));
+const seedArtifact = generated('seed.artifact.json');
 const suite = createSuite('backend bakeoff / Snapback app-specific extras', {
   expectedChecks: 3,
 });
@@ -148,8 +149,7 @@ await runAcceptance(
 
     await suite.check('loads generated artifacts and deterministic seed', async () => {
       assert((await db.health()).ok, 'server is not healthy');
-      await db.reset();
-      await db.seed(seed);
+      await resetInstallGeneratedSeed(db, seedArtifact);
       const rows = (await db.query(api.listIncidents, {})).rows;
       assertEqual(rows.length, 2, 'seed incident count');
     });

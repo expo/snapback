@@ -91,6 +91,76 @@ export function semanticEffectId({
     .digest('base64url');
 }
 
+export function machineIsProductionRouted(machine, serviceProcessGroups) {
+  const services = [
+    ...(machine.config?.services ?? []),
+    ...(machine.config?.containers ?? []).flatMap((container) => container.services ?? []),
+  ];
+  return services.some((service) => {
+    const processes = service.processes ?? [];
+    return processes.length === 0
+      || processes.some((process) => serviceProcessGroups.includes(process));
+  });
+}
+
+export function verifyBoundFlyMachineRoster(binding, machines) {
+  if (!Array.isArray(machines)) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_FLY_ROSTER_INVALID',
+      'Fly roster response is not an array',
+    );
+  }
+  const observedRoster = machines.map((machine) => String(machine.id)).sort();
+  const boundRoster = [...binding.machineRoster].sort();
+  if (canonicalJson(observedRoster) !== canonicalJson(boundRoster)) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_EPHEMERAL_ROUTING_UNSAFE',
+      'Fly roster drifted from the generation-fenced target binding',
+    );
+  }
+  const active = machines.find((machine) => String(machine.id) === binding.activeMachineId);
+  const services = [
+    ...(active?.config?.services ?? []),
+    ...(active?.config?.containers ?? [])
+      .flatMap((container) => container.services ?? []),
+  ];
+  const serviceProcessGroups = [...new Set(
+    services.flatMap((service) => service.processes ?? []),
+  )].sort();
+  const boundProcessGroups = [...new Set(binding.serviceProcessGroups)].sort();
+  const mounts = active?.config?.mounts ?? [];
+  const image = String(active?.config?.image ?? '');
+  const autostop = (service) => (
+    service.autostop === true
+    || service.autostop === 'stop'
+    || service.autostop === 'suspend'
+  );
+  const exactActiveConfig = (
+    active
+    && active.state === 'started'
+    && active.region === binding.region
+    && (
+      image.endsWith(`@${binding.ociDigest}`)
+      || image === `${binding.ociRepository}@${binding.ociDigest}`
+    )
+    && mounts.length === 1
+    && String(mounts[0].volume) === binding.volumeId
+    && services.length > 0
+    && canonicalJson(serviceProcessGroups) === canonicalJson(boundProcessGroups)
+    && services.every((service) => autostop(service) === binding.autostopEnabled)
+    && services.every(
+      (service) => Boolean(service.autostart) === binding.autostartEnabled,
+    )
+  );
+  if (!exactActiveConfig) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_HOSTED_ACTIVE_MACHINE_CONFIG_DRIFTED',
+      'active Fly Machine image, volume, region, route, or autostart posture drifted',
+    );
+  }
+  return active;
+}
+
 function requireDigest(value, field) {
   if (!/^sha256:[0-9a-f]{64}$/.test(value ?? '')) {
     throw new SupervisorRefusal('SNAPBACK_HOSTED_DIGEST_INVALID', `${field} must be lowercase sha256`);
@@ -104,6 +174,34 @@ function clone(value) {
 function headDigest(head) {
   return sha256(Buffer.from(canonicalJson(head)));
 }
+
+function requireClosedKeys(value, keys, label) {
+  if (
+    !value
+    || Array.isArray(value)
+    || typeof value !== 'object'
+    || Object.keys(value).some((key) => !keys.includes(key))
+    || keys.some((key) => !Object.hasOwn(value, key))
+  ) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_FLY_TARGET_BINDING_INVALID',
+      `${label} is not the closed version-2 shape`,
+    );
+  }
+}
+
+const FLY_TARGET_BINDING_KEYS = [
+  'schemaVersion', 'targetId', 'bindingGeneration',
+  'predecessorBindingSha256', 'organizationId', 'appId', 'region',
+  'publicOrigin', 'activeMachineId', 'machineRoster', 'routedMachineIds',
+  'serviceProcessGroups', 'autostopEnabled', 'autostartEnabled',
+  'autoscaleEnabled', 'volumeId', 'ociRepository', 'ociDigest',
+  'tigrisBucket', 'artifactPrefix', 'backupPrefix', 'controlStatePrefix',
+  'auditPrefix', 'logPrefix', 'cleanupPrefix', 'tlsIssuer',
+  'certificatePosture', 'externalHeadKey', 'ownershipSentinel',
+  'supervisorInstallationId', 'supervisorOciDigest', 'credentials',
+  'observedAtMs', 'expiresAtMs',
+];
 
 /**
  * Deterministic core behind the packed service. Durable adapters supply a
@@ -136,8 +234,12 @@ export class HostedSupervisor {
       spendLedgers: {},
       cleanupPlans: {},
       heads: {},
+      targetEnrollments: {},
+      targetBootAdmissions: {},
       floors: { spend: 0, cleanup: 0, replay: 0 },
     };
+    this.database.targetEnrollments ??= {};
+    this.database.targetBootAdmissions ??= {};
     this.mirror = mirror ? clone(mirror) : null;
     this.anchor = anchor ? clone(anchor) : {
       incarnation,
@@ -416,6 +518,192 @@ export class HostedSupervisor {
     }).promotions[digest];
   }
 
+  registerTargetBinding(binding) {
+    requireClosedKeys(binding, FLY_TARGET_BINDING_KEYS, 'Fly target binding');
+    if (
+      !Array.isArray(binding.machineRoster)
+      || !Array.isArray(binding.routedMachineIds)
+      || !Array.isArray(binding.serviceProcessGroups)
+      || !Array.isArray(binding.credentials)
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_FLY_TARGET_BINDING_INVALID',
+        'Fly target binding roster and credential members must be arrays',
+      );
+    }
+    for (const credential of binding.credentials) {
+      requireClosedKeys(
+        credential,
+        ['role', 'credentialRef', 'fingerprint', 'allowedVerbs', 'resourcePrefixes'],
+        'Fly credential binding',
+      );
+      if (
+        typeof credential.role !== 'string'
+        || typeof credential.credentialRef !== 'string'
+        || !/^sha256:[0-9a-f]{64}$/.test(credential.fingerprint)
+        || !Array.isArray(credential.allowedVerbs)
+        || !Array.isArray(credential.resourcePrefixes)
+      ) {
+        throw new SupervisorRefusal(
+          'SNAPBACK_FLY_TARGET_BINDING_INVALID',
+          'Fly credential binding is incomplete',
+        );
+      }
+    }
+    const existing = this.database.heads[binding.targetId]?.binding ?? null;
+    const expectedGeneration = existing ? existing.bindingGeneration + 1 : 1;
+    const expectedPredecessor = existing
+      ? sha256(Buffer.from(canonicalJson(existing)))
+      : null;
+    const roster = [...binding.machineRoster].sort();
+    const routed = [...binding.routedMachineIds].sort();
+    const credentialRoles = binding.credentials.map((credential) => credential.role);
+    if (
+      binding.schemaVersion !== 'snapback.fly-target-binding.v2'
+      || binding.supervisorInstallationId !== this.installationReceipt.installationId
+      || binding.bindingGeneration !== expectedGeneration
+      || binding.predecessorBindingSha256 !== expectedPredecessor
+      || !/^sha256:[0-9a-f]{64}$/.test(binding.ociDigest)
+      || !/^sha256:[0-9a-f]{64}$/.test(binding.supervisorOciDigest)
+      || new Set(roster).size !== roster.length
+      || new Set(routed).size !== routed.length
+      || routed.length !== 1
+      || routed[0] !== binding.activeMachineId
+      || !roster.includes(binding.activeMachineId)
+      || binding.autoscaleEnabled
+      || new Set(credentialRoles).size !== credentialRoles.length
+      || !Number.isSafeInteger(binding.observedAtMs)
+      || !Number.isSafeInteger(binding.expiresAtMs)
+      || binding.expiresAtMs <= binding.observedAtMs
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_FLY_TARGET_BINDING_INVALID',
+        'Fly target binding is stale, ambiguous, unsafe, or belongs to another supervisor',
+      );
+    }
+    const bindingSha256 = sha256(Buffer.from(canonicalJson(binding)));
+    return this.commit((db) => {
+      db.heads[binding.targetId] = {
+        schemaVersion: 'snapback.hosted-target-head.v1',
+        binding: clone(binding),
+        bindingSha256,
+      };
+      db.journal.push({
+        kind: 'targetBinding',
+        targetId: binding.targetId,
+        bindingGeneration: binding.bindingGeneration,
+        bindingSha256,
+        predecessorBindingSha256: binding.predecessorBindingSha256,
+      });
+    }).heads[binding.targetId];
+  }
+
+  registerHostedTargetEnrollment(enrollment) {
+    const keys = [
+      'schemaVersion',
+      'targetId',
+      'deploymentId',
+      'publicOrigin',
+      'firstContactTransport',
+      'admissionPublicKey',
+      'supportSha256',
+      'signingSeedCredentialRef',
+      'clientCertificateSha256',
+    ];
+    requireClosedKeys(enrollment, keys, 'hosted target enrollment');
+    const head = this.database.heads[enrollment.targetId];
+    if (
+      enrollment.schemaVersion !== 'snapback.hosted-target-enrollment.v1'
+      || !head
+      || head.binding?.publicOrigin !== enrollment.publicOrigin
+      || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(enrollment.deploymentId ?? '')
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_HOSTED_TARGET_ENROLLMENT_INVALID',
+        'enrollment does not match a current exact target binding',
+      );
+    }
+    const existing = this.database.targetEnrollments[enrollment.targetId];
+    if (existing) {
+      if (canonicalJson(existing) !== canonicalJson(enrollment)) {
+        throw new SupervisorRefusal(
+          'SNAPBACK_HOSTED_TARGET_ENROLLMENT_IMMUTABLE',
+          'a target enrollment cannot change under one target identity',
+        );
+      }
+      return clone(existing);
+    }
+    return this.commit((db) => {
+      db.targetEnrollments[enrollment.targetId] = clone(enrollment);
+      db.journal.push({
+        kind: 'hostedTargetEnrollment',
+        targetId: enrollment.targetId,
+        deploymentId: enrollment.deploymentId,
+        enrollmentSha256: sha256(Buffer.from(canonicalJson(enrollment))),
+      });
+    }).targetEnrollments[enrollment.targetId];
+  }
+
+  reserveOnlineAdmission({
+    targetId,
+    machineId,
+    processBootId,
+    providerFactsSha256,
+    issuedAtMs,
+  }) {
+    requireDigest(providerFactsSha256, 'providerFactsSha256');
+    if (
+      !this.database.targetEnrollments[targetId]
+      || !this.database.heads[targetId]
+      || this.database.heads[targetId].binding.activeMachineId !== machineId
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        processBootId ?? '',
+      )
+      || !Number.isSafeInteger(issuedAtMs)
+      || issuedAtMs < 1
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_HOSTED_ADMISSION_INVALID',
+        'online admission does not match the enrolled routed process',
+      );
+    }
+    const current = this.database.targetBootAdmissions[targetId] ?? null;
+    const sameBoot = current
+      && current.machineId === machineId
+      && current.processBootId === processBootId;
+    if (sameBoot && issuedAtMs <= current.lastIssuedAtMs) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_HOSTED_ADMISSION_REPLAYED',
+        'online admission clock did not advance',
+      );
+    }
+    return this.commit((db) => {
+      const previous = db.targetBootAdmissions[targetId] ?? null;
+      const next = {
+        machineId,
+        processBootId,
+        admissionEpoch: sameBoot ? previous.admissionEpoch : db.floors.replay + 1,
+        senderReplayEpochFloor: sameBoot
+          ? previous.senderReplayEpochFloor
+          : db.floors.replay + 1,
+        lastIssuedAtMs: issuedAtMs,
+        providerFactsSha256,
+      };
+      db.targetBootAdmissions[targetId] = next;
+      db.floors.replay = Math.max(db.floors.replay, next.senderReplayEpochFloor);
+      db.journal.push({
+        kind: 'onlineAdmission',
+        targetId,
+        machineId,
+        processBootId,
+        admissionEpoch: next.admissionEpoch,
+        senderReplayEpochFloor: next.senderReplayEpochFloor,
+        issuedAtMs,
+        providerFactsSha256,
+      });
+    }).targetBootAdmissions[targetId];
+  }
+
   admitRoster({
     targetId,
     expectedMachineId,
@@ -424,6 +712,18 @@ export class HostedSupervisor {
     observedAtMs,
     expiresAtMs,
   }) {
+    if (
+      !Array.isArray(machines)
+      || machines.length > 64
+      || !Number.isSafeInteger(observedAtMs)
+      || !Number.isSafeInteger(expiresAtMs)
+      || expiresAtMs - observedAtMs > 60_000
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_EPHEMERAL_ROUTING_UNSAFE',
+        'protected hosted serving requires one bounded fresh provider roster',
+      );
+    }
     const routed = machines.filter((machine) => machine.productionRouted === true);
     const unsafe = (
       autoscaleEnabled

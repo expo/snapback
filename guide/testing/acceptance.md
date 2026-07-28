@@ -215,6 +215,10 @@ The command generates and provisions the named backend into a fresh
 file-backed database, starts an OS-port-isolated managed server, creates
 separate actor and observer clients, disables live polling fallback, applies a
 deadline to every operation, and tears down the server and temporary state.
+Client setup follows the process-scoped `/auth/session` handshake: a dev-mode
+fixture uses body-carried local impersonation, while a sessions-mode fixture
+uses the provider to mint bearer-backed clients. The runner never calls the
+session provider merely because a managed impersonation sidecar exists.
 Its exit codes match the ordinary acceptance harness: `0` means every declared
 check and cleanup passed, `1` means a product check failed or a required
 capability was classified as a GAP, and `2` means setup, timeout, server death,

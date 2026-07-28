@@ -1280,26 +1280,42 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
       'x-snapback-authority-descriptor-protocol': '1',
       'x-snapback-authorized-lease-protocol': '1',
     };
-    const expectedImpersonationFile = `${readyFile}.impersonation`;
+    // @ref LLP 0058#bootstrap-handshake — select the active auth transport
+    // from the process-scoped handshake, never from generated capability
+    // guesses. Dev uses body-carried local impersonation; sessions uses the
+    // provider and bearer custody below.
+    const authSessionResponse = await fetch(`${dev.serverUrl}/auth/session`, {
+      headers: protocolHeaders,
+    });
+    const authSession = await authSessionResponse.json();
     assert(
-      typeof descriptor.impersonationCapabilityFile === 'string'
-        && realpathSync(descriptor.impersonationCapabilityFile)
-          === realpathSync(expectedImpersonationFile),
+      authSessionResponse.ok
+        && ['dev', 'sessions'].includes(authSession?.activeMode)
+        && authSession?.modeState === 'settled'
+        && authSession?.appDataAvailability === 'available',
       'SNAPBACK_COMPARATOR_SETUP_FAILED',
-      'managed target did not name its mechanical impersonation-capability sibling',
+      authSession?.diagnostic?.message ?? 'managed target auth mode is not settled and available',
     );
     assert(
       health?.binary?.startupNonce === descriptor.startupNonce,
       'SNAPBACK_COMPARATOR_IDENTITY_MISMATCH',
       'managed target health did not match the ready-file startup nonce',
     );
-    const impersonationCapability = readFileSync(expectedImpersonationFile, 'utf8').trim();
-    assert(
-      impersonationCapability.length > 0,
-      'SNAPBACK_COMPARATOR_SETUP_FAILED',
-      'managed target impersonation capability is empty',
-    );
     const mintSessionClient = async (role, identityLabel) => {
+      const expectedImpersonationFile = `${readyFile}.impersonation`;
+      assert(
+        typeof descriptor.impersonationCapabilityFile === 'string'
+          && realpathSync(descriptor.impersonationCapabilityFile)
+            === realpathSync(expectedImpersonationFile),
+        'SNAPBACK_COMPARATOR_SETUP_FAILED',
+        'managed target did not name its mechanical impersonation-capability sibling',
+      );
+      const impersonationCapability = readFileSync(expectedImpersonationFile, 'utf8').trim();
+      assert(
+        impersonationCapability.length > 0,
+        'SNAPBACK_COMPARATOR_SETUP_FAILED',
+        'managed target impersonation capability is empty',
+      );
       const emailLabel = `${profile.id}-${role}-${identityLabel}`
         .toLowerCase()
         .replace(/[^a-z0-9._-]+/gu, '-')
@@ -1387,16 +1403,44 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
         },
       };
     };
-    const sessionClients = new Map([
-      ['observer', await mintSessionClient('observer', profile.fixtures.identities.observerUserId)],
-      ['actor', await mintSessionClient('actor', profile.fixtures.identities.actorUserId)],
-    ]);
+    const createDevClient = (identityLabel) => {
+      const client = new SnapbackClient(dev.serverUrl, { adminToken });
+      const withAssertedUser = (options = {}) => ({ ...options, userId: identityLabel });
+      return {
+        query: (ref, options) => client.query(ref, withAssertedUser(options)),
+        mutate: (ref, options) => client.mutate(ref, withAssertedUser(options)),
+        liveQuery: (ref, options) => client.liveQuery(ref, withAssertedUser(options)),
+        subscribeEphemeral: (ref, options) => (
+          client.subscribeEphemeral(ref, withAssertedUser(options))
+        ),
+        publishEphemeral: (ref, options) => (
+          client.publishEphemeral(ref, withAssertedUser(options))
+        ),
+        unsubscribeEphemeral: (ref, options) => (
+          client.unsubscribeEphemeral(ref, withAssertedUser(options))
+        ),
+        disconnect: (connectionId) => client.disconnect(connectionId),
+        inspect: () => client.inspect(),
+      };
+    };
+    const roleClients = authSession.activeMode === 'sessions'
+      ? new Map([
+          ['observer', await mintSessionClient(
+            'observer',
+            profile.fixtures.identities.observerUserId,
+          )],
+          ['actor', await mintSessionClient('actor', profile.fixtures.identities.actorUserId)],
+        ])
+      : new Map([
+          ['observer', createDevClient(profile.fixtures.identities.observerUserId)],
+          ['actor', createDevClient(profile.fixtures.identities.actorUserId)],
+        ]);
     return {
       identity: targetIdentity,
       capabilities: [...capabilities],
       capabilityGaps,
       createClient({ role }) {
-        const client = sessionClients.get(role);
+        const client = roleClients.get(role);
         assert(
           client,
           'SNAPBACK_COMPARATOR_SETUP_FAILED',

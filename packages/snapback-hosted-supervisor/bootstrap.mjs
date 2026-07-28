@@ -11,7 +11,21 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { canonicalJson, sha256 } from './index.mjs';
+import {
+  AttachUserPolicyCommand,
+  CreateAccessKeyCommand,
+  CreatePolicyCommand,
+  IAMClient,
+  ListPoliciesCommand,
+} from '@aws-sdk/client-iam';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { canonicalJson, HostedSupervisor, sha256 } from './index.mjs';
+import { readExternalAuthority } from './external-store.mjs';
 
 export const BOOTSTRAP_VERSION = 'snapback.hosted-supervisor-bootstrap.v1';
 export const TIGRIS_CLI = '@tigrisdata/cli@3.6.0';
@@ -281,23 +295,26 @@ function parseTigrisCreate(output) {
   return values;
 }
 
-function tigrisEnv(credentials) {
-  return {
-    AWS_ACCESS_KEY_ID: credentials.accessKeyId,
-    AWS_SECRET_ACCESS_KEY: credentials.secretAccessKey,
-    AWS_ENDPOINT_URL_S3: 'https://t3.storage.dev',
-    AWS_ENDPOINT_URL_IAM: 'https://iam.storage.dev',
-    AWS_REGION: 'auto',
-    NO_COLOR: '1',
-  };
+function tigrisIamClient(credentials) {
+  return new IAMClient({
+    endpoint: 'https://iam.storage.dev',
+    region: 'auto',
+    credentials: {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+    },
+  });
 }
 
-function tigris(rootCredentials, args, { input = undefined, allowStatus = [0] } = {}) {
-  return run('npx', ['--yes', TIGRIS_CLI, ...args], {
-    env: tigrisEnv(rootCredentials),
-    input,
-    allowStatus,
-    redact: true,
+function tigrisS3Client(credentials) {
+  return new S3Client({
+    endpoint: 'https://t3.storage.dev',
+    region: 'auto',
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+    },
   });
 }
 
@@ -350,7 +367,7 @@ function makeRolePolicy(config, role, actions) {
   };
 }
 
-function ensureTigrisRole(rootCredentials, config, role, actions) {
+async function ensureTigrisRole(rootCredentials, config, role, actions) {
   const idAccount = `tigris-${role}-access-key-id`;
   const secretAccount = `tigris-${role}-secret-access-key`;
   const existingId = keychainGet(config.keychainService, idAccount);
@@ -360,18 +377,19 @@ function ensureTigrisRole(rootCredentials, config, role, actions) {
   if (existingId && existingSecret && existingPolicyArn) {
     return { role, accessKeyId: existingId, secretAccessKey: existingSecret, created: false };
   }
-  if (existingId || existingSecret) throw new Error(`partial Tigris ${role} credential in Keychain`);
+  if (Boolean(existingId) !== Boolean(existingSecret)) {
+    throw new Error(`partial Tigris ${role} credential in Keychain`);
+  }
   const roleSlug = role.replaceAll(/[^a-z0-9-]/g, '-');
   let accessKeyId = existingId;
   let secretAccessKey = existingSecret;
   let created = false;
   if (!accessKeyId && !secretAccessKey) {
-    const keyResult = tigris(rootCredentials, [
-      'access-keys', 'create', `snapback-supervisor-${roleSlug}`, '--json', '--yes',
-    ]);
-    const keyJson = JSON.parse(keyResult.stdout);
-    accessKeyId = keyJson.accessKeyId ?? keyJson.id ?? keyJson.access_key_id;
-    secretAccessKey = keyJson.secretAccessKey ?? keyJson.secret ?? keyJson.secret_access_key;
+    const keyResult = await tigrisIamClient(rootCredentials).send(
+      new CreateAccessKeyCommand({}),
+    );
+    accessKeyId = keyResult.AccessKey?.AccessKeyId;
+    secretAccessKey = keyResult.AccessKey?.SecretAccessKey;
     if (!accessKeyId || !secretAccessKey) throw new Error(`Tigris did not return ${role} access key bytes`);
     // Retain the one-time secret before any later provider effect so an
     // interrupted policy attachment resumes without leaking or orphaning it.
@@ -382,60 +400,247 @@ function ensureTigrisRole(rootCredentials, config, role, actions) {
   const policy = makeRolePolicy(config, role, actions);
   let policyArn = existingPolicyArn;
   if (!policyArn) {
-    const policyResult = tigris(rootCredentials, [
-      'iam', 'policies', 'create',
-      `snapback-supervisor-${roleSlug}-v1`,
-      '--document', JSON.stringify(policy),
-      '--json',
-      '--yes',
-    ]);
-    const policyJson = JSON.parse(policyResult.stdout);
-    policyArn = policyJson.arn ?? policyJson.policyArn ?? policyJson.policy?.arn;
+    const policyName = `snapback-supervisor-${roleSlug}-v1`;
+    try {
+      const policyResult = await tigrisIamClient(rootCredentials).send(
+        new CreatePolicyCommand({
+          PolicyName: policyName,
+          PolicyDocument: JSON.stringify(policy),
+          Description: `Snapback hosted supervisor ${role} prefix role`,
+        }),
+      );
+      policyArn = policyResult.Policy?.Arn;
+    } catch (error) {
+      if (error?.name !== 'EntityAlreadyExistsException' && error?.name !== 'EntityAlreadyExists') throw error;
+      const listed = await tigrisIamClient(rootCredentials).send(new ListPoliciesCommand({
+        Scope: 'Local',
+      }));
+      policyArn = listed.Policies?.find((candidate) => candidate.PolicyName === policyName)?.Arn;
+    }
   }
   if (!policyArn) throw new Error(`Tigris did not return ${role} policy ARN`);
-  tigris(rootCredentials, [
-    'iam', 'policies', 'link-key', policyArn,
-    '--id', accessKeyId,
-    '--json',
-    '--yes',
-  ]);
+  await tigrisIamClient(rootCredentials).send(new AttachUserPolicyCommand({
+    PolicyArn: policyArn,
+    UserName: accessKeyId,
+  }));
   keychainPut(config.keychainService, configuredAccount, policyArn);
   return { role, accessKeyId, secretAccessKey, created, policyArn };
 }
 
+async function proveTigrisRoleIsolation(config, credentialsByRole, sentinel) {
+  const observations = [];
+  for (const [role, credential] of Object.entries(credentialsByRole)) {
+    if (role === 'cleanup') continue;
+    const ownKey = `snapback-supervisor/${role}/bootstrap-${sentinel.slice(-12)}.json`;
+    const wrongRole = role === 'anchor' ? 'journal' : 'anchor';
+    const wrongKey = `snapback-supervisor/${wrongRole}/wrong-role-${sentinel.slice(-12)}.json`;
+    const client = tigrisS3Client(credential);
+    const body = JSON.stringify({ sentinel, role });
+    await client.send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: ownKey,
+      Body: body,
+      ContentType: 'application/json',
+    }));
+    const read = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: ownKey }));
+    const roundTrip = await read.Body.transformToString();
+    if (roundTrip !== body) throw new Error(`Tigris ${role} read-back drifted`);
+    let wrongRoleDenied = false;
+    try {
+      await client.send(new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: wrongKey,
+        Body: body,
+      }));
+    } catch (error) {
+      wrongRoleDenied = error?.$metadata?.httpStatusCode === 403 || error?.name === 'AccessDenied';
+    }
+    if (!wrongRoleDenied) throw new Error(`Tigris ${role} credential crossed into ${wrongRole} prefix`);
+    await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: ownKey }));
+    observations.push({
+      role,
+      ownPrefixRoundTrip: true,
+      wrongRole,
+      wrongRoleDenied: true,
+    });
+  }
+  return observations;
+}
+
+async function getObjectText(client, bucket, key) {
+  const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  return result.Body.transformToString();
+}
+
+async function putImmutableOrVerify({ client, bucket, key, body }) {
+  try {
+    const result = await client.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: 'application/json',
+      IfNoneMatch: '*',
+    }));
+    return { created: true, etag: result.ETag ?? null };
+  } catch (error) {
+    const precondition = error?.$metadata?.httpStatusCode === 412 || error?.name === 'PreconditionFailed';
+    if (!precondition) throw error;
+    const retained = await getObjectText(client, bucket, key);
+    if (retained !== body) throw new Error(`immutable Tigris object drifted: ${key}`);
+    return { created: false, etag: error?.$metadata?.requestId ?? null };
+  }
+}
+
+async function initializeExternalAuthority(config, roles, installationReceipt) {
+  const supervisor = new HostedSupervisor({
+    installationReceipt,
+    incarnation: installationReceipt.incarnation,
+  });
+  const mirror = {
+    schemaVersion: 'snapback.hosted-supervisor-mirror.v1',
+    installationId: installationReceipt.installationId,
+    incarnation: installationReceipt.incarnation,
+    generation: 0,
+    database: supervisor.database,
+    journalDigest: supervisor.anchor.journalDigest,
+    controlHeadDigest: supervisor.anchor.controlHeadDigest,
+  };
+  const mirrorBody = canonicalJson(mirror);
+  const mirrorSha256 = sha256(Buffer.from(mirrorBody));
+  const mirrorKey = `snapback-supervisor/journal/generation-000000000000-${mirrorSha256.slice(7)}.json`;
+  const mirrorResult = await putImmutableOrVerify({
+    client: tigrisS3Client(roles.journal),
+    bucket: config.bucket,
+    key: mirrorKey,
+    body: mirrorBody,
+  });
+  const anchor = {
+    schemaVersion: 'snapback.hosted-supervisor-incarnation-anchor.v1',
+    installationId: installationReceipt.installationId,
+    ownershipSentinel: installationReceipt.ownershipSentinel,
+    incarnation: installationReceipt.incarnation,
+    generation: 0,
+    mirrorKey,
+    mirrorSha256,
+    journalDigest: supervisor.anchor.journalDigest,
+    spendFloor: 0,
+    cleanupFloor: 0,
+    replayFloor: 0,
+    controlHeadDigest: supervisor.anchor.controlHeadDigest,
+  };
+  const anchorBody = canonicalJson(anchor);
+  const anchorClient = tigrisS3Client(roles.anchor);
+  const journalClient = tigrisS3Client(roles.journal);
+  let retainedAnchor = null;
+  try {
+    retainedAnchor = await getObjectText(
+      anchorClient,
+      config.bucket,
+      'snapback-supervisor/anchor/incarnation.json',
+    );
+  } catch (error) {
+    if (error?.$metadata?.httpStatusCode !== 404 && error?.name !== 'NoSuchKey') throw error;
+  }
+  let anchorResult = { created: false };
+  if (retainedAnchor === null) {
+    anchorResult = await putImmutableOrVerify({
+      client: anchorClient,
+      bucket: config.bucket,
+      key: 'snapback-supervisor/anchor/incarnation.json',
+      body: anchorBody,
+    });
+    retainedAnchor = anchorBody;
+  }
+  if (retainedAnchor !== anchorBody) {
+    const current = await readExternalAuthority({
+      installationReceipt: {
+        ...installationReceipt,
+        externalAnchor: `s3://${config.bucket}/snapback-supervisor/anchor/incarnation.json`,
+        externalAnchorSha256: sha256(Buffer.from(anchorBody)),
+        journalMirror: `s3://${config.bucket}/${mirrorKey}`,
+        journalMirrorSha256: mirrorSha256,
+      },
+      anchorClient,
+      journalClient,
+    });
+    return {
+      anchor: current.anchor,
+      anchorSha256: current.anchorSha256,
+      rootAnchorSha256: sha256(Buffer.from(anchorBody)),
+      mirrorKey: current.anchor.mirrorKey,
+      mirrorSha256: current.mirrorSha256,
+      anchorCreated: false,
+      mirrorCreated: mirrorResult.created,
+      readBackVerified: true,
+      chainVerified: true,
+    };
+  }
+  const retainedMirror = await getObjectText(
+    journalClient,
+    config.bucket,
+    mirrorKey,
+  );
+  if (retainedAnchor !== anchorBody || sha256(Buffer.from(retainedMirror)) !== mirrorSha256) {
+    throw new Error('Tigris external authority read-back failed');
+  }
+  return {
+    anchor,
+    anchorSha256: sha256(Buffer.from(anchorBody)),
+    rootAnchorSha256: sha256(Buffer.from(anchorBody)),
+    mirrorKey,
+    mirrorSha256,
+    anchorCreated: anchorResult.created,
+    mirrorCreated: mirrorResult.created,
+    readBackVerified: true,
+  };
+}
+
 function generateMtls(config, sentinel) {
   const existing = keychainGet(config.keychainService, 'mtls-client-bundle');
-  if (existing) return { ...JSON.parse(existing), created: false };
+  if (existing) {
+    const parsed = JSON.parse(existing);
+    if (
+      parsed.algorithm === 'P-256-SHA256'
+      && parsed.serverKey
+      && parsed.serverCert
+      && parsed.caCert
+      && parsed.clientKey
+      && parsed.clientCert
+    ) {
+      return { ...parsed, created: false };
+    }
+  }
   const directory = mkdtempSync(join(tmpdir(), 'snapback-supervisor-mtls.'));
   const files = Object.fromEntries(
     ['caKey', 'caCert', 'serverKey', 'serverCsr', 'serverCert', 'clientKey', 'clientCsr', 'clientCert']
       .map((name) => [name, join(directory, `${name}.pem`)]),
   );
   try {
-    run('openssl', ['genpkey', '-algorithm', 'ED25519', '-out', files.caKey], { redact: true });
+    run('openssl', ['ecparam', '-name', 'prime256v1', '-genkey', '-noout', '-out', files.caKey], { redact: true });
     run('openssl', [
       'req', '-x509', '-new', '-key', files.caKey, '-out', files.caCert,
-      '-days', '365', '-subj', `/CN=${config.app}-ca`,
+      '-sha256', '-days', '365', '-subj', `/CN=${config.app}-ca`,
     ], { redact: true });
-    run('openssl', ['genpkey', '-algorithm', 'ED25519', '-out', files.serverKey], { redact: true });
+    run('openssl', ['ecparam', '-name', 'prime256v1', '-genkey', '-noout', '-out', files.serverKey], { redact: true });
     run('openssl', [
       'req', '-new', '-key', files.serverKey, '-out', files.serverCsr,
       '-subj', `/CN=${config.app}.internal`,
     ], { redact: true });
     run('openssl', [
       'x509', '-req', '-in', files.serverCsr, '-CA', files.caCert, '-CAkey', files.caKey,
-      '-CAcreateserial', '-out', files.serverCert, '-days', '365',
+      '-CAcreateserial', '-out', files.serverCert, '-sha256', '-days', '365',
     ], { redact: true });
-    run('openssl', ['genpkey', '-algorithm', 'ED25519', '-out', files.clientKey], { redact: true });
+    run('openssl', ['ecparam', '-name', 'prime256v1', '-genkey', '-noout', '-out', files.clientKey], { redact: true });
     run('openssl', [
       'req', '-new', '-key', files.clientKey, '-out', files.clientCsr,
       '-subj', `/CN=snapback-operator-${sentinel.slice(-12)}`,
     ], { redact: true });
     run('openssl', [
       'x509', '-req', '-in', files.clientCsr, '-CA', files.caCert, '-CAkey', files.caKey,
-      '-CAcreateserial', '-out', files.clientCert, '-days', '365',
+      '-CAcreateserial', '-out', files.clientCert, '-sha256', '-days', '365',
     ], { redact: true });
     const bundle = {
+      algorithm: 'P-256-SHA256',
       caCert: readFileSync(files.caCert, 'utf8'),
       serverKey: readFileSync(files.serverKey, 'utf8'),
       serverCert: readFileSync(files.serverCert, 'utf8'),
@@ -447,12 +652,7 @@ function generateMtls(config, sentinel) {
         client: sha256(readFileSync(files.clientCert)),
       },
     };
-    keychainPut(config.keychainService, 'mtls-client-bundle', JSON.stringify({
-      caCert: bundle.caCert,
-      clientKey: bundle.clientKey,
-      clientCert: bundle.clientCert,
-      fingerprints: bundle.fingerprints,
-    }));
+    keychainPut(config.keychainService, 'mtls-client-bundle', JSON.stringify(bundle));
     return { ...bundle, created: true };
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -496,12 +696,21 @@ async function ensureApp(rootToken, config, sentinel) {
 
 function buildImage(rootToken, config) {
   const packageDir = dirname(fileURLToPath(import.meta.url));
-  const runtimeClosure = ['Dockerfile', 'package.json', 'index.mjs', 'service.mjs']
+  const runtimeClosure = [
+    'Dockerfile',
+    'fly.supervisor.toml',
+    'package.json',
+    'index.mjs',
+    'external-store.mjs',
+    'hosted-edge-admission.mjs',
+    'service.mjs',
+  ]
     .map((name) => [name, readFileSync(join(packageDir, name), 'utf8')]);
   const label = `supervisor-${digestHex(canonicalJson(runtimeClosure)).slice(0, 16)}`;
   run('fly', [
     'deploy', packageDir,
     '--app', config.app,
+    '--config', join(packageDir, 'fly.supervisor.toml'),
     '--dockerfile', join(packageDir, 'Dockerfile'),
     '--build-only', '--push', '--remote-only', '--depot=true',
     '--image-label', label,
@@ -545,9 +754,43 @@ async function ensureMachine(rootToken, config, sentinel, image, volume, install
   if (!machines.ok) throw new Error(`Fly Machine inventory failed (${machines.status})`);
   if (machines.json.length > 1) throw new Error('shared supervisor requires exactly one Machine');
   if (machines.json.length === 1) {
-    const [machine] = machines.json;
+    let [machine] = machines.json;
     if (machine.config?.metadata?.snapback_ownership_sentinel !== sentinel) {
       throw new Error('existing supervisor Machine has no exact ownership sentinel');
+    }
+    const requiredSecretFiles = [
+      ['/run/secrets/fly-read-token', 'SUPERVISOR_FLY_READ_TOKEN'],
+      ['/run/secrets/fly-control-token', 'SUPERVISOR_FLY_CONTROL_TOKEN'],
+      ['/run/secrets/fly-registry-token', 'SUPERVISOR_FLY_REGISTRY_TOKEN'],
+      ['/run/secrets/server-key.pem', 'SUPERVISOR_SERVER_KEY'],
+      ['/run/secrets/server-cert.pem', 'SUPERVISOR_SERVER_CERT'],
+      ['/run/secrets/client-ca.pem', 'SUPERVISOR_CLIENT_CA'],
+      ['/run/secrets/tigris-anchor-id', 'SUPERVISOR_TIGRIS_ANCHOR_ID'],
+      ['/run/secrets/tigris-anchor-secret', 'SUPERVISOR_TIGRIS_ANCHOR_SECRET'],
+      ['/run/secrets/tigris-control-id', 'SUPERVISOR_TIGRIS_CONTROL_ID'],
+      ['/run/secrets/tigris-control-secret', 'SUPERVISOR_TIGRIS_CONTROL_SECRET'],
+      ['/run/secrets/tigris-journal-id', 'SUPERVISOR_TIGRIS_JOURNAL_ID'],
+      ['/run/secrets/tigris-journal-secret', 'SUPERVISOR_TIGRIS_JOURNAL_SECRET'],
+    ];
+    const existingGuestPaths = new Set((machine.config?.files ?? []).map((file) => file.guest_path));
+    const secretProjectionDrift = requiredSecretFiles.some(([guestPath]) => !existingGuestPaths.has(guestPath));
+    if (machine.config?.image !== image || secretProjectionDrift) {
+      run('fly', [
+        'machine', 'update', machine.id,
+        '--app', config.app,
+        '--image', image,
+        ...requiredSecretFiles.flatMap(([guestPath, secretName]) => [
+          '--file-secret', `${guestPath}=${secretName}`,
+        ]),
+        '--skip-start',
+        '--yes',
+      ], {
+        env: { FLY_API_TOKEN: rootToken, NO_COLOR: '1' },
+        redact: true,
+      });
+      const refreshed = await providerJson(`/apps/${config.app}/machines/${machine.id}`, rootToken);
+      if (!refreshed.ok) throw new Error(`Fly Machine image read-back failed (${refreshed.status})`);
+      machine = refreshed.json;
     }
     return { machine, created: false };
   }
@@ -578,6 +821,9 @@ async function ensureMachine(rootToken, config, sentinel, image, volume, install
         },
         files: [
           { guest_path: '/run/installation-receipt.json', raw_value: receiptBase64 },
+          { guest_path: '/run/secrets/fly-read-token', secret_name: 'SUPERVISOR_FLY_READ_TOKEN' },
+          { guest_path: '/run/secrets/fly-control-token', secret_name: 'SUPERVISOR_FLY_CONTROL_TOKEN' },
+          { guest_path: '/run/secrets/fly-registry-token', secret_name: 'SUPERVISOR_FLY_REGISTRY_TOKEN' },
           { guest_path: '/run/secrets/server-key.pem', secret_name: 'SUPERVISOR_SERVER_KEY' },
           { guest_path: '/run/secrets/server-cert.pem', secret_name: 'SUPERVISOR_SERVER_CERT' },
           { guest_path: '/run/secrets/client-ca.pem', secret_name: 'SUPERVISOR_CLIENT_CA' },
@@ -597,11 +843,20 @@ async function ensureMachine(rootToken, config, sentinel, image, volume, install
 
 async function startMachine(rootToken, config, machine) {
   if (machine.state === 'started') return machine;
-  const started = await providerJson(`/apps/${config.app}/machines/${machine.id}/start`, rootToken, {
-    method: 'POST',
-    body: {},
+  if (machine.state === 'created') {
+    const prepared = await fetch(
+      `https://api.machines.dev/v1/apps/${config.app}/machines/${machine.id}/wait?state=stopped&timeout=60`,
+      {
+        headers: { authorization: `Bearer ${rootToken}` },
+        signal: AbortSignal.timeout(70_000),
+      },
+    );
+    if (!prepared.ok) throw new Error(`Fly Machine did not become startable (${prepared.status})`);
+  }
+  run('fly', ['machine', 'start', machine.id, '--app', config.app], {
+    env: { FLY_API_TOKEN: rootToken, NO_COLOR: '1' },
+    redact: true,
   });
-  if (!started.ok) throw new Error(`Fly Machine start failed (${started.status})`);
   const wait = await fetch(
     `https://api.machines.dev/v1/apps/${config.app}/machines/${machine.id}/wait?state=started&timeout=60`,
     {
@@ -615,6 +870,15 @@ async function startMachine(rootToken, config, machine) {
 
 function credentialFingerprint(value) {
   return `sha256:${digestHex(value)}`;
+}
+
+function stableInstallationIncarnation(config) {
+  const account = 'installation-incarnation';
+  const existing = keychainGet(config.keychainService, account);
+  if (existing) return existing;
+  const created = randomUUID();
+  keychainPut(config.keychainService, account, created);
+  return created;
 }
 
 export async function applyBootstrap(plan, { confirmationSha256 }) {
@@ -640,10 +904,23 @@ export async function applyBootstrap(plan, { confirmationSha256 }) {
   const tigrisRoot = ensureTigrisBucket(rootToken, config);
   const tigrisRoles = {};
   for (const [role, actions] of Object.entries(TIGRIS_ROLES)) {
-    tigrisRoles[role] = ensureTigrisRole(tigrisRoot, config, role, actions);
+    tigrisRoles[role] = await ensureTigrisRole(tigrisRoot, config, role, actions);
   }
+  const tigrisIsolation = await proveTigrisRoleIsolation(
+    config,
+    Object.fromEntries(
+      Object.entries(tigrisRoles).map(([role, value]) => [role, {
+        accessKeyId: value.accessKeyId,
+        secretAccessKey: value.secretAccessKey,
+      }]),
+    ),
+    plan.ownershipSentinel,
+  );
   const mtls = generateMtls(config, plan.ownershipSentinel);
   stageSecrets(rootToken, config, {
+    SUPERVISOR_FLY_READ_TOKEN: flyRead.token,
+    SUPERVISOR_FLY_CONTROL_TOKEN: flyControl.token,
+    SUPERVISOR_FLY_REGISTRY_TOKEN: flyRegistry.token,
     SUPERVISOR_SERVER_KEY: mtls.serverKey,
     SUPERVISOR_SERVER_CERT: mtls.serverCert,
     SUPERVISOR_CLIENT_CA: mtls.caCert,
@@ -656,7 +933,7 @@ export async function applyBootstrap(plan, { confirmationSha256 }) {
   });
   const image = buildImage(rootToken, config);
   const volumeResult = await ensureVolume(rootToken, config);
-  const incarnation = randomUUID();
+  const incarnation = stableInstallationIncarnation(config);
   const installationReceiptBase = {
     schemaVersion: 'snapback.hosted-supervisor-installation-receipt.v1',
     installationId: `shared:${config.organization}:${config.region}:${config.app}`,
@@ -687,6 +964,19 @@ export async function applyBootstrap(plan, { confirmationSha256 }) {
       mtls: mtls.fingerprints,
     },
   };
+  const externalAuthority = await initializeExternalAuthority(
+    config,
+    Object.fromEntries(
+      Object.entries(tigrisRoles).map(([role, value]) => [role, {
+        accessKeyId: value.accessKeyId,
+        secretAccessKey: value.secretAccessKey,
+      }]),
+    ),
+    installationReceiptBase,
+  );
+  installationReceiptBase.journalMirror = `s3://${config.bucket}/${externalAuthority.mirrorKey}`;
+  installationReceiptBase.externalAnchorSha256 = externalAuthority.rootAnchorSha256;
+  installationReceiptBase.journalMirrorSha256 = externalAuthority.mirrorSha256;
   const machineResult = await ensureMachine(
     rootToken,
     config,
@@ -715,6 +1005,8 @@ export async function applyBootstrap(plan, { confirmationSha256 }) {
         ),
         mtls: mtls.created,
       },
+      tigrisRoleIsolation: tigrisIsolation,
+      externalAuthority,
     },
     tariffs: plan.tariffs,
     capabilityAdvertised: false,

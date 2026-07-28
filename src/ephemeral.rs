@@ -1176,6 +1176,35 @@ pub enum EphemeralMessage {
 }
 
 impl EphemeralMessage {
+    /// Install the connection-negotiated authority witness immediately before
+    /// serialization. Queues remain authority-neutral so a stale process
+    /// witness cannot be retained across a connection replacement.
+    pub(crate) fn install_ephemeral_authority_instance(&mut self, instance: Option<&str>) {
+        let slot = match self {
+            Self::Snapshot {
+                ephemeral_authority_instance,
+                ..
+            }
+            | Self::Upsert {
+                ephemeral_authority_instance,
+                ..
+            }
+            | Self::Remove {
+                ephemeral_authority_instance,
+                ..
+            }
+            | Self::ResyncRequired {
+                ephemeral_authority_instance,
+                ..
+            }
+            | Self::Error {
+                ephemeral_authority_instance,
+                ..
+            } => ephemeral_authority_instance,
+        };
+        *slot = instance.map(str::to_owned);
+    }
+
     fn coalesce_key(&self) -> Option<(RoomId, EntryKey)> {
         match self {
             Self::Upsert { room, entry, .. } => Some((room.clone(), entry.key.clone())),

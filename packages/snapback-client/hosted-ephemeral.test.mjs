@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { EphemeralOverlay, SnapbackClient } from './index.mjs';
 
 const originalFetch = globalThis.fetch;
-let authority = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+let authority = `eai1.${'a'.repeat(43)}`;
 const requests = [];
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(input);
   const body = init.body ? JSON.parse(init.body) : null;
-  requests.push({ path: url.pathname, body });
+  const headers = new Headers(init.headers);
+  requests.push({ path: url.pathname, body, headers });
   if (url.pathname === '/connection/open') {
     assert.equal(body.ephemeralAuthorityProtocol, 1);
     return Response.json({
@@ -15,9 +16,14 @@ globalThis.fetch = async (input, init = {}) => {
       connectionToken: 'sct_hosted',
       wireVersion: 'snapback.v1',
       ephemeralAuthorityProtocol: 1,
+      ephemeralAuthorityInstance: authority,
     });
   }
   if (url.pathname === '/ephemeral/subscribe') {
+    assert.equal(
+      headers.get('x-snapback-ephemeral-authority-instance'),
+      `eai1.${'a'.repeat(43)}`,
+    );
     return Response.json({
       Snapshot: {
         ephemeral_authority_instance: authority,
@@ -58,7 +64,7 @@ try {
   });
   assert.deepEqual(values, [], 'initial authority establishment is not a restart');
   first.dispose();
-  authority = 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+  authority = `eai1.${'b'.repeat(43)}`;
   const second = await client.subscribeEphemeral('presence', {
     connectionId: 'app',
     scope: { roomId: 'lobby' },

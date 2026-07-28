@@ -225,6 +225,7 @@ await db.ensureApp({
   schema,
   functions,
   seed,
+  routes,
 });
 ```
 
@@ -234,7 +235,8 @@ non-production-profile gated, even when artifact hashes already match. A fresh
 `dev → sessions` provision stages the sessions deployment and closes app data
 until the required process restart consumes it; same-mode sessions provisioning
 is idempotent without weakening the gate. Explicit mode provisioning does not
-yet accept a routes manifest.
+reinterpret route identity: it validates `routes` against the same candidate
+schema/functions pair and installs them only with that deployment.
 
 Then call it. Function references are the generated `api.<name>` objects
 from `generated/api.mjs`, and mutations return structured results:

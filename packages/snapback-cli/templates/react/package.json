@@ -5,8 +5,9 @@
   "packageManager": "bun@1.3.12",
   "scripts": {
     "generate": "snapback generate snapback",
-    "dev": "vite",
-    "snapback:dev": "snapback dev snapback",
+    "dev": "snapback dev snapback --client . --client-command vite",
+    "client:dev": "vite",
+    "snapback:dev": "snapback dev snapback --client . --client-command vite",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "test": "node acceptance.mjs",
@@ -17,11 +18,12 @@
     "@snapback/client": "__SNAPBACK_VERSION__",
     "@snapback/codegen": "__SNAPBACK_VERSION__",
     "@snapback/react": "__SNAPBACK_VERSION__",
+    "@snapback/vite": "__SNAPBACK_VERSION__",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "typescript": "^5.9.0",
-    "vite": "^7.0.0"
+    "vite": "^8.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

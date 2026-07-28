@@ -27,6 +27,7 @@ import { renderToString } from '../../../node_modules/react-dom/server.node.js';
 import { startServer } from '../../_kit/server-process.mjs';
 import { assert, assertEqual, createSuite, runAcceptance } from '../../_kit/harness.mjs';
 import { prepareReactBindingForClient } from '../../../packages/snapback-client/react-binding.mjs';
+import { resetInstallGeneratedSeed } from '../scripts/versioned-seed.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const demoRoot = join(here, '..');
@@ -41,7 +42,7 @@ const { default: api, ephemeral } = await import(
 const schema = generated('schema.manifest.json');
 const functions = generated('functions.manifest.json');
 const capabilityManifest = generated('capability.manifest.json');
-const seed = JSON.parse(readFileSync(join(demoRoot, 'snapback', 'seed.json'), 'utf8'));
+const seedArtifact = generated('seed.artifact.json');
 const suite = createSuite('backend bakeoff / Snapback React presence v1', {
   expectedChecks: 10,
 });
@@ -236,8 +237,7 @@ await runAcceptance(
     cleanups.push(() => server.stop());
 
     const clientA = await receiptClient(server, 'react-presence-client-a');
-    await clientA.reset();
-    await clientA.seed(seed);
+    await resetInstallGeneratedSeed(clientA, seedArtifact);
     const clientB = await receiptClient(server, 'react-presence-client-b');
     const inspection = await clientA.inspect();
     receiptExtra.target = Object.freeze({

@@ -184,9 +184,14 @@ export function aggregatePublicPackageProofs({
       || receipt.checks?.remoteCodegenOffline !== true
       || receipt.checks?.packagedCliIntrospection !== true
       || receipt.checks?.packagedRuntimeDoctor !== true
+      || receipt.checks?.packagedComparatorProfile !== true
       || receipt.checks?.packagedScaffoldAndOfflineGenerate !== true
       || receipt.checks?.packagedDeployBuildAndVerify !== true
       || receipt.checks?.packagedManagedDevReadyAttachWatchAndStop !== true
+      || receipt.checks?.packedReactWebTypecheckTestBuildAndLiveAcceptance !== true
+      || receipt.checks?.packedReactOneCommandBackendViteJourney !== true
+      || receipt.checks?.packedReactExpoTypecheckAndIosExport !== true
+      || receipt.checks?.packagedViteRelativeVersionedSeedSeam !== true
       || receipt.checks?.browserAdapterBundle !== true
     ) {
       throw new TypeError(`platform receipt lacks the complete packaged-loop proof: ${platform}`);

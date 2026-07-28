@@ -921,3 +921,112 @@ exports travel application → supervisor over the authenticated outbound
 channel → Tigris; no application provider credential is introduced. The
 supervisor control database owns the atomic monotone replay floor and mirrors
 it in the external incarnation anchor described above.
+
+## Implementation checkpoint — 2026-07-28
+
+This checkpoint records evidence without changing this Plan's Review status or
+either capability claim.
+
+The shared pre-provisioned supervisor now exists as one sentinel-owned Fly
+Machine with no services, one encrypted volume, one private Tigris bucket with
+separate role prefixes, scoped Fly/Tigris credentials, and a TLS 1.3 mutually
+authenticated control endpoint. Its packed service implements the
+deterministic spend/effect/reconciliation/planned-binding/cleanup core and the
+canonical external commit order:
+
+1. commit the complete generation to volume-backed SQLite with
+   `synchronous=FULL`;
+2. write and read back one immutable content-addressed journal mirror;
+3. retain one immutable generation anchor; and
+4. advance the current incarnation pointer with the predecessor's Tigris
+   `ETag` in `If-Match`.
+
+The real provider proof advanced generation 0 to 1 with a harmless
+1000-micro-USD installation ledger, rejected a stale conditional writer,
+restarted the Machine, and recovered generation 1 with a verified predecessor
+chain to the exact generation-0 standing root. Bootstrap also reopens and
+verifies a nonzero generation instead of trying to recreate generation 0.
+`demos/backend-bakeoff/hosted-supervisor-installation.v1.json` binds the exact
+Machine, image, volume, current/root anchors, mirror, custody, tariff, restart,
+and retained-resource facts. This satisfies the standing installation and
+single-writer persistence slice only.
+
+A separate remote drill took an application-consistent SQLite backup from
+`snapback-drill`, read it back byte-identically, restored it to a fresh
+encrypted volume on a zero-service helper Machine, and proved SHA-256 equality,
+`PRAGMA integrity_check=ok`, and 29 schema tables. The helper Machine, helper
+volume, and test backup object were then destroyed/deleted and read back
+absent. The non-success receipt
+`demos/backend-bakeoff/hosted-product-journey.v1.json` records both that proof
+and every skipped row.
+
+The mandatory journey remains incomplete. In particular, the existing product
+target still has rootfs application SQLite and its finite legacy hosted-auth
+chain has expired, so public health returns
+`SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED`. It is not registered as a safe
+`FlyTargetBindingV2`, does not maintain the outbound online admission channel,
+and has not passed packed release/migration/restore-activation/rollback/admin
+inspection, the LLP 0104 relation/activity hosted qualification, or the
+target-neutral remote ephemeral restart/republish corpus. Consequently
+`ephemeralHostedAdapter` remains false, the filesystem tickets remain open,
+and the failed product receipt cannot be used as hosted evidence.
+
+The next narrow onboarding slice is also live without changing that boundary.
+The fresh never-reused identity
+`snapback-drill-hosted-v2-20260728` now has distinct target-scoped Fly control
+and registry credentials, a supervisor-held Ed25519 online-admission seed, and
+a dedicated target outbound mTLS identity. The product app has only staged the
+successor secret names; its legacy routed Machine was not updated. The
+standing supervisor was updated in place to immutable image
+`sha256:d718a52ea29583a5d2e2df4810ad838a7ed3a0479ba87dfa5e7a2f9b735894dd`,
+recovered generation 1 unchanged, and exposes the target-only TLS 1.3
+admission listener separately from operator control.
+
+The listener authenticates the enrollment-bound client certificate, double
+reads the Fly roster, requires the requester to be the one exact routed bound
+Machine, commits the boot-stable admission epoch and replay floor through the
+same SQLite/mirror/anchor order, and only then signs a Rust-compatible online
+hosted admission with a maximum 60-second lifetime. Its mTLS/refusal proof
+passes before enrollment. The staged receipt is
+`demos/backend-bakeoff/hosted-target-onboarding.v1.json`. It is not a target
+binding, release, cutover, or capability receipt: the fresh encrypted volume,
+successor Machine, certificate transfer, route/head handoff, and remote
+application corpora remain mandatory.
+
+The onboarding receipt now also binds six distinct Tigris credentials for the
+fresh target's artifact, backup, control-state, audit, log, and cleanup roles.
+The legacy bucket bootstrap credential was captured once from the unchanged
+predecessor into owner-only Keychain custody without printing or repository
+storage. Live provider probes proved every data role's own-prefix read, every
+cross-role object read denial (including cleanup), artifact and cleanup write
+denial, and cleanup's target-wide delete authority; all probe objects were
+then deleted. Tigris IAM
+rejects S3 prefix conditions on `ListBucket`, so the supervisor-only cleanup
+credential's inventory verb is explicitly recorded as bucket-scoped and
+custody-separated rather than falsely claimed prefix-enforced. Its only object
+verb is delete, limited to `snapback-hosted-v2/*`. This completes
+credential staging only and does not alter the mandatory journey boundary.
+
+The next code checkpoint closes the admission-envelope gap without claiming a
+live deployment. Online supervisor responses now carry an independently
+Ed25519-signed `HostedAdmissionV2` bound to the exact target binding
+generation/digest, control head, supervisor incarnation, complete provider
+roster digest, routed Machine, replay floor, boot-stable admission generation,
+and two at-most-60-second expiries. The target verifies that signature and its
+cross-binding to the hosted-auth envelope before install; missing, tampered,
+stale, and replayed inputs have stable refusing diagnostics. The packed
+renewer validates and atomically preserves the complete dual-signed envelope.
+
+Connection open derives the opaque normative `eai1.` digest from the verified
+target/process authority, binds it immutably to the grant lineage, and requires
+the same witness on HTTP and WebSocket ephemeral requests. HTTP/socket
+acknowledgements and errors, snapshots, changes, resyncs, and drain items are
+stamped at final serialization; the client refuses a negotiated grant without
+the witness and carries it on both transports. Exact Fly roster verification
+now also checks the complete roster plus active image digest, encrypted volume,
+region, process routes, and autostop/autostart posture. Rust, JavaScript,
+schema-drift, roster-drift, renewer replay/tamper, and client transport corpora
+pass locally. The currently installed supervisor image predates this
+checkpoint, so a rebuilt image, real successor journey, restart/republish
+corpus, and remote receipts remain required; `ephemeralHostedAdapter` stays
+false.

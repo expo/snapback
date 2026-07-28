@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+
+import {
+  buildTargetOnboardingPlan,
+  TARGET_DEFAULTS,
+  TARGET_SUPERVISOR_SECRET_FILES,
+  TARGET_TIGRIS_ROLES,
+  targetRolePolicy,
+} from './target-onboarding.mjs';
+
+const plan = buildTargetOnboardingPlan();
+assert.equal(plan.schemaVersion, 'snapback.hosted-target-onboarding.v1');
+assert.match(plan.planSha256, /^sha256:[0-9a-f]{64}$/);
+assert.equal(plan.config.targetApp, 'snapback-drill');
+assert.equal(plan.config.supervisorApp, 'snapback-hosted-supervisor-sjc');
+assert.equal(plan.config.targetId, 'snapback-drill-hosted-v2-20260728');
+assert.equal(plan.refusalBoundaryMicros, 3_000_000);
+assert.equal(plan.providerEnforcedCap, false);
+assert.ok(plan.forbiddenEffects.includes('update legacy product Machine'));
+assert.ok(plan.forbiddenEffects.includes('advertise hosted capability'));
+const expectedSecretProjectionCount = 4 + Object.keys(TARGET_TIGRIS_ROLES).length * 2;
+assert.equal(
+  new Set(TARGET_SUPERVISOR_SECRET_FILES.map(([path]) => path)).size,
+  expectedSecretProjectionCount,
+);
+assert.equal(
+  new Set(TARGET_SUPERVISOR_SECRET_FILES.map(([, secret]) => secret)).size,
+  expectedSecretProjectionCount,
+);
+assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
+  'artifact',
+  'audit',
+  'backup',
+  'cleanup',
+  'control-state',
+  'logs',
+]);
+const artifactPolicy = targetRolePolicy(
+  TARGET_DEFAULTS,
+  'artifact',
+  TARGET_TIGRIS_ROLES.artifact,
+);
+assert.deepEqual(artifactPolicy.Statement, [{
+  Sid: 'ExactTargetPrefix',
+  Effect: 'Allow',
+  Action: ['s3:GetObject'],
+  Resource: 'arn:aws:s3:::snapback-drill-backups/snapback-hosted-v2/artifact/*',
+}]);
+const cleanupPolicy = targetRolePolicy(
+  TARGET_DEFAULTS,
+  'cleanup',
+  TARGET_TIGRIS_ROLES.cleanup,
+);
+assert.equal(
+  cleanupPolicy.Statement[0].Resource,
+  'arn:aws:s3:::snapback-drill-backups/snapback-hosted-v2/*',
+);
+assert.deepEqual(cleanupPolicy.Statement[0].Action, ['s3:DeleteObject']);
+assert.equal(cleanupPolicy.Statement[1].Resource, 'arn:aws:s3:::snapback-drill-backups');
+assert.equal(cleanupPolicy.Statement[1].Condition, undefined);
+
+const changed = buildTargetOnboardingPlan({ targetId: 'fresh-target-id' });
+assert.notEqual(changed.planSha256, plan.planSha256);
+assert.notEqual(changed.ownershipSentinel, plan.ownershipSentinel);
+assert.throws(
+  () => buildTargetOnboardingPlan({
+    ...TARGET_DEFAULTS,
+    refusalBoundaryMicros: 3_000_001,
+  }),
+  /SNAPBACK_HOSTED_TARGET_SPEND_REFUSED/,
+);
+
+console.log('snapback-hosted-supervisor: target onboarding plan corpus passed');

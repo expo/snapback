@@ -56,9 +56,12 @@ review manifest while materializing regenerable projections under the ignored
 custody, consumers, and regeneration policy; app, dev, release, Contract, and
 CI consumers resolve through that manifest and never serve a stale fallback.
 
-Maintained demos were migrated to the manifest policy. Human and JSON summaries
-report authored table/function/live/ephemeral counts, custody totals, warnings,
-degraded results, source locations, and remediation. The full
+Signal Desk was migrated to the manifest policy and the scaffold policy now
+defaults new applications to it. Older chat-matrix and team-chat generated
+trees remain explicit compatibility fixtures; this resolution does not claim
+they were migrated. Human and JSON summaries report authored
+table/function/live/ephemeral counts, custody totals, warnings, degraded
+results, source locations, and remediation. The full
 `@snapback/codegen` suite passes, including cold cache, tamper, legacy-layout,
 consumer projection, failure atomicity, byte identity, and release closure.
 The package inventory, Guide generated-artifact page, capability index, Guide

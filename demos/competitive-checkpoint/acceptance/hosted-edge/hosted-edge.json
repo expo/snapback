@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
-  "deploymentId": "snapback-drill-hosted-edge-1",
+  "deploymentId": "snapback-drill-hosted-v2-1",
   "publicOrigin": "https://snapback-drill.fly.dev",
   "firstContactTransport": "hstsPreloadedSuffix",
-  "admissionPublicKey": "tDjtgFJ1kspHAWmL2CcWLdOE5ZeDWzdT7Byk_EUqsZ0",
+  "admissionPublicKey": "fsoDTQBUILXkSYZp93vKG2-kYIlLGkBTrK67_5lvzXk",
   "supportSha256": "13c69be967a4c63dba40cb82d13adc0dbdbfce99299c23c5a84dba542db083e8"
 }

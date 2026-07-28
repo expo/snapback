@@ -1,8 +1,10 @@
 import type {
   PreparedReactQueryGroup,
   SnapbackFunctionReference,
-  SnapbackQueryGroupReference,
 } from '@snapback/client';
+import type {
+  GeneratedQueryGroups as BackendBakeoffQueryGroups,
+} from '../../demos/backend-bakeoff/snapback/generated/api.d.ts';
 import {
   skip,
   useSnapbackMutation,
@@ -28,15 +30,10 @@ declare const createTodo: SnapbackFunctionReference<
   { title: string },
   string
 >;
-type WorkspaceGroup = SnapbackQueryGroupReference<
-  '/workspace/:owner',
-  { owner: string },
-  {
-    todos: { readonly ref: typeof todos; readonly args: { owner: string } };
-    feed: { readonly ref: typeof feed; readonly args: Record<string, never> };
-  }
->;
-declare const primedWorkspace: PreparedReactQueryGroup<WorkspaceGroup>;
+// @ref LLP 0107#evidence-and-acceptance — the prepared-group result proof
+// consumes a maintained app's emitted declaration, not a hand-authored twin.
+declare const generatedBackendBakeoff:
+  PreparedReactQueryGroup<BackendBakeoffQueryGroups['/']>;
 
 const query = useSnapbackQuery(todos, { owner: 'ada' });
 if (query.status === 'ready' || query.status === 'refreshing') {
@@ -54,13 +51,21 @@ if (group.queries.todos.status === 'ready') {
 if (group.queries.feed.status === 'ready') {
   group.queries.feed.data[0]?.body.toUpperCase();
 }
-const primed = useSnapbackQueries(primedWorkspace);
-if (primed.queries.todos.status === 'ready') {
-  primed.queries.todos.data[0]?.title.toUpperCase();
+const realGeneratedGroup = useSnapbackQueries(generatedBackendBakeoff);
+if (realGeneratedGroup.queries.listIncidents.status === 'ready') {
+  realGeneratedGroup.queries.listIncidents.data[0]?.title.toUpperCase();
 }
-if (primed.queries.feed.status === 'ready') {
-  primed.queries.feed.data[0]?.body.toUpperCase();
+if (realGeneratedGroup.queries.allTasks.status === 'ready') {
+  realGeneratedGroup.queries.allTasks.data[0]?.body.toUpperCase();
 }
+if (realGeneratedGroup.queries.allComments.status === 'ready') {
+  realGeneratedGroup.queries.allComments.data[0]?.body.toUpperCase();
+}
+if (realGeneratedGroup.queries.allActivity.status === 'ready') {
+  realGeneratedGroup.queries.allActivity.data[0]?.kind.toUpperCase();
+}
+// @ts-expect-error the real generated route declaration has four exact keys.
+realGeneratedGroup.queries.incidentTasks;
 
 const create = useSnapbackMutation(createTodo);
 create({ title: 'ship it' }).then((id) => id.toUpperCase());

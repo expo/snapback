@@ -1,0 +1,5 @@
+app = "snapback-hosted-supervisor-sjc"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"

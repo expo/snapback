@@ -1,0 +1,423 @@
+{
+  "$defs": {
+    "HostedJourneyBackupV1": {
+      "additionalProperties": false,
+      "properties": {
+        "backupSha256": {
+          "type": "string"
+        },
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "objectKey": {
+          "type": "string"
+        },
+        "readbackSha256": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/HostedJourneyStatus"
+        }
+      },
+      "required": [
+        "status",
+        "objectKey",
+        "bytes",
+        "backupSha256",
+        "readbackSha256"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyClaimBoundaryV1": {
+      "additionalProperties": false,
+      "properties": {
+        "hostedEphemeralCapabilityAdvertised": {
+          "type": "boolean"
+        },
+        "hostedProductJourneyPassed": {
+          "type": "boolean"
+        },
+        "isolatedBackupRestoreDrillPassed": {
+          "type": "boolean"
+        },
+        "supervisorInstallationReady": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "supervisorInstallationReady",
+        "isolatedBackupRestoreDrillPassed",
+        "hostedProductJourneyPassed",
+        "hostedEphemeralCapabilityAdvertised"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyCleanupV1": {
+      "additionalProperties": false,
+      "properties": {
+        "liveRosterAfterCleanup": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "liveVolumesAfterCleanup": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "temporaryBackupObject": {
+          "$ref": "#/$defs/HostedJourneyDeletedObjectV1"
+        },
+        "temporaryMachine": {
+          "$ref": "#/$defs/HostedJourneyDeletedMachineV1"
+        },
+        "temporaryVolume": {
+          "$ref": "#/$defs/HostedJourneyDeletedVolumeV1"
+        }
+      },
+      "required": [
+        "temporaryMachine",
+        "temporaryVolume",
+        "temporaryBackupObject",
+        "liveRosterAfterCleanup",
+        "liveVolumesAfterCleanup"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyComparatorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "hostedParityClaimed": {
+          "type": "boolean"
+        },
+        "passedChecks": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "receiptSha256": {
+          "type": "string"
+        },
+        "requiredChecks": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/HostedJourneyStatus"
+        }
+      },
+      "required": [
+        "receiptSha256",
+        "status",
+        "requiredChecks",
+        "passedChecks",
+        "hostedParityClaimed"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyDeletedMachineV1": {
+      "additionalProperties": false,
+      "properties": {
+        "absentFromLiveRoster": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "providerState": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "providerState",
+        "absentFromLiveRoster"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyDeletedObjectV1": {
+      "additionalProperties": false,
+      "properties": {
+        "absent": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "readbackStatus": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "readbackStatus",
+        "absent"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyDeletedVolumeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "absentFromLiveInventory": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "providerState": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "providerState",
+        "absentFromLiveInventory"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyIsolatedRestoreV1": {
+      "additionalProperties": false,
+      "properties": {
+        "activated": {
+          "type": "boolean"
+        },
+        "helperMachineId": {
+          "type": "string"
+        },
+        "helperProductionServices": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "helperVolumeId": {
+          "type": "string"
+        },
+        "sqliteIntegrity": {
+          "type": "string"
+        },
+        "sqliteTableCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/HostedJourneyStatus"
+        },
+        "volumeEncrypted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "status",
+        "helperMachineId",
+        "helperVolumeId",
+        "helperProductionServices",
+        "volumeEncrypted",
+        "sqliteIntegrity",
+        "sqliteTableCount",
+        "activated"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyPackedLifecycleV1": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnosticCode": {
+          "type": "string"
+        },
+        "missing": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/HostedJourneyStatus"
+        }
+      },
+      "required": [
+        "status",
+        "diagnosticCode",
+        "missing"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyProviderV1": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "organization": {
+          "type": "string"
+        },
+        "predecessorMachineId": {
+          "type": "string"
+        },
+        "predecessorVolumeId": {
+          "type": "string"
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "releaseImageDigest": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "organization",
+        "app",
+        "region",
+        "publicOrigin",
+        "predecessorMachineId",
+        "predecessorVolumeId",
+        "releaseImageDigest"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyRowsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "applicationConsistentBackup": {
+          "$ref": "#/$defs/HostedJourneyBackupV1"
+        },
+        "isolatedRestore": {
+          "$ref": "#/$defs/HostedJourneyIsolatedRestoreV1"
+        },
+        "packedLifecycle": {
+          "$ref": "#/$defs/HostedJourneyPackedLifecycleV1"
+        },
+        "publicServedPath": {
+          "$ref": "#/$defs/HostedJourneyServedPathV1"
+        },
+        "singleProductionRoute": {
+          "$ref": "#/$defs/HostedJourneySingleRouteV1"
+        }
+      },
+      "required": [
+        "singleProductionRoute",
+        "applicationConsistentBackup",
+        "isolatedRestore",
+        "publicServedPath",
+        "packedLifecycle"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyServedPathV1": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnosticCode": {
+          "type": "string"
+        },
+        "httpStatus": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/HostedJourneyStatus"
+        }
+      },
+      "required": [
+        "status",
+        "httpStatus",
+        "diagnosticCode",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "HostedJourneySingleRouteV1": {
+      "additionalProperties": false,
+      "properties": {
+        "autoscaleEnabled": {
+          "type": "boolean"
+        },
+        "routedMachineIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/HostedJourneyStatus"
+        }
+      },
+      "required": [
+        "status",
+        "routedMachineIds",
+        "autoscaleEnabled"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyStatus": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "HostedProductJourneyVersion": {
+      "enum": [
+        "snapback.hosted-product-journey.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/hosted-product-journey-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Machine-readable packed product-journey receipt. A failed receipt is a\nfirst-class artifact: it retains every completed remote row and closed\ncleanup inventory without becoming capability evidence.\n\n@ref LLP 0105#4-public-cli-product-journey — the public journey is one\nRust-owned closed receipt, including coded failure and cleanup posture.",
+  "properties": {
+    "claimBoundary": {
+      "$ref": "#/$defs/HostedJourneyClaimBoundaryV1"
+    },
+    "cleanup": {
+      "$ref": "#/$defs/HostedJourneyCleanupV1"
+    },
+    "comparator": {
+      "$ref": "#/$defs/HostedJourneyComparatorV1"
+    },
+    "observedAt": {
+      "type": "string"
+    },
+    "provider": {
+      "$ref": "#/$defs/HostedJourneyProviderV1"
+    },
+    "rows": {
+      "$ref": "#/$defs/HostedJourneyRowsV1"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/HostedProductJourneyVersion"
+    },
+    "status": {
+      "$ref": "#/$defs/HostedJourneyStatus"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "status",
+    "observedAt",
+    "comparator",
+    "provider",
+    "rows",
+    "cleanup",
+    "claimBoundary"
+  ],
+  "title": "HostedProductJourneyV1",
+  "type": "object"
+}

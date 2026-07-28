@@ -157,6 +157,14 @@
     "connectionToken": {
       "type": "string"
     },
+    "ephemeralAuthorityInstance": {
+      "description": "Opaque authority-instance witness. Every negotiated ephemeral frame\nrepeats this value so clients can fence in-memory state across target\nprocess replacement.",
+      "pattern": "^eai1\\.[A-Za-z0-9_-]{43}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "ephemeralAuthorityProtocol": {
       "description": "Echo present iff the client offered the known hosted-ephemeral\nauthority protocol. Absence never fails durable/local connection use.",
       "format": "uint32",

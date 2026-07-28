@@ -278,6 +278,9 @@
             "permission_epoch_resync": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
+            "registered_bundle_boot_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
             "relational_query_v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
@@ -3161,6 +3164,7 @@
         "live_subscriptions",
         "mutation_read_set_validation",
         "permission_epoch_resync",
+        "registered_bundle_boot_v1",
         "relational_query_v1",
         "migration_keyset_scan_v1",
         "full_text_search_v1",
@@ -3218,6 +3222,9 @@
       },
       "type": "array"
     },
+    "routeManifestHash": {
+      "type": "string"
+    },
     "runtime": {
       "$ref": "#/$defs/PublicRuntimeCapabilities"
     },
@@ -3253,6 +3260,7 @@
     "schema",
     "functions",
     "capabilityManifest",
+    "routeManifestHash",
     "subscriptions",
     "activeConnections",
     "reapedConnections",

@@ -121,6 +121,14 @@ What worked well:
   acceptance proved a publish did not advance the durable storage version.
 - Multi-table JS mutations read naturally and committed task/activity changes
   together. Declared read/write sets make the authority footprint inspectable.
+- JS operations now colocate one direct, self-contained handler with their
+  arguments, precise result contract, and authority ceilings. Signal Desk no
+  longer carries a parallel `handlers.mjs` registry or repeats source/export
+  wiring.
+- Generated references preserve precise query-record and mutation/action
+  result shapes through the headless client, Contract, grouped queries, and
+  React hooks; the adapter does not need casts or caller-supplied result
+  generics.
 - The generated capability, schema, function, provider, operation, and Contract
   artifacts make the build unusually reviewable.
 - Native live delivery and failure behavior were easy to assert with the shared
@@ -131,14 +139,9 @@ What hurt:
 - Local development still uses `file:` dependencies as the monorepo fixture
   install mechanism, but authoring, browser, Vite, tests, and comparator now
   consume only the installed `@snapback/*` package surface and `snapback` bin.
-- Each JS operation is described in `functions.mjs` and implemented again in
-  `handlers.mjs`. Reads/writes are valuable, but the split duplicates names,
-  source paths, exports, arguments, and mental navigation.
 - Codegen emitted 58 files for a 14-operation app. The extra artifacts are
   useful to downstream systems, but they dominate Git review and make it hard
   to see what a React author actually needs.
-- Result types for arbitrary JS queries were not preserved, so the adapter
-  casts the generated API and normalized rows manually.
 - There is no indexed text-search authoring primitive comparable to Convex's
   search index or Postgres FTS; this implementation scans incidents in JS.
 - The browser setup still required hand-authored subscription aggregation and

@@ -75,6 +75,37 @@ assert.deepEqual(fieldDegradation.degradedResults[0].source, {
 });
 assert.match(fieldDegradation.degradedResults[0].remediation, /unknown validator for `payload`/);
 
+const operationDegradation = createCodegenSummary({
+  appId: 'summary-fixture',
+  inputsHash: 'fixture-input',
+  tables: { items: {} },
+  functions: [{
+    name: 'createItem',
+    kind: 'Mutation',
+    declaredReads: [],
+    declaredWrites: ['items'],
+  }],
+  ephemeralCollections: [],
+  fileRecords: [],
+  diagnostics: [{
+    code: 'SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED',
+    severity: 'info',
+    function: 'createItem',
+    details: { function: 'createItem' },
+  }],
+  sourceSpans: { createItem: { path: 'functions.mjs', line: 9, column: 14 } },
+});
+assert.equal(operationDegradation.counts.degradedResults, 1);
+assert.deepEqual(operationDegradation.degradedResults[0].source, {
+  path: 'functions.mjs',
+  line: 9,
+  column: 14,
+});
+assert.match(
+  operationDegradation.degradedResults[0].remediation,
+  /results\.document.*results\.value/u,
+);
+
 try {
   const first = await generate(backend);
   assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
@@ -95,8 +126,8 @@ try {
     line: 3,
     column: 14,
   });
-  assert.equal(first.summary.degradedResults[0].output.path, 'generated/provider-bindings.d.ts');
-  assert.match(first.summary.degradedResults[0].remediation, /result: v\.object/);
+  assert.equal(first.summary.degradedResults[0].output.path, 'generated/api.d.ts');
+  assert.match(first.summary.degradedResults[0].remediation, /results\.documents.*results\.records/u);
   assert.equal(
     first.artifactIndex.files.find(({ path }) => path === 'api.d.ts').custody,
     CUSTODY.consumerCommitted,
@@ -214,7 +245,7 @@ try {
   assert.equal(cliText.status, 0, cliText.stderr);
   assert.match(cliText.stdout, /Codegen summary for review-surface/);
   assert.match(cliText.stdout, /degraded unknownResult/);
-  assert.match(cliText.stdout, /Add a `result: v\.object/);
+  assert.match(cliText.stdout, /results\.documents.*results\.records/u);
   assert.equal(existsSync(join(project, '.snapback', 'codegen-cache')), true);
 } finally {
   rmSync(project, { recursive: true, force: true });

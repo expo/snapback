@@ -81,7 +81,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, route-group references with one-commit register-mode priming and honest live fallback, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, aggregate connection state, Strict Mode/HMR sharing, complete cleanup, and a retained ten-check Signal Desk receipt | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, presence, query groups, bundle prime, hmr | local | shipped | `useSnapbackQueries` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0102, llp/0106 | clients/react.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated route-group references with one-commit register-mode adoption, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, aggregate connection state, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, presence, query groups, bundle prime, registered bundle, hmr | local | shipped | `useSnapbackQueries` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0102, llp/0106, llp/0107 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI | install, new app, dev, watch, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041 | getting-started/the-authoring-loop.md |
@@ -3063,7 +3063,11 @@ ordinary `Query`, deliberately not a `LiveQuery`.
 
 `parseSearchQueryV1` turns convenience text into the closed AST before the
 request. `client.search` maps the normal query transport `{rows, cursor}` into
-`{items, cursor, hasMore}`.
+`{items, cursor, hasMore}`. The generated operation reference closes each
+item's `fields` over exactly that index's `storedFields` and brands `rowId` for
+the source table, so consumers neither cast stored values nor treat arbitrary
+keys as present. Optional stored source fields are materialized as present
+`null` values and therefore generate `T | null`, matching runtime storage.
 
 ```ts source=demos/backend-bakeoff/src/backends/snapback.ts
   async searchIncidents(term: string) {
@@ -3932,14 +3936,18 @@ await client.ensureApp({
   schema,
   functions,
   seed,
+  routes,
 });
 ```
 
 The client sends that variant through its admin transport. Missing credentials
 are an authorization error; matching hashes do not bypass the gate. A fresh
 mode transition requires the server restart named by its staged-mode response.
-The explicit variant currently refuses `routes`; ensure routes separately only
-on the legacy `dev` path. Never reset as a mount side effect.
+The explicit variant validates and installs `routes` against the same candidate
+schema/functions pair. On a cross-mode provision the routes stay staged with
+that pair and become active only after the required restart; same-mode
+sessions provisioning installs them in the same coordinated operation. Never
+reset as a mount side effect.
 
 ### Versioned seed lifecycle is capability-gated
 
@@ -4024,10 +4032,19 @@ generation counter. React apps should normally consume the thin
 When a generated route group needs one-commit boot, call
 `binding.prepareQueryGroup(groupRef, params)` before mount. That helper is a
 strict projection over the headless client's existing register-mode
-`fetchBundle` owner: it validates the closed response, retains no grant secret,
-and hands child registrations plus public commit/generation provenance to the
-React provider. A coded `fallbackToLive` result has `boot: null`; it is an
-ordinary live group, not a degraded single-commit claim.
+`fetchBundle` owner: it validates the closed response and keeps rows,
+registrations, resume receipts, namespaces, authorization projections, the
+connection handle, and grant in private client custody. Only all-`LiveQuery`
+routes whose `$param` targets are strings receive this
+generated register reference; the broader read-bundle route grammar still
+supports server-decoded numeric and boolean parameters. The provider publishes
+registered rows only after the stream returns a positive server readiness
+witness. Only absence of the target-owned `registered_bundle_boot_v1`
+capability can produce an author-enabled `fallbackToLive` result. It has
+`boot: null` and is an ordinary live group, not a degraded single-commit claim;
+all bundle request failures refuse. A frame racing a still-lazy child marks
+that registration dirty and requires a fresh superseding subscription before
+the child can publish.
 
 Providers must declare `externalStoreProtocol: "snapback.external-store.v1"`.
 If a resolved handle also declares a protocol, an incompatible token publishes
@@ -4235,7 +4252,7 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0101-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0106-react-presence-and-optimistic-lifecycle.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0101-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0106-react-presence-and-optimistic-lifecycle.spec.md, llp/0107-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/backend-bakeoff/src/backends/snapback.ts, demos/backend-bakeoff/tests/react.mjs, demos/backend-bakeoff/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
@@ -4327,14 +4344,37 @@ const provider = createSnapbackReactProvider(binding, {
 const workspace = useSnapbackQueries(workspaceGroup);
 ```
 
-The generated reference closes the child refs, argument mappings, route
-parameters, app, and definition digest. The prepared group contains no grant
-secret. On a successful registered boot, `workspace.boot` records the one
-initial `{commitVersion, generation, versionStream}` and each canonical child
-store adopts its registration without an ordinary prime/subscribe race. That
-field is initial provenance only; later child deltas are independently live.
-An explicit coded target fallback returns `boot: null` and opens ordinary live
-subscriptions, so it makes no single-commit claim.
+The generated reference closes the child refs, argument mappings, string route
+parameters, app, and definition digest. The prepared group is opaque: its
+`$param` mappings target string args only; numeric/boolean parameter routes
+remain available through ordinary read bundles but do not receive a registered
+group reference. Literal numeric/boolean args are fine. The prepared group's
+public entries contain safe generated identity, never rows, subscription ids,
+resume receipts, authorization projections, namespaces, grants, or a
+connection handle, and the private transferred owner is not reachable through
+provider properties. The provider publishes registered rows only after
+positive server-confirmed socket attach. On a successful registered boot,
+`workspace.boot` records the one initial
+`{commitVersion, generation, versionStream, attachDeadline}` and each canonical
+child store adopts its registration without an ordinary prime/subscribe race.
+That field is initial provenance only; later child deltas are independently
+live.
+
+Fallback is intentionally narrow. Only a target whose served capability
+manifest lacks experimental `registered_bundle_boot_v1` can produce
+`source: "live-fallback"` when the author set `fallbackToLive: true`.
+Authentication, authorization, integrity, limit, timeout, and malformed
+bundle failures still refuse. If a valid registered preparation reaches its
+attach deadline before provider adoption, the provider reports
+`source: "live-recovery"`, `reason: "attach-deadline-expired"`, and
+`boot: null`; it discards the expired rows and opens ordinary fresh live
+subscriptions.
+
+A lazy child is also fail-closed: if its registered subscription receives a
+delta before that child store adopts it, the provider reports
+`source: "live-recovery"`, `reason: "unadopted-delta"`, and `boot: null`.
+First demand opens a fresh subscription that supersedes the dirty registration
+instead of exposing the older bundle rows.
 
 For view-local group membership that is not a route bundle, pass the existing
 typed object map directly:
@@ -5739,6 +5779,7 @@ await db.ensureApp({
   schema,
   functions,
   seed,
+  routes,
 });
 ```
 
@@ -5748,7 +5789,8 @@ non-production-profile gated, even when artifact hashes already match. A fresh
 `dev → sessions` provision stages the sessions deployment and closes app data
 until the required process restart consumes it; same-mode sessions provisioning
 is idempotent without weakening the gate. Explicit mode provisioning does not
-yet accept a routes manifest.
+reinterpret route identity: it validates `routes` against the same candidate
+schema/functions pair and installs them only with that deployment.
 
 Then call it. Function references are the generated `api.<name>` objects
 from `generated/api.mjs`, and mutations return structured results:
@@ -7734,6 +7776,10 @@ The command generates and provisions the named backend into a fresh
 file-backed database, starts an OS-port-isolated managed server, creates
 separate actor and observer clients, disables live polling fallback, applies a
 deadline to every operation, and tears down the server and temporary state.
+Client setup follows the process-scoped `/auth/session` handshake: a dev-mode
+fixture uses body-carried local impersonation, while a sessions-mode fixture
+uses the provider to mint bearer-backed clients. The runner never calls the
+session provider merely because a managed impersonation sidecar exists.
 Its exit codes match the ordinary acceptance harness: `0` means every declared
 check and cleanup passed, `1` means a product check failed or a required
 capability was classified as a GAP, and `2` means setup, timeout, server death,

@@ -92,7 +92,11 @@ ordinary `Query`, deliberately not a `LiveQuery`.
 
 `parseSearchQueryV1` turns convenience text into the closed AST before the
 request. `client.search` maps the normal query transport `{rows, cursor}` into
-`{items, cursor, hasMore}`.
+`{items, cursor, hasMore}`. The generated operation reference closes each
+item's `fields` over exactly that index's `storedFields` and brands `rowId` for
+the source table, so consumers neither cast stored values nor treat arbitrary
+keys as present. Optional stored source fields are materialized as present
+`null` values and therefore generate `T | null`, matching runtime storage.
 
 ```ts source=demos/backend-bakeoff/src/backends/snapback.ts
   async searchIncidents(term: string) {

@@ -24,6 +24,7 @@
       "type": "object"
     },
     "BundleQuerySpec": {
+      "additionalProperties": false,
       "properties": {
         "args": {
           "default": null,
@@ -40,6 +41,7 @@
       "type": "object"
     },
     "BundleRouteEntry": {
+      "additionalProperties": false,
       "description": "One route entry: every query the route needs — the unit the bundle\nevaluates at one commit (LLP 0092 §0C.1).",
       "properties": {
         "persist": {
@@ -56,6 +58,10 @@
           },
           "type": "array"
         },
+        "registerGroupEligible": {
+          "description": "Codegen-derived eligibility for LLP 0107 registered query-group\nadoption. It is true only for all-LiveQuery routes whose `$param`\nreferences target string args, so clients need not duplicate server\nroute-parameter coercion before I/O.",
+          "type": "boolean"
+        },
         "route": {
           "description": "Route pattern: `/`-separated static segments plus `:name` params.",
           "type": "string"
@@ -66,10 +72,34 @@
         "queries"
       ],
       "type": "object"
+    },
+    "QueryNamespace": {
+      "additionalProperties": false,
+      "properties": {
+        "clientStoreId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "queryKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientStoreId",
+        "queryKey",
+        "queryInstanceId"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/app.bundle.input.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
   "description": "`POST /app/bundle` request (LLP 0092 §0D.1). `mode` stays a plain string\nso an unknown mode refuses with the coded `SNAPBACK_BUNDLE_MODE_INVALID`\nrather than an untyped serde rejection.",
   "properties": {
     "auth": {
@@ -80,6 +110,29 @@
         "user_id": null
       },
       "description": "Dev-mode legacy body auth (the `app_function_route` carrier); ignored\nin sessions mode like every legacy body-auth field."
+    },
+    "authInvalidationProtocol": {
+      "description": "Register-mode connection negotiation. This is the same must-understand\noffer carried by `POST /connection/open`; a bundled connection must\nnot silently lose the authorization-invalidation protocol that its\nadopted subscriptions require.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "authorizationNamespaces": {
+      "description": "One positional namespace per route child. Register-mode clients\nallocate these before the bundle cut so auth-scoped subscriptions can\ncreate LLP 0053 obligations atomically with their first rows.",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/QueryNamespace"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "type": "array"
     },
     "devManifestEntry": {
       "anyOf": [

@@ -4753,6 +4753,8 @@ pub enum TargetCapabilityId {
     MutationReadSetValidation,
     #[serde(rename = "permission_epoch_resync")]
     PermissionEpochResync,
+    #[serde(rename = "registered_bundle_boot_v1")]
+    RegisteredBundleBootV1,
     #[serde(rename = "relational_query_v1")]
     RelationalQueryV1,
     #[serde(rename = "migration_keyset_scan_v1")]
@@ -4768,7 +4770,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::Cron,
@@ -4779,6 +4781,7 @@ impl TargetCapabilityId {
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
+        Self::RegisteredBundleBootV1,
         Self::RelationalQueryV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
@@ -4799,6 +4802,7 @@ impl TargetCapabilityId {
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
+            Self::RegisteredBundleBootV1 => "registered_bundle_boot_v1",
             Self::RelationalQueryV1 => "relational_query_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
@@ -4829,6 +4833,7 @@ impl TargetCapabilityId {
         // promoted id are unaffected (stable acknowledgment is a no-op).
         match self {
             Self::InlineHandlerV1
+            | Self::RegisteredBundleBootV1
             | Self::ResultContractV1
             | Self::VersionedSeedInstallV1
             | Self::VersionedSeedResetV1 => CapabilityMaturity::Experimental,
@@ -4872,6 +4877,11 @@ impl TargetCapabilityId {
                         .any(|form| form == "cron-action-run-mutation")
             }
             Self::PermissionEpochResync => facts.permission_epoch_resync_registered,
+            // @ref LLP 0107#fallback-and-capability-honesty — positive
+            // presence means this exact target instance implements the
+            // route/register endpoint, pending-owner/grant custody, and the
+            // generated client's registered-adoption cleanup contract.
+            Self::RegisteredBundleBootV1 => facts.registered_bundle_boot_v1_registered,
             // Fail-closed dedicated fact: a target implementing host plans
             // (e.g. the Cloudflare host-ops path) does not thereby implement
             // the relational executor (LLP 0080 §2's capability-gap rule).
@@ -4971,6 +4981,7 @@ pub struct TargetCapabilityFacts {
     ibex_ctx_db_host_bridge_available: bool,
     mutation_read_set_validator_registered: bool,
     permission_epoch_resync_registered: bool,
+    registered_bundle_boot_v1_registered: bool,
 }
 
 impl TargetCapabilityFacts {
@@ -4995,6 +5006,12 @@ impl TargetCapabilityFacts {
             ibex_ctx_db_host_bridge_available: true,
             mutation_read_set_validator_registered: true,
             permission_epoch_resync_registered: true,
+            // @ref LLP 0107#evidence-and-acceptance — the closed bundle DTO,
+            // sender-bound mint/replay, socket-preflight handoff, expiry,
+            // and generated-client adoption/cleanup suites jointly prove the
+            // local/auth-aware target implementation behind this positive
+            // experimental capability fact.
+            registered_bundle_boot_v1_registered: true,
         }
     }
 
@@ -6043,7 +6060,7 @@ mod membership_manifest_grammar_tests {
     // emitted support set with every non-stable id; stable ids never appear.
     // With `relational_query_v1` and `migration_keyset_scan_v1` promoted as
     // LLP 0080/0081's Implemented act (2026-07-26), only the explicitly
-    // experimental 0101/0103 contracts remain in the maturity map.
+    // experimental 0101/0103/0107 contracts remain in the maturity map.
     #[test]
     fn capability_maturity_promotions_hold_and_admission_stays_fail_closed() {
         let disabled = CapabilityManifest::local_v0_declared();
@@ -6064,6 +6081,10 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
+                TargetCapabilityId::RegisteredBundleBootV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
                 TargetCapabilityId::ResultContractV1,
                 CapabilityMaturity::Experimental,
             ),
@@ -6077,6 +6098,12 @@ mod membership_manifest_grammar_tests {
             ),
         ]);
         assert_eq!(disabled.capability_maturity, experimental);
+        assert!(
+            disabled
+                .supported_capabilities
+                .contains(&TargetCapabilityId::RegisteredBundleBootV1),
+            "registered bundle boot is advertised only by the proven target implementation",
+        );
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
         assert!(
             enabled

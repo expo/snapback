@@ -85,6 +85,10 @@ export interface SnapbackReactProvider {
     presenceListeners: number;
     resyncReasons: readonly string[];
     diagnostics: readonly SnapbackDiagnostic[];
+    preparedRegistrations: number;
+    preparedGroupSource: PreparedReactQueryGroup['source'] | null;
+    preparedGroupReason: string | null;
+    preparedGroupBoot: PreparedReactQueryGroup['boot'];
   }>;
   dispose(): Promise<void>;
 }
@@ -197,11 +201,18 @@ export type QueryGroupState<Entries extends QueryEntryMap> = Readonly<{
 export function useSnapbackQueries<const Entries extends QueryEntryMap>(
   entries: Entries,
 ): QueryGroupState<Entries>;
+type PreparedGroupEntryMap<Group extends PreparedReactQueryGroup> =
+  QueryGroupEntries<Group['reference']> extends QueryEntryMap
+    ? QueryGroupEntries<Group['reference']>
+    : never;
+// @ref LLP 0107#generated-reference — preserve the generated declaration's
+// finite child keys; intersecting it with QueryEntryMap would reopen every
+// string key and erase exact group-result typing.
 export function useSnapbackQueries<
   const Group extends PreparedReactQueryGroup,
 >(
   group: Group,
-): QueryGroupState<QueryGroupEntries<Group['reference']> & QueryEntryMap>;
+): QueryGroupState<PreparedGroupEntryMap<Group>>;
 
 export function useSnapbackMutation<
   Ref extends MutationReference,

@@ -1,0 +1,275 @@
+{
+  "schemaVersion": "snapback.react-presence-receipt.v1",
+  "generatedAt": "2026-07-28T07:30:03.522Z",
+  "target": {
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "target": "local-dev-sqlite-ibex",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
+    "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68"
+  },
+  "app": {
+    "appId": "backend-bakeoff",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
+    "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68"
+  },
+  "functions": {
+    "query": {
+      "id": "backend-bakeoff:allTasks",
+      "name": "allTasks",
+      "kind": "LiveQuery",
+      "implementationHash": "sha256:28ef27f86bee0e8f122d876033a5378fbfe8f52fde603575ac2392cc396802d4",
+      "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "resultContractHash": "sha256:3588422c72855bf182efb739c4a67c4f2ddf6929eacf4dfdabf7c8cae1b85ab3"
+    },
+    "mutation": {
+      "id": "backend-bakeoff:toggleTask",
+      "name": "toggleTask",
+      "kind": "Mutation",
+      "implementationHash": "sha256:7470eaebb6d6c82164fbf8c2fc0b5b6039ab46c5103eb24c7c29067d785361a7",
+      "argsContractHash": "sha256:9d7f5e90524c59310e594de01bae86f8388e548a1d8478d572cab870065fc258",
+      "resultContractHash": "sha256:5789293011f12ded5931a09c9d3cea27ea2a9a00334fb2bdbb5c30ede365ddd8"
+    }
+  },
+  "collection": {
+    "id": "backend-bakeoff:ephemeral:incidentPresence",
+    "name": "incidentPresence",
+    "keyMode": "Connection",
+    "staticPolicyDigest": "sha256:8e0ab6d8e352b4b1134195ad2cd46762fae611679a7e07bd4cecd2c69ac12bb0"
+  },
+  "packages": {
+    "client": {
+      "algorithm": "sha256-path-length-content.v1",
+      "files": [
+        "index.d.mts",
+        "index.mjs",
+        "package.json",
+        "react-binding.mjs"
+      ],
+      "digest": "sha256:d2aac0aed3f4514d40b553c49b620f51455ac4d8cc402853856eac78963dec32"
+    },
+    "react": {
+      "algorithm": "sha256-path-length-content.v1",
+      "files": [
+        "index.d.mts",
+        "index.mjs",
+        "package.json"
+      ],
+      "digest": "sha256:0f893b84258624d7a4f8e05f97a9b4db9ea2419139ae7d57f46ef2de84bd47e8"
+    },
+    "contract": {
+      "algorithm": "sha256-path-length-content.v1",
+      "files": [
+        "package.json",
+        "result-contract-validator.mjs"
+      ],
+      "digest": "sha256:437c29163fc5de564f2f841682a289fc1eb9f7a69f3b12b6b5b938026a1f5abe"
+    },
+    "codegen": {
+      "algorithm": "sha256-path-length-content.v1",
+      "files": [
+        "index.mjs",
+        "package.json"
+      ],
+      "digest": "sha256:9275b4b0cbbc841955e3d019097addc1a3c1805e2d2de039b7e4cc4a4c4f79a6"
+    }
+  },
+  "transport": {
+    "nativeDelivery": "websocket",
+    "pollingEnabled": false
+  },
+  "skips": 0,
+  "title": "backend bakeoff / Snapback React presence v1",
+  "passed": 10,
+  "skipped": 0,
+  "failed": 0,
+  "total": 10,
+  "ok": true,
+  "results": [
+    {
+      "name": "two-independent-clients",
+      "ok": true,
+      "details": {
+        "clientStoreIds": [
+          "react-presence-client-a",
+          "react-presence-client-b"
+        ],
+        "connectionIds": [
+          "react_presence_receipt_a",
+          "react_presence_receipt_b"
+        ],
+        "grantedIds": [
+          "react_presence_receipt_a",
+          "react_presence_receipt_b"
+        ],
+        "grantedIdsDistinct": true,
+        "delivery": "native-websocket",
+        "pollingEnabled": false
+      }
+    },
+    {
+      "name": "ttl-expiry",
+      "ok": true,
+      "details": {
+        "ttlMs": 500,
+        "expiresAtMs": 1785223805406,
+        "serverExpiredCounterAdvanced": true
+      }
+    },
+    {
+      "name": "forced-disconnect-delete",
+      "ok": true,
+      "details": {
+        "ttlMs": 4000,
+        "halfTtlMs": 2000,
+        "peerRemovedAfterMs": 18,
+        "removalReason": "Disconnected"
+      }
+    },
+    {
+      "name": "durable-version-unchanged",
+      "ok": true,
+      "details": {
+        "before": 1,
+        "after": 1
+      }
+    },
+    {
+      "name": "rollback-over-newer-authority",
+      "ok": true,
+      "details": {
+        "preservedBody": "Compare traces before and after deploy (newer authority)",
+        "completed": false
+      }
+    },
+    {
+      "name": "matcher-query-first",
+      "ok": true,
+      "details": {
+        "ordering": [
+          "query",
+          "response"
+        ]
+      }
+    },
+    {
+      "name": "matcher-response-first",
+      "ok": true,
+      "details": {
+        "ordering": [
+          "response",
+          "nonmatching-query",
+          "matching-query"
+        ]
+      }
+    },
+    {
+      "name": "ssr-zero-demand",
+      "ok": true,
+      "details": {
+        "stores": 0,
+        "subscriptions": 0,
+        "grants": 0,
+        "socketDemand": 0
+      }
+    },
+    {
+      "name": "hosted-refusal",
+      "ok": true,
+      "details": {
+        "status": "unsupported",
+        "starts": 0
+      }
+    },
+    {
+      "name": "zero-resources",
+      "ok": true,
+      "details": {
+        "deadlineMs": 5000,
+        "providers": [
+          {
+            "providerInstanceId": "provider-1-71c66466-d196-4014-b18c-ebf675608893",
+            "terminal": true,
+            "custodyPaused": true,
+            "stores": 0,
+            "consumers": 0,
+            "serverSubscriptions": 0,
+            "leases": 0,
+            "reservations": 0,
+            "timers": 0,
+            "presenceStores": 0,
+            "presenceConsumers": 0,
+            "presenceSubscriptions": 0,
+            "publishers": 0,
+            "presenceTimers": 0,
+            "presenceListeners": 0,
+            "resyncReasons": [],
+            "listeners": 0,
+            "diagnostics": [],
+            "preparedRegistrations": 0,
+            "preparedGroupSource": null,
+            "preparedGroupReason": null,
+            "preparedGroupBoot": null
+          },
+          {
+            "providerInstanceId": "provider-2-788a52ec-3ca3-42ae-86cb-57d067a21762",
+            "terminal": true,
+            "custodyPaused": true,
+            "stores": 0,
+            "consumers": 0,
+            "serverSubscriptions": 0,
+            "leases": 0,
+            "reservations": 0,
+            "timers": 0,
+            "presenceStores": 0,
+            "presenceConsumers": 0,
+            "presenceSubscriptions": 0,
+            "publishers": 0,
+            "presenceTimers": 0,
+            "presenceListeners": 0,
+            "resyncReasons": [],
+            "listeners": 0,
+            "diagnostics": [],
+            "preparedRegistrations": 0,
+            "preparedGroupSource": null,
+            "preparedGroupReason": null,
+            "preparedGroupBoot": null
+          }
+        ],
+        "clients": {
+          "react_presence_receipt_a": {
+            "managers": [],
+            "managerCount": 0,
+            "grants": [],
+            "grantCount": 0,
+            "laneConsumers": [],
+            "socketDemand": 0,
+            "timers": 0,
+            "listeners": 0
+          },
+          "react_presence_receipt_b": {
+            "managers": [],
+            "managerCount": 0,
+            "grants": [],
+            "grantCount": 0,
+            "laneConsumers": [],
+            "socketDemand": 0,
+            "timers": 0,
+            "listeners": 0
+          }
+        },
+        "server": {
+          "rooms": 0,
+          "entries": 0,
+          "subscriptions": 0,
+          "exactDisconnectsAwaited": [
+            "react_presence_receipt_a",
+            "react_presence_receipt_b"
+          ]
+        }
+      }
+    }
+  ],
+  "expectedChecks": 10,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

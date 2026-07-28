@@ -30,7 +30,8 @@
   },
   "dependencies": {
     "@snapback/client": "workspace:*",
-    "@snapback/codegen": "workspace:*"
+    "@snapback/codegen": "workspace:*",
+    "@snapback/contract": "workspace:*"
   },
   "optionalDependencies": {
     "@snapback/runtime-darwin-arm64": "workspace:*",
@@ -43,6 +44,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node comparator-profile.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
+    "test": "node package.test.mjs && node load-generated.test.mjs && node comparator-profile.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
   }
 }

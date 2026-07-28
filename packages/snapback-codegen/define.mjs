@@ -743,19 +743,6 @@ export function defineSearchQuery(spec) {
   const auth = spec.auth ?? (visibility.kind === 'owner' ? 'authenticated' : 'public');
   assert(AUTH_REQUIREMENTS.has(auth), 'SearchQuery auth must be public, optional-user, or authenticated');
   if (visibility.kind === 'owner') assert(auth === 'authenticated', 'owner search requires authenticated auth');
-  const searchItem = v.object({
-    rowId: v.string(),
-    score: v.integer({ min: 0, max: 22_937_600 }),
-    fields: v.json(),
-    highlights: v.array(v.object({
-      field: v.string(),
-      text: v.string({ maxBytes: 256 }),
-      matches: v.array(v.object({
-        start: v.integer({ min: 0 }),
-        end: v.integer({ min: 0 }),
-      }), { maxItems: 8 }),
-    }), { maxItems: 3 }),
-  });
   return {
     [FN]: true,
     __kind: 'Query',
@@ -765,10 +752,10 @@ export function defineSearchQuery(spec) {
       limit: v.optional(v.integer({ min: 1, max: 50 })),
       after: v.optional(v.string({ maxBytes: 2_048 })),
     },
-    // Runtime result validation sees the ordinary QueryOutput rows. The
-    // generated FunctionReference below projects those rows plus the
-    // transport cursor to SearchPageV1 for client.search().
-    resultContract: results.records(searchItem),
+    // Runtime result validation sees the ordinary QueryOutput rows. Codegen
+    // derives their exact stored-field contract from this index declaration;
+    // the generated FunctionReference projects those rows plus the transport
+    // cursor to the operation-specific SearchPageV1 for client.search().
     searchPlan: {
       table: table.__tableName,
       index: spec.index,

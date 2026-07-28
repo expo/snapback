@@ -299,6 +299,115 @@ function tableDocumentValue(table, tables) {
   return scalar('object', { fields, allowExtra: false });
 }
 
+function tableFieldValue(field) {
+  const value = validatorResultValue({
+    __validator: true,
+    fieldType: field.field_type,
+    primitive: typeof field.field_type === 'string'
+      ? field.field_type.toLowerCase()
+      : 'string',
+    optional: false,
+  });
+  // Search stores every declared projection key. An absent optional source
+  // value is materialized as JSON null by the Rust authority.
+  return field.optional
+    ? scalar('union', { variants: [scalar('null'), value] })
+    : value;
+}
+
+// @ref LLP 0073#ranking-order-and-cursors — the operation contract closes
+// `fields` over exactly the declared stored projection. It is not an
+// application-authored JSON escape hatch.
+function searchRowsValue(runtime, tables) {
+  const plan = runtime?.HostPlan?.SearchQuery;
+  if (!plan) return null;
+  const table = tables[plan.table];
+  if (!table) throw new TypeError(`search result contract references unknown table ${plan.table}`);
+  const index = (table.searchIndexes ?? []).find(({ name }) => name === plan.index);
+  if (!index) {
+    throw new TypeError(
+      `search result contract references unknown index ${plan.table}.${plan.index}`,
+    );
+  }
+  const sourceFields = new Map((table.fields ?? []).map((field) => [field.name, field]));
+  const storedFields = (index.storedFields ?? []).map((name) => {
+    const field = sourceFields.get(name);
+    if (!field) {
+      throw new TypeError(
+        `search result contract references unknown stored field ${plan.table}.${name}`,
+      );
+    }
+    return { name, required: true, value: tableFieldValue(field) };
+  });
+  return {
+    kind: 'records',
+    record: scalar('object', {
+      allowExtra: false,
+      fields: [
+        {
+          name: 'rowId',
+          required: true,
+          value: scalar('id', { table: plan.table }),
+        },
+        {
+          name: 'score',
+          required: true,
+          value: scalar('integer', { min: 0, max: 22_937_600 }),
+        },
+        {
+          name: 'fields',
+          required: true,
+          value: scalar('object', { fields: storedFields, allowExtra: false }),
+        },
+        {
+          name: 'highlights',
+          required: true,
+          value: scalar('array', {
+            maxItems: 3,
+            element: scalar('object', {
+              allowExtra: false,
+              fields: [
+                {
+                  name: 'field',
+                  required: true,
+                  value: scalar('string', { maxBytes: RESULT_MAX_STRING_BYTES }),
+                },
+                {
+                  name: 'text',
+                  required: true,
+                  value: scalar('string', { maxBytes: 256 }),
+                },
+                {
+                  name: 'matches',
+                  required: true,
+                  value: scalar('array', {
+                    maxItems: 8,
+                    element: scalar('object', {
+                      allowExtra: false,
+                      fields: [
+                        {
+                          name: 'start',
+                          required: true,
+                          value: scalar('integer', { min: 0, max: JS_SAFE_INTEGER }),
+                        },
+                        {
+                          name: 'end',
+                          required: true,
+                          value: scalar('integer', { min: 0, max: JS_SAFE_INTEGER }),
+                        },
+                      ],
+                    }),
+                  }),
+                },
+              ],
+            }),
+          }),
+        },
+      ],
+    }),
+  };
+}
+
 function authoredContract(spec, tables) {
   if (!spec) return null;
   if (spec.kind === 'documents') {
@@ -372,6 +481,9 @@ export function effectiveResultContract({
       document: tableDocumentValue(queryTable, tables),
     });
   }
+  if (functionKind === 'Query' && runtime?.HostPlan?.SearchQuery) {
+    return validateEffectiveResultContract(searchRowsValue(runtime, tables));
+  }
   const returnedDocument = runtime?.HostPlan?.Mutation?.return_value?.Document?.table;
   if (functionKind === 'Mutation' && returnedDocument) {
     return validateEffectiveResultContract({
@@ -392,6 +504,16 @@ export function resultContractType(contract, tableType = (table) => `GeneratedDa
     return `ReadonlyArray<${resultValueType(contract.row)}>`;
   }
   return 'unknown';
+}
+
+export function searchPageResultType(contract) {
+  if (contract?.kind !== 'records' || contract.record?.kind !== 'object') {
+    return 'SearchPageV1';
+  }
+  const fields = contract.record.fields.find(({ name }) => name === 'fields')?.value;
+  const rowId = contract.record.fields.find(({ name }) => name === 'rowId')?.value;
+  if (fields?.kind !== 'object' || rowId === undefined) return 'SearchPageV1';
+  return `SearchPageV1<${resultValueType(fields)}, ${resultValueType(rowId)}>`;
 }
 
 function resultValueType(value) {

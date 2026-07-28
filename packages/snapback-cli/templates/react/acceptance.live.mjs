@@ -12,8 +12,6 @@ import {
 import api from './snapback/generated/api.mjs';
 import functions from './snapback/generated/functions.manifest.json' with { type: 'json' };
 import capabilityManifest from './snapback/generated/capability.manifest.json' with { type: 'json' };
-import schema from './snapback/generated/schema.manifest.json' with { type: 'json' };
-import seed from './snapback/seed.json' with { type: 'json' };
 
 const root = resolve(import.meta.dirname);
 const readyFile = join(root, '.snapback', 'dev.ready.json');
@@ -23,13 +21,32 @@ const executable = join(
   '.bin',
   process.platform === 'win32' ? 'snapback.cmd' : 'snapback',
 );
-const child = spawn(executable, ['dev', 'snapback', '--no-watch'], {
+const child = spawn(executable, ['dev', 'snapback'], {
   cwd: root,
   stdio: ['pipe', 'pipe', 'pipe'],
 });
 let stdout = '';
 let stderr = '';
-child.stdout.on('data', (chunk) => { stdout += chunk; });
+let stdoutRemainder = '';
+const lifecycleEvents = [];
+child.stdout.on('data', (chunk) => {
+  const text = chunk.toString('utf8');
+  stdout += text;
+  stdoutRemainder += text;
+  for (;;) {
+    const newline = stdoutRemainder.indexOf('\n');
+    if (newline === -1) break;
+    const line = stdoutRemainder.slice(0, newline).trim();
+    stdoutRemainder = stdoutRemainder.slice(newline + 1);
+    if (!line) continue;
+    try {
+      const event = JSON.parse(line);
+      if (event?.schemaVersion === 'snapback.dev.v1') lifecycleEvents.push(event);
+    } catch {
+      // Human-facing child output remains in stdout for timeout diagnostics.
+    }
+  }
+});
 child.stderr.on('data', (chunk) => { stderr += chunk; });
 
 const until = async (predicate, label, timeoutMs = 30_000) => {
@@ -50,9 +67,16 @@ try {
     if (!existsSync(readyFile)) return null;
     try { return JSON.parse(readFileSync(readyFile, 'utf8')); } catch { return null; }
   }, 'managed Snapback ready file');
+  const loaded = await until(
+    () => lifecycleEvents.find(
+      (event) => event.state === 'generated-and-loaded' && event.managed === true,
+    ) ?? null,
+    'managed Snapback generated-and-loaded lifecycle',
+  );
+  assert.equal(loaded.readyFile, readyFile);
+  assert.equal(loaded.serverUrl, ready.serverUrl);
   const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
   const client = new SnapbackClient(ready.serverUrl, { adminToken });
-  await client.ensureApp({ schema, functions, seed });
   const binding = await client.prepareReactBinding({
     generatedManifest: { functions, capabilityManifest },
   });
