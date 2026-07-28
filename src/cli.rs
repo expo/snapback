@@ -10,6 +10,7 @@ use crate::manifest::SNAPBACK_SCHEMA_VERSION;
 use crate::server;
 use anyhow::Context;
 use clap::Parser;
+use serde::Deserialize;
 use serde_json::{Value, json};
 use std::ffi::OsString;
 use std::io::ErrorKind;
@@ -721,6 +722,15 @@ pub enum HostCommand {
     // independently embedded facts without starting a server, so link probes
     // can classify the exact executable they just launched.
     BuildIdentity,
+    /// Reopen and verify one closed hosted-product-journey receipt plus its
+    /// opaque retained evidence map. A success-shaped JSON document is never
+    /// capability evidence until this command returns `verified`.
+    #[command(name = "hosted-journey-verify")]
+    HostedJourneyVerify {
+        receipt: PathBuf,
+        #[arg(long)]
+        artifacts: Option<PathBuf>,
+    },
     /// migrate.* — LLP 0081 reviewed storage evolution (local profile).
     Migrate {
         #[command(subcommand)]
@@ -1028,12 +1038,104 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             );
             Ok(())
         }
+        Some(HostCommand::HostedJourneyVerify { receipt, artifacts }) => {
+            verify_hosted_product_journey(&receipt, artifacts.as_deref())
+        }
         // migrate.* owns `LocalSnapback` directly with no listener ever
         // bound, so the whole subcommand is one pre-bind blocking section —
         // without the handoff the first SQLite read panics the async-worker
         // guard (found by the Step 5 schema-evolution witness).
         Some(HostCommand::Migrate { command }) => startup_blocking(|| migrate_command(command)),
     }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HostedJourneyArtifactMapV1 {
+    schema_version: String,
+    artifacts: Vec<HostedJourneyArtifactMapEntryV1>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HostedJourneyArtifactMapEntryV1 {
+    artifact_id: String,
+    path: PathBuf,
+}
+
+/// Product verifier for the Rust-owned LLP 0105 receipt. Receipt artifact ids
+/// are opaque; filesystem paths live only in this operator-supplied local map
+/// and cannot enter the retained receipt or its digest.
+// @ref LLP 0105#4-public-cli-product-journey — public journey evidence is
+// independently reopened before the hosted capability boundary can pass.
+fn verify_hosted_product_journey(
+    receipt_path: &Path,
+    artifact_map_path: Option<&Path>,
+) -> anyhow::Result<()> {
+    const RECEIPT_MAX_BYTES: u64 = 1_048_576;
+    const ARTIFACT_MAP_MAX_BYTES: u64 = 1_048_576;
+    const EVIDENCE_MAX_BYTES: u64 = 64 * 1_048_576;
+
+    let read_regular = |path: &Path, limit: u64, label: &str| -> anyhow::Result<Vec<u8>> {
+        let metadata =
+            std::fs::symlink_metadata(path).with_context(|| format!("read {label} metadata"))?;
+        if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+            anyhow::bail!("{label} must be a regular non-symlink file");
+        }
+        if metadata.len() > limit {
+            anyhow::bail!("{label} exceeds its bounded size");
+        }
+        std::fs::read(path).with_context(|| format!("read {label}"))
+    };
+
+    let receipt_bytes = read_regular(receipt_path, RECEIPT_MAX_BYTES, "hosted journey receipt")?;
+    let receipt: crate::deploy::HostedProductJourneyV1 =
+        serde_json::from_slice(&receipt_bytes).context("parse hosted journey receipt")?;
+    let mut artifacts = std::collections::BTreeMap::new();
+    if let Some(map_path) = artifact_map_path {
+        let map_bytes = read_regular(
+            map_path,
+            ARTIFACT_MAP_MAX_BYTES,
+            "hosted journey artifact map",
+        )?;
+        let map: HostedJourneyArtifactMapV1 =
+            serde_json::from_slice(&map_bytes).context("parse hosted journey artifact map")?;
+        if map.schema_version != "snapback.hosted-journey-artifact-map.v1" {
+            anyhow::bail!("unsupported hosted journey artifact map");
+        }
+        let root = map_path.parent().unwrap_or_else(|| Path::new("."));
+        for entry in map.artifacts {
+            if entry.path.is_absolute()
+                || entry
+                    .path
+                    .components()
+                    .any(|component| component == std::path::Component::ParentDir)
+            {
+                anyhow::bail!("hosted journey artifact paths must remain under the map directory");
+            }
+            let bytes = read_regular(
+                &root.join(&entry.path),
+                EVIDENCE_MAX_BYTES,
+                "hosted journey evidence",
+            )?;
+            if artifacts.insert(entry.artifact_id, bytes).is_some() {
+                anyhow::bail!("duplicate hosted journey artifact id");
+            }
+        }
+    }
+    if let Err(errors) = receipt.validate_claim_boundary_with_artifacts(&artifacts) {
+        anyhow::bail!("SNAPBACK_HOSTED_JOURNEY_INVALID: {}", errors.join(", "));
+    }
+    println!(
+        "{}",
+        serde_json::to_string(&json!({
+            "schemaVersion": "snapback.hosted-journey-verification.v1",
+            "status": "verified",
+            "receiptSha256": receipt.receipt_sha256,
+            "evidenceArtifacts": artifacts.len(),
+        }))?
+    );
+    Ok(())
 }
 
 /// Run physical backup only after acquiring the same instance lock a server
@@ -4160,6 +4262,25 @@ mod tests {
     #[test]
     fn cron_disabled_flag_parses() {
         assert!(Args::parse_from(["snapback", "--cron-disabled"]).cron_disabled);
+    }
+
+    #[test]
+    fn hosted_journey_verifier_requires_explicit_receipt_and_artifact_map() {
+        let cli = Cli::parse_from([
+            "snapback",
+            "hosted-journey-verify",
+            "journey.json",
+            "--artifacts",
+            "artifacts.json",
+        ]);
+        assert!(matches!(
+            cli.command,
+            Some(HostCommand::HostedJourneyVerify {
+                receipt,
+                artifacts: Some(artifacts),
+            }) if receipt == PathBuf::from("journey.json")
+                && artifacts == PathBuf::from("artifacts.json")
+        ));
     }
 
     #[test]

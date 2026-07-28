@@ -1,5 +1,6 @@
 
 .env.local
+.snapback.snapback.restore.lock
 .snapback/
 dist/
 snapback/generated/*

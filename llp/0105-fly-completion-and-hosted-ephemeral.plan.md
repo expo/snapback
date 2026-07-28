@@ -315,6 +315,18 @@ migration, backup/restore, rollback, TLS, cost, comparator results, and cleanup.
 Secrets, bearer material, row values, room values, filesystem paths, and
 private provider responses are absent.
 
+The Rust carrier is content-addressed with `receiptSha256` over canonical JSON
+excluding that field. Every retained evidence reference uses an opaque artifact
+id plus byte length, media type, and digest; the operator supplies filesystem
+locations separately to `snapback hosted-journey-verify`, which reopens the
+bytes before accepting the claim. A passing receipt requires the exact command
+family above, clean source/package identity, all remote identities, all nine
+evidence families, internally consistent row details, and an empty temporary
+lease/route/certificate-request/credential cleanup inventory. A failed receipt
+may retain partial evidence but must keep hosted-product, hosted-ephemeral, and
+comparator-parity claims false. Shape validation alone is never publication
+authority.
+
 ## 5. Conformance and acceptance
 
 ### 5.1 Target-neutral ephemeral corpus

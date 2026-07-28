@@ -1,9 +1,10 @@
 // @ref LLP 0106#package-and-acceptance — retained, zero-skip evidence for
 // React presence, optimistic ordering, SSR/hosted refusals, and exact cleanup.
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '@snapback/client';
@@ -68,16 +69,28 @@ const canonicalJson = (value) => JSON.stringify(value, (_key, child) => (
 
 const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 
-function packageDigest(packageRoot, files) {
+function packageDigest(packageRoot) {
+  const packagePath = relative(repoRoot, packageRoot);
+  const files = execFileSync(
+    'git',
+    ['ls-files', '-z', '--', packagePath],
+    { cwd: repoRoot },
+  )
+    .toString('utf8')
+    .split('\0')
+    .filter(Boolean)
+    .map((path) => relative(packageRoot, join(repoRoot, path)))
+    .sort();
+  assert(files.includes('package.json'), `${packagePath} package manifest is tracked`);
   const hash = createHash('sha256');
-  for (const relative of [...files].sort()) {
-    const bytes = readFileSync(join(packageRoot, relative));
-    hash.update(`${relative}\0${bytes.byteLength}\0`);
+  for (const path of files) {
+    const bytes = readFileSync(join(packageRoot, path));
+    hash.update(`${path}\0${bytes.byteLength}\0`);
     hash.update(bytes);
   }
   return Object.freeze({
-    algorithm: 'sha256-path-length-content.v1',
-    files: Object.freeze([...files].sort()),
+    algorithm: 'sha256-git-tracked-package-tree.v1',
+    files: Object.freeze(files),
     digest: `sha256:${hash.digest('hex')}`,
   });
 }
@@ -173,6 +186,10 @@ function deterministicOptimisticClient(inspection, initialRows) {
 const receiptExtra = {
   schemaVersion: 'snapback.react-presence-receipt.v1',
   generatedAt: new Date().toISOString(),
+  sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  }).trim(),
   target: null,
   app: Object.freeze({
     appId: schema.appId,
@@ -192,18 +209,10 @@ const receiptExtra = {
     )),
   }),
   packages: Object.freeze({
-    client: packageDigest(join(repoRoot, 'packages', 'snapback-client'), [
-      'package.json', 'index.mjs', 'index.d.mts', 'react-binding.mjs',
-    ]),
-    react: packageDigest(join(repoRoot, 'packages', 'snapback-react'), [
-      'package.json', 'index.mjs', 'index.d.mts',
-    ]),
-    contract: packageDigest(join(repoRoot, 'packages', 'snapback-contract'), [
-      'package.json', 'result-contract-validator.mjs',
-    ]),
-    codegen: packageDigest(join(repoRoot, 'packages', 'snapback-codegen'), [
-      'package.json', 'index.mjs',
-    ]),
+    client: packageDigest(join(repoRoot, 'packages', 'snapback-client')),
+    react: packageDigest(join(repoRoot, 'packages', 'snapback-react')),
+    contract: packageDigest(join(repoRoot, 'packages', 'snapback-contract')),
+    codegen: packageDigest(join(repoRoot, 'packages', 'snapback-codegen')),
   }),
   transport: Object.freeze({
     nativeDelivery: 'websocket',

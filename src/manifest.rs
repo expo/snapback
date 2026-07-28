@@ -5588,6 +5588,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.build_provenance_requirement == "source-commit-and-embedded-carrier-sha256"
 }
 
+#[cfg(test)]
 fn local_relation_activity_publication_verified() -> bool {
     local_relation_activity_publication_verified_for(
         crate::identity::build_distribution(),

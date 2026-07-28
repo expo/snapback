@@ -9,6 +9,9 @@
 //! shared artifact shape; committed JSON Schema is generated from this file.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ReleaseArtifactKind {
@@ -1813,22 +1816,44 @@ pub enum HostedJourneyExitClass {
     Interrupted,
 }
 
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum HostedJourneyOperation {
+    GenerateRelease,
+    SelectTarget,
+    DoctorMigrationPreflight,
+    PlanDeploy,
+    FollowLogs,
+    VerifyServedPath,
+    VerifyLiveData,
+    VerifyHostedEphemeral,
+    CreateBackup,
+    RestoreAndActivate,
+    RollbackAndReactivate,
+    InspectCostCapacity,
+    Cleanup,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HostedJourneyCommandV1 {
-    pub operation: String,
+    pub operation: HostedJourneyOperation,
     pub exit_class: HostedJourneyExitClass,
     pub exit_code: Option<i32>,
     pub diagnostic_code: Option<String>,
-    pub receipt_sha256: Option<String>,
+    pub receipt_sha256: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HostedJourneyEvidenceRefV1 {
     pub artifact_kind: String,
-    pub identity: String,
+    pub artifact_id: String,
     pub sha256: String,
+    pub bytes: u64,
+    pub media_type: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1945,6 +1970,10 @@ pub struct HostedJourneyCleanupV1 {
     pub temporary_backup_object: HostedJourneyDeletedObjectV1,
     pub live_roster_after_cleanup: Vec<String>,
     pub live_volumes_after_cleanup: Vec<String>,
+    pub live_temporary_lease_ids: Vec<String>,
+    pub live_temporary_route_ids: Vec<String>,
+    pub pending_certificate_request_ids: Vec<String>,
+    pub active_temporary_credential_fingerprints: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1966,6 +1995,7 @@ pub struct HostedJourneyClaimBoundaryV1 {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HostedProductJourneyV1 {
     pub schema_version: HostedProductJourneyVersion,
+    pub receipt_sha256: String,
     pub status: HostedJourneyStatus,
     pub observed_at: String,
     pub source: HostedJourneySourceV1,
@@ -1980,24 +2010,130 @@ pub struct HostedProductJourneyV1 {
 }
 
 impl HostedProductJourneyV1 {
-    /// Enforce the success boundary independently of JSON shape. Failed
-    /// receipts may retain partial evidence, while passed receipts must bind
-    /// every identity and evidence family required by LLP 0105.
+    /// Validate a receipt which carries no retained evidence objects. This is
+    /// sufficient for an honest early-failure receipt; a passing receipt must
+    /// use [`Self::validate_claim_boundary_with_artifacts`] so every evidence
+    /// digest is reopened.
     ///
     /// @ref LLP 0105#4-public-cli-product-journey — a passing receipt binds the
     /// package, source, remote identities, command outcomes, and lifecycle
     /// evidence instead of relying on an unstructured narrative.
-    pub fn validate_claim_boundary(&self) -> Result<(), Vec<&'static str>> {
-        if self.status == HostedJourneyStatus::Failed {
-            return Ok(());
+    pub fn validate_claim_boundary(&self) -> Result<(), Vec<String>> {
+        self.validate_claim_boundary_with_artifacts(&BTreeMap::new())
+    }
+
+    /// Reopen every evidence object by its opaque artifact id and verify its
+    /// declared length and digest before accepting either a retained partial
+    /// receipt or the complete hosted capability claim.
+    pub fn validate_claim_boundary_with_artifacts(
+        &self,
+        artifacts: &BTreeMap<String, Vec<u8>>,
+    ) -> Result<(), Vec<String>> {
+        let mut errors = Vec::new();
+        if self.expected_receipt_sha256().as_deref() != Ok(self.receipt_sha256.as_str()) {
+            errors.push("receiptSha256".to_owned());
         }
 
-        let mut missing = Vec::new();
-        if self.source.package_tarball_sha256.is_none() {
-            missing.push("source.packageTarballSha256");
+        let value = serde_json::to_value(self).expect("hosted journey receipt serializes");
+        collect_private_material(&value, "$", &mut errors);
+
+        if self.status == HostedJourneyStatus::Failed {
+            if self.claim_boundary.hosted_product_journey_passed
+                || self.claim_boundary.hosted_ephemeral_capability_advertised
+                || self.comparator.hosted_parity_claimed
+            {
+                errors.push("failedReceipt.claimBoundary".to_owned());
+            }
         }
-        if self.source.target_triple.is_none() {
-            missing.push("source.targetTriple");
+
+        for (index, command) in self.commands.iter().enumerate() {
+            if !is_sha256(&command.receipt_sha256) {
+                errors.push(format!("commands[{index}].receiptSha256"));
+            }
+            match command.exit_class {
+                HostedJourneyExitClass::Passed => {
+                    if command.exit_code != Some(0) || command.diagnostic_code.is_some() {
+                        errors.push(format!("commands[{index}].passedExit"));
+                    }
+                }
+                _ => {
+                    if command.exit_code == Some(0) || command.diagnostic_code.is_none() {
+                        errors.push(format!("commands[{index}].failedExit"));
+                    }
+                }
+            }
+        }
+
+        for (name, evidence) in self.evidence_refs() {
+            if !valid_artifact_id(&evidence.artifact_id)
+                || !is_sha256(&evidence.sha256)
+                || evidence.bytes == 0
+                || evidence.media_type.is_empty()
+            {
+                errors.push(format!("{name}.shape"));
+                continue;
+            }
+            let Some(bytes) = artifacts.get(&evidence.artifact_id) else {
+                errors.push(format!("{name}.artifactMissing"));
+                continue;
+            };
+            if bytes.len() as u64 != evidence.bytes
+                || hosted_sha256_prefixed(bytes) != evidence.sha256
+            {
+                errors.push(format!("{name}.artifactMismatch"));
+            }
+        }
+
+        if self.status == HostedJourneyStatus::Passed {
+            self.validate_passed_claim(&mut errors);
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    fn evidence_refs(&self) -> Vec<(&'static str, &HostedJourneyEvidenceRefV1)> {
+        [
+            ("evidence.logs", self.evidence.logs.as_ref()),
+            ("evidence.migration", self.evidence.migration.as_ref()),
+            ("evidence.backup", self.evidence.backup.as_ref()),
+            ("evidence.restore", self.evidence.restore.as_ref()),
+            ("evidence.rollback", self.evidence.rollback.as_ref()),
+            ("evidence.tls", self.evidence.tls.as_ref()),
+            ("evidence.cost", self.evidence.cost.as_ref()),
+            (
+                "evidence.relationActivity",
+                self.evidence.relation_activity.as_ref(),
+            ),
+            (
+                "evidence.ephemeralCorpus",
+                self.evidence.ephemeral_corpus.as_ref(),
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(name, value)| value.map(|value| (name, value)))
+        .collect()
+    }
+
+    fn validate_passed_claim(&self, errors: &mut Vec<String>) {
+        if self.source.dirty
+            || self.source.repository.trim().is_empty()
+            || !is_hex_revision(&self.source.revision)
+            || !self
+                .source
+                .package_tarball_sha256
+                .as_deref()
+                .is_some_and(is_sha256)
+            || !self
+                .source
+                .target_triple
+                .as_deref()
+                .is_some_and(valid_identity)
+        {
+            errors.push("source.releaseEligible".to_owned());
         }
         for (name, value) in [
             ("identities.targetId", &self.identities.target_id),
@@ -2011,69 +2147,192 @@ impl HostedProductJourneyV1 {
                 &self.identities.ephemeral_authority_instance,
             ),
         ] {
-            if value.is_none() {
-                missing.push(name);
+            if !value.as_deref().is_some_and(valid_identity) {
+                errors.push(name.to_owned());
             }
         }
-        if self.commands.is_empty()
+
+        let required_operations = BTreeSet::from([
+            HostedJourneyOperation::GenerateRelease,
+            HostedJourneyOperation::SelectTarget,
+            HostedJourneyOperation::DoctorMigrationPreflight,
+            HostedJourneyOperation::PlanDeploy,
+            HostedJourneyOperation::FollowLogs,
+            HostedJourneyOperation::VerifyServedPath,
+            HostedJourneyOperation::VerifyLiveData,
+            HostedJourneyOperation::VerifyHostedEphemeral,
+            HostedJourneyOperation::CreateBackup,
+            HostedJourneyOperation::RestoreAndActivate,
+            HostedJourneyOperation::RollbackAndReactivate,
+            HostedJourneyOperation::InspectCostCapacity,
+            HostedJourneyOperation::Cleanup,
+        ]);
+        let observed_operations = self
+            .commands
+            .iter()
+            .map(|command| command.operation)
+            .collect::<BTreeSet<_>>();
+        if self.commands.len() != required_operations.len()
+            || observed_operations != required_operations
             || self
                 .commands
                 .iter()
                 .any(|command| command.exit_class != HostedJourneyExitClass::Passed)
         {
-            missing.push("commands.passed");
+            errors.push("commands.completePassedFamily".to_owned());
         }
-        for (name, value) in [
-            ("evidence.logs", &self.evidence.logs),
-            ("evidence.migration", &self.evidence.migration),
-            ("evidence.backup", &self.evidence.backup),
-            ("evidence.restore", &self.evidence.restore),
-            ("evidence.rollback", &self.evidence.rollback),
-            ("evidence.tls", &self.evidence.tls),
-            ("evidence.cost", &self.evidence.cost),
-            (
-                "evidence.relationActivity",
-                &self.evidence.relation_activity,
-            ),
-            ("evidence.ephemeralCorpus", &self.evidence.ephemeral_corpus),
-        ] {
-            if value.is_none() {
-                missing.push(name);
-            }
+        if self.evidence_refs().len() != 9 {
+            errors.push("evidence.completeFamily".to_owned());
         }
         if self.comparator.status != HostedJourneyStatus::Passed
             || !self.comparator.hosted_parity_claimed
+            || self.comparator.required_checks == 0
+            || self.comparator.required_checks != self.comparator.passed_checks
+            || !is_sha256(&self.comparator.receipt_sha256)
         {
-            missing.push("comparator.hostedParityClaimed");
+            errors.push("comparator.hostedParity".to_owned());
         }
-        if [
-            self.rows.single_production_route.status,
-            self.rows.application_consistent_backup.status,
-            self.rows.isolated_restore.status,
-            self.rows.public_served_path.status,
-            self.rows.packed_lifecycle.status,
-        ]
-        .contains(&HostedJourneyStatus::Failed)
+        if self.rows.single_production_route.status != HostedJourneyStatus::Passed
+            || self.rows.single_production_route.routed_machine_ids.len() != 1
+            || self.rows.single_production_route.autoscale_enabled
         {
-            missing.push("rows.passed");
+            errors.push("rows.singleProductionRoute".to_owned());
+        }
+        if self.rows.application_consistent_backup.status != HostedJourneyStatus::Passed
+            || self.rows.application_consistent_backup.bytes == 0
+            || !is_sha256(&self.rows.application_consistent_backup.backup_sha256)
+            || self.rows.application_consistent_backup.backup_sha256
+                != self.rows.application_consistent_backup.readback_sha256
+        {
+            errors.push("rows.applicationConsistentBackup".to_owned());
+        }
+        if self.rows.isolated_restore.status != HostedJourneyStatus::Passed
+            || self.rows.isolated_restore.helper_production_services != 0
+            || !self.rows.isolated_restore.volume_encrypted
+            || self.rows.isolated_restore.sqlite_integrity != "ok"
+            || self.rows.isolated_restore.sqlite_table_count == 0
+            || !self.rows.isolated_restore.activated
+        {
+            errors.push("rows.isolatedRestore".to_owned());
+        }
+        if self.rows.public_served_path.status != HostedJourneyStatus::Passed
+            || !(200..300).contains(&self.rows.public_served_path.http_status)
+            || !self.rows.public_served_path.diagnostic_code.is_empty()
+        {
+            errors.push("rows.publicServedPath".to_owned());
+        }
+        if self.rows.packed_lifecycle.status != HostedJourneyStatus::Passed
+            || !self.rows.packed_lifecycle.missing.is_empty()
+        {
+            errors.push("rows.packedLifecycle".to_owned());
         }
         if !self.cleanup.temporary_machine.absent_from_live_roster
+            || self
+                .cleanup
+                .live_roster_after_cleanup
+                .contains(&self.cleanup.temporary_machine.id)
             || !self.cleanup.temporary_volume.absent_from_live_inventory
+            || self
+                .cleanup
+                .live_volumes_after_cleanup
+                .contains(&self.cleanup.temporary_volume.id)
             || !self.cleanup.temporary_backup_object.absent
+            || !self.cleanup.live_temporary_lease_ids.is_empty()
+            || !self.cleanup.live_temporary_route_ids.is_empty()
+            || !self.cleanup.pending_certificate_request_ids.is_empty()
+            || !self
+                .cleanup
+                .active_temporary_credential_fingerprints
+                .is_empty()
         {
-            missing.push("cleanup.proved");
+            errors.push("cleanup.closedInventory".to_owned());
         }
-        if !self.claim_boundary.hosted_product_journey_passed
+        if !self.claim_boundary.supervisor_installation_ready
+            || !self.claim_boundary.isolated_backup_restore_drill_passed
+            || !self.claim_boundary.hosted_product_journey_passed
             || !self.claim_boundary.hosted_ephemeral_capability_advertised
         {
-            missing.push("claimBoundary.passed");
+            errors.push("claimBoundary.complete".to_owned());
         }
+    }
 
-        if missing.is_empty() {
-            Ok(())
-        } else {
-            Err(missing)
+    fn expected_receipt_sha256(&self) -> Result<String, String> {
+        let mut value =
+            serde_json::to_value(self).map_err(|_| "receipt serialization failed".to_owned())?;
+        value
+            .as_object_mut()
+            .ok_or_else(|| "receipt must serialize as an object".to_owned())?
+            .remove("receiptSha256");
+        let canonical = crate::rqs::jcs(&value)
+            .map_err(|_| "receipt is outside canonical JSON limits".to_owned())?;
+        Ok(hosted_sha256_prefixed(canonical.as_bytes()))
+    }
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn hosted_sha256_prefixed(bytes: &[u8]) -> String {
+    format!("sha256:{:x}", Sha256::digest(bytes))
+}
+
+fn is_hex_revision(value: &str) -> bool {
+    (value.len() == 40 || value.len() == 64)
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn valid_identity(value: &str) -> bool {
+    (1..=200).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:/-".contains(&byte))
+}
+
+fn valid_artifact_id(value: &str) -> bool {
+    (8..=200).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(&byte))
+}
+
+fn collect_private_material(value: &Value, path: &str, errors: &mut Vec<String>) {
+    match value {
+        Value::String(text) => {
+            let private = text.len() > 1_024
+                || text.contains("Bearer ")
+                || text.contains("-----BEGIN ")
+                || text.contains("/Users/")
+                || text.contains("/home/")
+                || text.contains("/private/")
+                || text.contains("/tmp/")
+                || text.contains(".snapback/")
+                || text.contains(":\\");
+            let credentialed_url = text
+                .split_once("://")
+                .and_then(|(_, remainder)| remainder.split('/').next())
+                .is_some_and(|authority| authority.contains('@'));
+            if private || credentialed_url {
+                errors.push(format!("{path}.privateMaterial"));
+            }
         }
+        Value::Array(items) => {
+            for (index, item) in items.iter().enumerate() {
+                collect_private_material(item, &format!("{path}[{index}]"), errors);
+            }
+        }
+        Value::Object(fields) => {
+            for (name, item) in fields {
+                collect_private_material(item, &format!("{path}.{name}"), errors);
+            }
+        }
+        _ => {}
     }
 }
 

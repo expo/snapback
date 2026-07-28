@@ -3516,9 +3516,68 @@ fn hosted_product_journey_receipt_is_rust_owned_and_closed() {
     let missing = unsupported_success
         .validate_claim_boundary()
         .expect_err("shape alone must not create a hosted capability claim");
-    assert!(missing.contains(&"source.packageTarballSha256"));
-    assert!(missing.contains(&"evidence.ephemeralCorpus"));
-    assert!(missing.contains(&"claimBoundary.passed"));
+    assert!(
+        missing
+            .iter()
+            .any(|error| error == "source.releaseEligible")
+    );
+    assert!(
+        missing
+            .iter()
+            .any(|error| error == "evidence.completeFamily")
+    );
+    assert!(
+        missing
+            .iter()
+            .any(|error| error == "claimBoundary.complete")
+    );
+
+    let mut failed_overclaim = value.clone();
+    failed_overclaim["claimBoundary"]["hostedProductJourneyPassed"] = json!(true);
+    failed_overclaim["claimBoundary"]["hostedEphemeralCapabilityAdvertised"] = json!(true);
+    let failed_overclaim: HostedProductJourneyV1 =
+        serde_json::from_value(failed_overclaim).expect("failed overclaim-shaped receipt");
+    let errors = failed_overclaim
+        .validate_claim_boundary()
+        .expect_err("failed receipts cannot retain positive hosted claims");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error == "failedReceipt.claimBoundary")
+    );
+
+    let mut missing_artifact = value.clone();
+    missing_artifact["evidence"]["logs"] = json!({
+        "artifactKind": "structuredLogs",
+        "artifactId": "logs-receipt-1",
+        "sha256": format!("sha256:{}", "a".repeat(64)),
+        "bytes": 1,
+        "mediaType": "application/json"
+    });
+    let missing_artifact: HostedProductJourneyV1 =
+        serde_json::from_value(missing_artifact).expect("evidence-shaped receipt");
+    let errors = missing_artifact
+        .validate_claim_boundary()
+        .expect_err("unreopenable evidence cannot validate");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error == "evidence.logs.artifactMissing")
+    );
+
+    let mut private_material = value.clone();
+    private_material["rows"]["publicServedPath"]["reason"] =
+        json!("debug output retained under /tmp/private-receipt");
+    let private_material: HostedProductJourneyV1 =
+        serde_json::from_value(private_material).expect("private-material-shaped receipt");
+    let errors = private_material
+        .validate_claim_boundary()
+        .expect_err("private paths cannot enter the retained receipt");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.ends_with(".privateMaterial"))
+    );
     let mut unknown = value;
     unknown["unexpected"] = json!(true);
     assert_rejects("hosted-product-journey-v1.schema.json", &unknown);

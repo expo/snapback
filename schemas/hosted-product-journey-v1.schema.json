@@ -57,13 +57,37 @@
     "HostedJourneyCleanupV1": {
       "additionalProperties": false,
       "properties": {
+        "activeTemporaryCredentialFingerprints": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "liveRosterAfterCleanup": {
           "items": {
             "type": "string"
           },
           "type": "array"
         },
+        "liveTemporaryLeaseIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "liveTemporaryRouteIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "liveVolumesAfterCleanup": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pendingCertificateRequestIds": {
           "items": {
             "type": "string"
           },
@@ -84,7 +108,11 @@
         "temporaryVolume",
         "temporaryBackupObject",
         "liveRosterAfterCleanup",
-        "liveVolumesAfterCleanup"
+        "liveVolumesAfterCleanup",
+        "liveTemporaryLeaseIds",
+        "liveTemporaryRouteIds",
+        "pendingCertificateRequestIds",
+        "activeTemporaryCredentialFingerprints"
       ],
       "type": "object"
     },
@@ -108,18 +136,16 @@
           ]
         },
         "operation": {
-          "type": "string"
+          "$ref": "#/$defs/HostedJourneyOperation"
         },
         "receiptSha256": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         }
       },
       "required": [
         "operation",
-        "exitClass"
+        "exitClass",
+        "receiptSha256"
       ],
       "type": "object"
     },
@@ -221,10 +247,18 @@
     "HostedJourneyEvidenceRefV1": {
       "additionalProperties": false,
       "properties": {
+        "artifactId": {
+          "type": "string"
+        },
         "artifactKind": {
           "type": "string"
         },
-        "identity": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mediaType": {
           "type": "string"
         },
         "sha256": {
@@ -233,8 +267,10 @@
       },
       "required": [
         "artifactKind",
-        "identity",
-        "sha256"
+        "artifactId",
+        "sha256",
+        "bytes",
+        "mediaType"
       ],
       "type": "object"
     },
@@ -434,6 +470,24 @@
         "activated"
       ],
       "type": "object"
+    },
+    "HostedJourneyOperation": {
+      "enum": [
+        "generateRelease",
+        "selectTarget",
+        "doctorMigrationPreflight",
+        "planDeploy",
+        "followLogs",
+        "verifyServedPath",
+        "verifyLiveData",
+        "verifyHostedEphemeral",
+        "createBackup",
+        "restoreAndActivate",
+        "rollbackAndReactivate",
+        "inspectCostCapacity",
+        "cleanup"
+      ],
+      "type": "string"
     },
     "HostedJourneyPackedLifecycleV1": {
       "additionalProperties": false,
@@ -650,6 +704,9 @@
     "provider": {
       "$ref": "#/$defs/HostedJourneyProviderV1"
     },
+    "receiptSha256": {
+      "type": "string"
+    },
     "rows": {
       "$ref": "#/$defs/HostedJourneyRowsV1"
     },
@@ -665,6 +722,7 @@
   },
   "required": [
     "schemaVersion",
+    "receiptSha256",
     "status",
     "observedAt",
     "source",

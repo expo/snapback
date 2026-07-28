@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "snapback.backend-bakeoff-run.v1",
+  "runId": "signal-desk-green-local-checkpoint-20260728",
+  "sourceRevision": "de9dcf21f801c6fb7ed58abb2d7075f82146b2b5",
+  "runtimeRevision": "c86d3e06f9de2211a1a075fddeefec0ae8cb63b7",
+  "status": "feedback-required",
+  "arms": {
+    "contract": {
+      "status": "passed"
+    },
+    "convex": {
+      "status": "passed",
+      "checks": [
+        "seed",
+        "transaction",
+        "native-live",
+        "indexed-search",
+        "derived-brief"
+      ]
+    },
+    "supabase": {
+      "status": "passed-after-transient-realtime-retry",
+      "checks": [
+        "transaction",
+        "native-realtime",
+        "indexed-search",
+        "derived-brief"
+      ]
+    },
+    "snapback": {
+      "status": "passed",
+      "checksPassed": 6,
+      "checksRequired": 6,
+      "extrasPassed": 4,
+      "extrasRequired": 4,
+      "reactPresencePassed": 10,
+      "reactPresenceRequired": 10,
+      "generatedQueryGroupPassed": 3,
+      "generatedQueryGroupRequired": 3,
+      "targetIdentityAvailable": true,
+      "binaryIdentityAvailable": true,
+      "executingPackageIdentityAvailable": false
+    },
+    "typescript": {
+      "status": "passed"
+    },
+    "viteProductionBuild": {
+      "status": "passed",
+      "modules": 193
+    },
+    "browser": {
+      "status": "implementation-complete-awaiting-qualified-package-rerun",
+      "reason": "the package-owned Playwright lane landed after this checkpoint and invalidates older cold-install receipts"
+    }
+  },
+  "feedback": {
+    "fableReview": "../reviews/green-local-checkpoint-fable-5.md",
+    "verdict": "NOT READY",
+    "mandatoryClasses": [
+      "final-source-and-executing-package-binding",
+      "public-package-capability-authority",
+      "real-browser-qualified-cold-install",
+      "retained-final-three-backend-matrix"
+    ]
+  },
+  "nonclaims": [
+    "a final source-bound package qualification",
+    "public candidate or latest publication",
+    "a revised final backend ranking",
+    "hosted-target parity"
+  ]
+}
