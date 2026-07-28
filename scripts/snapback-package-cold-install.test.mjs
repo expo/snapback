@@ -225,6 +225,8 @@ test('browser origin scanner normalizes HTTP(S), WS(S), and encoded forms', () =
     'wss://127.0.0.1:45731/live/connection/stream',
     'https://127.0.0.1:45731/health',
     encodeURIComponent(backend),
+    encodeURIComponent('ws://127.0.0.1:45731'),
+    Buffer.from('wss://127.0.0.1:45731').toString('base64'),
   ]) {
     assert.deepEqual(
       findBrowserVisibleLeaks({ surfaces: [surface], forbiddenMarkers: [marker] }),

@@ -66,17 +66,7 @@ export function browserForbiddenMarkerVariants({ kind, value } = {}) {
   ) {
     throw new TypeError('browser forbidden markers must be non-empty kind/value pairs');
   }
-  const variants = new Set([value]);
-  try {
-    variants.add(encodeURI(value));
-    variants.add(encodeURIComponent(value));
-  } catch {
-    // The exact value remains covered when an unusual string cannot be URI encoded.
-  }
-  variants.add(JSON.stringify(value).slice(1, -1));
-  variants.add(value.replaceAll('/', '\\/'));
-  variants.add(Buffer.from(value).toString('base64'));
-  variants.add(Buffer.from(value).toString('base64url'));
+  const rawVariants = new Set([value]);
   if (kind === 'backend-origin') {
     let origin;
     try {
@@ -89,10 +79,24 @@ export function browserForbiddenMarkerVariants({ kind, value } = {}) {
     }
     const suffix = `${origin.host}${origin.pathname === '/' ? '' : origin.pathname}`;
     for (const protocol of ['http:', 'https:', 'ws:', 'wss:']) {
-      variants.add(`${protocol}//${suffix}`);
+      rawVariants.add(`${protocol}//${suffix}`);
     }
-    variants.add(`//${suffix}`);
-    variants.add(origin.host);
+    rawVariants.add(`//${suffix}`);
+    rawVariants.add(origin.host);
+  }
+  const variants = new Set();
+  for (const variant of rawVariants) {
+    variants.add(variant);
+    try {
+      variants.add(encodeURI(variant));
+      variants.add(encodeURIComponent(variant));
+    } catch {
+      // The exact value remains covered when an unusual string cannot be URI encoded.
+    }
+    variants.add(JSON.stringify(variant).slice(1, -1));
+    variants.add(variant.replaceAll('/', '\\/'));
+    variants.add(Buffer.from(variant).toString('base64'));
+    variants.add(Buffer.from(variant).toString('base64url'));
   }
   return [...variants].filter((entry) => entry.length > 0);
 }

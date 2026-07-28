@@ -787,13 +787,13 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
         liveFrames += 1;
         captureSurface(
           'websocket-frame-received',
-          typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8'),
+          typeof payload === 'string' ? payload : Buffer.from(payload),
         );
       });
       socket.on('framesent', ({ payload }) => {
         captureSurface(
           'websocket-frame-sent',
-          typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8'),
+          typeof payload === 'string' ? payload : Buffer.from(payload),
         );
       });
     });
