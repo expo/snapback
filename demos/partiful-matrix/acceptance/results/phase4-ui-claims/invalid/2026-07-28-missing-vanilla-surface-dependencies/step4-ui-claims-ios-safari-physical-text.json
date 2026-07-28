@@ -1,0 +1,76 @@
+{
+  "$schema": "partitime-step4-ui-claims/v1",
+  "generatedAt": "2026-07-28T21:51:16.237Z",
+  "revisions": {
+    "snapback": "dc29282023a8fe9b8c9f0ecf0578ba0bda4b86e8",
+    "exact": "4290bacbe2d42ee848b849439654c89665c65c9f"
+  },
+  "browser": "ios-safari-device",
+  "role": "supplemental attended physical-iOS text carrier; it may replace only failed simulator text-dependent claims",
+  "qualifyingScope": [
+    "STEP4.UI.KEYBOARD",
+    "STEP4.UI.REDUCED-MOTION"
+  ],
+  "attended": {
+    "operator": "Charlie Cheever",
+    "deviceUdid": "00008150-00120CEE3E40401C",
+    "networkHost": "172.16.0.110",
+    "inputPolicy": "The operator types requested values on the real iPhone soft keyboard; the harness polls DOM outcomes and never sends an element value command."
+  },
+  "iosSimulatorAccessibility": null,
+  "macosSafariAccessibility": null,
+  "isolation": "Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, ios-safari-device process/session, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.",
+  "arms": [
+    "react",
+    "contract"
+  ],
+  "claims": [
+    "STEP4.UI.KEYBOARD",
+    "STEP4.UI.REDUCED-MOTION"
+  ],
+  "expectedRuns": 4,
+  "completedRuns": 4,
+  "claimResults": [
+    {
+      "claimId": "STEP4.UI.KEYBOARD",
+      "status": "red",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": false,
+          "exitCode": 1,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/react/step4-ui-keyboard.json",
+          "receiptSha256": null
+        },
+        {
+          "arm": "contract",
+          "ok": false,
+          "exitCode": 1,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/contract/step4-ui-keyboard.json",
+          "receiptSha256": null
+        }
+      ]
+    },
+    {
+      "claimId": "STEP4.UI.REDUCED-MOTION",
+      "status": "red",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": false,
+          "exitCode": 1,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/react/step4-ui-reduced-motion.json",
+          "receiptSha256": null
+        },
+        {
+          "arm": "contract",
+          "ok": false,
+          "exitCode": 1,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/contract/step4-ui-reduced-motion.json",
+          "receiptSha256": null
+        }
+      ]
+    }
+  ],
+  "ok": false
+}
