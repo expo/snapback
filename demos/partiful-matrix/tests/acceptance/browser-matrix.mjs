@@ -624,7 +624,7 @@ async function runProductionWebChecks({ suite: activeSuite, cdp, previewUrl, out
     try {
       await page.navigate(baseUrl);
       await waitForMatrixBoot(page);
-      const before = await page.eval(`(()=>{window.__partitimeDocumentIdentity=crypto.randomUUID();return {identity:window.__partitimeDocumentIdentity,navigations:performance.getEntriesByType('navigation').length}})()`);
+      const before = await page.eval(`(()=>{window.__partitimeDocumentIdentity='document_'+performance.timeOrigin.toString(36)+'_'+Date.now().toString(36);return {identity:window.__partitimeDocumentIdentity,navigations:performance.getEntriesByType('navigation').length}})()`);
       await page.click('open-event_sunset');
       await page.pollText('event-page', 'Sunset Supper Club', 15_000);
       const event = await page.eval(`({pathname:location.pathname,title:document.title,identity:window.__partitimeDocumentIdentity,navigations:performance.getEntriesByType('navigation').length})`);
@@ -702,7 +702,7 @@ async function waitForMatrixBoot(page, label = 'matrix boot') {
 async function runProductUiChecks({ suite: activeSuite, page, cell }) {
   const label = `${cell.arm} × ${cell.backend}`;
   await activeSuite.check(`${label} traverses browser history without document reload`, async () => {
-    const before = await page.eval(`(()=>{window.__partitimeDocumentIdentity??=crypto.randomUUID();return {identity:window.__partitimeDocumentIdentity,url:location.href,navigations:performance.getEntriesByType('navigation').length}})()`);
+    const before = await page.eval(`(()=>{window.__partitimeDocumentIdentity??='document_'+performance.timeOrigin.toString(36)+'_'+Date.now().toString(36);return {identity:window.__partitimeDocumentIdentity,url:location.href,navigations:performance.getEntriesByType('navigation').length}})()`);
     await page.click('back');
     if (cell.arm === 'contract') await waitForMatrixBoot(page);
     await page.pollText('feed', 'Sunset Supper Club', 15_000);
@@ -827,7 +827,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
 
   await phase4Claim(activeSuite, 'STEP4.UI.RESPONSIVE', `${label} matches compact regular and expanded structure`, async () => {
     await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
-    const identity = await page.eval(`(()=>{window.__phase4ResponsiveIdentity=crypto.randomUUID();return window.__phase4ResponsiveIdentity})()`);
+    const identity = await page.eval(`(()=>{window.__phase4ResponsiveIdentity='document_'+performance.timeOrigin.toString(36)+'_'+Date.now().toString(36);return window.__phase4ResponsiveIdentity})()`);
     const observations = [];
     const responsiveViewports = isAnyIosSafari
       ? [{ id: 'compact-device', width: null, height: null, columns: 1 }]

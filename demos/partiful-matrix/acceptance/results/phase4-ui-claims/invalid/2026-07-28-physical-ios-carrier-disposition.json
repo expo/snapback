@@ -1,0 +1,64 @@
+{
+  "$schema": "partitime-step4-physical-ios-carrier-disposition/v1",
+  "recordedAt": "2026-07-28",
+  "status": "proposed-instrument-correction-awaiting-owner-ratification",
+  "governingProcedure": "LLP 0063#product-choice",
+  "retiredInstrument": {
+    "snapbackRevision": "dc29282023a8fe9b8c9f0ecf0578ba0bda4b86e8",
+    "exactRevision": "4290bacbe2d42ee848b849439654c89665c65c9f",
+    "browser": "ios-safari-device",
+    "networkHost": "172.16.0.110"
+  },
+  "proposedReplacement": {
+    "instrumentId": "partitime-step4-physical-ios-carrier-v2-proposed-2026-07-28",
+    "browser": "ios-safari-device",
+    "networkHost": "169.254.178.189",
+    "claims": [
+      "STEP4.UI.KEYBOARD",
+      "STEP4.UI.REDUCED-MOTION"
+    ],
+    "arms": [
+      "react",
+      "contract"
+    ],
+    "unchanged": [
+      "Partitime product fixture",
+      "claim definitions and pass criteria",
+      "physical soft-keyboard input policy",
+      "attended evidence capture",
+      "fresh isolated process and WebDriver session per cell",
+      "Exact fixture revision"
+    ]
+  },
+  "invalidAttempts": [
+    {
+      "id": "navigation-timeout",
+      "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-navigation-timeout",
+      "cause": "The phone could not route to the Mac Wi-Fi address 172.16.0.110.",
+      "impact": "No product page loaded and no claim check ran."
+    },
+    {
+      "id": "linklocal-cors",
+      "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-linklocal-cors",
+      "cause": "The physical carrier bound Vite and Snapback to a link-local host, but test-profile CORS admitted only loopback origins.",
+      "impact": "The page loaded, but provider health/provisioning was rejected before any claim check ran."
+    },
+    {
+      "id": "insecure-context-uuid",
+      "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-insecure-context-uuid",
+      "cause": "Physical Safari over the pinned plain-HTTP link-local carrier does not expose crypto.randomUUID; the fixture incorrectly required it for a non-security connection label.",
+      "impact": "Provider boot stopped before any claim check ran."
+    }
+  ],
+  "corrections": [
+    {
+      "scope": "CORS",
+      "description": "Admit only same-host private/link-local HTTP origins while the server is explicitly in test profile with insecure development auth enabled; production and ordinary development behavior remain unchanged."
+    },
+    {
+      "scope": "non-security labels",
+      "description": "Use randomUUID when available, getRandomValues otherwise, and a process-local monotonic fallback only for non-security connection/document labels. Credentials, authorization identities, public IDs, and persisted data IDs are unchanged."
+    }
+  ],
+  "rerunPolicy": "After owner ratification, rerun all four React/Contract × keyboard/reduced-motion cells prospectively. No invalid artifact is eligible for claim aggregation."
+}

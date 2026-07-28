@@ -4,6 +4,7 @@ import artifactIndex from '../../../snapback/generated/artifacts.json';
 import functionsManifest from '../../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import seed from '../../../snapback/seed.json';
+import { createNonSecurityId } from '../../../shared/nonsecurity-id.mjs';
 import { createPollingDeliveryTracker } from '../../../shared/poll-recovery.mjs';
 
 export const configuredBackend = __MATRIX_BACKEND__;
@@ -20,7 +21,7 @@ async function createSnapbackProvider() {
   // @ref LLP 0034#5 — every vanilla mount provisions idempotently and exposes
   // no reset operation, so a reload cannot erase writes from another row.
   await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-  const instanceId = crypto.randomUUID();
+  const instanceId = createNonSecurityId('vanilla');
   let counter = 0;
   const subscriptionEvents = [];
   return {

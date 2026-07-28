@@ -1,0 +1,47 @@
+{
+  "$schema": "partitime-step4-ui-claims/v1",
+  "generatedAt": "2026-07-28T22:18:02.755Z",
+  "revisions": {
+    "snapback": "d095492e98ec0b5cc5cf5d8db4cbb6d0936466c3",
+    "exact": "4290bacbe2d42ee848b849439654c89665c65c9f"
+  },
+  "browser": "ios-safari-device",
+  "role": "supplemental attended physical-iOS text carrier; it may replace only failed simulator text-dependent claims",
+  "qualifyingScope": [
+    "STEP4.UI.KEYBOARD",
+    "STEP4.UI.REDUCED-MOTION"
+  ],
+  "attended": {
+    "operator": "Charlie Cheever",
+    "deviceUdid": "00008150-00120CEE3E40401C",
+    "networkHost": "169.254.178.189",
+    "inputPolicy": "The operator types requested values on the real iPhone soft keyboard; the harness polls DOM outcomes and never sends an element value command."
+  },
+  "iosSimulatorAccessibility": null,
+  "macosSafariAccessibility": null,
+  "isolation": "Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, ios-safari-device process/session, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.",
+  "arms": [
+    "react"
+  ],
+  "claims": [
+    "STEP4.UI.KEYBOARD"
+  ],
+  "expectedRuns": 1,
+  "completedRuns": 1,
+  "claimResults": [
+    {
+      "claimId": "STEP4.UI.KEYBOARD",
+      "status": "red",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": false,
+          "exitCode": 2,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/react/step4-ui-keyboard.json",
+          "receiptSha256": "2693e83a09ddba77ee91c1f1de4b193b792a95f54febdc9990473f2a40fd0a57"
+        }
+      ]
+    }
+  ],
+  "ok": false
+}

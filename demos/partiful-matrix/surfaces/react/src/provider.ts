@@ -14,6 +14,7 @@ import artifactIndex from '../../../snapback/generated/artifacts.json';
 import functionsManifest from '../../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import seed from '../../../snapback/seed.json';
+import { createNonSecurityId } from '../../../shared/nonsecurity-id.mjs';
 import { createPollingDeliveryTracker } from '../../../shared/poll-recovery.mjs';
 
 declare const __MATRIX_BACKEND__: BackendMode;
@@ -42,7 +43,7 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
   // @ref LLP 0034#5 — browser mount is inspect-first/idempotent; reset is
   // deliberately unreachable so reloads preserve the matrix cell's writes.
   await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-  const instanceId = crypto.randomUUID();
+  const instanceId = createNonSecurityId('react');
   let counter = 0;
   const subscriptionEvents: Record<string, unknown>[] = [];
   const refs = api as Record<string, unknown>;
