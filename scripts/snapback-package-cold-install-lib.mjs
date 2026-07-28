@@ -2,6 +2,16 @@ import { spawn } from 'node:child_process';
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
 
+export function browserAssetsContainSecretCanary(builtAssets, canary) {
+  if (typeof builtAssets !== 'string') {
+    throw new TypeError('built browser assets must be text');
+  }
+  if (typeof canary !== 'string' || canary.length < 32) {
+    throw new TypeError('browser secret canary must be an unguessable string');
+  }
+  return builtAssets.includes(canary);
+}
+
 // @ref LLP 0041#acceptance — the external package proof exposes a closed
 // bootstrap surface and fails before it can silently run a different proof.
 export const usage = `Usage:

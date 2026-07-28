@@ -6,7 +6,7 @@
 // @ref LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax —
 // repository-local imports and sibling source checkouts are forbidden here.
 
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import {
@@ -27,6 +27,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  browserAssetsContainSecretCanary,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
   runAsync,
@@ -639,7 +640,15 @@ await build({
   );
   run('npm', ['run', 'typecheck'], { cwd: reactScaffoldRoot });
   run('npm', ['test'], { cwd: reactScaffoldRoot });
-  run('npm', ['run', 'build'], { cwd: reactScaffoldRoot });
+  const browserSecretCanary = `snapback-cold-canary-${randomBytes(24).toString('hex')}`;
+  run('npm', ['run', 'build'], {
+    cwd: reactScaffoldRoot,
+    env: {
+      ...process.env,
+      SNAPBACK_ADMIN_TOKEN: browserSecretCanary,
+      VITE_SNAPBACK_ADMIN_TOKEN: browserSecretCanary,
+    },
+  });
   const managedStarter = await proveOneCommandReactStarter(reactScaffoldRoot);
   run('npm', ['run', 'test:live'], { cwd: reactScaffoldRoot, timeout: 120_000 });
   const reactManifest = JSON.parse(readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'));
@@ -664,8 +673,7 @@ await build({
     || versionedSeed.formatVersion !== 'snapback.seed.v1'
     || typeof versionedSeed.seedVersion !== 'string'
     || builtAssets.includes('127.0.0.1')
-    || builtAssets.includes('admin-token')
-    || builtAssets.includes('SNAPBACK_ADMIN_TOKEN')
+    || browserAssetsContainSecretCanary(builtAssets, browserSecretCanary)
   ) {
     fail('React starter did not preserve the one-command versioned relative Vite seam');
   }

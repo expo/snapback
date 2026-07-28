@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   aggregatePublicPackageProofs,
+  browserAssetsContainSecretCanary,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
   runAsync,
@@ -14,6 +15,20 @@ import {
 } from './snapback-package-cold-install-lib.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
+
+test('browser secret proof allows API field names but refuses an injected canary', () => {
+  const canary = `snapback-cold-canary-${'a'.repeat(48)}`;
+  const publicApiNames = 'x-snapback-admin-token SNAPBACK_ADMIN_TOKEN';
+  assert.equal(browserAssetsContainSecretCanary(publicApiNames, canary), false);
+  assert.equal(
+    browserAssetsContainSecretCanary(`${publicApiNames} ${canary}`, canary),
+    true,
+  );
+  assert.throws(
+    () => browserAssetsContainSecretCanary(publicApiNames, 'guessable'),
+    /unguessable/u,
+  );
+});
 
 function runCli(args) {
   return spawnSync(process.execPath, [script, ...args], {
