@@ -32,7 +32,11 @@ import {
   validateLatestRootResolution,
   validatePublicPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
-import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
+import {
+  canonicalJcs,
+  sha256Hex,
+  validatePostPromotionLatestRootReceipts,
+} from './snapback-promotion-core.mjs';
 import {
   PACKAGE_INVENTORY,
   validateColdInstallBrowserEvidence,
@@ -1212,6 +1216,10 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     ledgerRevision: candidate.revision,
     runId,
     runAttempt: 1,
+    dispatchStartedAt: '2026-07-28T19:00:00.000Z',
+    runCreatedAt: '2026-07-28T19:00:01.000Z',
+    runStartedAt: '2026-07-28T19:00:02.000Z',
+    collectedAt: '2026-07-28T19:04:00.000Z',
     artifacts: records.map((row) => row.githubArtifact),
   };
   const final = validateFinalLatestReceipts({
@@ -1219,8 +1227,16 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     records,
     githubCollection,
   });
+  assert.equal(
+    validatePostPromotionLatestRootReceipts(final, operationId),
+    final,
+  );
   assert.deepEqual(final.map((row) => row.platform), ['darwin-arm64', 'linux-x64']);
   assert.equal(final[0].browserCaptureSha256, records[0].receipt.browserJourney.captureSha256);
+  assert.equal(
+    final[0].browserDistributionSha256,
+    records[0].receipt.browserJourney.capture.browser.distributionSha256,
+  );
   assert.equal(
     final[0].browserExecutableSha256,
     records[0].receipt.browserJourney.capture.browser.executableSha256,

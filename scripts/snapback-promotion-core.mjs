@@ -54,6 +54,7 @@ const POST_PROMOTION_PACKAGE_KEYS = [
 ];
 const LATEST_ROOT_RECEIPT_KEYS = [
   'browserCaptureSha256',
+  'browserDistributionSha256',
   'browserExecutableSha256',
   'browserPackageTreeSha256',
   'github',
@@ -257,6 +258,89 @@ export function buildPostPromotionLedger({
   return validatePostPromotionLedger(ledger);
 }
 
+export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
+  if (!Array.isArray(receipts) || receipts.length !== 2) {
+    throw new Error('post-promotion latest receipts are incomplete');
+  }
+  for (const [index, platform] of ['darwin-arm64', 'linux-x64'].entries()) {
+    const receipt = receipts[index];
+    requireExactKeys(receipt, LATEST_ROOT_RECEIPT_KEYS, `latest receipt ${index}`);
+    requireExactKeys(receipt.github, LATEST_ROOT_GITHUB_KEYS, `latest receipt ${index} GitHub`);
+    if (receipt?.platform !== platform) {
+      throw new Error(`post-promotion latest receipt ${index} drifted`);
+    }
+    for (const field of [
+      'sha256',
+      'browserCaptureSha256',
+      'browserDistributionSha256',
+      'browserExecutableSha256',
+      'browserPackageTreeSha256',
+    ]) {
+      assertHexSha256(receipt[field], `post-promotion latest receipt ${index}.${field}`);
+    }
+    assertHexSha256(
+      receipt.github.artifactArchiveSha256,
+      `post-promotion latest receipt ${index}.github.artifactArchiveSha256`,
+    );
+    const githubTimes = {};
+    for (const field of [
+      'dispatchStartedAt',
+      'runCreatedAt',
+      'runStartedAt',
+      'collectedAt',
+    ]) {
+      githubTimes[field] = parseTimestamp(
+        receipt.github[field],
+        `latest receipt ${index}.github.${field}`,
+      );
+    }
+    if (
+      receipt.github.repository !== 'ccheever/snapback'
+      || receipt.github.workflow !== 'public-package-proof.yml'
+      || receipt.github.operationId !== operationId
+      || receipt.github.artifactApiDigest
+        !== `sha256:${receipt.github.artifactArchiveSha256}`
+      || !Number.isSafeInteger(receipt.github.runId)
+      || receipt.github.runId < 1
+      || !Number.isSafeInteger(receipt.github.runAttempt)
+      || receipt.github.runAttempt < 1
+      || !Number.isSafeInteger(receipt.github.artifactId)
+      || receipt.github.artifactId < 1
+      || githubTimes.runCreatedAt < githubTimes.dispatchStartedAt - 5_000
+      || githubTimes.runCreatedAt > githubTimes.dispatchStartedAt + 90_000
+      || githubTimes.runStartedAt < githubTimes.runCreatedAt - 5_000
+      || githubTimes.collectedAt < githubTimes.runStartedAt
+      || githubTimes.collectedAt - githubTimes.dispatchStartedAt > 15 * 60_000
+    ) {
+      throw new Error(`post-promotion latest receipt ${index} GitHub evidence drifted`);
+    }
+  }
+  const [darwinGithub, linuxGithub] = receipts.map((receipt) => receipt.github);
+  for (const field of [
+    'repository',
+    'workflow',
+    'workflowId',
+    'workflowPath',
+    'ref',
+    'runId',
+    'runAttempt',
+    'runHeadSha',
+    'operationId',
+    'dispatchStartedAt',
+    'runCreatedAt',
+    'runStartedAt',
+    'collectedAt',
+  ]) {
+    if (darwinGithub[field] !== linuxGithub[field]) {
+      throw new Error(`post-promotion latest receipt GitHub ${field} diverged`);
+    }
+  }
+  if (darwinGithub.artifactId === linuxGithub.artifactId) {
+    throw new Error('post-promotion latest receipts reuse one GitHub artifact');
+  }
+  return receipts;
+}
+
 export function validatePostPromotionLedger(ledger) {
   requireExactKeys(ledger, POST_PROMOTION_LEDGER_KEYS, 'post-promotion ledger');
   assertHexSha256(ledger.previousLedgerSha256, 'previousLedgerSha256');
@@ -328,76 +412,10 @@ export function validatePostPromotionLedger(ledger) {
       throw new Error(`post-promotion tag event ${index} drifted`);
     }
   }
-  for (const [index, platform] of ['darwin-arm64', 'linux-x64'].entries()) {
-    const receipt = ledger.latestRootReceipts[index];
-    requireExactKeys(receipt, LATEST_ROOT_RECEIPT_KEYS, `latest receipt ${index}`);
-    requireExactKeys(receipt.github, LATEST_ROOT_GITHUB_KEYS, `latest receipt ${index} GitHub`);
-    if (receipt?.platform !== platform) {
-      throw new Error(`post-promotion latest receipt ${index} drifted`);
-    }
-    assertHexSha256(receipt.sha256, `post-promotion latest receipt ${index}.sha256`);
-    assertHexSha256(
-      receipt.github.artifactArchiveSha256,
-      `post-promotion latest receipt ${index}.github.artifactArchiveSha256`,
-    );
-    const githubTimes = {};
-    for (const field of [
-      'dispatchStartedAt',
-      'runCreatedAt',
-      'runStartedAt',
-      'collectedAt',
-    ]) {
-      githubTimes[field] = parseTimestamp(
-        receipt.github[field],
-        `latest receipt ${index}.github.${field}`,
-      );
-    }
-    if (
-      receipt.github.repository !== 'ccheever/snapback'
-      || receipt.github.workflow !== 'public-package-proof.yml'
-      || receipt.github.operationId !== ledger.operationId
-      || receipt.github.artifactApiDigest
-        !== `sha256:${receipt.github.artifactArchiveSha256}`
-      || !Number.isSafeInteger(receipt.github.runId)
-      || receipt.github.runId < 1
-      || !Number.isSafeInteger(receipt.github.runAttempt)
-      || receipt.github.runAttempt < 1
-      || !Number.isSafeInteger(receipt.github.artifactId)
-      || receipt.github.artifactId < 1
-      || githubTimes.runCreatedAt < githubTimes.dispatchStartedAt - 5_000
-      || githubTimes.runCreatedAt > githubTimes.dispatchStartedAt + 90_000
-      || githubTimes.runStartedAt < githubTimes.runCreatedAt - 5_000
-      || githubTimes.collectedAt < githubTimes.runStartedAt
-      || githubTimes.collectedAt - githubTimes.dispatchStartedAt > 15 * 60_000
-    ) {
-      throw new Error(`post-promotion latest receipt ${index} GitHub evidence drifted`);
-    }
-  }
-  const [darwinGithub, linuxGithub] = ledger.latestRootReceipts.map(
-    (receipt) => receipt.github,
+  validatePostPromotionLatestRootReceipts(
+    ledger.latestRootReceipts,
+    ledger.operationId,
   );
-  for (const field of [
-    'repository',
-    'workflow',
-    'workflowId',
-    'workflowPath',
-    'ref',
-    'runId',
-    'runAttempt',
-    'runHeadSha',
-    'operationId',
-    'dispatchStartedAt',
-    'runCreatedAt',
-    'runStartedAt',
-    'collectedAt',
-  ]) {
-    if (darwinGithub[field] !== linuxGithub[field]) {
-      throw new Error(`post-promotion latest receipt GitHub ${field} diverged`);
-    }
-  }
-  if (darwinGithub.artifactId === linuxGithub.artifactId) {
-    throw new Error('post-promotion latest receipts reuse one GitHub artifact');
-  }
   return ledger;
 }
 
@@ -515,6 +533,11 @@ export async function promoteDefaultVector({
     // is the only legal first rollback checkpoint.
     let rollbackExpected = structuredClone(expected);
     for (const row of [...changed].reverse()) {
+      const rollbackCheckpoint = structuredClone(rollbackExpected);
+      const intendedNext = {
+        ...rollbackCheckpoint,
+        [row.name]: row.expectedPriorVersion,
+      };
       let beforeLeaseHead = null;
       let before = null;
       let after = null;
@@ -525,7 +548,7 @@ export async function promoteDefaultVector({
         requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
         requireCurrentLease(lease, beforeAuthorityTime);
         before = await readVector(names);
-        if (!vectorsEqual(before, rollbackExpected, names)
+        if (!vectorsEqual(before, rollbackCheckpoint, names)
             || (before[row.name] ?? null) !== row.newVersion) {
           throw new Error(`rollback expected-value drift for ${row.name}`);
         }
@@ -540,10 +563,9 @@ export async function promoteDefaultVector({
         // truth, not the transport status, decides whether the reverse
         // checkpoint advanced.
         after = await readVector(names);
-        const next = { ...rollbackExpected, [row.name]: row.expectedPriorVersion };
         const changedNow = changedNames(before, after, names);
         if (changedNow.length !== 1 || changedNow[0] !== row.name
-            || !vectorsEqual(after, next, names)) {
+            || !vectorsEqual(after, intendedNext, names)) {
           throw new Error(
             mutationError?.message ?? `rollback vector drift after ${row.name}`,
             { cause: mutationError ?? undefined },
@@ -551,7 +573,7 @@ export async function promoteDefaultVector({
         }
         // Journal the observed reverse mutation before any later fallible
         // authority read, just as the forward path does.
-        rollbackExpected = next;
+        rollbackExpected = intendedNext;
         const afterLeaseHead = await readLeaseHead();
         const afterAuthorityTime = now();
         requireLeaseHead(afterLeaseHead, lease, authorityPublicKey, afterAuthorityTime);
@@ -572,6 +594,25 @@ export async function promoteDefaultVector({
         const observation = after === null
           ? await observeVector(readVector, names)
           : { ok: true, value: after, error: null };
+        const reconciledChanges = (
+          before !== null
+          && observation.ok
+          && observation.value !== null
+          && typeof observation.value === 'object'
+        )
+          ? changedNames(before, observation.value, names)
+          : [];
+        const reconciledIntendedWrite = (
+          reconciledChanges.length === 1
+          && reconciledChanges[0] === row.name
+          && vectorsEqual(observation.value, intendedNext, names)
+        );
+        if (reconciledIntendedWrite) {
+          // The first post-write observation can fail after the registry
+          // accepted the reverse mutation. One bounded retry may advance the
+          // checkpoint only when it proves the exact intended full vector.
+          rollbackExpected = intendedNext;
+        }
         const event = {
           phase: 'rollback',
           package: row.name,
@@ -582,11 +623,16 @@ export async function promoteDefaultVector({
           commandReportedError: mutationError?.message ?? null,
           observed: observation.value,
           observationError: observation.error,
+          checkpointAdvanced: vectorsEqual(
+            rollbackExpected,
+            intendedNext,
+            names,
+          ),
         };
         rollback.push(event);
         emit(event);
-        // Keep the preceding checkpoint. Every earlier reverse step will now
-        // refuse unless the complete vector independently returns to it.
+        // Otherwise keep the preceding checkpoint. Every earlier reverse step
+        // will refuse unless the complete vector independently returns to it.
       }
     }
     const finalObservation = await observeVector(readVector, names);

@@ -356,12 +356,14 @@ test('rollback reconciles an apply-then-throw response loss and continues in rev
   assert.deepEqual(vector, prior);
 });
 
-test('rollback preserves an observation failure without attempting an unsafe overwrite', async () => {
+test('rollback advances after one bounded retry proves an apply-then-throw reverse write', async () => {
   const { lease, privateKey, publicKey } = fixture();
   const vector = vectorFromLease(lease, 'prior');
+  const prior = structuredClone(vector);
   const head = acquiredHead(lease, privateKey);
   let failNextObservation = false;
   let rollbackWrites = 0;
+  let firstRollbackWrite = true;
   await assert.rejects(
     promoteDefaultVector({
       lease,
@@ -378,12 +380,19 @@ test('rollback preserves an observation failure without attempting an unsafe ove
         if (version === '0.1.0') {
           rollbackWrites += 1;
           vector[name] = version;
-          failNextObservation = true;
+          if (firstRollbackWrite) {
+            firstRollbackWrite = false;
+            failNextObservation = true;
+            throw new Error('simulated lost rollback response');
+          }
         } else {
           vector[name] = version;
         }
       },
-      removeTag: async (name) => { vector[name] = null; },
+      removeTag: async (name) => {
+        rollbackWrites += 1;
+        vector[name] = null;
+      },
       now: () => Date.parse('2026-07-28T19:05:00.000Z'),
       afterPromotion: async () => {
         throw new Error('force complete-vector rollback');
@@ -394,11 +403,68 @@ test('rollback preserves an observation failure without attempting an unsafe ove
         error.result.rollback[0].error,
         /registry observation outage/u,
       );
-      assert.equal(rollbackWrites, 1);
+      assert.equal(
+        error.result.rollback[0].commandReportedError,
+        'simulated lost rollback response',
+      );
+      assert.equal(error.result.rollback[0].observationError, null);
+      assert.equal(error.result.rollback[0].checkpointAdvanced, true);
+      assert.equal(error.result.rollback.length, 9);
+      assert.ok(error.result.rollback.slice(1).every((row) => row.ok === true));
+      return true;
+    },
+  );
+  assert.equal(rollbackWrites, 9);
+  assert.deepEqual(vector, prior);
+});
+
+test('rollback refuses earlier writes when both bounded observations fail', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const head = acquiredHead(lease, privateKey);
+  let observationFailures = 0;
+  let rollbackWrites = 0;
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => {
+        if (observationFailures > 0) {
+          observationFailures -= 1;
+          throw new Error(`simulated registry observation outage ${2 - observationFailures}`);
+        }
+        return structuredClone(vector);
+      },
+      readLeaseHead: async () => structuredClone(head),
+      setTag: async (name, version) => {
+        if (version === '0.1.0' && rollbackWrites === 0) {
+          rollbackWrites += 1;
+          vector[name] = version;
+          observationFailures = 2;
+          throw new Error('simulated lost rollback response');
+        }
+        if (version === '0.1.0') rollbackWrites += 1;
+        vector[name] = version;
+      },
+      removeTag: async (name) => {
+        rollbackWrites += 1;
+        vector[name] = null;
+      },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      afterPromotion: async () => {
+        throw new Error('force complete-vector rollback');
+      },
+    }),
+    (error) => {
+      assert.equal(error.result.rollback.length, 9);
+      assert.match(error.result.rollback[0].error, /observation outage 1/u);
+      assert.match(error.result.rollback[0].observationError, /observation outage 2/u);
+      assert.equal(error.result.rollback[0].checkpointAdvanced, false);
       assert.ok(error.result.rollback.slice(1).every((row) => row.ok === false));
       return true;
     },
   );
+  assert.equal(rollbackWrites, 1);
 });
 
 test('rollback never clobbers an independently advanced tag', async () => {
@@ -691,6 +757,7 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
     machine: {},
     latestRootResolution: {},
     browserCaptureSha256: 'f'.repeat(64),
+    browserDistributionSha256: '3'.repeat(64),
     browserExecutableSha256: '1'.repeat(64),
     browserPackageTreeSha256: '2'.repeat(64),
   }));

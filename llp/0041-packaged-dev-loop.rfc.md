@@ -465,7 +465,9 @@ reopen verifies each retained lease/receipt signature, epoch/order, request
 digest, state transition, status, and generation in addition to the outer
 digest. `GET /healthz` reveals readiness only; all authority state requires a
 single Bearer header. Header, request, canonical body, keep-alive, and
-per-socket request bounds are explicit; GET bodies are rejected and drained.
+per-socket request bounds are explicit. GET bodies plus unauthenticated or
+oversized body refusals pause the readable side and close the connection after
+the bounded error response rather than draining attacker-controlled bytes.
 Head GETs require one exact fresh challenge, and every client response stream
 is independently size- and deadline-bounded and canceled on refusal.
 POST bodies are canonical JCS bytes, so duplicate, non-canonical, unknown, or

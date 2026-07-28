@@ -52,9 +52,11 @@ Terminate TLS at the private service ingress. The lease-request client refuses
 non-HTTPS authorities except explicit loopback test use. Bearer and signing
 secrets are never accepted inline by the production service, in request bodies,
 on CLI argv, or written to receipts. The service has bounded header, request,
-body, keep-alive, and per-socket request limits; GET requests carrying bodies
-are rejected and drained. Authority clients also impose a response deadline and
-a strict byte limit while streaming every response body, including error
+body, keep-alive, and per-socket request limits. GET bodies plus
+unauthenticated or oversized body refusals stop the readable side and close the
+connection after the bounded error response rather than draining
+attacker-controlled bytes. Authority clients also impose a response deadline
+and a strict byte limit while streaming every response body, including error
 responses, and cancel the stream when either bound is exceeded.
 
 Loopback HTTP tests must opt in at both ends:

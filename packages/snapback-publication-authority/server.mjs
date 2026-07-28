@@ -22,6 +22,32 @@ function send(response, status, value) {
   response.end(body);
 }
 
+// @ref LLP 0041#standing-publication-authority-as-built — body-bearing
+// refusals close the connection instead of draining attacker-controlled bytes.
+function sendAndClose(request, response, status, value) {
+  // Refusal must not turn into an unbounded drain of attacker-controlled body
+  // bytes. Stop the readable side immediately, send the small closed error,
+  // then destroy this connection once the response has flushed.
+  const socket = request.socket;
+  request.pause();
+  socket?.pause();
+  response.shouldKeepAlive = false;
+  const body = Buffer.from(canonicalJcs(value));
+  response.writeHead(status, {
+    'cache-control': 'no-store',
+    connection: 'close',
+    'content-length': body.byteLength,
+    'content-type': 'application/json',
+  });
+  response.end(body, () => socket?.destroy());
+}
+
+function connectionClosingError(code, message, status) {
+  const error = new PublicationAuthorityError(code, message, status);
+  error.closeConnection = true;
+  return error;
+}
+
 function tokenDigest(value) {
   return createHash('sha256').update(value).digest();
 }
@@ -51,19 +77,20 @@ function exactHeader(request, name) {
 
 async function readCanonicalRequest(request, limit = 128 * 1024) {
   if (request.headers['content-type'] !== 'application/json') {
-    throw new PublicationAuthorityError(
+    const error = new PublicationAuthorityError(
       'SNAPBACK_PUBLICATION_CONTENT_TYPE_INVALID',
       'authority requests require content-type application/json',
       415,
     );
+    if (requestCarriesBody(request)) error.closeConnection = true;
+    throw error;
   }
   const declaredLength = request.headers['content-length'];
   if (
     declaredLength !== undefined
     && (!/^\d+$/u.test(declaredLength) || Number(declaredLength) > limit)
   ) {
-    request.resume();
-    throw new PublicationAuthorityError(
+    throw connectionClosingError(
       'SNAPBACK_PUBLICATION_REQUEST_TOO_LARGE',
       'authority request exceeds 128 KiB',
       413,
@@ -71,10 +98,10 @@ async function readCanonicalRequest(request, limit = 128 * 1024) {
   }
   const chunks = [];
   let length = 0;
-  for await (const chunk of request) {
+  for await (const chunk of request.iterator({ destroyOnReturn: false })) {
     length += chunk.byteLength;
     if (length > limit) {
-      throw new PublicationAuthorityError(
+      throw connectionClosingError(
         'SNAPBACK_PUBLICATION_REQUEST_TOO_LARGE',
         'authority request exceeds 128 KiB',
         413,
@@ -103,7 +130,7 @@ async function readCanonicalRequest(request, limit = 128 * 1024) {
   return parsed;
 }
 
-function getCarriesBody(request) {
+function requestCarriesBody(request) {
   return request.headers['transfer-encoding'] !== undefined
     || (
       request.headers['content-length'] !== undefined
@@ -125,9 +152,8 @@ export function createPublicationAuthorityServer({ authority, bearerToken }) {
   }, async (request, response) => {
     try {
       const url = new URL(request.url, 'http://publication-authority.invalid');
-      if (request.method === 'GET' && getCarriesBody(request)) {
-        request.resume();
-        send(response, 400, errorBody(
+      if (request.method === 'GET' && requestCarriesBody(request)) {
+        sendAndClose(request, response, 400, errorBody(
           'SNAPBACK_PUBLICATION_GET_BODY_REFUSED',
           'publication authority GET requests must not carry a body',
         ));
@@ -148,19 +174,28 @@ export function createPublicationAuthorityServer({ authority, bearerToken }) {
         return;
       }
       if (!authorized(request, expectedTokenDigest)) {
-        request.resume();
         response.setHeader('www-authenticate', 'Bearer');
-        send(response, 401, errorBody(
+        const body = errorBody(
           'SNAPBACK_PUBLICATION_AUTH_REQUIRED',
           'valid publication authority Bearer authentication is required',
-        ));
+        );
+        if (requestCarriesBody(request)) {
+          sendAndClose(request, response, 401, body);
+        } else {
+          send(response, 401, body);
+        }
         return;
       }
       if (url.search !== '') {
-        send(response, 404, errorBody(
+        const body = errorBody(
           'SNAPBACK_PUBLICATION_ROUTE_NOT_FOUND',
           'publication authority route not found',
-        ));
+        );
+        if (requestCarriesBody(request)) {
+          sendAndClose(request, response, 404, body);
+        } else {
+          send(response, 404, body);
+        }
         return;
       }
       if (url.pathname === '/v1/head' && request.method === 'GET') {
@@ -182,16 +217,30 @@ export function createPublicationAuthorityServer({ authority, bearerToken }) {
       ]);
       const handler = routes.get(`${request.method} ${url.pathname}`);
       if (!handler) {
-        send(response, 404, errorBody(
+        const body = errorBody(
           'SNAPBACK_PUBLICATION_ROUTE_NOT_FOUND',
           'publication authority route not found',
-        ));
+        );
+        if (requestCarriesBody(request)) {
+          sendAndClose(request, response, 404, body);
+        } else {
+          send(response, 404, body);
+        }
         return;
       }
       send(response, 200, handler(await readCanonicalRequest(request)));
     } catch (error) {
       if (error instanceof PublicationAuthorityError) {
-        send(response, error.status, errorBody(error.code, error.message));
+        if (error.closeConnection === true) {
+          sendAndClose(
+            request,
+            response,
+            error.status,
+            errorBody(error.code, error.message),
+          );
+        } else {
+          send(response, error.status, errorBody(error.code, error.message));
+        }
       } else {
         send(response, 500, errorBody(
           'SNAPBACK_PUBLICATION_AUTHORITY_UNAVAILABLE',
