@@ -1,0 +1,47 @@
+{
+  "$schema": "partitime-step4-invalid-run-disposition/v1",
+  "recordedAt": "2026-07-28",
+  "instrumentId": "partitime-step4-physical-ios-carrier-v2-2026-07-28",
+  "status": "invalid-ineligible",
+  "revisions": {
+    "snapback": "fccb46650705666e27687ce51f8cbda33b6209a8",
+    "exact": "4290bacbe2d42ee848b849439654c89665c65c9f"
+  },
+  "environment": {
+    "deviceUdid": "00008150-00120CEE3E40401C",
+    "device": "iPhone 17 Pro Max",
+    "ios": "26.5.2 (23F84)",
+    "safariDriver": "26.5.2 (21624.2.5.11.8)",
+    "networkHost": "169.254.178.189",
+    "operator": "Charlie Cheever"
+  },
+  "cause": "The physical iPhone would not accept attended page interaction while SafariDriver owned the Safari session. The operator disabled Remote Automation in order to type; disabling it invalidated the WebDriver session and Safari navigated away from the controlled page.",
+  "classification": "carrier ownership conflict, not a product failure and not a claim result",
+  "impact": "The first React keyboard cell reached the intended product field, proving that the corrected link-local CORS and insecure-context boot path worked. No attended text evidence was retained. The remaining cells failed after the device automation session was unavailable, so all four receipts and the aggregate are ineligible.",
+  "operatorReport": "To type into the field i had to turn off automation and then it navigated awayfrom the page",
+  "artifacts": {
+    "aggregate": {
+      "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-automation-owner-conflict/aggregate.json",
+      "sha256": "d8eca05c4d6526358df53892e27c66c3999567a131c9943020fcce62d95f3dbd"
+    },
+    "receipts": [
+      {
+        "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-automation-owner-conflict/raw/react/step4-ui-keyboard.json",
+        "sha256": "2dd2fbe9f74dfa92f47c7caa6385a77bafd10867cc1344d3b787b5f78d2566ee"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-automation-owner-conflict/raw/react/step4-ui-reduced-motion.json",
+        "sha256": "d61c2e2bb0323534a6110b9def09a5f47e8c0c3dcaca12514e6f9cd22c0e69fa"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-automation-owner-conflict/raw/contract/step4-ui-keyboard.json",
+        "sha256": "bd2050074bfc25e94550544a4b5d4173fcd921a99f743968ff63de92e51de00c"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-automation-owner-conflict/raw/contract/step4-ui-reduced-motion.json",
+        "sha256": "cdf9b1737e3df2f0916e267231f651e7015462cab24d2a8d21c271783e24f204"
+      }
+    ]
+  },
+  "nextAction": "Do not rerun v2. Design and prospectively ratify a replacement carrier that does not require simultaneous SafariDriver ownership and human page interaction; preserve the unchanged fixture, claims, pass criteria, and physical soft-keyboard policy."
+}

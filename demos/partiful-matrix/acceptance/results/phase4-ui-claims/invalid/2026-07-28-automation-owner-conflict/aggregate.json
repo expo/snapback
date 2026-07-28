@@ -1,0 +1,76 @@
+{
+  "$schema": "partitime-step4-ui-claims/v1",
+  "generatedAt": "2026-07-28T22:43:13.043Z",
+  "revisions": {
+    "snapback": "fccb46650705666e27687ce51f8cbda33b6209a8",
+    "exact": "4290bacbe2d42ee848b849439654c89665c65c9f"
+  },
+  "browser": "ios-safari-device",
+  "role": "supplemental attended physical-iOS text carrier; it may replace only failed simulator text-dependent claims",
+  "qualifyingScope": [
+    "STEP4.UI.KEYBOARD",
+    "STEP4.UI.REDUCED-MOTION"
+  ],
+  "attended": {
+    "operator": "Charlie Cheever",
+    "deviceUdid": "00008150-00120CEE3E40401C",
+    "networkHost": "169.254.178.189",
+    "inputPolicy": "The operator types requested values on the real iPhone soft keyboard; the harness polls DOM outcomes and never sends an element value command."
+  },
+  "iosSimulatorAccessibility": null,
+  "macosSafariAccessibility": null,
+  "isolation": "Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, ios-safari-device process/session, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.",
+  "arms": [
+    "react",
+    "contract"
+  ],
+  "claims": [
+    "STEP4.UI.KEYBOARD",
+    "STEP4.UI.REDUCED-MOTION"
+  ],
+  "expectedRuns": 4,
+  "completedRuns": 4,
+  "claimResults": [
+    {
+      "claimId": "STEP4.UI.KEYBOARD",
+      "status": "red",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": false,
+          "exitCode": 2,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/react/step4-ui-keyboard.json",
+          "receiptSha256": "2dd2fbe9f74dfa92f47c7caa6385a77bafd10867cc1344d3b787b5f78d2566ee"
+        },
+        {
+          "arm": "contract",
+          "ok": false,
+          "exitCode": 2,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/contract/step4-ui-keyboard.json",
+          "receiptSha256": "bd2050074bfc25e94550544a4b5d4173fcd921a99f743968ff63de92e51de00c"
+        }
+      ]
+    },
+    {
+      "claimId": "STEP4.UI.REDUCED-MOTION",
+      "status": "red",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": false,
+          "exitCode": 2,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/react/step4-ui-reduced-motion.json",
+          "receiptSha256": "d61c2e2bb0323534a6110b9def09a5f47e8c0c3dcaca12514e6f9cd22c0e69fa"
+        },
+        {
+          "arm": "contract",
+          "ok": false,
+          "exitCode": 2,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari-physical-text/contract/step4-ui-reduced-motion.json",
+          "receiptSha256": "cdf9b1737e3df2f0916e267231f651e7015462cab24d2a8d21c271783e24f204"
+        }
+      ]
+    }
+  ],
+  "ok": false
+}

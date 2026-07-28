@@ -53,6 +53,12 @@
       "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-insecure-context-uuid",
       "cause": "Physical Safari over the pinned plain-HTTP link-local carrier does not expose crypto.randomUUID; the fixture incorrectly required it for a non-security connection label.",
       "impact": "Provider boot stopped before any claim check ran."
+    },
+    {
+      "id": "automation-owner-conflict",
+      "path": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-automation-owner-conflict",
+      "cause": "The physical iPhone would not accept attended page interaction while SafariDriver owned Safari; disabling Remote Automation to type invalidated the session and navigated away from the controlled page.",
+      "impact": "The corrected fixture reached its first attended field, but no attended text evidence was retained and all four receipts are ineligible."
     }
   ],
   "corrections": [
