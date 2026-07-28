@@ -50,6 +50,19 @@ assert.equal(typeof createExternalSessionClient, 'function');
 assert.equal(bindOnlineSnapbackAppLifecycle, bindSnapbackAppLifecycle);
 assert.match(newSeedOperationIdV1(1_722_000_000_000), /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
 const client = new SnapbackClient('http://127.0.0.1:9');
+const idleEphemeralUnsubscribe = await client.unsubscribeEphemeral(
+  'idle-room',
+  { connectionId: 'already-disconnected' },
+);
+assert.deepEqual(
+  idleEphemeralUnsubscribe,
+  { removed: false, skipped: 'socket-not-open' },
+);
+assert.equal(
+  client.localResourceInspection(['already-disconnected']).managerCount,
+  0,
+  'ephemeral teardown after disconnect must not manufacture a manager',
+);
 assert.equal(client.baseUrl, 'http://127.0.0.1:9');
 assert.throws(
   () => new SnapbackClient('http://127.0.0.1:9', {

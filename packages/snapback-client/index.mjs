@@ -5278,8 +5278,11 @@ export class SnapbackClient {
   // if the socket is not open the registration is left to disconnect/reap, and
   // an unknown room/registration is a quiet no-op server-side (removed:false).
   async unsubscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
-    const manager = this.liveStreamManager(connectionId);
-    if (!manager.isOpen()) {
+    // Teardown must observe an existing manager, never manufacture new socket
+    // state after an explicit disconnect merely to discover that no socket is
+    // available.
+    const manager = this.__liveStreamManagers?.get(connectionId) ?? null;
+    if (!manager?.isOpen()) {
       return { removed: false, skipped: 'socket-not-open' };
     }
     // The socket's path identity is the GRANTED id (the manager connected

@@ -1,16 +1,16 @@
 {
   "schemaVersion": "snapback.react-presence-receipt.v1",
-  "generatedAt": "2026-07-28T07:30:03.522Z",
+  "generatedAt": "2026-07-28T21:15:38.849Z",
   "target": {
     "targetProfileId": "local-dev-sqlite-ibex",
     "target": "local-dev-sqlite-ibex",
-    "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
-    "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68"
+    "schemaHash": "snapback.v1:sessions:schema:sha256:b92a0aa2756d228d9da22154884dfda0f5a9e0d0174b3fc74ce59f1fb6015ecc",
+    "bundleHash": "snapback.v1:sessions:function:sha256:429def0797195dc154d5b3f2879b12b523b65454a6c597a8382598d60dcde12d"
   },
   "app": {
     "appId": "backend-bakeoff",
-    "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
-    "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68"
+    "schemaHash": "snapback.v1:sessions:schema:sha256:b92a0aa2756d228d9da22154884dfda0f5a9e0d0174b3fc74ce59f1fb6015ecc",
+    "bundleHash": "snapback.v1:sessions:function:sha256:429def0797195dc154d5b3f2879b12b523b65454a6c597a8382598d60dcde12d"
   },
   "functions": {
     "query": {
@@ -45,7 +45,7 @@
         "package.json",
         "react-binding.mjs"
       ],
-      "digest": "sha256:d2aac0aed3f4514d40b553c49b620f51455ac4d8cc402853856eac78963dec32"
+      "digest": "sha256:c5933c5229c354aefb0880e91496304a02f854323d0cec9a42dcc368961a24db"
     },
     "react": {
       "algorithm": "sha256-path-length-content.v1",
@@ -54,7 +54,7 @@
         "index.mjs",
         "package.json"
       ],
-      "digest": "sha256:0f893b84258624d7a4f8e05f97a9b4db9ea2419139ae7d57f46ef2de84bd47e8"
+      "digest": "sha256:db559ffda5c32e036fce59a54de1dd326a6acecdb82ab730028ead1809fe448a"
     },
     "contract": {
       "algorithm": "sha256-path-length-content.v1",
@@ -62,7 +62,7 @@
         "package.json",
         "result-contract-validator.mjs"
       ],
-      "digest": "sha256:437c29163fc5de564f2f841682a289fc1eb9f7a69f3b12b6b5b938026a1f5abe"
+      "digest": "sha256:6419bd0d311c9751ed237b6dea46cc0a7e23f6b2d2e4a4efac7c5c02456aac0b"
     },
     "codegen": {
       "algorithm": "sha256-path-length-content.v1",
@@ -70,7 +70,7 @@
         "index.mjs",
         "package.json"
       ],
-      "digest": "sha256:9275b4b0cbbc841955e3d019097addc1a3c1805e2d2de039b7e4cc4a4c4f79a6"
+      "digest": "sha256:64b8af67a36c34bed3739c4aeb575bf74bd9185c83d370a7a3d1991fbb025f4d"
     }
   },
   "transport": {
@@ -111,7 +111,7 @@
       "ok": true,
       "details": {
         "ttlMs": 500,
-        "expiresAtMs": 1785223805406,
+        "expiresAtMs": 1785273340021,
         "serverExpiredCounterAdvanced": true
       }
     },
@@ -121,7 +121,7 @@
       "details": {
         "ttlMs": 4000,
         "halfTtlMs": 2000,
-        "peerRemovedAfterMs": 18,
+        "peerRemovedAfterMs": 2,
         "removalReason": "Disconnected"
       }
     },
@@ -187,7 +187,7 @@
         "deadlineMs": 5000,
         "providers": [
           {
-            "providerInstanceId": "provider-1-71c66466-d196-4014-b18c-ebf675608893",
+            "providerInstanceId": "provider-1-f3a12de9-e949-4a89-8719-4a77faa1c629",
             "terminal": true,
             "custodyPaused": true,
             "stores": 0,
@@ -211,7 +211,7 @@
             "preparedGroupBoot": null
           },
           {
-            "providerInstanceId": "provider-2-788a52ec-3ca3-42ae-86cb-57d067a21762",
+            "providerInstanceId": "provider-2-1a57b55d-8350-4cb8-80a0-a23f3560d0bf",
             "terminal": true,
             "custodyPaused": true,
             "stores": 0,

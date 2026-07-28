@@ -137,7 +137,9 @@ function createFakeClient({
     liveStreamManager() {
       return {
         close() { managerCloses += 1; },
-        inspection() { return { socketDemand: managerSocketDemand }; },
+        inspection() {
+          return { socketDemand: managerSocketDemand + handles.size };
+        },
       };
     },
     async releaseConnection(_connectionId, { ifIdle = false } = {}) {
@@ -487,6 +489,7 @@ assert.deepEqual(
 assert.equal(fake.inspection().handles, 0);
 assert.equal(fake.inspection().barrierUnregistered, 1);
 assert.equal(fake.inspection().disconnects, 0, 'provider disposal never uses admin disconnect');
+assert.equal(fake.inspection().releases, 1, 'final ordinary provider releases its idle grant');
 await siblingProvider.dispose();
 
 const primedFake = createFakeClient();
@@ -651,7 +654,7 @@ assert.deepEqual(
 primedObserver.dispose();
 await flush();
 await primedProvider.dispose();
-assert.equal(primedFake.inspection().releases, 0);
+assert.equal(primedFake.inspection().releases, 1);
 assert.equal(
   primedFake.inspection().disconnects,
   0,
@@ -1006,6 +1009,11 @@ sharedConnectionObserverA.dispose();
 sharedConnectionObserverB.dispose();
 await sharedConnectionB.dispose();
 assert.equal(sharedConnectionFake.inspection().disconnects, 0);
+assert.equal(
+  sharedConnectionFake.inspection().releases,
+  1,
+  'the final shared provider releases the idle grant after sibling demand ends',
+);
 
 const capacityProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-capacity-test',

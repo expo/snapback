@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.real-adapter-query-group-receipt.v1",
-  "generatedAt": "2026-07-28T09:00:20.874Z",
+  "generatedAt": "2026-07-28T21:15:40.200Z",
   "appId": "backend-bakeoff",
   "generated": {
     "artifactManifest": {
       "path": "snapback/generated/artifacts.json",
-      "sha256": "sha256:3b415a21530fbb0a11323227a96c2a06d688d57a196a1dc0c01d1fac02ef6c4e"
+      "sha256": "sha256:a9537f79b0f3952c53e4bc48eb21a166e0f041c546aa1527e4f6c792859a129b"
     },
     "routeSource": {
       "path": "snapback/routes.mjs",
@@ -13,11 +13,11 @@
     },
     "runtime": {
       "path": "snapback/generated/api.mjs",
-      "sha256": "sha256:0a51084f851538c94699be5cc56dc0d6cec4f71413bd1b00e4b75aff43c1f189"
+      "sha256": "sha256:d3198937bc27e906d15b2609d78c0d846fca3e99a7858ee5be17eff7edc40b2d"
     },
     "declarations": {
       "path": "snapback/generated/api.d.ts",
-      "sha256": "sha256:a993d58b50614a1e4d1091ce2a2d39bfd21820c0e092b6fe2ce0f925134a29c0"
+      "sha256": "sha256:bf9d579183f5c5e5eecae9f366bc91933ead795164ea12418d6e39423b1e74b3"
     },
     "group": {
       "id": "backend-bakeoff:query-group:/",
@@ -35,8 +35,8 @@
     "preparation": "SnapbackClient.prepareReactBinding",
     "evidence": "exact generated-manifest admission before adapter setup",
     "generatedManifest": {
-      "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
-      "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:b92a0aa2756d228d9da22154884dfda0f5a9e0d0174b3fc74ce59f1fb6015ecc",
+      "bundleHash": "snapback.v1:sessions:function:sha256:429def0797195dc154d5b3f2879b12b523b65454a6c597a8382598d60dcde12d",
       "targetProfileId": "local-dev-sqlite-ibex",
       "routeCount": 1
     },
@@ -49,9 +49,9 @@
       "deploymentIdentity": {
         "targetProfileId": "local-dev-sqlite-ibex",
         "target": "local-dev-sqlite-ibex",
-        "schemaHash": "snapback.v1:sessions:schema:sha256:41242069fedd9f7b6e4b110ed79fb1e16d83d9c15a4433469941cfab9f7d1a00",
-        "bundleHash": "snapback.v1:sessions:function:sha256:83d60d5e3b3cccac41c1657022a4cc730750934141ffba316d4a646e46a98b68",
-        "inputsHash": "snapback.v1:sessions:inputs:sha256:5751ab2648c20b0b7abedb3132bc606a50718cb76e4f881d72cfab68948f8619"
+        "schemaHash": "snapback.v1:sessions:schema:sha256:b92a0aa2756d228d9da22154884dfda0f5a9e0d0174b3fc74ce59f1fb6015ecc",
+        "bundleHash": "snapback.v1:sessions:function:sha256:429def0797195dc154d5b3f2879b12b523b65454a6c597a8382598d60dcde12d",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:049994aa9c9ca85bb8ed8755625e06fde88df657fd6281870cb023098070f746"
       },
       "groupIds": [
         "backend-bakeoff:query-group:/"
@@ -63,7 +63,7 @@
       "path": "src/backends/snapback.ts",
       "sha256": "sha256:d72de1552f72577bb9f579794750f2e6076483f94cb81a694a9bac4bb40d9df3"
     },
-    "compiledBundleSha256": "sha256:b4ac06ab786046e6a68abd3c458b5aa4fb40fd224ffdb13415bffdbb7d98e88a",
+    "compiledBundleSha256": "sha256:622126f2f2726df6ad7269afc127ac8e80d88f548b5b4035f6d2c33f0ac3297d",
     "kind": "snapback",
     "label": "Snapback",
     "transport": "native WebSocket live queries + ephemeral overlay",
@@ -73,8 +73,8 @@
     "source": "registered-bundle",
     "bootSource": "registered-bundle",
     "commitVersion": 1,
-    "generation": "gen1:722ff293bc4afc084179ec1edf84cde149dcb606697ebb643d18be9f5dc90af8",
-    "versionStream": "019fa7f4-2f33-7fe0-b5a8-b1848ed1cefc",
+    "generation": "gen1:e13f8ab7729ac23e851d8b558c92d550633d850b63307436e0653545a1f94a8d",
+    "versionStream": "019faa95-52c6-75f0-8d33-f6775c6019c9",
     "opaquePreparation": true,
     "providerCustody": true,
     "adapterConsumer": "SnapbackAdapter.subscribeWorkspace"

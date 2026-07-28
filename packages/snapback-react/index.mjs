@@ -1734,20 +1734,21 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         pendingRegisteredRetirement,
       ]);
       // @ref LLP 0102#closed-connection-and-cancellation-protocol — adopted
-      // and ordinary children retire through their own handle refcounts.
-      // Only a still-unadopted registered owner has no child handle capable of
-      // retiring it and therefore owns whole-connection release authority.
+      // and ordinary children retire through their own handle refcounts before
+      // the provider conditionally releases its grant-owned connection. A
+      // sibling's remaining socket demand keeps the shared connection live.
       const connectionStillShared = (
         manager?.inspection?.().socketDemand ?? 0
       ) > 0;
       if (
-        ownsUnadoptedRegisteredOwner
-        && !connectionStillShared
+        !connectionStillShared
         && typeof client.releaseConnection === 'function'
       ) {
         try {
           await client.releaseConnection(connectionId, {
-            attachDeadline: pendingAttachDeadline,
+            attachDeadline: ownsUnadoptedRegisteredOwner
+              ? pendingAttachDeadline
+              : null,
             ifIdle: true,
           });
         } catch (error) {

@@ -639,9 +639,12 @@ owned demand, best-effort unsubscribes rooms, removes timers/listeners, and
 causes every later hook/start call to refuse.
 
 Provider/root unmount does not call an admin disconnect route. Child store
-reference counts retire their subscriptions; the managed connection closes
-when its final demand disappears. Host background/foreground uses LLP 0064's
-provider lifecycle once at the application boundary, not per component.
+reference counts first retire their subscriptions. The provider then invokes
+the client's grant-owned, `ifIdle` connection release: a sibling provider's
+remaining socket demand keeps the shared connection live, while the final
+provider closes the managed connection and relinquishes the cached grant.
+Host background/foreground uses LLP 0064's provider lifecycle once at the
+application boundary, not per component.
 
 ## Compatibility and capability honesty
 
