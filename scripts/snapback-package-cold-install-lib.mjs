@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
 
@@ -94,7 +95,9 @@ export function parseArguments(args) {
 }
 
 export function validatePublicPublicationLedger(ledger, expectedSourceNames) {
-  if (ledger?.schemaVersion !== 'snapback.package-publication.v1') {
+  const legacyLatest = ledger?.schemaVersion === 'snapback.package-publication.v1';
+  const candidate = ledger?.schemaVersion === 'snapback.package-candidate-ledger.v1';
+  if (!legacyLatest && !candidate) {
     throw new TypeError('unsupported publication ledger');
   }
   if (ledger.mode !== 'publish') {
@@ -106,8 +109,23 @@ export function validatePublicPublicationLedger(ledger, expectedSourceNames) {
   if (ledger.scopePreset !== 'ccheever') {
     throw new TypeError('public install requires the decided ccheever public aliases');
   }
-  if (ledger.registry !== PUBLIC_NPM_REGISTRY || ledger.tag !== 'latest') {
-    throw new TypeError('public install requires the official npm registry under latest');
+  if (ledger.registry !== PUBLIC_NPM_REGISTRY) {
+    throw new TypeError('public install requires the official npm registry');
+  }
+  if (legacyLatest && ledger.tag !== 'latest') {
+    throw new TypeError('legacy public ledger must select latest');
+  }
+  if (candidate) {
+    if (!/^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/u.test(ledger.tag ?? '')) {
+      throw new TypeError('candidate public ledger has an invalid non-default tag');
+    }
+    const { candidateLedgerSha256, ...withoutDigest } = ledger;
+    if (
+      !/^[0-9a-f]{64}$/u.test(candidateLedgerSha256 ?? '')
+      || candidateLedgerSha256 !== sha256Hex(canonicalJcs(withoutDigest))
+    ) {
+      throw new TypeError('candidate public ledger self-digest mismatch');
+    }
   }
   if (typeof ledger.revision !== 'string' || !/^[0-9a-f]{40}$/u.test(ledger.revision)) {
     throw new TypeError('publication ledger has no immutable source revision');
@@ -128,6 +146,9 @@ export function validatePublicPublicationLedger(ledger, expectedSourceNames) {
     }
     if (!['published', 'skipped-already-published'].includes(entry.status)) {
       throw new TypeError(`publication ledger has no successful public status for ${sourceName}`);
+    }
+    if (candidate && entry.candidateTagVerified !== true) {
+      throw new TypeError(`candidate tag was not registry-verified for ${sourceName}`);
     }
     if (typeof entry.sha256 !== 'string' || !/^[0-9a-f]{64}$/u.test(entry.sha256)) {
       throw new TypeError(`publication ledger has no immutable sha256 for ${sourceName}`);
@@ -245,6 +266,9 @@ export function aggregatePublicPackageProofs({
     sourceRevision: ledger.revision,
     sourceDirty: false,
     publicationMode: ledger.mode,
+    publicationLedgerSchema: ledger.schemaVersion,
+    publicationTag: ledger.tag,
+    candidateLedgerSha256: ledger.candidateLedgerSha256 ?? null,
     installSource: 'public',
     scopePreset: ledger.scopePreset,
     version: ledger.version,

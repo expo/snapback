@@ -265,6 +265,14 @@
     "diagnostic": {
       "$ref": "#/$defs/Diagnostic"
     },
+    "ephemeralAuthorityInstance": {
+      "description": "Present on a governed hosted-ephemeral refusal when the server can\nsafely identify the current connection-bound authority. This lets a\nclient fence the refusal itself without accepting any later stale\nframe from the retired instance.",
+      "pattern": "^eai1\\.[A-Za-z0-9_-]{43}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "receipt": {
       "anyOf": [
         {

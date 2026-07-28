@@ -4,12 +4,12 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, llp/0108-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-26
+reviewed: 2026-07-28
 reviewed-commit: HEAD
 ---
 
@@ -160,12 +160,14 @@ can prove structure; it cannot prove who may see or mutate a row.
 
 ## Design reference: write plus one activity row
 
-`defineWriteWithActivity` is implemented as a closed conformance surface for
-LLP 0104, but remains **review-gated and unadvertised**. Do not use its export
-as evidence that `write_activity_v1` is available on a target. Capability
-manifests must continue to report a GAP until the full result-retention,
-fault-injection, paired-authorization, first-party queue-owner, and
-cross-target corpus is green.
+`defineWriteWithActivity` and `defineBoundedChildrenQuery` are experimental
+local profiles. The exact `local-dev-sqlite-ibex` target advertises both as one
+atomic source publication only when its private embedded
+`LocalCapabilityPublicationV1` carrier still matches the committed
+qualification receipt and the executor/schema source bytes. Application
+artifacts cannot supply that carrier. They must explicitly acknowledge
+`write_activity_v1` or `bounded_children_v1`; an unacknowledged requirement
+refuses at load.
 
 The repository evidence is split deliberately. Run
 `node packages/snapback-codegen/relation-activity-authoring.test.mjs` for
@@ -174,10 +176,13 @@ typing, and dedicated capability refusal. Run
 `cargo test --lib
 relation_incarnation_is_protected_and_delete_recreate_isolated` for the
 transaction-local active-incarnation check, including stale-row patch/delete
-refusal after parent deletion and ID reuse. These Review profiles carry
-`bounded_children_v1` and `write_activity_v1` requirements, while both target
-manifests retain matching GAPs; generation preserves the last good artifacts
-instead of publishing a positive claim.
+refusal after parent deletion and ID reuse. Run
+`node tests/conformance/relation-activity-publication-v1.mjs` to verify the
+tracked carrier, receipt, source digests, cursor golden, and first-party queue
+ownership together. Remote-service, conformance-workerd, Cloudflare, and
+hosted profiles retain both GAPs; this local source carrier does not authorize
+them. A separately signed package attestation is also still required before a
+public runtime package may inherit the claim.
 
 The helper makes one existing-owner transaction reviewable:
 
@@ -193,7 +198,7 @@ The helper makes one existing-owner transaction reviewable:
 
 Declare every non-scope primary table explicitly:
 
-```js
+```js fragment reason="closed relation declaration shape; the executable fixture uses domain-specific table bindings"
 relations: [{
   table: tasks,
   scopeForeignKey: 'incidentId',
@@ -249,4 +254,5 @@ unique constraint is outside this profile.
   source change.
 - Do not accept effective subject, actual actor, actor kind, grant, or
   mutation digest from application arguments.
-- Do not treat the review-gated activity helper as a positive capability.
+- Do not infer support from an exported helper. Check the target manifest and
+  acknowledge the experimental capability; other targets still report a GAP.

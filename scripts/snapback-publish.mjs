@@ -19,6 +19,7 @@ import {
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicRegistry = 'https://registry.npmjs.org';
@@ -44,8 +45,10 @@ const usage = `usage: node scripts/snapback-publish.mjs [--version <semver>]
 
 Default mode packs and runs npm publish --dry-run only. A real publish requires
 both --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really, and publishes the
-complete runtime matrix. Cross-host release assembly supplies explicit runtime
-artifact paths to each platform package's prepare script.`;
+complete runtime matrix under an immutable non-default candidate tag. Moving
+the default tag is a separate, externally leased promotion. Cross-host release
+assembly supplies explicit runtime artifact paths to each platform package's
+prepare script.`;
 
 function fail(message, code = 1) {
   console.error(`snapback-publish: ${message}`);
@@ -145,6 +148,17 @@ function versionExists(name, version) {
   fail(`registry probe failed for ${name}@${version}:\n${result.stderr}`);
 }
 
+function candidateTagMatches(name, tag, version) {
+  const result = run('npm', [
+    'view', name, 'dist-tags', '--json', '--registry', publicRegistry,
+  ]);
+  if (result.status !== 0) {
+    fail(`registry tag probe failed for ${name}:\n${result.stderr}`);
+  }
+  const tags = result.stdout.trim() ? JSON.parse(result.stdout) : {};
+  return tags[tag] === version;
+}
+
 function bindRegistryArtifact(row, out) {
   const downloadRoot = mkdtempSync(join(out, '.registry-'));
   try {
@@ -166,6 +180,11 @@ function bindRegistryArtifact(row, out) {
     ));
     if (manifest.name !== row.name || manifest.version !== row.version) {
       fail(`published registry identity drift for ${row.name}@${row.version}`);
+    }
+    if (JSON.stringify(manifest.dependencies ?? {}) !== JSON.stringify(row.dependencies)
+        || JSON.stringify(manifest.optionalDependencies ?? {})
+          !== JSON.stringify(row.optionalDependencies)) {
+      fail(`published registry dependency closure drift for ${row.name}@${row.version}`);
     }
     row.registrySha256 = sha256(downloaded);
     if (row.registrySha256 !== row.sha256) {
@@ -256,9 +275,12 @@ function stage(options) {
         fail(`packed identity drift for ${sourceManifest.name}`);
       }
       rows.push({
+        publicationOrder: rows.length,
         sourceName: sourceManifest.name,
         name: manifest.name,
         version: options.version,
+        dependencies: packedManifest.dependencies ?? {},
+        optionalDependencies: packedManifest.optionalDependencies ?? {},
         tarball: record.filename,
         sha256: sha256(tarballPath),
         files: record.entryCount,
@@ -279,15 +301,29 @@ if (options.publish && process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
 if (options.publish && options.runtimePlatforms.length !== runtimePackages.size) {
   fail('real publish requires --runtime-platforms all so the CLI never points at a missing supported runtime');
 }
-if (options.publish && options.scopePreset === 'ccheever' && options.tag !== 'latest') {
-  fail('the decided @ccheever public closure must publish under the latest tag');
+if (options.publish && options.scopePreset !== 'ccheever') {
+  fail('real publication is limited to the decided @ccheever public closure');
+}
+if (options.publish
+    && !/^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/.test(options.tag)) {
+  fail('real publication requires a non-default candidate tag bakeoff-<version>-<source-sha12>');
+}
+if (options.publish && options.tag.includes('latest')) {
+  fail('candidate publication cannot mutate the latest tag');
 }
 const dirty = sourceDirty();
-if (options.publish && dirty && !options.allowDirty) fail('refusing to publish a dirty source tree');
+if (options.publish && dirty) fail('refusing to publish a dirty source tree');
 const revision = run('git', ['rev-parse', 'HEAD']).stdout.trim();
+if (options.publish) {
+  const versionTag = options.version.replaceAll('.', '-');
+  const expectedCandidateTag = `bakeoff-${versionTag}-${revision.slice(0, 12)}`;
+  if (options.tag !== expectedCandidateTag) {
+    fail(`candidate tag must be ${expectedCandidateTag} for this exact version and source revision`);
+  }
+}
 const rows = stage(options);
 const ledger = {
-  schemaVersion: 'snapback.package-publication.v1',
+  schemaVersion: 'snapback.package-candidate-ledger.v1',
   mode: options.publish ? 'publish' : 'dry-run',
   revision,
   sourceDirty: dirty,
@@ -307,6 +343,10 @@ if (options.publish) {
     if (versionExists(row.name, row.version)) {
       row.status = 'skipped-already-published';
       bindRegistryArtifact(row, options.out);
+      if (!candidateTagMatches(row.name, options.tag, row.version)) {
+        fail(`candidate tag ${options.tag} does not select ${row.name}@${row.version}`);
+      }
+      row.candidateTagVerified = true;
       writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
       continue;
     }
@@ -329,6 +369,10 @@ if (options.publish) {
     }
     row.status = 'published';
     bindRegistryArtifact(row, options.out);
+    if (!candidateTagMatches(row.name, options.tag, row.version)) {
+      fail(`candidate tag ${options.tag} does not select ${row.name}@${row.version}`);
+    }
+    row.candidateTagVerified = true;
     writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
   }
 } else {
@@ -348,6 +392,18 @@ if (options.publish) {
   }
 }
 
+if (options.publish) {
+  const incomplete = rows.filter((row) => (
+    !['published', 'skipped-already-published'].includes(row.status)
+    || row.registrySha256 !== row.sha256
+    || typeof row.registryIntegrity !== 'string'
+    || !candidateTagMatches(row.name, options.tag, row.version)
+  ));
+  if (incomplete.length > 0) {
+    fail(`candidate ledger is incomplete for ${incomplete.map((row) => row.name).join(', ')}`);
+  }
+  ledger.candidateLedgerSha256 = sha256Hex(canonicalJcs(ledger));
+}
 writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
 for (const row of rows) {
   console.log(`${row.status.padEnd(27)} ${row.name}@${row.version} ${row.tarball} ${row.sha256}`);

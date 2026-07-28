@@ -5328,12 +5328,13 @@ impl TargetCapabilityId {
         // for every registered id. Artifacts that still acknowledge a
         // promoted id are unaffected (stable acknowledgment is a no-op).
         match self {
-            Self::BoundedChildrenV1 | Self::WriteActivityV1 => CapabilityMaturity::Proposed,
-            Self::InlineHandlerV1
+            Self::BoundedChildrenV1
+            | Self::InlineHandlerV1
             | Self::RegisteredBundleBootV1
             | Self::ResultContractV1
             | Self::VersionedSeedInstallV1
-            | Self::VersionedSeedResetV1 => CapabilityMaturity::Experimental,
+            | Self::VersionedSeedResetV1
+            | Self::WriteActivityV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
         }
     }
@@ -5357,10 +5358,39 @@ impl TargetCapabilityId {
             Self::BoundedResponseStreamV1 => {
                 manifest.outbound_actions && facts.bounded_response_stream_v1_registered
             }
-            // @ref LLP 0104#first-publication-gate — the Review profiles have
-            // dedicated registry identities and GAPs, but never positive
-            // support before the complete publication matrix and acceptance.
-            Self::BoundedChildrenV1 | Self::WriteActivityV1 => false,
+            // @ref LLP 0104#local-and-packaged-publication-authority — the
+            // relation/activity pair is one source-owned local publication:
+            // both private registrations and the compiled carrier must hold
+            // on the exact auth-aware local profile. A generated artifact,
+            // derived service profile, or hosted target cannot set the facts.
+            // @ref LLP 0108#1-closed-capability-registry-assignment — static
+            // experimental maturity is independent of this runtime predicate
+            // and still requires an artifact acknowledgment at admission.
+            Self::BoundedChildrenV1 | Self::WriteActivityV1 => {
+                facts.bounded_children_v1_registered
+                    && facts.write_activity_v1_registered
+                    && facts.local_relation_activity_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest
+                        .supported_artifact_auth_pairs
+                        .contains(&SupportedArtifactAuthPair {
+                            schema_version: ArtifactVersion::V1,
+                            auth_mode: AuthMode::Sessions,
+                        })
+                    && manifest.auth_protocols == Some(AuthProtocols::V1)
+                    && match self {
+                        Self::BoundedChildrenV1 => {
+                            manifest.live_subscriptions && manifest.relational_queries.is_some()
+                        }
+                        Self::WriteActivityV1 => {
+                            facts.result_contract_v1_registered
+                                && facts.mutation_read_set_validator_registered
+                                && manifest.mutation_isolation_mode
+                                    == "handler-captured-read-set-validation"
+                        }
+                        _ => unreachable!(),
+                    }
+            }
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
             Self::InlineHandlerV1 => facts.inline_handler_v1_registered,
@@ -5462,11 +5492,93 @@ impl CapabilityMaturity {
     }
 }
 
+const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
+    include_bytes!("local-relation-activity-publication.v1.json");
+const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
+    "sha256:959597bf5ceee2422cf5e3ac3eb98a42e5d5e547c15443c83bb8a31fcda6bb09";
+const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
+    include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LocalRelationActivityPublicationV1 {
+    #[serde(rename = "schemaVersion")]
+    schema_version: String,
+    #[serde(rename = "targetProfileId")]
+    target_profile_id: String,
+    #[serde(rename = "capabilityIds")]
+    capability_ids: Vec<String>,
+    #[serde(rename = "qualificationReceiptSha256")]
+    qualification_receipt_sha256: String,
+    #[serde(rename = "executorSourceSha256")]
+    executor_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "schemaSourceSha256")]
+    schema_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "packageClosureSha256")]
+    package_closure_sha256: Option<String>,
+    #[serde(rename = "buildProvenanceRequirement")]
+    build_provenance_requirement: String,
+}
+
+fn sha256_prefixed(bytes: &[u8]) -> String {
+    format!("sha256:{:x}", Sha256::digest(bytes))
+}
+
+/// Validate the private, source-embedded publication carrier before deriving
+/// either relation/activity support fact. Failure is intentionally a boolean
+/// GAP at the target manifest boundary: an unreviewed carrier edit cannot
+/// become target authority through a generated application artifact.
+///
+/// @ref LLP 0104#local-and-packaged-publication-authority — source builds
+/// bind the exact local profile, both atomic capability ids, the executable
+/// evidence receipt, and the implementation/schema source bytes.
+/// @ref LLP 0108#6-acceptance — carrier and registry tampering must withhold
+/// runtime support while leaving the static maturity assignment intact.
+fn local_relation_activity_publication_verified() -> bool {
+    if sha256_prefixed(LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES)
+        != LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256
+    {
+        return false;
+    }
+    let Ok(carrier) = serde_json::from_slice::<LocalRelationActivityPublicationV1>(
+        LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
+    ) else {
+        return false;
+    };
+    carrier.schema_version == "snapback.local-capability-publication.v1"
+        && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+        && carrier.capability_ids == ["bounded_children_v1", "write_activity_v1"].map(str::to_owned)
+        && carrier.qualification_receipt_sha256
+            == sha256_prefixed(LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES)
+        && carrier.executor_source_sha256
+            == BTreeMap::from([
+                (
+                    "src/local.rs".to_owned(),
+                    "sha256:e8f931fbc4dda51c8a4d775390760b008cda9c86d4008d1807953e2615997bed"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage.rs".to_owned(),
+                    "sha256:b9b33f239ec7e0fa288586c14207da7732f011bafbfbcfde831a57b736cf9bcf"
+                        .to_owned(),
+                ),
+            ])
+        && carrier.schema_source_sha256
+            == BTreeMap::from([(
+                "packages/snapback-codegen/define.mjs".to_owned(),
+                "sha256:284afee152eb330367979769eb74ba30dc5f0903986903416d2aa90e2f5b292e"
+                    .to_owned(),
+            )])
+        && carrier.package_closure_sha256.is_none()
+        && carrier.build_provenance_requirement == "source-commit-and-embedded-carrier-sha256"
+}
+
 /// Code-owned implementation facts not representable by existing capability
 /// manifest fields. Constructors are internal so candidate artifacts cannot
 /// turn assertions into target authority.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
+    bounded_children_v1_registered: bool,
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
     migration_keyset_scan_v1_registered: bool,
@@ -5483,15 +5595,20 @@ pub struct TargetCapabilityFacts {
     mutation_read_set_validator_registered: bool,
     permission_epoch_resync_registered: bool,
     registered_bundle_boot_v1_registered: bool,
+    write_activity_v1_registered: bool,
+    local_relation_activity_publication_v1_verified: bool,
 }
 
 impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
+        let local_relation_activity_publication_v1_verified =
+            local_relation_activity_publication_verified();
         // @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
         // mandatory local row; LLP 0103 remains Review, so registry maturity
         // stays experimental until the author accepts the contract.
         Self {
+            bounded_children_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
             migration_keyset_scan_v1_registered: true,
@@ -5513,14 +5630,26 @@ impl TargetCapabilityFacts {
             // local/auth-aware target implementation behind this positive
             // experimental capability fact.
             registered_bundle_boot_v1_registered: true,
+            write_activity_v1_registered: true,
+            local_relation_activity_publication_v1_verified,
         }
     }
 
     fn conformance_auth_aware() -> Self {
         Self {
+            bounded_children_v1_registered: false,
             ibex_ctx_db_host_bridge_available: false,
+            write_activity_v1_registered: false,
+            local_relation_activity_publication_v1_verified: false,
             ..Self::local_auth_aware()
         }
+    }
+
+    fn with_relation_activity_publication_withheld(mut self) -> Self {
+        self.bounded_children_v1_registered = false;
+        self.write_activity_v1_registered = false;
+        self.local_relation_activity_publication_v1_verified = false;
+        self
     }
 }
 
@@ -5869,6 +5998,19 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
     ]
 }
 
+fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "bounded_children_v1") {
+        let insertion = gaps
+            .iter()
+            .position(|gap| gap == "notifications")
+            .unwrap_or(gaps.len());
+        gaps.insert(insertion, "bounded_children_v1".to_owned());
+    }
+    if !gaps.iter().any(|gap| gap == "write_activity_v1") {
+        gaps.push("write_activity_v1".to_owned());
+    }
+}
+
 impl CapabilityManifest {
     /// The declared capability manifest of the local v0 target: what an agent
     /// may assume from the committed artifact alone. Instance-live facts
@@ -5877,7 +6019,12 @@ impl CapabilityManifest {
         Self::local_v0(local_v0_default_capability_gaps())
     }
 
-    pub fn local_v0(capability_gaps: Vec<String>) -> Self {
+    pub fn local_v0(mut capability_gaps: Vec<String>) -> Self {
+        let capability_facts = TargetCapabilityFacts::local_auth_aware();
+        if capability_facts.local_relation_activity_publication_v1_verified {
+            capability_gaps
+                .retain(|gap| gap != "bounded_children_v1" && gap != "write_activity_v1");
+        }
         let mut manifest = Self {
             artifact_kind: capability_manifest_kind(),
             schema_version: snapback_schema_version(),
@@ -6028,7 +6175,7 @@ impl CapabilityManifest {
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };
-        manifest.refresh_supported_capabilities(TargetCapabilityFacts::local_auth_aware());
+        manifest.refresh_supported_capabilities(capability_facts);
         manifest
     }
 
@@ -6073,7 +6220,9 @@ impl CapabilityManifest {
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
         manifest.local_server_lifecycle = false;
         manifest.full_text_search = None;
-        let mut facts = TargetCapabilityFacts::local_auth_aware();
+        ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
+        let mut facts =
+            TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
         facts.full_text_search_v1_registered = false;
         manifest.refresh_supported_capabilities(facts);
         manifest
@@ -6095,6 +6244,7 @@ impl CapabilityManifest {
         manifest
             .capability_gaps
             .push("v8_action_execution".to_owned());
+        ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         manifest.vm_lifecycle = "fresh-process-per-invocation".to_owned();
         for limit in &mut manifest.resource_limits {
             // The service boundary makes wall-clock enforcement real on this
@@ -6211,6 +6361,7 @@ impl CapabilityManifest {
             "assets".to_owned(),
             "outbound_actions".to_owned(),
             "bounded_response_stream_v1".to_owned(),
+            "bounded_children_v1".to_owned(),
             "notifications".to_owned(),
             "cron".to_owned(),
             "ephemeral_realtime".to_owned(),
@@ -6218,6 +6369,7 @@ impl CapabilityManifest {
             "multiple_apps_per_deployment".to_owned(),
             "hosted_marketplace".to_owned(),
             "retained_version_resume".to_owned(),
+            "write_activity_v1".to_owned(),
         ];
         manifest.resource_limits = vec![
             // V8 wall-clock is enforced by the platform (the object/request is
@@ -6562,8 +6714,8 @@ mod membership_manifest_grammar_tests {
     // @ref LLP 0058#capability-maturity — the maturity map annotates the
     // emitted support set with every non-stable id; stable ids never appear.
     // With `relational_query_v1` and `migration_keyset_scan_v1` promoted as
-    // LLP 0080/0081's Implemented act (2026-07-26), only the explicitly
-    // experimental 0101/0103/0107 contracts remain in the maturity map.
+    // LLP 0080/0081's Implemented act (2026-07-26), the source-published LLP
+    // 0104 pair joins the explicitly experimental 0101/0103/0107 contracts.
     #[test]
     fn capability_maturity_promotions_hold_and_admission_stays_fail_closed() {
         let disabled = CapabilityManifest::local_v0_declared();
@@ -6579,6 +6731,10 @@ mod membership_manifest_grammar_tests {
                 .contains(&TargetCapabilityId::MigrationKeysetScanV1)
         );
         let experimental = BTreeMap::from([
+            (
+                TargetCapabilityId::BoundedChildrenV1,
+                CapabilityMaturity::Experimental,
+            ),
             (
                 TargetCapabilityId::InlineHandlerV1,
                 CapabilityMaturity::Experimental,
@@ -6599,8 +6755,21 @@ mod membership_manifest_grammar_tests {
                 TargetCapabilityId::VersionedSeedResetV1,
                 CapabilityMaturity::Experimental,
             ),
+            (
+                TargetCapabilityId::WriteActivityV1,
+                CapabilityMaturity::Experimental,
+            ),
         ]);
         assert_eq!(disabled.capability_maturity, experimental);
+        assert!(
+            disabled
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedChildrenV1)
+                && disabled
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::WriteActivityV1),
+            "the reviewed embedded local carrier publishes the atomic relation/activity pair",
+        );
         assert!(
             disabled
                 .supported_capabilities
@@ -6642,14 +6811,24 @@ mod membership_manifest_grammar_tests {
                 .code,
             "SNAPBACK_CAPABILITY_UNSUPPORTED"
         );
+        assert_eq!(
+            enabled
+                .require_capability("bounded_children_v1")
+                .expect_err("experimental local publication requires an artifact acknowledgment")
+                .diagnostic
+                .code,
+            "SNAPBACK_CAPABILITY_UNSUPPORTED"
+        );
 
         // Pre-promotion acknowledgments for stable ids remain harmless, while
         // the current experimental ids admit only through the explicit gate.
         let acknowledged = CapabilityManifest::parse_acknowledged_capabilities([
             "inline_handler_v1",
+            "bounded_children_v1",
             "relational_query_v1",
             "bounded_response_stream_v1",
             "live_subscriptions",
+            "write_activity_v1",
             "not.a.known.capability",
         ]);
         enabled
@@ -6661,6 +6840,12 @@ mod membership_manifest_grammar_tests {
         enabled
             .require_capability_acknowledging("inline_handler_v1", &acknowledged)
             .expect("acknowledged experimental support admits");
+        enabled
+            .require_capability_acknowledging("bounded_children_v1", &acknowledged)
+            .expect("acknowledged bounded-children support admits");
+        enabled
+            .require_capability_acknowledging("write_activity_v1", &acknowledged)
+            .expect("acknowledged write/activity support admits");
         assert_eq!(
             disabled
                 .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
@@ -6668,6 +6853,53 @@ mod membership_manifest_grammar_tests {
                 .diagnostic
                 .code,
             "SNAPBACK_CAPABILITY_UNSUPPORTED"
+        );
+    }
+
+    #[test]
+    fn relation_activity_publication_is_exactly_local_and_source_owned() {
+        assert!(
+            local_relation_activity_publication_verified(),
+            "the tracked carrier must match its receipt, source bytes, and compiled digest",
+        );
+
+        for manifest in [
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            for (id, gap) in [
+                (TargetCapabilityId::BoundedChildrenV1, "bounded_children_v1"),
+                (TargetCapabilityId::WriteActivityV1, "write_activity_v1"),
+            ] {
+                assert!(
+                    !manifest.supported_capabilities.contains(&id),
+                    "{} must not inherit the local source publication",
+                    manifest.target_profile_id,
+                );
+                assert!(
+                    manifest
+                        .capability_gaps
+                        .iter()
+                        .any(|candidate| candidate == gap),
+                    "{} must retain the structured {gap} GAP",
+                    manifest.target_profile_id,
+                );
+            }
+        }
+
+        let mut local = CapabilityManifest::local_v0_declared();
+        local.refresh_supported_capabilities(
+            TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld(),
+        );
+        assert!(
+            !local
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedChildrenV1)
+                && !local
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::WriteActivityV1),
+            "target facts, not manifest fields from an app artifact, own publication authority",
         );
     }
 

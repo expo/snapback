@@ -50,12 +50,23 @@
     ]
   },
   "publication": {
-    "status": "blocked",
-    "capabilitiesPublished": false,
+    "status": "published-local-source",
+    "authority": "LocalCapabilityPublicationV1",
+    "targetProfileIds": [
+      "local-dev-sqlite-ibex"
+    ],
+    "capabilityIds": [
+      "bounded_children_v1",
+      "write_activity_v1"
+    ],
+    "capabilitiesPublished": true,
+    "acknowledgmentRequired": true,
+    "artifactAuthority": false,
+    "hostedAuthority": false,
     "residualGates": [
+      "public package attestation",
       "hosted target corpus",
-      "Signal Desk product-path adoption",
-      "author acceptance or explicit public-profile narrowing"
+      "hosted capability-publication family"
     ]
   }
 }

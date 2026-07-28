@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCipheriv, createDecipheriv, hkdfSync } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, hkdfSync } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 import { createMemorySnapbackClientStore } from '../../packages/snapback-contract/index.mjs';
@@ -7,13 +7,47 @@ import { createMemorySnapbackClientStore } from '../../packages/snapback-contrac
 const vectorsUrl = new URL('./relation-activity-publication-v1.vectors.json', import.meta.url);
 const vectors = JSON.parse(await readFile(vectorsUrl, 'utf8'));
 assert.equal(vectors.formatVersion, 'relation-activity-publication-v1');
-const receipt = JSON.parse(await readFile(
-  new URL('./relation-activity-publication-v1.receipt.json', import.meta.url),
-  'utf8',
-));
+const receiptUrl = new URL('./relation-activity-publication-v1.receipt.json', import.meta.url);
+const receiptBytes = await readFile(receiptUrl);
+const receipt = JSON.parse(receiptBytes);
+const carrierUrl = new URL('../../src/local-relation-activity-publication.v1.json', import.meta.url);
+const carrierBytes = await readFile(carrierUrl);
+const carrier = JSON.parse(carrierBytes);
+const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+
 assert.equal(receipt.repositoryLocal.status, 'passed');
-assert.equal(receipt.publication.status, 'blocked');
-assert.equal(receipt.publication.capabilitiesPublished, false);
+assert.equal(receipt.publication.status, 'published-local-source');
+assert.equal(receipt.publication.authority, 'LocalCapabilityPublicationV1');
+assert.equal(receipt.publication.capabilitiesPublished, true);
+assert.equal(receipt.publication.acknowledgmentRequired, true);
+assert.equal(receipt.publication.artifactAuthority, false);
+assert.equal(receipt.publication.hostedAuthority, false);
+assert.deepEqual(receipt.publication.targetProfileIds, ['local-dev-sqlite-ibex']);
+assert.deepEqual(
+  receipt.publication.capabilityIds,
+  ['bounded_children_v1', 'write_activity_v1'],
+);
+
+assert.equal(carrier.schemaVersion, 'snapback.local-capability-publication.v1');
+assert.equal(carrier.targetProfileId, 'local-dev-sqlite-ibex');
+assert.deepEqual(carrier.capabilityIds, ['bounded_children_v1', 'write_activity_v1']);
+assert.equal(carrier.qualificationReceiptSha256, sha256(receiptBytes));
+assert.equal(
+  sha256(carrierBytes),
+  'sha256:959597bf5ceee2422cf5e3ac3eb98a42e5d5e547c15443c83bb8a31fcda6bb09',
+);
+for (const [source, expected] of Object.entries({
+  ...carrier.executorSourceSha256,
+  ...carrier.schemaSourceSha256,
+})) {
+  const sourceBytes = await readFile(new URL(`../../${source}`, import.meta.url));
+  assert.equal(sha256(sourceBytes), expected, `${source} drifted from the local publication carrier`);
+}
+assert.equal(carrier.packageClosureSha256, null);
+assert.equal(
+  carrier.buildProvenanceRequirement,
+  'source-commit-and-embedded-carrier-sha256',
+);
 assert.deepEqual(
   receipt.repositoryLocal.cases.map((entry) => entry.id),
   [
@@ -160,6 +194,13 @@ console.log(JSON.stringify({
   schemaVersion: 'snapback.relation-activity-publication-evidence.v1',
   status: 'passed',
   cases: {
+    localSourcePublication: {
+      targetProfileId: carrier.targetProfileId,
+      capabilityIds: carrier.capabilityIds,
+      carrierSha256: sha256(carrierBytes),
+      acknowledgmentRequired: receipt.publication.acknowledgmentRequired,
+      hostedAuthority: receipt.publication.hostedAuthority,
+    },
     crossLanguageSbbc1: 'passed',
     canonicalBoundaryOrdering: 'passed',
     firstPartyQueueOwner: queueOwnerEvidence,

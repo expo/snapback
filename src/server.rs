@@ -2756,6 +2756,14 @@ struct ConnectionGrantRecord {
     wire_version: Option<String>,
     ephemeral_authority_protocol: Option<u32>,
     ephemeral_authority_instance: Option<String>,
+    /// Immutable lineage fact: true only when the first open crossed a
+    /// current authenticated single-instance hosted admission. A required
+    /// lineage can never use the local `(None, None)` compatibility case.
+    ///
+    /// @ref LLP 0094#hosted-ephemeral-per-boundary-contract — hosted
+    ///   admission makes protocol 1 plus the exact authority instance
+    ///   mandatory on open, reopen, HTTP operations, and socket upgrade.
+    hosted_ephemeral_authority_required: bool,
     ephemeral_expiry_protocol: Option<u32>,
 }
 
@@ -3165,6 +3173,7 @@ struct ConnectionOpenAttempt<'a> {
     wire_version_offer: Option<String>,
     ephemeral_authority_protocol: Option<u32>,
     ephemeral_authority_instance: Option<String>,
+    hosted_ephemeral_authority_required: bool,
     ephemeral_expiry_protocol: Option<u32>,
     admission: Option<&'a AdmissionLease>,
 }
@@ -3190,6 +3199,7 @@ impl<'a> ConnectionOpenAttempt<'a> {
             wire_version_offer: None,
             ephemeral_authority_protocol: None,
             ephemeral_authority_instance: None,
+            hosted_ephemeral_authority_required: false,
             ephemeral_expiry_protocol: None,
             admission: None,
         }
@@ -3217,6 +3227,11 @@ impl<'a> ConnectionOpenAttempt<'a> {
         self
     }
 
+    fn with_hosted_ephemeral_authority_required(mut self, required: bool) -> Self {
+        self.hosted_ephemeral_authority_required = required;
+        self
+    }
+
     fn with_ephemeral_expiry_protocol(mut self, protocol: Option<u32>) -> Self {
         self.ephemeral_expiry_protocol = protocol;
         self
@@ -3238,7 +3253,9 @@ struct PreparedConnectionAct {
     bound: BoundGrantAuthority,
     authorization_invalidation:
         Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
+    ephemeral_authority_protocol: Option<u32>,
     ephemeral_authority_instance: Option<String>,
+    hosted_ephemeral_authority_required: bool,
 }
 
 impl PreparedConnectionOpenAuthority {
@@ -3257,8 +3274,23 @@ impl PreparedConnectionOpenAuthority {
 
 impl PreparedConnectionAct {
     fn verify_ephemeral_authority_instance(&self, presented: Option<&str>) -> Result<(), ApiError> {
+        if self.hosted_ephemeral_authority_required
+            && self.ephemeral_authority_protocol
+                != Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1)
+        {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+                "ephemeral",
+                "this hosted connection did not negotiate ephemeralAuthorityProtocol 1",
+            )));
+        }
         match (self.ephemeral_authority_instance.as_deref(), presented) {
-            (None, None) => Ok(()),
+            (None, None) if !self.hosted_ephemeral_authority_required => Ok(()),
+            (None, _) => Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
+                "ephemeral",
+                "this hosted connection has no current ephemeral authority instance",
+            ))),
             (Some(_), None) => Err(ApiError::from(SnapbackError::error(
                 "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
                 "ephemeral",
@@ -3271,6 +3303,10 @@ impl PreparedConnectionAct {
                 "the presented ephemeral authority instance does not match this connection",
             ))),
         }
+    }
+
+    fn ephemeral_authority_instance(&self) -> Option<&str> {
+        self.ephemeral_authority_instance.as_deref()
     }
 
     fn effect_fence(&self) -> crate::ephemeral::ConnectionEffectFence {
@@ -4168,6 +4204,19 @@ pub struct ConnectionGrant {
     )]
     #[schemars(pattern(r"^eai1\.[A-Za-z0-9_-]{43}$"))]
     pub ephemeral_authority_instance: Option<String>,
+    /// Present and true only when this lineage was opened under a current
+    /// authenticated hosted single-instance admission. Such a lineage must
+    /// repeat protocol 1 on reopen and present its exact instance on every
+    /// governed HTTP request or WebSocket upgrade.
+    ///
+    /// @ref LLP 0094#hosted-ephemeral-per-boundary-contract — absence is the
+    ///   legacy-local compatibility case; hosted authority is fail-closed.
+    #[serde(
+        rename = "hostedEphemeralAuthorityRequired",
+        default,
+        skip_serializing_if = "is_false"
+    )]
+    pub hosted_ephemeral_authority_required: bool,
     /// Echo present iff the connection lineage negotiated LLP 0106's
     /// monotonic ephemeral-expiry conversion protocol.
     #[serde(
@@ -4199,9 +4248,17 @@ impl std::fmt::Debug for ConnectionGrant {
                 "ephemeral_authority_instance",
                 &self.ephemeral_authority_instance,
             )
+            .field(
+                "hosted_ephemeral_authority_required",
+                &self.hosted_ephemeral_authority_required,
+            )
             .field("ephemeral_expiry_protocol", &self.ephemeral_expiry_protocol)
             .finish()
     }
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// The `POST /connection/open` request. `previousToken` is a bearer secret
@@ -4808,6 +4865,7 @@ impl ConnectionRegistry {
             wire_version_offer,
             ephemeral_authority_protocol,
             ephemeral_authority_instance,
+            hosted_ephemeral_authority_required,
             ephemeral_expiry_protocol,
             admission,
         } = attempt;
@@ -4817,6 +4875,23 @@ impl ConnectionRegistry {
             bound,
             hosted_sender,
         } = prepared;
+        if hosted_ephemeral_authority_required
+            && ephemeral_authority_protocol
+                != Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+                "ephemeral",
+                "this hosted target requires ephemeralAuthorityProtocol 1",
+            ));
+        }
+        if hosted_ephemeral_authority_required && ephemeral_authority_instance.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
+                "ephemeral",
+                "this hosted target has no current ephemeral authority instance",
+            ));
+        }
         let publication_bound = bound.clone();
         let stale = bound.stale_error_at(now_ms);
         let mut retirement = None;
@@ -4886,6 +4961,10 @@ impl ConnectionRegistry {
                     .grants
                     .get(id)
                     .and_then(|existing| existing.ephemeral_authority_instance.clone());
+                let lineage_hosted_ephemeral_authority_required = grants
+                    .grants
+                    .get(id)
+                    .is_some_and(|existing| existing.hosted_ephemeral_authority_required);
                 let lineage_ephemeral_expiry_protocol = grants
                     .grants
                     .get(id)
@@ -4901,6 +4980,24 @@ impl ConnectionRegistry {
                             "the wire-version offer does not equal this connection lineage's bound version; open a fresh connection to change versions",
                         ));
                     }
+                }
+                if lineage_hosted_ephemeral_authority_required
+                    && ephemeral_authority_protocol.is_none()
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+                        "ephemeral",
+                        "this hosted connection lineage requires ephemeralAuthorityProtocol 1 on every reopen",
+                    ));
+                }
+                if hosted_ephemeral_authority_required
+                    != lineage_hosted_ephemeral_authority_required
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED",
+                        "ephemeral",
+                        "the hosted ephemeral authority requirement changed; open a fresh connection",
+                    ));
                 }
                 if let Some(offer) = ephemeral_authority_protocol {
                     let Some(bound) = lineage_ephemeral_authority_protocol else {
@@ -4964,6 +5061,8 @@ impl ConnectionRegistry {
                             lineage_ephemeral_authority_protocol,
                         ephemeral_authority_instance:
                             lineage_ephemeral_authority_instance,
+                        hosted_ephemeral_authority_required:
+                            lineage_hosted_ephemeral_authority_required,
                         ephemeral_expiry_protocol:
                             lineage_ephemeral_expiry_protocol,
                     },
@@ -5037,6 +5136,7 @@ impl ConnectionRegistry {
                     wire_version: wire_version_offer.clone(),
                     ephemeral_authority_protocol,
                     ephemeral_authority_instance: ephemeral_authority_instance.clone(),
+                    hosted_ephemeral_authority_required,
                     ephemeral_expiry_protocol,
                 },
             );
@@ -5048,6 +5148,7 @@ impl ConnectionRegistry {
                     wire_version: wire_version_offer.clone(),
                     ephemeral_authority_protocol,
                     ephemeral_authority_instance,
+                    hosted_ephemeral_authority_required,
                     ephemeral_expiry_protocol,
                 },
                 grant_id,
@@ -5381,7 +5482,14 @@ impl ConnectionRegistry {
                 connection_id,
             ));
         };
-        let (grant_id, bound, authorization_invalidation, ephemeral_authority_instance) = {
+        let (
+            grant_id,
+            bound,
+            authorization_invalidation,
+            ephemeral_authority_protocol,
+            ephemeral_authority_instance,
+            hosted_ephemeral_authority_required,
+        ) = {
             let grants = self.lock();
             let Some(record) = grants
                 .grants
@@ -5408,7 +5516,9 @@ impl ConnectionRegistry {
                 record.grant_id.clone(),
                 record.authority.clone(),
                 record.authorization_invalidation.clone(),
+                record.ephemeral_authority_protocol,
                 record.ephemeral_authority_instance.clone(),
+                record.hosted_ephemeral_authority_required,
             )
         };
         let resolved = match &bound {
@@ -5493,7 +5603,9 @@ impl ConnectionRegistry {
             resolved,
             bound,
             authorization_invalidation,
+            ephemeral_authority_protocol,
             ephemeral_authority_instance,
+            hosted_ephemeral_authority_required,
         })
     }
 
@@ -5563,7 +5675,9 @@ impl ConnectionRegistry {
                 resolved: ResolvedAppAuthority::Anonymous,
                 bound: record.authority.clone(),
                 authorization_invalidation: record.authorization_invalidation.clone(),
+                ephemeral_authority_protocol: record.ephemeral_authority_protocol,
                 ephemeral_authority_instance: record.ephemeral_authority_instance.clone(),
+                hosted_ephemeral_authority_required: record.hosted_ephemeral_authority_required,
             }
         };
         prepared
@@ -5710,6 +5824,7 @@ fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiE
             Diagnostic::error(code, "realtime", message)
                 .with_details(json!({ "connection_id": connection_id })),
         ),
+        None,
         None,
         None,
         None,
@@ -5983,6 +6098,25 @@ async fn open_connection(
             "this server understands ephemeralAuthorityProtocol 1 only; omit the field to keep hosted ephemeral unavailable",
         )));
     }
+    let hosted_serving = runtime.hosted_serving_handle();
+    let hosted_ephemeral_authority_instance = if let Some(hosted) = hosted_serving.as_ref() {
+        hosted.hosted_target_authority_instance_at(
+            now_millis(),
+            prepared.bound.authorization_stream_incarnation(),
+            runtime.server_startup_nonce(),
+        )?
+    } else {
+        None
+    };
+    let hosted_ephemeral_authority_required = hosted_ephemeral_authority_instance.is_some();
+    if hosted_ephemeral_authority_required && ephemeral_authority_protocol.is_none() {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+            "ephemeral",
+            "this hosted target requires ephemeralAuthorityProtocol 1",
+        ))
+        .with_ephemeral_authority_instance(hosted_ephemeral_authority_instance.as_deref()));
+    }
     // @ref LLP 0106#closed-presence-state — this is a must-understand,
     // lineage-bound offer; unknown values never silently downgrade.
     if ephemeral_expiry_protocol
@@ -6016,22 +6150,14 @@ async fn open_connection(
     let opened = {
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
         let ephemeral_authority_instance = if ephemeral_authority_protocol.is_some() {
-            if let Some(hosted) = runtime.hosted_serving_handle() {
-                Some(
-                    hosted
-                        .hosted_target_authority_instance_at(
-                            epoch_now_ms,
-                            prepared.bound.authorization_stream_incarnation(),
-                            runtime.server_startup_nonce(),
-                        )?
-                        .ok_or_else(|| {
-                            ApiError::from(SnapbackError::error(
-                                "SNAPBACK_HOSTED_ADMISSION_V2_MISSING",
-                                "auth-deployment",
-                                "hosted ephemeral authority requires a current routed-Machine admission",
-                            ))
-                        })?,
-                )
+            if hosted_serving.is_some() {
+                Some(hosted_ephemeral_authority_instance.clone().ok_or_else(|| {
+                    ApiError::from(SnapbackError::error(
+                        "SNAPBACK_HOSTED_ADMISSION_V2_MISSING",
+                        "auth-deployment",
+                        "hosted ephemeral authority requires a current routed-Machine admission",
+                    ))
+                })?)
             } else {
                 use base64::Engine as _;
                 let mut digest = sha2::Sha256::new();
@@ -6046,22 +6172,30 @@ async fn open_connection(
         } else {
             None
         };
-        runtime.connections.open_prepared(
-            ConnectionOpenAttempt::new(
-                suggested,
-                previous_token.as_deref(),
-                allow_suggested,
-                prepared.clone(),
-                epoch_now_ms,
-                monotonic_now,
-                auth_invalidation_protocol,
+        runtime
+            .connections
+            .open_prepared(
+                ConnectionOpenAttempt::new(
+                    suggested,
+                    previous_token.as_deref(),
+                    allow_suggested,
+                    prepared.clone(),
+                    epoch_now_ms,
+                    monotonic_now,
+                    auth_invalidation_protocol,
+                )
+                .with_wire_version(wire_version)
+                .with_ephemeral_authority_protocol(ephemeral_authority_protocol)
+                .with_ephemeral_authority_instance(ephemeral_authority_instance)
+                .with_hosted_ephemeral_authority_required(hosted_ephemeral_authority_required)
+                .with_ephemeral_expiry_protocol(ephemeral_expiry_protocol)
+                .with_admission(&admission),
             )
-            .with_wire_version(wire_version)
-            .with_ephemeral_authority_protocol(ephemeral_authority_protocol)
-            .with_ephemeral_authority_instance(ephemeral_authority_instance)
-            .with_ephemeral_expiry_protocol(ephemeral_expiry_protocol)
-            .with_admission(&admission),
-        )?
+            .map_err(|error| {
+                ApiError::from(error).with_ephemeral_authority_instance(
+                    hosted_ephemeral_authority_instance.as_deref(),
+                )
+            })?
     };
     let deadline = match record_connection_authenticated_use(&runtime, use_key, &admission).await {
         Ok(deadline) => deadline,
@@ -6137,6 +6271,17 @@ pub struct ErrorResponse {
     pub receipt: Option<Receipt>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attribution: Option<FunctionAttribution>,
+    /// Present on a governed hosted-ephemeral refusal when the server can
+    /// safely identify the current connection-bound authority. This lets a
+    /// client fence the refusal itself without accepting any later stale
+    /// frame from the retired instance.
+    #[serde(
+        rename = "ephemeralAuthorityInstance",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[schemars(pattern(r"^eai1\.[A-Za-z0-9_-]{43}$"))]
+    pub ephemeral_authority_instance: Option<String>,
 }
 
 /// Successful `POST /mutation/{name}` response. The mutation output and its
@@ -10186,9 +10331,15 @@ async fn enforce_registered_route_policy(
             };
         let verified = verified.and_then(|prepared| {
             if let Some(prepared) = prepared.as_ref() {
-                prepared.verify_ephemeral_authority_instance(
-                    presented_ephemeral_authority_instance.as_deref(),
-                )?;
+                prepared
+                    .verify_ephemeral_authority_instance(
+                        presented_ephemeral_authority_instance.as_deref(),
+                    )
+                    .map_err(|error| {
+                        error.with_ephemeral_authority_instance(
+                            prepared.ephemeral_authority_instance(),
+                        )
+                    })?;
             }
             Ok(prepared)
         });
@@ -10828,9 +10979,13 @@ async fn enforce_registered_route_policy(
             }),
         };
         let verified = verified.and_then(|prepared| {
-            prepared.verify_ephemeral_authority_instance(
-                presented_ephemeral_authority_instance.as_deref(),
-            )?;
+            prepared
+                .verify_ephemeral_authority_instance(
+                    presented_ephemeral_authority_instance.as_deref(),
+                )
+                .map_err(|error| {
+                    error.with_ephemeral_authority_instance(prepared.ephemeral_authority_instance())
+                })?;
             Ok(prepared)
         });
         match verified {
@@ -20314,7 +20469,20 @@ async fn drain_outbox(
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
-    Path(_connection_id): Path<String>,
+    Path(connection_id): Path<String>,
+) -> Result<Response, ApiError> {
+    let authority_instance = connection_act.ephemeral_authority_instance.clone();
+    drain_outbox_inner(runtime, authority, connection_act, admission, connection_id)
+        .await
+        .map_err(|error| ephemeral_http_error(error, authority_instance.as_deref()))
+}
+
+async fn drain_outbox_inner(
+    runtime: AppState,
+    authority: PreparedAuthority,
+    connection_act: PreparedConnectionAct,
+    admission: AdmissionLease,
+    _connection_id: String,
 ) -> Result<Response, ApiError> {
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
@@ -20671,6 +20839,20 @@ async fn publish_ephemeral(
     Extension(admission): Extension<AdmissionLease>,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
+    let authority_instance = connection_act.ephemeral_authority_instance.clone();
+    publish_ephemeral_inner(runtime, headers, authority, connection_act, admission, body)
+        .await
+        .map_err(|error| ephemeral_http_error(error, authority_instance.as_deref()))
+}
+
+async fn publish_ephemeral_inner(
+    runtime: AppState,
+    headers: HeaderMap,
+    authority: PreparedAuthority,
+    connection_act: PreparedConnectionAct,
+    admission: AdmissionLease,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
     let policy_mode = runtime.active_policy_auth_mode();
     let mut request = match policy_mode {
         PolicyAuthMode::Sessions => parse_ephemeral_json::<SessionPublishRequest>(&headers, body)?
@@ -20719,6 +20901,20 @@ async fn subscribe_ephemeral(
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let authority_instance = connection_act.ephemeral_authority_instance.clone();
+    subscribe_ephemeral_inner(runtime, headers, authority, connection_act, admission, body)
+        .await
+        .map_err(|error| ephemeral_http_error(error, authority_instance.as_deref()))
+}
+
+async fn subscribe_ephemeral_inner(
+    runtime: AppState,
+    headers: HeaderMap,
+    authority: PreparedAuthority,
+    connection_act: PreparedConnectionAct,
+    admission: AdmissionLease,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     let policy_mode = runtime.active_policy_auth_mode();
@@ -20777,6 +20973,20 @@ async fn delete_ephemeral(
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let authority_instance = connection_act.ephemeral_authority_instance.clone();
+    delete_ephemeral_inner(runtime, headers, authority, connection_act, admission, body)
+        .await
+        .map_err(|error| ephemeral_http_error(error, authority_instance.as_deref()))
+}
+
+async fn delete_ephemeral_inner(
+    runtime: AppState,
+    headers: HeaderMap,
+    authority: PreparedAuthority,
+    connection_act: PreparedConnectionAct,
+    admission: AdmissionLease,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     let policy_mode = runtime.active_policy_auth_mode();
@@ -20847,6 +21057,17 @@ fn ephemeral_http_json(
     Json(value).into_response()
 }
 
+/// Stamp every post-instance-verification hosted-ephemeral HTTP refusal.
+/// Keeping this at the handler wrapper (rather than at individual failure
+/// sites) covers malformed bodies, room authorization, admission closure, and
+/// room-operation failures without creating an unstamped `?` escape hatch.
+///
+/// @ref LLP 0094#hosted-ephemeral-per-boundary-contract — every governed
+///   success and error body repeats the connection-bound authority instance.
+fn ephemeral_http_error(error: ApiError, ephemeral_authority_instance: Option<&str>) -> ApiError {
+    error.with_ephemeral_authority_instance(ephemeral_authority_instance)
+}
+
 /// Connection teardown is instance control (it tears down the connection *and*
 /// its durable subscriptions), so it is a gated system write under
 /// `/_snapback/api/*`, not a root app route.
@@ -20880,12 +21101,14 @@ pub struct ApiError(
     Option<Receipt>,
     Option<u64>,
     Option<FunctionAttribution>,
+    Option<String>,
 );
 
 impl ApiError {
     fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
         Self(
             SnapbackError::new(diagnostic_from_ephemeral(error)),
+            None,
             None,
             None,
             None,
@@ -20907,17 +21130,23 @@ impl ApiError {
             None,
             None,
             None,
+            None,
         )
     }
 
     /// Attach a receipt to an error response (a REJECTED mutation still
     /// produces its receipt — LLP 0034 §3.2, ENG-22478).
     fn with_receipt(error: SnapbackError, receipt: Receipt) -> Self {
-        Self(error, Some(receipt), None, None)
+        Self(error, Some(receipt), None, None, None)
     }
 
     fn with_attribution(mut self, attribution: Option<FunctionAttribution>) -> Self {
         self.3 = attribution;
+        self
+    }
+
+    fn with_ephemeral_authority_instance(mut self, instance: Option<&str>) -> Self {
+        self.4 = instance.map(str::to_owned);
         self
     }
 
@@ -20930,6 +21159,7 @@ impl ApiError {
             ),
             None,
             Some(retry_after_seconds.max(1)),
+            None,
             None,
         )
     }
@@ -20944,7 +21174,7 @@ fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError) -> Diagnos
 
 impl From<SnapbackError> for ApiError {
     fn from(value: SnapbackError) -> Self {
-        Self(value, None, None, None)
+        Self(value, None, None, None, None)
     }
 }
 
@@ -21009,6 +21239,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
         | "SNAPBACK_CONNECTION_TEARDOWN_PENDING"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+        | "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED"
         | "SNAPBACK_LIVE_STAGE_CONFLICT"
         | "SNAPBACK_AUTH_TABLE_COLLISION"
         | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
@@ -21168,6 +21399,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
         | "SNAPBACK_WIRE_VERSION_MISMATCH"
         | "SNAPBACK_WIRE_VERSION_REQUIRED"
+        | "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH"
+        | "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED"
+        | "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED"
         | "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED"
         | "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ACTION_TIMEOUT"
@@ -21543,6 +21777,7 @@ impl IntoResponse for ApiError {
                 diagnostic: self.0.diagnostic,
                 receipt: self.1,
                 attribution: self.3,
+                ephemeral_authority_instance: self.4,
             }),
         )
             .into_response();
@@ -33696,6 +33931,7 @@ globalThis.__snapbackHandlers = {
             wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
             ephemeral_authority_protocol: Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),
             ephemeral_authority_instance: Some(format!("eai1.{}", "a".repeat(43))),
+            hosted_ephemeral_authority_required: true,
             ephemeral_expiry_protocol: Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1),
         };
         let grant_debug = format!("{grant:?}");
@@ -34156,6 +34392,7 @@ globalThis.__snapbackHandlers = {
         // request-classed unsupported/mismatched lineage policy.
         "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
         "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+        "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
         "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH",
         "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
@@ -34519,6 +34756,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
         "SNAPBACK_CONFIG_VERIFY_STALE",
         "SNAPBACK_CONNECTION_TEARDOWN_PENDING",
+        "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED",
         "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
         "SNAPBACK_LIVE_STAGE_CONFLICT",
         "SNAPBACK_MUTATION_CONFLICT",
@@ -40676,7 +40914,7 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
-    fn ephemeral_authority_instance_binds_requests_frames_and_reopens() {
+    fn hosted_ephemeral_four_way_enforcement_is_lineage_owned() {
         let state = crate::admin::AppState::detached(
             LocalSnapback::memory().expect("in-memory authority-instance registry state"),
         );
@@ -40704,6 +40942,31 @@ globalThis.__snapbackHandlers = {
         }
         let protocol = crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1;
         let instance = format!("eai1.{}", "a".repeat(43));
+
+        // Old client × local server: the compatibility lineage has no hosted
+        // requirement and `(None, None)` remains legal.
+        let legacy_local = registry
+            .open_prepared(attempt("authority_legacy_local", None))
+            .expect("offerless local open");
+        assert!(!legacy_local.grant.hosted_ephemeral_authority_required);
+        let legacy_local_act = registry
+            .prepare_act(
+                &legacy_local.grant.connection_id,
+                Some(&legacy_local.grant.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare local legacy act");
+        assert!(
+            legacy_local_act
+                .verify_ephemeral_authority_instance(None)
+                .is_ok()
+        );
+
+        // New client × local server: protocol 1 binds an instance without
+        // manufacturing the hosted-required fact.
         let bound = registry
             .open_prepared(
                 attempt("authority_bound", None)
@@ -40711,6 +40974,7 @@ globalThis.__snapbackHandlers = {
                     .with_ephemeral_authority_instance(Some(instance.clone())),
             )
             .expect("bind authority instance");
+        assert!(!bound.grant.hosted_ephemeral_authority_required);
         assert_eq!(
             bound.grant.ephemeral_authority_instance.as_deref(),
             Some(instance.as_str())
@@ -40771,6 +41035,115 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED"
         );
 
+        // Old client × hosted-required server: the registry itself refuses
+        // offerless open; capability discovery is not the enforcement gate.
+        let hosted_offerless = registry
+            .open_prepared(
+                attempt("authority_hosted_offerless", None)
+                    .with_ephemeral_authority_instance(Some(instance.clone()))
+                    .with_hosted_ephemeral_authority_required(true),
+            )
+            .expect_err("hosted-required open cannot omit protocol 1");
+        assert_eq!(
+            hosted_offerless.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED"
+        );
+
+        // New client × hosted-required server: exact offer/instance succeeds,
+        // the fact is projected, and both request and reopen enforcement are
+        // independent of discovery.
+        let hosted = registry
+            .open_prepared(
+                attempt("authority_hosted", None)
+                    .with_ephemeral_authority_protocol(Some(protocol))
+                    .with_ephemeral_authority_instance(Some(instance.clone()))
+                    .with_hosted_ephemeral_authority_required(true),
+            )
+            .expect("hosted-required open with exact protocol and instance");
+        assert!(hosted.grant.hosted_ephemeral_authority_required);
+        let hosted_act = registry
+            .prepare_act(
+                &hosted.grant.connection_id,
+                Some(&hosted.grant.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare hosted act");
+        assert!(
+            hosted_act
+                .verify_ephemeral_authority_instance(Some(&instance))
+                .is_ok()
+        );
+        let missing = hosted_act
+            .verify_ephemeral_authority_instance(None)
+            .expect_err("hosted request must present the instance");
+        assert_eq!(
+            missing.0.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED"
+        );
+        assert_eq!(
+            super::status_for_diagnostic_code(&missing.0.diagnostic.code),
+            StatusCode::BAD_REQUEST
+        );
+        let stale = hosted_act
+            .verify_ephemeral_authority_instance(Some(&format!("eai1.{}", "b".repeat(43))))
+            .expect_err("hosted request cannot present a different instance");
+        assert_eq!(
+            stale.0.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED"
+        );
+        assert_eq!(
+            super::status_for_diagnostic_code(&stale.0.diagnostic.code),
+            StatusCode::CONFLICT
+        );
+        let hosted_offerless_reopen = registry
+            .open_prepared(attempt(
+                "authority_hosted",
+                Some(&hosted.grant.connection_token),
+            ))
+            .expect_err("hosted-required reopen cannot omit the offer");
+        assert_eq!(
+            hosted_offerless_reopen.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED"
+        );
+        let hosted_reopen = registry
+            .open_prepared(
+                attempt("authority_hosted", Some(&hosted.grant.connection_token))
+                    .with_ephemeral_authority_protocol(Some(protocol))
+                    .with_ephemeral_authority_instance(Some(instance.clone()))
+                    .with_hosted_ephemeral_authority_required(true),
+            )
+            .expect("hosted-required exact reopen");
+        assert!(hosted_reopen.grant.hosted_ephemeral_authority_required);
+
+        let mut http_headers = HeaderMap::new();
+        http_headers.insert(
+            super::EPHEMERAL_AUTHORITY_INSTANCE_HEADER,
+            HeaderValue::from_str(&instance).expect("authority HTTP header"),
+        );
+        assert_eq!(
+            super::presented_ephemeral_authority_instance(&http_headers).as_deref(),
+            Some(instance.as_str())
+        );
+        let mut socket_headers = HeaderMap::new();
+        socket_headers.insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_str(&format!(
+                "snapback.v1, snapback.ephemeral-authority-instance.{instance}"
+            ))
+            .expect("authority socket subprotocol"),
+        );
+        let socket_instance = super::presented_ephemeral_authority_instance(&socket_headers);
+        assert_eq!(socket_instance.as_deref(), Some(instance.as_str()));
+        assert!(
+            hosted_act
+                .verify_ephemeral_authority_instance(socket_instance.as_deref())
+                .is_ok(),
+            "the WebSocket upgrade carrier enforces the same lineage instance"
+        );
+
         let stamped = super::stamp_ephemeral_socket_response(
             super::socket_ack(None, "publish", json!({ "accepted": true })).into(),
             Some(123),
@@ -40779,6 +41152,126 @@ globalThis.__snapbackHandlers = {
         let stamped: Value = serde_json::from_str(&stamped.text).expect("stamped ack JSON");
         assert_eq!(stamped["serverObservedAtMs"], 123);
         assert_eq!(stamped["ephemeralAuthorityInstance"], instance);
+    }
+
+    #[tokio::test]
+    async fn hosted_ephemeral_post_verification_errors_repeat_the_instance() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("post-verification error state"),
+        );
+        let instance = format!("eai1.{}", "c".repeat(43));
+        let (incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let opened = state
+            .connections
+            .open_prepared(
+                ConnectionOpenAttempt::new(
+                    Some("hosted_error_stamp".to_owned()),
+                    None,
+                    true,
+                    PreparedConnectionOpenAuthority {
+                        resolved: ResolvedAppAuthority::Anonymous,
+                        managed_authority: false,
+                        hosted_sender: None,
+                        bound: BoundGrantAuthority::Anonymous {
+                            authorization_stream_incarnation: incarnation,
+                            publication,
+                        },
+                    },
+                    super::now_millis(),
+                    Instant::now(),
+                    None,
+                )
+                .with_ephemeral_authority_protocol(Some(
+                    crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1,
+                ))
+                .with_ephemeral_authority_instance(Some(instance.clone()))
+                .with_hosted_ephemeral_authority_required(true),
+            )
+            .expect("open hosted-required error-test lineage");
+        let connection_act = state
+            .connections
+            .prepare_act(
+                &opened.grant.connection_id,
+                Some(&opened.grant.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare hosted-required error-test act");
+        let admission = state
+            .auth_admission_controller()
+            .admit_for_mode(AuthMode::Dev)
+            .expect("admit dev ephemeral request");
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::EphemeralPublish,
+            AuthMode::Dev,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+        )
+        .expect("prepare anonymous dev authority");
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        let error = super::publish_ephemeral(
+            State(state),
+            headers,
+            Extension(authority),
+            Extension(connection_act),
+            Extension(admission),
+            Ok(Bytes::from_static(b"{malformed")),
+        )
+        .await
+        .expect_err("malformed body refuses after instance verification");
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response_json(response).await;
+        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_REQUEST_JSON_INVALID");
+        assert_eq!(body["ephemeralAuthorityInstance"], instance);
+    }
+
+    #[test]
+    fn hosted_ephemeral_requirement_needs_current_single_instance_admission() {
+        let now_ms = super::now_millis();
+        let mut authority = hosted_serving_authority(now_ms);
+        assert_eq!(
+            authority
+                .hosted_target_authority_instance_at(now_ms, "auth-incarnation", "boot-nonce")
+                .expect("base hosted authority is current"),
+            None,
+            "hosted auth alone must not publish the sticky-memory requirement"
+        );
+        authority.install_hosted_target_admission(Some(crate::deploy::HostedAdmissionV2 {
+            schema_version: crate::deploy::HostedAdmissionV2Version::V2,
+            target_id: "target-hosted-ephemeral".to_owned(),
+            deployment_id: "deployment-hosted-test".to_owned(),
+            binding_generation: 3,
+            target_binding_sha256: format!("sha256:{}", "a".repeat(64)),
+            control_head_sha256: format!("sha256:{}", "b".repeat(64)),
+            supervisor_incarnation: "supervisor-hosted-ephemeral".to_owned(),
+            exact_roster_sha256: format!("sha256:{}", "c".repeat(64)),
+            routed_machine_id: "machine-hosted-ephemeral".to_owned(),
+            hosted_auth_expires_at_ms: now_ms + 60_000,
+            routed_machine_expires_at_ms: now_ms + 60_000,
+            replay_floor: 0,
+            admission_generation: 7,
+            issued_at_ms: now_ms.saturating_sub(1),
+            signature: "authenticated-by-test-control-plane".to_owned(),
+        }));
+        let current = authority
+            .hosted_target_authority_instance_at(now_ms, "auth-incarnation", "boot-nonce")
+            .expect("single-instance target admission is current");
+        assert!(
+            current
+                .as_deref()
+                .is_some_and(|instance| instance.starts_with("eai1.")),
+            "only current target evidence supplies the required lineage instance"
+        );
     }
 
     /// LLP 0094 §0B.3 / §0C.5: the HTTP half of the open offer matrix — the

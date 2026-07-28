@@ -13,6 +13,7 @@ import {
   runAsync,
   validatePublicPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
+import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 
@@ -127,11 +128,11 @@ test('public-install ledger validation requires the complete immutable closure',
       ...ledger,
       registry: 'https://registry.example.test',
     }, sourceNames),
-    /official npm registry under latest/u,
+    /official npm registry/u,
   );
   assert.throws(
     () => validatePublicPublicationLedger({ ...ledger, tag: 'next' }, sourceNames),
-    /official npm registry under latest/u,
+    /legacy public ledger must select latest/u,
   );
   assert.throws(
     () => validatePublicPublicationLedger({
@@ -148,6 +149,53 @@ test('public-install ledger validation requires the complete immutable closure',
       )),
     }, sourceNames),
     /no successful public status/u,
+  );
+});
+
+test('candidate ledger validation binds its non-default tag and self-digest', () => {
+  const sourceNames = [
+    '@snapback/runtime-darwin-arm64',
+    '@snapback/runtime-linux-x64',
+    '@snapback/contract',
+  ];
+  const candidate = {
+    schemaVersion: 'snapback.package-candidate-ledger.v1',
+    mode: 'publish',
+    sourceDirty: false,
+    revision: '1'.repeat(40),
+    registry: PUBLIC_NPM_REGISTRY,
+    tag: `bakeoff-0-1-1-${'1'.repeat(12)}`,
+    scopePreset: 'ccheever',
+    version: '0.1.1',
+    packages: sourceNames.map((sourceName) => ({
+      sourceName,
+      name: `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`,
+      version: '0.1.1',
+      status: 'published',
+      candidateTagVerified: true,
+      sha256: 'a'.repeat(64),
+      registrySha256: 'a'.repeat(64),
+    })),
+  };
+  candidate.candidateLedgerSha256 = sha256Hex(canonicalJcs(candidate));
+  assert.equal(
+    validatePublicPublicationLedger(candidate, sourceNames).size,
+    sourceNames.length,
+  );
+  assert.throws(
+    () => validatePublicPublicationLedger({
+      ...candidate,
+      candidateLedgerSha256: 'b'.repeat(64),
+    }, sourceNames),
+    /self-digest mismatch/u,
+  );
+  const unverified = structuredClone(candidate);
+  unverified.packages[0].candidateTagVerified = false;
+  const { candidateLedgerSha256: _digest, ...withoutDigest } = unverified;
+  unverified.candidateLedgerSha256 = sha256Hex(canonicalJcs(withoutDigest));
+  assert.throws(
+    () => validatePublicPublicationLedger(unverified, sourceNames),
+    /candidate tag was not registry-verified/u,
   );
 });
 

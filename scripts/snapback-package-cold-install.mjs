@@ -284,7 +284,10 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
 
 if (!existsSync(ledgerPath)) fail(`publication ledger is missing: ${ledgerPath}`);
 const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8'));
-if (ledger.schemaVersion !== 'snapback.package-publication.v1') fail('unsupported publication ledger');
+if (![
+  'snapback.package-publication.v1',
+  'snapback.package-candidate-ledger.v1',
+].includes(ledger.schemaVersion)) fail('unsupported publication ledger');
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
 const runtimePackages = new Map([
@@ -709,6 +712,9 @@ await build({
     sourceRevision: ledger.revision,
     sourceDirty: ledger.sourceDirty,
     publicationMode: ledger.mode,
+    publicationLedgerSchema: ledger.schemaVersion,
+    publicationTag: ledger.tag,
+    candidateLedgerSha256: ledger.candidateLedgerSha256 ?? null,
     installSource,
     registry: installSource === 'public' ? registry : 'disposable-loopback',
     scopePreset: ledger.scopePreset,

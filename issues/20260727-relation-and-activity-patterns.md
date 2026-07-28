@@ -9,7 +9,7 @@
 **Systems:** Data API, Relational queries, Mutations, Code generation, Auth, Testing  
 **Author:** Codex, directed by Charlie Cheever  
 **Date:** 2026-07-27  
-**Related:** LLP 0004, LLP 0051, LLP 0065, LLP 0080
+**Related:** LLP 0004, LLP 0051, LLP 0065, LLP 0080, LLP 0104, LLP 0108
 
 Snapback ships bounded two-source joins, maintained projections, owner CRUD,
 unique lookup, and keyset pages. It does not ship the common one-to-many
@@ -113,6 +113,19 @@ also fixed two evidence-discovered defects: relation activation now validates
 parent-to-registry and registry-to-parent integrity, and cross-parent cursors
 return the uniform invalid-cursor outcome before lineage restart comparison.
 
-The ticket stays open. Capability facts remain false until the hosted target
-corpus, Signal Desk product-path adoption, and author acceptance (or explicit
-profile narrowing) are complete.
+## Local source publication checkpoint — 2026-07-28
+
+LLP 0104 and LLP 0108 now explicitly narrow the first positive publication to
+the exact `local-dev-sqlite-ibex` source target. The tracked
+`LocalCapabilityPublicationV1` carrier binds the atomic capability pair to the
+qualification receipt and exact executor/schema bytes; Rust compiles and
+validates it through private target facts that application artifacts cannot
+set. Both capabilities are statically experimental, appear only on the exact
+local auth-aware profile, and require artifact acknowledgment. Remote-service,
+workerd-conformance, Cloudflare, and hosted profiles keep structured GAPs.
+
+The conformance runner verifies carrier/receipt/source byte equality and the
+guide names the acknowledgment and target boundary. Public-package attestation
+and hosted claim-family publication remain distinct deployment work under LLP
+0108. Final ticket disposition waits for the complete program-level
+publication review.

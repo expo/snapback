@@ -2297,6 +2297,7 @@ fn diagnostic_response(status: StatusCode, error: SnapbackError) -> Response {
             diagnostic: error.diagnostic,
             receipt: None,
             attribution: None,
+            ephemeral_authority_instance: None,
         }),
     )
         .into_response()

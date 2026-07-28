@@ -2739,6 +2739,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             wire_version: None,
             ephemeral_authority_protocol: None,
             ephemeral_authority_instance: None,
+            hosted_ephemeral_authority_required: false,
             ephemeral_expiry_protocol: None,
         })
         .unwrap(),
@@ -2756,6 +2757,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                 snapback::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1,
             ),
             ephemeral_authority_instance: Some(format!("eai1.{}", "a".repeat(43))),
+            hosted_ephemeral_authority_required: true,
             ephemeral_expiry_protocol: Some(snapback::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1),
         })
         .unwrap(),
@@ -2827,6 +2829,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             diagnostic: Diagnostic::error("SNAPBACK_TEST", "realtime", "boom"),
             receipt: None,
             attribution: None,
+            ephemeral_authority_instance: None,
         })
         .unwrap(),
     );
@@ -2846,6 +2849,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                 received_at_ms: 2,
             }),
             attribution: None,
+            ephemeral_authority_instance: None,
         })
         .unwrap(),
     );
