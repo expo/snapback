@@ -101,6 +101,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'authority.test.mjs',
+      'request.test.mjs',
       'schema.test.mjs',
       'server.test.mjs',
     ],
@@ -323,7 +324,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // exact credential-role/resource custody corpus.
 // 120 -> 121 (2026-07-27 workout merge): generated-reference argument validation
 // refuses closed-schema mismatches before transport.
-assert.equal(total, 121, 'reviewed package/admin test count changed');
+// 121 -> 122 (LLP 0041 final publication hardening): the publication authority
+// client retains bounded response-stream and deadline refusal coverage.
+assert.equal(total, 122, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

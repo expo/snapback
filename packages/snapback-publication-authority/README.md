@@ -13,11 +13,14 @@ The service exposes four authenticated endpoints:
 
 POST bodies are exact canonical JCS bytes and all authority shapes have closed
 JSON Schemas under `schemas/`. `GET /healthz` returns only readiness and never
-projects authority state. Leases, heads, and transition receipts are
-domain-separated Ed25519-signed v2 envelopes. Every envelope binds one stable
-installation id, one canonical authority origin, and the SHA-256 identity of
-the pinned Ed25519 public key; the publisher therefore cannot substitute a
-different head or transition service.
+projects authority state. Leases and transition receipts are domain-separated
+Ed25519-signed v2 envelopes. Heads are v3 challenge-response envelopes: every
+authenticated head request supplies a fresh 256-bit challenge, and the
+authority signs that challenge with the retained head state. Every envelope
+binds one stable installation id, one canonical authority origin, and the
+SHA-256 identity of the pinned Ed25519 public key; the publisher therefore
+cannot substitute a different head or transition service or replay a head
+response into a later observation.
 
 The SQLite volume store uses `BEGIN IMMEDIATE`, `synchronous=FULL`, a monotone
 generation predicate, and a digest over canonical retained state. One service
@@ -50,7 +53,9 @@ non-HTTPS authorities except explicit loopback test use. Bearer and signing
 secrets are never accepted inline by the production service, in request bodies,
 on CLI argv, or written to receipts. The service has bounded header, request,
 body, keep-alive, and per-socket request limits; GET requests carrying bodies
-are rejected and drained.
+are rejected and drained. Authority clients also impose a response deadline and
+a strict byte limit while streaming every response body, including error
+responses, and cancel the stream when either bound is exceeded.
 
 Loopback HTTP tests must opt in at both ends:
 `SNAPBACK_PUBLICATION_AUTHORITY_ALLOW_LOOPBACK_HTTP=test-only` on the service
@@ -89,6 +94,16 @@ node scripts/snapback-promote.mjs \
   --post-ledger post-promotion-ledger.json \
   --out promotion-receipt.json
 ```
+
+The latest-proof plan is data for the package-owned
+`scripts/snapback-github-latest-proof.mjs` helper, not a command runner. Its
+closed v2 shape pins the GitHub repository, workflow, source ref and HEAD,
+helper digest, operation id, committed ledger path, receipt paths, collection
+path, and bounded dispatch/verification timeouts. Promotion refuses unknown
+members, absolute or traversing paths, a dirty checkout, a mismatched helper
+digest, or any substituted identity. The helper dispatches the pinned workflow,
+then reopens the run, workflow, and artifact inventory through the GitHub API
+before accepting the two platform receipts.
 
 The authority assigns `publicationEpoch`; callers can only present the
 expected epoch and head they just observed. Exact issue replay returns the
