@@ -143,6 +143,7 @@ test('collection binds run attempt, artifact ids/digests, receipt bytes, and fre
     (candidate) => { candidate.runAttempt = 1; },
     (candidate) => { candidate.operationId = 'other-operation'; },
     (candidate) => { candidate.artifacts[0].artifactId = 0; },
+    (candidate) => { candidate.artifacts[1].artifactId = candidate.artifacts[0].artifactId; },
     (candidate) => { candidate.artifacts[0].apiDigest = `sha256:${'f'.repeat(64)}`; },
     (candidate) => { candidate.artifacts[0].receiptSha256 = 'e'.repeat(64); },
     (candidate) => { candidate.dispatchStartedAt = '2026-07-28T21:00:00.000Z'; },

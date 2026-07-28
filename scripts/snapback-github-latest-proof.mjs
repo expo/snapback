@@ -459,6 +459,9 @@ export function validateGithubLatestProofCollection({
   if (!Array.isArray(collection.artifacts) || collection.artifacts.length !== 2) {
     fail('latest-root proof collection must contain two artifacts');
   }
+  if (new Set(collection.artifacts.map((artifact) => artifact?.artifactId)).size !== 2) {
+    fail('latest-root proof collection must contain two distinct artifacts');
+  }
   for (const [index, platform] of ['darwin-arm64', 'linux-x64'].entries()) {
     const artifact = collection.artifacts[index];
     exactKeys(artifact, ARTIFACT_KEYS, `latest-root ${platform} artifact`);
@@ -484,6 +487,16 @@ export function validateGithubLatestProofCollection({
 }
 
 function reopenCollection(options, collection, ledgerRevision) {
+  const receiptBytesByPlatform = new Map([
+    ['darwin-arm64', readFileSync(options.darwinReceipt)],
+    ['linux-x64', readFileSync(options.linuxReceipt)],
+  ]);
+  validateGithubLatestProofCollection({
+    collection,
+    options,
+    ledgerRevision,
+    receiptBytesByPlatform,
+  });
   const observed = readRun(
     options,
     collection.runId,
@@ -512,11 +525,21 @@ function reopenCollection(options, collection, ledgerRevision) {
     ) {
       fail(`GitHub artifact ${retained.artifactId} changed during collection reopen`);
     }
+    // Re-download on every reopen. API metadata alone cannot prove that a
+    // locally retained receipt was actually extracted from the named artifact.
+    const downloaded = downloadArtifactReceipt(
+      options,
+      matches[0],
+      retained.platform,
+      collection,
+    );
+    if (
+      downloaded.archiveSha256 !== retained.archiveSha256
+      || !downloaded.bytes.equals(receiptBytesByPlatform.get(retained.platform))
+    ) {
+      fail(`GitHub artifact ${retained.artifactId} bytes changed during collection reopen`);
+    }
   }
-  const receiptBytesByPlatform = new Map([
-    ['darwin-arm64', readFileSync(options.darwinReceipt)],
-    ['linux-x64', readFileSync(options.linuxReceipt)],
-  ]);
   return validateGithubLatestProofCollection({
     collection,
     options,
