@@ -561,7 +561,9 @@ async function releasePreparedQueryGroupOwner(owner, { transferred = false } = {
   }
   owner.cleanup ??= owner.connectionId === null
     ? Promise.resolve()
-    : Promise.resolve(owner.binding.client.disconnect?.(owner.connectionId)).catch(() => {});
+    : Promise.resolve(owner.binding.client.releaseConnection?.(owner.connectionId, {
+        attachDeadline: owner.attachDeadline,
+      })).catch(() => {});
   return owner.cleanup;
 }
 
@@ -848,7 +850,9 @@ export async function prepareReactQueryGroupForBinding(
     || bundle.entries.length !== entries.length
   ) {
     if (typeof bundle?.connection?.connectionId === 'string') {
-      await prepared.client.disconnect?.(bundle.connection.connectionId).catch(() => {});
+      await prepared.client.releaseConnection?.(bundle.connection.connectionId, {
+        attachDeadline: bundle.connection.attachDeadline,
+      }).catch(() => {});
     }
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
@@ -1059,7 +1063,9 @@ export async function prepareReactQueryGroupForBinding(
       );
     }
   } catch (error) {
-    await prepared.client.disconnect?.(bundle.connection.connectionId).catch(() => {});
+    await prepared.client.releaseConnection?.(bundle.connection.connectionId, {
+      attachDeadline: bundle.connection.attachDeadline,
+    }).catch(() => {});
     throw error;
   }
   return makePrepared({

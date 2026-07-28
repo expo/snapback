@@ -94,6 +94,7 @@ function createFakeClient({
   let ordinaryStarts = 0;
   let namespaceSequence = 0;
   let disconnects = 0;
+  let releases = 0;
   const barriers = [];
   let barrierUnregistered = 0;
   const client = {
@@ -129,6 +130,10 @@ function createFakeClient({
       });
     },
     async disconnect() { disconnects += 1; },
+    async releaseConnection() {
+      releases += 1;
+      return { released: true, attached: true };
+    },
     registerAuthBarrierParticipant(participant) {
       barriers.push(participant);
       return async () => { barrierUnregistered += 1; };
@@ -249,6 +254,7 @@ function createFakeClient({
         ordinaryStarts,
         namespaceSequence,
         disconnects,
+        releases,
         barriers,
         barrierUnregistered,
         durableConsumers: durableConsumers.size,
@@ -458,6 +464,7 @@ assert.deepEqual(
 );
 assert.equal(fake.inspection().handles, 0);
 assert.equal(fake.inspection().barrierUnregistered, 1);
+assert.equal(fake.inspection().disconnects, 0, 'provider disposal never uses admin disconnect');
 await siblingProvider.dispose();
 
 const primedFake = createFakeClient();
@@ -622,6 +629,27 @@ assert.deepEqual(
 primedObserver.dispose();
 await flush();
 await primedProvider.dispose();
+assert.equal(primedFake.inspection().releases, 0);
+assert.equal(
+  primedFake.inspection().disconnects,
+  0,
+  'adopted registered provider disposal retires child handles without admin disconnect',
+);
+
+const unadoptedFake = createFakeClient();
+const unadoptedBinding = await prepareReactBindingForClient(unadoptedFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const unadoptedGroup = await unadoptedBinding.prepareQueryGroup(
+  unadoptedBinding.groups['/workspace/:id'],
+  { id: 'incident-unadopted' },
+);
+const unadoptedProvider = createSnapbackReactProvider(unadoptedBinding, {
+  preparedGroup: unadoptedGroup,
+});
+await unadoptedProvider.dispose();
+assert.equal(unadoptedFake.inspection().releases, 1);
+assert.equal(unadoptedFake.inspection().disconnects, 0);
 
 const lazyRaceFake = createFakeClient();
 const lazyRaceBinding = await prepareReactBindingForClient(lazyRaceFake, {
@@ -832,7 +860,8 @@ await assert.rejects(
   (error) => error?.code === 'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
   'sessions-mode auth-scoped children fail closed when projections are omitted',
 );
-assert.equal(projectionMissingFake.inspection().disconnects, 1);
+assert.equal(projectionMissingFake.inspection().releases, 1);
+assert.equal(projectionMissingFake.inspection().disconnects, 0);
 
 const abandonedFake = createFakeClient({ attachDeadlineOffsetMs: 50 });
 const abandonedBinding = await prepareReactBindingForClient(abandonedFake, {
@@ -844,12 +873,13 @@ const abandonedGroup = await abandonedBinding.prepareQueryGroup(
 );
 await new Promise((resolve) => setTimeout(resolve, 100));
 assert.equal(
-  abandonedFake.inspection().disconnects,
+  abandonedFake.inspection().releases,
   1,
   'an untransferred preparation cleans its connection at the attach deadline',
 );
 await abandonedGroup.dispose();
-assert.equal(abandonedFake.inspection().disconnects, 1, 'deadline cleanup is idempotent');
+assert.equal(abandonedFake.inspection().releases, 1, 'deadline cleanup is idempotent');
+assert.equal(abandonedFake.inspection().disconnects, 0);
 
 const expiredFake = createFakeClient({ attachDeadlineOffsetMs: -1 });
 const expiredBinding = await prepareReactBindingForClient(expiredFake, {
@@ -869,10 +899,43 @@ await flush();
 assert.equal(expiredObserver.snapshot().boot, null);
 assert.equal(expiredFake.inspection().registeredStarts, 0);
 assert.equal(expiredFake.inspection().ordinaryStarts, 2);
-assert.equal(expiredFake.inspection().disconnects, 1);
+assert.equal(expiredFake.inspection().releases, 1);
+assert.equal(expiredFake.inspection().disconnects, 0);
 expiredObserver.dispose();
 await flush();
 await expiredProvider.dispose();
+assert.equal(expiredFake.inspection().disconnects, 0);
+
+const sharedConnectionFake = createFakeClient();
+const sharedConnectionBinding = await prepareReactBindingForClient(
+  sharedConnectionFake,
+  { generatedManifest },
+);
+const sharedConnectionA = createSnapbackReactProvider(sharedConnectionBinding, {
+  connectionId: 'react-package-shared-connection',
+});
+const sharedConnectionB = createSnapbackReactProvider(sharedConnectionBinding, {
+  connectionId: 'react-package-shared-connection',
+});
+const sharedConnectionObserverA = observeSnapbackQueries(sharedConnectionA, {
+  feed: { ref: feed, args: { id: 'shared' } },
+}, () => {});
+const sharedConnectionObserverB = observeSnapbackQueries(sharedConnectionB, {
+  feed: { ref: feed, args: { id: 'shared' } },
+}, () => {});
+await flush();
+assert.equal(sharedConnectionFake.inspection().handles, 2);
+await sharedConnectionA.dispose();
+assert.equal(sharedConnectionFake.inspection().handles, 1);
+assert.equal(sharedConnectionFake.inspection().releases, 0);
+sharedConnectionFake.emit(feed, [{ id: 'feed:shared', revision: 52 }]);
+await flush();
+assert.equal(sharedConnectionObserverB.snapshot().queries.feed.data[0].revision, 52);
+assert.equal(sharedConnectionB.inspection().serverSubscriptions, 1);
+sharedConnectionObserverA.dispose();
+sharedConnectionObserverB.dispose();
+await sharedConnectionB.dispose();
+assert.equal(sharedConnectionFake.inspection().disconnects, 0);
 
 const capacityProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-capacity-test',

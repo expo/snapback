@@ -81,4 +81,53 @@ export default defineComparatorProfile({
       },
     },
   },
+  extraChecks: [{
+    id: 'session-owner-principal',
+    name: 'authenticated session principal owns visibility',
+    async run({
+      observer,
+      actor,
+      observerUserId,
+      actorUserId,
+      observerIdentitySource,
+      actorIdentitySource,
+    }) {
+      if (
+        actorIdentitySource !== 'sessions-authenticated'
+        || observerIdentitySource !== 'sessions-authenticated'
+        || actorUserId === 'comparator_actor'
+        || observerUserId === 'comparator_observer'
+        || actorUserId === observerUserId
+      ) {
+        throw new Error('comparator exposed configured aliases instead of session principals');
+      }
+      const created = await actor.mutate(api.createIncident, {
+        args: {
+          title: 'Comparator principal ownership witness',
+          severity: 'SEV-3',
+          actorId: actorUserId,
+          now: 1785161300000,
+        },
+      });
+      const actorView = (await actor.query(api.incidentTasks, {
+        args: { incidentId: created.result },
+      })).rows[0];
+      const observerView = (await observer.query(api.incidentTasks, {
+        args: { incidentId: created.result },
+      })).rows[0];
+      if (actorView?.kind !== 'visible' || observerView?.kind !== 'absent') {
+        throw new Error('owner-sensitive query did not follow authenticated session principals');
+      }
+      return {
+        actorIdentity: actorUserId,
+        observerIdentity: observerUserId,
+        identitySources: {
+          actor: actorIdentitySource,
+          observer: observerIdentitySource,
+        },
+        actorVisibility: actorView.kind,
+        observerVisibility: observerView.kind,
+      };
+    },
+  }],
 });

@@ -30,6 +30,13 @@ try {
   assert.equal(green.exitCode, 0);
   assert.deepEqual(green.checks.map(({ id }) => id), COMPARATOR_CHECKS.map(({ id }) => id));
   assert.ok(green.checks.every(({ status }) => status === 'passed'));
+  assert.deepEqual(green.checks[0].details.identitySources, {
+    observer: 'fixture-asserted',
+    actor: 'fixture-asserted',
+  });
+  assert.ok(green.nonclaims.includes(
+    'dev-asserted identity labels are behavioral witnesses, not authenticated-principal evidence',
+  ));
   assert.deepEqual(green.cleanup, {
     attempted: true,
     ok: true,
@@ -39,6 +46,52 @@ try {
     errors: [],
   });
   assert.equal(validateComparatorReceipt(green), green);
+
+  const actualPrincipals = await runComparatorAcceptance(profile, {
+    timeoutMs: 100,
+    async startTarget() {
+      const target = createComparatorFixtureTarget();
+      return {
+        ...target,
+        createClient(options) {
+          return {
+            ...target.createClient(options),
+            principalId: options.role === 'observer'
+              ? 'actual_observer_principal'
+              : 'actual_actor_principal',
+          };
+        },
+      };
+    },
+  });
+  assert.equal(actualPrincipals.status, 'passed');
+  assert.deepEqual(actualPrincipals.checks[0].details, {
+    observerIdentity: 'actual_observer_principal',
+    actorIdentity: 'actual_actor_principal',
+    identitySources: {
+      observer: 'fixture-asserted',
+      actor: 'fixture-asserted',
+    },
+    transport: 'push',
+    subscriptionId: 'fixture-subscription',
+    deliveredVersion: 2,
+  });
+
+  const missingPrincipal = await runComparatorAcceptance(profile, {
+    timeoutMs: 100,
+    async startTarget() {
+      const target = createComparatorFixtureTarget();
+      return {
+        ...target,
+        createClient(options) {
+          const { principalId: _omitted, ...client } = target.createClient(options);
+          return client;
+        },
+      };
+    },
+  });
+  assert.equal(missingPrincipal.status, 'infrastructure-error');
+  assert.equal(missingPrincipal.diagnostic.code, 'SNAPBACK_COMPARATOR_IDENTITY_MISMATCH');
 
   const propertyFailures = new Map([
     ['live-delivery', 'SNAPBACK_COMPARATOR_CHECK_TIMEOUT'],
@@ -251,6 +304,10 @@ try {
   assert.equal(packagedDevReceipt.status, 'passed');
   assert.equal(packagedDevReceipt.identity.target.available, true);
   assert.equal(packagedDevReceipt.identity.binary.available, true);
+  assert.deepEqual(packagedDevReceipt.checks[0].details.identitySources, {
+    observer: 'dev-asserted',
+    actor: 'dev-asserted',
+  });
   assert.deepEqual(
     packagedDevReceipt.checks.map(({ id, status }) => ({ id, status })),
     COMPARATOR_CHECKS.map(({ id }) => ({ id, status: 'passed' })),

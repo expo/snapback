@@ -425,6 +425,68 @@ assert.equal(appStateListeners.size, 0);
 {
   const originalFetch = globalThis.fetch;
   const requests = [];
+  globalThis.fetch = async (url, init = {}) => {
+    requests.push({ url, init });
+    return new Response(JSON.stringify({
+      version: 7,
+      rows: [{
+        rowId: 'incident_1',
+        score: 400,
+        fields: { title: 'Cache miss' },
+        highlights: [],
+      }],
+      cursor: 'search-cursor',
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const searchClient = new SnapbackClient('http://snapback.test');
+  const searchRef = {
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'demo',
+    id: 'demo:searchIncidents',
+    name: 'searchIncidents',
+    kind: 'Query',
+    implementationHash: `sha256:${'1'.repeat(64)}`,
+    argsContractHash: 'sha256:784935fd790a14517fd0c38931dd1e2da4d043cd4f9377164ec792e59084af57',
+    resultContractHash: `sha256:${'2'.repeat(64)}`,
+  };
+  const queryAst = { all: [{ Term: { value: 'cache' } }] };
+  try {
+    await assert.rejects(
+      searchClient.search('searchIncidents', { query: queryAst }),
+      /generated Query reference for SearchRequestV1/u,
+    );
+    await assert.rejects(
+      searchClient.search({ ...searchRef, argsContractHash: `sha256:${'3'.repeat(64)}` }, {
+        query: queryAst,
+      }),
+      /generated Query reference for SearchRequestV1/u,
+    );
+    await assert.rejects(
+      searchClient.search(searchRef, { query: queryAst, after: null }),
+      /after cursor must be a string/u,
+    );
+    assert.equal(requests.length, 0, 'invalid search refs and after:null refuse before I/O');
+    const page = await searchClient.search(searchRef, { query: queryAst });
+    assert.deepEqual(page, {
+      items: [{
+        rowId: 'incident_1',
+        score: 400,
+        fields: { title: 'Cache miss' },
+        highlights: [],
+      }],
+      cursor: 'search-cursor',
+      hasMore: true,
+    });
+    assert.deepEqual(JSON.parse(requests[0].init.body).args, { query: queryAst });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
   globalThis.fetch = async (url, init) => {
     requests.push({ url, init });
     return new Response(JSON.stringify({
@@ -537,6 +599,97 @@ assert.equal(appStateListeners.size, 0);
       (error) => error?.code === 'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
     );
     assert.equal(requests.length, 1, 'capability refusal performs no legacy seed/reset request');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init = {}) => {
+    requests.push({ url, init });
+    if (url.endsWith('/inspect')) {
+      return new Response(JSON.stringify({
+        capabilityManifest: {
+          supportedCapabilities: [
+            'versioned_seed_install_v1',
+            'versioned_seed_reset_v1',
+          ],
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ operation: 'preview', outcome: 'eligible' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const seedClient = new SnapbackClient('http://snapback.test', { adminToken: 'seed-admin' });
+  const artifact = {
+    formatVersion: 'snapback.seed.v1',
+    appId: 'demo',
+    seedVersion: 'v1',
+    seedDigest: `sha256:${'a'.repeat(64)}`,
+    tables: {},
+  };
+  const expectedDataVersionStream = { state: 'absent' };
+  try {
+    await assert.rejects(
+      seedClient.previewVersionedSeed(null, { operation: 'install' }),
+      /install seed preview requires artifact/u,
+    );
+    await assert.rejects(
+      seedClient.previewVersionedSeed(artifact, { operation: 'resetInstall' }),
+      /ExpectedDataVersionStreamV1/u,
+    );
+    await assert.rejects(
+      seedClient.previewVersionedSeed(artifact, {
+        operation: 'clear',
+        expectedDataVersionStream,
+      }),
+      /clear seed preview forbids artifact/u,
+    );
+    await assert.rejects(
+      seedClient.previewVersionedSeed(null, {
+        operation: 'clear',
+      }),
+      /ExpectedDataVersionStreamV1/u,
+    );
+    assert.equal(requests.length, 0, 'impossible seed preview variants refuse before capability I/O');
+    await seedClient.previewVersionedSeed(artifact);
+    await seedClient.previewVersionedSeed(artifact, {
+      operation: 'resetInstall',
+      expectedDataVersionStream,
+    });
+    await seedClient.previewVersionedSeed(null, {
+      operation: 'clear',
+      expectedDataVersionStream,
+    });
+    assert.deepEqual(
+      requests.filter(({ url }) => url.endsWith('/_snapback/api/app/seed/preview-v1'))
+        .map(({ init }) => JSON.parse(init.body)),
+      [
+        {
+          formatVersion: 'snapback.seed.preview-request.v1',
+          artifact,
+          requestedMode: 'dev',
+          operation: 'install',
+        },
+        {
+          formatVersion: 'snapback.seed.preview-request.v1',
+          artifact,
+          requestedMode: 'dev',
+          operation: 'resetInstall',
+          expectedDataVersionStream,
+        },
+        {
+          formatVersion: 'snapback.seed.preview-request.v1',
+          requestedMode: 'dev',
+          operation: 'clear',
+          expectedDataVersionStream,
+        },
+      ],
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

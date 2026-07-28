@@ -355,9 +355,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const recoverExpiredRegisteredConnection = () => {
     if (registeredRecovery !== null) return registeredRecovery;
     custodyPaused = true;
+    const attachDeadline = preparedGroup?.boot?.attachDeadline
+      ?? preparedGroup?.entries.find(
+        (entry) => Number.isSafeInteger(entry.registeredSubscription?.attachDeadline),
+      )?.registeredSubscription?.attachDeadline
+      ?? null;
     invalidatePreparedRegistrations('attach-deadline-expired');
     manager?.close?.();
-    registeredRecovery = Promise.resolve(client.disconnect?.(connectionId))
+    registeredRecovery = Promise.resolve(client.releaseConnection?.(connectionId, {
+      attachDeadline,
+    }))
       .catch(recordDiagnostic)
       .then(() => {
         if (terminal) return;
@@ -1675,6 +1682,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (terminal) return;
       terminal = true;
       custodyPaused = true;
+      const ownsUnadoptedRegisteredOwner = preparedGroup?.connectionId === connectionId
+        && (
+          preparedRegistrations.size > 0
+          || unadoptedPreparedSubscriptions.size > 0
+        );
+      const pendingAttachDeadline = preparedGroup?.boot?.attachDeadline ?? null;
       for (const lease of [...leases]) releaseLease(lease);
       for (const token of [...roomLeases]) releasePresenceToken(token);
       for (const store of stores.values()) stopStore(store, { blank: true });
@@ -1684,9 +1697,26 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ...[...rooms.values()].map((room) => room.cleanup),
         ...(registeredRecovery === null ? [] : [registeredRecovery]),
       ]);
-      manager?.close?.();
-      try { await manager?.settled?.(); } catch (error) { recordDiagnostic(error); }
-      try { await client.disconnect?.(connectionId); } catch (error) { recordDiagnostic(error); }
+      // @ref LLP 0102#closed-connection-and-cancellation-protocol — adopted
+      // and ordinary children retire through their own handle refcounts.
+      // Only a still-unadopted registered owner has no child handle capable of
+      // retiring it and therefore owns whole-connection release authority.
+      const connectionStillShared = (
+        manager?.inspection?.().socketDemand ?? 0
+      ) > 0;
+      if (
+        ownsUnadoptedRegisteredOwner
+        && !connectionStillShared
+        && typeof client.releaseConnection === 'function'
+      ) {
+        try {
+          await client.releaseConnection(connectionId, {
+            attachDeadline: pendingAttachDeadline,
+          });
+        } catch (error) {
+          recordDiagnostic(error);
+        }
+      }
       stores.clear();
       preparedRegistrations.clear();
       unadoptedPreparedSubscriptions.clear();

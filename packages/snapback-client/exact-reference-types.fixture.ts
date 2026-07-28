@@ -1,8 +1,16 @@
 import {
   SnapbackClient,
   admitSnapbackId,
+  type ActiveSeedIdentityV1,
   type SnapbackEphemeralReference,
   type SnapbackFunctionReference,
+  type SearchPageV1,
+  type SearchRequestV1,
+  type SeedArtifactV1,
+  type SeedEnsureResultV1,
+  type SeedInstallReceiptV1,
+  type SeedMatchedObservationV1,
+  type SeedPreviewResultV1,
 } from './index.mjs';
 
 declare const listTodos: SnapbackFunctionReference<
@@ -21,6 +29,15 @@ declare const presence: SnapbackEphemeralReference<
   'presence',
   { roomId: string },
   { userId: string; viewing: string }
+>;
+declare const searchIncidents: SnapbackFunctionReference<
+  'searchIncidents',
+  'Query',
+  SearchRequestV1,
+  SearchPageV1<
+    Readonly<{ title: string; summary: string | null }>,
+    string & { readonly __snapbackIdTable: 'incidents' }
+  >
 >;
 type GeneratedId<Table extends string> =
   string & { readonly __snapbackIdTable: Table };
@@ -56,3 +73,117 @@ client.mutate(createTodo, { args: { body: 'wrong key' } });
 client.subscribeEphemeral(presence, { connectionId: 'fixture' })
   // @ts-expect-error ephemeral values come from the generated reference.
   .then((overlay) => overlay.publish({ userId: 'ada' }));
+
+const searchQuery = { all: [{ Term: { value: 'cache' } }] } as const;
+client.query(searchIncidents, { args: { query: searchQuery } }).then((output) => {
+  // The generic query carrier keeps rows/cursor on QueryOutput even though
+  // the generated operation phantom is the client.search SearchPageV1.
+  output.rows[0]?.fields.title.toUpperCase();
+  output.cursor?.toUpperCase();
+  // @ts-expect-error generic query does not project SearchPageV1.
+  output.rows.items;
+});
+client.search(searchIncidents, { query: searchQuery }).then((page) => {
+  page.items[0]?.fields.title.toUpperCase();
+  page.items[0]?.fields.summary?.toUpperCase();
+  page.cursor?.toUpperCase();
+});
+// @ts-expect-error ordinary query refs are not search operation refs.
+client.search(listTodos, { query: searchQuery });
+// @ts-expect-error search requires a generated ref, not an unbranded function string.
+client.search('searchIncidents', { query: searchQuery });
+// @ts-expect-error null is not a SearchRequestV1 cursor and would be refused on wire.
+client.search(searchIncidents, { query: searchQuery, after: null });
+
+declare const seedArtifact: SeedArtifactV1;
+declare const expectedStream:
+  | { readonly state: 'absent' }
+  | { readonly state: 'present'; readonly value: string };
+declare const activeSeed: ActiveSeedIdentityV1;
+declare const installReceipt: Extract<
+  SeedInstallReceiptV1,
+  { readonly operation: 'install' }
+>;
+declare const matchedSeed: SeedMatchedObservationV1;
+declare const ensureResult: SeedEnsureResultV1;
+declare const previewResult: SeedPreviewResultV1;
+activeSeed.dataVersionStream.toUpperCase();
+installReceipt.outcome satisfies 'installed';
+matchedSeed.outcome satisfies 'matched';
+if (ensureResult.state === 'installed') {
+  ensureResult.receipt.operation satisfies 'install';
+} else {
+  ensureResult.observation.active.seedDigest.toUpperCase();
+}
+if (previewResult.state === 'refused') {
+  previewResult.diagnosticCode satisfies
+    | 'SNAPBACK_SEED_VERSION_REUSED'
+    | 'SNAPBACK_SEED_MIGRATION_REQUIRED'
+    | 'SNAPBACK_SEED_NONEMPTY_UNTRACKED'
+    | 'SNAPBACK_SEED_PARTIAL_UNTRACKED'
+    | 'SNAPBACK_SEED_OPERATION_HISTORICAL'
+    | 'SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED';
+}
+client.ensureVersionedSeed(seedArtifact).then((result) => {
+  if (result.state === 'installed') {
+    result.receipt.outcome satisfies 'installed';
+  } else {
+    result.observation.establishingReceipt.dataVersionStream.toUpperCase();
+  }
+});
+client.previewVersionedSeed(seedArtifact).then((result) => {
+  if (result.state === 'refused') result.diagnosticCode.toUpperCase();
+  result.totalApplicationEffects.toFixed();
+});
+client.previewVersionedSeed(seedArtifact, { operation: 'install' });
+client.previewVersionedSeed(seedArtifact, {
+  operation: 'resetInstall',
+  expectedDataVersionStream: expectedStream,
+});
+client.previewVersionedSeed(null, {
+  operation: 'clear',
+  expectedDataVersionStream: expectedStream,
+});
+client.resetInstallVersionedSeed(seedArtifact, {
+  expectedDataVersionStream: expectedStream,
+}).then((receipt) => {
+  receipt.operation satisfies 'reset-install';
+  receipt.outcome satisfies 'reset-installed';
+});
+client.clearVersionedSeed({ expectedDataVersionStream: expectedStream }).then((receipt) => {
+  receipt.operation satisfies 'clear';
+  receipt.outcome satisfies 'cleared';
+  // @ts-expect-error cleared receipts omit seed identity fields.
+  receipt.seedVersion.toUpperCase();
+});
+// @ts-expect-error an install operation cannot claim the cleared outcome.
+const impossibleReceipt: SeedInstallReceiptV1 = {
+  formatVersion: 'snapback.seed.receipt.v1',
+  operationId: 'operation',
+  requestDigest: 'digest',
+  operation: 'install',
+  outcome: 'cleared',
+  appId: 'app',
+  schemaHash: 'schema',
+  dataVersionStream: 'stream',
+  directApplicationRows: 0,
+  derivedProjectionRows: 0,
+  totalApplicationEffects: 0,
+  resetDeletedRows: 0,
+  seedVersion: 'v1',
+  seedDigest: 'digest',
+};
+// @ts-expect-error resetInstall preview requires an artifact.
+client.previewVersionedSeed(null, {
+  operation: 'resetInstall',
+  expectedDataVersionStream: expectedStream,
+});
+// @ts-expect-error resetInstall preview requires a predecessor stream.
+client.previewVersionedSeed(seedArtifact, { operation: 'resetInstall' });
+client.previewVersionedSeed(seedArtifact, {
+  // @ts-expect-error clear preview forbids an artifact.
+  operation: 'clear',
+  expectedDataVersionStream: expectedStream,
+});
+// @ts-expect-error clear preview requires a predecessor stream.
+client.previewVersionedSeed(null, { operation: 'clear' });

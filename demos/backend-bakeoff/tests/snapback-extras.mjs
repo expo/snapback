@@ -24,7 +24,7 @@ const { default: api } = await import(
 );
 const seedArtifact = generated('seed.artifact.json');
 const suite = createSuite('backend bakeoff / Snapback app-specific extras', {
-  expectedChecks: 3,
+  expectedChecks: 4,
 });
 const cleanups = [];
 
@@ -380,6 +380,33 @@ await runAcceptance(
       assertEqual(search.items.map((row) => row.rowId), ['incident_api'], 'search result');
       const result = await db.query(api.generateBrief, { args: { incidentId: 'incident_api' } });
       assert(/tasks complete/.test(result.rows[0].brief), 'brief missing task summary');
+    });
+
+    await suite.check('session-owned registered connection releases without admin authority', async () => {
+      const session = await mintSession(
+        server,
+        generated('schema.manifest.json').appId,
+        'registered-release@backend-bakeoff.test',
+        'backend-bakeoff-registered-release',
+      );
+      const bundle = await session.client.fetchBundle({
+        route: '/release-probe',
+        mode: 'register',
+        devManifestEntry: {
+          route: '/release-probe',
+          queries: [{ function: api.listIncidents.name, args: {} }],
+        },
+        authInvalidationProtocol: 1,
+      });
+      const released = await session.client.releaseConnection(
+        bundle.connection.connectionId,
+        {
+          attachDeadline: bundle.connection.attachDeadline,
+          timeoutMs: 2_000,
+        },
+      );
+      assertEqual(released.released, true, 'client did not own the returned grant');
+      assertEqual(released.attached, true, 'grant-owned socket did not attach before release');
     });
 
   },

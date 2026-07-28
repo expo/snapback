@@ -56,7 +56,9 @@ export function createComparatorFixtureTarget(fault = null) {
     }
   };
 
-  const createClient = () => ({
+  const createClient = ({ userId }) => ({
+    principalId: userId,
+    principalSource: 'fixture-asserted',
     inspect: async () => ({ storage: { version: state.durableVersion } }),
     query: async (ref) => {
       const name = typeof ref === 'string' ? ref : ref.name;

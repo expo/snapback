@@ -66,6 +66,8 @@ const REQUIRED_TARGET_CAPABILITIES = Object.freeze([
 ]);
 const RECEIPT_STATUSES = new Set(['passed', 'failed', 'unsupported', 'infrastructure-error']);
 const CHECK_STATUSES = new Set(['passed', 'failed', 'infrastructure-error']);
+const IDENTITY_NONCLAIM =
+  'dev-asserted identity labels are behavioral witnesses, not authenticated-principal evidence';
 const INFRASTRUCTURE_CODES = new Set([
   'SNAPBACK_COMPARATOR_CHECK_TIMEOUT',
   'SNAPBACK_COMPARATOR_SERVER_DEAD',
@@ -416,10 +418,15 @@ export function defineComparatorProfile(input) {
     'SNAPBACK_COMPARATOR_PROFILE_INVALID',
     'profile.requiredCapabilities must contain non-empty strings',
   );
-  const nonclaims = input.nonclaims ?? [
-    'browser rendering or framework-hook behavior',
-    'hosted-target parity',
-    'performance, scale, migration, backup, rollback, and cost properties',
+  const nonclaims = [
+    ...new Set([
+      ...(input.nonclaims ?? [
+        'browser rendering or framework-hook behavior',
+        'hosted-target parity',
+        'performance, scale, migration, backup, rollback, and cost properties',
+      ]),
+      IDENTITY_NONCLAIM,
+    ]),
   ];
   assert(
     Array.isArray(nonclaims) && nonclaims.every((claim) => typeof claim === 'string' && claim.length > 0),
@@ -575,6 +582,34 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
   } = profile.fixtures;
   const observer = target.createClient({ role: 'observer', userId: identities.observerUserId });
   const actor = target.createClient({ role: 'actor', userId: identities.actorUserId });
+  const resolvedIdentities = {
+    observerUserId: observer?.principalId,
+    actorUserId: actor?.principalId,
+  };
+  const identitySources = {
+    observer: observer?.principalSource,
+    actor: actor?.principalSource,
+  };
+  for (const [role, principalId] of Object.entries(resolvedIdentities)) {
+    assert(
+      typeof principalId === 'string' && principalId.length > 0,
+      'SNAPBACK_COMPARATOR_IDENTITY_MISMATCH',
+      `${role} target client did not expose its resolved identity`,
+    );
+  }
+  assert(
+    Object.values(identitySources).every((source) => (
+      ['sessions-authenticated', 'dev-asserted', 'fixture-asserted'].includes(source)
+    )),
+    'SNAPBACK_COMPARATOR_IDENTITY_MISMATCH',
+    'target clients did not classify the authority source of their identities',
+    { identitySources },
+  );
+  assert(
+    resolvedIdentities.observerUserId !== resolvedIdentities.actorUserId,
+    'SNAPBACK_COMPARATOR_IDENTITY_MISMATCH',
+    'observer and actor target clients resolved to the same identity',
+  );
   const connection = (purpose) => `comparator_${profile.id}_${purpose}_${process.pid}`;
   const check = (definition, run) => ({ ...definition, run: () => withDeadline(run, timeoutMs, definition.id) });
 
@@ -589,7 +624,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
         handle = await observer.liveQuery(profile.refs.liveQuery, {
           connectionId,
           args: live.queryArgs,
-          userId: identities.observerUserId,
+          userId: resolvedIdentities.observerUserId,
           transport: 'stream',
           fallbackToPoll: false,
           onUpdate(rows, detail) {
@@ -610,7 +645,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
         );
         await actor.mutate(profile.refs.liveMutation, {
           args: live.mutationArgs,
-          userId: identities.actorUserId,
+          userId: resolvedIdentities.actorUserId,
         });
         const [observed, established] = await Promise.all([
           update.promise,
@@ -628,8 +663,9 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
           'the observer never received the actor mutation',
         );
         return {
-          observerIdentity: identities.observerUserId,
-          actorIdentity: identities.actorUserId,
+          observerIdentity: resolvedIdentities.observerUserId,
+          actorIdentity: resolvedIdentities.actorUserId,
+          identitySources,
           transport: established.transport,
           subscriptionId: established.subscriptionId,
           deliveredVersion: observed.detail?.version ?? handle.version ?? null,
@@ -657,7 +693,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
       );
       await actor.mutate(profile.refs.atomicMutation, {
         args: atomic.mutationArgs,
-        userId: identities.actorUserId,
+        userId: resolvedIdentities.actorUserId,
       });
       const after = await atomic.snapshot(actor);
       assert(
@@ -695,7 +731,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
       try {
         await actor.mutate(profile.refs.rejectedMutation, {
           args: rejection.mutationArgs,
-          userId: identities.actorUserId,
+          userId: resolvedIdentities.actorUserId,
         });
       } catch (error) {
         rejectionError = error;
@@ -745,7 +781,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
       const subscriptionOptions = {
         connectionId: observerConnection,
         scope: presence.scope,
-        userId: identities.observerUserId,
+        userId: resolvedIdentities.observerUserId,
         permissions: presence.permissions,
       };
       let overlay;
@@ -756,7 +792,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
           connectionId: disconnectPublisher,
           scope: presence.scope,
           value: presence.value,
-          userId: identities.actorUserId,
+          userId: resolvedIdentities.actorUserId,
           permissions: presence.permissions,
         });
         await overlay.drain();
@@ -778,7 +814,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
           scope: presence.scope,
           value: presence.value,
           ttlMs: presence.ttlMs,
-          userId: identities.actorUserId,
+          userId: resolvedIdentities.actorUserId,
           permissions: presence.permissions,
         });
         await overlay.drain();
@@ -824,7 +860,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
       const subscriptionOptions = {
         connectionId: observerConnection,
         scope: presence.scope,
-        userId: identities.observerUserId,
+        userId: resolvedIdentities.observerUserId,
         permissions: presence.permissions,
       };
       let overlay;
@@ -835,7 +871,7 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
           connectionId: publisherConnection,
           scope: presence.scope,
           value: presence.value,
-          userId: identities.actorUserId,
+          userId: resolvedIdentities.actorUserId,
           permissions: presence.permissions,
         });
         await overlay.drain();
@@ -864,8 +900,10 @@ function comparatorCheckPlan(profile, target, timeoutMs) {
       return extra.run({
         observer,
         actor,
-        observerUserId: identities.observerUserId,
-        actorUserId: identities.actorUserId,
+        observerUserId: resolvedIdentities.observerUserId,
+        actorUserId: resolvedIdentities.actorUserId,
+        observerIdentitySource: identitySources.observer,
+        actorIdentitySource: identitySources.actor,
         refs: profile.refs,
       });
     })),
@@ -1358,7 +1396,10 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
       });
       const credential = await exchangeResponse.json();
       assert(
-        exchangeResponse.ok && typeof credential.token === 'string',
+        exchangeResponse.ok
+          && typeof credential.token === 'string'
+          && typeof credential.session?.userId === 'string'
+          && credential.session.userId.length > 0,
         'SNAPBACK_COMPARATOR_SETUP_FAILED',
         credential?.diagnostic?.message ?? `could not exchange ${role} comparator session`,
       );
@@ -1376,6 +1417,11 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
         return rest;
       };
       return {
+        // The configured fixture identity is only a stable minting alias in
+        // sessions mode. Checks and receipts must name the authority that the
+        // server actually authenticated.
+        principalId: credential.session.userId,
+        principalSource: 'sessions-authenticated',
         query: (ref, options) => authenticated.query(ref, withoutAssertedUser(options)),
         mutate: (ref, options) => authenticated.mutate(ref, withoutAssertedUser(options)),
         liveQuery: (ref, options) => authenticated.liveQuery(ref, withoutAssertedUser(options)),
@@ -1407,6 +1453,8 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
       const client = new SnapbackClient(dev.serverUrl, { adminToken });
       const withAssertedUser = (options = {}) => ({ ...options, userId: identityLabel });
       return {
+        principalId: identityLabel,
+        principalSource: 'dev-asserted',
         query: (ref, options) => client.query(ref, withAssertedUser(options)),
         mutate: (ref, options) => client.mutate(ref, withAssertedUser(options)),
         liveQuery: (ref, options) => client.liveQuery(ref, withAssertedUser(options)),

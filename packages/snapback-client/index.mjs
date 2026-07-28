@@ -140,6 +140,87 @@ export const DEFAULT_POLL_CADENCE_MS = 1_500;
 
 const SNAPBACK_ID_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const SNAPBACK_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
+// @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — every generated
+// v1 search operation has the same closed request contract. Its digest is the
+// runtime discriminator that keeps client.search off arbitrary query refs;
+// the operation-specific result digest remains intentionally variable.
+const SEARCH_REQUEST_ARGS_CONTRACT_HASH_V1 =
+  'sha256:784935fd790a14517fd0c38931dd1e2da4d043cd4f9377164ec792e59084af57';
+
+function assertSearchFunctionReferenceV1(ref) {
+  const requiredStrings = [
+    'schemaVersion',
+    'appId',
+    'id',
+    'name',
+    'implementationHash',
+    'argsContractHash',
+    'resultContractHash',
+  ];
+  if (
+    ref === null
+    || typeof ref !== 'object'
+    || Array.isArray(ref)
+    || ref.artifactKind !== 'functionReference'
+    || ref.kind !== 'Query'
+    || requiredStrings.some((key) => typeof ref[key] !== 'string' || ref[key].length === 0)
+    || ref.argsContractHash !== SEARCH_REQUEST_ARGS_CONTRACT_HASH_V1
+  ) {
+    throw new TypeError(
+      'Snapback search requires a generated Query reference for SearchRequestV1',
+    );
+  }
+}
+
+function assertSearchQueryOutputV1(output) {
+  if (
+    output === null
+    || typeof output !== 'object'
+    || Array.isArray(output)
+    || !Array.isArray(output.rows)
+    || (
+      output.cursor !== undefined
+      && output.cursor !== null
+      && typeof output.cursor !== 'string'
+    )
+  ) {
+    throw new TypeError('Snapback search query returned an invalid QueryOutput transport');
+  }
+  for (const item of output.rows) {
+    if (
+      item === null
+      || typeof item !== 'object'
+      || Array.isArray(item)
+      || typeof item.rowId !== 'string'
+      || !Number.isSafeInteger(item.score)
+      || item.score < 0
+      || item.fields === null
+      || typeof item.fields !== 'object'
+      || Array.isArray(item.fields)
+      || !Array.isArray(item.highlights)
+    ) {
+      throw new TypeError('Snapback search query returned an invalid SearchItemV1');
+    }
+  }
+}
+
+function assertExpectedDataVersionStreamV1(value, label) {
+  const valid = value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && (
+      (value.state === 'absent' && Object.keys(value).length === 1)
+      || (
+        value.state === 'present'
+        && Object.keys(value).length === 2
+        && typeof value.value === 'string'
+        && value.value.length > 0
+      )
+    );
+  if (!valid) {
+    throw new TypeError(`${label} requires a closed ExpectedDataVersionStreamV1`);
+  }
+}
 
 /**
  * Admit an opaque id obtained at an untyped application boundary into the
@@ -4279,6 +4360,32 @@ export class SnapbackClient {
     requestedMode = 'dev',
     expectedDataVersionStream,
   } = {}) {
+    // @ref LLP 0103#162-closed-carriers-and-exact-operation-combinations —
+    // reject impossible tagged variants locally instead of relying on the
+    // server to refuse an artifact-less resetInstall or artifact-bearing
+    // clear after a network request.
+    if (operation === 'install') {
+      if (!artifact || expectedDataVersionStream !== undefined) {
+        throw new TypeError(
+          'install seed preview requires artifact and forbids expectedDataVersionStream',
+        );
+      }
+    } else if (operation === 'resetInstall') {
+      if (!artifact) {
+        throw new TypeError('resetInstall seed preview requires artifact');
+      }
+      assertExpectedDataVersionStreamV1(
+        expectedDataVersionStream,
+        'resetInstall seed preview',
+      );
+    } else if (operation === 'clear') {
+      if (artifact !== null) {
+        throw new TypeError('clear seed preview forbids artifact');
+      }
+      assertExpectedDataVersionStreamV1(expectedDataVersionStream, 'clear seed preview');
+    } else {
+      throw new TypeError(`unknown versioned seed preview operation ${String(operation)}`);
+    }
     const capability = operation === 'install'
       ? 'versioned_seed_install_v1'
       : 'versioned_seed_reset_v1';
@@ -4296,6 +4403,13 @@ export class SnapbackClient {
     requestedMode = 'dev',
     expectedDataVersionStream,
   } = {}) {
+    if (!artifact) {
+      throw new TypeError('resetInstallVersionedSeed requires artifact');
+    }
+    assertExpectedDataVersionStreamV1(
+      expectedDataVersionStream,
+      'resetInstallVersionedSeed',
+    );
     await this.#requireVersionedSeedCapability('versioned_seed_reset_v1');
     return this.#adminReq('POST', '/_snapback/api/app/seed/reset-install-v1', {
       formatVersion: 'snapback.seed.reset-request.v1',
@@ -4311,6 +4425,7 @@ export class SnapbackClient {
     requestedMode = 'dev',
     expectedDataVersionStream,
   } = {}) {
+    assertExpectedDataVersionStreamV1(expectedDataVersionStream, 'clearVersionedSeed');
     await this.#requireVersionedSeedCapability('versioned_seed_reset_v1');
     return this.#adminReq('POST', '/_snapback/api/app/seed/clear-v1', {
       formatVersion: 'snapback.seed.reset-request.v1',
@@ -4348,8 +4463,15 @@ export class SnapbackClient {
     readSet = [],
     authorityCapture = null,
   } = {}) {
+    assertSearchFunctionReferenceV1(ref);
     if (!query || typeof query !== 'object' || !Array.isArray(query.all)) {
       throw new TypeError('Snapback search requires a structured SearchQueryAstV1');
+    }
+    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1 || limit > 50)) {
+      throw new TypeError('Snapback search limit must be an integer in 1..50');
+    }
+    if (after !== undefined && typeof after !== 'string') {
+      throw new TypeError('Snapback search after cursor must be a string when present');
     }
     const args = {
       query,
@@ -4362,6 +4484,7 @@ export class SnapbackClient {
       readSet,
       authorityCapture,
     });
+    assertSearchQueryOutputV1(output);
     const cursor = output?.cursor ?? null;
     return {
       items: Array.isArray(output?.rows) ? output.rows : [],
@@ -4440,6 +4563,19 @@ export class SnapbackClient {
     );
     const connection = response?.connection;
     if (connection?.connectionId && connection?.grant) {
+      const authority = response?.[AUTHORITY_CAPTURE] ?? authorityCapture;
+      // The register response has already transferred this grant into client
+      // custody. Cache the minimum valid grant before interpreting optional
+      // projections so a later validation failure can release the pending
+      // owner through the grant-owned socket seam.
+      this.__connectionGrants.set(
+        connection.connectionId,
+        Promise.resolve(markAuthorityCapture({
+          id: connection.connectionId,
+          token: connection.grant,
+          authorizationInvalidation: null,
+        }, authority)),
+      );
       let authorizationInvalidation;
       try {
         authorizationInvalidation = connection.authorizationInvalidation == null
@@ -4453,7 +4589,9 @@ export class SnapbackClient {
         // Register-mode bundle evaluation has already created the pending
         // owner. A malformed negotiated projection must not strand it merely
         // because it failed before the grant entered the client cache.
-        await this.disconnect(connection.connectionId).catch(() => {});
+        await this.releaseConnection(connection.connectionId, {
+          attachDeadline: connection.attachDeadline,
+        }).catch(() => {});
         throw error;
       }
       this.__connectionGrants.set(
@@ -4462,7 +4600,7 @@ export class SnapbackClient {
           id: connection.connectionId,
           token: connection.grant,
           authorizationInvalidation,
-        }, response?.[AUTHORITY_CAPTURE] ?? authorityCapture)),
+        }, authority)),
       );
     }
     return response;
@@ -5200,6 +5338,50 @@ export class SnapbackClient {
       this.__connectionGrants.delete(connectionId);
       this.__laneConsumers.delete(connectionId);
     }
+  }
+
+  /**
+   * Release a connection grant this client already owns without using the
+   * AdminWrite disconnect route. A pending registered-bundle owner first
+   * attaches through its one-use grant; closing that exact socket then invokes
+   * the server's connection-owned teardown. The bounded pending-owner reaper
+   * remains authoritative when attach cannot complete.
+   *
+   * @ref LLP 0107#authority-races-and-cleanup — ordinary client cleanup keeps
+   * grant custody and never depends on admin authority.
+   * @ref LLP 0031#resolved-decisions — raw-id disconnect remains system
+   * control; this method can release only a grant already in this client.
+   */
+  async releaseConnection(connectionId, {
+    attachDeadline = null,
+    timeoutMs = 2_000,
+  } = {}) {
+    if (!this.__connectionGrants.has(connectionId)) {
+      return { released: false, reason: 'not-owned' };
+    }
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
+      throw new TypeError('releaseConnection timeoutMs must be a positive safe integer');
+    }
+    const remaining = Number.isSafeInteger(attachDeadline)
+      ? Math.max(1, Math.min(timeoutMs, attachDeadline - Date.now()))
+      : timeoutMs;
+    const manager = this.liveStreamManager(connectionId, {
+      freshnessBudgetMs: remaining,
+    });
+    let attached = false;
+    try {
+      await manager.waitUntilReady({ timeoutMs: remaining });
+      attached = true;
+    } catch {
+      // Expiry, refusal, process death, and network loss are all covered by
+      // the server's bounded pending-owner reaper. Cleanup remains best-effort.
+    } finally {
+      manager.close();
+      this.__liveStreamManagers?.delete(connectionId);
+      this.__connectionGrants.delete(connectionId);
+      this.__laneConsumers.delete(connectionId);
+    }
+    return { released: true, attached };
   }
 
   async drainEnvelopes(connectionId) {
@@ -7767,9 +7949,11 @@ export class SnapbackClient {
         pauseReleasePromise,
         cleanupTail,
       ]);
-      if (disposed && transport === 'stream') {
-        await client.__liveStreamManagers?.get(connectionId)?.settled?.();
-      }
+      // A live manager is shared by every store/provider using this
+      // connection id. Local disposal settles when this handle has detached
+      // and retired its subscription; waiting for the whole manager would
+      // hang behind a still-live sibling and turn one provider's cleanup into
+      // connection ownership.
     };
 
     await establish();

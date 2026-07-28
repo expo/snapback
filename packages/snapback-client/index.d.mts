@@ -185,6 +185,16 @@ export interface SearchPageV1<
   readonly hasMore: boolean;
 }
 
+/**
+ * Search operations deliberately carry an operation-level SearchPageV1
+ * phantom while the ordinary query wire carries only that page's items in
+ * QueryOutput.rows and its cursor at QueryOutput.cursor.
+ */
+export type QueryWireResult<Result> =
+  Result extends SearchPageV1<infer Fields, infer RowId>
+    ? readonly SearchItemV1<Fields, RowId>[]
+    : Result;
+
 export function parseSearchQueryV1(
   source: string,
   options?: { readonly fields?: readonly string[]; readonly minPrefixScalars?: number },
@@ -385,6 +395,88 @@ export interface SeedArtifactV1 {
   readonly seedDigest: string;
   readonly tables: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
 }
+export interface ActiveSeedIdentityV1 {
+  readonly appId: string;
+  readonly seedVersion: string;
+  readonly seedDigest: string;
+  readonly dataVersionStream: string;
+  readonly schemaHash: string;
+  readonly directApplicationRows: number;
+  readonly derivedProjectionRows: number;
+  readonly totalApplicationEffects: number;
+}
+interface SeedReceiptBaseV1 {
+  readonly formatVersion: 'snapback.seed.receipt.v1';
+  readonly operationId: string;
+  readonly requestDigest: string;
+  readonly appId: string;
+  readonly schemaHash: string;
+  readonly dataVersionStream: string;
+  readonly directApplicationRows: number;
+  readonly derivedProjectionRows: number;
+  readonly totalApplicationEffects: number;
+  readonly resetDeletedRows: number;
+}
+export type SeedInstallReceiptV1 =
+  | Readonly<SeedReceiptBaseV1 & {
+      readonly operation: 'install';
+      readonly outcome: 'installed';
+      readonly seedVersion: string;
+      readonly seedDigest: string;
+    }>
+  | Readonly<SeedReceiptBaseV1 & {
+      readonly operation: 'reset-install';
+      readonly outcome: 'reset-installed';
+      readonly seedVersion: string;
+      readonly seedDigest: string;
+    }>
+  | Readonly<SeedReceiptBaseV1 & {
+      readonly operation: 'clear';
+      readonly outcome: 'cleared';
+      readonly seedVersion?: never;
+      readonly seedDigest?: never;
+    }>;
+export interface SeedMatchedObservationV1 {
+  readonly formatVersion: 'snapback.seed.matched-observation.v1';
+  readonly outcome: 'matched';
+  readonly active: ActiveSeedIdentityV1;
+  readonly establishingReceipt: Extract<
+    SeedInstallReceiptV1,
+    { readonly operation: 'install' | 'reset-install' }
+  >;
+}
+export type SeedEnsureResultV1 =
+  | Readonly<{
+      readonly state: 'installed';
+      readonly receipt: Extract<SeedInstallReceiptV1, { readonly operation: 'install' }>;
+    }>
+  | Readonly<{
+      readonly state: 'matched';
+      readonly observation: SeedMatchedObservationV1;
+    }>;
+interface SeedPreviewCountsV1 {
+  readonly current?: ActiveSeedIdentityV1;
+  readonly requested?: ActiveSeedIdentityV1;
+  readonly directApplicationRows: number;
+  readonly derivedProjectionRows: number;
+  readonly totalApplicationEffects: number;
+  readonly resetDeletedRows: number;
+}
+export type SeedPreviewResultV1 =
+  | Readonly<SeedPreviewCountsV1 & {
+      readonly state: 'installable' | 'matched' | 'reset-installable' | 'clearable';
+      readonly diagnosticCode?: never;
+    }>
+  | Readonly<SeedPreviewCountsV1 & {
+      readonly state: 'refused';
+      readonly diagnosticCode:
+        | 'SNAPBACK_SEED_VERSION_REUSED'
+        | 'SNAPBACK_SEED_MIGRATION_REQUIRED'
+        | 'SNAPBACK_SEED_NONEMPTY_UNTRACKED'
+        | 'SNAPBACK_SEED_PARTIAL_UNTRACKED'
+        | 'SNAPBACK_SEED_OPERATION_HISTORICAL'
+        | 'SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED';
+    }>;
 export declare function newSeedOperationIdV1(nowMs?: number): string;
 
 type FunctionRef<
@@ -455,15 +547,31 @@ export class SnapbackClient {
   ensureVersionedSeed(
     artifact: SeedArtifactV1,
     options?: { readonly operationId?: string; readonly requestedMode?: AuthMode },
-  ): Promise<unknown>;
+  ): Promise<SeedEnsureResultV1>;
   previewVersionedSeed(
-    artifact: SeedArtifactV1 | null,
+    artifact: SeedArtifactV1,
     options?: {
-      readonly operation?: 'install' | 'resetInstall' | 'clear';
+      readonly operation?: 'install';
       readonly requestedMode?: AuthMode;
-      readonly expectedDataVersionStream?: ExpectedDataVersionStreamV1;
+      readonly expectedDataVersionStream?: never;
     },
-  ): Promise<unknown>;
+  ): Promise<SeedPreviewResultV1>;
+  previewVersionedSeed(
+    artifact: SeedArtifactV1,
+    options: {
+      readonly operation: 'resetInstall';
+      readonly requestedMode?: AuthMode;
+      readonly expectedDataVersionStream: ExpectedDataVersionStreamV1;
+    },
+  ): Promise<SeedPreviewResultV1>;
+  previewVersionedSeed(
+    artifact: null,
+    options: {
+      readonly operation: 'clear';
+      readonly requestedMode?: AuthMode;
+      readonly expectedDataVersionStream: ExpectedDataVersionStreamV1;
+    },
+  ): Promise<SeedPreviewResultV1>;
   resetInstallVersionedSeed(
     artifact: SeedArtifactV1,
     options: {
@@ -471,12 +579,16 @@ export class SnapbackClient {
       readonly requestedMode?: AuthMode;
       readonly expectedDataVersionStream: ExpectedDataVersionStreamV1;
     },
-  ): Promise<unknown>;
+  ): Promise<Extract<SeedInstallReceiptV1, { readonly operation: 'reset-install' }>>;
   clearVersionedSeed(options: {
     readonly operationId?: string;
     readonly requestedMode?: AuthMode;
     readonly expectedDataVersionStream: ExpectedDataVersionStreamV1;
-  }): Promise<unknown>;
+  }): Promise<Extract<SeedInstallReceiptV1, { readonly operation: 'clear' }>>;
+  releaseConnection(
+    connectionId: string,
+    options?: { readonly attachDeadline?: number | null; readonly timeoutMs?: number },
+  ): Promise<Readonly<{ released: boolean; attached?: boolean; reason?: 'not-owned' }>>;
   fetchBundle(options: {
     readonly route: string;
     readonly params?: Readonly<Record<string, string>>;
@@ -491,14 +603,14 @@ export class SnapbackClient {
   query<Ref extends FunctionRef<'Query' | 'LiveQuery'>>(
     ref: Ref,
     options?: { readonly args?: FunctionArgs<Ref>; readonly userId?: string },
-  ): Promise<QueryOutput<FunctionResult<Ref>>>;
+  ): Promise<QueryOutput<QueryWireResult<FunctionResult<Ref>>>>;
   query<Result = unknown>(
     ref: NamedReference,
     options?: { readonly args?: Record<string, unknown>; readonly userId?: string },
   ): Promise<QueryOutput<Result>>;
   search<Ref extends SnapbackFunctionReference<
     string,
-    'Query' | 'LiveQuery',
+    'Query',
     SearchRequestV1,
     SearchPageV1
   >>(
@@ -506,19 +618,10 @@ export class SnapbackClient {
     options: {
       readonly query: SearchQueryAstV1;
       readonly limit?: number;
-      readonly after?: string | null;
+      readonly after?: string;
       readonly userId?: string;
     },
   ): Promise<FunctionResult<Ref>>;
-  search(
-    ref: NamedReference,
-    options: {
-      readonly query: SearchQueryAstV1;
-      readonly limit?: number;
-      readonly after?: string | null;
-      readonly userId?: string;
-    },
-  ): Promise<SearchPageV1>;
   mutate<Ref extends FunctionRef<'Mutation'>>(
     ref: Ref,
     options?: {
