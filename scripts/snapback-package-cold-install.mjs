@@ -919,6 +919,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
     const consoleErrors = [];
     const pageErrors = [];
     const observedWorkers = new Map();
+    const networkRequestMethods = new Map();
     const networkResponses = new Map();
     let captureFailure = null;
     let networkResourcesObserved = 0;
@@ -950,6 +951,16 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       asyncEvidence.push(promise);
       return promise;
     };
+    const settleEvidence = async () => {
+      let settledTaskCount = -1;
+      while (settledTaskCount !== asyncEvidence.length) {
+        settledTaskCount = asyncEvidence.length;
+        await evidenceTasks.settle();
+        await Promise.all(asyncEvidence.slice());
+        await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
+      }
+      if (captureFailure) throw captureFailure;
+    };
     const assertNetworkResourceSlot = () => {
       networkResourcesObserved += 1;
       if (networkResourcesObserved > BROWSER_MAX_ASYNC_TASKS) {
@@ -980,6 +991,20 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       try {
         assertNetworkResourceSlot();
         const request = event.request;
+        networkRequestMethods.set(event.requestId, request.method);
+        if (event.redirectResponse) {
+          responseBodiesObserved += 1;
+          captureSurface('response-metadata', JSON.stringify({
+            frameId: event.frameId,
+            hasExtraInfo: event.redirectHasExtraInfo,
+            redirect: true,
+            requestId: event.requestId,
+            resourceType: event.type,
+            response: event.redirectResponse,
+          }));
+          captureSurface('response-body', Buffer.alloc(0));
+          responseBodiesScanned += 1;
+        }
         captureSurface('request', JSON.stringify({
           documentURL: event.documentURL,
           frameId: event.frameId,
@@ -1052,6 +1077,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       networkResponses.set(event.requestId, {
         dataEvents: 0,
         decodedDataLength: 0,
+        method: networkRequestMethods.get(event.requestId) ?? null,
         status: event.response.status,
         url: event.response.url,
       });
@@ -1120,7 +1146,8 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         } catch (error) {
           const status = response.status;
           if (
-            status === 101
+            response.method === 'HEAD'
+            || status === 101
             || status === 204
             || status === 205
             || status === 304
@@ -1141,6 +1168,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         }
         captureSurface('response-body', body);
         responseBodiesScanned += 1;
+        networkRequestMethods.delete(event.requestId);
         networkResponses.delete(event.requestId);
         return true;
       });
@@ -1251,6 +1279,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       if (initialSeededTodoCount !== 1) {
         fail(`real browser expected one seeded todo, observed ${initialSeededTodoCount}`);
       }
+      await settleEvidence();
 
       const framesBeforeMutation = liveFrames;
       await page.getByRole('button', { name: 'Add todo' }).click();
@@ -1264,6 +1293,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         'one-command starter native live WebSocket delivery',
       );
       const liveFramesAfterMutation = liveFrames - framesBeforeMutation;
+      await settleEvidence();
 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.getByText('Connection: live', { exact: true }).waitFor();
@@ -1305,13 +1335,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       const workerResults = await Promise.all(
         [...observedWorkers.values()].map(({ inspection }) => inspection),
       );
-      let settledTaskCount = -1;
-      while (settledTaskCount !== asyncEvidence.length) {
-        settledTaskCount = asyncEvidence.length;
-        await evidenceTasks.settle();
-        await Promise.all(asyncEvidence.slice());
-        await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
-      }
+      await settleEvidence();
       if (networkResponses.size !== 0) {
         throw new Error(
           `browser response capture remained incomplete for ${networkResponses.size} resources`,
