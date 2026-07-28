@@ -3,12 +3,13 @@
 // the installed service has a volume-backed canonical database, an external
 // incarnation anchor, and a mutually authenticated control endpoint.
 
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, lstatSync, mkdirSync, readFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import {
   canonicalJson,
   HostedSupervisor,
@@ -27,6 +28,9 @@ import {
   mintOnlineHostedAdmission,
   validateHostedTargetEnrollment,
 } from './hosted-edge-admission.mjs';
+import { createFlyTigrisProviderExecutor } from './provider-executor.mjs';
+import { createOperatorRequestService } from './operator-service.mjs';
+import { createExternalSupervisorResponseSigner } from './supervisor-response.mjs';
 
 const dataDir = process.env.SNAPBACK_SUPERVISOR_DATA_DIR ?? '/data/control';
 const installationPath = process.env.SNAPBACK_SUPERVISOR_INSTALLATION_RECEIPT
@@ -37,6 +41,16 @@ const tls = {
   key: process.env.SNAPBACK_SUPERVISOR_TLS_KEY ?? '/run/secrets/server-key.pem',
   cert: process.env.SNAPBACK_SUPERVISOR_TLS_CERT ?? '/run/secrets/server-cert.pem',
   ca: process.env.SNAPBACK_SUPERVISOR_CLIENT_CA ?? '/run/secrets/client-ca.pem',
+};
+const operatorTls = {
+  ca: process.env.SNAPBACK_SUPERVISOR_OPERATOR_CLIENT_CA
+    ?? '/run/secrets/operator-client-ca.pem',
+  responseIntermediate: process.env.SNAPBACK_SUPERVISOR_RESPONSE_INTERMEDIATE
+    ?? '/run/secrets/supervisor-response-intermediate.json',
+  responseCustodyHelper: process.env.SNAPBACK_SUPERVISOR_RESPONSE_CUSTODY_HELPER
+    ?? '/usr/local/bin/snapback-supervisor-custody',
+  rootPublicKey: process.env.SNAPBACK_SUPERVISOR_ROOT_PUBLIC_KEY
+    ?? '/run/secrets/supervisor-root-public-key.pem',
 };
 
 function readJson(path, label) {
@@ -61,6 +75,61 @@ function readSecret(path, label) {
       `${label} could not be read: ${String(error?.message ?? error)}`,
     );
   }
+}
+
+function providerSecretPath(reference, suffix = '') {
+  let parsed;
+  try {
+    parsed = new URL(reference);
+  } catch {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
+      'provider credential reference is malformed',
+    );
+  }
+  const stem = parsed.pathname.replace(/^\//, '');
+  if (
+    parsed.protocol !== 'provider-secret:'
+    || parsed.host !== 'supervisor'
+    || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(stem)
+  ) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
+      'provider credential reference is outside supervisor secret custody',
+    );
+  }
+  return `/run/secrets/${stem}${suffix}`;
+}
+
+function credentialBinding(binding, roles, requiredVerb) {
+  const credential = binding.credentials.find(({ role }) => roles.includes(role));
+  if (
+    !credential
+    || !credential.allowedVerbs.includes(requiredVerb)
+    || !credential.resourcePrefixes.some((prefix) => (
+      binding.appId.startsWith(prefix)
+      || binding.externalHeadKey.startsWith(prefix)
+      || binding.controlStatePrefix.startsWith(prefix)
+    ))
+  ) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
+      `target binding lacks ${roles[0]} ${requiredVerb} authority`,
+    );
+  }
+  return credential;
+}
+
+function exactCredentialFingerprint(binding, roles, requiredVerb, values) {
+  const credential = credentialBinding(binding, roles, requiredVerb);
+  const fingerprint = sha256(Buffer.from(values.join('\0')));
+  if (fingerprint !== credential.fingerprint) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
+      `${roles[0]} credential fingerprint drifted from the target binding`,
+    );
+  }
+  return credential;
 }
 
 function storageClient(role) {
@@ -151,6 +220,16 @@ function responseBody(value) {
 
 function send(response, statusCode, value) {
   const body = responseBody(value);
+  response.writeHead(statusCode, {
+    'content-type': 'application/json',
+    'content-length': body.byteLength,
+    'cache-control': 'no-store',
+  });
+  response.end(body);
+}
+
+function sendCanonical(response, statusCode, value) {
+  const body = Buffer.from(canonicalJson(value));
   response.writeHead(statusCode, {
     'content-type': 'application/json',
     'content-length': body.byteLength,
@@ -387,6 +466,169 @@ async function commitSupervisorState(supervisor) {
   retainedState = nextState;
 }
 
+async function resolveTargetFlyControlToken(binding) {
+  const credential = credentialBinding(
+    binding,
+    ['flyControl', 'fly-control'],
+    'control',
+  );
+  const token = readSecret(
+    providerSecretPath(credential.credentialRef),
+    'target Fly control credential',
+  );
+  exactCredentialFingerprint(
+    binding,
+    ['flyControl', 'fly-control'],
+    'control',
+    [token],
+  );
+  return token;
+}
+
+async function readTargetTigrisControlHead(binding) {
+  const credential = credentialBinding(
+    binding,
+    ['tigrisControlState', 'tigris-control-state', 'control-state'],
+    's3:GetObject',
+  );
+  const accessKeyId = readSecret(
+    providerSecretPath(credential.credentialRef, '-id'),
+    'target Tigris control-state access key',
+  );
+  const secretAccessKey = readSecret(
+    providerSecretPath(credential.credentialRef, '-secret'),
+    'target Tigris control-state secret key',
+  );
+  exactCredentialFingerprint(
+    binding,
+    ['tigrisControlState', 'tigris-control-state', 'control-state'],
+    's3:GetObject',
+    [accessKeyId, secretAccessKey],
+  );
+  if (
+    !binding.externalHeadKey.startsWith(binding.controlStatePrefix)
+    || binding.externalHeadKey.includes('..')
+  ) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
+      'target external head is outside the bound Tigris control-state prefix',
+    );
+  }
+  const client = new S3Client({
+    endpoint: 'https://t3.storage.dev',
+    region: 'auto',
+    forcePathStyle: true,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+  const result = await client.send(new GetObjectCommand({
+    Bucket: binding.tigrisBucket,
+    Key: binding.externalHeadKey,
+  }));
+  return {
+    bytes: Buffer.from(await result.Body.transformToByteArray()),
+    version: String(result.VersionId ?? result.ETag ?? ''),
+  };
+}
+
+const providerExecutor = createFlyTigrisProviderExecutor({
+  resolveFlyControlToken: resolveTargetFlyControlToken,
+  readTigrisControlHead: readTargetTigrisControlHead,
+});
+
+let operatorSurfaceBlocker = null;
+
+function disableOperatorSurface(code) {
+  operatorSurfaceBlocker = code;
+  return null;
+}
+
+function createOperatorSurface() {
+  if (!existsSync(operatorTls.ca)) {
+    return disableOperatorSurface('SNAPBACK_OPERATOR_CLIENT_CA_MISSING');
+  }
+  if (!existsSync(operatorTls.responseIntermediate)) {
+    return disableOperatorSurface('SNAPBACK_SUPERVISOR_RESPONSE_INTERMEDIATE_MISSING');
+  }
+  if (!existsSync(operatorTls.responseCustodyHelper)) {
+    return disableOperatorSurface('SNAPBACK_SUPERVISOR_RESPONSE_CUSTODY_HELPER_MISSING');
+  }
+  if (!existsSync(operatorTls.rootPublicKey)) {
+    return disableOperatorSurface('SNAPBACK_OPERATOR_ROOT_PUBLIC_KEY_MISSING');
+  }
+  const intermediate = readJson(
+    operatorTls.responseIntermediate,
+    'supervisor response intermediate',
+  );
+  const responseIntermediateHead =
+    retainedState.database.serviceIntermediateHeads?.['supervisor-response'];
+  const custodyStat = lstatSync(operatorTls.responseCustodyHelper);
+  const custodyHelperSha256 = sha256(readFileSync(operatorTls.responseCustodyHelper));
+  if (
+    !custodyStat.isFile()
+    || (custodyStat.mode & 0o022) !== 0
+    || (custodyStat.mode & 0o111) === 0
+  ) {
+    return disableOperatorSurface('SNAPBACK_SUPERVISOR_RESPONSE_CUSTODY_HELPER_UNSAFE');
+  }
+  if (!responseIntermediateHead) {
+    return disableOperatorSurface('SNAPBACK_SUPERVISOR_RESPONSE_AUTHORITY_HEAD_MISSING');
+  }
+  if (
+    responseIntermediateHead.intermediateKeyId !== intermediate.intermediateKeyId
+    || responseIntermediateHead.serial !== intermediate.serial
+    || responseIntermediateHead.revocationGeneration !== intermediate.revocationGeneration
+    || responseIntermediateHead.expiresAt !== intermediate.expiresAt
+    || responseIntermediateHead.custodyHelperSha256 !== custodyHelperSha256
+  ) {
+    return disableOperatorSurface('SNAPBACK_SUPERVISOR_RESPONSE_AUTHORITY_HEAD_DRIFT');
+  }
+  const authorityRootKeyId = retainedState.database.operatorAuthority?.rootKeyId;
+  if (
+    authorityRootKeyId !== undefined
+    && authorityRootKeyId !== intermediate.rootKeyId
+  ) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_RESPONSE_ROOT_MISMATCH',
+      'response intermediate does not descend from the current operator root',
+    );
+  }
+  const responseSigner = createExternalSupervisorResponseSigner({
+    intermediate,
+    rootPublicKeyPem: readFileSync(operatorTls.rootPublicKey, 'utf8'),
+    installationId: installationReceipt.installationId,
+    rootKeyId: intermediate.rootKeyId,
+    signResponseBytes: (bytes) => execFileSync(
+      operatorTls.responseCustodyHelper,
+      ['sign-supervisor-response', '--key-id', intermediate.intermediateKeyId],
+      {
+        input: bytes,
+        encoding: 'utf8',
+        env: {
+          PATH: '/usr/bin:/bin',
+          LANG: 'C',
+          LC_ALL: 'C',
+        },
+        timeout: 10_000,
+        maxBuffer: 1024,
+        stdio: ['pipe', 'pipe', 'ignore'],
+      },
+    ).trim(),
+  });
+  const requestService = createOperatorRequestService({
+    responseSigner,
+    providerExecutor,
+    createSupervisor: () => new HostedSupervisor(retainedState),
+    persistSupervisor: commitSupervisorState,
+  });
+  return {
+    ca: readFileSync(operatorTls.ca),
+    requestService,
+    responseIntermediateKeyId: intermediate.intermediateKeyId,
+  };
+}
+
+const operatorSurface = createOperatorSurface();
+
 async function executeCommand(input) {
   if (serviceWedge) throw serviceWedge;
   if (commandInFlight) {
@@ -522,6 +764,11 @@ const health = createHttpServer((request, response) => {
       mirror: installationReceipt.journalMirror,
       externalAuthority: externalAuthorityProjection(),
       controlTransport: 'mutual-tls',
+      operatorSurface: operatorSurface === null
+        ? 'disabled-missing-purpose-authority'
+        : 'mutual-tls-device-signed',
+      operatorSurfaceBlocker,
+      operatorResponseKeyId: operatorSurface?.responseIntermediateKeyId ?? null,
     },
     diagnostic: serviceWedge ? {
       code: serviceWedge.code,
@@ -590,6 +837,64 @@ const control = createHttpsServer({
 
 health.listen(Number(process.env.SNAPBACK_SUPERVISOR_HEALTH_PORT ?? 8081), '::');
 control.listen(Number(process.env.SNAPBACK_SUPERVISOR_CONTROL_PORT ?? 8443), '::');
+
+if (operatorSurface !== null) {
+  // @ref LLP 0105#public-operator-and-command-authority — this listener has a
+  // distinct operator CA and accepts only the closed device-signed request.
+  const operatorControl = createHttpsServer({
+    key: readFileSync(tls.key),
+    cert: readFileSync(tls.cert),
+    ca: operatorSurface.ca,
+    requestCert: true,
+    rejectUnauthorized: true,
+    minVersion: 'TLSv1.3',
+  }, async (request, response) => {
+    try {
+      if (
+        !request.socket.authorized
+        || request.method !== 'POST'
+        || request.url !== '/v1/operator/request'
+      ) {
+        send(response, 404, { ok: false });
+        return;
+      }
+      if (serviceWedge) throw serviceWedge;
+      if (commandInFlight) {
+        throw new SupervisorRefusal(
+          'SNAPBACK_SUPERVISOR_SINGLE_WRITER_BUSY',
+          'another canonical control transaction is in progress',
+        );
+      }
+      commandInFlight = true;
+      try {
+        const peer = request.socket.getPeerCertificate();
+        const result = await operatorSurface.requestService.execute(
+          await readRequest(request, 1024 * 1024),
+          { peerCertificateRaw: peer.raw },
+        );
+        sendCanonical(response, 200, result);
+      } finally {
+        commandInFlight = false;
+      }
+    } catch (error) {
+      const status = Number.isInteger(error?.status)
+        ? error.status
+        : error instanceof SyntaxError ? 400 : 403;
+      send(response, status, {
+        schemaVersion: 'snapback.supervisor-operator-refusal.v1',
+        ok: false,
+        diagnostic: {
+          code: error?.code ?? 'SNAPBACK_SUPERVISOR_INTERNAL',
+          message: String(error?.message ?? error).slice(0, 512),
+        },
+      });
+    }
+  });
+  operatorControl.listen(
+    Number(process.env.SNAPBACK_SUPERVISOR_OPERATOR_PORT ?? 8445),
+    '::',
+  );
+}
 
 const targetClientCa = process.env.SNAPBACK_SUPERVISOR_TARGET_CLIENT_CA
   ?? '/run/secrets/target-client-ca.pem';

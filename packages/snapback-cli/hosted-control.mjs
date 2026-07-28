@@ -1,22 +1,28 @@
 // The public package exposes a deliberately closed hosted surface while the
 // standing-supervisor transport is completed. Read commands reuse the
 // target-neutral control plane. Lifecycle commands accept only the generated
-// V2 carrier and route it to the package-owned Fly driver, whose unsupported
-// effects return a structured, non-mutating refusal.
+// V2 carrier and submit a separately device-signed SupervisorRequestV1 over
+// certificate-pinned mTLS. The CLI never resolves a Fly/Tigris credential.
 //
 // @ref LLP 0105#closed-request-and-command-registry — command spellings and
 // lifecycle variants are exhaustive; unknown combinations fail closed.
 // @ref LLP 0105#public-operator-and-command-authority — provider credentials
 // stay behind an adapter/supervisor boundary and never enter CLI output.
 
-import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import {
+  X509Certificate,
+  createHash,
+  createPublicKey,
+  verify,
+} from 'node:crypto';
 import {
   lstatSync,
   readFileSync,
   realpathSync,
 } from 'node:fs';
+import { request as httpsRequest } from 'node:https';
 import { dirname, join, resolve } from 'node:path';
+import { checkServerIdentity } from 'node:tls';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -28,7 +34,46 @@ import {
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
+const RFC3339_MILLIS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
+const MAX_OPERATOR_RESPONSE_BYTES = 64 * 1024 * 1024;
+const INTERMEDIATE_DOMAIN = Buffer.from('snapback-supervisor-service-intermediate-v1\0');
+const RESPONSE_DOMAIN = Buffer.from('snapback-supervisor-response-v1\0');
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+const OPERATOR_RESPONSE_KEYS = Object.freeze([
+  'audience',
+  'body',
+  'bodySha256',
+  'expiresAt',
+  'installationId',
+  'issuedAt',
+  'keyId',
+  'notBefore',
+  'operatorCertificateSha256',
+  'requestId',
+  'requestSha256',
+  'schemaVersion',
+  'serviceIntermediate',
+  'signature',
+  'supervisorGeneration',
+  'supervisorHeadSha256',
+  'supervisorIncarnation',
+  'targetHeadSha256',
+]);
+const INTERMEDIATE_KEYS = Object.freeze([
+  'expiresAt',
+  'installationId',
+  'intermediateKeyId',
+  'issuedAt',
+  'notBefore',
+  'publicKeyEd25519',
+  'purpose',
+  'revocationGeneration',
+  'rootKeyId',
+  'schemaVersion',
+  'serial',
+  'signature',
+]);
 const LIFECYCLE_REQUEST_KEYS = Object.freeze([
   'attempt',
   'confirmationSha256',
@@ -47,7 +92,7 @@ function lifecycleEntry(operation) {
   return Object.freeze({
     kind: 'lifecycle',
     operation,
-    availability: 'fail-closed-until-supervisor-executor',
+    availability: 'operator-mtls-supervisor-only',
   });
 }
 
@@ -137,6 +182,280 @@ function readRegularFile(path, code) {
   return { absolute: realpathSync.native(absolute), bytes: readFileSync(absolute) };
 }
 
+function readTransportFile(path, {
+  code = 'SNAPBACK_HOSTED_OPERATOR_CREDENTIAL_UNAVAILABLE',
+  privateCredential = false,
+} = {}) {
+  const file = readRegularFile(path, code);
+  const stat = lstatSync(file.absolute);
+  if (
+    (typeof process.getuid === 'function' && stat.uid !== process.getuid())
+    || (privateCredential && (stat.mode & 0o077) !== 0)
+  ) {
+    throw fail(
+      code,
+      privateCredential
+        ? 'operator private credential must be owner-owned mode 0600'
+        : 'operator trust file must be owned by the current user',
+    );
+  }
+  return file;
+}
+
+function signatureBytes(value, label) {
+  if (typeof value !== 'string' || value.length > 512) {
+    throw fail('SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID', `${label} signature is malformed`);
+  }
+  const bytes = Buffer.from(value, 'base64url');
+  if (bytes.length !== 64 || bytes.toString('base64url') !== value) {
+    throw fail('SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID', `${label} signature is malformed`);
+  }
+  return bytes;
+}
+
+function unsigned(value) {
+  const { signature: _signature, ...content } = value;
+  return content;
+}
+
+function verifyOperatorResponse(response, request, rootPublicKeyPem) {
+  assertClosed(response, OPERATOR_RESPONSE_KEYS, 'SupervisorResponseV1');
+  assertClosed(response.serviceIntermediate, INTERMEDIATE_KEYS, 'SupervisorServiceIntermediateV1');
+  assertClosed(
+    response.body,
+    ['diagnostic', 'ok', 'result', 'schemaVersion'],
+    'SupervisorResponseBodyV1',
+  );
+  if (response.body.diagnostic !== null) {
+    assertClosed(
+      response.body.diagnostic,
+      ['code', 'message', 'status'],
+      'SupervisorResponseDiagnosticV1',
+    );
+  }
+  const intermediate = response.serviceIntermediate;
+  const requestSha256 = sha256(Buffer.concat([
+    Buffer.from('snapback-supervisor-retained-request-v1\0'),
+    Buffer.from(canonicalJson(request)),
+  ]));
+  if (
+    response.schemaVersion !== 'snapback.supervisor-response.v1'
+    || response.audience !== 'snapback-operator'
+    || response.installationId !== request.installationId
+    || response.requestId !== request.requestId
+    || response.requestSha256 !== requestSha256
+    || response.operatorCertificateSha256 !== request.operatorCertificateSha256
+    || response.targetHeadSha256 !== request.targetHeadSha256
+    || response.keyId !== intermediate.intermediateKeyId
+    || intermediate.schemaVersion !== 'snapback.supervisor-service-intermediate.v1'
+    || intermediate.installationId !== request.installationId
+    || intermediate.rootKeyId !== request.rootKeyId
+    || intermediate.purpose !== 'supervisor-response'
+    || typeof intermediate.intermediateKeyId !== 'string'
+    || intermediate.intermediateKeyId.length < 1
+    || !Number.isSafeInteger(intermediate.serial)
+    || intermediate.serial < 1
+    || !Number.isSafeInteger(intermediate.revocationGeneration)
+    || intermediate.revocationGeneration < 1
+    || response.body.schemaVersion !== 'snapback.supervisor-response-body.v1'
+    || typeof response.body.ok !== 'boolean'
+    || (response.body.ok && response.body.diagnostic !== null)
+    || (!response.body.ok && (
+      typeof response.body.diagnostic?.code !== 'string'
+      || typeof response.body.diagnostic?.message !== 'string'
+      || !Number.isSafeInteger(response.body.diagnostic?.status)
+      || response.body.diagnostic.status < 400
+      || response.body.diagnostic.status > 599
+    ))
+    || typeof response.supervisorIncarnation !== 'string'
+    || response.supervisorIncarnation.length < 1
+    || !Number.isSafeInteger(response.supervisorGeneration)
+    || response.supervisorGeneration < 1
+    || !DIGEST.test(response.supervisorHeadSha256 ?? '')
+    || !(response.targetHeadSha256 === null || DIGEST.test(response.targetHeadSha256 ?? ''))
+    || !DIGEST.test(response.bodySha256 ?? '')
+    || sha256(Buffer.from(canonicalJson(response.body))) !== response.bodySha256
+  ) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+      'supervisor response identity, purpose, request, or body binding is invalid',
+    );
+  }
+  const issuedAtMs = Date.parse(response.issuedAt);
+  const notBeforeMs = Date.parse(response.notBefore);
+  const expiresAtMs = Date.parse(response.expiresAt);
+  const intermediateIssuedAtMs = Date.parse(intermediate.issuedAt);
+  const intermediateNotBeforeMs = Date.parse(intermediate.notBefore);
+  const intermediateExpiresAtMs = Date.parse(intermediate.expiresAt);
+  if (
+    !RFC3339_MILLIS.test(response.issuedAt ?? '')
+    || !RFC3339_MILLIS.test(response.notBefore ?? '')
+    || !RFC3339_MILLIS.test(response.expiresAt ?? '')
+    || !RFC3339_MILLIS.test(intermediate.issuedAt ?? '')
+    || !RFC3339_MILLIS.test(intermediate.notBefore ?? '')
+    || !RFC3339_MILLIS.test(intermediate.expiresAt ?? '')
+    || !Number.isSafeInteger(issuedAtMs)
+    || !Number.isSafeInteger(notBeforeMs)
+    || !Number.isSafeInteger(expiresAtMs)
+    || issuedAtMs !== notBeforeMs
+    || expiresAtMs <= notBeforeMs
+    || expiresAtMs - issuedAtMs > 10 * 60 * 1000
+    || !Number.isSafeInteger(intermediateIssuedAtMs)
+    || !Number.isSafeInteger(intermediateNotBeforeMs)
+    || !Number.isSafeInteger(intermediateExpiresAtMs)
+    || intermediateIssuedAtMs > intermediateNotBeforeMs
+    || intermediateExpiresAtMs <= intermediateNotBeforeMs
+    || issuedAtMs < intermediateNotBeforeMs
+    || issuedAtMs > intermediateExpiresAtMs
+    || intermediateExpiresAtMs - intermediateNotBeforeMs > 7 * 24 * 60 * 60 * 1000
+  ) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+      'supervisor response was not issued inside its bounded intermediate interval',
+    );
+  }
+  const rootPublicKey = createPublicKey(rootPublicKeyPem);
+  if (!verify(
+    null,
+    Buffer.concat([
+      INTERMEDIATE_DOMAIN,
+      Buffer.from(canonicalJson(unsigned(intermediate))),
+    ]),
+    rootPublicKey,
+    signatureBytes(intermediate.signature, 'intermediate'),
+  )) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+      'supervisor response intermediate root signature did not verify',
+    );
+  }
+  const rawPublicKey = Buffer.from(intermediate.publicKeyEd25519 ?? '', 'base64url');
+  if (
+    rawPublicKey.length !== 32
+    || rawPublicKey.toString('base64url') !== intermediate.publicKeyEd25519
+  ) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+      'supervisor response intermediate key encoding is invalid',
+    );
+  }
+  const responsePublicKey = createPublicKey({
+    key: Buffer.concat([ED25519_SPKI_PREFIX, rawPublicKey]),
+    format: 'der',
+    type: 'spki',
+  });
+  if (!verify(
+    null,
+    Buffer.concat([
+      RESPONSE_DOMAIN,
+      Buffer.from(canonicalJson(unsigned(response))),
+    ]),
+    responsePublicKey,
+    signatureBytes(response.signature, 'response'),
+  )) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+      'supervisor response signature did not verify',
+    );
+  }
+  return response;
+}
+
+function requestOperatorEndpoint(endpoint, {
+  requestBytes,
+  key,
+  cert,
+  ca,
+  serverCertificateSha256,
+  timeoutMs,
+}) {
+  let url;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    throw fail('SNAPBACK_HOSTED_OPERATOR_ENDPOINT_INVALID', 'supervisor endpoint is not a URL');
+  }
+  if (
+    url.protocol !== 'https:'
+    || url.username
+    || url.password
+    || url.search
+    || url.hash
+    || !DIGEST.test(serverCertificateSha256 ?? '')
+  ) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_ENDPOINT_INVALID',
+      'supervisor endpoint must be credential-free HTTPS with a certificate digest pin',
+    );
+  }
+  url.pathname = '/v1/operator/request';
+  return new Promise((resolvePromise, rejectPromise) => {
+    const outgoing = httpsRequest(url, {
+      method: 'POST',
+      key,
+      cert,
+      ca,
+      minVersion: 'TLSv1.3',
+      rejectUnauthorized: true,
+      headers: {
+        'content-type': 'application/json',
+        'content-length': requestBytes.byteLength,
+      },
+      checkServerIdentity(hostname, certificate) {
+        const hostnameError = checkServerIdentity(hostname, certificate);
+        if (hostnameError) return hostnameError;
+        if (sha256(certificate.raw) !== serverCertificateSha256) {
+          return new Error('SNAPBACK_HOSTED_OPERATOR_SERVER_CERTIFICATE_MISMATCH');
+        }
+        return undefined;
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    }, (incoming) => {
+      const chunks = [];
+      let bytes = 0;
+      incoming.on('data', (chunk) => {
+        bytes += chunk.byteLength;
+        if (bytes > MAX_OPERATOR_RESPONSE_BYTES) {
+          incoming.destroy(new Error('SNAPBACK_HOSTED_OPERATOR_RESPONSE_TOO_LARGE'));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      incoming.on('end', () => {
+        const body = Buffer.concat(chunks);
+        let value;
+        try {
+          value = JSON.parse(body.toString('utf8'));
+        } catch {
+          rejectPromise(fail(
+            'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+            'supervisor did not return one JSON response',
+          ));
+          return;
+        }
+        if (incoming.statusCode !== 200) {
+          rejectPromise(fail(
+            value?.diagnostic?.code ?? 'SNAPBACK_HOSTED_OPERATOR_REQUEST_REFUSED',
+            String(value?.diagnostic?.message ?? `supervisor HTTP ${incoming.statusCode}`).slice(0, 512),
+          ));
+          return;
+        }
+        resolvePromise(value);
+      });
+      incoming.on('error', rejectPromise);
+    });
+    outgoing.on('error', (error) => {
+      rejectPromise(fail(
+        error.message === 'SNAPBACK_HOSTED_OPERATOR_SERVER_CERTIFICATE_MISMATCH'
+          ? 'SNAPBACK_HOSTED_OPERATOR_SERVER_CERTIFICATE_MISMATCH'
+          : 'SNAPBACK_HOSTED_OPERATOR_TRANSPORT_FAILED',
+        'mutually authenticated supervisor transport failed',
+      ));
+    });
+    outgoing.end(requestBytes);
+  });
+}
+
 export function resolveHostedAssets() {
   const flyDriver = realpathSync.native(join(packageRoot, HOSTED_ASSETS.flyDriver));
   const schemas = Object.fromEntries(
@@ -177,7 +496,7 @@ export function createHostedPlan({
     driver: {
       kind: 'fly-machines',
       sha256: assets.flyDriverSha256,
-      lifecycleAvailability: 'fail-closed-until-supervisor-executor',
+      lifecycleAvailability: 'operator-mtls-supervisor-only',
     },
     commands: Object.entries(HOSTED_COMMAND_REGISTRY).map(([command, entry]) => ({
       command,
@@ -201,10 +520,76 @@ export function runHostedRead(operation, {
   throw fail('SNAPBACK_HOSTED_COMMAND_UNKNOWN', 'hosted read command is not in the closed registry');
 }
 
-export function invokeHostedLifecycle(verb, {
+export async function submitHostedOperatorRequest({
   requestPath,
-  env = process.env,
-  timeoutMs = 15_000,
+  endpoint,
+  clientKeyPath,
+  clientCertificatePath,
+  serverCaPath,
+  rootPublicKeyPath,
+  serverCertificateSha256,
+  timeoutMs = 30_000,
+  transport = requestOperatorEndpoint,
+} = {}) {
+  const requestFile = readRegularFile(
+    requestPath,
+    'SNAPBACK_HOSTED_OPERATOR_REQUEST_UNAVAILABLE',
+  );
+  let request;
+  try {
+    request = JSON.parse(requestFile.bytes);
+  } catch {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_REQUEST_INVALID',
+      'SupervisorRequestV1 file is not one JSON value',
+    );
+  }
+  const key = readTransportFile(clientKeyPath, { privateCredential: true }).bytes;
+  const cert = readTransportFile(clientCertificatePath).bytes;
+  const ca = readTransportFile(serverCaPath).bytes;
+  const rootPublicKey = readTransportFile(rootPublicKeyPath).bytes;
+  let certificate;
+  try {
+    certificate = new X509Certificate(cert);
+  } catch {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_CREDENTIAL_UNAVAILABLE',
+      'operator client certificate is invalid',
+    );
+  }
+  if (
+    request?.schemaVersion !== 'snapback.supervisor-request.v1'
+    || !SAFE_ID.test(request.requestId ?? '')
+    || !DIGEST.test(request.operatorCertificateSha256 ?? '')
+    || sha256(certificate.raw) !== request.operatorCertificateSha256
+  ) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_REQUEST_INVALID',
+      'operator request identity or mTLS certificate digest binding is invalid',
+    );
+  }
+  const response = await transport(endpoint, {
+    requestBytes: requestFile.bytes,
+    key,
+    cert,
+    ca,
+    serverCertificateSha256,
+    timeoutMs,
+  });
+  return verifyOperatorResponse(response, request, rootPublicKey);
+}
+
+export async function invokeHostedLifecycle(verb, {
+  requestPath,
+  operatorRequestPath,
+  endpoint,
+  clientKeyPath,
+  clientCertificatePath,
+  serverCaPath,
+  rootPublicKeyPath,
+  serverCertificateSha256,
+  timeoutMs = 30_000,
+  submitOperatorRequest = submitHostedOperatorRequest,
 } = {}) {
   const operation = HOSTED_LIFECYCLE_VERBS[verb];
   if (!operation) {
@@ -232,49 +617,71 @@ export function invokeHostedLifecycle(verb, {
       'hosted lifecycle request identity, operation, attempt, or digests are invalid',
     );
   }
-  const assets = resolveHostedAssets();
-  const child = spawnSync(process.execPath, [assets.flyDriver], {
-    input: `${JSON.stringify(request)}\n`,
-    encoding: 'utf8',
-    env: {
-      PATH: env.PATH ?? '',
-      HOME: env.HOME ?? '',
-      LANG: env.LANG ?? 'C',
-      LC_ALL: env.LC_ALL ?? 'C',
-    },
-    timeout: timeoutMs,
-    maxBuffer: MAX_REQUEST_BYTES,
-    windowsHide: true,
-  });
-  if (child.error || child.status !== 0) {
+  if (
+    !operatorRequestPath
+    || !endpoint
+    || !clientKeyPath
+    || !clientCertificatePath
+    || !serverCaPath
+    || !rootPublicKeyPath
+    || !serverCertificateSha256
+  ) {
     return {
       schemaVersion: 'snapback.hosted-lifecycle-refusal.v1',
       ok: false,
       operation,
       operationId: request.operationId,
-      code: 'SNAPBACK_HOSTED_LIFECYCLE_DRIVER_REFUSED',
-      driverStatus: child.status,
-      driverSignal: child.signal,
+      code: 'SNAPBACK_HOSTED_OPERATOR_TRANSPORT_REQUIRED',
       requestFileSha256: sha256(requestFile.bytes),
-      driverStderrSha256: sha256(Buffer.from(child.stderr ?? '')),
       diagnostics: [{
-        code: 'SNAPBACK_HOSTED_LIFECYCLE_DRIVER_REFUSED',
+        code: 'SNAPBACK_HOSTED_OPERATOR_TRANSPORT_REQUIRED',
         severity: 'error',
-        message: 'the packaged driver refused this lifecycle effect without mutating provider state',
+        message: 'lifecycle effects require a signed operator request and certificate-pinned supervisor mTLS transport',
       }],
     };
   }
-  let response;
+  const operatorRequestFile = readRegularFile(
+    operatorRequestPath,
+    'SNAPBACK_HOSTED_OPERATOR_REQUEST_UNAVAILABLE',
+  );
+  let operatorRequest;
   try {
-    response = JSON.parse(child.stdout);
+    operatorRequest = JSON.parse(operatorRequestFile.bytes);
   } catch {
-    throw fail('SNAPBACK_HOSTED_LIFECYCLE_RESPONSE_INVALID', 'packaged driver did not return one JSON response');
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_REQUEST_INVALID',
+      'SupervisorRequestV1 file is not one JSON value',
+    );
   }
+  const body = operatorRequest?.body;
+  if (
+    body?.schemaVersion !== 'snapback.supervisor-lifecycle-execution.v1'
+    || canonicalJson(body.lifecycleRequest) !== canonicalJson(request)
+  ) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_REQUEST_INVALID',
+      'signed operator request does not contain the byte-equivalent lifecycle request',
+    );
+  }
+  const signedResponse = await submitOperatorRequest({
+    requestPath: operatorRequestPath,
+    endpoint,
+    clientKeyPath,
+    clientCertificatePath,
+    serverCaPath,
+    rootPublicKeyPath,
+    serverCertificateSha256,
+    timeoutMs,
+  });
+  const response = signedResponse.body?.result;
   if (response.schemaVersion !== 'snapback.vm-adapter-lifecycle-response.v2'
       || response.operation !== operation
       || response.operationId !== request.operationId
       || typeof response.ok !== 'boolean') {
-    throw fail('SNAPBACK_HOSTED_LIFECYCLE_RESPONSE_INVALID', 'packaged driver response identity does not match the request');
+    throw fail(
+      'SNAPBACK_HOSTED_LIFECYCLE_RESPONSE_INVALID',
+      'signed supervisor response identity does not match the lifecycle request',
+    );
   }
   return response;
 }
@@ -282,4 +689,6 @@ export function invokeHostedLifecycle(verb, {
 export const __hostedControlTest = Object.freeze({
   LIFECYCLE_REQUEST_KEYS,
   MAX_REQUEST_BYTES,
+  OPERATOR_RESPONSE_KEYS,
+  verifyOperatorResponse,
 });

@@ -79,6 +79,7 @@ import {
   createHostedPlan,
   invokeHostedLifecycle,
   runHostedRead,
+  submitHostedOperatorRequest,
 } from './hosted-control.mjs';
 export {
   addTarget,
@@ -138,6 +139,7 @@ export {
   invokeHostedLifecycle,
   resolveHostedAssets,
   runHostedRead,
+  submitHostedOperatorRequest,
 } from './hosted-control.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
@@ -2353,7 +2355,7 @@ export async function runCli(argv, options = {}) {
       const result = createHostedPlan();
       if (json) printResult(result, true);
       else {
-        console.log('usage: snapback hosted <plan|inspect|logs|lifecycle> ...');
+        console.log('usage: snapback hosted <plan|inspect|logs|operator-request|lifecycle> ...');
         console.log(`lifecycle verbs: ${Object.keys(result.commands
           .filter(({ kind }) => kind === 'lifecycle')
           .reduce((verbs, { command }) => ({ ...verbs, [command.replace(/^lifecycle /, '')]: true }), {}))
@@ -2377,6 +2379,41 @@ export async function runCli(argv, options = {}) {
       });
       printResult(result, json);
       return 0;
+    }
+    if (subcommand === 'operator-request') {
+      const requestPath = takeFlag(args, '--request');
+      const endpoint = takeFlag(args, '--supervisor');
+      const clientKeyPath = takeFlag(args, '--client-key');
+      const clientCertificatePath = takeFlag(args, '--client-cert');
+      const serverCaPath = takeFlag(args, '--server-ca');
+      const rootPublicKeyPath = takeFlag(args, '--root-public-key');
+      const serverCertificateSha256 = takeFlag(args, '--server-certificate-sha256');
+      if (
+        !requestPath
+        || !endpoint
+        || !clientKeyPath
+        || !clientCertificatePath
+        || !serverCaPath
+        || !rootPublicKeyPath
+        || !serverCertificateSha256
+        || args.length > 0
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'usage: snapback hosted operator-request --request <supervisor-request-v1.json> --supervisor <https-origin> --client-key <mode-0600.pem> --client-cert <pem> --server-ca <pem> --root-public-key <pem> --server-certificate-sha256 <sha256:...> [--json]',
+        );
+      }
+      const result = await submitHostedOperatorRequest({
+        requestPath,
+        endpoint,
+        clientKeyPath,
+        clientCertificatePath,
+        serverCaPath,
+        rootPublicKeyPath,
+        serverCertificateSha256,
+      });
+      printResult(result, json);
+      return result.body?.ok ? 0 : 2;
     }
     if (subcommand === 'inspect' || subcommand === 'logs') {
       const targetId = takeFlag(args, '--target');
@@ -2406,14 +2443,28 @@ export async function runCli(argv, options = {}) {
     if (subcommand === 'lifecycle') {
       const verb = args.shift();
       const requestPath = takeFlag(args, '--request');
+      const operatorRequestPath = takeFlag(args, '--operator-request');
+      const endpoint = takeFlag(args, '--supervisor');
+      const clientKeyPath = takeFlag(args, '--client-key');
+      const clientCertificatePath = takeFlag(args, '--client-cert');
+      const serverCaPath = takeFlag(args, '--server-ca');
+      const rootPublicKeyPath = takeFlag(args, '--root-public-key');
+      const serverCertificateSha256 = takeFlag(args, '--server-certificate-sha256');
       if (!verb || !requestPath || args.length > 0) {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
-          'usage: snapback hosted lifecycle <closed-verb> --request <vm-adapter-lifecycle-request-v2.json> [--json]',
+          'usage: snapback hosted lifecycle <closed-verb> --request <lifecycle-v2.json> --operator-request <supervisor-request-v1.json> --supervisor <https-origin> --client-key <mode-0600.pem> --client-cert <pem> --server-ca <pem> --root-public-key <pem> --server-certificate-sha256 <sha256:...> [--json]',
         );
       }
-      const result = invokeHostedLifecycle(verb, {
+      const result = await invokeHostedLifecycle(verb, {
         requestPath,
+        operatorRequestPath,
+        endpoint,
+        clientKeyPath,
+        clientCertificatePath,
+        serverCaPath,
+        rootPublicKeyPath,
+        serverCertificateSha256,
         ...options,
       });
       printResult(result, json);
@@ -2421,7 +2472,7 @@ export async function runCli(argv, options = {}) {
     }
     throw diagnosticError(
       'SNAPBACK_HOSTED_COMMAND_UNKNOWN',
-      'usage: snapback hosted <plan|inspect|logs|lifecycle> ...',
+      'usage: snapback hosted <plan|inspect|logs|operator-request|lifecycle> ...',
       { subcommand },
     );
   }

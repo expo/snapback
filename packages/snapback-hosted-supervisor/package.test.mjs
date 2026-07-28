@@ -22,6 +22,9 @@ try {
   for (const required of [
     'operator-authority.mjs',
     'operator-authority-transaction.mjs',
+    'operator-service.mjs',
+    'provider-executor.mjs',
+    'supervisor-response.mjs',
     'index.mjs',
     'service.mjs',
     'external-store.mjs',
@@ -42,6 +45,9 @@ try {
   const transaction = await import(pathToFileURL(
     join(root, 'package', 'operator-authority-transaction.mjs'),
   ));
+  const provider = await import(pathToFileURL(join(root, 'package', 'provider-executor.mjs')));
+  const response = await import(pathToFileURL(join(root, 'package', 'supervisor-response.mjs')));
+  const service = await import(pathToFileURL(join(root, 'package', 'operator-service.mjs')));
   assert.equal(authority.__operatorAuthorityTest.STATE_SCHEMA_VERSION, 'snapback.supervisor-operator-authority-state.v1');
   assert(authority.SUPERVISOR_REQUEST_REGISTRY['release.upload']);
   assert(authority.SUPERVISOR_REQUEST_REGISTRY['capability.publication.finalize']);
@@ -58,6 +64,11 @@ try {
   );
   assert.equal(typeof authority.SupervisorOperatorAuthority.prototype.handleRequestAsync, 'function');
   assert.equal(typeof transaction.executeOperatorAuthorityTransactionAsync, 'function');
+  assert.equal(provider.PROVIDER_LIFECYCLE_OPERATIONS.length, 17);
+  assert.equal(typeof provider.createFlyTigrisProviderExecutor, 'function');
+  assert.equal(typeof response.createSupervisorResponseSigner, 'function');
+  assert.equal(typeof response.createExternalSupervisorResponseSigner, 'function');
+  assert.equal(typeof service.createOperatorRequestService, 'function');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

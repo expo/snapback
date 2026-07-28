@@ -365,6 +365,10 @@ function requestDigest(canonical) {
   ]));
 }
 
+export function operatorRequestCanonicalSha256(request) {
+  return requestDigest(validateRequestShape(request));
+}
+
 export class SupervisorOperatorAuthority {
   #state;
   #openUploadHashes = new Map();
