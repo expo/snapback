@@ -18,6 +18,7 @@ import {
   unsignedLease,
   validatePublicationLease,
   validatePublicationAuthorityReceipt,
+  validateClosedLatestProofPlan,
   validatePreClosePublicationState,
   validatePostPromotionLedger,
   vectorFromLease,
@@ -595,6 +596,56 @@ test('pre-close gate reopens the complete vector and current acquired authority 
     }),
     /lease head drifted/u,
   );
+});
+
+test('latest proof plan cannot inject a local command or substitute GitHub identity', () => {
+  const plan = {
+    schemaVersion: 'snapback.latest-root-proof-plan.v2',
+    repository: 'ccheever/snapback',
+    workflow: 'public-package-proof.yml',
+    ref: 'main',
+    expectedHeadSha: '1'.repeat(40),
+    ledgerPath: 'demos/backend-bakeoff/candidate-ledger.json',
+    operationId: 'release-plan-test',
+    helperSha256: '2'.repeat(64),
+    darwinReceipt: 'proof/darwin.json',
+    linuxReceipt: 'proof/linux.json',
+    collection: 'proof/collection.json',
+    dispatchTimeoutMs: 440_000,
+    verifyTimeoutMs: 30_000,
+  };
+  const expected = {
+    expectedOperationId: plan.operationId,
+    expectedHelperSha256: plan.helperSha256,
+    expectedLedgerPath: plan.ledgerPath,
+    expectedHeadSha: plan.expectedHeadSha,
+  };
+  assert.equal(validateClosedLatestProofPlan({ plan, ...expected }), plan);
+  assert.throws(
+    () => validateClosedLatestProofPlan({
+      plan: {
+        schemaVersion: 'snapback.latest-root-proof-plan.v1',
+        commands: [{ command: '/bin/sh', args: ['-c', 'true'] }],
+      },
+      ...expected,
+    }),
+    /unknown or missing members/u,
+  );
+  for (const mutate of [
+    (candidate) => { candidate.repository = 'attacker/fork'; },
+    (candidate) => { candidate.workflow = 'attacker.yml'; },
+    (candidate) => { candidate.expectedHeadSha = '3'.repeat(40); },
+    (candidate) => { candidate.helperSha256 = '4'.repeat(64); },
+    (candidate) => { candidate.operationId = 'other-operation'; },
+    (candidate) => { candidate.darwinReceipt = '../forged.json'; },
+  ]) {
+    const candidate = structuredClone(plan);
+    mutate(candidate);
+    assert.throws(
+      () => validateClosedLatestProofPlan({ plan: candidate, ...expected }),
+      /closed package-owned plan|normalized and relative/u,
+    );
+  }
 });
 
 test('post-promotion ledger closes candidate lineage, tags, and final receipts', () => {

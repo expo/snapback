@@ -81,6 +81,21 @@ const LATEST_ROOT_GITHUB_KEYS = [
   'workflowId',
   'workflowPath',
 ];
+const LATEST_PROOF_PLAN_KEYS = [
+  'collection',
+  'darwinReceipt',
+  'dispatchTimeoutMs',
+  'expectedHeadSha',
+  'helperSha256',
+  'ledgerPath',
+  'linuxReceipt',
+  'operationId',
+  'ref',
+  'repository',
+  'schemaVersion',
+  'verifyTimeoutMs',
+  'workflow',
+];
 
 function vectorsEqual(left, right, names) {
   return names.every((name) => (left[name] ?? null) === (right[name] ?? null));
@@ -147,6 +162,49 @@ export function validatePreClosePublicationState({
     head,
     vector: structuredClone(observedVector),
   };
+}
+
+export function validateClosedLatestProofPlan({
+  plan,
+  expectedOperationId,
+  expectedHelperSha256,
+  expectedLedgerPath,
+  expectedHeadSha,
+}) {
+  requireExactKeys(plan, LATEST_PROOF_PLAN_KEYS, 'latest-root proof plan');
+  if (
+    plan.schemaVersion !== 'snapback.latest-root-proof-plan.v2'
+    || plan.repository !== 'ccheever/snapback'
+    || plan.workflow !== 'public-package-proof.yml'
+    || plan.operationId !== expectedOperationId
+    || plan.expectedHeadSha !== expectedHeadSha
+    || plan.helperSha256 !== expectedHelperSha256
+    || plan.ledgerPath !== expectedLedgerPath
+    || !/^[A-Za-z0-9._/-]{1,200}$/u.test(plan.ref ?? '')
+    || plan.ref.includes('..')
+    || !/^[0-9a-f]{40}$/u.test(plan.expectedHeadSha ?? '')
+    || !/^[0-9a-f]{64}$/u.test(plan.helperSha256 ?? '')
+    || !Number.isSafeInteger(plan.dispatchTimeoutMs)
+    || plan.dispatchTimeoutMs < 1_000
+    || plan.dispatchTimeoutMs > 450_000
+    || !Number.isSafeInteger(plan.verifyTimeoutMs)
+    || plan.verifyTimeoutMs < 1_000
+    || plan.verifyTimeoutMs > 30_000
+    || plan.dispatchTimeoutMs + plan.verifyTimeoutMs > 8 * 60_000
+  ) {
+    throw new Error('latest-root proof plan is not the closed package-owned plan');
+  }
+  for (const field of ['ledgerPath', 'darwinReceipt', 'linuxReceipt', 'collection']) {
+    const value = plan[field];
+    if (
+      typeof value !== 'string'
+      || value.startsWith('/')
+      || value.split('/').some((part) => part === '' || part === '..')
+    ) {
+      throw new Error(`latest-root proof plan ${field} must be normalized and relative`);
+    }
+  }
+  return plan;
 }
 
 export function buildPostPromotionLedger({

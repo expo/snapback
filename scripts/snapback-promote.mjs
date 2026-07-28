@@ -22,6 +22,7 @@ import {
   validatePublicationAuthorityHead,
   validatePublicationLease,
   validatePublicationAuthorityReceipt,
+  validateClosedLatestProofPlan,
   validatePreClosePublicationState,
 } from './snapback-promotion-core.mjs';
 import {
@@ -327,43 +328,6 @@ async function transitionAuthority(path, transition) {
 
 function loadLatestProofPlan() {
   const plan = JSON.parse(readFileSync(options.latestProofPlan, 'utf8'));
-  const keys = Object.keys(plan).sort();
-  const expectedKeys = [
-    'collection',
-    'darwinReceipt',
-    'dispatchTimeoutMs',
-    'expectedHeadSha',
-    'helperSha256',
-    'ledgerPath',
-    'linuxReceipt',
-    'operationId',
-    'ref',
-    'repository',
-    'schemaVersion',
-    'verifyTimeoutMs',
-    'workflow',
-  ].sort();
-  if (
-    keys.join(',') !== expectedKeys.join(',')
-    || plan.schemaVersion !== 'snapback.latest-root-proof-plan.v2'
-    || plan.repository !== 'ccheever/snapback'
-    || plan.workflow !== 'public-package-proof.yml'
-    || plan.operationId !== lease.operationId
-    || !/^[A-Za-z0-9._/-]{1,200}$/u.test(plan.ref ?? '')
-    || plan.ref.includes('..')
-    || !/^[0-9a-f]{40}$/u.test(plan.expectedHeadSha ?? '')
-    || !/^[0-9a-f]{64}$/u.test(plan.helperSha256 ?? '')
-    || plan.helperSha256 !== sha256File(latestProofHelper)
-    || !Number.isSafeInteger(plan.dispatchTimeoutMs)
-    || plan.dispatchTimeoutMs < 1_000
-    || plan.dispatchTimeoutMs > 450_000
-    || !Number.isSafeInteger(plan.verifyTimeoutMs)
-    || plan.verifyTimeoutMs < 1_000
-    || plan.verifyTimeoutMs > 30_000
-    || plan.dispatchTimeoutMs + plan.verifyTimeoutMs > 8 * 60_000
-  ) {
-    throw new Error('latest-root proof plan is not the closed package-owned plan');
-  }
   const ledgerRelative = relative(repositoryRoot, options.ledger).replaceAll('\\', '/');
   if (
     plan.ledgerPath !== ledgerRelative
@@ -394,7 +358,13 @@ function loadLatestProofPlan() {
   if (checkoutHead !== plan.expectedHeadSha || checkoutDirty) {
     throw new Error('latest-root proof helper checkout provenance drifted');
   }
-  return plan;
+  return validateClosedLatestProofPlan({
+    plan,
+    expectedOperationId: lease.operationId,
+    expectedHelperSha256: sha256File(latestProofHelper),
+    expectedLedgerPath: ledgerRelative,
+    expectedHeadSha: checkoutHead,
+  });
 }
 
 function executeLatestProofPlan() {
