@@ -99,6 +99,43 @@ const CANDIDATE_PACKAGE_KEYS = [
   'version',
 ];
 const PLATFORM_RECEIPT_KEYS = ['platform', 'sha256'];
+const BROWSER_JOURNEY_KEYS = [
+  'browserPackage',
+  'browserPackageVersion',
+  'browserReadableSurfaceCount',
+  'checks',
+  'engine',
+  'engineVersion',
+  'forbiddenMarkerKindsChecked',
+  'headless',
+  'initialSeededTodoCount',
+  'liveFramesAfterMutation',
+  'postMutationTodoCount',
+  'reloadedTodoCount',
+  'schemaVersion',
+];
+const BROWSER_JOURNEY_CHECK_KEYS = [
+  'browserReadableAdminTokenAbsent',
+  'browserReadableBackendOriginAbsent',
+  'browserReadableCanaryAbsent',
+  'browserReadableFilesystemPathsAbsent',
+  'generatedMutationPerformed',
+  'nativeLiveUpdateObserved',
+  'realBrowserRendered',
+  'reloadPreservedMutation',
+  'renderedSeededTodo',
+  'webSocketLiveFrameObserved',
+];
+const REQUIRED_BROWSER_FORBIDDEN_MARKER_KINDS = [
+  'admin-token',
+  'admin-token-file',
+  'backend-origin',
+  'browser-secret-canary',
+  'database-path',
+  'ready-file',
+  'repository-path',
+  'runtime-path',
+];
 
 function requireExactKeys(value, keys, field) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -118,6 +155,45 @@ function assertSha256(value, field) {
   if (!/^[0-9a-f]{64}$/u.test(value ?? '')) {
     throw new TypeError(`${field} must be a lowercase SHA-256`);
   }
+}
+
+export function validateColdInstallBrowserEvidence(receipt) {
+  const journey = receipt?.browserJourney;
+  requireExactKeys(journey, BROWSER_JOURNEY_KEYS, 'cold-install browser journey');
+  requireExactKeys(journey.checks, BROWSER_JOURNEY_CHECK_KEYS, 'cold-install browser journey checks');
+  if (
+    journey.schemaVersion !== 'snapback.package-browser-journey.v1'
+    || journey.engine !== 'chromium'
+    || journey.headless !== true
+    || journey.browserPackage !== 'playwright'
+    || journey.browserPackageVersion !== '1.62.0'
+    || typeof journey.engineVersion !== 'string'
+    || journey.engineVersion.length === 0
+    || journey.initialSeededTodoCount !== 1
+    || journey.postMutationTodoCount !== 2
+    || journey.reloadedTodoCount !== 2
+    || !Number.isSafeInteger(journey.liveFramesAfterMutation)
+    || journey.liveFramesAfterMutation < 1
+    || !Number.isSafeInteger(journey.browserReadableSurfaceCount)
+    || journey.browserReadableSurfaceCount < 1
+    || !Array.isArray(journey.forbiddenMarkerKindsChecked)
+    || journey.forbiddenMarkerKindsChecked.some(
+      (value, index, values) => (
+        typeof value !== 'string'
+        || value.length === 0
+        || (index > 0 && values[index - 1] >= value)
+      ),
+    )
+    || REQUIRED_BROWSER_FORBIDDEN_MARKER_KINDS.some(
+      (kind) => !journey.forbiddenMarkerKindsChecked.includes(kind),
+    )
+    || BROWSER_JOURNEY_CHECK_KEYS.some((key) => journey.checks[key] !== true)
+    || receipt.checks?.packedReactRealBrowserSeedLiveReload !== true
+    || receipt.checks?.browserPrivateSurfaceAbsence !== true
+  ) {
+    throw new TypeError('cold-install receipt lacks the real-browser seed/live/reload/private-surface proof');
+  }
+  return journey;
 }
 
 function assertSemver(value, field) {
@@ -322,6 +398,7 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
     ) {
       throw new TypeError('staged platform receipt is not a clean qualified proof');
     }
+    validateColdInstallBrowserEvidence(receipt);
     const platform = `${receipt.machine.platform}-${receipt.machine.architecture}`;
     if (!['darwin-arm64', 'linux-x64'].includes(platform) || byPlatform.has(platform)) {
       throw new TypeError(`duplicate or unsupported staged platform receipt: ${platform}`);

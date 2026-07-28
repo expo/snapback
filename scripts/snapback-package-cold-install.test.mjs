@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import {
   aggregatePublicPackageProofs,
   browserAssetsContainSecretCanary,
+  findBrowserVisibleLeaks,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
   runAsync,
@@ -19,12 +20,63 @@ import {
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 import {
   PACKAGE_INVENTORY,
+  validateColdInstallBrowserEvidence,
   validateQualifiedPlatformReceipts,
   validateQualifiedStagingLedger,
   validateQualifiedTarballs,
 } from './snapback-publish-core.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
+
+function browserJourneyFixture(overrides = {}) {
+  return {
+    schemaVersion: 'snapback.package-browser-journey.v1',
+    browserPackage: 'playwright',
+    browserPackageVersion: '1.62.0',
+    engine: 'chromium',
+    engineVersion: '144.0.7559.0',
+    headless: true,
+    initialSeededTodoCount: 1,
+    postMutationTodoCount: 2,
+    reloadedTodoCount: 2,
+    liveFramesAfterMutation: 1,
+    browserReadableSurfaceCount: 17,
+    forbiddenMarkerKindsChecked: [
+      'admin-token',
+      'admin-token-file',
+      'backend-origin',
+      'browser-secret-canary',
+      'database-path',
+      'ready-file',
+      'repository-path',
+      'runtime-path',
+    ],
+    checks: {
+      realBrowserRendered: true,
+      renderedSeededTodo: true,
+      generatedMutationPerformed: true,
+      nativeLiveUpdateObserved: true,
+      webSocketLiveFrameObserved: true,
+      reloadPreservedMutation: true,
+      browserReadableBackendOriginAbsent: true,
+      browserReadableAdminTokenAbsent: true,
+      browserReadableFilesystemPathsAbsent: true,
+      browserReadableCanaryAbsent: true,
+    },
+    ...overrides,
+  };
+}
+
+function browserReceiptEvidence(overrides = {}) {
+  return {
+    browserJourney: browserJourneyFixture(overrides.browserJourney),
+    checks: {
+      packedReactRealBrowserSeedLiveReload: true,
+      browserPrivateSurfaceAbsence: true,
+      ...(overrides.checks ?? {}),
+    },
+  };
+}
 
 test('browser secret proof allows API field names but refuses an injected canary', () => {
   const canary = `snapback-cold-canary-${'a'.repeat(48)}`;
@@ -38,6 +90,57 @@ test('browser secret proof allows API field names but refuses an injected canary
     () => browserAssetsContainSecretCanary(publicApiNames, 'guessable'),
     /unguessable/u,
   );
+});
+
+test('browser-visible leak scanner reports marker classes without retaining secret values', () => {
+  const secret = `snapback-cold-canary-${'b'.repeat(48)}`;
+  const backend = 'http://127.0.0.1:45731';
+  assert.deepEqual(
+    findBrowserVisibleLeaks({
+      surfaces: [
+        `window.__bad = ${JSON.stringify(secret)}`,
+        `fetch(${JSON.stringify(backend)})`,
+      ],
+      forbiddenMarkers: [
+        { kind: 'browser-secret-canary', value: secret },
+        { kind: 'backend-origin', value: backend },
+        { kind: 'runtime-path', value: '/private/runtime/snapback' },
+      ],
+    }),
+    ['backend-origin', 'browser-secret-canary'],
+  );
+  assert.throws(
+    () => findBrowserVisibleLeaks({
+      surfaces: ['safe'],
+      forbiddenMarkers: [{ kind: 'admin-token', value: '' }],
+    }),
+    /non-empty kind\/value pairs/u,
+  );
+});
+
+test('qualified browser evidence fails closed on simulated, non-live, stale, or under-scanned journeys', () => {
+  const valid = {
+    ...browserReceiptEvidence(),
+  };
+  assert.equal(validateColdInstallBrowserEvidence(valid), valid.browserJourney);
+  for (const mutation of [
+    (receipt) => { receipt.browserJourney.headless = false; },
+    (receipt) => { receipt.browserJourney.liveFramesAfterMutation = 0; },
+    (receipt) => { receipt.browserJourney.reloadedTodoCount = 1; },
+    (receipt) => { receipt.browserJourney.checks.nativeLiveUpdateObserved = false; },
+    (receipt) => {
+      receipt.browserJourney.forbiddenMarkerKindsChecked =
+        receipt.browserJourney.forbiddenMarkerKindsChecked.filter((kind) => kind !== 'runtime-path');
+    },
+    (receipt) => { receipt.checks.browserPrivateSurfaceAbsence = false; },
+  ]) {
+    const receipt = structuredClone(valid);
+    mutation(receipt);
+    assert.throws(
+      () => validateColdInstallBrowserEvidence(receipt),
+      /real-browser seed\/live\/reload\/private-surface proof/u,
+    );
+  }
 });
 
 function runCli(args) {
@@ -298,7 +401,9 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       checks: {
         stagedRegistryAliasResolution: true,
         noSiblingSourceCheckout: true,
+        ...browserReceiptEvidence().checks,
       },
+      browserJourney: browserJourneyFixture(),
     },
   });
   const records = [
@@ -461,7 +566,9 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
       checks: {
         latestRootCandidateClosure: true,
         publicRegistryTarballDigestMatch: true,
+        ...browserReceiptEvidence().checks,
       },
+      browserJourney: browserJourneyFixture(),
     },
     };
   };
@@ -560,10 +667,12 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
       packagedManagedDevReadyAttachWatchAndStop: true,
       packedReactWebTypecheckTestBuildAndLiveAcceptance: true,
       packedReactOneCommandBackendViteJourney: true,
+      ...browserReceiptEvidence().checks,
       packedReactExpoTypecheckAndIosExport: true,
       packagedViteRelativeVersionedSeedSeam: true,
       browserAdapterBundle: true,
     },
+    browserJourney: browserJourneyFixture(),
   });
   const receipts = [
     {

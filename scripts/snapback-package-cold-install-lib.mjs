@@ -1,10 +1,12 @@
 import { spawn } from 'node:child_process';
 import {
+  validateColdInstallBrowserEvidence,
   validateCandidateLedger,
   validateQualifiedStagingLedger,
 } from './snapback-publish-core.mjs';
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
+export { validateColdInstallBrowserEvidence };
 
 export function browserAssetsContainSecretCanary(builtAssets, canary) {
   if (typeof builtAssets !== 'string') {
@@ -14,6 +16,29 @@ export function browserAssetsContainSecretCanary(builtAssets, canary) {
     throw new TypeError('browser secret canary must be an unguessable string');
   }
   return builtAssets.includes(canary);
+}
+
+export function findBrowserVisibleLeaks({ surfaces, forbiddenMarkers }) {
+  if (!Array.isArray(surfaces) || surfaces.some((value) => typeof value !== 'string')) {
+    throw new TypeError('browser-visible surfaces must be an array of strings');
+  }
+  if (
+    !Array.isArray(forbiddenMarkers)
+    || forbiddenMarkers.some(({ kind, value } = {}) => (
+      typeof kind !== 'string'
+      || kind.length === 0
+      || typeof value !== 'string'
+      || value.length === 0
+    ))
+  ) {
+    throw new TypeError('browser forbidden markers must be non-empty kind/value pairs');
+  }
+  const visible = surfaces.join('\n');
+  return [...new Set(
+    forbiddenMarkers
+      .filter(({ value }) => visible.includes(value))
+      .map(({ kind }) => kind),
+  )].sort();
 }
 
 // @ref LLP 0041#acceptance — the external package proof exposes a closed
@@ -283,6 +308,7 @@ export function validateFinalLatestReceipts({ ledger, records }) {
     ) {
       throw new TypeError(`invalid final latest-root receipt: ${platform}`);
     }
+    validateColdInstallBrowserEvidence(receipt);
     if (!['darwin-arm64', 'linux-x64'].includes(platform) || byPlatform.has(platform)) {
       throw new TypeError(`duplicate or unsupported final latest-root receipt: ${platform}`);
     }
@@ -414,6 +440,7 @@ export function aggregatePublicPackageProofs({
     ) {
       throw new TypeError(`platform receipt identity drift: ${platform}`);
     }
+    validateColdInstallBrowserEvidence(receipt);
     if (
       receipt.checks?.publicRegistryAliasResolution !== true
       || receipt.checks?.publicRegistryTarballDigestMatch !== true
@@ -499,6 +526,8 @@ export function aggregatePublicPackageProofs({
       completeSupportedRuntimeMatrix: true,
       packagedRuntimeDoctor: true,
       packagedScaffoldGenerateDevTestAndWatch: true,
+      realBrowserSeedLiveReloadOnEveryPlatform: true,
+      browserPrivateSurfaceAbsenceOnEveryPlatform: true,
       noSiblingSourceCheckout: true,
     },
     nonclaims: [],

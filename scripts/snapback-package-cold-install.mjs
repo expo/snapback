@@ -9,6 +9,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import {
   chmodSync,
   cpSync,
@@ -28,16 +29,19 @@ import { fileURLToPath } from 'node:url';
 
 import {
   browserAssetsContainSecretCanary,
+  findBrowserVisibleLeaks,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
   runAsync,
   usage,
+  validateColdInstallBrowserEvidence,
   validateLatestRootResolution,
   validatePublicPublicationLedger,
   validateStagedPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const BROWSER_PACKAGE_VERSION = '1.62.0';
 
 function fail(message) {
   console.error(`snapback-package-cold-install: ${message}`);
@@ -223,9 +227,53 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
 }
 
 async function proveOneCommandReactStarter(scaffoldRoot) {
+  const playwrightBrowsersPath = '0';
+  const playwrightCli = join(scaffoldRoot, 'node_modules', 'playwright', 'cli.js');
+  const browserInstallArgs = [
+    playwrightCli,
+    'install',
+    ...(process.platform === 'linux' && process.env.GITHUB_ACTIONS === 'true'
+      ? ['--with-deps']
+      : []),
+    '--only-shell',
+    'chromium',
+  ];
+  await runAsyncOrFail(process.execPath, browserInstallArgs, {
+    cwd: scaffoldRoot,
+    env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath },
+    timeout: 600_000,
+  });
+  process.env.PLAYWRIGHT_BROWSERS_PATH = playwrightBrowsersPath;
+  const requireFromScaffold = createRequire(join(scaffoldRoot, 'package.json'));
+  const { chromium } = requireFromScaffold('playwright');
+  const playwrightManifest = requireFromScaffold('playwright/package.json');
+  if (playwrightManifest.version !== BROWSER_PACKAGE_VERSION) {
+    fail(`real-browser proof resolved Playwright ${playwrightManifest.version}, expected ${BROWSER_PACKAGE_VERSION}`);
+  }
+  const localBrowserRoot = join(
+    scaffoldRoot,
+    'node_modules',
+    'playwright-core',
+    '.local-browsers',
+  );
+  if (
+    !existsSync(localBrowserRoot)
+    || !readdirSync(localBrowserRoot).some((name) => name.startsWith('chromium_headless_shell-'))
+  ) {
+    fail('real-browser proof did not materialize its headless browser inside the fresh package install');
+  }
+
+  const browserSecretCanary = `snapback-cold-canary-${randomBytes(24).toString('hex')}`;
   const child = spawn('npm', ['run', 'dev'], {
     cwd: scaffoldRoot,
-    env: process.env,
+    env: {
+      ...process.env,
+      // Vite would inline this exact value if the browser graph accidentally
+      // consumed its admin-token-shaped environment. It is not the runtime's
+      // actual admin credential.
+      VITE_SNAPBACK_ADMIN_TOKEN: browserSecretCanary,
+      PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath,
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stdout = '';
@@ -269,7 +317,221 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
     if (!healthResponse.ok || health?.ok !== true) {
       fail(`one-command starter relay did not reach Snapback: ${JSON.stringify(health)}`);
     }
-    return { origin, relativeBasePath: '/__snapback' };
+
+    const readyFile = join(scaffoldRoot, '.snapback', 'dev.ready.json');
+    const descriptor = await waitFor(() => {
+      if (!existsSync(readyFile)) return null;
+      try {
+        return JSON.parse(readFileSync(readyFile, 'utf8'));
+      } catch {
+        return null;
+      }
+    }, 'one-command starter ready descriptor');
+    if (typeof descriptor?.serverUrl !== 'string' || descriptor.serverUrl.length === 0) {
+      fail('one-command starter ready descriptor omitted the private backend origin');
+    }
+    if (
+      typeof descriptor.adminTokenFile !== 'string'
+      || !existsSync(descriptor.adminTokenFile)
+    ) {
+      fail('one-command starter did not retain an owner-only admin token for leak checking');
+    }
+    const adminToken = readFileSync(descriptor.adminTokenFile, 'utf8').trim();
+    if (adminToken.length < 32) {
+      fail('one-command starter admin token is too short for an exact leak sentinel');
+    }
+
+    // @ref LLP 0030#validation-requirements — qualification must run the
+    // actual relative-proxy browser path, observe the live socket, and prove
+    // user data survives a browser reload. A Node fetch or adapter import is
+    // not equivalent evidence.
+    // @ref LLP 0041#acceptance — the browser and its driver are installed in
+    // this fresh external package project; repository or ambient browsers do
+    // not satisfy the packed-loop gate.
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const responseCaptures = [];
+    const requestSurfaces = [];
+    const webSocketSurfaces = [];
+    const consoleErrors = [];
+    const pageErrors = [];
+    let liveFrames = 0;
+    page.on('request', (request) => {
+      requestSurfaces.push(JSON.stringify({
+        url: request.url(),
+        method: request.method(),
+        headers: request.headers(),
+        postData: request.postData(),
+      }));
+    });
+    page.on('response', (response) => {
+      const contentType = response.headers()['content-type'] ?? '';
+      if (!/(?:javascript|json|text|css)/iu.test(contentType)) return;
+      responseCaptures.push(
+        response.text()
+          .then((body) => JSON.stringify({
+            url: response.url(),
+            status: response.status(),
+            headers: response.headers(),
+            body,
+          }))
+          .catch((error) => {
+            throw new Error(`could not capture browser-readable response ${response.url()}: ${error.message}`);
+          }),
+      );
+    });
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    page.on('websocket', (socket) => {
+      webSocketSurfaces.push(socket.url());
+      socket.on('framereceived', ({ payload }) => {
+        liveFrames += 1;
+        webSocketSurfaces.push(
+          typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8'),
+        );
+      });
+      socket.on('framesent', ({ payload }) => {
+        webSocketSurfaces.push(
+          typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8'),
+        );
+      });
+    });
+
+    let browserJourney;
+    try {
+      await page.goto(origin, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('heading', { name: 'Snapback todos' }).waitFor();
+      await page.getByText('Connection: live', { exact: true }).waitFor();
+      await page.getByRole('listitem').filter({ hasText: 'Build with Snapback' }).waitFor();
+      const initialSeededTodoCount = await page.getByRole('listitem').count();
+      if (initialSeededTodoCount !== 1) {
+        fail(`real browser expected one seeded todo, observed ${initialSeededTodoCount}`);
+      }
+
+      const framesBeforeMutation = liveFrames;
+      await page.getByRole('button', { name: 'Add todo' }).click();
+      await page.getByRole('listitem').filter({ hasText: 'Todo 2' }).waitFor();
+      const postMutationTodoCount = await page.getByRole('listitem').count();
+      if (postMutationTodoCount !== 2) {
+        fail(`real browser expected two todos after mutation, observed ${postMutationTodoCount}`);
+      }
+      await waitFor(
+        () => liveFrames > framesBeforeMutation,
+        'one-command starter native live WebSocket delivery',
+      );
+      const liveFramesAfterMutation = liveFrames - framesBeforeMutation;
+
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.getByText('Connection: live', { exact: true }).waitFor();
+      await page.getByRole('listitem').filter({ hasText: 'Build with Snapback' }).waitFor();
+      await page.getByRole('listitem').filter({ hasText: 'Todo 2' }).waitFor();
+      const reloadedTodoCount = await page.getByRole('listitem').count();
+      if (reloadedTodoCount !== 2) {
+        fail(`real browser reload did not preserve the mutation: ${reloadedTodoCount} todos`);
+      }
+
+      const browserState = await page.evaluate(() => ({
+        dom: document.documentElement.outerHTML,
+        cookie: document.cookie,
+        localStorage: Object.fromEntries(
+          Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+            .filter((key) => key !== null)
+            .map((key) => [key, localStorage.getItem(key)]),
+        ),
+        sessionStorage: Object.fromEntries(
+          Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
+            .filter((key) => key !== null)
+            .map((key) => [key, sessionStorage.getItem(key)]),
+        ),
+        resourceUrls: performance.getEntriesByType('resource').map((entry) => entry.name),
+        windowStrings: Object.getOwnPropertyNames(globalThis).flatMap((name) => {
+          try {
+            return typeof globalThis[name] === 'string' ? [`${name}=${globalThis[name]}`] : [];
+          } catch {
+            return [];
+          }
+        }),
+        userAgent: navigator.userAgent,
+      }));
+      const responseSurfaces = await Promise.all(responseCaptures);
+      const browserVisibleSurfaces = [
+        ...responseSurfaces,
+        ...requestSurfaces,
+        ...webSocketSurfaces,
+        ...consoleErrors,
+        ...pageErrors,
+        JSON.stringify(browserState),
+      ];
+      const runtimePath = join(
+        scaffoldRoot,
+        'node_modules',
+        ...hostRuntime.split('/'),
+        'bin',
+        process.platform === 'win32' ? 'snapback.exe' : 'snapback',
+      );
+      const forbiddenMarkers = [
+        { kind: 'admin-token', value: adminToken },
+        { kind: 'admin-token-file', value: descriptor.adminTokenFile },
+        { kind: 'backend-origin', value: descriptor.serverUrl },
+        { kind: 'browser-secret-canary', value: browserSecretCanary },
+        { kind: 'database-path', value: descriptor.database?.path },
+        { kind: 'ready-file', value: readyFile },
+        { kind: 'repository-path', value: realpathSync(root) },
+        { kind: 'runtime-path', value: realpathSync(runtimePath) },
+        { kind: 'secret-read-root-file', value: descriptor.secretReadRootFile },
+        {
+          kind: 'impersonation-capability-file',
+          value: descriptor.impersonationCapabilityFile,
+        },
+      ].filter(({ value }) => typeof value === 'string' && value.length > 0);
+      const leaks = findBrowserVisibleLeaks({
+        surfaces: browserVisibleSurfaces,
+        forbiddenMarkers,
+      });
+      if (leaks.length > 0) {
+        fail(`real browser exposed private marker classes: ${leaks.join(', ')}`);
+      }
+      if (consoleErrors.length > 0 || pageErrors.length > 0) {
+        fail(`real browser emitted errors: ${[...consoleErrors, ...pageErrors].join('; ')}`);
+      }
+
+      browserJourney = {
+        schemaVersion: 'snapback.package-browser-journey.v1',
+        browserPackage: 'playwright',
+        browserPackageVersion: playwrightManifest.version,
+        engine: 'chromium',
+        engineVersion: browser.version(),
+        headless: true,
+        initialSeededTodoCount,
+        postMutationTodoCount,
+        reloadedTodoCount,
+        liveFramesAfterMutation,
+        browserReadableSurfaceCount: browserVisibleSurfaces.length,
+        forbiddenMarkerKindsChecked: forbiddenMarkers.map(({ kind }) => kind).sort(),
+        checks: {
+          realBrowserRendered: true,
+          renderedSeededTodo: true,
+          generatedMutationPerformed: true,
+          nativeLiveUpdateObserved: true,
+          webSocketLiveFrameObserved: true,
+          reloadPreservedMutation: true,
+          browserReadableBackendOriginAbsent: true,
+          browserReadableAdminTokenAbsent: true,
+          browserReadableFilesystemPathsAbsent: true,
+          browserReadableCanaryAbsent: true,
+        },
+      };
+    } finally {
+      await context.close();
+      await browser.close();
+    }
+    return {
+      relativeBasePath: '/__snapback',
+      browserJourney,
+    };
   } finally {
     if (child.exitCode === null) child.stdin.end();
     const deadline = Date.now() + 15_000;
@@ -659,11 +921,17 @@ await build({
   // @ref LLP 0102#exact-executable-gate — the React release proof installs
   // materialized package tarballs in fresh web and Expo projects. Repository
   // workspaces and source-tree resolution cannot satisfy this gate.
-  const installPackedFixture = async (fixtureRoot) => {
+  const installPackedFixture = async (fixtureRoot, { realBrowser = false } = {}) => {
     const manifestPath = join(fixtureRoot, 'package.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     for (const name of Object.keys(manifest.dependencies ?? {})) {
       if (dependencies[name]) manifest.dependencies[name] = dependencies[name];
+    }
+    if (realBrowser) {
+      manifest.devDependencies = {
+        ...(manifest.devDependencies ?? {}),
+        playwright: BROWSER_PACKAGE_VERSION,
+      };
     }
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
     writeFileSync(
@@ -699,7 +967,7 @@ await build({
 
   const reactScaffoldRoot = join(appRoot, 'react-starter');
   run(developerCli, ['new', reactScaffoldRoot, '--template', 'react', '--json'], { cwd: appRoot });
-  await installPackedFixture(reactScaffoldRoot);
+  await installPackedFixture(reactScaffoldRoot, { realBrowser: true });
   run(
     join(reactScaffoldRoot, 'node_modules', '.bin', 'snapback'),
     ['generate', 'snapback', '--json'],
@@ -835,12 +1103,15 @@ await build({
       packedReactWebTypecheckTestBuildAndLiveAcceptance: true,
       packedReactOneCommandBackendViteJourney:
         managedStarter.relativeBasePath === '/__snapback',
+      packedReactRealBrowserSeedLiveReload: true,
+      browserPrivateSurfaceAbsence: true,
       packedReactExpoTypecheckAndIosExport: true,
       packagedViteRelativeVersionedSeedSeam: true,
       browserAdapterBundle: true,
       resolvedDependencyCount: Object.keys(tree.dependencies ?? {}).length,
       browserBundleBytes: Buffer.byteLength(browserBundle),
     },
+    browserJourney: managedStarter.browserJourney,
     nonclaims: [
       ...(installSource === 'public' ? [] : [{
         id: 'public-registry-install',
@@ -856,6 +1127,7 @@ await build({
       },
     ],
   };
+  validateColdInstallBrowserEvidence(receipt);
   const rendered = `${JSON.stringify(receipt, null, 2)}\n`;
   if (receiptPath) writeFileSync(resolve(receiptPath), rendered);
   process.stdout.write(rendered);
