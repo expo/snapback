@@ -871,7 +871,7 @@ fn reset_and_seed_transaction(
                     )
                 })?;
         }
-        tx.execute(&format!("DELETE FROM {}", quote_ident(&table)?), [])?;
+        tx.execute(&format!("DELETE FROM {}", quote_ident(table)?), [])?;
     }
     tx.execute("DELETE FROM _snapback_changes", [])?;
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
@@ -14060,11 +14060,11 @@ fn patch_document(
     let relation_input = table
         .fields
         .iter()
-        .filter_map(|field| match &field.field_type {
+        .filter(|field| match &field.field_type {
             FieldType::RelationIncarnation {
                 foreign_key_field, ..
-            } if authored.contains_key(foreign_key_field) => Some(field),
-            _ => None,
+            } => authored.contains_key(foreign_key_field),
+            _ => false,
         })
         .map(|field| {
             let FieldType::RelationIncarnation {

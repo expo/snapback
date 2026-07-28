@@ -13,9 +13,8 @@ use crate::manifest::{
     effective_query_limit,
 };
 use crate::storage::{
-    BufferedCommitPayload, BufferedMembershipCommand, BufferedWrite, CapturedReadDependency,
-    CapturedReadKind, ClientMutationIdentity, DbRead, LocalDatabase, MembershipWriter,
-    MutationCommit,
+    BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
+    LocalDatabase, MembershipWriter, MutationCommit,
 };
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
@@ -274,39 +273,6 @@ impl RuntimeManager {
             );
         }
         diagnostics
-    }
-
-    pub(crate) fn invoke_ibex_mutation_prepared(
-        &self,
-        module: &IbexModule,
-        input: HandlerInput,
-        prepared: &PreparedInvocation,
-        db: &mut LocalDatabase,
-        pool: Option<&WarmVmPool>,
-        identity: Option<&ClientMutationIdentity>,
-    ) -> SnapbackResult<MutationCommit> {
-        let executed = execute_ibex_mutation_prepared(
-            module,
-            input.clone(),
-            prepared,
-            DbRead::Live(db),
-            pool,
-            None,
-        )?;
-        let membership_plans = db.authorize_membership_commands(executed.membership_commands)?;
-        db.commit_buffered_writes_idempotent_guarded(
-            &input,
-            BufferedCommitPayload {
-                writes: executed.writes,
-                membership_plans,
-                read_dependencies: executed.reads,
-                result: executed.result,
-                ctx_ledger: executed.ctx_ledger,
-            },
-            identity,
-            || Ok(()),
-            || prepared.effect_guard("ibex mutation transaction"),
-        )
     }
 
     /// Dry-run an Ibex-module mutation (LLP 0051 D8): the handler runs for

@@ -16451,7 +16451,7 @@ enum CoordinatedResetOutput {
 
 enum CoordinatedResetCommitted {
     Legacy(crate::local::CoordinatedResetCommit),
-    Versioned(crate::local::CoordinatedVersionedSeedResetCommit),
+    Versioned(Box<crate::local::CoordinatedVersionedSeedResetCommit>),
 }
 
 fn map_reset_attempt<T>(
@@ -16600,7 +16600,7 @@ async fn coordinated_app_reset_inner(
                         &predecessor,
                         &durable_successor,
                     ),
-                    CoordinatedResetCommitted::Versioned,
+                    |committed| CoordinatedResetCommitted::Versioned(Box::new(committed)),
                 ),
             }
         },
@@ -16647,7 +16647,7 @@ async fn coordinated_app_reset_inner(
             CoordinatedResetOutput::Legacy(snapback.publish_coordinated_reset(committed))
         }
         CoordinatedResetCommitted::Versioned(committed) => CoordinatedResetOutput::Versioned(
-            snapback.publish_coordinated_versioned_seed_reset(committed),
+            snapback.publish_coordinated_versioned_seed_reset(*committed),
         ),
     })
     .await;
@@ -21299,6 +21299,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"
         | "SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED"
         | "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED"
+        | "SNAPBACK_SEED_IDENTITY_CONFLICT"
         | "SNAPBACK_SEED_IDENTITY_CORRUPT"
         | "SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED"
         | "SNAPBACK_SEED_MIGRATION_REQUIRED"
@@ -21306,6 +21307,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SEED_OPERATION_HISTORICAL"
         | "SNAPBACK_SEED_OPERATION_ID_REUSED"
         | "SNAPBACK_SEED_PARTIAL_UNTRACKED"
+        | "SNAPBACK_SEED_REPLAY_REQUIRES_PREFLIGHT"
         | "SNAPBACK_SEED_VERSION_REUSED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
@@ -21402,6 +21404,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED"
+        | "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH"
+        | "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED"
         | "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ACTION_TIMEOUT"
@@ -21469,6 +21473,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_GRANT_STATE_CORRUPT"
         | "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING"
+        | "SNAPBACK_SEARCH_INDEX_UNAVAILABLE"
         | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
         | "SNAPBACK_AUTH_RETRY_EXHAUSTED"
@@ -21702,6 +21707,19 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0065 §1: a HostPlan whose observed operations exceed its
         // admitted EffectCeilingV1 is a doctored/under-declared artifact.
         | "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+        | "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID"
+        | "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID"
+        | "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH"
+        | "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
+        | "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+        | "SNAPBACK_SEARCH_CURSOR_RESTART"
+        | "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID"
+        | "SNAPBACK_SEARCH_MAINTENANCE_LIMIT"
+        | "SNAPBACK_SEARCH_QUERY_INVALID"
+        | "SNAPBACK_SEARCH_QUERY_PLAN_INVALID"
+        | "SNAPBACK_SEARCH_SOURCE_LIMIT"
+        | "SNAPBACK_SEARCH_WORK_LIMIT"
+        | "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID"
         // LLP 0081 §2/§3: malformed/tampered plan artifacts and the
         // deferred retained-work posture are author input.
         | "SNAPBACK_MIGRATION_PLAN_INVALID"

@@ -16324,7 +16324,7 @@ fn execute_query_invocation(
                     app_id: cursor_authority.app_id,
                     database_id: &database_id,
                     target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
-                    stream_epoch: &stream_epoch,
+                    stream_epoch,
                     authority_instance: &authority_instance,
                     owner_subject,
                     release_policy_digest: &release_policy_digest,
@@ -16680,7 +16680,7 @@ fn execute_query_invocation(
                     now_ms,
                 );
                 Some(
-                    crate::bounded_children_cursor::mint(&*root, &body)
+                    crate::bounded_children_cursor::mint(&root, &body)
                         .map_err(|_| bounded_children_cursor_mint_unavailable())?,
                 )
             } else {
@@ -20153,6 +20153,28 @@ globalThis.__snapbackHandlers = {
         snapback
     }
 
+    fn relational_test_function(
+        name: &str,
+        kind: FunctionKind,
+        plan: crate::manifest::RelationalQueryPlan,
+    ) -> FunctionDefinition {
+        let live = kind == FunctionKind::LiveQuery;
+        let mut function = FunctionDefinition::new(
+            name,
+            kind,
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+        );
+        function
+            .required_capabilities
+            .push("relational_query_v1".to_owned());
+        if live {
+            function
+                .required_capabilities
+                .push("live_subscriptions".to_owned());
+        }
+        function
+    }
+
     // @ref LLP 0080#1-closed-relational-plan — end-to-end: activation
     //   validation admits a proven plan and refuses an unproven cardinality
     //   claim; invocation routes through the root-window executor with the
@@ -20251,10 +20273,10 @@ globalThis.__snapbackHandlers = {
             .apply_schema(schema)
             .expect("apply relational schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
-            functions: vec![FunctionDefinition::new(
+            functions: vec![relational_test_function(
                 "booksWithAuthors",
                 FunctionKind::LiveQuery,
-                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan.clone())),
+                plan.clone(),
             )],
             ..FunctionManifest::default()
         });
@@ -20356,10 +20378,10 @@ globalThis.__snapbackHandlers = {
             .apply_schema(unproven_schema)
             .expect("apply unproven schema");
         let diagnostics = unproven_schema_snapback.load_functions(FunctionManifest {
-            functions: vec![FunctionDefinition::new(
+            functions: vec![relational_test_function(
                 "booksWithAuthors",
                 FunctionKind::LiveQuery,
-                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+                plan,
             )],
             ..FunctionManifest::default()
         });
@@ -20465,15 +20487,15 @@ globalThis.__snapbackHandlers = {
         snapback.apply_schema(schema).expect("apply cursor schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![
-                FunctionDefinition::new(
+                relational_test_function(
                     "pagedBooks",
                     FunctionKind::LiveQuery,
-                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(JoinKind::Inner))),
+                    plan(JoinKind::Inner),
                 ),
-                FunctionDefinition::new(
+                relational_test_function(
                     "pagedBooksLeft",
                     FunctionKind::LiveQuery,
-                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(JoinKind::Left))),
+                    plan(JoinKind::Left),
                 ),
             ],
             ..FunctionManifest::default()
@@ -20747,10 +20769,10 @@ globalThis.__snapbackHandlers = {
         let mut snapback = LocalSnapback::open(&path).expect("open file-backed fixture");
         snapback.apply_schema(schema).expect("apply schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
-            functions: vec![FunctionDefinition::new(
+            functions: vec![relational_test_function(
                 "pagedBooks",
                 FunctionKind::LiveQuery,
-                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+                plan,
             )],
             ..FunctionManifest::default()
         });
@@ -20924,11 +20946,7 @@ globalThis.__snapbackHandlers = {
         };
         let functions = FunctionManifest {
             functions: vec![
-                FunctionDefinition::new(
-                    "booksWithAuthors",
-                    FunctionKind::LiveQuery,
-                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
-                ),
+                relational_test_function("booksWithAuthors", FunctionKind::LiveQuery, plan),
                 insert(
                     "addBook",
                     "books",
@@ -21290,12 +21308,19 @@ globalThis.__snapbackHandlers = {
                 FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
             );
             function.result_contract = bounded_result.clone();
+            function.result_contract_hash = Some(
+                crate::manifest::result_contract_hash(&bounded_result)
+                    .expect("hash bounded-children fixture contract"),
+            );
             function
                 .required_capabilities
                 .push("bounded_children_v1".to_owned());
             function
                 .required_capabilities
                 .push("live_subscriptions".to_owned());
+            function
+                .required_capabilities
+                .push("result_contract_v1".to_owned());
             function
         };
         let relation = relation_function("parentChildren", relation_plan.clone());
@@ -21367,6 +21392,10 @@ globalThis.__snapbackHandlers = {
                     patch("renameParent", "parents", "title"),
                     delete("deleteChild", "children"),
                     delete("deleteParent", "parents"),
+                ],
+                acknowledged_experimental_capabilities: vec![
+                    "bounded_children_v1".to_owned(),
+                    "result_contract_v1".to_owned(),
                 ],
                 ..FunctionManifest::default()
             },
@@ -25550,40 +25579,38 @@ globalThis.__snapbackHandlers = {
         //   relational lease-class fixture: retainable declares exactly
         //   opaque-authorized-snapshot-v1, owner-visible, with the
         //   relational read summary and UserId dependence.
-        let mut relational_retained = FunctionDefinition::new(
+        let mut relational_retained = relational_test_function(
             "relationalOwned",
             FunctionKind::Query,
-            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(
-                crate::manifest::RelationalQueryPlan {
-                    root: "books".to_owned(),
-                    root_alias: "book".to_owned(),
-                    joined: "authors".to_owned(),
-                    joined_alias: "author".to_owned(),
-                    join_kind: crate::manifest::JoinKind::Inner,
-                    join_on: vec![crate::manifest::JoinEquality {
-                        root_field: "authorSlug".to_owned(),
-                        joined_field: "slug".to_owned(),
-                    }],
-                    root_filters: Vec::new(),
-                    root_visibility: vec![FilterExpr {
-                        field: "ownerId".to_owned(),
-                        op: FilterOp::Eq,
-                        value: ValueExpr::AuthUserId,
-                    }],
-                    joined_visibility: Vec::new(),
-                    projection: vec![crate::manifest::ProjectionLeaf {
-                        name: "title".to_owned(),
-                        source: crate::manifest::ProjectionSource::RootField("title".to_owned()),
-                    }],
-                    order: vec![crate::manifest::OrderExpr {
-                        field: "title".to_owned(),
-                        direction: crate::manifest::OrderDirection::Asc,
-                    }],
-                    take: 10,
-                    root_index: "by_owner_title".to_owned(),
-                    joined_index: "by_slug".to_owned(),
-                },
-            )),
+            crate::manifest::RelationalQueryPlan {
+                root: "books".to_owned(),
+                root_alias: "book".to_owned(),
+                joined: "authors".to_owned(),
+                joined_alias: "author".to_owned(),
+                join_kind: crate::manifest::JoinKind::Inner,
+                join_on: vec![crate::manifest::JoinEquality {
+                    root_field: "authorSlug".to_owned(),
+                    joined_field: "slug".to_owned(),
+                }],
+                root_filters: Vec::new(),
+                root_visibility: vec![FilterExpr {
+                    field: "ownerId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                }],
+                joined_visibility: Vec::new(),
+                projection: vec![crate::manifest::ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: crate::manifest::ProjectionSource::RootField("title".to_owned()),
+                }],
+                order: vec![crate::manifest::OrderExpr {
+                    field: "title".to_owned(),
+                    direction: crate::manifest::OrderDirection::Asc,
+                }],
+                take: 10,
+                root_index: "by_owner_title".to_owned(),
+                joined_index: "by_slug".to_owned(),
+            },
         );
         relational_retained.retainable = true;
         relational_retained.authorization_dependence =

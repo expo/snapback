@@ -267,14 +267,13 @@ fn partition_for(index: &SearchIndexManifestV1, row: &Value) -> SnapbackResult<S
     }
 }
 
-fn source_tokens(
-    index: &SearchIndexManifestV1,
-    row: &Value,
-) -> SnapbackResult<(
+type SourceTokens = (
     Vec<SearchToken>,
     BTreeMap<String, String>,
     Map<String, Value>,
-)> {
+);
+
+fn source_tokens(index: &SearchIndexManifestV1, row: &Value) -> SnapbackResult<SourceTokens> {
     let mut tokens = Vec::new();
     let mut source_fields = BTreeMap::new();
     let mut stored = Map::new();
@@ -427,16 +426,28 @@ fn generation_root_from_frontiers(
     Ok(encode_generation_root(root))
 }
 
+struct SourceReplacement<'a> {
+    table: &'a str,
+    index: &'a SearchIndexManifestV1,
+    generation: u64,
+    row_id: &'a str,
+    source_version: u64,
+    row: Option<&'a Value>,
+}
+
 fn replace_source(
     tx: &Transaction<'_>,
-    table: &str,
-    index: &SearchIndexManifestV1,
-    generation: u64,
-    row_id: &str,
-    source_version: u64,
-    row: Option<&Value>,
+    source: SourceReplacement<'_>,
     counters: &mut MaintenanceCounters,
 ) -> SnapbackResult<()> {
+    let SourceReplacement {
+        table,
+        index,
+        generation,
+        row_id,
+        source_version,
+        row,
+    } = source;
     let generation_status: Option<String> = tx
         .query_row(
             "SELECT status FROM _snapback_search_generations
@@ -723,15 +734,17 @@ pub fn maintain_search_indexes_in_tx(
             let before = counters;
             replace_source(
                 tx,
-                &table.name,
-                index,
-                generation,
-                &change.id,
-                version,
-                if change.op == ChangeOp::Delete {
-                    None
-                } else {
-                    change.row.as_ref()
+                SourceReplacement {
+                    table: &table.name,
+                    index,
+                    generation,
+                    row_id: &change.id,
+                    source_version: version,
+                    row: if change.op == ChangeOp::Delete {
+                        None
+                    } else {
+                        change.row.as_ref()
+                    },
                 },
                 &mut counters,
             )?;
@@ -950,12 +963,14 @@ pub fn activate_manifest_in_tx(
             for (id, version, row) in &rows {
                 replace_source(
                     tx,
-                    &table.name,
-                    index,
-                    generation,
-                    id,
-                    *version,
-                    Some(row),
+                    SourceReplacement {
+                        table: &table.name,
+                        index,
+                        generation,
+                        row_id: id,
+                        source_version: *version,
+                        row: Some(row),
+                    },
                     &mut counters,
                 )?;
             }
@@ -2317,23 +2332,27 @@ mod tests {
         let tx = conn.transaction().expect("begin maintenance");
         replace_source(
             &tx,
-            "incidents",
-            &index,
-            1,
-            "incident-1",
-            1,
-            Some(&row),
+            SourceReplacement {
+                table: "incidents",
+                index: &index,
+                generation: 1,
+                row_id: "incident-1",
+                source_version: 1,
+                row: Some(&row),
+            },
             &mut MaintenanceCounters::default(),
         )
         .expect("initial source has one posting operation");
         let error = replace_source(
             &tx,
-            "incidents",
-            &index,
-            1,
-            "incident-1",
-            2,
-            Some(&row),
+            SourceReplacement {
+                table: "incidents",
+                index: &index,
+                generation: 1,
+                row_id: "incident-1",
+                source_version: 2,
+                row: Some(&row),
+            },
             &mut MaintenanceCounters::default(),
         )
         .expect_err("replacement must count the deleted and inserted posting");

@@ -1177,7 +1177,7 @@ fn invalid_result_contract(
     )
 }
 
-fn result_contract_hash(contract: &FunctionResultContract) -> SnapbackResult<String> {
+pub(crate) fn result_contract_hash(contract: &FunctionResultContract) -> SnapbackResult<String> {
     let value = serde_json::to_value(contract).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
@@ -1438,20 +1438,20 @@ fn validate_result_value_contract(
 }
 
 fn validate_result_contract_definition(function: &FunctionDefinition) -> SnapbackResult<()> {
-    let compatible = match (&function.kind, &function.result_contract) {
+    let compatible = matches!(
+        (&function.kind, &function.result_contract),
         (_, FunctionResultContract::Unknown)
-        | (
-            FunctionKind::Query | FunctionKind::LiveQuery,
-            FunctionResultContract::Documents { .. }
-            | FunctionResultContract::Records { .. }
-            | FunctionResultContract::LegacyQueryRowsV0 { .. },
-        )
-        | (
-            FunctionKind::Mutation | FunctionKind::Action,
-            FunctionResultContract::Document { .. } | FunctionResultContract::Value { .. },
-        ) => true,
-        _ => false,
-    };
+            | (
+                FunctionKind::Query | FunctionKind::LiveQuery,
+                FunctionResultContract::Documents { .. }
+                    | FunctionResultContract::Records { .. }
+                    | FunctionResultContract::LegacyQueryRowsV0 { .. },
+            )
+            | (
+                FunctionKind::Mutation | FunctionKind::Action,
+                FunctionResultContract::Document { .. } | FunctionResultContract::Value { .. },
+            )
+    );
     if !compatible {
         return Err(SnapbackError::error(
             "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH",
@@ -1515,11 +1515,11 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
         validate_result_value_contract(function, contract, 0, &mut object_fields)?;
     }
     if let Some(form) = function.handler_form.as_deref() {
-        let form_matches = match (form, &function.runtime) {
-            ("inline" | "module", FunctionRuntime::IbexModule(_)) => true,
-            ("plan", FunctionRuntime::HostPlan(_)) => true,
-            _ => false,
-        };
+        let form_matches = matches!(
+            (form, &function.runtime),
+            ("inline" | "module", FunctionRuntime::IbexModule(_))
+                | ("plan", FunctionRuntime::HostPlan(_))
+        );
         if !form_matches {
             return Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID",
@@ -4044,6 +4044,10 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
     }
 }
 
+// Host plans are parsed once and then borrowed throughout admission/execution.
+// Keeping the wire-shaped variants inline avoids an otherwise pervasive
+// allocation contract in this public serde/schema carrier.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum HandlerPlan {
     Query(QueryPlan),

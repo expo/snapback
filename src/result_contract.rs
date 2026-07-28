@@ -167,10 +167,8 @@ fn validate_object(
         .iter()
         .map(|field| field.name.as_str())
         .collect::<BTreeSet<_>>();
-    if !allow_extra {
-        if let Some(name) = object.keys().find(|name| !names.contains(name.as_str())) {
-            return Err(format!("{path}.{}", path_segment(name)));
-        }
+    if !allow_extra && let Some(name) = object.keys().find(|name| !names.contains(name.as_str())) {
+        return Err(format!("{path}.{}", path_segment(name)));
     }
     for field in fields {
         match object.get(&field.name) {
