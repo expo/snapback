@@ -4,11 +4,11 @@
   "claimTreatment": "checkpoint",
   "claimSatisfied": false,
   "platformClaimSatisfied": false,
-  "sourceRevision": "a1ad254599ac4d35f70d65f44563dabd6a539c45",
+  "sourceRevision": "e9eb17f28c87fbeb0e1f883dd3049baaec203e63",
   "sourceDirty": false,
   "publicationMode": "dry-run",
   "publicationLedgerSchema": "snapback.package-candidate-ledger.v1",
-  "publicationTag": "bakeoff-0-1-1-a1ad254599ac",
+  "publicationTag": "bakeoff-0-1-1-e9eb17f28c87",
   "candidateLedgerSha256": null,
   "installSource": "staged",
   "rootSelector": "exact",
@@ -35,7 +35,7 @@
       "publishedName": "@ccheever/snapback-runtime-darwin-arm64",
       "version": "0.1.1",
       "tarball": "ccheever-snapback-runtime-darwin-arm64-0.1.1.tgz",
-      "sha256": "9d40671da106eb643b69ddb1f16083431e6964ee30af5329d4246c99f294649a",
+      "sha256": "fc3cb7c04eb0145989a97a5200e2001796a2b242e05ac7582b8f265c8bdd9a69",
       "registrySha256": null
     },
     {
@@ -96,7 +96,7 @@
     }
   ],
   "deployBuild": {
-    "releaseId": "sha256:f222c2dc8aef8f32d0b5117699d5db1df51d89e93ed7bf16f0a0acc0d9c107c0",
+    "releaseId": "sha256:5ad6ba9a30c48dd0cb4d24f76e3e65e658befd46845125355d0b2cab8d3b7715",
     "targetProfileId": "local-dev-sqlite-ibex",
     "activationEligible": false,
     "componentCount": 20,
@@ -157,9 +157,9 @@
     ],
     "capture": {
       "schemaVersion": "snapback.package-browser-capture.v1",
-      "sourceRevision": "a1ad254599ac4d35f70d65f44563dabd6a539c45",
-      "startedAtMs": 1785277214249,
-      "completedAtMs": 1785277217272,
+      "sourceRevision": "e9eb17f28c87fbeb0e1f883dd3049baaec203e63",
+      "startedAtMs": 1785277885978,
+      "completedAtMs": 1785277891366,
       "maxSurfaceBytes": 16777216,
       "maxTotalBytes": 134217728,
       "totalBytesScanned": 11659887,
@@ -309,10 +309,6 @@
           "bytesScanned": 26497
         },
         {
-          "kind": "response-body",
-          "bytesScanned": 4331
-        },
-        {
           "kind": "response-metadata",
           "bytesScanned": 429
         },
@@ -321,8 +317,8 @@
           "bytesScanned": 374
         },
         {
-          "kind": "response-metadata",
-          "bytesScanned": 427
+          "kind": "response-body",
+          "bytesScanned": 4331
         },
         {
           "kind": "response-metadata",
@@ -333,16 +329,20 @@
           "bytesScanned": 6221
         },
         {
+          "kind": "response-metadata",
+          "bytesScanned": 427
+        },
+        {
           "kind": "response-body",
           "bytesScanned": 6780
         },
         {
           "kind": "response-body",
-          "bytesScanned": 34713
+          "bytesScanned": 218771
         },
         {
           "kind": "response-body",
-          "bytesScanned": 218771
+          "bytesScanned": 34713
         },
         {
           "kind": "response-metadata",
@@ -445,12 +445,12 @@
           "bytesScanned": 603
         },
         {
-          "kind": "websocket-frame-received",
-          "bytesScanned": 411
-        },
-        {
           "kind": "response-metadata",
           "bytesScanned": 1055
+        },
+        {
+          "kind": "websocket-frame-received",
+          "bytesScanned": 411
         },
         {
           "kind": "response-body",
@@ -525,6 +525,10 @@
           "bytesScanned": 208
         },
         {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
           "kind": "response-metadata",
           "bytesScanned": 422
         },
@@ -535,10 +539,6 @@
         {
           "kind": "request",
           "bytesScanned": 517
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
         },
         {
           "kind": "request",
@@ -569,10 +569,6 @@
           "bytesScanned": 429
         },
         {
-          "kind": "response-metadata",
-          "bytesScanned": 231
-        },
-        {
           "kind": "request",
           "bytesScanned": 244
         },
@@ -590,6 +586,10 @@
         },
         {
           "kind": "response-metadata",
+          "bytesScanned": 231
+        },
+        {
+          "kind": "response-metadata",
           "bytesScanned": 254
         },
         {
@@ -601,10 +601,6 @@
           "bytesScanned": 228
         },
         {
-          "kind": "request",
-          "bytesScanned": 531
-        },
-        {
           "kind": "response-metadata",
           "bytesScanned": 266
         },
@@ -613,12 +609,16 @@
           "bytesScanned": 267
         },
         {
+          "kind": "websocket-url",
+          "bytesScanned": 39
+        },
+        {
           "kind": "response-metadata",
           "bytesScanned": 263
         },
         {
-          "kind": "websocket-url",
-          "bytesScanned": 39
+          "kind": "request",
+          "bytesScanned": 531
         },
         {
           "kind": "websocket-frame-received",
@@ -629,44 +629,44 @@
           "bytesScanned": 243
         },
         {
-          "kind": "response-body",
-          "bytesScanned": 0
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
-        },
-        {
           "kind": "request",
           "bytesScanned": 423
         },
         {
           "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
           "bytesScanned": 130087
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
-        },
-        {
-          "kind": "response-body",
-          "bytesScanned": 0
         },
         {
           "kind": "response-body",
@@ -677,12 +677,12 @@
           "bytesScanned": 11267
         },
         {
-          "kind": "response-body",
-          "bytesScanned": 218771
-        },
-        {
           "kind": "response-metadata",
           "bytesScanned": 955
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 218771
         },
         {
           "kind": "response-body",
@@ -779,7 +779,7 @@
       "captureSanitized": true,
       "forbiddenValueRetention": "none"
     },
-    "captureSha256": "8fe54d2832b2ac461cc213ec04d7cb037faf0c0444ab983262e449ec5459cf6a",
+    "captureSha256": "c217b975fe7e8fac056a50282f09429d9f464ee1e7b658601175d8dfc6eeb1f8",
     "checks": {
       "realBrowserRendered": true,
       "renderedSeededTodo": true,
