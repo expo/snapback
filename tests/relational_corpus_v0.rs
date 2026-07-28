@@ -74,6 +74,21 @@ fn field_order(plan: &RelationalQueryPlan) -> Vec<String> {
         .collect()
 }
 
+fn relational_live_function(name: &str, plan: RelationalQueryPlan) -> FunctionDefinition {
+    let mut function = FunctionDefinition::new(
+        name,
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+    );
+    // @ref LLP 0080#2-portable-evaluation-semantics — corpus fixtures cross
+    // the same explicit target-capability gate as generated applications.
+    function.required_capabilities = vec![
+        "relational_query_v1".to_owned(),
+        "live_subscriptions".to_owned(),
+    ];
+    function
+}
+
 fn storage_lane(
     schema: &SchemaManifest,
     tables: &BTreeMap<String, Vec<Map<String, Value>>>,
@@ -151,11 +166,7 @@ fn corpus_executes_byte_identically_across_local_lanes() {
         let storage_only = case["lanes"].as_str() == Some("storage");
         if !storage_only {
             let diagnostics = snapback.load_functions(FunctionManifest {
-                functions: vec![FunctionDefinition::new(
-                    "corpusCase",
-                    FunctionKind::LiveQuery,
-                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan.clone())),
-                )],
+                functions: vec![relational_live_function("corpusCase", plan.clone())],
                 ..FunctionManifest::default()
             });
             assert!(
@@ -270,11 +281,7 @@ fn paired_databases_keep_missing_and_invisible_indistinguishable() {
         let mut snapback = LocalSnapback::memory().expect("paired fixture");
         snapback.apply_schema(schema.clone()).expect("apply schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
-            functions: vec![FunctionDefinition::new(
-                "pairedBooks",
-                FunctionKind::LiveQuery,
-                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan.clone())),
-            )],
+            functions: vec![relational_live_function("pairedBooks", plan.clone())],
             ..FunctionManifest::default()
         });
         assert!(
