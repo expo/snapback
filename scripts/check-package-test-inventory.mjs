@@ -314,18 +314,13 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // operator-authority semantics and its own extracted-tarball proof.
 // 112 -> 113 (LLP 0105 hosted completion tranche): the supervisor gains the
 // canonical operator request/response transaction and recovery corpus.
-<<<<<<< HEAD
 // 113 -> 116 (LLP 0041 external publication authority): retain the durable
 // epoch/lease protocol, authenticated HTTP surface, and closed-schema corpus.
 // 116 -> 119 (LLP 0105 hosted operator transport): retain the mTLS operator
 // service, closed signed response, and provider-executor corpora.
-assert.equal(total, 119, 'reviewed package/admin test count changed');
-=======
-// 113 -> 117 (LLP 0105 corrective operator tranche): the supervisor adds
-// response signing, lifecycle execution, provider execution, and exact
-// credential-role/resource corpora.
-assert.equal(total, 117, 'reviewed package/admin test count changed');
->>>>>>> 1c3a9e19 (fix(hosted): fail closed across operator lifecycle)
+// 119 -> 120 (LLP 0105 corrective operator tranche): the supervisor adds the
+// exact credential-role/resource custody corpus.
+assert.equal(total, 120, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
