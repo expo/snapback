@@ -16,6 +16,7 @@ import {
   isPrivateDeviceReachableIpv4,
   webdriverCapabilities,
 } from './webdriver-capabilities.mjs';
+import { runConjunctiveSubchecks } from './phase4-conjunctive.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -851,7 +852,8 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
 
   await phase4Claim(activeSuite, 'STEP4.UI.KEYBOARD', `${label} completes the product flow with real key events`, async () => {
     const reusableKeyboardPage = selectedBrowser === 'safari' || isAnyIosSafari ? page : null;
-    const created = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
+    const subchecks = await runConjunctiveSubchecks('STEP4.UI.KEYBOARD', [
+      ['create', () => withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
       await taskPage.focus('create-event');
       await taskPage.key('Enter');
       await taskPage.waitForNavigation();
@@ -871,9 +873,9 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
         throw new Error(`keyboard create flow did not land its outcome: ${JSON.stringify({ beforeSubmit, afterSubmit, outcome })}`);
       }
       return 'Keyboard Picnic';
-    }, reusableKeyboardPage);
+      }, reusableKeyboardPage)],
 
-    const menu = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
+      ['menu', () => withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
       await taskPage.focus('open-event_sunset');
       await taskPage.key('Enter');
       await taskPage.waitForNavigation();
@@ -891,17 +893,23 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await taskPage.key('Escape');
       await assertFocused(taskPage, 'event-options-trigger', 'menu Escape');
       return { first, second };
-    }, reusableKeyboardPage);
+      }, reusableKeyboardPage)],
 
-    const rsvp = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
-      await taskPage.focus('rsvp-going');
+      ['rsvp', () => withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      const before = await taskPage.pollText('guest-user_eve', 'Eve', 5_000);
+      const target = before?.includes('Going')
+        ? { testId: 'rsvp-maybe', label: 'Maybe' }
+        : { testId: 'rsvp-going', label: 'Going' };
+      await taskPage.focus(target.testId);
       await taskPage.key('Space');
-      const outcome = await taskPage.pollText('guest-user_eve', 'Going', 5_000);
-      if (!outcome?.includes('Going')) throw new Error(`Space did not activate RSVP: ${outcome}`);
-      return outcome;
-    }, reusableKeyboardPage);
+      const outcome = await taskPage.pollText('guest-user_eve', target.label, 5_000);
+      if (!outcome?.includes(target.label) || outcome === before) {
+        throw new Error(`Space did not activate an RSVP transition: ${JSON.stringify({ before, target, outcome })}`);
+      }
+      return { before, after: outcome, transition: target.label };
+      }, reusableKeyboardPage)],
 
-    const guest = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      ['guest', () => withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
       await taskPage.focus('guest-list-trigger');
       await taskPage.key('Enter');
       await taskPage.pollText('guest-list-sheet', 'Guest list', 5_000);
@@ -926,9 +934,9 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await taskPage.key('Escape');
       await assertFocused(taskPage, 'guest-list-trigger', 'guest sheet Escape');
       return { first, second, firstDescendant, secondDescendant };
-    }, reusableKeyboardPage);
+      }, reusableKeyboardPage)],
 
-    const wall = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      ['wall', () => withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
       await taskPage.focus('wall-message');
       await taskPage.insertText('Keyboard picnic');
       await taskPage.eval(`(()=>{const witness={seen:false,text:null};const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');if(node){witness.seen=true;witness.text=node.textContent}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4PendingWitness={witness,observer};return true})()`);
@@ -937,7 +945,8 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       const posted = await taskPage.pollText('wall', 'Keyboard picnic', 5_000);
       if (!pending?.seen || !pending.text?.includes('Sending') || !posted?.includes('Keyboard picnic')) throw new Error(`wall submit lacks keyboard-visible pending and settled outcomes: ${JSON.stringify({ pending, posted })}`);
       return { pending, posted: 'Keyboard picnic' };
-    }, reusableKeyboardPage);
+      }, reusableKeyboardPage)],
+    ]);
 
     return {
       claimId: 'STEP4.UI.KEYBOARD',
@@ -947,11 +956,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
         attendedTextEvidence: await page.attendedEvidence(),
         attendedInputPolicy: 'The operator typed every requested value with the physical iPhone soft keyboard; WebDriver never issued an element value command.',
       } : {}),
-      created,
-      menu,
-      rsvp,
-      guest,
-      wall,
+      ...subchecks,
     };
   });
 
@@ -993,23 +998,36 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
   });
 
   await phase4Claim(activeSuite, 'STEP4.UI.REDUCED-MOTION', `${label} preserves non-motion outcomes`, async () => {
-    await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
     await page.emulateReducedMotion(true);
     try {
-      await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000);
-      const overlayMotion = await page.eval(`(()=>{const nodes=['guest-list-sheet','guest-list-sheet-overlay'].map(id=>document.querySelector('[data-testid="'+id+'"]')).filter(Boolean);return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,nodes:nodes.map(node=>{const s=getComputedStyle(node);return {animationDuration:s.animationDuration,transitionDuration:s.transitionDuration}})}})()`);
-      if (!overlayMotion.matches || overlayMotion.nodes.some((entry) => parseFloat(entry.animationDuration) > 0.001 || parseFloat(entry.transitionDuration) > 0.001)) throw new Error(`reduced overlay motion remains: ${JSON.stringify(overlayMotion)}`);
-      await page.key('Escape');
-      await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); await page.click('rsvp-confirm');
-      const rsvp = await page.pollText('guest-user_eve', 'Going', 5_000);
-      await page.focus('wall-message'); await page.insertText('Reduced motion status'); await page.key('Enter');
-      const pending = await page.pollText('wall-pending-status', 'Sending', 1_500);
-      if (!rsvp?.includes('Going') || !pending?.includes('Sending')) throw new Error(`reduced-motion end state disappeared: ${JSON.stringify({ rsvp, pending })}`);
+      const subchecks = await runConjunctiveSubchecks('STEP4.UI.REDUCED-MOTION', [
+        ['overlay', async () => {
+          await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+          await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+          const overlayMotion = await page.eval(`(()=>{const nodes=['guest-list-sheet','guest-list-sheet-overlay'].map(id=>document.querySelector('[data-testid="'+id+'"]')).filter(Boolean);return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,nodes:nodes.map(node=>{const s=getComputedStyle(node);return {animationDuration:s.animationDuration,transitionDuration:s.transitionDuration}})}})()`);
+          if (!overlayMotion.matches || overlayMotion.nodes.some((entry) => parseFloat(entry.animationDuration) > 0.001 || parseFloat(entry.transitionDuration) > 0.001)) throw new Error(`reduced overlay motion remains: ${JSON.stringify(overlayMotion)}`);
+          await page.key('Escape');
+          return overlayMotion;
+        }],
+        ['rsvp', async () => {
+          await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+          await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); await page.click('rsvp-confirm');
+          const rsvp = await page.pollText('guest-user_eve', 'Going', 5_000);
+          if (!rsvp?.includes('Going')) throw new Error(`reduced-motion RSVP end state disappeared: ${JSON.stringify({ rsvp })}`);
+          return 'Going';
+        }],
+        ['wall', async () => {
+          await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+          await page.focus('wall-message'); await page.insertText('Reduced motion status'); await page.key('Enter');
+          const pending = await page.pollText('wall-pending-status', 'Sending', 1_500);
+          if (!pending?.includes('Sending')) throw new Error(`reduced-motion wall end state disappeared: ${JSON.stringify({ pending })}`);
+          return 'Sending…';
+        }],
+      ]);
       return {
         claimId: 'STEP4.UI.REDUCED-MOTION',
         cell: cellId,
-        overlayMotion,
-        semanticEndState: { rsvp: 'Going', pending: 'Sending…' },
+        ...subchecks,
         ...(isPhysicalIosSafari ? {
           attendedTextEvidence: await page.attendedEvidence(),
           attendedInputPolicy: 'The operator typed every requested value with the physical iPhone soft keyboard; WebDriver never issued an element value command.',
@@ -1385,6 +1403,7 @@ function runIdentity() {
     'demos/_kit/server-process.mjs',
     'demos/partiful-matrix/backends/gateway/server.ts',
     'demos/partiful-matrix/tests/acceptance/browser-matrix.mjs',
+    'demos/partiful-matrix/tests/acceptance/phase4-conjunctive.mjs',
     'demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs',
     'demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs',
     'demos/partiful-matrix/surfaces/react/src/App.tsx',

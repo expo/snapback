@@ -1,0 +1,57 @@
+name: PartitimeAttendedCarrier
+
+options:
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: Apple Development
+
+targets:
+  CarrierHost:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ccheever.partitime.attended.host
+        GENERATE_INFOPLIST_FILE: YES
+
+  PartitimeAttendedUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - Tests
+    dependencies:
+      - target: CarrierHost
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ccheever.partitime.attended.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: CarrierHost
+
+schemes:
+  PartitimeAttendedCarrier:
+    build:
+      targets:
+        CarrierHost: all
+        PartitimeAttendedUITests: [test]
+    test:
+      targets:
+        - name: PartitimeAttendedUITests
+          parallelizable: false
+          randomExecutionOrder: false
+      environmentVariables:
+        PARTITIME_ATTENDED_RUN: "$(PARTITIME_ATTENDED_RUN)"
+        PARTITIME_BASE_URL: "$(PARTITIME_BASE_URL)"
+        PARTITIME_ARM: "$(PARTITIME_ARM)"
+        PARTITIME_OPERATOR: "$(PARTITIME_OPERATOR)"
+        PARTITIME_EXPECTED_TITLE: "$(PARTITIME_EXPECTED_TITLE)"
+        PARTITIME_EXPECTED_LOCATION: "$(PARTITIME_EXPECTED_LOCATION)"
+        PARTITIME_EXPECTED_WALL: "$(PARTITIME_EXPECTED_WALL)"
+        PARTITIME_EXPECTED_REDUCED_WALL: "$(PARTITIME_EXPECTED_REDUCED_WALL)"

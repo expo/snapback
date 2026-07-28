@@ -1,0 +1,83 @@
+{
+  "$schema": "partitime-step4-physical-ios-carrier-amendment/v1",
+  "amendmentId": "partitime-step4-physical-ios-carrier-v3-2026-07-28",
+  "recordedAt": "2026-07-28",
+  "status": "proposed-pending-owner-ratification",
+  "authority": {
+    "snapback": "LLP 0063#product-choice",
+    "exact": "Exact LLP 0373#12-implementation-record-2026-07-20",
+    "ratifyingOwner": "Charlie Cheever"
+  },
+  "cause": {
+    "retiredInstrumentId": "partitime-step4-physical-ios-carrier-v2-2026-07-28",
+    "evidencePath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/invalid/2026-07-28-automation-owner-conflict",
+    "finding": "Safari WebDriver installs an interaction-blocking glass pane over its isolated automation window. The physical iPhone therefore cannot accept attended touch or soft-keyboard input while SafariDriver owns the session; disabling Remote Automation permanently severs that session.",
+    "classification": "instrument unavailable for its preregistered attended-input purpose"
+  },
+  "unchanged": [
+    "Partitime product fixture and source identities",
+    "STEP4.UI.KEYBOARD and STEP4.UI.REDUCED-MOTION claim definitions",
+    "all keyboard, focus, transition, pending-state, and reduced-motion pass criteria",
+    "React and Contract arms",
+    "current-iOS device requirement",
+    "operator-entered physical soft-keyboard values",
+    "Exact fixture revision",
+    "fail-closed aggregation and invalid-run custody"
+  ],
+  "replacement": {
+    "instrumentId": "partitime-step4-physical-ios-carrier-v3-2026-07-28",
+    "method": "fact-level conjunctive composition of a fresh iOS-Simulator SafariDriver receipt and an attended physical-Safari XCUITest observation",
+    "simulator": {
+      "browser": "ios-safari",
+      "purpose": "Retain every independently completed non-text conjunct instead of aborting the whole claim at the first text-delivery failure.",
+      "keyboardSubchecks": [
+        "create",
+        "menu",
+        "rsvp",
+        "guest",
+        "wall"
+      ],
+      "reducedMotionSubchecks": [
+        "overlay",
+        "rsvp",
+        "wall"
+      ],
+      "expectedSimulatorCarrierFailures": [
+        "STEP4.UI.KEYBOARD/create",
+        "STEP4.UI.KEYBOARD/rsvp",
+        "STEP4.UI.KEYBOARD/wall",
+        "STEP4.UI.REDUCED-MOTION/wall"
+      ]
+    },
+    "physical": {
+      "browser": "ordinary Mobile Safari observed by XCUITest; no SafariDriver session exists",
+      "purpose": "Supply only the text-dependent conjuncts that the simulator cannot deliver.",
+      "operator": "types Keyboard Picnic, Dolores Park, Keyboard picnic, and Reduced motion status on the physical iPhone keyboard",
+        "requiredObservations": [
+        "create flow retains Keyboard Picnic and Dolores Park and lands the created event",
+        "the RSVP control receives an XCUITest native Space activation, without DOM script or WebDriver, and makes an observed status transition",
+        "wall flow receives Keyboard picnic through keyboard submission and reaches pending plus settled state",
+        "with system Reduce Motion enabled, Reduced motion status reaches the pending state",
+        "screenshots and Safari accessibility trees are retained in independent result bundles"
+      ]
+    },
+    "aggregation": {
+      "rule": "Each original claim passes only when every named subcheck passes for both React and Contract. Simulator and physical receipts must bind the same fixture, Exact packages, arm, backend, device generation, and prospective instrument identity.",
+      "noOffset": "A passing subcheck cannot offset a red or missing sibling. Physical evidence can replace only a simulator failure explicitly classified as text delivery.",
+      "runOrder": [
+        "fresh React simulator keyboard and reduced-motion receipts",
+        "fresh Contract simulator keyboard and reduced-motion receipts",
+        "independent React physical create/wall and reduced-motion text observations",
+        "independent Contract physical create/wall and reduced-motion text observations",
+        "fail-closed aggregate"
+      ]
+    }
+  },
+  "implementationStatus": {
+    "conjunctiveReceiptSupport": "implemented-uncommitted",
+    "physicalXCTestCarrier": "implemented-build-verified",
+    "aggregateValidator": "pending",
+    "qualifyingRun": "forbidden-before-ratification"
+  },
+  "ratification": null
+}
