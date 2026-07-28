@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/publication-authority-head.v1.json",
+  "title": "PublicationAuthorityHeadV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "authorityGeneration",
+    "publicationEpoch",
+    "status",
+    "operationId",
+    "publisherInstanceId",
+    "leaseSha256",
+    "expiresAt",
+    "outcome",
+    "headSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.publication-authority-head.v1" },
+    "authorityGeneration": { "type": "integer", "minimum": 0 },
+    "publicationEpoch": { "type": "integer", "minimum": 0 },
+    "status": { "enum": ["empty", "issued", "acquired", "closed"] },
+    "operationId": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },
+        { "type": "null" }
+      ]
+    },
+    "publisherInstanceId": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },
+        { "type": "null" }
+      ]
+    },
+    "leaseSha256": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "expiresAt": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$"
+        },
+        { "type": "null" }
+      ]
+    },
+    "outcome": {
+      "oneOf": [
+        { "enum": ["promoted", "rolled-back"] },
+        { "type": "null" }
+      ]
+    },
+    "headSha256": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "empty" } } },
+      "then": {
+        "properties": {
+          "publicationEpoch": { "const": 0 },
+          "operationId": { "type": "null" },
+          "publisherInstanceId": { "type": "null" },
+          "leaseSha256": { "type": "null" },
+          "expiresAt": { "type": "null" },
+          "outcome": { "type": "null" },
+          "headSha256": { "type": "null" }
+        }
+      },
+      "else": {
+        "properties": {
+          "publicationEpoch": { "type": "integer", "minimum": 1 },
+          "operationId": { "type": "string" },
+          "publisherInstanceId": { "type": "string" },
+          "leaseSha256": { "type": "string" },
+          "expiresAt": { "type": "string" },
+          "headSha256": { "type": "string" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "closed" } } },
+      "then": {
+        "properties": { "outcome": { "enum": ["promoted", "rolled-back"] } }
+      },
+      "else": {
+        "properties": { "outcome": { "type": "null" } }
+      }
+    }
+  ]
+}

@@ -81,6 +81,13 @@
         "@aws-sdk/client-s3": "3.1096.0",
       },
     },
+    "packages/snapback-publication-authority": {
+      "name": "@snapback/publication-authority",
+      "version": "0.1.0",
+      "bin": {
+        "snapback-publication-authority": "./service.mjs",
+      },
+    },
     "packages/snapback-react": {
       "name": "@snapback/react",
       "version": "0.1.0",
@@ -353,6 +360,8 @@
     "@snapback/contract": ["@snapback/contract@workspace:packages/snapback-contract"],
 
     "@snapback/hosted-supervisor": ["@snapback/hosted-supervisor@workspace:packages/snapback-hosted-supervisor"],
+
+    "@snapback/publication-authority": ["@snapback/publication-authority@workspace:packages/snapback-publication-authority"],
 
     "@snapback/react": ["@snapback/react@workspace:packages/snapback-react"],
 

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/publication-authority-transition-receipt.v1.json",
+  "title": "PublicationAuthorityTransitionReceiptV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "publicationEpoch",
+    "leaseSha256",
+    "outcome",
+    "publicationLedgerSha256",
+    "vectorSha256",
+    "closed"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "snapback.publication-authority-transition-receipt.v1"
+    },
+    "operationId": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },
+    "publicationEpoch": { "type": "integer", "minimum": 1 },
+    "leaseSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "outcome": { "enum": ["acquired", "promoted", "rolled-back"] },
+    "publicationLedgerSha256": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "vectorSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "closed": { "type": "boolean" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "acquired" } } },
+      "then": {
+        "properties": {
+          "closed": { "const": false },
+          "publicationLedgerSha256": { "type": "null" }
+        }
+      },
+      "else": {
+        "properties": { "closed": { "const": true } }
+      }
+    },
+    {
+      "if": { "properties": { "outcome": { "const": "promoted" } } },
+      "then": {
+        "properties": {
+          "publicationLedgerSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      },
+      "else": {
+        "properties": { "publicationLedgerSha256": { "type": "null" } }
+      }
+    }
+  ]
+}

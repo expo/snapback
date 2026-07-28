@@ -90,6 +90,17 @@ const inventories = [
     ],
   },
   {
+    id: '@snapback/publication-authority',
+    packageDir: 'packages/snapback-publication-authority',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: [
+      'authority.test.mjs',
+      'schema.test.mjs',
+      'server.test.mjs',
+    ],
+  },
+  {
     id: '@snapback/react',
     packageDir: 'packages/snapback-react',
     testDir: '.',
@@ -299,7 +310,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // operator-authority semantics and its own extracted-tarball proof.
 // 112 -> 113 (LLP 0105 hosted completion tranche): the supervisor gains the
 // canonical operator request/response transaction and recovery corpus.
-assert.equal(total, 113, 'reviewed package/admin test count changed');
+// 113 -> 116 (LLP 0041 external publication authority): retain the durable
+// epoch/lease protocol, authenticated HTTP surface, and closed-schema corpus.
+assert.equal(total, 116, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

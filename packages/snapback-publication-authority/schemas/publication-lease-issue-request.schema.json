@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/publication-lease-issue-request.v1.json",
+  "title": "PublicationLeaseIssueRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "publisherInstanceId",
+    "expectedPublicationEpoch",
+    "expectedHeadSha256",
+    "candidateLedgerSha256",
+    "candidateTag",
+    "defaultTag",
+    "lifetimeSeconds",
+    "packages"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.publication-lease-issue-request.v1" },
+    "operationId": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },
+    "publisherInstanceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,160}$"
+    },
+    "expectedPublicationEpoch": { "type": "integer", "minimum": 0 },
+    "expectedHeadSha256": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "candidateLedgerSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidateTag": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{7,159}$"
+    },
+    "defaultTag": { "const": "latest" },
+    "lifetimeSeconds": { "type": "integer", "minimum": 1, "maximum": 900 },
+    "packages": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "prefixItems": [
+        { "$ref": "#/$defs/runtimeDarwin" },
+        { "$ref": "#/$defs/runtimeLinux" },
+        { "$ref": "#/$defs/contract" },
+        { "$ref": "#/$defs/client" },
+        { "$ref": "#/$defs/codegen" },
+        { "$ref": "#/$defs/vite" },
+        { "$ref": "#/$defs/react" },
+        { "$ref": "#/$defs/appCli" },
+        { "$ref": "#/$defs/cli" }
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "expectedPriorVersion", "newVersion"],
+      "properties": {
+        "name": { "type": "string" },
+        "expectedPriorVersion": {
+          "oneOf": [{ "$ref": "#/$defs/semver" }, { "type": "null" }]
+        },
+        "newVersion": { "$ref": "#/$defs/semver" }
+      }
+    },
+    "runtimeDarwin": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": {
+            "name": { "const": "@ccheever/snapback-runtime-darwin-arm64" }
+          }
+        }
+      ]
+    },
+    "runtimeLinux": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": {
+            "name": { "const": "@ccheever/snapback-runtime-linux-x64" }
+          }
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@ccheever/snapback-contract" } }
+        }
+      ]
+    },
+    "client": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@ccheever/snapback-client" } }
+        }
+      ]
+    },
+    "codegen": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@ccheever/snapback-codegen" } }
+        }
+      ]
+    },
+    "vite": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@ccheever/snapback-vite" } }
+        }
+      ]
+    },
+    "react": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@ccheever/snapback-react" } }
+        }
+      ]
+    },
+    "appCli": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@ccheever/snapback-app-cli" } }
+        }
+      ]
+    },
+    "cli": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@ccheever/snapback-cli" } }
+        }
+      ]
+    }
+  }
+}

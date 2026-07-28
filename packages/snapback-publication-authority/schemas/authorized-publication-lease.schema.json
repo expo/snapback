@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/authorized-publication-lease.v1.json",
+  "title": "AuthorizedPublicationLeaseV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "publisherInstanceId",
+    "publicationEpoch",
+    "candidateLedgerSha256",
+    "candidateTag",
+    "defaultTag",
+    "issuedAt",
+    "expiresAt",
+    "packages",
+    "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.authorized-publication-lease.v1" },
+    "operationId": { "$ref": "#/$defs/id" },
+    "publisherInstanceId": { "$ref": "#/$defs/id" },
+    "publicationEpoch": { "type": "integer", "minimum": 1 },
+    "candidateLedgerSha256": { "$ref": "#/$defs/sha256" },
+    "candidateTag": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,159}$" },
+    "defaultTag": { "const": "latest" },
+    "issuedAt": { "$ref": "#/$defs/timestamp" },
+    "expiresAt": { "$ref": "#/$defs/timestamp" },
+    "packages": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "prefixItems": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-runtime-darwin-arm64" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-runtime-linux-x64" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-contract" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-client" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-codegen" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-vite" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-react" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-app-cli" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@ccheever/snapback-cli" }
+              }
+            }
+          ]
+        }
+      ],
+      "items": false
+    },
+    "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]{80,128}$" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "semver": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$"
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "expectedPriorVersion", "newVersion"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^@ccheever/snapback-[a-z0-9-]+$"
+        },
+        "expectedPriorVersion": {
+          "oneOf": [{ "$ref": "#/$defs/semver" }, { "type": "null" }]
+        },
+        "newVersion": { "$ref": "#/$defs/semver" }
+      }
+    }
+  }
+}

@@ -60,6 +60,14 @@ promotion now requires an externally authorized publication lease and epoch,
 expected-value checks around every registry mutation, and reverse-order
 full-vector rollback that never overwrites drift.)
 
+**Revised (publication authority implementation):** 2026-07-28 (the
+package-owned standing authority now allocates Ed25519-signed, at-most
+15-minute nine-package leases from a durable monotone SQLite head; exact
+issue/acquire/close replay, stale-head refusal, Bearer-authenticated closed
+HTTP endpoints, a candidate-ledger request client, and package-owned closed
+schemas/tests implement the previously external-only gate. No deployment or
+npm mutation is claimed by this revision.)
+
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
 GitHub-hosted macOS/arm64 and Linux/x64 machines. Both platform receipts prove
@@ -304,6 +312,42 @@ reverse step's full-vector expected value is still provable. The release
 receipt remains failed and no capability carrier may cite it unless the final
 full vector equals the recorded prior vector and the external authority closes
 the exact lease epoch as rolled back.
+
+#### Standing publication authority as built
+
+`@snapback/publication-authority` is the natural owner of this client/service
+protocol under LLP 0037's non-Rust-artifact revisit rule. Its one shared
+`protocol.mjs` module and closed package-local JSON Schemas define
+`AuthorizedPublicationLeaseV1`, the issue request, public head, authority
+transition, and transition receipt. The existing promotion engine imports
+that module; it does not carry a second signature or transition definition.
+
+The service exposes authenticated `issue`, `head`, `acquire`, and `close`
+endpoints. `issue` accepts the expected current `publicationEpoch` and exact
+head digest, then allocates the next epoch inside the durable transaction;
+the requester never chooses an epoch. The retained state keeps every canonical
+issue request, signed lease, acquire request/receipt, and close
+request/receipt. An exact replay returns retained bytes without advancing the
+authority generation. Reusing an operation id with changed bytes, presenting a
+stale head/epoch, acquiring against anything except the exact prior vector, or
+closing against anything except the exact promoted or rolled-back vector
+refuses.
+
+The volume adapter uses SQLite `BEGIN IMMEDIATE`, `synchronous=FULL`, a
+generation compare-and-swap, and a digest over canonical state. The service
+accepts signing and Bearer authority from mounted secret files and writes
+neither into receipts or logs. `GET /healthz` reveals readiness only; all
+authority state requires a single Bearer header. POST bodies are canonical JCS
+bytes, so duplicate, non-canonical, unknown, or missing members cannot be
+silently normalized. TLS is terminated by the private service ingress; the
+request client refuses cleartext except explicit loopback test use.
+
+`scripts/snapback-request-publication-lease.mjs` validates the successful
+candidate ledger, a separately retained complete official-registry prior
+vector, and the just-read authority head, then requests and locally verifies
+the signed lease without accepting a Bearer token on argv or writing it to the
+lease. Deploying the authority and executing a publication remain separate
+operator acts; this implementation creates neither claim by itself.
 
 ### CLI commands
 

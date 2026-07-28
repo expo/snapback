@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/publication-authority-health.v1.json",
+  "title": "PublicationAuthorityHealthV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "ready"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.publication-authority-health.v1" },
+    "ready": { "const": true }
+  }
+}

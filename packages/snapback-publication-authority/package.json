@@ -1,0 +1,35 @@
+{
+  "name": "@snapback/publication-authority",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standing, monotone publication-lease authority for Snapback npm default-tag promotion.",
+  "files": [
+    "authority.mjs",
+    "Dockerfile",
+    "protocol.mjs",
+    "request.mjs",
+    "README.md",
+    "schemas",
+    "server.mjs",
+    "service.mjs",
+    "store.mjs"
+  ],
+  "bin": {
+    "snapback-publication-authority": "./service.mjs"
+  },
+  "exports": {
+    ".": "./authority.mjs",
+    "./protocol": "./protocol.mjs",
+    "./request": "./request.mjs",
+    "./server": "./server.mjs",
+    "./store": "./store.mjs",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "test": "node authority.test.mjs && node server.test.mjs && node schema.test.mjs"
+  }
+}
