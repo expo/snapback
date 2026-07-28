@@ -11,10 +11,16 @@ import {
   OperatorAuthorityRefusal,
 } from './operator-authority.mjs';
 import {
-  executeOperatorAuthorityTransactionAsync,
+  reserveOperatorAuthorityTransaction,
+  settleOperatorAuthorityTransaction,
 } from './operator-authority-transaction.mjs';
 import { certificateSha256 } from './hosted-edge-admission.mjs';
-import { canonicalJson, sha256 } from './index.mjs';
+import {
+  canonicalJson,
+  lifecycleRequestDigest,
+  semanticEffectId,
+  sha256,
+} from './index.mjs';
 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
@@ -114,6 +120,12 @@ function effectIntentForJournal(lifecycleRequest) {
 }
 
 function recoveredResponse(lifecycleRequest, effect) {
+  if (effect.retainedResponse) {
+    return {
+      ...structuredClone(effect.retainedResponse),
+      idempotentReplay: true,
+    };
+  }
   const observation = effect.observations.at(-1) ?? null;
   if (!effect.terminal) {
     return {
@@ -188,12 +200,28 @@ function validateLifecycleBody(supervisor, operatorRequest) {
   const lifecycleRequest = body.lifecycleRequest;
   const targetId = lifecycleRequest.targetBinding?.targetId;
   const registered = supervisor.database.heads?.[targetId];
+  const canonicalControlHead = supervisor.database.controlHeads?.[targetId];
   const targetBindingSha256 = sha256(Buffer.from(canonicalJson(lifecycleRequest.targetBinding)));
   const predecessorHeadSha256 = sha256(Buffer.from(canonicalJson(lifecycleRequest.predecessorHead)));
+  const requestSha256 = lifecycleRequestDigest(lifecycleRequest);
+  const expectedSemanticEffectId = semanticEffectId({
+    operationId: lifecycleRequest.effectIntent?.operationId,
+    operation: lifecycleRequest.effectIntent?.operation,
+    targetBindingDigest: lifecycleRequest.effectIntent?.targetBindingSha256,
+    planDigest: lifecycleRequest.effectIntent?.planSha256,
+    effectKind: lifecycleRequest.effectIntent?.effectKind,
+    logicalResourceName: lifecycleRequest.effectIntent?.logicalResourceName,
+    desiredProviderStateSha256: lifecycleRequest.effectIntent?.desiredProviderStateSha256,
+  });
   if (
     !registered
+    || !canonicalControlHead
     || canonicalJson(registered.binding) !== canonicalJson(lifecycleRequest.targetBinding)
+    || canonicalJson(canonicalControlHead) !== canonicalJson(lifecycleRequest.predecessorHead)
     || registered.bindingSha256 !== targetBindingSha256
+    || lifecycleRequest.requestSha256 !== requestSha256
+    || lifecycleRequest.effectIntent?.requestSha256 !== requestSha256
+    || lifecycleRequest.effectIntent?.semanticEffectId !== expectedSemanticEffectId
     || lifecycleRequest.effectIntent?.targetBindingSha256 !== targetBindingSha256
     || lifecycleRequest.effectIntent?.predecessorHeadSha256 !== predecessorHeadSha256
     || operatorRequest.targetHeadSha256 !== predecessorHeadSha256
@@ -201,7 +229,7 @@ function validateLifecycleBody(supervisor, operatorRequest) {
   ) {
     refuse(
       'SNAPBACK_OPERATOR_TARGET_HEAD_MISMATCH',
-      'operator request does not bind the registered target and exact predecessor head',
+      'operator request does not bind canonical request/effect identities and the exact supervisor-owned predecessor head',
       409,
     );
   }
@@ -231,6 +259,7 @@ async function executeLifecycle({
       supervisor.appendTerminal(intent.semanticEffectId, recovered.terminal, {
         journeyId: body.journeyId,
         grantId: body.grantId,
+        retainedResponse: recovered,
       });
       await persistSupervisor(supervisor);
       return recovered;
@@ -241,6 +270,8 @@ async function executeLifecycle({
   supervisor.appendIntent(intent, {
     journeyId: body.journeyId,
     grantId: body.grantId,
+    targetOrPlannedBindingDigest: intent.targetBindingSha256,
+    confirmationDigest: lifecycleRequest.confirmationSha256,
   });
   await persistSupervisor(supervisor);
 
@@ -253,6 +284,7 @@ async function executeLifecycle({
   supervisor.appendTerminal(intent.semanticEffectId, response.terminal, {
     journeyId: body.journeyId,
     grantId: body.grantId,
+    retainedResponse: response,
   });
   await persistSupervisor(supervisor);
   return response;
@@ -300,47 +332,50 @@ export function createOperatorRequestService({
     } = {}) {
       assertOperatorCertificateBinding(request, peerCertificateRaw);
       const supervisor = createSupervisor();
-      if (!supervisor.database.operatorAuthority?.requestJournal?.[request?.requestId]) {
-        responseSigner.assertReady(nowMs);
-      }
-      const transaction = await executeOperatorAuthorityTransactionAsync(
+      const reservation = reserveOperatorAuthorityTransaction(
         supervisor,
         request,
-        {
-          nowMs,
-          execute: async () => {
-            let result;
-            let diagnostic = null;
-            if (VARIANT_OPERATIONS[request.variant]) {
-              result = await executeLifecycle({
-                supervisor,
-                operatorRequest: request,
-                providerExecutor,
-                persistSupervisor,
-              });
-            } else {
-              diagnostic = safeDiagnostic(
-                'SNAPBACK_OPERATOR_EXECUTOR_UNAVAILABLE',
-                `operator variant ${request.variant} is authorized but has no installed executor`,
-                501,
-              );
-              result = null;
-            }
-            return responseSigner.signResponse({
-              request,
-              body: {
-                schemaVersion: 'snapback.supervisor-response-body.v1',
-                ok: diagnostic === null,
-                result,
-                diagnostic,
-              },
-              supervisorIncarnation: supervisor.incarnation,
-              supervisorGeneration: supervisor.database.generation + 1,
-              supervisorHeadSha256: supervisor.anchor.controlHeadDigest,
-              nowMs,
-            });
-          },
+        { nowMs },
+      );
+      if (reservation.committed) await persistSupervisor(supervisor);
+      if (reservation.state === 'terminal') return reservation.response;
+
+      responseSigner.assertReady(nowMs);
+      let result;
+      let diagnostic = null;
+      if (VARIANT_OPERATIONS[request.variant]) {
+        result = await executeLifecycle({
+          supervisor,
+          operatorRequest: request,
+          providerExecutor,
+          persistSupervisor,
+        });
+      } else {
+        diagnostic = safeDiagnostic(
+          'SNAPBACK_OPERATOR_EXECUTOR_UNAVAILABLE',
+          `operator variant ${request.variant} is authorized but has no installed executor`,
+          501,
+        );
+        result = null;
+      }
+      const response = responseSigner.signResponse({
+        request,
+        body: {
+          schemaVersion: 'snapback.supervisor-response-body.v1',
+          ok: diagnostic === null,
+          result,
+          diagnostic,
         },
+        supervisorIncarnation: supervisor.incarnation,
+        supervisorGeneration: supervisor.database.generation + 1,
+        supervisorHeadSha256: supervisor.anchor.controlHeadDigest,
+        nowMs,
+      });
+      const transaction = settleOperatorAuthorityTransaction(
+        supervisor,
+        request,
+        response,
+        { nowMs },
       );
       if (transaction.committed) await persistSupervisor(supervisor);
       return transaction.response;

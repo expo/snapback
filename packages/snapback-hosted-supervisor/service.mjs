@@ -9,7 +9,7 @@ import { createServer as createHttpServer } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import {
   canonicalJson,
   HostedSupervisor,
@@ -19,16 +19,24 @@ import {
   verifyBoundFlyMachineRoster,
 } from './index.mjs';
 import {
+  boundedBodyBytes,
   coreStateFromExternal,
   publishExternalAuthority,
   readExternalAuthority,
 } from './external-store.mjs';
 import {
+  credentialBindingFor,
+  providerSecretPath,
+} from './provider-credentials.mjs';
+import {
   certificateSha256,
   mintOnlineHostedAdmission,
   validateHostedTargetEnrollment,
 } from './hosted-edge-admission.mjs';
-import { createFlyTigrisProviderExecutor } from './provider-executor.mjs';
+import {
+  PROVIDER_OPERATION_BLOCKERS,
+  createFlyTigrisProviderExecutor,
+} from './provider-executor.mjs';
 import { createOperatorRequestService } from './operator-service.mjs';
 import { createExternalSupervisorResponseSigner } from './supervisor-response.mjs';
 
@@ -77,56 +85,24 @@ function readSecret(path, label) {
   }
 }
 
-function providerSecretPath(reference, suffix = '') {
-  let parsed;
-  try {
-    parsed = new URL(reference);
-  } catch {
-    throw new SupervisorRefusal(
-      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
-      'provider credential reference is malformed',
-    );
-  }
-  const stem = parsed.pathname.replace(/^\//, '');
-  if (
-    parsed.protocol !== 'provider-secret:'
-    || parsed.host !== 'supervisor'
-    || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(stem)
-  ) {
-    throw new SupervisorRefusal(
-      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
-      'provider credential reference is outside supervisor secret custody',
-    );
-  }
-  return `/run/secrets/${stem}${suffix}`;
-}
-
-function credentialBinding(binding, roles, requiredVerb) {
-  const credential = binding.credentials.find(({ role }) => roles.includes(role));
-  if (
-    !credential
-    || !credential.allowedVerbs.includes(requiredVerb)
-    || !credential.resourcePrefixes.some((prefix) => (
-      binding.appId.startsWith(prefix)
-      || binding.externalHeadKey.startsWith(prefix)
-      || binding.controlStatePrefix.startsWith(prefix)
-    ))
-  ) {
-    throw new SupervisorRefusal(
-      'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
-      `target binding lacks ${roles[0]} ${requiredVerb} authority`,
-    );
-  }
-  return credential;
-}
-
-function exactCredentialFingerprint(binding, roles, requiredVerb, values) {
-  const credential = credentialBinding(binding, roles, requiredVerb);
+function exactCredentialFingerprint(
+  binding,
+  role,
+  requiredVerb,
+  values,
+  objectKey = null,
+) {
+  const credential = credentialBindingFor({
+    binding,
+    role,
+    requiredVerb,
+    objectKey,
+  });
   const fingerprint = sha256(Buffer.from(values.join('\0')));
   if (fingerprint !== credential.fingerprint) {
     throw new SupervisorRefusal(
       'SNAPBACK_SUPERVISOR_CREDENTIAL_INVALID',
-      `${roles[0]} credential fingerprint drifted from the target binding`,
+      `${role} credential fingerprint drifted from the target binding`,
     );
   }
   return credential;
@@ -306,6 +282,17 @@ function externalAuthorityProjection() {
   };
 }
 
+async function boundedResponseBytes(response, { maximumBytes, label }) {
+  const declared = Number(response.headers?.get?.('content-length'));
+  if (Number.isFinite(declared) && declared > maximumBytes) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_PROVIDER_RESPONSE_TOO_LARGE',
+      `${label} exceeds its ${maximumBytes}-byte bound`,
+    );
+  }
+  return boundedBodyBytes(response.body, { maximumBytes, label });
+}
+
 async function readFlyMachines(appId, token) {
   const response = await fetch(
     `https://api.machines.dev/v1/apps/${encodeURIComponent(appId)}/machines`,
@@ -314,7 +301,10 @@ async function readFlyMachines(appId, token) {
       signal: AbortSignal.timeout(12_000),
     },
   );
-  const body = await response.text();
+  const body = (await boundedResponseBytes(response, {
+    maximumBytes: 2 * 1024 * 1024,
+    label: 'Fly Machine roster',
+  })).toString('utf8');
   if (response.status !== 200) {
     throw new SupervisorRefusal(
       'SNAPBACK_SUPERVISOR_FLY_ROSTER_READ_FAILED',
@@ -398,6 +388,8 @@ function invokeCommand(supervisor, input) {
       return supervisor.appendIntent(args.intent, {
         journeyId: args.journeyId,
         grantId: args.grantId,
+        targetOrPlannedBindingDigest: args.targetOrPlannedBindingDigest,
+        confirmationDigest: args.confirmationDigest ?? null,
       });
     case 'markEffecting':
       return supervisor.markEffecting(args.semanticEffectId, args.observation);
@@ -412,6 +404,8 @@ function invokeCommand(supervisor, input) {
       return supervisor.promotePlannedBinding(args);
     case 'registerTargetBinding':
       return supervisor.registerTargetBinding(args);
+    case 'registerControlHead':
+      return supervisor.registerControlHead(args);
     case 'registerHostedTargetEnrollment': {
       const signingSeed = readSecret(
         args.signingSeedCredentialRef,
@@ -467,18 +461,18 @@ async function commitSupervisorState(supervisor) {
 }
 
 async function resolveTargetFlyControlToken(binding) {
-  const credential = credentialBinding(
+  const credential = credentialBindingFor({
     binding,
-    ['flyControl', 'fly-control'],
-    'control',
-  );
+    role: 'flyControl',
+    requiredVerb: 'control',
+  });
   const token = readSecret(
     providerSecretPath(credential.credentialRef),
     'target Fly control credential',
   );
   exactCredentialFingerprint(
     binding,
-    ['flyControl', 'fly-control'],
+    'flyControl',
     'control',
     [token],
   );
@@ -486,11 +480,12 @@ async function resolveTargetFlyControlToken(binding) {
 }
 
 async function readTargetTigrisControlHead(binding) {
-  const credential = credentialBinding(
+  const credential = credentialBindingFor({
     binding,
-    ['tigrisControlState', 'tigris-control-state', 'control-state'],
-    's3:GetObject',
-  );
+    role: 'tigrisControlState',
+    requiredVerb: 's3:GetObject',
+    objectKey: binding.externalHeadKey,
+  });
   const accessKeyId = readSecret(
     providerSecretPath(credential.credentialRef, '-id'),
     'target Tigris control-state access key',
@@ -501,9 +496,10 @@ async function readTargetTigrisControlHead(binding) {
   );
   exactCredentialFingerprint(
     binding,
-    ['tigrisControlState', 'tigris-control-state', 'control-state'],
+    'tigrisControlState',
     's3:GetObject',
     [accessKeyId, secretAccessKey],
+    binding.externalHeadKey,
   );
   if (
     !binding.externalHeadKey.startsWith(binding.controlStatePrefix)
@@ -525,14 +521,64 @@ async function readTargetTigrisControlHead(binding) {
     Key: binding.externalHeadKey,
   }));
   return {
-    bytes: Buffer.from(await result.Body.transformToByteArray()),
+    bytes: await boundedBodyBytes(result.Body, {
+      maximumBytes: 1024 * 1024,
+      label: 'target Tigris control head',
+    }),
     version: String(result.VersionId ?? result.ETag ?? ''),
   };
+}
+
+async function writeTargetTigrisControlHead(binding, head, expectedVersion) {
+  const credential = credentialBindingFor({
+    binding,
+    role: 'tigrisControlState',
+    requiredVerb: 's3:PutObject',
+    objectKey: binding.externalHeadKey,
+  });
+  const accessKeyId = readSecret(
+    providerSecretPath(credential.credentialRef, '-id'),
+    'target Tigris control-state access key',
+  );
+  const secretAccessKey = readSecret(
+    providerSecretPath(credential.credentialRef, '-secret'),
+    'target Tigris control-state secret key',
+  );
+  exactCredentialFingerprint(
+    binding,
+    'tigrisControlState',
+    's3:PutObject',
+    [accessKeyId, secretAccessKey],
+    binding.externalHeadKey,
+  );
+  const bytes = Buffer.from(canonicalJson(head));
+  const client = new S3Client({
+    endpoint: 'https://t3.storage.dev',
+    region: 'auto',
+    forcePathStyle: true,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+  await client.send(new PutObjectCommand({
+    Bucket: binding.tigrisBucket,
+    Key: binding.externalHeadKey,
+    Body: bytes,
+    ContentType: 'application/json',
+    ...(expectedVersion === null ? { IfNoneMatch: '*' } : { IfMatch: expectedVersion }),
+  }));
+  const retained = await readTargetTigrisControlHead(binding);
+  if (!retained.bytes.equals(bytes)) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_HOSTED_TIGRIS_HEAD_MISMATCH',
+      'supervisor-owned Tigris control-head write did not read back byte-exactly',
+    );
+  }
+  return retained;
 }
 
 const providerExecutor = createFlyTigrisProviderExecutor({
   resolveFlyControlToken: resolveTargetFlyControlToken,
   readTigrisControlHead: readTargetTigrisControlHead,
+  writeTigrisControlHead: writeTargetTigrisControlHead,
 });
 
 let operatorSurfaceBlocker = null;
@@ -574,7 +620,9 @@ function createOperatorSurface() {
     return disableOperatorSurface('SNAPBACK_SUPERVISOR_RESPONSE_AUTHORITY_HEAD_MISSING');
   }
   if (
-    responseIntermediateHead.intermediateKeyId !== intermediate.intermediateKeyId
+    responseIntermediateHead.purpose !== 'supervisor-response'
+    || responseIntermediateHead.rootKeyId !== intermediate.rootKeyId
+    || responseIntermediateHead.intermediateKeyId !== intermediate.intermediateKeyId
     || responseIntermediateHead.serial !== intermediate.serial
     || responseIntermediateHead.revocationGeneration !== intermediate.revocationGeneration
     || responseIntermediateHead.expiresAt !== intermediate.expiresAt
@@ -597,6 +645,9 @@ function createOperatorSurface() {
     rootPublicKeyPem: readFileSync(operatorTls.rootPublicKey, 'utf8'),
     installationId: installationReceipt.installationId,
     rootKeyId: intermediate.rootKeyId,
+    readCurrentIntermediateHead: () => (
+      retainedState.database.serviceIntermediateHeads?.['supervisor-response'] ?? null
+    ),
     signResponseBytes: (bytes) => execFileSync(
       operatorTls.responseCustodyHelper,
       ['sign-supervisor-response', '--key-id', intermediate.intermediateKeyId],
@@ -769,6 +820,17 @@ const health = createHttpServer((request, response) => {
         : 'mutual-tls-device-signed',
       operatorSurfaceBlocker,
       operatorResponseKeyId: operatorSurface?.responseIntermediateKeyId ?? null,
+      lifecycleAvailability: 'disabled',
+      lifecycleOperations: Object.fromEntries(
+        Object.entries(PROVIDER_OPERATION_BLOCKERS).map(([operation, blocker]) => [
+          operation,
+          {
+            availability: 'disabled',
+            code: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+            blocker,
+          },
+        ]),
+      ),
     },
     diagnostic: serviceWedge ? {
       code: serviceWedge.code,

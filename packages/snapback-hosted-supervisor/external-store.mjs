@@ -11,6 +11,7 @@ import { canonicalJson, SupervisorRefusal, sha256 } from './index.mjs';
 const MIRROR_VERSION = 'snapback.hosted-supervisor-mirror.v1';
 const ANCHOR_VERSION = 'snapback.hosted-supervisor-incarnation-anchor.v1';
 const MAX_CHAIN_LENGTH = 10_000;
+const MAX_EXTERNAL_OBJECT_BYTES = 64 * 1024 * 1024;
 
 function parseS3Url(value, label) {
   let url;
@@ -31,10 +32,52 @@ function parseS3Url(value, label) {
   return { bucket: url.hostname, key: url.pathname.slice(1) };
 }
 
+export async function boundedBodyBytes(body, {
+  maximumBytes = MAX_EXTERNAL_OBJECT_BYTES,
+  label = 'external object',
+} = {}) {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_EXTERNAL_OBJECT_INVALID',
+      'external object bound is invalid',
+    );
+  }
+  if (typeof body?.[Symbol.asyncIterator] !== 'function') {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_EXTERNAL_OBJECT_INVALID',
+      `${label} body is not a bounded byte stream`,
+    );
+  }
+  const chunks = [];
+  let byteLength = 0;
+  for await (const chunk of body) {
+    const bytes = Buffer.from(chunk);
+    byteLength += bytes.length;
+    if (byteLength > maximumBytes) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_SUPERVISOR_EXTERNAL_OBJECT_TOO_LARGE',
+        `${label} exceeds its ${maximumBytes}-byte bound`,
+      );
+    }
+    chunks.push(bytes);
+  }
+  return Buffer.concat(chunks, byteLength);
+}
+
 async function objectBytes(client, bucket, key) {
   const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const declaredLength = Number(result.ContentLength);
+  if (
+    Number.isFinite(declaredLength)
+    && declaredLength > MAX_EXTERNAL_OBJECT_BYTES
+  ) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_EXTERNAL_OBJECT_TOO_LARGE',
+      `external object ${key} exceeds its bound`,
+    );
+  }
   return {
-    bytes: Buffer.from(await result.Body.transformToByteArray()),
+    bytes: await boundedBodyBytes(result.Body, { label: `external object ${key}` }),
     etag: result.ETag ?? null,
   };
 }
@@ -62,6 +105,25 @@ async function putImmutable(client, bucket, key, bytes) {
   }
 }
 
+function parseCanonicalExternal(bytes, label) {
+  let value;
+  try {
+    value = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_EXTERNAL_OBJECT_INVALID',
+      `${label} is not one JSON value`,
+    );
+  }
+  if (bytes.toString('utf8') !== canonicalJson(value)) {
+    throw new SupervisorRefusal(
+      'SNAPBACK_SUPERVISOR_EXTERNAL_OBJECT_INVALID',
+      `${label} is not canonical JCS`,
+    );
+  }
+  return value;
+}
+
 function requireIdentity(value, installationReceipt, label) {
   if (
     value?.installationId !== installationReceipt.installationId
@@ -83,7 +145,7 @@ function mirrorDocument(installationReceipt, database) {
     incarnation: installationReceipt.incarnation,
     generation: database.generation,
     journalDigest: sha256(Buffer.from(canonicalJson(database.journal))),
-    controlHeadDigest: sha256(Buffer.from(canonicalJson(database.heads))),
+    controlHeadDigest: sha256(Buffer.from(canonicalJson(database.controlHeads ?? {}))),
     database,
   };
 }
@@ -117,7 +179,7 @@ function anchorDocument({
     spendFloor: database.floors.spend,
     cleanupFloor: database.floors.cleanup,
     replayFloor: database.floors.replay,
-    controlHeadDigest: sha256(Buffer.from(canonicalJson(database.heads))),
+    controlHeadDigest: sha256(Buffer.from(canonicalJson(database.controlHeads ?? {}))),
     rootAnchorSha256,
     previousAnchorSha256,
     previousAnchorKey,
@@ -137,7 +199,7 @@ export async function readExternalAuthority({
   const location = parseS3Url(installationReceipt.externalAnchor, 'external anchor');
   const pointer = await objectBytes(anchorClient, location.bucket, location.key);
   const pointerSha256 = sha256(pointer.bytes);
-  const anchor = JSON.parse(pointer.bytes.toString('utf8'));
+  const anchor = parseCanonicalExternal(pointer.bytes, 'external anchor');
   requireIdentity(anchor, installationReceipt, 'external anchor');
   if (anchor.schemaVersion !== ANCHOR_VERSION) {
     throw new SupervisorRefusal(
@@ -190,7 +252,7 @@ export async function readExternalAuthority({
           'external predecessor anchor digest does not match',
         );
       }
-      const parsed = JSON.parse(predecessor.bytes.toString('utf8'));
+      const parsed = parseCanonicalExternal(predecessor.bytes, 'predecessor anchor');
       requireIdentity(parsed, installationReceipt, 'predecessor anchor');
       if (parsed.generation !== current.generation - 1) {
         throw new SupervisorRefusal(
@@ -220,7 +282,7 @@ export async function readExternalAuthority({
       'external mirror digest does not match its anchor',
     );
   }
-  const mirrorValue = JSON.parse(mirror.bytes.toString('utf8'));
+  const mirrorValue = parseCanonicalExternal(mirror.bytes, 'external mirror');
   requireIdentity(mirrorValue, installationReceipt, 'external mirror');
   if (
     mirrorValue.schemaVersion !== MIRROR_VERSION

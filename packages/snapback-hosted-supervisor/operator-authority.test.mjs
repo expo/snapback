@@ -172,10 +172,25 @@ assert(Object.isFrozen(SUPERVISOR_REQUEST_REGISTRY));
 for (const entry of Object.values(SUPERVISOR_REQUEST_REGISTRY)) {
   assert(Object.isFrozen(entry));
   assert(Object.isFrozen(entry.scopes));
+  assert.equal(typeof entry.credentialBearing, 'boolean');
 }
+assert.deepEqual(
+  Object.entries(SUPERVISOR_REQUEST_REGISTRY)
+    .filter(([, entry]) => entry.credentialBearing)
+    .map(([variant]) => variant)
+    .sort(),
+  [
+    'operator.certificate.renew',
+    'operator.device.rebind',
+    'operator.enrollment.consume',
+    'operator.enrollment.issue',
+    'root.intermediate.unseal',
+    'root.recover.apply',
+  ],
+);
 
 {
-  const authority = makeAuthority(['deploy.plan']);
+  const authority = makeAuthority(['deploy.plan', 'operator.enroll']);
   let executions = 0;
   const request = signedRequest();
   const first = authority.handleRequest(request, {
@@ -368,7 +383,7 @@ for (const entry of Object.values(SUPERVISOR_REQUEST_REGISTRY)) {
 }
 
 {
-  const authority = makeAuthority(['deploy.plan']);
+  const authority = makeAuthority(['deploy.plan', 'operator.enroll']);
   authority.registerDevice({
     deviceId: 'device-b',
     deviceKeyId: 'device-key-b',
@@ -379,7 +394,10 @@ for (const entry of Object.values(SUPERVISOR_REQUEST_REGISTRY)) {
     certificateExpiresAtMs: nowMs + 3_600_000,
     nowMs,
   });
-  const credentialRequest = signedRequest({ credentialBearing: true });
+  const credentialRequest = signedRequest({
+    variant: 'operator.enrollment.issue',
+    credentialBearing: true,
+  });
   authority.handleRequest(credentialRequest, {
     nowMs,
     execute: () => ({ credential: 'sealed-once' }),
@@ -391,6 +409,25 @@ for (const entry of Object.values(SUPERVISOR_REQUEST_REGISTRY)) {
     'SNAPBACK_OPERATOR_CREDENTIAL_REPLAY_GONE',
     () => authority.handleRequest(credentialRequest, { nowMs: nowMs + 2 }),
     410,
+  );
+  const callerClassified = signedRequest({
+    requestId: 'request-caller-classified',
+    sequence: 1,
+    credentialBearing: true,
+    deviceId: 'device-b',
+    deviceKeyId: 'device-key-b',
+    subject: 'other@example.test',
+    operatorCertificateSha256: `sha256:${'f'.repeat(64)}`,
+    certificateRevocationGeneration: 1,
+    observedRevocationGeneration: 2,
+  });
+  expectRefusal(
+    'SNAPBACK_OPERATOR_RESPONSE_CLASS_MISMATCH',
+    () => authority.handleRequest(callerClassified, {
+      nowMs: nowMs + 2,
+      execute: () => ({}),
+    }),
+    400,
   );
   const behind = signedRequest({
     requestId: 'request-behind',

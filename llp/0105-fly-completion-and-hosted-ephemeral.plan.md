@@ -5,7 +5,11 @@
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (unreviewed post-round correction: purpose-limited
+**Revised:** 2026-07-28 (corrective implementation addendum: canonical pending
+request reservation, registry-owned response class, supervisor-owned control
+head, exact credential/grant/digest gates, bounded canonical reads, and all
+lifecycle effects disabled pending a reviewed carrier/custody closure).
+2026-07-28 (unreviewed post-round correction: purpose-limited
 service intermediates, recovery bootstrap/rebind, transitive delegation,
 atomic response replay, publication authority, and bounded upload). 2026-07-28 (LLP 0108 corrective reconciliation: closed
 operator/root lifecycle, release-upload separation, self-expiring claim
@@ -1730,3 +1734,96 @@ response leaves a cleanup-only temporary object and releases only the unused
 spend reservation. The standing cleanup worker deletes terminal partial
 objects within 24 hours and emits an inventory/absence receipt; uncertain
 objects remain nondeployable and continue to report cost until reconciled.
+
+## Corrective implementation addendum — 2026-07-28
+
+This addendum records the fail-closed implementation disposition after an
+adversarial review of the first operator/supervisor wiring. It does not advance
+this Plan from Review and does not authorize a private V3 carrier or any
+positive hosted lifecycle claim.
+
+### Request reservation and exact settlement
+
+An ordinary `SupervisorRequestV1` is now a two-commit protocol. After mTLS,
+device signature, current installation/root/revocation head, scope, registry
+response class, and sequence admission, the supervisor commits
+`operatorRequestReserved` with the canonical request bytes and digest, device,
+sequence, request id, variant, scope, target head, and registry-derived
+credential-bearing bit. The sequence does not advance at reservation.
+
+Only the byte-identical request with the same request id, device, and sequence
+may recover a reservation. Any other request from that device is refused while
+the reservation is pending. Provider intent may be appended only after the
+reservation has reached SQLite, mirror, and anchor. Terminal settlement removes
+the pending row and atomically commits the canonical signed response,
+request-journal record, sequence-journal entry, and device sequence. Thus a
+crash before settlement leaves an exact recoverable request, never a free
+sequence that can authorize another effect.
+
+Credential-bearing replay classification is not caller authority. The closed
+request registry derives it for enrollment issue/consume, certificate renewal,
+recovery device rebind, recovery bootstrap application, and intermediate
+unseal. A caller-supplied mismatch is malformed and cannot weaken redaction.
+
+### Canonical lifecycle and effect identity
+
+The lifecycle digest has a defined acyclic preimage:
+
+```text
+UTF8("snapback:fly-lifecycle-request:v2\n") ||
+JCS(request without transportBearer, requestSha256,
+    and effectIntent.requestSha256)
+```
+
+The supervisor and provider executor both recompute that digest. They also
+recompute the semantic effect id from the exact operation id, operation,
+target-binding digest, plan digest, effect kind, logical resource name, and
+desired-provider-state digest. Carried values are comparisons, not authority.
+Any drift refuses before intent.
+
+A spend grant is admitted before intent only when its journey, grant id,
+plan digest, target-or-planned-binding digest, confirmation digest, semantic
+effect id, and `reserved` one-use state all match. Terminal effect state retains
+the complete lifecycle response so interruption recovery preserves diagnostics,
+observation, evidence, and terminal facts instead of reconstructing a lossy
+success-shaped response.
+
+### Canonical head and provider custody
+
+`HostedControlHeadV2` now has a distinct supervisor-owned `controlHeads` map in
+the canonical database. Its digest, not the target-binding registry, enters
+each mirror and incarnation anchor. The first head is generation zero with no
+predecessor; every successor must name the exact digest of generation minus
+one. Operator lifecycle admission requires byte-equality with that canonical
+head. Tigris is only a supervisor-written/read-back mirror under exact
+bucket/prefix/key authority and never a second writer.
+
+Credential admission is an exact role → verb → resource check. Fly control is
+bound to one exact app, while Tigris control state is bound to one exact bucket,
+prefix, and external-head key. Wrong-role, cross-app, cross-bucket, cross-key,
+and wrong-verb tests are required. Provider and external-store bodies are
+bounded before accumulation; JSON control objects must be canonical JCS.
+Ambiguous provider outcomes remain `commitUncertain`.
+
+Every supervisor response signature rechecks the exact current
+`supervisor-response` purpose head—root, intermediate key, serial, revocation
+generation, and expiry—at signing time. Expiry is strict: equality with
+`expiresAt` is expired.
+
+### Explicit lifecycle GAP
+
+The current V2 request/response carrier cannot express the exact
+operation-specific authority and recovery facts required above. In particular,
+`releaseLease` exposes a provider nonce as `leaseId` and lacks a
+supervisor-only opaque lease journal binding exact expiry, provider version,
+supervisor generation, and current control head. It is therefore not a safe
+exception.
+
+All seventeen lifecycle operations, including `releaseLease`, remain registered
+for vocabulary compatibility but are disabled with
+`SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE` before credential resolution or
+provider I/O. CLI plans and supervisor health report disabled per-operation
+availability until a separately reviewed closed-carrier design, Rust-owned
+schemas, bootstrap/custody installation, public listener proof, and packed live
+Fly/Tigris receipt all land. The tracked resolution criteria are in
+`issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md`.

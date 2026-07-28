@@ -99,14 +99,33 @@ const signer = createSupervisorResponseSigner({
   rootKeyId: 'root-a',
 });
 assert.equal(signer.assertReady(nowMs), true);
+let purposeHead = {
+  purpose: 'supervisor-response',
+  rootKeyId: intermediate.rootKeyId,
+  intermediateKeyId: intermediate.intermediateKeyId,
+  serial: intermediate.serial,
+  revocationGeneration: intermediate.revocationGeneration,
+  expiresAt: intermediate.expiresAt,
+};
 const custodySigner = createExternalSupervisorResponseSigner({
   intermediate,
   signResponseBytes: (bytes) => sign(null, bytes, responsePrivate),
   rootPublicKeyPem: rootPublic.export({ format: 'pem', type: 'spki' }),
   installationId: 'installation-a',
   rootKeyId: 'root-a',
+  readCurrentIntermediateHead: () => purposeHead,
 });
 assert.equal(custodySigner.assertReady(nowMs), true);
+purposeHead = { ...purposeHead, serial: 2 };
+assert.throws(
+  () => custodySigner.assertReady(nowMs),
+  (error) => error.code === 'SNAPBACK_SUPERVISOR_RESPONSE_AUTHORITY_HEAD_DRIFT',
+);
+purposeHead = { ...purposeHead, serial: intermediate.serial };
+assert.throws(
+  () => signer.assertReady(Date.parse(intermediate.expiresAt)),
+  (error) => error.code === 'SNAPBACK_SUPERVISOR_RESPONSE_INTERMEDIATE_EXPIRED',
+);
 
 const response = signer.signResponse({
   request,

@@ -55,20 +55,21 @@ const REQUEST_KEYS = Object.freeze([
   'variant',
 ]);
 
-function entry(scope, authority = 'scope') {
+function entry(scope, authority = 'scope', credentialBearing = false) {
   return Object.freeze({
     authority,
+    credentialBearing,
     scopes: Object.freeze(Array.isArray(scope) ? [...scope] : scope === null ? [] : [scope]),
   });
 }
 
 export const SUPERVISOR_REQUEST_REGISTRY = Object.freeze({
-  'operator.enrollment.issue': entry('operator.enroll'),
-  'operator.enrollment.consume': entry(null, 'enrollment-bundle'),
-  'operator.certificate.renew': entry(null, 'certificate-self'),
+  'operator.enrollment.issue': entry('operator.enroll', 'scope', true),
+  'operator.enrollment.consume': entry(null, 'enrollment-bundle', true),
+  'operator.certificate.renew': entry(null, 'certificate-self', true),
   'operator.device.list': entry('operator.admin'),
   'operator.device.revoke': entry('operator.admin'),
-  'operator.device.rebind': entry(null, 'recovery-bootstrap'),
+  'operator.device.rebind': entry(null, 'recovery-bootstrap', true),
   'operator.delegation.plan': entry('root.admin', 'scope-and-recovery-threshold'),
   'operator.delegation.confirm': entry('root.admin', 'scope-and-recovery-threshold'),
   'operator.delegation.apply': entry('root.admin', 'scope-and-recovery-threshold'),
@@ -77,11 +78,11 @@ export const SUPERVISOR_REQUEST_REGISTRY = Object.freeze({
   'root.rotate.apply': entry('root.admin', 'scope-and-recovery-threshold'),
   'root.recover.plan': entry(null, 'recovery-threshold'),
   'root.recover.confirm': entry(null, 'recovery-threshold'),
-  'root.recover.apply': entry(null, 'recovery-threshold'),
+  'root.recover.apply': entry(null, 'recovery-threshold', true),
   'root.intermediate.issue': entry('root.admin', 'scope-and-recovery-threshold'),
   'root.intermediate.renew': entry('root.admin', 'scope-and-recovery-threshold'),
   'root.intermediate.rotate': entry('root.admin', 'scope-and-recovery-threshold'),
-  'root.intermediate.unseal': entry(null, 'local-recovery-threshold'),
+  'root.intermediate.unseal': entry(null, 'local-recovery-threshold', true),
   'target.register': entry('target.register'),
   'target.rebind': entry(null, 'recovery-owner-and-target-proof'),
   'supervisor.doctor': entry('supervisor.read'),
@@ -269,6 +270,7 @@ function emptyState({ installationId, rootKeyId, nowMs }) {
     sequenceJournal: {},
     responseObjects: {},
     responseTombstones: {},
+    pendingRequests: {},
     pendingUploads: {},
     uploads: {},
     createdAtMs: nowMs,
@@ -283,20 +285,23 @@ function validateInitialState(state) {
   assertId(state.installationId, 'installationId');
   assertId(state.rootKeyId, 'rootKeyId');
   assertSafeInteger(state.operatorRevocationGeneration, 'operatorRevocationGeneration', 1);
+  const next = clone(state);
+  next.pendingRequests ??= {};
   for (const name of [
     'devices',
     'requestJournal',
     'sequenceJournal',
     'responseObjects',
     'responseTombstones',
+    'pendingRequests',
     'pendingUploads',
     'uploads',
   ]) {
-    if (!isPlainObject(state[name])) {
+    if (!isPlainObject(next[name])) {
       refuse('SNAPBACK_OPERATOR_STATE_INVALID', `${name} state is invalid`, 500);
     }
   }
-  return clone(state);
+  return next;
 }
 
 function encodeResponse(state, response, nowMs) {
@@ -518,7 +523,22 @@ export class SupervisorOperatorAuthority {
         },
       };
     }
-    return { found: false, response: null };
+    const pendingRequest = this.#state.pendingRequests[request.requestId];
+    if (pendingRequest) {
+      if (
+        pendingRequest.requestSha256 !== requestDigest(canonical)
+        || pendingRequest.deviceId !== request.deviceId
+        || pendingRequest.sequence !== request.sequence
+      ) {
+        refuse(
+          'SNAPBACK_OPERATOR_REQUEST_ID_COLLISION',
+          'pending request id was reused with different device, sequence, or bytes',
+          409,
+        );
+      }
+      return { found: false, pending: true, response: null };
+    }
+    return { found: false, pending: false, response: null };
   }
 
   #authorizeNew(request, canonical, { nowMs, verifySpecialAuthority }) {
@@ -564,6 +584,13 @@ export class SupervisorOperatorAuthority {
     if (!registry) {
       refuse('SNAPBACK_OPERATOR_VARIANT_UNKNOWN', 'request variant is not in the closed registry', 400);
     }
+    if (request.credentialBearing !== registry.credentialBearing) {
+      refuse(
+        'SNAPBACK_OPERATOR_RESPONSE_CLASS_MISMATCH',
+        'credential-bearing response class does not match the closed operation registry',
+        400,
+      );
+    }
     if (registry.scopes.length > 0) {
       if (!registry.scopes.includes(request.scope) || !device.effectiveScopes.includes(request.scope)) {
         refuse('SNAPBACK_OPERATOR_SCOPE_DENIED', 'request scope does not exactly authorize its variant', 403);
@@ -578,14 +605,16 @@ export class SupervisorOperatorAuthority {
       }
     }
     const expectedSequence = device.lastSequence + 1;
-    const pendingForDevice = Object.values(this.#state.pendingUploads)
-      .find(({ request: pendingRequest }) => pendingRequest.deviceId === device.deviceId);
+    const pendingForDevice = [
+      ...Object.values(this.#state.pendingUploads),
+      ...Object.values(this.#state.pendingRequests),
+    ].find((pending) => (pending.request ?? pending).deviceId === device.deviceId);
     if (pendingForDevice) {
       refuse(
         'SNAPBACK_OPERATOR_SEQUENCE_PENDING',
         'device has an unfinished upload request at its next sequence',
         409,
-        { requestId: pendingForDevice.request.requestId },
+        { requestId: (pendingForDevice.request ?? pendingForDevice).requestId },
       );
     }
     const sequenceRequestId = this.#state.sequenceJournal[device.deviceId]?.[String(request.sequence)];
@@ -610,13 +639,72 @@ export class SupervisorOperatorAuthority {
       variant: request.variant,
       scope: request.scope,
       targetHeadSha256: request.targetHeadSha256,
-      credentialBearing: request.credentialBearing,
+      credentialBearing: SUPERVISOR_REQUEST_REGISTRY[request.variant].credentialBearing,
       response: retained,
       committedAtMs: nowMs,
     };
     next.sequenceJournal[request.deviceId][String(request.sequence)] = request.requestId;
     next.devices[request.deviceId].lastSequence = request.sequence;
     next.updatedAtMs = nowMs;
+  }
+
+  reserveRequest(request, {
+    nowMs = Date.now(),
+    verifySpecialAuthority = undefined,
+  } = {}) {
+    const canonical = validateRequestShape(request);
+    const replay = this.#findReplay(request, canonical);
+    if (replay.found) {
+      return { state: 'terminal', response: clone(replay.response), recovered: true };
+    }
+    if (request.variant === 'release.upload') {
+      refuse('SNAPBACK_RELEASE_UPLOAD_STREAM_REQUIRED', 'release.upload must use the bounded streaming transition API', 400);
+    }
+    if (replay.pending) {
+      return { state: 'reserved', response: null, recovered: true };
+    }
+    this.#authorizeNew(request, canonical, { nowMs, verifySpecialAuthority });
+    const next = clone(this.#state);
+    next.pendingRequests[request.requestId] = {
+      requestId: request.requestId,
+      requestSha256: requestDigest(canonical),
+      requestCanonical: canonical,
+      installationId: request.installationId,
+      rootKeyId: request.rootKeyId,
+      deviceId: request.deviceId,
+      sequence: request.sequence,
+      variant: request.variant,
+      scope: request.scope,
+      targetHeadSha256: request.targetHeadSha256,
+      credentialBearing: SUPERVISOR_REQUEST_REGISTRY[request.variant].credentialBearing,
+      reservedAtMs: nowMs,
+    };
+    next.updatedAtMs = nowMs;
+    this.#state = next;
+    return { state: 'reserved', response: null, recovered: false };
+  }
+
+  settleReservedRequest(request, response, { nowMs = Date.now() } = {}) {
+    const canonical = validateRequestShape(request);
+    const pending = this.#state.pendingRequests[request.requestId];
+    if (
+      !pending
+      || pending.requestSha256 !== requestDigest(canonical)
+      || pending.deviceId !== request.deviceId
+      || pending.sequence !== request.sequence
+    ) {
+      refuse(
+        'SNAPBACK_OPERATOR_REQUEST_NOT_RESERVED',
+        'terminal response requires the exact canonical pending request reservation',
+        409,
+      );
+    }
+    canonicalAuthorityJson(response);
+    const next = clone(this.#state);
+    this.#commitResponse(next, request, canonical, response, nowMs);
+    delete next.pendingRequests[request.requestId];
+    this.#state = next;
+    return clone(response);
   }
 
   handleRequest(request, {

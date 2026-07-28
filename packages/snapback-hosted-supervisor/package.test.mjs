@@ -23,6 +23,7 @@ try {
     'operator-authority.mjs',
     'operator-authority-transaction.mjs',
     'operator-service.mjs',
+    'provider-credentials.mjs',
     'provider-executor.mjs',
     'supervisor-response.mjs',
     'index.mjs',
@@ -46,6 +47,9 @@ try {
     join(root, 'package', 'operator-authority-transaction.mjs'),
   ));
   const provider = await import(pathToFileURL(join(root, 'package', 'provider-executor.mjs')));
+  const credentials = await import(pathToFileURL(
+    join(root, 'package', 'provider-credentials.mjs'),
+  ));
   const response = await import(pathToFileURL(join(root, 'package', 'supervisor-response.mjs')));
   const service = await import(pathToFileURL(join(root, 'package', 'operator-service.mjs')));
   assert.equal(authority.__operatorAuthorityTest.STATE_SCHEMA_VERSION, 'snapback.supervisor-operator-authority-state.v1');
@@ -66,6 +70,7 @@ try {
   assert.equal(typeof transaction.executeOperatorAuthorityTransactionAsync, 'function');
   assert.equal(provider.PROVIDER_LIFECYCLE_OPERATIONS.length, 17);
   assert.equal(typeof provider.createFlyTigrisProviderExecutor, 'function');
+  assert.equal(typeof credentials.credentialBindingFor, 'function');
   assert.equal(typeof response.createSupervisorResponseSigner, 'function');
   assert.equal(typeof response.createExternalSupervisorResponseSigner, 'function');
   assert.equal(typeof service.createOperatorRequestService, 'function');

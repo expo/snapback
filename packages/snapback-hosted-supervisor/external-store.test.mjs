@@ -14,6 +14,10 @@ class MemoryBody {
   async transformToByteArray() {
     return this.bytes;
   }
+
+  async *[Symbol.asyncIterator]() {
+    yield this.bytes;
+  }
 }
 
 class MemoryS3 {
@@ -63,6 +67,7 @@ const database0 = {
   spendLedgers: {},
   cleanupPlans: {},
   heads: {},
+  controlHeads: {},
   floors: { spend: 0, cleanup: 0, replay: 0 },
 };
 const installationReceipt = {

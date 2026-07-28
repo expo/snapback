@@ -49,7 +49,10 @@ try {
   assert.equal(new Set(Object.values(HOSTED_LIFECYCLE_VERBS)).size, 17);
   assert(Object.values(HOSTED_COMMAND_REGISTRY)
     .filter(({ kind }) => kind === 'lifecycle')
-    .every(({ availability }) => availability === 'operator-mtls-supervisor-only'));
+    .every(({ availability, blockerCode }) => (
+      availability === 'disabled'
+      && blockerCode === 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE'
+    )));
 
   for (const packageRelative of Object.values(HOSTED_ASSETS.schemas)) {
     const name = packageRelative.split('/').at(-1);
@@ -83,6 +86,8 @@ try {
   assert.equal(plan.targetId, null);
   assert.equal(plan.commands.length, Object.keys(HOSTED_COMMAND_REGISTRY).length);
   assert.match(plan.driver.sha256, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(plan.driver.lifecycleAvailability, 'disabled');
+  assert.equal(plan.driver.requiredEvidence.length, 4);
   assert.equal(Object.keys(plan.schemas).length, 4);
   assert(!JSON.stringify(plan).includes(here));
 
@@ -128,9 +133,9 @@ try {
   assert.equal(refusal.schemaVersion, 'snapback.hosted-lifecycle-refusal.v1');
   assert.equal(refusal.ok, false);
   assert.equal(refusal.operation, 'provisionInactive');
-  assert.equal(refusal.code, 'SNAPBACK_HOSTED_OPERATOR_TRANSPORT_REQUIRED');
+  assert.equal(refusal.code, 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE');
   assert(refusal.diagnostics.some(
-    ({ code }) => code === 'SNAPBACK_HOSTED_OPERATOR_TRANSPORT_REQUIRED',
+    ({ code }) => code === 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
   ));
 
   const operatorRequestPath = join(root, 'operator-request.json');
@@ -144,6 +149,7 @@ try {
       lifecycleRequest: request,
     },
   })}\n`, { mode: 0o600 });
+  let submitted = false;
   const response = await isolated.invokeHostedLifecycle('provision-inactive', {
     requestPath,
     operatorRequestPath,
@@ -153,7 +159,9 @@ try {
     serverCaPath: '/not-read-by-injected-submit',
     rootPublicKeyPath: '/not-read-by-injected-submit',
     serverCertificateSha256: `sha256:${'9'.repeat(64)}`,
-    submitOperatorRequest: async () => ({
+    submitOperatorRequest: async () => {
+      submitted = true;
+      return {
       body: {
         result: {
           schemaVersion: 'snapback.vm-adapter-lifecycle-response.v2',
@@ -165,10 +173,12 @@ try {
           },
         },
       },
-    }),
+    };
+    },
   });
-  assert.equal(response.schemaVersion, 'snapback.vm-adapter-lifecycle-response.v2');
-  assert.equal(response.terminal.outcome, 'notApplied');
+  assert.equal(response.schemaVersion, 'snapback.hosted-lifecycle-refusal.v1');
+  assert.equal(response.code, 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE');
+  assert.equal(submitted, false);
 
   // The extracted package performs certificate-digest binding and verifies
   // both purpose-intermediate and response signatures without exposing key

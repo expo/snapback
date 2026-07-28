@@ -191,7 +191,7 @@ function validateIntermediate(intermediate, {
     issuedAtMs > notBeforeMs
     || expiresAtMs <= notBeforeMs
     || expiresAtMs - notBeforeMs > MAX_INTERMEDIATE_MS
-    || (!allowHistorical && (nowMs < notBeforeMs || nowMs > expiresAtMs))
+    || (!allowHistorical && (nowMs < notBeforeMs || nowMs >= expiresAtMs))
   ) {
     refuse(
       'SNAPBACK_SUPERVISOR_RESPONSE_INTERMEDIATE_EXPIRED',
@@ -248,14 +248,40 @@ function createSignerCore({
   installationId,
   rootKeyId,
   signResponseBytes,
+  readCurrentIntermediateHead,
 }) {
-  function assertReady(nowMs = Date.now()) {
-    validateIntermediate(intermediate, {
+  function assertCurrentPurposeHead() {
+    const head = readCurrentIntermediateHead();
+    if (
+      !isPlainObject(head)
+      || head.purpose !== 'supervisor-response'
+      || head.rootKeyId !== intermediate.rootKeyId
+      || head.intermediateKeyId !== intermediate.intermediateKeyId
+      || head.serial !== intermediate.serial
+      || head.revocationGeneration !== intermediate.revocationGeneration
+      || head.expiresAt !== intermediate.expiresAt
+    ) {
+      refuse(
+        'SNAPBACK_SUPERVISOR_RESPONSE_AUTHORITY_HEAD_DRIFT',
+        'response intermediate is not the exact current purpose head',
+        503,
+      );
+    }
+  }
+
+  function currentValidity(nowMs) {
+    const validity = validateIntermediate(intermediate, {
       installationId,
       rootKeyId,
       rootPublicKey,
       nowMs,
     });
+    assertCurrentPurposeHead();
+    return validity;
+  }
+
+  function assertReady(nowMs = Date.now()) {
+    currentValidity(nowMs);
     return true;
   }
 
@@ -267,12 +293,7 @@ function createSignerCore({
     supervisorHeadSha256,
     nowMs = Date.now(),
   }) {
-    const { expiresAtMs } = validateIntermediate(intermediate, {
-      installationId,
-      rootKeyId,
-      rootPublicKey,
-      nowMs,
-    });
+    const { expiresAtMs } = currentValidity(nowMs);
     validateBody(body);
     if (
       request.installationId !== installationId
@@ -347,8 +368,12 @@ export function createExternalSupervisorResponseSigner({
   rootPublicKeyPem,
   installationId,
   rootKeyId,
+  readCurrentIntermediateHead,
 }) {
-  if (typeof signResponseBytes !== 'function') {
+  if (
+    typeof signResponseBytes !== 'function'
+    || typeof readCurrentIntermediateHead !== 'function'
+  ) {
     refuse(
       'SNAPBACK_SUPERVISOR_RESPONSE_CUSTODY_INVALID',
       'response signer requires a native custody callback',
@@ -360,6 +385,7 @@ export function createExternalSupervisorResponseSigner({
     installationId,
     rootKeyId,
     signResponseBytes,
+    readCurrentIntermediateHead,
   });
 }
 
@@ -371,6 +397,14 @@ export function createSupervisorResponseSigner({
   rootPublicKeyPem,
   installationId,
   rootKeyId,
+  readCurrentIntermediateHead = () => ({
+    purpose: 'supervisor-response',
+    rootKeyId: intermediate.rootKeyId,
+    intermediateKeyId: intermediate.intermediateKeyId,
+    serial: intermediate.serial,
+    revocationGeneration: intermediate.revocationGeneration,
+    expiresAt: intermediate.expiresAt,
+  }),
 }) {
   const privateKey = createPrivateKey(privateKeyPem);
   const publicDer = createPublicKey(privateKey).export({ format: 'der', type: 'spki' });
@@ -390,6 +424,7 @@ export function createSupervisorResponseSigner({
     installationId,
     rootKeyId,
     signResponseBytes: (bytes) => sign(null, bytes, privateKey),
+    readCurrentIntermediateHead,
   });
 }
 

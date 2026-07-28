@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   buildBootstrapPlan,
   ownershipSentinel,
+  SUPERVISOR_RUNTIME_CLOSURE,
   TIGRIS_ROLES,
 } from './bootstrap.mjs';
 
@@ -22,6 +23,16 @@ assert.equal(plan.credentials.fly.read, 'org-readonly-provider-enforced');
 assert.equal(plan.credentials.fly.control, 'app-deploy-provider-enforced');
 assert.equal(plan.credentials.fly.registry, 'app-deploy-custody-separated');
 assert.equal(plan.nonclaims.some((claim) => claim.includes('not an HA')), true);
+for (const required of [
+  'operator-authority.mjs',
+  'operator-authority-transaction.mjs',
+  'operator-service.mjs',
+  'provider-credentials.mjs',
+  'provider-executor.mjs',
+  'supervisor-response.mjs',
+]) {
+  assert(SUPERVISOR_RUNTIME_CLOSURE.includes(required));
+}
 
 const drifted = buildBootstrapPlan({ app: 'different-app' });
 assert.notEqual(drifted.planSha256, plan.planSha256);

@@ -6,7 +6,12 @@ import {
   __providerExecutorTest,
   createFlyTigrisProviderExecutor,
 } from './provider-executor.mjs';
-import { canonicalJson, sha256 } from './index.mjs';
+import {
+  canonicalJson,
+  lifecycleRequestDigest,
+  semanticEffectId,
+  sha256,
+} from './index.mjs';
 
 const digest = (value) => sha256(Buffer.from(value));
 const binding = {
@@ -110,6 +115,17 @@ function lifecycleRequest(operation) {
     } : null,
     confirmationSha256: null,
   };
+  request.effectIntent.semanticEffectId = semanticEffectId({
+    operationId: request.effectIntent.operationId,
+    operation: request.effectIntent.operation,
+    targetBindingDigest: request.effectIntent.targetBindingSha256,
+    planDigest: request.effectIntent.planSha256,
+    effectKind: request.effectIntent.effectKind,
+    logicalResourceName: request.effectIntent.logicalResourceName,
+    desiredProviderStateSha256: request.effectIntent.desiredProviderStateSha256,
+  });
+  request.requestSha256 = lifecycleRequestDigest(request);
+  request.effectIntent.requestSha256 = request.requestSha256;
   assert.deepEqual(Object.keys(request).sort(), [...__providerExecutorTest.REQUEST_KEYS].sort());
   return request;
 }
@@ -119,6 +135,7 @@ function fixture({ driftRoster = false, driftHead = false } = {}) {
   let headReads = 0;
   let leaseOpen = true;
   let effectArmed = false;
+  let authorityCalls = 0;
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
     const method = options.method ?? 'GET';
@@ -149,6 +166,7 @@ function fixture({ driftRoster = false, driftHead = false } = {}) {
     return new Response('{}', { status: 404 });
   };
   const readTigrisControlHead = async () => {
+    authorityCalls += 1;
     headReads += 1;
     return {
       bytes: Buffer.from(canonicalJson(
@@ -160,12 +178,16 @@ function fixture({ driftRoster = false, driftHead = false } = {}) {
   const executor = createFlyTigrisProviderExecutor({
     fetchImpl,
     flyApiBase: 'http://provider.fixture',
-    resolveFlyControlToken: async () => 'secret-token-never-returned',
+    resolveFlyControlToken: async () => {
+      authorityCalls += 1;
+      return 'secret-token-never-returned';
+    },
     readTigrisControlHead,
     now: () => 1_800_000_000_000,
   });
   return {
     calls,
+    authorityCalls: () => authorityCalls,
     executor,
     arm() { effectArmed = true; },
   };
@@ -175,45 +197,32 @@ assert.equal(PROVIDER_LIFECYCLE_OPERATIONS.length, 17);
 assert.equal(new Set(PROVIDER_LIFECYCLE_OPERATIONS).size, 17);
 assert.deepEqual(
   Object.keys(PROVIDER_OPERATION_BLOCKERS).sort(),
-  PROVIDER_LIFECYCLE_OPERATIONS.filter((operation) => operation !== 'releaseLease').sort(),
+  PROVIDER_LIFECYCLE_OPERATIONS.slice().sort(),
 );
 
-for (const operation of PROVIDER_LIFECYCLE_OPERATIONS.filter((value) => value !== 'releaseLease')) {
-  const { calls, executor } = fixture();
+for (const operation of PROVIDER_LIFECYCLE_OPERATIONS) {
+  const run = fixture();
+  const { calls, executor } = run;
   const response = await executor.execute(lifecycleRequest(operation));
   assert.equal(response.operation, operation);
   assert.equal(response.ok, false);
   assert.equal(response.terminal.outcome, 'notApplied');
   assert.equal(response.terminal.reason, 'closedCarrierPrerequisiteMissing');
   assert.equal(calls.length, 0, 'carrier-incomplete operations must not touch Fly');
+  assert.equal(run.authorityCalls(), 0, 'carrier-incomplete operations must not resolve credentials or read Tigris');
   assert(!canonicalJson(response).includes('secret-token-never-returned'));
 }
 
 {
   const run = fixture();
-  const response = await run.executor.execute(lifecycleRequest('releaseLease'), {
-    beforeProviderEffect: async () => run.arm(),
-  });
-  assert.equal(response.ok, true);
-  assert.equal(response.terminal.outcome, 'applied');
-  assert.equal(response.remoteEvidence, false);
-  assert.equal(run.calls.filter(({ method }) => method === 'DELETE').length, 1);
-  assert(!canonicalJson(response).includes('lease-a'));
-  assert(!canonicalJson(response).includes('secret-token-never-returned'));
-}
-
-{
-  const { executor } = fixture({ driftRoster: true });
-  const response = await executor.execute(lifecycleRequest('releaseLease'));
-  assert.equal(response.terminal.outcome, 'notApplied');
-  assert.equal(response.diagnostics[0].code, 'SNAPBACK_HOSTED_FLY_READBACK_UNSTABLE');
-}
-
-{
-  const { executor } = fixture({ driftHead: true });
-  const response = await executor.execute(lifecycleRequest('releaseLease'));
-  assert.equal(response.terminal.outcome, 'notApplied');
-  assert.equal(response.diagnostics[0].code, 'SNAPBACK_HOSTED_TIGRIS_READBACK_UNSTABLE');
+  const request = lifecycleRequest('releaseLease');
+  request.effectIntent.logicalResourceName = 'another-machine';
+  await assert.rejects(
+    () => run.executor.execute(request),
+    { code: 'SNAPBACK_HOSTED_LIFECYCLE_DIGEST_DRIFT' },
+  );
+  assert.equal(run.calls.length, 0);
+  assert.equal(run.authorityCalls(), 0);
 }
 
 console.log('Fly/Tigris provider executor tests passed');

@@ -160,6 +160,60 @@ function finishTransaction(supervisor, request, response, authority, beforeDiges
   };
 }
 
+function finishReservation(supervisor, request, reservation, authority, beforeDigest) {
+  const after = authority.snapshot();
+  const afterDigest = snapshotDigest(after);
+  if (afterDigest === beforeDigest) {
+    return {
+      ...reservation,
+      committed: false,
+      generation: supervisor.database.generation,
+      operatorAuthoritySha256: beforeDigest,
+    };
+  }
+  const pending = after.pendingRequests?.[request.requestId];
+  if (
+    !pending
+    || pending.deviceId !== request.deviceId
+    || pending.sequence !== request.sequence
+  ) {
+    refuse(
+      'SNAPBACK_OPERATOR_RESERVATION_NOT_RETAINED',
+      'new operator request did not retain its canonical pending reservation',
+    );
+  }
+  supervisor.commit((database) => {
+    if (snapshotDigest(database.operatorAuthority) !== beforeDigest) {
+      refuse(
+        'SNAPBACK_OPERATOR_AUTHORITY_CAS_FAILED',
+        'operator authority changed before reservation committed',
+        409,
+      );
+    }
+    database.operatorAuthority = after;
+    database.floors.replay += 1;
+    database.journal.push({
+      schemaVersion: JOURNAL_SCHEMA_VERSION,
+      kind: 'operatorRequestReserved',
+      requestId: pending.requestId,
+      requestSha256: pending.requestSha256,
+      deviceId: pending.deviceId,
+      sequence: pending.sequence,
+      variant: pending.variant,
+      scope: pending.scope,
+      credentialBearing: pending.credentialBearing,
+      committedAtMs: pending.reservedAtMs,
+      operatorAuthoritySha256: afterDigest,
+    });
+  });
+  return {
+    ...reservation,
+    committed: true,
+    generation: supervisor.database.generation,
+    operatorAuthoritySha256: afterDigest,
+  };
+}
+
 /**
  * Admit, execute, retain, and commit one ordinary operator request.
  *
@@ -199,15 +253,76 @@ export async function executeOperatorAuthorityTransactionAsync(supervisor, reque
   nowMs = Date.now(),
   execute,
   verifySpecialAuthority = undefined,
+  persistReservation,
+} = {}) {
+  const reservation = reserveOperatorAuthorityTransaction(supervisor, request, {
+    nowMs,
+    verifySpecialAuthority,
+  });
+  if (reservation.state === 'terminal') {
+    return {
+      response: reservation.response,
+      committed: false,
+      generation: reservation.generation,
+      operatorAuthoritySha256: reservation.operatorAuthoritySha256,
+    };
+  }
+  if (typeof persistReservation !== 'function') {
+    refuse(
+      'SNAPBACK_OPERATOR_RESERVATION_PERSISTENCE_REQUIRED',
+      'async execution requires durable reservation persistence before provider I/O',
+    );
+  }
+  await persistReservation(supervisor, {
+    committed: reservation.committed,
+    recovered: reservation.recovered,
+  });
+  if (typeof execute !== 'function') {
+    refuse('SNAPBACK_OPERATOR_EXECUTOR_REQUIRED', 'new requests require an executor');
+  }
+  const response = await execute({ request: structuredClone(request) });
+  canonicalAuthorityJson(response);
+  return settleOperatorAuthorityTransaction(supervisor, request, response, { nowMs });
+}
+
+export function reserveOperatorAuthorityTransaction(supervisor, request, {
+  nowMs = Date.now(),
+  verifySpecialAuthority = undefined,
 } = {}) {
   const { authority, beforeDigest, transactionKey } = beginTransaction(supervisor);
   try {
-    const response = await authority.handleRequestAsync(request, {
+    const reservation = authority.reserveRequest(request, {
       nowMs,
-      execute,
       verifySpecialAuthority,
     });
-    return finishTransaction(supervisor, request, response, authority, beforeDigest);
+    return finishReservation(
+      supervisor,
+      request,
+      reservation,
+      authority,
+      beforeDigest,
+    );
+  } finally {
+    ACTIVE_TRANSACTION_KEYS.delete(transactionKey);
+  }
+}
+
+export function settleOperatorAuthorityTransaction(
+  supervisor,
+  request,
+  response,
+  { nowMs = Date.now() } = {},
+) {
+  const { authority, beforeDigest, transactionKey } = beginTransaction(supervisor);
+  try {
+    const settled = authority.settleReservedRequest(request, response, { nowMs });
+    return finishTransaction(
+      supervisor,
+      request,
+      settled,
+      authority,
+      beforeDigest,
+    );
   } finally {
     ACTIVE_TRANSACTION_KEYS.delete(transactionKey);
   }

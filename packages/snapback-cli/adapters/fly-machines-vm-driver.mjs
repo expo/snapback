@@ -2,8 +2,8 @@
 // @ref LLP 0072#adapter-contract-and-first-profile — the first concrete
 // provider driver for `single-instance-container-vm.v1`, speaking the closed
 // stdin protocol against the real Fly Machines API. This slice implements the
-// observation surface (`doctor`, `inspect`), provider lease endpoints, and
-// the bounded provider-event `logs` query. It never fabricates provider facts: every
+// observation surface (`doctor`, `inspect`) and the bounded provider-event
+// `logs` query. It never fabricates provider facts: every
 // response digests the raw provider bytes it derived from, `remoteEvidence`
 // is true only against the canonical provider endpoint, and read-back
 // verification (two independent fetches, equal digests) backs every
@@ -110,24 +110,6 @@ async function providerGet(base, token, path) {
   });
   const body = await response.text();
   return { status: response.status, body, roundTripMs: Date.now() - startedAt, uri: `${CANONICAL_API_BASE}${path}` };
-}
-
-async function providerEffect(base, token, path, { method, body = null, leaseNonce = null }) {
-  const response = await fetch(`${base}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(leaseNonce ? { 'fly-machine-lease-nonce': leaseNonce } : {}),
-    },
-    ...(body === null ? {} : { body: JSON.stringify(body) }),
-    signal: AbortSignal.timeout(12_000),
-  });
-  return {
-    status: response.status,
-    body: await response.text(),
-    uri: `${CANONICAL_API_BASE}${path}`,
-  };
 }
 
 async function probeOriginTls(origin) {
@@ -367,82 +349,14 @@ async function handleLifecycle(request) {
     restore: null,
     diagnostics: [...diagnostics, { code, severity: 'error', message }],
   });
-  if (!['acquireLease', 'releaseLease'].includes(request.operation)) {
-    return refuse(
-      'SNAPBACK_ADAPTER_OPERATION_UNSUPPORTED',
-      `lifecycle operation ${boundedText(request.operation, 64)} is not implemented by this driver`,
-    );
-  }
-  const result = await observe(request.target);
-  if (!result.observation) {
-    return finishLifecycle(request, {
-      ok: false,
-      lease: request.lease ?? null,
-      observation: null,
-      evidence: [],
-      backup: null,
-      restore: null,
-      diagnostics: result.diagnostics,
-    });
-  }
-  if (request.operation === 'releaseLease' && !request.lease?.leaseId) {
-    return refuse('SNAPBACK_DEPLOY_LEASE_INVALID', 'releaseLease requires the exact acquired lease');
-  }
-  const { base, canonical } = apiBase();
-  const credential = resolveCredential(request.target.adapter.credentialRef);
-  const path = `/v1/apps/${result.app}/machines/${result.machine.id}/lease`;
-  const effect = request.operation === 'acquireLease'
-    ? await providerEffect(base, credential.token, path, {
-      method: 'POST',
-      body: { description: `snapback:${request.operationId}`, ttl: 60 },
-    })
-    : await providerEffect(base, credential.token, path, {
-      method: 'DELETE',
-      leaseNonce: request.lease.leaseId,
-    });
-  const expectedStatus = request.operation === 'acquireLease' ? 201 : 200;
-  if (effect.status !== expectedStatus) {
-    return refuse(
-      effect.status === 409
-        ? 'SNAPBACK_DEPLOY_LEASE_CONFLICT'
-        : 'SNAPBACK_ADAPTER_PROVIDER_EFFECT_FAILED',
-      `provider ${request.operation} failed (http ${effect.status})`,
-    );
-  }
-  let parsed = {};
-  try { parsed = JSON.parse(effect.body); } catch { /* verified below */ }
-  const now = Date.now();
-  const lease = request.operation === 'acquireLease' ? {
-    leaseId: parsed?.data?.nonce,
-    targetId: request.target.targetId,
-    operationId: request.operationId,
-    expectedActivationGeneration: result.observation.activationGeneration,
-    acquiredAtMs: now,
-    expiresAtMs: Number(parsed?.data?.expires_at) * 1_000,
-  } : null;
-  if (request.operation === 'acquireLease' && (
-    typeof lease.leaseId !== 'string'
-    || !Number.isSafeInteger(lease.expiresAtMs)
-    || lease.expiresAtMs <= now
-  )) {
-    return refuse('SNAPBACK_DEPLOY_LEASE_INVALID', 'provider returned an invalid lease');
-  }
-  return finishLifecycle(request, {
-    ok: true,
-    remoteEvidence: canonical,
-    lease,
-    observation: result.observation,
-    evidence: canonical ? [{
-      kind: 'remoteProviderAttestation',
-      uri: effect.uri,
-      sha256: sha256(Buffer.from(effect.body)),
-      bytes: Buffer.byteLength(effect.body),
-      verified: true,
-    }] : [],
-    backup: null,
-    restore: null,
-    diagnostics: result.diagnostics,
-  });
+  // @ref LLP 0105#corrective-implementation-addendum--2026-07-28 — the
+  // legacy V1 protocol cannot carry the supervisor-owned reservation,
+  // credential binding, control head, and opaque lease journal. Refuse before
+  // observation or credential resolution so no provider call can escape.
+  return refuse(
+    'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+    `lifecycle operation ${boundedText(request.operation, 64)} is disabled until the reviewed supervisor carrier and custody proof are packed`,
+  );
 }
 
 function handleLifecycleV2(request) {
@@ -463,7 +377,7 @@ function handleLifecycleV2(request) {
       semanticEffectId: request.effectIntent?.semanticEffectId ?? 'invalid-effect-intent',
       outcome: 'notApplied',
       recordedAtMs: Date.now(),
-      reason: 'supervisorExecutorUnavailable',
+      reason: 'closedCarrierPrerequisiteMissing',
       recoveryClass: null,
       providerVersion: null,
       lastObservationSha256: null,
@@ -473,9 +387,9 @@ function handleLifecycleV2(request) {
     controlHead: request.predecessorHead,
     observation: null,
     diagnostics: [{
-      code: 'SNAPBACK_HOSTED_SUPERVISOR_EXECUTOR_UNAVAILABLE',
+      code: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
       severity: 'error',
-      message: `lifecycle operation ${boundedText(request.operation, 64)} is packaged but remains fail-closed until the standing supervisor executor is available`,
+      message: `lifecycle operation ${boundedText(request.operation, 64)} is packaged but remains fail-closed until the reviewed supervisor carrier and custody proof are packed`,
     }],
   };
 }

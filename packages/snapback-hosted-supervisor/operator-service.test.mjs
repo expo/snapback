@@ -20,7 +20,13 @@ import {
   verifySupervisorResponse,
 } from './supervisor-response.mjs';
 import { certificateSha256 } from './hosted-edge-admission.mjs';
-import { HostedSupervisor, canonicalJson, sha256 } from './index.mjs';
+import {
+  HostedSupervisor,
+  canonicalJson,
+  lifecycleRequestDigest,
+  semanticEffectId,
+  sha256,
+} from './index.mjs';
 import { __providerExecutorTest } from './provider-executor.mjs';
 import { __supervisorResponseTest } from './supervisor-response.mjs';
 
@@ -165,19 +171,10 @@ supervisor.createSpendLedger({
   maximumMicros: 100,
   cleanupReserveMicros: 10,
 });
-supervisor.reserveSpend({
-  journeyId: 'journey-a',
-  grantId: 'grant-a',
-  planDigest: digest('plan-a'),
-  targetOrPlannedBindingDigest: registered.bindingSha256,
-  semanticEffectIds: ['effect-a'],
-  maximumMicros: 10,
-});
-
 const predecessorHead = {
   schemaVersion: 'snapback.hosted-control-head.v2',
   targetId: binding.targetId,
-  generation: 1,
+  generation: 0,
   bindingSha256: registered.bindingSha256,
   activationGeneration: 0,
   activeReleaseId: null,
@@ -190,6 +187,24 @@ const predecessorHead = {
   predecessorSha256: null,
   committedAtMs: nowMs,
 };
+supervisor.registerControlHead(predecessorHead);
+const effectId = semanticEffectId({
+  operationId: 'operation-a',
+  operation: 'provisionInactive',
+  targetBindingDigest: registered.bindingSha256,
+  planDigest: digest('plan-a'),
+  effectKind: 'create',
+  logicalResourceName: 'machine',
+  desiredProviderStateSha256: digest('desired-a'),
+});
+supervisor.reserveSpend({
+  journeyId: 'journey-a',
+  grantId: 'grant-a',
+  planDigest: digest('plan-a'),
+  targetOrPlannedBindingDigest: registered.bindingSha256,
+  semanticEffectIds: [effectId],
+  maximumMicros: 10,
+});
 const lifecycleRequest = {
   schemaVersion: 'snapback.vm-adapter-lifecycle-request.v2',
   operation: 'provisionInactive',
@@ -197,14 +212,14 @@ const lifecycleRequest = {
   attempt: 0,
   targetBinding: binding,
   planSha256: digest('plan-a'),
-  requestSha256: digest('request-a'),
+  requestSha256: digest('placeholder-request-a'),
   predecessorHead,
   effectIntent: {
     schemaVersion: 'snapback.provider-effect-intent.v1',
     operationId: 'operation-a',
     operation: 'provisionInactive',
-    requestSha256: digest('request-a'),
-    semanticEffectId: 'effect-a',
+    requestSha256: digest('placeholder-request-a'),
+    semanticEffectId: effectId,
     targetBindingSha256: __providerExecutorTest.bindingSha256(binding),
     planSha256: digest('plan-a'),
     effectKind: 'create',
@@ -215,6 +230,8 @@ const lifecycleRequest = {
   lease: null,
   confirmationSha256: null,
 };
+lifecycleRequest.requestSha256 = lifecycleRequestDigest(lifecycleRequest);
+lifecycleRequest.effectIntent.requestSha256 = lifecycleRequest.requestSha256;
 const body = {
   schemaVersion: 'snapback.supervisor-lifecycle-execution.v1',
   journeyId: 'journey-a',
@@ -311,7 +328,7 @@ const service = () => createOperatorRequestService({
 const first = await service().execute(request, { peerCertificateRaw, nowMs });
 assert.equal(first.body.ok, true);
 assert.equal(first.body.result.terminal.outcome, 'notApplied');
-assert.equal(persistenceCount, 3, 'intent, terminal, and response each persist before the next boundary');
+assert.equal(persistenceCount, 4, 'request reservation, intent, terminal, and response each persist before the next boundary');
 verifySupervisorResponse(first, {
   rootPublicKeyPem: rootPublic.export({ format: 'pem', type: 'spki' }),
   expectedInstallationId: installationReceipt.installationId,
@@ -326,7 +343,7 @@ const generationAfterFirst = retained.database.generation;
 const replay = await service().execute(request, { peerCertificateRaw, nowMs });
 assert.equal(canonicalJson(replay), canonicalJson(first));
 assert.equal(retained.database.generation, generationAfterFirst);
-assert.equal(persistenceCount, 3);
+assert.equal(persistenceCount, 4);
 
 // Retained replay remains available after the current response intermediate
 // expires; it does not need access to a live signer or mint new authority.
@@ -336,7 +353,7 @@ const expiredReplay = await service().execute(request, {
 });
 assert.equal(canonicalJson(expiredReplay), canonicalJson(first));
 assert.equal(retained.database.generation, generationAfterFirst);
-assert.equal(persistenceCount, 3);
+assert.equal(persistenceCount, 4);
 
 await assert.rejects(
   service().execute(request, {

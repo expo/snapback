@@ -13,12 +13,15 @@ import { createHash } from 'node:crypto';
 
 import {
   canonicalJson,
+  lifecycleRequestDigest,
+  semanticEffectId,
   sha256,
   verifyBoundFlyMachineRoster,
 } from './index.mjs';
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
+const SEMANTIC_EFFECT_ID = /^[A-Za-z0-9_-]{43}$/;
 const REQUEST_VERSION = 'snapback.vm-adapter-lifecycle-request.v2';
 const RESPONSE_VERSION = 'snapback.vm-adapter-lifecycle-response.v2';
 const TERMINAL_VERSION = 'snapback.provider-effect-terminal.v1';
@@ -115,6 +118,7 @@ export const PROVIDER_OPERATION_BLOCKERS = Object.freeze({
   verifyRestoredApplication: 'carrier has no hidden served endpoint, integrity nonce, or expected application facts',
   activateRestoredGeneration: 'carrier has no verified restore receipt or closed predecessor/successor handoff state',
   reconcileEffect: 'carrier has no uncertain-attempt reference, fresh observation vector, or resolved outcome',
+  releaseLease: 'carrier exposes the Fly lease nonce and lacks a supervisor-only lease journal with exact expiry, version, generation, and head binding',
 });
 
 export class ProviderExecutorRefusal extends Error {
@@ -241,13 +245,34 @@ function validateRequest(request) {
     || request.effectIntent.requestSha256 !== request.requestSha256
     || request.effectIntent.targetBindingSha256 !== bindingSha256(request.targetBinding)
     || request.effectIntent.predecessorHeadSha256 !== headSha256(request.predecessorHead)
-    || !safeId(request.effectIntent.semanticEffectId)
+    || !SEMANTIC_EFFECT_ID.test(request.effectIntent.semanticEffectId ?? '')
     || !DIGEST.test(request.effectIntent.desiredProviderStateSha256 ?? '')
   ) {
     refuse(
       'SNAPBACK_HOSTED_LIFECYCLE_REQUEST_INVALID',
       'lifecycle identity, operation, target, plan, intent, or head binding is invalid',
       400,
+    );
+  }
+  const expectedRequestSha256 = lifecycleRequestDigest(request);
+  const expectedSemanticEffectId = semanticEffectId({
+    operationId: request.effectIntent.operationId,
+    operation: request.effectIntent.operation,
+    targetBindingDigest: request.effectIntent.targetBindingSha256,
+    planDigest: request.effectIntent.planSha256,
+    effectKind: request.effectIntent.effectKind,
+    logicalResourceName: request.effectIntent.logicalResourceName,
+    desiredProviderStateSha256: request.effectIntent.desiredProviderStateSha256,
+  });
+  if (
+    request.requestSha256 !== expectedRequestSha256
+    || request.effectIntent.requestSha256 !== expectedRequestSha256
+    || request.effectIntent.semanticEffectId !== expectedSemanticEffectId
+  ) {
+    refuse(
+      'SNAPBACK_HOSTED_LIFECYCLE_DIGEST_DRIFT',
+      'request or semantic effect identity does not match its canonical self-excluding preimage',
+      409,
     );
   }
   if (request.lease !== null && (
@@ -261,8 +286,30 @@ function validateRequest(request) {
   return request;
 }
 
-async function responseBytes(response) {
-  return Buffer.from(await response.arrayBuffer());
+async function responseBytes(response, maximumBytes = 2 * 1024 * 1024) {
+  const declared = Number(response.headers?.get?.('content-length'));
+  if (Number.isFinite(declared) && declared > maximumBytes) {
+    refuse(
+      'SNAPBACK_HOSTED_PROVIDER_RESPONSE_TOO_LARGE',
+      `provider response exceeds ${maximumBytes} bytes`,
+      502,
+    );
+  }
+  const chunks = [];
+  let byteLength = 0;
+  for await (const chunk of response.body) {
+    const bytes = Buffer.from(chunk);
+    byteLength += bytes.length;
+    if (byteLength > maximumBytes) {
+      refuse(
+        'SNAPBACK_HOSTED_PROVIDER_RESPONSE_TOO_LARGE',
+        `provider response exceeds ${maximumBytes} bytes`,
+        502,
+      );
+    }
+    chunks.push(bytes);
+  }
+  return Buffer.concat(chunks, byteLength);
 }
 
 function parseJson(bytes, code) {
@@ -358,10 +405,13 @@ async function exactTigrisHead({ readTigrisControlHead, request }) {
   } catch {
     refuse('SNAPBACK_HOSTED_TIGRIS_HEAD_INVALID', 'Tigris control head is not one JSON value', 503);
   }
-  if (canonicalJson(head) !== canonicalJson(request.predecessorHead)) {
+  if (
+    firstBytes.toString('utf8') !== canonicalJson(head)
+    || canonicalJson(head) !== canonicalJson(request.predecessorHead)
+  ) {
     refuse(
       'SNAPBACK_HOSTED_TIGRIS_HEAD_MISMATCH',
-      'Tigris control head does not equal the request predecessor head',
+      'Tigris control head is not canonical JCS or does not equal the request predecessor head',
       409,
     );
   }
@@ -416,6 +466,7 @@ export function createFlyTigrisProviderExecutor({
   fetchImpl = globalThis.fetch,
   resolveFlyControlToken,
   readTigrisControlHead,
+  writeTigrisControlHead: _writeTigrisControlHead,
   flyApiBase = CANONICAL_FLY_API,
   now = () => Date.now(),
 } = {}) {
@@ -595,12 +646,11 @@ export function createFlyTigrisProviderExecutor({
       const effectBytes = await responseBytes(effect);
       const evidenceSha256 = sha256(effectBytes);
       if (effect.status !== 200) {
-        const uncertain = effect.status >= 500;
         return responseFor(request, {
           ok: false,
-          terminal: terminalFor(request, uncertain ? 'commitUncertain' : 'notApplied', {
-            reason: uncertain ? 'providerServerFailure' : 'providerRefused',
-            recoveryClass: uncertain ? 'freshLeaseReadbackRequired' : null,
+          terminal: terminalFor(request, 'commitUncertain', {
+            reason: 'providerNonSuccessAfterEffecting',
+            recoveryClass: 'freshLeaseReadbackRequired',
             providerVersion: providerLease.version ?? null,
             lastObservationSha256: sha256(Buffer.from(canonicalJson(effectObservation))),
             redactedEvidenceSha256: evidenceSha256,
@@ -608,9 +658,7 @@ export function createFlyTigrisProviderExecutor({
           }),
           observation: effectObservation,
           diagnostics: [safeDiagnostic(
-            uncertain
-              ? 'SNAPBACK_HOSTED_PROVIDER_COMMIT_UNCERTAIN'
-              : 'SNAPBACK_HOSTED_PROVIDER_EFFECT_REFUSED',
+            'SNAPBACK_HOSTED_PROVIDER_COMMIT_UNCERTAIN',
             `Fly lease release returned HTTP ${effect.status}`,
           )],
         });

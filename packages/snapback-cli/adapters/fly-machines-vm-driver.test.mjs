@@ -27,8 +27,9 @@ const events = [
   { id: 'ev2', type: 'exit', status: 'stopped', source: 'flyd', timestamp: 2_000 },
 ];
 let includeSecondMachine = false;
-let leaseActive = false;
+let providerRequestCount = 0;
 const server = createServer((request, response) => {
+  providerRequestCount += 1;
   if (request.headers.authorization !== 'Bearer test-token') {
     response.writeHead(401).end('{"error":"unauthorized"}');
     return;
@@ -39,29 +40,6 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify(includeSecondMachine
       ? [machine, { id: 'second-machine', state: 'stopped', region: 'sjc' }]
       : [machine]));
-  } else if (
-    request.url === '/v1/apps/snapback-drill/machines/849764f2e7dd58/lease'
-    && request.method === 'POST'
-  ) {
-    if (leaseActive) {
-      response.writeHead(409).end('{"error":"lease exists"}');
-    } else {
-      leaseActive = true;
-      response.writeHead(201).end(JSON.stringify({
-        status: 'success',
-        data: { nonce: 'fixture-lease-nonce', expires_at: Math.floor(Date.now() / 1000) + 60 },
-      }));
-    }
-  } else if (
-    request.url === '/v1/apps/snapback-drill/machines/849764f2e7dd58/lease'
-    && request.method === 'DELETE'
-  ) {
-    if (request.headers['fly-machine-lease-nonce'] !== 'fixture-lease-nonce') {
-      response.writeHead(400).end('{"error":"wrong nonce"}');
-    } else {
-      leaseActive = false;
-      response.end('{"status":"success","data":{"ok":true}}');
-    }
   } else if (request.url === '/v1/apps/snapback-drill/machines/849764f2e7dd58/events') {
     response.end(JSON.stringify(events));
   } else {
@@ -231,7 +209,7 @@ function runDriver(request, env = {}) {
   assert.equal(response.terminal.semanticEffectId, 'effect-v2-refusal');
   assert.equal(response.controlHead.targetId, target.targetId);
   assert.ok(response.diagnostics.some(
-    ({ code }) => code === 'SNAPBACK_HOSTED_SUPERVISOR_EXECUTOR_UNAVAILABLE',
+    ({ code }) => code === 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
   ));
 }
 
@@ -249,9 +227,9 @@ function runDriver(request, env = {}) {
   assert.ok(response.diagnostics.some((d) => d.code === 'SNAPBACK_ADAPTER_INSPECTION_UNAVAILABLE'));
 }
 
-// 6. The two exact provider lease operations work against the fixture but can
-// never mint remote evidence from its noncanonical base. Every remaining
-// lifecycle spelling refuses in protocol.
+// 6. Both legacy lease spellings and every other V1 lifecycle spelling refuse
+// before observation, credential resolution, or a provider call. V1 cannot
+// carry the supervisor-owned opaque lease journal and exact control head.
 {
   const acquireRequest = {
     schemaVersion: 'snapback.vm-adapter-lifecycle-request.v1',
@@ -263,26 +241,39 @@ function runDriver(request, env = {}) {
     releaseDirectory: '',
     lease: null,
   };
+  const providerRequestsBeforeLifecycle = providerRequestCount;
   const acquired = JSON.parse((await runDriver(acquireRequest)).stdout);
-  assert.equal(acquired.ok, true);
+  assert.equal(acquired.ok, false);
   assert.equal(acquired.remoteEvidence, false);
-  assert.equal(acquired.lease.leaseId, 'fixture-lease-nonce');
-  const conflict = JSON.parse((await runDriver({ ...acquireRequest, operationId: 'op-lease-conflict' })).stdout);
-  assert.equal(conflict.ok, false);
-  assert.ok(conflict.diagnostics.some((d) => d.code === 'SNAPBACK_DEPLOY_LEASE_CONFLICT'));
+  assert.equal(acquired.lease, null);
+  assert.ok(acquired.diagnostics.some(
+    (d) => d.code === 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+  ));
   const released = JSON.parse((await runDriver({
     ...acquireRequest,
     operation: 'releaseLease',
-    lease: acquired.lease,
+    lease: {
+      leaseId: 'must-never-reach-provider',
+      targetId: target.targetId,
+      operationId: acquireRequest.operationId,
+      expectedActivationGeneration: 0,
+      acquiredAtMs: 1,
+      expiresAtMs: 2,
+    },
   })).stdout);
-  assert.equal(released.ok, true);
-  assert.equal(released.lease, null);
+  assert.equal(released.ok, false);
+  assert.ok(released.diagnostics.some(
+    (d) => d.code === 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+  ));
   const unsupported = JSON.parse((await runDriver({
     ...acquireRequest,
     operation: 'activateGeneration',
   })).stdout);
   assert.equal(unsupported.ok, false);
-  assert.ok(unsupported.diagnostics.some((d) => d.code === 'SNAPBACK_ADAPTER_OPERATION_UNSUPPORTED'));
+  assert.ok(unsupported.diagnostics.some(
+    (d) => d.code === 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+  ));
+  assert.equal(providerRequestCount, providerRequestsBeforeLifecycle);
 
   includeSecondMachine = true;
   const unsafe = JSON.parse((await runDriver({

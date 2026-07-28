@@ -42,6 +42,22 @@ export const DEFAULTS = Object.freeze({
   bootstrapCredentialRef: 'keychain://snapback-fly-drill/drill',
 });
 
+export const SUPERVISOR_RUNTIME_CLOSURE = Object.freeze([
+  'Dockerfile',
+  'fly.supervisor.toml',
+  'package.json',
+  'index.mjs',
+  'external-store.mjs',
+  'hosted-edge-admission.mjs',
+  'operator-authority.mjs',
+  'operator-authority-transaction.mjs',
+  'operator-service.mjs',
+  'provider-credentials.mjs',
+  'provider-executor.mjs',
+  'supervisor-response.mjs',
+  'service.mjs',
+]);
+
 export const TIGRIS_ROLES = Object.freeze({
   anchor: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
   'control-state': ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
@@ -177,6 +193,7 @@ export function buildBootstrapPlan(options = {}) {
       'Fly has no provider-enforced billing ceiling or alert for this installation',
       'registry and Fly control tokens share provider scope but have distinct custody and fingerprints',
       'the installation is single-instance and is not an HA control plane',
+      'operator response-purpose custody, public listener proof, and all lifecycle operations remain disabled until a packed live closure receipt exists',
     ],
   };
   return {
@@ -696,15 +713,7 @@ async function ensureApp(rootToken, config, sentinel) {
 
 function buildImage(rootToken, config) {
   const packageDir = dirname(fileURLToPath(import.meta.url));
-  const runtimeClosure = [
-    'Dockerfile',
-    'fly.supervisor.toml',
-    'package.json',
-    'index.mjs',
-    'external-store.mjs',
-    'hosted-edge-admission.mjs',
-    'service.mjs',
-  ]
+  const runtimeClosure = SUPERVISOR_RUNTIME_CLOSURE
     .map((name) => [name, readFileSync(join(packageDir, name), 'utf8')]);
   const label = `supervisor-${digestHex(canonicalJson(runtimeClosure)).slice(0, 16)}`;
   run('fly', [

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   HostedSupervisor,
   SupervisorRefusal,
+  canonicalJson,
   createCertificateRecipient,
   lifecycleRequestDigest,
   machineIsProductionRouted,
@@ -116,8 +117,8 @@ function refusal(code, callback) {
     targetBindingDigest: planned,
     planDigest: digest('plan'),
     effectKind: 'create',
-    resourceIdentity: 'machine',
-    desiredProviderState: { state: 'stopped' },
+    logicalResourceName: 'machine',
+    desiredProviderStateSha256: digest('stopped'),
   });
   assert.match(id, /^[A-Za-z0-9_-]{43}$/);
   assert.equal(id, semanticEffectId({
@@ -126,8 +127,8 @@ function refusal(code, callback) {
     targetBindingDigest: planned,
     planDigest: digest('plan'),
     effectKind: 'create',
-    resourceIdentity: 'machine',
-    desiredProviderState: { state: 'stopped' },
+    logicalResourceName: 'machine',
+    desiredProviderStateSha256: digest('stopped'),
     retry: 99,
   }));
 }
@@ -150,6 +151,7 @@ function refusal(code, callback) {
     grantId: 'grant-1',
     planDigest: digest('plan'),
     targetOrPlannedBindingDigest: digest('planned-binding'),
+    confirmationDigest: digest('confirmation'),
     semanticEffectIds: [semanticEffectId],
     maximumMicros: 200_000,
   });
@@ -158,9 +160,21 @@ function refusal(code, callback) {
     semanticEffectId,
     operationId: 'op-1',
     operation: 'provisionInactive',
+    planSha256: digest('plan'),
     predecessorHead: digest('head-0'),
   };
-  supervisor.appendIntent(intent, { journeyId: 'journey-1', grantId: 'grant-1' });
+  refusal('SNAPBACK_HOSTED_SPEND_AUTHORITY_REQUIRED', () => supervisor.appendIntent(intent, {
+    journeyId: 'journey-1',
+    grantId: 'grant-1',
+    targetOrPlannedBindingDigest: digest('planned-binding'),
+    confirmationDigest: digest('wrong-confirmation'),
+  }));
+  supervisor.appendIntent(intent, {
+    journeyId: 'journey-1',
+    grantId: 'grant-1',
+    targetOrPlannedBindingDigest: digest('planned-binding'),
+    confirmationDigest: digest('confirmation'),
+  });
   supervisor.markEffecting(semanticEffectId, { providerRequestDigest: digest('provider-request') });
   supervisor.appendTerminal(semanticEffectId, {
     outcome: 'commitUncertain',
@@ -323,6 +337,34 @@ function refusal(code, callback) {
     expiresAtMs: 60_002,
   });
   assert.equal(second.binding.bindingGeneration, 2);
+  const controlHead = {
+    schemaVersion: 'snapback.hosted-control-head.v2',
+    targetId: binding.targetId,
+    generation: 0,
+    bindingSha256: second.bindingSha256,
+    activationGeneration: 0,
+    activeReleaseId: null,
+    journalRootSha256: digest('journal-0'),
+    admissionGeneration: 0,
+    spendFloor: 0,
+    cleanupFloor: 0,
+    replayFloor: 0,
+    supervisorIncarnation: supervisor.incarnation,
+    predecessorSha256: null,
+    committedAtMs: 3,
+  };
+  supervisor.registerControlHead(controlHead);
+  assert.equal(
+    supervisor.anchor.controlHeadDigest,
+    digest(canonicalJson(supervisor.database.controlHeads)),
+  );
+  refusal('SNAPBACK_HOSTED_CONTROL_HEAD_PREDECESSOR_MISMATCH', () => {
+    supervisor.registerControlHead({
+      ...controlHead,
+      generation: 1,
+      predecessorSha256: digest('wrong-predecessor'),
+    });
+  });
   const enrollment = supervisor.registerHostedTargetEnrollment({
     schemaVersion: 'snapback.hosted-target-enrollment.v1',
     targetId: 'target-1',

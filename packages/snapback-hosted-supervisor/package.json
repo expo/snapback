@@ -15,6 +15,7 @@
     "operator-authority.mjs",
     "operator-authority-transaction.mjs",
     "operator-service.mjs",
+    "provider-credentials.mjs",
     "provider-executor.mjs",
     "supervisor-response.mjs",
     "target-onboarding.mjs"
@@ -29,6 +30,7 @@
     "./operator-authority": "./operator-authority.mjs",
     "./operator-authority-transaction": "./operator-authority-transaction.mjs",
     "./operator-service": "./operator-service.mjs",
+    "./provider-credentials": "./provider-credentials.mjs",
     "./provider-executor": "./provider-executor.mjs",
     "./supervisor-response": "./supervisor-response.mjs",
     "./target-onboarding": "./target-onboarding.mjs",
@@ -41,7 +43,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node index.test.mjs && node operator-authority.test.mjs && node operator-authority-transaction.test.mjs && node supervisor-response.test.mjs && node provider-executor.test.mjs && node operator-service.test.mjs && node external-store.test.mjs && node bootstrap.test.mjs && node hosted-edge-admission.test.mjs && node target-onboarding.test.mjs"
+    "test": "node package.test.mjs && node index.test.mjs && node operator-authority.test.mjs && node operator-authority-transaction.test.mjs && node supervisor-response.test.mjs && node provider-credentials.test.mjs && node provider-executor.test.mjs && node operator-service.test.mjs && node external-store.test.mjs && node bootstrap.test.mjs && node hosted-edge-admission.test.mjs && node target-onboarding.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "3.1096.0",

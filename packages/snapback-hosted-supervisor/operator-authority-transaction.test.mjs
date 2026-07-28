@@ -16,6 +16,8 @@ import {
   __operatorAuthorityTransactionTest,
   executeOperatorAuthorityTransaction,
   executeOperatorAuthorityTransactionAsync,
+  reserveOperatorAuthorityTransaction,
+  settleOperatorAuthorityTransaction,
 } from './operator-authority-transaction.mjs';
 
 const nowMs = 1_800_000_000_000;
@@ -111,6 +113,48 @@ function expectRefusal(code, callback, status = undefined) {
 
 {
   const supervisor = createSupervisor();
+  const request = signedRequest({ requestId: 'request-reserved-before-effect' });
+  const reserved = reserveOperatorAuthorityTransaction(supervisor, request, { nowMs });
+  assert.equal(reserved.state, 'reserved');
+  assert.equal(reserved.committed, true);
+  assert.equal(supervisor.database.operatorAuthority.devices['device-a'].lastSequence, 0);
+  assert.equal(
+    supervisor.database.operatorAuthority.pendingRequests[request.requestId].sequence,
+    1,
+  );
+  assert.equal(supervisor.database.journal.at(-1).kind, 'operatorRequestReserved');
+
+  const exactRetry = reserveOperatorAuthorityTransaction(supervisor, request, {
+    nowMs: nowMs + 120_000,
+  });
+  assert.equal(exactRetry.state, 'reserved');
+  assert.equal(exactRetry.recovered, true);
+  assert.equal(exactRetry.committed, false);
+
+  expectRefusal(
+    'SNAPBACK_OPERATOR_SEQUENCE_PENDING',
+    () => reserveOperatorAuthorityTransaction(
+      supervisor,
+      signedRequest({ requestId: 'request-cross-reservation', sequence: 1 }),
+      { nowMs },
+    ),
+    409,
+  );
+
+  const settled = settleOperatorAuthorityTransaction(
+    supervisor,
+    request,
+    { ok: true, exactTerminal: 'retained' },
+    { nowMs: nowMs + 1 },
+  );
+  assert.equal(settled.committed, true);
+  assert.equal(supervisor.database.operatorAuthority.pendingRequests[request.requestId], undefined);
+  assert.equal(supervisor.database.operatorAuthority.devices['device-a'].lastSequence, 1);
+  assert.deepEqual(settled.response, { ok: true, exactTerminal: 'retained' });
+}
+
+{
+  const supervisor = createSupervisor();
   let executions = 0;
   const request = signedRequest();
   const first = executeOperatorAuthorityTransaction(supervisor, request, {
@@ -179,6 +223,7 @@ function expectRefusal(code, callback, status = undefined) {
   const request = signedRequest({ requestId: 'request-async-provider' });
   const first = await executeOperatorAuthorityTransactionAsync(supervisor, request, {
     nowMs,
+    persistReservation: async () => {},
     execute: async () => {
       executions += 1;
       await Promise.resolve();
@@ -190,9 +235,9 @@ function expectRefusal(code, callback, status = undefined) {
     },
   });
   assert.equal(first.committed, true);
-  assert.equal(first.generation, 1);
-  assert.equal(supervisor.database.floors.replay, 1);
-  assert.equal(supervisor.anchor.replayFloor, 1);
+  assert.equal(first.generation, 2);
+  assert.equal(supervisor.database.floors.replay, 2);
+  assert.equal(supervisor.anchor.replayFloor, 2);
   assert.equal(supervisor.database.operatorAuthority.devices['device-a'].lastSequence, 1);
 
   const recovered = new HostedSupervisor({
@@ -204,6 +249,7 @@ function expectRefusal(code, callback, status = undefined) {
   });
   const replay = await executeOperatorAuthorityTransactionAsync(recovered, request, {
     nowMs: nowMs + 180_000,
+    persistReservation: async () => {},
     execute: async () => {
       executions += 1;
       return { shouldNotRun: true };
@@ -211,9 +257,9 @@ function expectRefusal(code, callback, status = undefined) {
   });
   assert.deepEqual(replay.response, first.response);
   assert.equal(replay.committed, false);
-  assert.equal(replay.generation, 1);
-  assert.equal(recovered.database.journal.length, 1);
-  assert.equal(recovered.database.floors.replay, 1);
+  assert.equal(replay.generation, 2);
+  assert.equal(recovered.database.journal.length, 2);
+  assert.equal(recovered.database.floors.replay, 2);
   assert.equal(executions, 1);
 }
 
@@ -223,15 +269,16 @@ function expectRefusal(code, callback, status = undefined) {
   await assert.rejects(
     executeOperatorAuthorityTransactionAsync(supervisor, request, {
       nowMs,
+      persistReservation: async () => {},
       execute: async () => {
         throw new Error('provider read failed before response retention');
       },
     }),
     /provider read failed before response retention/,
   );
-  assert.equal(supervisor.database.generation, 0);
-  assert.equal(supervisor.database.floors.replay, 0);
-  assert.equal(supervisor.database.journal.length, 0);
+  assert.equal(supervisor.database.generation, 1);
+  assert.equal(supervisor.database.floors.replay, 1);
+  assert.equal(supervisor.database.journal.length, 1);
   assert.equal(supervisor.database.operatorAuthority.devices['device-a'].lastSequence, 0);
   assert.equal(
     supervisor.database.operatorAuthority.requestJournal['request-async-failure'],
@@ -239,11 +286,12 @@ function expectRefusal(code, callback, status = undefined) {
   );
   const retry = await executeOperatorAuthorityTransactionAsync(supervisor, request, {
     nowMs,
+    persistReservation: async () => {},
     execute: async () => ({ ok: true, retried: true }),
   });
   assert.equal(retry.committed, true);
   assert.deepEqual(retry.response, { ok: true, retried: true });
-  assert.equal(supervisor.database.generation, 1);
+  assert.equal(supervisor.database.generation, 2);
 }
 
 {
@@ -262,6 +310,7 @@ function expectRefusal(code, callback, status = undefined) {
     signedRequest({ requestId: 'request-async-in-flight' }),
     {
       nowMs,
+      persistReservation: async () => {},
       execute: async () => {
         markProviderStarted();
         await providerRelease;
@@ -283,6 +332,7 @@ function expectRefusal(code, callback, status = undefined) {
       signedRequest({ requestId: 'request-async-concurrent' }),
       {
         nowMs,
+        persistReservation: async () => {},
         execute: async () => {
           secondExecutions += 1;
           return { shouldNotRun: true };
@@ -290,16 +340,16 @@ function expectRefusal(code, callback, status = undefined) {
       },
     ),
     (error) => error instanceof OperatorAuthorityRefusal
-      && error.code === 'SNAPBACK_OPERATOR_SINGLE_WRITER_BUSY'
+      && error.code === 'SNAPBACK_OPERATOR_SEQUENCE_PENDING'
       && error.status === 409,
   );
   assert.equal(secondExecutions, 0);
-  assert.equal(supervisor.database.generation, 0);
-  assert.equal(concurrentSupervisor.database.generation, 0);
+  assert.equal(supervisor.database.generation, 1);
+  assert.equal(concurrentSupervisor.database.generation, 1);
   releaseProvider();
   const committed = await first;
   assert.equal(committed.committed, true);
-  assert.equal(supervisor.database.generation, 1);
+  assert.equal(supervisor.database.generation, 2);
 }
 
 {

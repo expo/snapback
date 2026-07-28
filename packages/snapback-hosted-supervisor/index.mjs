@@ -60,7 +60,20 @@ export function plannedBindingDigest({
 }
 
 export function lifecycleRequestDigest(request) {
-  const { transportBearer: _transportBearer, ...closed } = request;
+  const {
+    transportBearer: _transportBearer,
+    requestSha256: _requestSha256,
+    effectIntent,
+    ...rest
+  } = request;
+  const {
+    requestSha256: _intentRequestSha256,
+    ...intentPreimage
+  } = effectIntent ?? {};
+  const closed = {
+    ...rest,
+    effectIntent: intentPreimage,
+  };
   return sha256(Buffer.concat([
     Buffer.from('snapback:fly-lifecycle-request:v2\n'),
     Buffer.from(canonicalJson(closed)),
@@ -73,8 +86,8 @@ export function semanticEffectId({
   targetBindingDigest,
   planDigest,
   effectKind,
-  resourceIdentity,
-  desiredProviderState,
+  logicalResourceName,
+  desiredProviderStateSha256,
 }) {
   const input = canonicalJson({
     operationId,
@@ -82,8 +95,8 @@ export function semanticEffectId({
     targetBindingDigest,
     planDigest,
     effectKind,
-    resourceIdentity,
-    desiredProviderState,
+    logicalResourceName,
+    desiredProviderStateSha256,
   });
   return createHash('sha256')
     .update('snapback:fly-semantic-effect:v1\n')
@@ -234,12 +247,14 @@ export class HostedSupervisor {
       spendLedgers: {},
       cleanupPlans: {},
       heads: {},
+      controlHeads: {},
       targetEnrollments: {},
       targetBootAdmissions: {},
       floors: { spend: 0, cleanup: 0, replay: 0 },
     };
     this.database.targetEnrollments ??= {};
     this.database.targetBootAdmissions ??= {};
+    this.database.controlHeads ??= {};
     this.mirror = mirror ? clone(mirror) : null;
     this.anchor = anchor ? clone(anchor) : {
       incarnation,
@@ -324,7 +339,7 @@ export class HostedSupervisor {
       spendFloor: next.floors.spend,
       cleanupFloor: next.floors.cleanup,
       replayFloor: next.floors.replay,
-      controlHeadDigest: sha256(Buffer.from(canonicalJson(next.heads))),
+      controlHeadDigest: sha256(Buffer.from(canonicalJson(next.controlHeads))),
     };
     if (interruptAt === 'afterAnchor') {
       throw new SupervisorRefusal('SNAPBACK_SUPERVISOR_INTERRUPTED', 'interrupted after anchor CAS');
@@ -367,10 +382,13 @@ export class HostedSupervisor {
     grantId,
     planDigest,
     targetOrPlannedBindingDigest,
+    confirmationDigest = null,
     semanticEffectIds,
     maximumMicros,
   }) {
     requireDigest(planDigest, 'planDigest');
+    requireDigest(targetOrPlannedBindingDigest, 'targetOrPlannedBindingDigest');
+    if (confirmationDigest !== null) requireDigest(confirmationDigest, 'confirmationDigest');
     return this.commit((db) => {
       const ledger = db.spendLedgers[journeyId];
       if (!ledger) throw new SupervisorRefusal('SNAPBACK_HOSTED_SPEND_MISSING', 'spend ledger is missing');
@@ -386,6 +404,7 @@ export class HostedSupervisor {
         journeyId,
         planDigest,
         targetOrPlannedBindingDigest,
+        confirmationDigest,
         semanticEffectIds: [...new Set(semanticEffectIds)].sort(),
         maximumMicros,
         heldMicros: maximumMicros,
@@ -395,7 +414,13 @@ export class HostedSupervisor {
     }).spendLedgers[journeyId];
   }
 
-  appendIntent(intent, { journeyId, grantId, interruptAt = null } = {}) {
+  appendIntent(intent, {
+    journeyId,
+    grantId,
+    targetOrPlannedBindingDigest,
+    confirmationDigest = null,
+    interruptAt = null,
+  } = {}) {
     requireDigest(intent.requestDigest, 'requestDigest');
     this.assertEffectAuthority();
     const existing = this.database.effects[intent.semanticEffectId];
@@ -408,7 +433,15 @@ export class HostedSupervisor {
     const result = this.commit((db) => {
       const ledger = db.spendLedgers[journeyId];
       const grant = ledger?.grants.find((candidate) => candidate.grantId === grantId);
-      if (!grant || grant.state !== 'reserved' || !grant.semanticEffectIds.includes(intent.semanticEffectId)) {
+      if (
+        !grant
+        || grant.state !== 'reserved'
+        || grant.journeyId !== journeyId
+        || grant.planDigest !== intent.planSha256
+        || grant.targetOrPlannedBindingDigest !== targetOrPlannedBindingDigest
+        || grant.confirmationDigest !== confirmationDigest
+        || !grant.semanticEffectIds.includes(intent.semanticEffectId)
+      ) {
         throw new SupervisorRefusal('SNAPBACK_HOSTED_SPEND_AUTHORITY_REQUIRED', 'effect lacks a reserved one-use grant');
       }
       grant.state = 'effecting';
@@ -429,7 +462,12 @@ export class HostedSupervisor {
     }, options).effects[semanticEffectId];
   }
 
-  appendTerminal(semanticEffectId, terminal, { journeyId, grantId, ...options } = {}) {
+  appendTerminal(semanticEffectId, terminal, {
+    journeyId,
+    grantId,
+    retainedResponse = null,
+    ...options
+  } = {}) {
     return this.commit((db) => {
       const effect = db.effects[semanticEffectId];
       if (!effect) throw new SupervisorRefusal('SNAPBACK_PROVIDER_EFFECT_MISSING', 'intent is missing');
@@ -443,6 +481,7 @@ export class HostedSupervisor {
         throw new SupervisorRefusal('SNAPBACK_PROVIDER_EFFECT_TERMINAL_INVALID', 'unknown terminal outcome');
       }
       effect.terminal = clone(terminal);
+      effect.retainedResponse = retainedResponse === null ? null : clone(retainedResponse);
       db.journal.push({ kind: 'terminal', semanticEffectId, ...clone(terminal) });
       const ledger = db.spendLedgers[journeyId];
       const grant = ledger?.grants.find((candidate) => candidate.grantId === grantId);
@@ -596,6 +635,65 @@ export class HostedSupervisor {
         predecessorBindingSha256: binding.predecessorBindingSha256,
       });
     }).heads[binding.targetId];
+  }
+
+  registerControlHead(head) {
+    requireClosedKeys(head, [
+      'activationGeneration',
+      'activeReleaseId',
+      'admissionGeneration',
+      'bindingSha256',
+      'cleanupFloor',
+      'committedAtMs',
+      'generation',
+      'journalRootSha256',
+      'predecessorSha256',
+      'replayFloor',
+      'schemaVersion',
+      'spendFloor',
+      'supervisorIncarnation',
+      'targetId',
+    ], 'Hosted control head');
+    if (
+      head.schemaVersion !== 'snapback.hosted-control-head.v2'
+      || !this.database.heads[head.targetId]
+      || head.bindingSha256 !== this.database.heads[head.targetId].bindingSha256
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_HOSTED_CONTROL_HEAD_INVALID',
+        'control head does not bind an exact registered target generation',
+      );
+    }
+    const previous = this.database.controlHeads[head.targetId] ?? null;
+    if (
+      previous !== null
+      && (
+        head.generation !== previous.generation + 1
+        || head.predecessorSha256 !== headDigest(previous)
+      )
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_HOSTED_CONTROL_HEAD_PREDECESSOR_MISMATCH',
+        'control head is not the exact monotone successor',
+      );
+    }
+    if (
+      previous === null
+      && (head.generation !== 0 || head.predecessorSha256 !== null)
+    ) {
+      throw new SupervisorRefusal(
+        'SNAPBACK_HOSTED_CONTROL_HEAD_PREDECESSOR_MISMATCH',
+        'first control head must be generation zero with no predecessor',
+      );
+    }
+    return this.commit((db) => {
+      db.controlHeads[head.targetId] = clone(head);
+      db.journal.push({
+        kind: 'controlHead',
+        targetId: head.targetId,
+        controlHeadSha256: headDigest(head),
+      });
+    }).controlHeads[head.targetId];
   }
 
   registerHostedTargetEnrollment(enrollment) {

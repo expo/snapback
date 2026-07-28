@@ -92,7 +92,8 @@ function lifecycleEntry(operation) {
   return Object.freeze({
     kind: 'lifecycle',
     operation,
-    availability: 'operator-mtls-supervisor-only',
+    availability: 'disabled',
+    blockerCode: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
   });
 }
 
@@ -496,7 +497,14 @@ export function createHostedPlan({
     driver: {
       kind: 'fly-machines',
       sha256: assets.flyDriverSha256,
-      lifecycleAvailability: 'operator-mtls-supervisor-only',
+      lifecycleAvailability: 'disabled',
+      blockerCode: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+      requiredEvidence: [
+        'reviewed closed per-operation carrier',
+        'supervisor bootstrap and purpose-key custody',
+        'public mTLS listener reachability',
+        'live Fly/Tigris provider receipt',
+      ],
     },
     commands: Object.entries(HOSTED_COMMAND_REGISTRY).map(([command, entry]) => ({
       command,
@@ -617,6 +625,23 @@ export async function invokeHostedLifecycle(verb, {
       'hosted lifecycle request identity, operation, attempt, or digests are invalid',
     );
   }
+  return {
+    schemaVersion: 'snapback.hosted-lifecycle-refusal.v1',
+    ok: false,
+    operation,
+    operationId: request.operationId,
+    code: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+    requestFileSha256: sha256(requestFile.bytes),
+    diagnostics: [{
+      code: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
+      severity: 'error',
+      message: operation === 'releaseLease'
+        ? 'releaseLease is disabled until a supervisor-only opaque lease journal binds exact expiry, version, generation, and head facts'
+        : `${operation} is disabled until its reviewed closed carrier and live supervisor/provider evidence are complete`,
+    }],
+  };
+  /* c8 ignore start -- retained transport implementation is unreachable until
+   * the reviewed carrier gate is lifted in the closed registry. */
   if (
     !operatorRequestPath
     || !endpoint
@@ -684,6 +709,7 @@ export async function invokeHostedLifecycle(verb, {
     );
   }
   return response;
+  /* c8 ignore stop */
 }
 
 export const __hostedControlTest = Object.freeze({
