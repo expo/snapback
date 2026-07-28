@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -18,6 +19,7 @@ import test from 'node:test';
 import {
   extractMissingSymbols,
   runRuntimeLinkProbe,
+  stageLinuxLoaderClosure,
 } from '../scripts/runtime-link-smoke.mjs';
 
 function writeExecutable(path, contents) {
@@ -34,6 +36,20 @@ function writeFixture(path, contents = '') {
 function probeTempDirectories() {
   return new Set(readdirSync(tmpdir()).filter((name) => name.startsWith('snapback-runtime-link-')));
 }
+
+test('Linux exact-link probe stages the public bin/../lib loader closure', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-linux-closure-'));
+  try {
+    const source = join(scratch, 'vendor', 'ibex', 'linux', 'lib', 'libhermesvm.so');
+    const target = join(scratch, 'target');
+    writeFixture(source, 'exact Hermes bytes');
+    const destination = stageLinuxLoaderClosure(scratch, target, { platform: 'linux' });
+    assert.equal(destination, join(target, 'lib', 'libhermesvm.so'));
+    assert.equal(readFileSync(destination, 'utf8'), 'exact Hermes bytes');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
 
 test('missing compatibility symbols produce one exact-link recovery record', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-test-'));
@@ -97,6 +113,12 @@ test('green state links and launches the newly built binary, then cleans it', as
   try {
     writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
     writeFileSync(join(scratch, 'Cargo.lock'), '');
+    if (process.platform === 'linux') {
+      writeFixture(
+        join(scratch, 'vendor', 'ibex', 'linux', 'lib', 'libhermesvm.so'),
+        'fixture Hermes closure',
+      );
+    }
     const cargo = join(scratch, 'fake-cargo.mjs');
     writeExecutable(cargo, `#!/usr/bin/env node
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -109,6 +131,9 @@ const index = process.argv.indexOf('--target-dir');
 const binary = join(process.argv[index + 1], 'debug', 'snapback');
 mkdirSync(dirname(binary), {recursive:true});
 writeFileSync(binary, \`#!/usr/bin/env node
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+${process.platform === 'linux' ? "if (!existsSync(join(dirname(process.argv[1]), '..', 'lib', 'libhermesvm.so'))) process.exit(9);" : ''}
 console.log(JSON.stringify({binary:{
   gitCommit:'current-cafebabe',
   gitDirty:true,

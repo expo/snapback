@@ -134,6 +134,14 @@ validates by building and launching the binary with `DYLD_*` scrubbed (a real
 link + load), not by `cargo check` alone, so that wedge surfaces at bootstrap
 time with `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` instead of at first run.
 
+On Linux the final binary likewise carries only the public runtime package's
+loader-relative `$ORIGIN/../lib` RUNPATH. An exact-link probe stages the
+bootstrapped `libhermesvm.so` beside its disposable Cargo target as
+`debug/../lib/libhermesvm.so` before launch. It does not set
+`LD_LIBRARY_PATH` or embed a checkout-absolute search path, so the probe
+exercises the same relocatable closure later assembled into the platform
+package.
+
 `scripts/ibex-doctor` is the read-only companion: it classifies the
 `vendor/ibex` states an operator hits during bring-up (source missing,
 submodule uninitialized, submodule wedged — with or without Ibex sources in

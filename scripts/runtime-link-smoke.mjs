@@ -11,7 +11,9 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  copyFileSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -197,6 +199,21 @@ function staleBinaryCandidate(root, environment) {
   return existsSync(prebuilt) ? { binary: prebuilt, rung: 'prebuilt' } : null;
 }
 
+export function stageLinuxLoaderClosure(
+  root,
+  targetDir,
+  { platform = process.platform } = {},
+) {
+  if (platform !== 'linux') return null;
+  const source = join(root, 'vendor/ibex/linux/lib/libhermesvm.so');
+  if (!existsSync(source)) return null;
+  const directory = join(targetDir, 'lib');
+  const destination = join(directory, 'libhermesvm.so');
+  mkdirSync(directory, { recursive: true });
+  copyFileSync(source, destination);
+  return destination;
+}
+
 export async function runRuntimeLinkProbe({
   root = DEFAULT_ROOT,
   cargoCommand = 'cargo',
@@ -284,6 +301,11 @@ export async function runRuntimeLinkProbe({
         }),
       };
     }
+    // @ref LLP 0010#native-runtime-bootstrap — Linux binaries deliberately
+    // carry only the public package's loader-relative RUNPATH. Reproduce that
+    // exact bin/../lib closure for the disposable target instead of relying
+    // on LD_LIBRARY_PATH or embedding a checkout-absolute path.
+    stageLinuxLoaderClosure(root, targetDir);
     const inspected = inspectRuntimeBinary(binary, environment);
     if (!inspected.runnable) {
       const code = 'SNAPBACK_IBEX_RUNTIME_LOAD_FAILED';
