@@ -10,7 +10,7 @@
 **Author:** Codex, directed by Charlie Cheever  
 **Date:** 2026-07-27  
 **Closed:** 2026-07-27  
-**Related:** LLP 0018, LLP 0034, LLP 0041, LLP 0081, LLP 0103
+**Related:** LLP 0018, LLP 0034, LLP 0041, LLP 0081, LLP 0109
 
 `ensureApp` seeded only when every target table was empty and otherwise
 reported `skipped-nonempty`. Seed data carried no version/digest and the
@@ -53,7 +53,7 @@ semantics.
 
 ## Resolution
 
-LLP 0103 was created and super-refined with retained Codex and Fable review
+LLP 0109 was created and super-refined with retained Codex and Fable review
 artifacts. The implementation now includes:
 
 - a closed, canonical `seed.artifact.json` with authored `seedVersion`;
@@ -84,6 +84,6 @@ binary digest/revision binding, and the full predecessor
 `3db3185a8325b5e8209b637080ab65d775c880ea` build identity/digest. It is a local
 run artifact, not clone-stable or version-control evidence.
 
-LLP 0103 intentionally remains Review pending author acceptance; the SQLite
+LLP 0109 intentionally remains Review pending author acceptance; the SQLite
 capability ids are Experimental, and hosted compiled-seed custody remains an
 explicit GAP.

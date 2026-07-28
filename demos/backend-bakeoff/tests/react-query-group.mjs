@@ -1,4 +1,4 @@
-// @ref LLP 0107#evidence-and-acceptance — this receipt bundles and drives the
+// @ref LLP 0112#evidence-and-acceptance — this receipt bundles and drives the
 // actual Signal Desk adapter, not a lower-level provider fixture.
 import { createHash } from 'node:crypto';
 import {

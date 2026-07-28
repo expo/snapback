@@ -21,7 +21,7 @@ initial-data path, group/store bounds and SSR snapshots are pinned, and
 authority replacement/disposal are explicit). 2026-07-27 (initial focused
 specification for the backend-bakeoff React, presence, and aggregate-query
 program)
-**Related:** LLP 0000, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0074, LLP 0090, LLP 0092, LLP 0101
+**Related:** LLP 0000, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0074, LLP 0090, LLP 0092, LLP 0108
 
 ## Summary
 
@@ -48,7 +48,7 @@ This Spec owns React composition and its public state semantics. LLP 0012 owns
 the headless facts, LLP 0013 owns ephemeral room semantics, LLP 0034 owns the
 shared live transport and lifecycle, LLP 0053 owns authorization publication
 fences, LLP 0064 owns capability-class honesty, LLP 0090/0092 own resumable
-snapshot bundles, and LLP 0101 owns operation result contracts and generated
+snapshot bundles, and LLP 0108 owns operation result contracts and generated
 `Args`/`Result` identity.
 
 ## Goals and non-goals
@@ -243,7 +243,7 @@ Conditional helpers derive `FunctionArgs<R>`, `FunctionResult<R>`,
 optional only when their generated type is `Record<string, never>`. A caller-
 selected generic cannot override a generated result.
 
-This surface depends on LLP 0101:
+This surface depends on LLP 0108:
 
 - query/live-query document and record contracts generate array results;
 - mutation contracts generate their direct logical result;
@@ -251,7 +251,7 @@ This surface depends on LLP 0101:
 - runtime egress is validated before a typed result is published; and
 - an omitted result remains `unknown`.
 
-Before LLP 0101 is implemented for an operation, this React surface preserves
+Before LLP 0108 is implemented for an operation, this React surface preserves
 `unknown`; it never restores precision with a cast or first-read-table guess.
 `useSnapbackQuery` admits only a generated query/live-query reference whose
 result is an array and whose manifest capability permits subscription.
@@ -782,7 +782,7 @@ the same landing.
 
 This is a Draft specification. Its implementation order is:
 
-1. land LLP 0101's generated result contracts and reference extractors;
+1. land LLP 0108's generated result contracts and reference extractors;
 2. factor reference-aware provider construction and context;
 3. add framework-neutral mutation, group, connection, and ephemeral-room
    stores without changing query-store ownership;
@@ -810,7 +810,7 @@ React never derives or accepts them from props.
 The provider identity is an opaque manager instance id plus target/app
 identity. A query-store key is
 `sha256(JCS({providerInstanceId, functionReference, args}))`, where the
-function reference is the complete generated LLP 0101 reference and `args`
+function reference is the complete generated LLP 0108 reference and `args`
 uses the existing finite canonical client value grammar. No token, secret,
 authorization descriptor, function, symbol, prototype-bearing object,
 undefined member, non-finite number, or cyclic value is keyable. The hook
@@ -960,7 +960,7 @@ successor authority is installed.
 
 ### Generated typing and closed state algebra
 
-Signatures use LLP 0101's shared `FunctionArgs<Ref>` and
+Signatures use LLP 0108's shared `FunctionArgs<Ref>` and
 `FunctionResult<Ref>` extractors, never fictional `Ref["Args"]` members:
 
 ```ts
@@ -1246,11 +1246,11 @@ revive the rejected React-owned bundle, authority, hydration, or cache owners.
 
 ### Bundle-primed generated query groups
 
-LLP 0107 now owns the complete generated-reference, target-capability,
+LLP 0112 now owns the complete generated-reference, target-capability,
 preparation-transfer, registered-adoption, and fallback contract for this
 section. The paragraphs below retain LLP 0102's React ownership summary but
-defer exact identity bytes, bounds, diagnostics, and cleanup to LLP 0107; where
-older wording conflicts, LLP 0107 is authoritative.
+defer exact identity bytes, bounds, diagnostics, and cleanup to LLP 0112; where
+older wording conflicts, LLP 0112 is authoritative.
 
 Codegen projects every register-eligible (one through 32, all-`LiveQuery`)
 `routes.manifest.json` entry into one exact `queryGroupReference` under the
@@ -1275,7 +1275,7 @@ the same store. No ordinary snapshot subscribe may race the registered child.
 Unconsumed pending registrations remain provider-owned on the same connection
 and are removed by provider disconnect.
 
-An explicit `fallbackToLive: true` handles only absence of LLP 0107's
+An explicit `fallbackToLive: true` handles only absence of LLP 0112's
 target-authored `registered_bundle_boot_v1` capability and performs no bundle
 request. Existing `SNAPBACK_BUNDLE_*` target refusals never downgrade. LLP
 0092's separate attach-deadline recovery returns the same generated group with

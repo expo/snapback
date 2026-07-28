@@ -1,4 +1,4 @@
-// @ref LLP 0106#package-and-acceptance — retained, zero-skip evidence for
+// @ref LLP 0107#package-and-acceptance — retained, zero-skip evidence for
 // React presence, optimistic ordering, SSR/hosted refusals, and exact cleanup.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';

@@ -8,12 +8,17 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const demos = discoverDemoSetups(repoRoot);
 assert(demos.has('graffiti'), 'Graffiti is discovered from demo.snapback.json');
 assert.deepEqual([...demos.keys()].sort(), [
+  'access-desk',
   'all-aboard',
   'backend-bakeoff',
   'card-game',
+  'catalog-lens',
   'cursors-web',
+  'dispatch-board',
   'graffiti',
   'partiful-matrix',
+  'public-dashboard',
+  'pulse-monitor',
   'rbac',
   'shindig',
   'team-chat',

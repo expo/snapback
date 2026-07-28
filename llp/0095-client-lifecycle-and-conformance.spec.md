@@ -5,7 +5,7 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-27 (LLP 0101 amendment: result-contract conformance spans
+**Revised:** 2026-07-27 (LLP 0108 amendment: result-contract conformance spans
 query/live publication and mutation/action completion without adding a new
 client lifecycle state); 2026-07-25; 2026-07-25 (live-owner identity rule on
 T-UNSUB/T-RECONNECT and the §2.1 fixture judgment rules, from the P-2
@@ -16,7 +16,7 @@ auth-invalidation state machine, and reconnect witnesses); 2026-07-26
 and exact duplicate re-ACK fixtures); 2026-07-26 (Swift adversarial review:
 terminal no-resurrection, pending high-water, exact scope/expectation binding,
 resolution floor/shape validation, and mandatory supersession witness)
-**Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0101
+**Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0108
 
 ## Summary
 
@@ -504,7 +504,7 @@ distinguish reap from expiry at the refusal.
   the diagnostic and acknowledged-batch remainder; the focused regression is
   wired into `scripts/verify-local-proof`.
 
-### LLP 0101 result-contract conformance
+### LLP 0108 result-contract conformance
 
 Result-contract validation adds no client state and does not retarget resume or
 replay identity. Conformance evidence covers these existing envelope families:

@@ -8,6 +8,26 @@ export const api = Object.freeze({
   "applyReplyProgress": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:1b0bebbce2b60ce153f753b624b6a2646143486dca13059e0175dd2dd100db7d",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "delta": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attemptId",
+        "sequence",
+        "delta"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:applyReplyProgress",
     "implementationHash": "sha256:3b8cca61e679a783eec21560a95c055e1b1d3de0a678bbd7a09c7b809a3090c1",
@@ -19,6 +39,18 @@ export const api = Object.freeze({
   "cancelReply": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:aa8016dc7c3c635257fc054468505df054fb1372124e4578f88e127d4d4b6151",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attemptId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:cancelReply",
     "implementationHash": "sha256:64ca4a8fce8a0fc8be298560df23ce0af462172ef0812af62d9856e7c788e5d7",
@@ -30,6 +62,26 @@ export const api = Object.freeze({
   "completeReply": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:f1c7f893333280646d4a5aafdb448e6f34c866335b62b32b0460f9c016922914",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "tail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attemptId",
+        "sequence",
+        "tail"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:completeReply",
     "implementationHash": "sha256:5e3f5f260f9449e2d3c5bb8369595ec802a91b2e13dd0dad1a2414bd977e90fa",
@@ -41,6 +93,18 @@ export const api = Object.freeze({
   "conversationBySlug": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:cce7d265b3b731990691dbfdda2132cd06cae60982c5cd52fb73076617435b70",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "slug": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:conversationBySlug",
     "implementationHash": "sha256:d7929ac0314fbe59f213d4e78734fe1ab244da35f19f9f8fe39611ae004ec7ad",
@@ -52,6 +116,15 @@ export const api = Object.freeze({
   "conversationsWithModel": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:e667113f0e2f5107581cb3c84b276d2dccff07505b313a8768ffde235f042fa9",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:conversationsWithModel",
     "implementationHash": "sha256:9811ca48eb088eb255f25fa5b8c30b794d0dbd1ac9ce37402168bee90c18ed6e",
@@ -63,6 +136,26 @@ export const api = Object.freeze({
   "createConversation": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:7d620fe27592e46cd87bc9a977eff6c47621172135bba87fa00dcde7dd02f07c",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "title",
+        "model"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:createConversation",
     "implementationHash": "sha256:f80dd1290feb7cb04fc033629e67e378e11beb15e0067d091385566b9a62aa61",
@@ -74,6 +167,18 @@ export const api = Object.freeze({
   "deleteConversation": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:7cbe20de5451207f9ca520f157b9ba809aab1b37f9131b9c5ebd84ddf66ef702",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:deleteConversation",
     "implementationHash": "sha256:3837b3220eef00ddbed860ce5b4bdb98294a2a4ad7b9dbfb1611647edca0c6fc",
@@ -86,6 +191,11 @@ export const api = Object.freeze({
   "firstConversationPage": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:firstConversationPage",
     "implementationHash": "sha256:d686bb299c5b477a479f14ce89ffca0e7f68bed88c184d6b3fb74c238f5c1b8c",
@@ -97,6 +207,18 @@ export const api = Object.freeze({
   "getConversation": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:7cbe20de5451207f9ca520f157b9ba809aab1b37f9131b9c5ebd84ddf66ef702",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:getConversation",
     "implementationHash": "sha256:abbb73340b813fa5fd1bedede609fe4aff1be9dabc3deb6b3de1a66dac868412",
@@ -109,6 +231,11 @@ export const api = Object.freeze({
   "listConversationCards": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listConversationCards",
     "implementationHash": "sha256:3d5c10c19b75757e03071d09dd87d56ded37607812477fb94c9306ece9add728",
@@ -120,6 +247,11 @@ export const api = Object.freeze({
   "listConversations": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listConversations",
     "implementationHash": "sha256:66d69d0b1cfc45e7e47faa8beb1548683dc6d6fe56f3aef6a66bb63b7c0a3629",
@@ -131,6 +263,18 @@ export const api = Object.freeze({
   "listMessages": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:4ade7ee4668a7a44b84de926f53d7817c1bf86bb86f96715d06989a925a7aadf",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "conversationId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listMessages",
     "implementationHash": "sha256:413f9e8a739dc7959fe2951df57683141b00cce72eb4712ba315652efe26e63b",
@@ -142,6 +286,18 @@ export const api = Object.freeze({
   "nextConversationPage": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:bb7e6b8e2f9e75c4903a4077737f5b93e40e8825ae565b685b44aabf65d54214",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "after"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:nextConversationPage",
     "implementationHash": "sha256:7ac266ffef43f2537bedc34d593f15d472b4da421fe259e7f6a69009c63dd050",
@@ -153,6 +309,25 @@ export const api = Object.freeze({
   "registerModel": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:1db65d7d8cf3cf1d5cab676e2b388c75c4eff473d0d105c3392944ad0d771903",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "displayName"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:registerModel",
     "implementationHash": "sha256:9e2908f98527f7900ee8c04533dabfccb8907126bd237140cfa1aba8791c1151",
@@ -164,6 +339,22 @@ export const api = Object.freeze({
   "settleReply": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:29e14a77401303f5210b45a7001db446ef527cfe0f22eb5d892a40ceb294bd7c",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attemptId",
+        "status"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:settleReply",
     "implementationHash": "sha256:6e272055c0bc1cafb5af38acfc5cc0c6cb0ffe92d60e12f3c0ed91612fdb7a6e",
@@ -175,6 +366,26 @@ export const api = Object.freeze({
   "startReply": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:c89748845de513203bc8fcd4ab8c84989afdadcff0940b7a00eff6a913011391",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "conversationId": {
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversationId",
+        "content",
+        "idempotencyKey"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:startReply",
     "implementationHash": "sha256:d043fc4379b1d39c669f42a898c944805eb4e9f2364337b213a71170e465d83a",
@@ -186,6 +397,30 @@ export const api = Object.freeze({
   "streamReply": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:4fd0982a44929fad1084e29c634b24a54d077124501879ce18ba254cd742c9f1",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "streamUrl": {
+          "type": "string"
+        },
+        "upstreamIdempotent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "attemptId",
+        "streamUrl",
+        "method",
+        "upstreamIdempotent"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:streamReply",
     "implementationHash": "sha256:6397cd87199e491c04c8a2eabbc353ea6d8b9ccff4f6a1f9528a4284fb37f464",
@@ -197,6 +432,26 @@ export const api = Object.freeze({
   "updateConversation": {
     "appId": "competitive-checkpoint",
     "argsContractHash": "sha256:27ea6323f7bccd1e4fa37ca6ce3aa7785daf4692acaebf391c71ea30d5d9e37c",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "model"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:updateConversation",
     "implementationHash": "sha256:5f0dbf8d932333bdd5834489e064a86f7cd94096ac8724427b1e406d09dd6926",

@@ -220,7 +220,7 @@ indexed search, and operational maturity. The prioritized remediation is in
 
 ## 2026-07-27 — bounded relations and activity follow-up
 
-The remediation pass added review-gated LLP 0104 declarations for all three
+The remediation pass added review-gated LLP 0110 declarations for all three
 incident child collections and one task-write/activity flow. It also moved
 Signal Desk's child indexes from the manual
 `[incidentId, orderField]` shape to
@@ -266,7 +266,7 @@ framework-owned and stamped by every central writer.
   impersonation path.
 - Existing handwritten activity inserts had to populate the now-required
   application-table fields. Their values are explicitly classified as
-  `explicit-js-handler.v1`, not passed off as LLP 0104 settlement provenance.
+  `explicit-js-handler.v1`, not passed off as LLP 0110 settlement provenance.
 - The relation page needed a new cursor protocol rather than reusing the
   older MAC-visible relational cursor: order keys and parent identity are
   encrypted in `sbbc1`, which is the right disclosure posture but a
@@ -282,7 +282,7 @@ provider-type, storage, cursor, diagnostic, direct Signal Desk acceptance
 (7/7), TypeScript, contract-inventory, and production-build gates are green.
 This is a better failure mode than the original surface. The capability index
 still tells an agent not to depend on the profiles as a published target
-guarantee until LLP 0104 completes its separate author-acceptance and
+guarantee until LLP 0110 completes its separate author-acceptance and
 cross-target evidence lifecycle.
 
 ## 2026-07-27 — first-class React presence and optimistic follow-up

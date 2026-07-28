@@ -36,7 +36,7 @@
           "type": "array"
         },
         "registerGroupEligible": {
-          "description": "Codegen-derived eligibility for LLP 0107 registered query-group\nadoption. It is true only for all-LiveQuery routes whose `$param`\nreferences target string args, so clients need not duplicate server\nroute-parameter coercion before I/O.",
+          "description": "Codegen-derived eligibility for LLP 0112 registered query-group\nadoption. It is true only for all-LiveQuery routes whose `$param`\nreferences target string args, so clients need not duplicate server\nroute-parameter coercion before I/O.",
           "type": "boolean"
         },
         "route": {

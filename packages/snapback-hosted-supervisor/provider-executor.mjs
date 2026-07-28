@@ -1,11 +1,11 @@
 // Supervisor-only executor for the closed Fly lifecycle V2 vocabulary.
 //
-// @ref LLP 0105#closed-carrier-digest-and-effect-journal — every operation
+// @ref LLP 0111#closed-carrier-digest-and-effect-journal — every operation
 // is admitted through the generated closed carrier and returns one immutable
 // applied/notApplied/commitUncertain terminal.
-// @ref LLP 0105#exact-v1-closure-and-additive-v2-operations — this registry is
+// @ref LLP 0111#exact-v1-closure-and-additive-v2-operations — this registry is
 // exactly the packaged 17-operation lifecycle V2 vocabulary.
-// @ref LLP 0105#always-on-supervisor-and-canonical-single-writer-head — Fly
+// @ref LLP 0111#always-on-supervisor-and-canonical-single-writer-head — Fly
 // and Tigris authority is injected only by the standing supervisor; neither
 // the CLI nor application target can resolve it.
 

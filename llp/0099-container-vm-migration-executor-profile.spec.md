@@ -7,8 +7,8 @@
 **Date:** 2026-07-26
 **Revised:** 2026-07-28 (unreviewed post-round correction: LLP 0081-compatible
 pre-publication ceiling semantics, a closed signed deadline envelope,
-interruption handling, and a separate LLP 0108 provisional-publication
-observation gate). 2026-07-28 (LLP 0108 corrective reconciliation: trusted
+interruption handling, and a separate LLP 0113 provisional-publication
+observation gate). 2026-07-28 (LLP 0113 corrective reconciliation: trusted
 absolute deadline, reboot-safe budget exhaustion, admission expiry, and exact
 forward/recovery cutoffs). 2026-07-28 (round-2 reconciliation: admission binds a backup
 policy then an exact supplemental checkpoint; cancellation uses LLP 0081's
@@ -17,7 +17,7 @@ abort/reopen time). 2026-07-28 (first hosted executor decisions: enqueue
 admission with barrier re-proof, checkpointed cancellation, a 180-second
 initial downtime ceiling, streaming-backup qualification, and closed receipt
 identities)
-**Related:** LLP 0072, LLP 0081, LLP 0007, LLP 0014, LLP 0063, LLP 0075, LLP 0076, LLP 0098, LLP 0105, LLP 0108
+**Related:** LLP 0072, LLP 0081, LLP 0007, LLP 0014, LLP 0063, LLP 0075, LLP 0076, LLP 0098, LLP 0111, LLP 0113
 
 ## Summary
 
@@ -306,7 +306,7 @@ ceiling before `published-held` is the LLP 0081 conformance failure and safe
 abort; predecessor health must be restored by `migrationCeilingAt` or the
 receipt records a conformance failure, with no provider SLA inferred.
 Successor observation, release, and rollback after `published-held` follow
-LLP 0081's fenced state machine and the separate LLP 0108 provisional-
+LLP 0081's fenced state machine and the separate LLP 0113 provisional-
 publication gate below; they are not included in or constrained by the
 migration ceiling.
 
@@ -337,7 +337,7 @@ field substitutes for the nine exact package name/version/digest triples.
 
 The standing supervisor's external database is the authority for approval,
 admission, cancellation, and consumed-rehearsal records, with its monotone
-Tigris mirror and incarnation/head recovery rules from LLP 0105. The target
+Tigris mirror and incarnation/head recovery rules from LLP 0111. The target
 process holds only the resident executor journal and cannot mint or renew
 control-plane approval.
 
@@ -459,7 +459,7 @@ or audited rollback; it never guesses that the predecessor is active.
 The last two timestamps are not migration-ceiling fields.
 `provisionalObservationDecisionAt = barrierStartedAt + 140000 ms` and
 `provisionalPublicationExpiresAt = barrierStartedAt + 180000 ms` implement
-LLP 0108's target-enforced provisional-publication observation window after
+LLP 0113's target-enforced provisional-publication observation window after
 `published-held`. If successor health is absent at the decision point, the
 supervisor may invoke only the separately authorized, generation-bound
 rollback that LLP 0081 permits. At expiry the provisional migration claim
@@ -467,7 +467,7 @@ family becomes unusable at the target even if supervisor withdrawal fails.
 Expiry records a publication-observation failure; it does not extend the
 migration ceiling, invent a journal transition, implicitly restore the
 predecessor, or accept a late health result. A later claim requires a new
-LLP 0108 qualification generation and publication epoch.
+LLP 0113 qualification generation and publication epoch.
 
 ## Non-goals
 
@@ -504,7 +504,7 @@ profile.
    ceiling subsume it? **Resolved:** a 180-second maximum approved
    pre-publication ceiling with explicit forward/recovery budgets;
    measurements admit or refuse but never recalibrate. Post-`published-held`
-   `+140`/`+180` observations are the separate LLP 0108 provisional-
+   `+140`/`+180` observations are the separate LLP 0113 provisional-
    publication gate, not migration-ceiling time.
 4. Is the pre-apply checkpoint a provider volume snapshot or the existing
    streaming SQLite backup to the separately permissioned object store —

@@ -1,6 +1,6 @@
 [submodule "vendor/ibex"]
 	path = vendor/ibex
-	url = https://github.com/ccheever/ibex.git
+	url = https://github.com/expo/ibex.git
 	branch = main
 [submodule "vendor/llp"]
 	path = vendor/llp

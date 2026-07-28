@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// @ref LLP 0105#durable-spend-cleanup-and-credential-custody — installation
+// @ref LLP 0111#durable-spend-cleanup-and-credential-custody — installation
 // effects are planned, digest-confirmed, sentinel-bound, and credentials are
 // placed in provider/OS secret stores rather than receipts or argv output.
-// @ref LLP 0105#one-fail-closed-hosted-authority-and-recoverable-supervisor —
+// @ref LLP 0111#one-fail-closed-hosted-authority-and-recoverable-supervisor —
 // product journeys consume a pre-provisioned shared installation receipt.
 
 import { createHash, randomUUID } from 'node:crypto';

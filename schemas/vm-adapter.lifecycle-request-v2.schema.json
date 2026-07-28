@@ -103,7 +103,7 @@
     },
     "FlyTargetBindingV2": {
       "additionalProperties": false,
-      "description": "Closed, generation-fenced binding for one Fly target.\n\n@ref LLP 0105#expiring-routed-machine-authority — effect-time discovery is\nforbidden; the control plane pins the complete roster, routes, storage,\ncertificate posture, supervisor, and separated credential roles.",
+      "description": "Closed, generation-fenced binding for one Fly target.\n\n@ref LLP 0111#expiring-routed-machine-authority — effect-time discovery is\nforbidden; the control plane pins the complete roster, routes, storage,\ncertificate posture, supervisor, and separated credential roles.",
       "properties": {
         "activeMachineId": {
           "type": "string"

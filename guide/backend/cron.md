@@ -87,9 +87,13 @@ The acceptance asserts the whole path—tick → action → mutation → live up
     const limited = rows.find((r) => r.patternId === 'sb-limited');
 ```
 
-`GET /inspect` exposes registered jobs, activation state, next/last timing,
-and the bounded recent-run ledger. Assert the job and a successful run so a
-vacuous tick cannot pass.
+The public `GET /inspect` projection exposes aggregate cron posture only.
+Per-job activation, next/last timing, diagnostics, and the bounded recent-run
+ledger may contain handler-controlled values and therefore live on the
+admin-gated `GET /_snapback/api/inspect` twin. In a headless suite, construct
+`AdminClient` with the returned server token, or use
+`openHeadlessApp(...).admin.inspect()`. Assert the job and a successful run so
+a vacuous tick cannot pass.
 
 ## Run with the scheduler inert
 

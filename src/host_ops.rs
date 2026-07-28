@@ -536,7 +536,7 @@ impl fmt::Debug for HostOpsRequest {
 /// host-operation sibling may be silently discarded before the seed request
 /// digest is computed.
 ///
-/// @ref LLP 0103#162-closed-carriers-and-exact-operation-combinations —
+/// @ref LLP 0109#162-closed-carriers-and-exact-operation-combinations —
 /// seed bodies live only under `HostOpsRequest.input`.
 pub(crate) fn versioned_seed_wrapper_has_forbidden_siblings(request: &HostOpsRequest) -> bool {
     request.schema.is_some()

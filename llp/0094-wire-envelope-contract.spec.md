@@ -8,12 +8,12 @@
 **Revised:** 2026-07-28 (unreviewed post-corrective-round reconciliation:
 use-only live qualification transport, carrier-stripped sender binding, and
 the exact hosted-ephemeral per-boundary/refusal contract; the status remains
-Review). 2026-07-28 (LLP 0108 corrective addendum: complete
+Review). 2026-07-28 (LLP 0113 corrective addendum: complete
 qualification-use/refusal contract, hosted-ephemeral authority-instance wire
-closure, and HTTP-400 invalidation-protocol reconciliation). 2026-07-28 (LLP 0104 qualification amendment: exact
+closure, and HTTP-400 invalidation-protocol reconciliation). 2026-07-28 (LLP 0110 qualification amendment: exact
 connection-open DTO members and query/mutation headers carry the bounded hidden
 candidate grant; live frames inherit only the bound connection session).
-2026-07-27 (LLP 0101 amendment: result-contract failures use the
+2026-07-27 (LLP 0108 amendment: result-contract failures use the
 existing error envelope and refusal registry; no expected-operation wire
 carrier is introduced); 2026-07-25 (initial draft; §0D receipt typing and §0A.4 hosted
 route migration implemented with this draft); 2026-07-25 (§0A.5 drain
@@ -71,7 +71,7 @@ instances, and real served-frame validation for all four reply variants;
 the §0A.1 conformance caveat is retired)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
-LLP 0092, LLP 0093, LLP 0101, LLP 0104, LLP 0108
+LLP 0092, LLP 0093, LLP 0108, LLP 0110, LLP 0113
 
 ## Summary
 
@@ -952,9 +952,9 @@ must-understand style:
 | `SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH` | 400 | unsubscribe/resume | the retained subscription belongs to a different function than the route path |
 | `SNAPBACK_CONNECTION_TOKEN_REQUIRED` | 401 | every `ConnectionAuth` route | no connection credential was presented |
 | `SNAPBACK_CONNECTION_TOKEN_INVALID` | 403 | every `ConnectionAuth` route | the grant is invalid/reaped/expired; take LLP 0095 T-GRANT-LOSS, do not retry the dead grant |
-| `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION` | existing invocation status | query/live/mutation/action response | the handler's post-JSON output violates its effective LLP 0101 contract or egress ceiling; the ordinary error envelope carries bounded operation/hash/kind/path facts and never the rejected value |
+| `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION` | existing invocation status | query/live/mutation/action response | the handler's post-JSON output violates its effective LLP 0108 contract or egress ceiling; the ordinary error envelope carries bounded operation/hash/kind/path facts and never the rejected value |
 
-LLP 0101 adds no `ExpectedOperationV1`, compatibility-policy offer, request
+LLP 0108 adds no `ExpectedOperationV1`, compatibility-policy offer, request
 member, response member, socket subprotocol, or resume/replay tuple in this
 version. Generated references retain the existing whole-artifact compatibility
 behavior. Result-contract validation is an implementation seam behind the
@@ -1143,7 +1143,7 @@ package suite including `wire-version.test.mjs`;
    the remote suite, paired with a positive probe of its migrated
    replacement in the same run.)
 
-## LLP 0104 hidden-qualification wire amendment — 2026-07-28
+## LLP 0110 hidden-qualification wire amendment — 2026-07-28
 
 The acceptance-only qualification protocol is `sqg1`. It is not an ordinary
 client capability offer and never appears in generated application APIs.
@@ -1170,9 +1170,9 @@ Qualification errors use the existing error-envelope family and never expose
 candidate function inventory, remaining budget, signature bytes, or whether a
 different hidden generation exists.
 
-## LLP 0108 corrective wire closure — 2026-07-28
+## LLP 0113 corrective wire closure — 2026-07-28
 
-LLP 0108 owns the complete `QualificationUseV1` grammar, signature preimage,
+LLP 0113 owns the complete `QualificationUseV1` grammar, signature preimage,
 operation-specific optionality, durable reservation order, replay retention,
 budgets, and refusal matrix. The route carriers above are unchanged, except
 that their `qualificationUse` value is the compact JCS object defined there
@@ -1186,7 +1186,7 @@ This Draft also reconciles the pre-existing invalidation refusal conflict:
 `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` is HTTP **400**, as already
 registered in §0E and emitted by the server. It means the authenticated client
 omitted or mismatched the must-understand invalidation offer. Retrying unchanged
-is incorrect; the caller repairs the offer. LLP 0108 is the later addendum to
+is incorrect; the caller repairs the offer. LLP 0113 is the later addendum to
 Accepted LLP 0058 for this status assignment.
 
 ### Hosted-ephemeral authority instance
@@ -1219,7 +1219,7 @@ emitting a partially governed frame.
 ## Unreviewed post-round wire closure — 2026-07-28
 
 This section supersedes the incomplete route and hosted-ephemeral tables above.
-It applies the terminal LLP 0108 review dispositions, has not received a
+It applies the terminal LLP 0113 review dispositions, has not received a
 further independent review, and does not advance this Spec beyond Review.
 
 ### Qualification transport
@@ -1246,13 +1246,13 @@ removing `qualificationGrant` and `qualificationUse`; for the socket frame it
 removes `qualificationUse`; an empty body hashes the empty byte string. The
 sender-proof extension separately binds method, canonical route template,
 function id, that carrier-stripped digest, and SHA-256 of the exact compact
-grant/inherited-grant and use bytes under LLP 0108's domain. This prevents the
+grant/inherited-grant and use bytes under LLP 0113's domain. This prevents the
 open-body carrier from recursively hashing itself.
 
 Before ordinary authentication, only the route's generic transport byte/time
 ceiling may refuse and it emits no qualification-specific code. After
 authentication, the server decodes carriers, verifies signatures/bindings, and
-applies LLP 0108's journal-first replay/expiry precedence and refusal matrix.
+applies LLP 0113's journal-first replay/expiry precedence and refusal matrix.
 
 ### Hosted-ephemeral per-boundary contract
 

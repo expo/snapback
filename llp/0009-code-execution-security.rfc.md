@@ -5,12 +5,13 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-27 (LLP 0101 amendment: inline v1 admits only a parsed,
+**Revised:** 2026-07-27 (LLP 0108 amendment: inline v1 admits only a parsed,
 self-contained handler expression and preserves the existing evaluator,
-capability scan, warm-pool isolation, and artifact-size ceilings);
+capability scan, fresh-per-invocation isolation, and artifact-size ceilings);
+2026-07-27 (adopts Ibex main `63ad33bc` from `expo/ibex`: the upstream no-eval constructor uses Hermes patch 0014, leaves the consumer intrinsic graph mutable for Snapback's verified ambient policy, publishes detached rejections through the native owner-thread async-failure queue, owner-thread deadline watches remain unchanged, and foreign-thread cancellation carries the live runtime nonce through `ex_hermes_interrupt_eval` rather than calling `watchTimeLimit` off owner; retires DK-4 warm reuse because current Ibex binds evaluation, queue inspection, value release, and destruction to the creating OS thread while Snapback blocking workers may change threads, so the local capability honestly returns to `fresh-per-invocation`);
 2026-07-18 (handler bundle identity is closed at runtime: Snapback opts into a no-eval Ibex constructor, verifies the linked Hermes latch export before enabling it, Hermes patch 0010 closes the cached `Function("return this")` exception, both engines prove Function-family compilation unavailable before application evaluation, egress denies eval/WebAssembly while retaining fetch, and codegen's structural diagnostics are AST-backed defense in depth); 2026-07-18 (Promise completion authentication rejects Proxy-spoofed receivers and direct constructor reentry through a closure-private engine brand, enrolls rejection state before mutable public bookkeeping, derives canonical reaction snapshots from lexical arguments, binds them to the effective source only from the trusted initial handle path after alias traversal, gives adopters independent generations, multiplexes isolated generic and strict downstream observers, and defers generic reporting to a captured host task so authenticated reactions finish before classification); 2026-07-18 (Hermes action authority is bound at Promise reaction registration by a private one-shot scheduler token; ordinary enqueues never inherit ambient parent authority, while Promise's private factory may preserve only an authenticated real active scheduler across a no-frame internal adoption hop, never a sentinel, and any live user frame wins)
 **Revised:** 2026-07-17 (Hermes patch 0009 replaces handler-reachable rejection assertions with a required one-shot engine observer: closure-private rejection generations are reported at reject time and completed only after the matching reaction executes or propagates and settles its child; native await, adoption, and combinators are covered, `_B`/`_C` are inert, and stale artifacts fail bootstrap); 2026-07-17 (Linux Hermes portability and adversarial closure: every harness observation child is explicitly guarded; `_C` records provisionally; both engines reject non-canonical Promise constructor paths before `then`, preventing decoy and no-op child capabilities; canonical Hermes handling requires a running sealed reaction; typed host branding and settlement diagnostic access use captured and guarded primitives); 2026-07-17 (Hermes harness-owned handler and settlement promises now receive an explicit sealed mediated reaction before native `await`, preserving handled typed host failures across engine hook-order differences without trusting reachable `_B` calls; the bootstrap also pins the captured `Function.prototype.call` used inside Ibex's `then` wrapper so selective intrinsic poisoning cannot blind the detached-rejection ledger and commit buffered writes); 2026-07-13 (audit blockers: Hermes preserves native Promise constructor identity but turns every handler-reachable then/promise `_B`/`_C` path into sealed state-validating mediators; Workerd settlement and detached-call quiescence share one invocation deadline, which aborts pending HOST fetches and fails closed); 2026-07-13 (whole-codebase security follow-up: the V8 harness now consumes trusted intrinsics exactly once before application evaluation, keeps its destructive rejection drain in the server closure, uses prototype-free Promise-channel records, and pins Response thenability and Promise species; local workerd uses independent invoke/host/response capabilities, authenticates response headers before bounded body reads, and emits only bounded, path/secret-sanitized stderr tails); 2026-07-12 (ENG-24559: settlement serialization and rejection inspection now use captured, non-destructive control-plane primitives and burn rejected warm VMs; ENG-24564: the workerd transport uses private materialization, authenticated local seams, and bounded reads; ENG-24340 final review follow-up: detached action lock acquisition is deadline/abandon-aware and the independent gate spans only final SQLite commit, never handler/plan/fan-out work; ENG-24351: codegen definition modules now cross an AST-resolved, permission-denied evaluation boundary rather than relying on ambient-token rejection; canonical evaluated values join artifact identity; ENG-24339: trusted invoke/settle helpers install before application source, are sealed and lexically linked, Ibex captures its original host transport, and action DB reads are rejected at the Rust host boundary); 2026-07-07 (DK-5 re-decided — triggers 1–2 fired with LLP 0040/LLP 0047 starting the same day; build the twin now as LLP 0048's workerd-hosted runner behind the RPC-shaped handler seam, no native embed; the enduring Hermes-local engine posture recorded — device parity with Exact, capability security by construction, footprint, spinup; ratified by Charlie in-session, applied by Claude); 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0036, LLP 0040, LLP 0041, LLP 0043, LLP 0047, LLP 0048, LLP 0060, LLP 0101, https://github.com/ccheever/ibex
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0036, LLP 0040, LLP 0041, LLP 0043, LLP 0047, LLP 0048, LLP 0060, LLP 0108, https://github.com/ccheever/ibex
 
 ## Summary
 
@@ -373,13 +374,37 @@ Ledgered in [LLP 0000](./0000-snapback.explainer.md); numbers in LLP 0035.
 Revisit: after the cost decomposition, and again once a warm VM (if it ships)
 is re-measured to confirm the projected win.
 
+### DK-4 retired — upstream Ibex owner-thread contract (2026-07-27)
+
+DK-4 no longer ships. Current upstream Ibex records the creating OS thread as
+the runtime owner and refuses evaluation, asynchronous-failure inspection,
+value release, and destruction from any other thread. Snapback's local query
+and mutation lanes use blocking workers whose OS-thread assignment may change
+between invocations. Exclusive access through a mutex is therefore
+insufficient: a checked-in runtime could be evaluated or destroyed by a
+different worker even though no two workers use it concurrently.
+
+Snapback now retains no Ibex runtime between invocations. Queries, mutations,
+and actions all create, drive, inspect, release, and destroy their runtime on
+the invocation's current thread, and the capability manifest reports
+`vmLifecycle: "fresh-per-invocation"`. The former `SNAPBACK_FRESH_VM` opt-out
+has no behavioral effect because fresh execution is mandatory. Reintroducing
+reuse requires an execution architecture with stable runtime-owner threads (or
+a new upstream transfer contract with equivalent owner-safe cleanup); merely
+re-adding `Send` to an opaque runtime wrapper is forbidden.
+
+The July 2 section below is retained as a historical record of the retired
+optimization and its security analysis. Its present-tense implementation
+claims do not describe the current runtime.
+
 ### DK-4 as-built — the warm VM pool and its per-invocation reset (2026-07-02)
 
-The gated leg shipped. This subsection is the as-built design: what the warm
-path reuses, what proves the VM clean between invocations, and — most
-importantly — the limits stated honestly. The implementation lives in
-`src/warm_vm.rs` (pool, setup/reset sources) and `src/runtime.rs` (the warm
-orchestration inside `run_ibex_handler_with_context`).
+> **Historical / retired 2026-07-27.** The gated leg once shipped. This
+> subsection records that former design: what the warm path reused, what
+> proved the VM clean between invocations, and — most importantly — the
+> limits stated honestly. The implementation lived in `src/warm_vm.rs`
+> (pool, setup/reset sources) and `src/runtime.rs` (the warm orchestration
+> inside `run_ibex_handler_with_context`).
 
 **Scope fences.** Warm VMs serve **query and mutation** invocations of
 Ibex-module handlers on the trusted-local target. **Actions always run
@@ -547,99 +572,43 @@ regular-expression primitives, and reads application-controlled diagnostic
 getters only inside independent guards. A hostile `__snapbackCode` or `message`
 getter can therefore neither escape the settlement catch nor replace a typed
 host failure; an uninspectable message becomes a fixed primitive fallback.
-The Hermes rejection tracker follows the same capability rule. Native Promise
-constructor identity remains unchanged because the internal then/promise
-implementation branches on that exact identity. Ibex Hermes patch 0009 adds a
-one-shot engine observer registrar on that constructor. The trusted Ibex
-runtime bundle consumes it before application source, feeds the generic
-web-event/CLI tracker, and publishes a distinct closure-owned one-shot bridge
-for Snapback; the ctx bootstrap consumes and seals that downstream bridge. A
-missing, malformed, or already-consumed registrar fails bootstrap rather than
-silently falling back to weaker bookkeeping, and runtime readiness is not
-published after a partial install. The engine callbacks and their WeakMaps
-remain inside Hermes's Promise closure. Each rejection creates a new
-closure-private state record holding the actual reason and an opaque generation
-token; only the token crosses either callback. Before a
-reaction is queued, Hermes snapshots the source Promise, state, private reason,
-lexical callbacks, child, and generation; it never derives authenticated
-callbacks from inherited public Handler accessors. The snapshot remains
-unenrolled during alias traversal, then the trusted initial handle path binds
-it to the effective source before queue exposure; a reentrant/finale handle
-cannot steal that binding. Hermes reports completion only after that reaction handles
-or propagates the reason through its closure-selected immediate child
-capability, and only while the exact generation remains current. Rejection
-state is stored before writes to public Promise bookkeeping, and notification
-runs from a `finally` that encloses those writes, the reachable legacy `_C`
-hook, and reaction scheduling. The normal path notifies after preattached jobs
-are scheduled, while frozen/accessor-backed fields or a throwing hook still
-cannot skip enrollment. The generic
-tracker and downstream observer run in independently isolated paths, with the
-strict downstream ledger first, so hostile reason inspection cannot suppress
-the commit fence. Generic fail-loud classification runs in a task scheduled by
-the host `setTimeout` captured before application code, not in the first queued
-microtask: this waits for the complete current microtask checkpoint so an
-immediate `Promise.reject(...).catch(...)` or async-function catch can emit
-authenticated completion before classification. Missing startup task support
-fails bootstrap, and later replacement of the public timer function cannot
-redirect the captured scheduler. The generic event/exit policy remains a
-compatibility diagnostic, not a hostile-code security boundary: application
-code can intentionally cancel guessed public timer IDs, prevent the event, or
-rewrite its own exit status. Snapback commit integrity instead depends on the
-separate closure-private downstream ledger swept by the host. Exact-Promise
-adoption uses a real intrinsic reaction while
-observation is active, rather than aliasing the adopter to state 3, so every
-adopter receives an independent rejection generation. `Promise.all` likewise
-disables its public settled/adoption fast path under observation and receives
-the state and actual reason through an authenticated reaction, so mutable
-compatibility fields cannot pre-settle the aggregate with a forged reason. The harness stores reason and generation in
-separate captured Maps and deletes an entry only on that exact completion.
-Mutable `_x`/`_y`/`_z`/`_A` compatibility fields, stale queued reactions, and
-direct calls to the reachable `_B`/`_C` hooks therefore cannot forge handling;
-both legacy hooks are sealed inert in Snapback.
+The Hermes rejection tracker follows the same capability rule without exposing
+an observer to handler JavaScript. Current Ibex configures Hermes's native
+checkpoint tracker when `ex_hermes_create_no_eval` constructs the runtime.
+Hermes records each rejected Promise and its rooted reason, removes the exact
+record when the Promise becomes handled before the checkpoint, and publishes
+the survivors through `ex_hermes_take_async_failure_event`. The first take after
+`ex_hermes_eval` is the restricted consumer's determination checkpoint: it
+flushes the post-microtask pending set but does not advance timers or unrelated
+callback queues. Snapback renders the transferred root through Ibex's trap-free
+safe-throw metadata and primitive Stage-1 text APIs, then releases it on the
+runtime owner thread. A malformed record, rendering/release failure, native
+publication failure, or explicit dropped-count marker fails the invocation
+closed. The handler realm has no queue handle, drain function,
+`__ibexRegisterPromiseObserver`, or `__OriginalPromise` authority. Legacy
+Promise compatibility properties that the engine may retain are not inputs to
+the native queue; direct calls cannot delete an enrolled native record.
+
 Before either engine invokes handler-visible native `then`, a sealed,
 getter-free gate requires the receiver's direct prototype to be the captured
 native Promise prototype and any own `constructor` descriptor to be absent or
 the exact native constructor as a data value. Custom, inherited, and accessor
 constructor paths fail closed before they can supply child Promise
-capabilities. A Proxy can lie to those reflective JavaScript checks, so the
-engine boundary independently rejects it: V8's native Promise receiver check
-does so, while patch 0009 records each canonically constructed native Promise
-from engine initialization in a closure-private WeakMap, checks that brand
-before constructor access, and records every internal Handler in a second
-private map. Canonical `.then()` records may authorize source completion;
-custom-constructor `safeThen` records may execute and settle only their lexical
-child, while absent or source-mismatched public records are inert and cannot
-invoke internal settlement at all. Each record binds write-once to the effective source Promise after legacy
-state-3 collapse and only on the trusted initial handle call, so transplanting
-a valid public Handler record between
-pending Promises cannot gain completion authority. Cached primitive promises
-are therefore covered, while direct calls, custom `newTarget` construction,
-mutation of exposed Handler fields, pre-bind reentrancy, and direct constructor
-reinitialization cannot gain completion authority. This is
-necessary even when a reaction runs: a hostile
+capabilities. A Proxy cannot use that gate to invoke native Promise `then` on a
+non-Promise receiver because the engine's own receiver check independently
+rejects it. This is necessary even when a reaction appears to attach: a hostile
 constructor can invoke the executor with no-op resolve/reject functions and
 swallow the rejection that a missing or throwing callback must propagate to
-the child. On Hermes, the sealed `then` wrapper preserves that gate but
-delegates handling authority exclusively to the authenticated engine observer;
-the `safeThen` custom-constructor bridge may execute but never authenticates
-handling of its source rejection.
+the child.
+
 Native `async`/`await`, Promise adoption, combinators, explicit reactions, and
-harness-owned settlement paths therefore share one execution-proven lifecycle
-instead of depending on which public `then` path they traverse. Ibex's captured
-generic `then` wrapper performs the canonical constructor/species check used by
-its `catch`/`finally` wrappers and dispatches with a captured `Reflect.apply`.
-Those wrappers invoke the captured intrinsic directly rather than Hermes's
-dynamic `this.then`, so trusted async-hooks compatibility wrappers installed
-later cannot look like hostile replacement paths;
-the Hermes bootstrap seals that same wrapper in place and verifies its
-descriptor. It separately pins the captured `Function.prototype.call` as a
-general harness control-plane intrinsic. Replacing the Promise wrapper with a
-second application wrapper still fails the sealed boundary.
-`__OriginalPromise` is separately sealed to the public native Promise
-constructor. The V8 leg installs the
-same constructor-path gate ahead of its closure-private event ledger, so an
-own or inherited constructor cannot convert a propagated rejection into a
-no-op child capability there either.
+harness-owned settlement paths therefore share the engine's checkpoint
+lifecycle instead of depending on handler-reachable bookkeeping. The shared
+harness seals the same captured-intrinsic constructor gate on Ibex and V8 before
+application evaluation. Harness-owned reactions use that sealed mediator;
+ordinary `catch`/`finally`, native await, adoption, and combinators retain their
+engine semantics, while an own or inherited hostile constructor cannot convert
+a propagated rejection into a no-op child capability.
 On the V8 leg, ESM exports are not treated as an access-control boundary. The
 server is the first application-graph dependency and consumes the strip's
 captured intrinsic bag through a one-shot function; a later application import
@@ -716,35 +685,27 @@ poisoned VM never sits in the pool.
   the vendored unwrap shim watches only the invocation promise — so the
   chain's earlier `ctx.db.*` writes stayed in the commit buffer while its
   later ones were silently skipped, and the invocation reported success
-  (ENG-23361). Patched Hermes reports each real rejection and its opaque
-  closure-private generation through the trusted-runtime-owned observer, then
-  reports completion only after a reaction executes or propagates that exact
-  generation through its immediate internal child capability. `_B`/`_C` are sealed inert, and neither
-  public Promise bookkeeping nor attachment alone is accepted as handling
-  proof. After every successful eval — i.e. after the *full* microtask drain,
-  so chains that reject after the invocation promise settles are still seen —
-  the host inspects that independent ledger and fails the invocation
-  (`SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed) if entries
-  remain. Rejections handled anywhere before completion never trip
-  it. On Ibex, inspection is deliberately non-destructive because its sealed
-  global name is necessarily knowable to handler code, so calling it early
-  may observe but cannot drain the invocation's reasons. Native constructor
-  identity is preserved; a required authenticated observer covers native
-  `await`, adoption, combinators, and explicit reactions, while every
-  handler-reachable `_B`/`_C` path is inert and `__OriginalPromise` aliases only
-  the public wrapper. On workerd, the event ledger's
+  (ENG-23361). Current Ibex records rejected Promises in its native checkpoint
+  tracker and cancels the exact record when the Promise becomes handled before
+  the checkpoint. After every successful eval — i.e. after the *full*
+  microtask drain, so chains that reject after the invocation promise settles
+  are still seen — the host takes Ibex's owner-thread async-failure queue and
+  fails the invocation (`SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing
+  committed) if records remain. Rejections handled anywhere before completion
+  never trip it. The queue and rooted reasons are not handler-reachable; safe
+  rendering and release are native, and malformed/overflowed publication fails
+  closed. On workerd, the event ledger's
   destructive take is closure-private and no sibling module exports it. Its
   handler settlement and detached-host-call drain consume one shared deadline;
   expiry wins any pending drain await, aborts the invocation-private HOST
   fetches, and returns a no-commit `SNAPBACK_HANDLER_DID_NOT_SETTLE` verdict
-  tagged as the quiescence phase. Both ledgers use captured Map methods; a
-  malformed report or a
-  vendored-runtime upgrade that makes detection unsupported fails the
-  invocation closed. A VM with any unhandled rejection is burned instead of
-  returned to the warm pool. `tests/unhandled_rejection_v0.rs` and the
-  adversarial twin tests pin warm, fresh, action, early-inspection,
-  serializer-poisoning, native-await, adoption, combinator, erased-reaction,
-  stale-generation, and Proxy-receiver behavior (ENG-24559). Every continuation that does run therefore runs inside
+  tagged as the quiescence phase. A malformed report or a vendored-runtime
+  upgrade that makes detection unsupported fails the invocation closed. A VM
+  with any unhandled rejection is burned instead of returned to the warm pool.
+  `tests/unhandled_rejection_v0.rs` and the adversarial twin tests pin warm,
+  fresh, action, hostile-reason, safe-rendering, native-await, adoption,
+  combinator, constructor-capability, and Proxy-receiver behavior (ENG-24559).
+  Every continuation that does run therefore runs inside
   the invocation that scheduled it. The
   residual hazard — a promise resolver or callback **captured in module scope**
   by invocation A and fired during invocation B — is *not* benign inert data
@@ -840,12 +801,18 @@ write calls.
 The same rule closes handler **code identity**. Snapback creates its Ibex VM
 through `ex_hermes_create_no_eval`, while Ibex's ordinary constructor remains
 eval-capable for CLI and module-loader compatibility. That variant completes
-trusted Ibex bootstrap, then applies patch 0010's irreversible native latch
+trusted Ibex bootstrap, then applies patch 0014's irreversible native latch
 before the runtime is returned; a linked engine without the latch fails closed.
 The same patch makes the cached `Function("return this")` path honor the mutable
 `Runtime::enableEval` policy, so
 direct/indirect eval, normal/async/generator Function constructors, constructor
-walks, and reflective aliases all fail. The pinned Hermes parser has no
+walks, and reflective aliases all fail. The consumer constructor deliberately
+leaves the intrinsic graph mutable so Snapback can install and verify its own
+deterministic Date/Math policy and sealed Promise constructor gate. The
+pre-handler dynamic-code corpus still executes valid source through both direct
+and indirect eval and accepts only failure, rather than treating a function
+object's presence or branding as proof that compilation is closed. The pinned
+Hermes parser has no
 reachable async-generator constructor because it rejects raw `async function*`
 source and Ibex lowers authored async generators before runtime evaluation.
 Trusted setup probes the reachable routes
@@ -978,6 +945,14 @@ recoverable error, never a silent drop**: Valet's 50 msg/s default silently drop
 burst writes and stranded the client's mutations permanently
 ([LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Realtime Delivery).
 
+For the Hermes leg, deadline setup and teardown call Ibex's owner-thread
+`ex_hermes_watch_time_limit` / `ex_hermes_unwatch_time_limit`. Admission
+cancellation can arrive while that owner is inside evaluation, so it instead
+uses `ex_hermes_interrupt_eval` with the pointer-plus-nonce identity captured
+immediately after construction. The nonce prevents a delayed cancellation from
+interrupting a later runtime that reused the same address; teardown removes the
+identity from Snapback's cancellation hook before destroying the runtime.
+
 ## Supply Chain and Generated Bundles
 
 Generated handler bundles are part of the security surface. Codegen must decide
@@ -995,6 +970,14 @@ per-engine compilation, and source maps) and proposed a bundler it never built
 (`[observed - Valet LLP 0004/0041/0048]`). A real bundle step makes both the
 security surface and "does the loaded code match the source tree?" answerable, and
 removes the self-containment footgun.
+
+Snapback consumes Ibex by an exact gitlink to an `expo/ibex` main-lineage
+commit. The 2026-07-27 adoption pin is `63ad33bc`, which includes the reviewed
+no-eval constructor, owner-thread native async-failure queue, owner-thread
+time-limit ABI, and nonce-authenticated cross-thread interrupt ABI.
+Consumer-required engine capabilities are upstreamed through Ibex's review
+discipline before this pin advances; Snapback does not carry or pin a
+long-lived compatibility branch.
 
 The runtime must preserve that answer after loading. A handler can execute only
 the bytes selected by the manifest; network responses, config values, database
@@ -1071,7 +1054,7 @@ Before this RFC moves beyond `Draft`, tests should prove:
 
 ## Dated alignment: inline-handler evaluator profile (2026-07-27)
 
-LLP 0101's inline v1 does not introduce closure serialization or a module
+LLP 0108's inline v1 does not introduce closure serialization or a module
 bundler. Codegen extracts the direct function/arrow AST from the declaration,
 admits only parameters, handler-local bindings, and this RFC's existing
 isolated-evaluator globals, and rejects sibling/import captures, class syntax,

@@ -1,0 +1,23 @@
+{
+  "id": "pulse-monitor",
+  "title": "Pulse Monitor",
+  "description": "Demand-gated scheduled action to mutation to live-query delivery.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Cron", "Actions", "Realtime", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "cronScheduledExecution": true,
+    "cronDemandActivation": true,
+    "liveSubscriptions": true
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/pulse-monitor/tests/acceptance/headless.mjs"
+    }
+  },
+  "notClaiming": ["external monitoring", "retry queues", "hosted scheduler support"]
+}

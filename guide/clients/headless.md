@@ -44,7 +44,7 @@ additional exports are required.
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
-    // LLP 0106's additive expiry clock negotiation. A version-aware server
+    // LLP 0107's additive expiry clock negotiation. A version-aware server
     // echoes 1; a legacy server is retried without this member so durable
     // operations remain available while React presence reports unsupported.
     ephemeralExpiryProtocol = 1,
@@ -200,7 +200,7 @@ It never retries through legacy `ensureApp({seed})`, `reset(seed)`, or
 `seed(seed)`.
 
 The predecessor-backed executable local gate is complete, so local and remote
-SQLite targets advertise those ids with `experimental` maturity while LLP 0103
+SQLite targets advertise those ids with `experimental` maturity while LLP 0109
 remains in Review. Artifacts must acknowledge that maturity; hosted
 compiled-seed custody remains a GAP. Preview is AdminWrite + NonProd even
 though it is read-only; reset-install and clear reuse the ordinary coordinated
@@ -214,6 +214,13 @@ app reset and require an exact `{state:"absent"}` or
 `action(ref, { args, userId, readSet })` accept a generated function reference
 or name. In sessions mode the server accepts no caller-selected identity—the
 coordinator repeats the session bearer and the server resolves authority.
+
+Generated references carry their closed operation argument schema. The client
+validates it before network I/O for query, mutation, action, live subscribe,
+and authorized-lease calls; missing, extra, nested-type, and unsafe-integer
+arguments fail with `SNAPBACK_ARGUMENT_VALIDATION_FAILED`. This is an early
+client diagnostic, not a replacement for server validation. A legacy string
+name has no generated schema and retains its untyped behavior.
 
 Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;

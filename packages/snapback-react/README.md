@@ -67,4 +67,4 @@ bun run --cwd packages/snapback-react test
 The backend-bakeoff retains an exact ten-check React receipt at
 `demos/backend-bakeoff/acceptance/results/react-presence.v1.json`. See
 `guide/clients/react.md`, `guide/clients/react-expo.md`, LLP 0064, LLP 0102,
-and LLP 0106.
+and LLP 0107.

@@ -4,10 +4,10 @@
 // app, but deliberately does not update the legacy product Machine, create a
 // volume, or alter a route.
 //
-// @ref LLP 0105#durable-spend-cleanup-and-credential-custody — target control,
+// @ref LLP 0111#durable-spend-cleanup-and-credential-custody — target control,
 // registry, admission signing, and outbound-channel identities are distinct
 // provider/cryptographic credentials with secret-free retained fingerprints.
-// @ref LLP 0105#same-origin-tls-transition — enrollment prepares a fresh,
+// @ref LLP 0111#same-origin-tls-transition — enrollment prepares a fresh,
 // never-reused target identity without treating the cert-only predecessor as
 // an in-place V2 target.
 

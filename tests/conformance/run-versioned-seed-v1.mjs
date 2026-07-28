@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-// @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate —
+// @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate —
 // conformance evidence is meaningful only when the exercised binary is bound
 // to the exact source revision that invoked the closed dispatcher.
 const sourceRevision = spawnSync('git', ['rev-parse', 'HEAD'], {

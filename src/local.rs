@@ -2515,9 +2515,9 @@ pub struct LocalSnapback {
     // from it exclusively and refuses the inline `devManifestEntry` form.
     routes: Option<crate::bundle::RoutesManifest>,
     routes_manifest_hash: Option<String>,
-    // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
-    // per-instance warm VM pool (never process-global: two local app
-    // instances must not share loaded code state). Shared with the read lane.
+    // @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 —
+    // per-instance lifecycle policy. It is shared with the read lane but
+    // retains no owner-thread-affine Ibex runtimes.
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
     // @ref LLP 0058#stage-ordering — every finite app-data, cron, nested, and
     // live-rerun entry holds one process-local admission epoch through its
@@ -4965,9 +4965,9 @@ impl LocalSnapback {
             capability_gaps.clone(),
             crate::runtime::outbound_actions_enabled(),
         );
-        // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
-        // report the live VM lifecycle honestly (warm is opt-out-able via
-        // SNAPBACK_FRESH_VM=1, so this is per-instance state, not a constant).
+        // @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 —
+        // report the lifecycle policy honestly. The compatibility branch is
+        // retained for older policy implementations.
         if self.warm_vms.enabled() {
             capability_manifest.vm_lifecycle =
                 crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
@@ -11865,10 +11865,8 @@ impl LocalSnapback {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(next);
     }
 
-    /// Force the fresh-VM path for this instance (what `SNAPBACK_FRESH_VM=1`
-    /// samples into at construction). Used by the bench harness to keep the
-    /// `vm_cost_us` metric's fresh-create definition, and by tests to pin the
-    /// opt-out semantics without process-global env mutation.
+    /// Compatibility control retained for the benchmark harness. Enabling is
+    /// a no-op while upstream Ibex runtimes are owner-thread-affine.
     pub(crate) fn set_warm_vms_enabled(&self, enabled: bool) {
         self.warm_vms.set_enabled(enabled);
     }
@@ -15185,7 +15183,7 @@ fn validate_function_schema_references(
                             "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID",
                             "query",
                             format!(
-                                "bounded parent projection {}.{} is not an LLP 0104 portable scalar",
+                                "bounded parent projection {}.{} is not an LLP 0110 portable scalar",
                                 parent.name, projection.field
                             ),
                         ));
@@ -15210,7 +15208,7 @@ fn validate_function_schema_references(
                             "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID",
                             "query",
                             format!(
-                                "bounded child projection {}.{} is not an LLP 0104 portable scalar",
+                                "bounded child projection {}.{} is not an LLP 0110 portable scalar",
                                 child.name, projection.field
                             ),
                         ));
@@ -21607,7 +21605,7 @@ globalThis.__snapbackHandlers = {
         }
     }
 
-    // @ref LLP 0104#81-bounded-children — paired stores differing only in
+    // @ref LLP 0110#81-bounded-children — paired stores differing only in
     // unauthorized bytes are publicly identical. The partitioned unique key
     // admits the same value in another scope/incarnation but refuses a
     // duplicate inside the authorized scope.
@@ -21677,7 +21675,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(left.db.scan_table("children", 32, 0).unwrap().total, before);
     }
 
-    // @ref LLP 0104#sbbc1-cursor-protocol-and-restart-precedence — the local
+    // @ref LLP 0110#sbbc1-cursor-protocol-and-restart-precedence — the local
     // persisted executor uses canonical multi-type boundary order plus `_id`,
     // follows the documented concurrent insert/delete/move rules, restarts
     // after a parent version change, hides deleted parents, and publishes only

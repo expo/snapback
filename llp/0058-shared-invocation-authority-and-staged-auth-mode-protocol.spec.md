@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-27 (LLP 0101 amendment: `inline_handler_v1` and
+**Revised:** 2026-07-27 (LLP 0108 amendment: `inline_handler_v1` and
 `result_contract_v1` join the closed registry at experimental maturity and
 require generated-artifact acknowledgement); 2026-07-25 (acknowledgement-source split, defect resolution of
 issues/20260725-0093-p3-invalidation-ack-descriptor-coupling.md, author
@@ -97,7 +97,7 @@ DTO closure, cross-process handshake-cache invalidation, handshake UUIDv7/versio
 exactness, truly-empty seed classification, content-verified deployment
 identities, and operator-recovery diagnostics). Full triage in §Review triage.)
 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0074, LLP 0076, LLP 0101
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0074, LLP 0076, LLP 0108
 
 ## Summary
 
@@ -363,8 +363,8 @@ artifacts:
 | `cron` | `CapabilityManifest.cron == true` |
 | `cron_action_run_mutation` | `cron == true` and `supportedQueryForms` contains `cron-action-run-mutation` |
 | `permission_epoch_resync` | the local permission-epoch capture, bump, resync, and live-rerun implementation is registered |
-| `inline_handler_v1` | the LLP 0101 direct-expression extractor, closed admission profile, and isolated evaluator registration are installed |
-| `result_contract_v1` | the LLP 0101 Rust manifest contract, effective hashing, and pre-publication/pre-commit result validator are installed |
+| `inline_handler_v1` | the LLP 0108 direct-expression extractor, closed admission profile, and isolated evaluator registration are installed |
+| `result_contract_v1` | the LLP 0108 Rust manifest contract, effective hashing, and pre-publication/pre-commit result validator are installed |
 
 The registry emits only ids whose positive predicate is true for that exact
 target/runtime instance. Existing codegen-emitted function requirements and

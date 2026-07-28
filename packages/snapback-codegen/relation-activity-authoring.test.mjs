@@ -426,7 +426,7 @@ export const baseline = defineLiveQuery({
         `select: { id: '_id', position: 'position', body: 'body', note: 'note' }`,
         `select: { id: '_id', position: 'position', body: 'body', metadata: 'metadata' }`,
       ),
-      /must be an LLP 0104 portable scalar/u,
+      /must be an LLP 0110 portable scalar/u,
     ],
     [
       'duplicate bounded order',

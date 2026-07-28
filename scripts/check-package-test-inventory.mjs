@@ -56,6 +56,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'argument-validation.test.mjs',
       'bundle.test.mjs',
       'ephemeral-room.test.mjs',
       'external-store.test.mjs',
@@ -289,38 +290,40 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 91 -> 94 (backend-bakeoff reconciliation): @snapback/client gains portable
 // search parsing, while @snapback/codegen gains inline/result-contract and
 // versioned-seed artifact coverage.
-// 94 -> 95 (LLP 0104): @snapback/codegen gains the bounded-relation and
+// 94 -> 95 (LLP 0110): @snapback/codegen gains the bounded-relation and
 // transactional write/activity authoring corpus.
-// 95 -> 98 (LLP 0105): @snapback/client gains hosted ephemeral authority
+// 95 -> 98 (LLP 0111): @snapback/client gains hosted ephemeral authority
 // replacement/republish coverage and the independently packed supervisor
 // gains deterministic protocol and provider-bootstrap plan corpora.
-// 98 -> 99 (LLP 0105): the supervisor adds immutable external-mirror,
+// 98 -> 99 (LLP 0111): the supervisor adds immutable external-mirror,
 // conditional-anchor, chain-recovery, and stale-writer coverage.
-// 99 -> 103 (LLP 0106): @snapback/client gains the negotiated-expiry room
+// 99 -> 103 (LLP 0107): @snapback/client gains the negotiated-expiry room
 // lifecycle suite, @snapback/react gains optimistic and presence lifecycle
 // suites, and @snapback/contract gains the shared result-contract validator.
-// 103 -> 104 (LLP 0105): the independently packed supervisor gains the
+// 103 -> 104 (LLP 0111): the independently packed supervisor gains the
 // hosted-edge admission lifecycle and refusal matrix.
-// 104 -> 105 (LLP 0105): target onboarding gains a confirmation-bound,
+// 104 -> 105 (LLP 0111): target onboarding gains a confirmation-bound,
 // legacy-preserving credential-staging plan corpus.
-// 105 -> 106 (LLP 0106): @snapback/react gains the maintained lifecycle
+// 105 -> 106 (LLP 0107): @snapback/react gains the maintained lifecycle
 // wrapper corpus alongside its optimistic and presence suites.
 // 106 -> 109 (backend-bakeoff first-rerun corrections): @snapback/cli gains
 // maintained generated-load identity diagnostics and sessions-mode one-command
 // dev-loop coverage, while @snapback/codegen gains maintained search
 // result-contract coverage.
-// 109 -> 112 (LLP 0105 hosted completion tranche): @snapback/cli gains the
+// 109 -> 112 (LLP 0111 hosted completion tranche): @snapback/cli gains the
 // checkout-free hosted command/package corpus, while the supervisor gains
 // operator-authority semantics and its own extracted-tarball proof.
-// 112 -> 113 (LLP 0105 hosted completion tranche): the supervisor gains the
+// 112 -> 113 (LLP 0111 hosted completion tranche): the supervisor gains the
 // canonical operator request/response transaction and recovery corpus.
 // 113 -> 116 (LLP 0041 external publication authority): retain the durable
 // epoch/lease protocol, authenticated HTTP surface, and closed-schema corpus.
-// 116 -> 119 (LLP 0105 hosted operator transport): retain the mTLS operator
+// 116 -> 119 (LLP 0111 hosted operator transport): retain the mTLS operator
 // service, closed signed response, and provider-executor corpora.
-// 119 -> 120 (LLP 0105 corrective operator tranche): the supervisor adds the
+// 119 -> 120 (LLP 0111 corrective operator tranche): the supervisor adds the
 // exact credential-role/resource custody corpus.
-assert.equal(total, 120, 'reviewed package/admin test count changed');
+// 120 -> 121 (2026-07-27 workout merge): generated-reference argument validation
+// refuses closed-schema mismatches before transport.
+assert.equal(total, 121, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

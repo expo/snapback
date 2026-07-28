@@ -1369,7 +1369,7 @@ export class SnapbackClient {
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
-    // LLP 0106's additive expiry clock negotiation. A version-aware server
+    // LLP 0107's additive expiry clock negotiation. A version-aware server
     // echoes 1; a legacy server is retried without this member so durable
     // operations remain available while React presence reports unsupported.
     ephemeralExpiryProtocol = 1,
@@ -1476,7 +1476,7 @@ export class SnapbackClient {
     // authority. Registrations never receive the opaque authority identity;
     // they are invoked only after a fresh empty successor snapshot.
     //
-    // @ref LLP 0105#four-way-wire-rollout-and-republisher — registrations are
+    // @ref LLP 0111#four-way-wire-rollout-and-republisher — registrations are
     // bounded, generation-fenced, idempotently disposable, and become current
     // only after a successful publish acknowledgement.
     this.__ephemeralRepublishers = new Map();
@@ -3806,7 +3806,7 @@ export class SnapbackClient {
     return this.#req('GET', '/inspect', undefined, this.#authOfferHeaders(false));
   }
 
-  // @ref LLP 0106#package-and-acceptance — retained cleanup evidence inspects
+  // @ref LLP 0107#package-and-acceptance — retained cleanup evidence inspects
   // only caller-known labels and finite resource counts; it never exposes
   // grant tokens, wire ids, payloads, or authority facts.
   localResourceInspection(connectionIds = null) {
@@ -4360,7 +4360,7 @@ export class SnapbackClient {
     requestedMode = 'dev',
     expectedDataVersionStream,
   } = {}) {
-    // @ref LLP 0103#162-closed-carriers-and-exact-operation-combinations —
+    // @ref LLP 0109#162-closed-carriers-and-exact-operation-combinations —
     // reject impossible tagged variants locally instead of relying on the
     // server to refuse an artifact-less resetInstall or artifact-bearing
     // clear after a network request.
@@ -4446,6 +4446,7 @@ export class SnapbackClient {
 
   query(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     return this.#req(
       'POST',
       `/query/${encodeURIComponent(name)}`,
@@ -4584,7 +4585,7 @@ export class SnapbackClient {
             connection.authorizationInvalidation,
           );
       } catch (error) {
-        // @ref LLP 0107#authority-races-and-cleanup — post-registration validation
+        // @ref LLP 0112#authority-races-and-cleanup — post-registration validation
         // failure tears down the pending owner even before grant adoption.
         // Register-mode bundle evaluation has already created the pending
         // owner. A malformed negotiated projection must not strand it merely
@@ -4621,6 +4622,7 @@ export class SnapbackClient {
     authorityCapture = null,
   } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     const namespace = createLiveQueryNamespace(authorizationNamespace ?? {});
     if (typeof leaseRequestId !== 'string' || leaseRequestId.length === 0) {
       throw new TypeError('authorizedLeaseQuery requires leaseRequestId');
@@ -4638,6 +4640,7 @@ export class SnapbackClient {
 
   action(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     return this.#req(
       'POST',
       `/action/${encodeURIComponent(name)}`,
@@ -4666,6 +4669,7 @@ export class SnapbackClient {
     authorityCapture = null,
   } = {}) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
@@ -4720,6 +4724,7 @@ export class SnapbackClient {
     resumeFromToken = null,
   } = {}, externalBearerTransitionPermit = null) {
     const name = functionName(ref);
+    validateGeneratedArguments(ref, args, name);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
     const response = await this.#withGrant(connectionId, (grant) => {
@@ -4875,7 +4880,7 @@ export class SnapbackClient {
     }
   }
 
-  // @ref LLP 0106#resync-authority-and-lifecycle — React borrows one
+  // @ref LLP 0107#resync-authority-and-lifecycle — React borrows one
   // client-owned room handle; the handle owns socket demand, overlay
   // replacement, expiry, bounded startup, and unsubscribe-before-detach.
   startEphemeralRoom(admittedDefinition, scope = {}) {
@@ -5350,7 +5355,7 @@ export class SnapbackClient {
    * the server's connection-owned teardown. The bounded pending-owner reaper
    * remains authoritative when attach cannot complete.
    *
-   * @ref LLP 0107#authority-races-and-cleanup — ordinary client cleanup keeps
+   * @ref LLP 0112#authority-races-and-cleanup — ordinary client cleanup keeps
    * grant custody and never depends on admin authority.
    * @ref LLP 0031#resolved-decisions — raw-id disconnect remains system
    * control; this method can release only a grant already in this client.
@@ -7620,7 +7625,7 @@ export class SnapbackClient {
     // bundle already created this subscription at its single-commit cut and
     // returned the fresh snapshot in the same response — adopting it here is
     // what makes "no duplicate fresh snapshot" true on the wire.
-    // @ref LLP 0107#registered-boot — auth-scoped registered entries install
+    // @ref LLP 0112#registered-boot — auth-scoped registered entries install
     // the exact scope/invalidation and connection expectation before their
     // rows become observable; adoption never fresh-subscribes around a
     // partial authorization projection.
@@ -9370,6 +9375,69 @@ function functionName(ref) {
     throw new TypeError(`Snapback function name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
   }
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
+}
+
+function validateGeneratedArguments(ref, args, name = functionName(ref)) {
+  if (
+    typeof ref !== 'object'
+    || ref === null
+    || ref.artifactKind !== 'functionReference'
+    || ref.argumentSchema == null
+  ) return;
+  const problems = [];
+  validateArgumentSchemaNode(ref.argumentSchema, args, 'args', problems);
+  if (problems.length === 0) return;
+  const diagnostic = {
+    code: 'SNAPBACK_ARGUMENT_VALIDATION_FAILED',
+    severity: 'error',
+    subsystem: 'client',
+    message: `arguments for ${name} do not match the generated operation schema`,
+    details: { function: name, problems },
+  };
+  const error = new TypeError(`${diagnostic.code}: ${diagnostic.message}`);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  throw error;
+}
+
+function validateArgumentSchemaNode(schema, value, path, problems) {
+  const type = schema?.type;
+  if (type === undefined) return;
+  if (type === 'object') {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      problems.push(`${path} must be an object`);
+      return;
+    }
+    const properties = schema.properties ?? {};
+    for (const required of schema.required ?? []) {
+      if (!Object.hasOwn(value, required) || value[required] === undefined) {
+        problems.push(`${path}.${required} is required`);
+      }
+    }
+    if (schema.additionalProperties === false) {
+      for (const key of Object.keys(value)) {
+        if (!Object.hasOwn(properties, key)) problems.push(`${path}.${key} is not declared`);
+      }
+    }
+    for (const [key, child] of Object.entries(properties)) {
+      if (Object.hasOwn(value, key) && value[key] !== undefined) {
+        validateArgumentSchemaNode(child, value[key], `${path}.${key}`, problems);
+      }
+    }
+    return;
+  }
+  if (type === 'string' && typeof value !== 'string') {
+    problems.push(`${path} must be a string`);
+  } else if (type === 'boolean' && typeof value !== 'boolean') {
+    problems.push(`${path} must be a boolean`);
+  } else if (
+    type === 'number'
+    && (typeof value !== 'number' || !Number.isFinite(value))
+  ) {
+    problems.push(`${path} must be a finite number`);
+  } else if (type === 'integer' && !Number.isSafeInteger(value)) {
+    problems.push(`${path} must be a safe integer`);
+  }
 }
 
 function collectionName(ref) {

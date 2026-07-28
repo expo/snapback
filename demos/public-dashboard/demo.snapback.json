@@ -1,0 +1,22 @@
+{
+  "id": "public-dashboard",
+  "title": "Public Dashboard",
+  "description": "A route-declared public snapshot bundle with parameter binding and resume tokens.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Snapshot bundles", "Routes", "Public disclosure", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "snapshotBundles": true,
+    "publicInline": true
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/public-dashboard/tests/acceptance/headless.mjs"
+    }
+  },
+  "notClaiming": ["HTML SSR", "authenticated register-mode boot", "Cloudflare route registration"]
+}

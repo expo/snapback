@@ -1,6 +1,6 @@
 // Online admission minting for the one routed Fly target.
 //
-// @ref LLP 0105#always-on-supervisor-and-canonical-single-writer-head — the
+// @ref LLP 0111#always-on-supervisor-and-canonical-single-writer-head — the
 // shared supervisor owns the signing half and mints only after an exact,
 // read-back-verified routed-Machine observation.
 // @ref LLP 0098#2-producing-an-admission-the-control-plane-contract — the

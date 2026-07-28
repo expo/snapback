@@ -1,8 +1,8 @@
 // Public/operator mTLS admission and canonical provider transaction bridge.
 //
-// @ref LLP 0105#public-operator-and-command-authority — the CLI submits one
+// @ref LLP 0111#public-operator-and-command-authority — the CLI submits one
 // closed signed request; provider credentials remain in this supervisor.
-// @ref LLP 0105#atomic-request-response-replay — effect intent, effecting
+// @ref LLP 0111#atomic-request-response-replay — effect intent, effecting
 // observation, terminal, and exact signed response each reach the canonical
 // external authority before the next irreversible boundary.
 

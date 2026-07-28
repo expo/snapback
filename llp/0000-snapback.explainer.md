@@ -959,6 +959,13 @@ written) for at least:
   turning demo diary findings into product changes across Snapback core,
   adapters, and Exact/Contract. Drafted as
   [`0016-diary-driven-change-program.plan.md`](./0016-diary-driven-change-program.plan.md).
+- An **Expo-hosted, Cloudflare-backed Snapback product** — first-party Expo
+  identity, project ownership, billing, and product UX around WfP-isolated
+  handler code and per-environment Durable Object data, with its commercial
+  contract and gated cross-repository delivery program. Drafted as
+  [LLP 0103](./0103-expo-hosted-snapback.rfc.md),
+  [LLP 0104](./0104-expo-hosted-metering-and-commercial-contract.spec.md), and
+  [LLP 0105](./0105-expo-hosted-snapback-delivery.plan.md).
 - A **decision and implementation hardening program** — the review-driven
   program that reconciles corpus statuses with reality and hardens the
   implementation to the ratified semantics, with defect/decision/test-debt

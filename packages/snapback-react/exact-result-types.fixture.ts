@@ -30,7 +30,7 @@ declare const createTodo: SnapbackFunctionReference<
   { title: string },
   string
 >;
-// @ref LLP 0107#evidence-and-acceptance — the prepared-group result proof
+// @ref LLP 0112#evidence-and-acceptance — the prepared-group result proof
 // consumes a maintained app's emitted declaration, not a hand-authored twin.
 declare const generatedBackendBakeoff:
   PreparedReactQueryGroup<BackendBakeoffQueryGroups['/']>;

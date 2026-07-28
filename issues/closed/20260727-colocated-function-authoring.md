@@ -55,7 +55,7 @@ self-contained handler literals or introduces a bounded bundling model.
 
 ## Resolution
 
-Resolved 2026-07-28 by the LLP 0101 implementation slice.
+Resolved 2026-07-28 by the LLP 0108 implementation slice.
 
 - `defineJsQuery`, `defineJsLiveQuery`, `defineJsMutation`, and `defineAction`
   accept one direct inline handler expression. Codegen extracts its authored
@@ -81,6 +81,6 @@ Resolved 2026-07-28 by the LLP 0101 implementation slice.
   `volta run --node 24 npm run test:snapback:extras` in Signal Desk.
 
 The legacy module form remains compatible. `inline_handler_v1` remains an
-experimental, explicit admission capability while LLP 0101 is in Review; this
+experimental, explicit admission capability while LLP 0108 is in Review; this
 ticket closes the implemented repository work without claiming proposal
 ratification or a broader static module-bundling profile.

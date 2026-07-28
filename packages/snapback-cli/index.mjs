@@ -1538,7 +1538,7 @@ export async function loadGenerated(
           ],
         });
       }
-      // @ref LLP 0103#31-new-appensure-intent — a versioned install/reset
+      // @ref LLP 0109#31-new-appensure-intent — a versioned install/reset
       // names the generated auth mode; tooling must not send the default
       // `dev` for a sessions artifact pair.
       if (artifact && seed) {

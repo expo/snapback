@@ -4,9 +4,9 @@
 // V2 carrier and submit a separately device-signed SupervisorRequestV1 over
 // certificate-pinned mTLS. The CLI never resolves a Fly/Tigris credential.
 //
-// @ref LLP 0105#closed-request-and-command-registry — command spellings and
+// @ref LLP 0111#closed-request-and-command-registry — command spellings and
 // lifecycle variants are exhaustive; unknown combinations fail closed.
-// @ref LLP 0105#public-operator-and-command-authority — provider credentials
+// @ref LLP 0111#public-operator-and-command-authority — provider credentials
 // stay behind an adapter/supervisor boundary and never enter CLI output.
 
 import {

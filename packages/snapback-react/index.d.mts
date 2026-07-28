@@ -205,7 +205,7 @@ type PreparedGroupEntryMap<Group extends PreparedReactQueryGroup> =
   QueryGroupEntries<Group['reference']> extends QueryEntryMap
     ? QueryGroupEntries<Group['reference']>
     : never;
-// @ref LLP 0107#generated-reference — preserve the generated declaration's
+// @ref LLP 0112#generated-reference — preserve the generated declaration's
 // finite child keys; intersecting it with QueryEntryMap would reopen every
 // string key and erase exact group-result typing.
 export function useSnapbackQueries<

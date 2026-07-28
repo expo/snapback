@@ -57,7 +57,7 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
-| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle | llp/0090, llp/0092 | GAP (owner: Charlie, review: 2026-08-31) |
+| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle | llp/0090, llp/0092 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Adopt a session minted by a trusted server-side identity broker; dev/test/demo host operation only | native login, external identity, broker, adopted bearer | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs | llp/0024, llp/0057, llp/0096 | auth/native-apps.md |
@@ -302,6 +302,8 @@ you never build around a feature because you didn't know it existed.
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.
+- [Route snapshot bundles](./realtime/snapshot-bundles.md) — one-commit page
+  boot, route manifests, resume tokens, and register-mode handoff.
 - [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
   collection options and key modes, overlays, recovery, and Contract links.
 
@@ -1615,7 +1617,7 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0101-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/backend-bakeoff/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/backend-bakeoff/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/backend-bakeoff]
 status: current
 targets: [local]
@@ -1768,7 +1770,7 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0101-inline-handlers-and-result-contracts.spec.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/backend-bakeoff/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/backend-bakeoff/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/backend-bakeoff]
 status: current
 targets: [local]
@@ -2217,9 +2219,13 @@ The acceptance asserts the whole path—tick → action → mutation → live up
     const limited = rows.find((r) => r.patternId === 'sb-limited');
 ```
 
-`GET /inspect` exposes registered jobs, activation state, next/last timing,
-and the bounded recent-run ledger. Assert the job and a successful run so a
-vacuous tick cannot pass.
+The public `GET /inspect` projection exposes aggregate cron posture only.
+Per-job activation, next/last timing, diagnostics, and the bounded recent-run
+ledger may contain handler-controlled values and therefore live on the
+admin-gated `GET /_snapback/api/inspect` twin. In a headless suite, construct
+`AdminClient` with the returned server token, or use
+`openHeadlessApp(...).admin.inspect()`. Assert the job and a successful run so
+a vacuous tick cannot pass.
 
 ## Run with the scheduler inert
 
@@ -2282,7 +2288,7 @@ id: backend.versioned-seed
 order: 8
 audience: agent-first
 capabilities: [backend.versioned-seed]
-authorities: [llp/0103-versioned-seed-evolution.spec.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
 examples: []
 status: current
 targets: [local]
@@ -2366,7 +2372,7 @@ the closed seed request only under `input`.
 - `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED`: the selected target does not
   advertise the required protocol; there is no compatibility fallback.
 
-The local protocol is advertised as **experimental** while LLP 0103 remains in
+The local protocol is advertised as **experimental** while LLP 0109 remains in
 Review. The executable manifest is the advertisement gate: every required
 local row must pass, while hosted compiled-seed custody stays visibly GAP.
 
@@ -2517,7 +2523,7 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, llp/0108-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
@@ -2711,7 +2717,7 @@ The helper makes one existing-owner transaction reviewable:
    row;
 4. insert exactly one activity row with server-derived authority provenance
    and the scope relation incarnation; and
-5. validate and durably retain the exact LLP 0101 result under LLP 0043's
+5. validate and durably retain the exact LLP 0108 result under LLP 0043's
    client mutation identity.
 
 Declare every non-scope primary table explicitly:
@@ -2784,7 +2790,7 @@ id: backend.relational-queries
 order: 26
 audience: agent-first
 capabilities: [backend.relational-queries]
-authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
+authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
@@ -2965,7 +2971,7 @@ under `issues/`.
 
 ## Design reference: one bounded child page
 
-`defineBoundedChildrenQuery` is present for the LLP 0104 conformance program.
+`defineBoundedChildrenQuery` is present for the LLP 0110 conformance program.
 A contributor source build advertises it experimentally only when the tracked
 atomic local carrier matches the receipt and exact implementation bytes, and a
 requiring artifact acknowledges it. Public runtime packages, remote services,
@@ -3856,7 +3862,7 @@ additional exports are required.
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
-    // LLP 0106's additive expiry clock negotiation. A version-aware server
+    // LLP 0107's additive expiry clock negotiation. A version-aware server
     // echoes 1; a legacy server is retried without this member so durable
     // operations remain available while React presence reports unsupported.
     ephemeralExpiryProtocol = 1,
@@ -4012,7 +4018,7 @@ It never retries through legacy `ensureApp({seed})`, `reset(seed)`, or
 `seed(seed)`.
 
 The predecessor-backed executable local gate is complete, so local and remote
-SQLite targets advertise those ids with `experimental` maturity while LLP 0103
+SQLite targets advertise those ids with `experimental` maturity while LLP 0109
 remains in Review. Artifacts must acknowledge that maturity; hosted
 compiled-seed custody remains a GAP. Preview is AdminWrite + NonProd even
 though it is read-only; reset-install and clear reuse the ordinary coordinated
@@ -4026,6 +4032,13 @@ app reset and require an exact `{state:"absent"}` or
 `action(ref, { args, userId, readSet })` accept a generated function reference
 or name. In sessions mode the server accepts no caller-selected identity—the
 coordinator repeats the session bearer and the server resolves authority.
+
+Generated references carry their closed operation argument schema. The client
+validates it before network I/O for query, mutation, action, live subscribe,
+and authorized-lease calls; missing, extra, nested-type, and unsafe-integer
+arguments fail with `SNAPBACK_ARGUMENT_VALIDATION_FAILED`. This is an early
+client diagnostic, not a replacement for server validation. A legacy string
+name has no generated schema and retains its untyped behavior.
 
 Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
@@ -4303,7 +4316,7 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0101-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0106-react-presence-and-optimistic-lifecycle.spec.md, llp/0107-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/backend-bakeoff/src/backends/snapback.ts, demos/backend-bakeoff/tests/react.mjs, demos/backend-bakeoff/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
@@ -5962,6 +5975,13 @@ Change `schema.mjs`, `functions.mjs`, `handlers.mjs`, or `seed.json`
 
 ## 2. Regenerate
 
+In a source checkout, install the pinned workspace dependencies once before
+running repository codegen:
+
+```sh
+bun install --frozen-lockfile
+```
+
 ```sh
 node packages/snapback-codegen/index.mjs <app>/snapback
 ```
@@ -6011,6 +6031,11 @@ rejects stale artifacts loudly (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`,
 
 If you forget this step, the very first server load or acceptance run tells
 you; nothing downstream guesses.
+
+A raw `ERR_MODULE_NOT_FOUND` for `acorn`, `esbuild`, or `typescript` means the
+source checkout has not completed the pinned install above. It is a contributor
+environment failure, not an application diagnostic. Packaged
+`snapback generate` installs these as ordinary package dependencies.
 
 ## 3. Run the acceptance suite
 
@@ -7200,6 +7225,116 @@ into the same surface.
 
 ---
 
+<!-- snapback-guide-source: guide/realtime/snapshot-bundles.md -->
+---
+title: Route snapshot bundles
+id: realtime.snapshot-bundles
+order: 3
+audience: agent-first
+capabilities: [realtime.snapshot-bundles]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, packages/snapback-client/index.mjs, packages/snapback-codegen/index.mjs]
+examples: [demos/public-dashboard]
+status: current
+targets: [local, cloudflare]
+maturity: partial
+reviewed: 2026-07-27
+reviewed-commit: HEAD
+---
+
+# Route snapshot bundles
+
+A snapshot bundle evaluates every query declared for one route at a single
+commit cut. Use it to boot a deep-linked page without issuing unrelated query
+requests that can observe different database versions. Eligible entries also
+carry resumable-query tokens.
+
+The local target supports read and authenticated register mode. The Cloudflare
+target supports read-mode bundles and token resume; register mode remains
+deferred there.
+
+## Declare the route and its query arguments
+
+Routes are generated artifacts. Bind URL parameters through `routeParam`
+instead of accepting an ad hoc query list from the caller:
+
+```js source=demos/public-dashboard/snapback/routes.mjs
+export default defineRoutes([
+  {
+    route: '/dashboards/:dashboardId',
+    queries: [
+      {
+        function: 'dashboardMetrics',
+        args: { dashboardId: routeParam('dashboardId') },
+      },
+    ],
+  },
+]);
+```
+
+For anonymous Channel A boot, the query must explicitly declare all three
+disclosure facts. None is inferred from the route:
+
+```js source=demos/public-dashboard/snapback/functions.mjs
+export const dashboardMetrics = defineLiveQuery({
+  table: 'metrics',
+  args: { dashboardId: v.string() },
+  filter: [eq('dashboardId', arg('dashboardId'))],
+  order: [asc('label')],
+  index: 'by_dashboard',
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
+});
+```
+
+Codegen emits `routes.manifest.json`; provision it beside schema and functions
+with `ensureApp({ routes })`. A route may name several queries, but every
+argument must be a literal or a declared route-parameter binding.
+
+## Fetch one consistent page snapshot
+
+Read mode is socketless and does not create live demand:
+
+```js source=demos/public-dashboard/tests/acceptance/headless.mjs
+    bundle = await app.client.fetchBundle({
+      route: '/dashboards/:dashboardId',
+      params: { dashboardId: 'ops' },
+      mode: 'read',
+    });
+    assertEqual(bundle.entries.length, 1, 'bundle entry count');
+    assertEqual(bundle.entries[0].rows.map(({ label }) => label), ['latency_ms', 'uptime_pct'], 'ops rows');
+    assert(typeof bundle.entries[0].resume?.token === 'string', 'resume token missing');
+```
+
+The response has one shared `commitVersion` and one entry per declared query.
+Each entry contains rows and either a verified resume object or `null`,
+according to that query's resumable-query eligibility. An undeclared route is
+refused with `SNAPBACK_BUNDLE_ROUTE_UNKNOWN`.
+
+## Arm live demand at the same cut
+
+Authenticated local clients may use `mode: 'register'`. The response then
+includes a connection grant and live registration for each entry at the same
+commit cut. Pass each returned registration to `liveQuery` as
+`registeredSubscription`; the client adopts the bundle-owned subscription
+without taking a duplicate snapshot.
+
+Anonymous register mode is refused. Retry it in read mode only when a
+socketless public snapshot is acceptable. Register mode on Cloudflare is not
+currently claimed.
+
+## Anti-patterns
+
+- Do not send a caller-chosen list of function names to `/app/bundle`.
+- Do not mark an authenticated or authority-dependent query `publicInline`.
+- Do not compare entry versions as though independently fetched queries share
+  a commit; use the bundle's `commitVersion`.
+- Do not open a second live subscription after register mode; adopt the
+  returned registration.
+- Do not treat a resume token as application data or decode it.
+
+---
+
 <!-- snapback-guide-source: guide/recipes/presence-cursors.md -->
 ---
 title: "Recipe: presence cursors"
@@ -7733,6 +7868,14 @@ const server = await startServer({ port: 4399, db: ':memory:', cwd: repoRoot,
   provenance: { appId: 'todo', artifactsPath: join(repoRoot, 'demos', 'todo', 'snapback', 'generated', 'artifacts.json') } });
 const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 ```
+
+Small headless app kernels may use
+`openHeadlessApp(import.meta.url, { appId })` from
+`demos/_kit/headless-app.mjs`. It resolves the app directory, starts the same
+provenance-verified server, provisions generated schema/functions/routes and
+seed, then returns fresh `client` and admin-gated `admin` clients plus one
+`close` cleanup. The five-app workout corpus runs this helper through
+`node scripts/run-workout-apps.mjs`.
 
 What it guarantees:
 

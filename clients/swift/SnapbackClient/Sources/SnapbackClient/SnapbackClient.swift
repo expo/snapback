@@ -114,7 +114,7 @@ public actor SnapbackClient {
     /// ephemeral authority. The callback receives no authority or credential
     /// facts and is invoked only after a fresh empty successor snapshot.
     ///
-    /// @ref LLP 0105#complete-carriers-and-remaining-exact-assignments —
+    /// @ref LLP 0111#complete-carriers-and-remaining-exact-assignments —
     /// Swift shares the bounded, generation-fenced, acknowledgement-owned
     /// republisher lifecycle with the first-party JavaScript arms.
     public func registerEphemeralRepublisher(

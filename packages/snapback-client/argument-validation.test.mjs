@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict';
+
+import { SnapbackClient } from './index.mjs';
+
+let requests = 0;
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async () => {
+  requests += 1;
+  return new Response(JSON.stringify({ rows: [] }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+};
+
+const ref = Object.freeze({
+  artifactKind: 'functionReference',
+  schemaVersion: 'snapback.v0',
+  appId: 'argument-test',
+  id: 'argument-test:update',
+  name: 'update',
+  kind: 'Mutation',
+  argumentSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      title: { type: 'string' },
+      count: { type: 'integer' },
+      options: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { enabled: { type: 'boolean' } },
+        required: ['enabled'],
+      },
+    },
+    required: ['title', 'count'],
+  },
+});
+
+const expectRefusal = async (args, problem) => {
+  await assert.rejects(
+    () => new SnapbackClient('http://127.0.0.1:9').mutate(ref, { args }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED');
+      assert(error.diagnostic.details.problems.some((entry) => entry.includes(problem)));
+      return true;
+    },
+  );
+};
+
+try {
+  const forged = { title: 'x', count: 1, forged: true };
+  const client = new SnapbackClient('http://127.0.0.1:9');
+  const generatedCallFamilies = [
+    ['query', () => client.query({ ...ref, kind: 'Query' }, { args: forged })],
+    ['mutation', () => client.mutate(ref, { args: forged })],
+    ['action', () => client.action({ ...ref, kind: 'Action' }, { args: forged })],
+    ['live subscribe', () => client.subscribeLive(
+      { ...ref, kind: 'LiveQuery' },
+      { connectionId: 'argument-validation', args: forged },
+    )],
+    ['authorized lease', () => client.authorizedLeaseQuery(
+      { ...ref, kind: 'Query' },
+      {
+        args: forged,
+        leaseRequestId: 'lease_argument_validation',
+        authorizationNamespace: {
+          clientStoreId: 'argument-validation',
+          queryKey: 'argument-validation',
+          queryInstanceId: 'argument-validation',
+        },
+      },
+    )],
+  ];
+  for (const [family, call] of generatedCallFamilies) {
+    await assert.rejects(Promise.resolve().then(call), (error) => {
+      assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED', family);
+      assert(error.diagnostic.details.problems.includes('args.forged is not declared'), family);
+      return true;
+    });
+  }
+  await expectRefusal({ count: 1 }, 'args.title is required');
+  await expectRefusal({ title: 'x', count: 1.5 }, 'args.count');
+  await expectRefusal({ title: 'x', count: 1, options: { enabled: 'yes' } }, 'args.options.enabled');
+  await expectRefusal({ title: 'x', count: 1, options: { enabled: true, extra: 1 } }, 'args.options.extra');
+  assert.equal(requests, 0, 'invalid generated calls must fail before network I/O');
+
+  await client.query({
+    ...ref,
+    kind: 'Query',
+    name: 'read',
+    id: 'argument-test:read',
+  }, {
+    args: { title: 'x', count: 1, options: { enabled: true } },
+  });
+  assert.equal(requests, 1, 'valid generated call reaches the transport');
+
+  await client.query('legacyUntyped', { args: { anything: true } });
+  assert.equal(requests, 2, 'legacy string references remain untyped');
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+console.log('argument-validation.test.mjs: all cases passed');

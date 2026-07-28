@@ -8,6 +8,42 @@ export const api = Object.freeze({
   "createEvent": {
     "appId": "partiful-matrix",
     "argsContractHash": "sha256:11bc6dcdfece337b5d765023c0a5f0242538a3296d724021a9459d9d0343cddc",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "accent": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "emoji": {
+          "type": "string"
+        },
+        "hostName": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "startsAt": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "emoji",
+        "description",
+        "location",
+        "startsAt",
+        "hostName",
+        "accent"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:createEvent",
     "implementationHash": "sha256:64eb1b02feb382852e74b04130d5068dcd0ab4df53de33e2794510d54171f761",
@@ -20,6 +56,18 @@ export const api = Object.freeze({
   "eventDetails": {
     "appId": "partiful-matrix",
     "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventDetails",
     "implementationHash": "sha256:a12a0fe9883ad380cd2be981f38e0051836486ef2627d94b08475ebeb5add2bb",
@@ -31,6 +79,18 @@ export const api = Object.freeze({
   "eventWall": {
     "appId": "partiful-matrix",
     "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventWall",
     "implementationHash": "sha256:d7983cc112d417b3d61228e7b3bafdf70c2b019476f08ac5d1a898e873f3bfe0",
@@ -43,6 +103,18 @@ export const api = Object.freeze({
   "guestList": {
     "appId": "partiful-matrix",
     "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:guestList",
     "implementationHash": "sha256:4ed599fb6f3ee4464cf8608bb0924e38c803b794dce1b58a48924c423bfb5ce6",
@@ -54,6 +126,11 @@ export const api = Object.freeze({
   "listEvents": {
     "appId": "partiful-matrix",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:listEvents",
     "implementationHash": "sha256:ca5ca8503609674aa32794c4ebff838343183f2782d05c3f6d66adfe03cfe3f6",
@@ -65,6 +142,26 @@ export const api = Object.freeze({
   "postMessage": {
     "appId": "partiful-matrix",
     "argsContractHash": "sha256:5104e0a91c1d073390e5e9233f4726fa318f09e4ba263f0eb099add41062d7a6",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "authorName": {
+          "type": "string"
+        },
+        "eventId": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "authorName",
+        "message"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:postMessage",
     "implementationHash": "sha256:9ed335af28be64707c2b1af408c6cbe1c0675a6af9d6835b9924261988c3b0e9",
@@ -76,6 +173,26 @@ export const api = Object.freeze({
   "rsvp": {
     "appId": "partiful-matrix",
     "argsContractHash": "sha256:5c61185bbd96f8447561d40a7ca7abbbd9e01e8e1515be6424d298ee7dd6382f",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string"
+        },
+        "guestName": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "guestName",
+        "status"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:rsvp",
     "implementationHash": "sha256:ffc64e0c114dab7450b318f6e297878cac04cac7481c6f1e6bdf3f2660dcd649",

@@ -3,10 +3,10 @@
 // It deliberately does not provision roots, expose a listener, sign
 // SupervisorResponseV1, or execute provider effects.
 //
-// @ref LLP 0105#atomic-request-response-replay — a newly accepted request and
+// @ref LLP 0111#atomic-request-response-replay — a newly accepted request and
 // its canonical response bytes enter the replay journal in the same canonical
 // supervisor generation; exact replay advances nothing.
-// @ref LLP 0105#one-fail-closed-hosted-authority-and-recoverable-supervisor —
+// @ref LLP 0111#one-fail-closed-hosted-authority-and-recoverable-supervisor —
 // operator replay state uses the existing SQLite/mirror/anchor transaction
 // boundary instead of acquiring a second writer or authority store.
 
@@ -246,7 +246,7 @@ export function executeOperatorAuthorityTransaction(supervisor, request, {
  * before `execute` starts; a rejected provider promise leaves the canonical
  * supervisor generation, request journal, sequence, and replay floor intact.
  *
- * @ref LLP 0105#atomic-request-response-replay — an awaited response and its
+ * @ref LLP 0111#atomic-request-response-replay — an awaited response and its
  * exact replay bytes commit before the device sequence advances.
  */
 export async function executeOperatorAuthorityTransactionAsync(supervisor, request, {

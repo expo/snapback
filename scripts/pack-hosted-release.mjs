@@ -4,7 +4,7 @@
 // This command never reads a sibling checkout, downloads a dependency, builds
 // Hermes, or guesses a default input path.
 //
-// @ref LLP 0105#tls-admission-evidence-and-packaging — the cold package lane
+// @ref LLP 0111#tls-admission-evidence-and-packaging — the cold package lane
 // is a closed input graph, with the patched Hermes tarball as a named object.
 
 import { createHash } from 'node:crypto';

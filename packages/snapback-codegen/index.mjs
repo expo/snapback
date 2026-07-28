@@ -1142,7 +1142,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const configDefs = [];
   const projectionDefs = [];
 
-  // @ref LLP 0101#final-author-reconciliation-after-round-3 — codegen
+  // @ref LLP 0108#final-author-reconciliation-after-round-3 — codegen
   // evaluates only an opaque marker in the definition sandbox, then binds
   // that marker back to the direct AST expression extracted from the same
   // functions.mjs bytes. Handler source never crosses the definition
@@ -2335,6 +2335,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const apiModule = renderApiModule(
     appId,
     functionManifest.functions,
+    functionsModule,
     ephemeralCollections,
     routesManifest,
   );
@@ -4262,11 +4263,11 @@ function requiredCapabilities(fn) {
       ? ['live_subscriptions', ...relational, ...contractCapabilities]
       : [...relational, ...contractCapabilities];
   }
-  // @ref LLP 0104#local-and-packaged-publication-authority — these profiles
+  // @ref LLP 0110#local-and-packaged-publication-authority — these profiles
   // retain dedicated requirements even where the exact local source target
   // publishes them; application artifacts acknowledge but cannot mint the
   // experimental support facts.
-  // @ref LLP 0108#1-closed-capability-registry-assignment — static maturity
+  // @ref LLP 0113#1-closed-capability-registry-assignment — static maturity
   // and runtime support remain independent admission gates.
   if (fn.runtime?.HostPlan?.BoundedChildrenQuery) {
     return [
@@ -5728,7 +5729,7 @@ function queryGroupEntryName(functionName, occurrences, usedNames) {
   return candidate;
 }
 
-// @ref LLP 0107#generated-reference — generated bundle groups are the bounded
+// @ref LLP 0112#generated-reference — generated bundle groups are the bounded
 // LiveQuery-only projection of the broader preload manifest, and runtime
 // values and declarations share one admission function.
 function generatedQueryGroupRoutes(functions, routesManifest) {
@@ -5797,7 +5798,7 @@ function renderQueryGroupReferences(appId, functions, routesManifest) {
   return groups;
 }
 
-function renderApiModule(appId, functions, ephemeralCollections, routesManifest) {
+function renderApiModule(appId, functions, functionsModule, ephemeralCollections, routesManifest) {
   const refs = dict();
   for (const fn of functions) {
     refs[fn.name] = {
@@ -5810,6 +5811,14 @@ function renderApiModule(appId, functions, ephemeralCollections, routesManifest)
       implementationHash: fn.implementationHash,
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
+      // @ref LLP 0065#3-common-pattern-contracts — trusted defaults are
+      // absent and additional properties are closed on the generated client
+      // boundary. Reuse the operation-schema projection, never a second model.
+      argumentSchema: {
+        type: 'object',
+        additionalProperties: false,
+        ...jsonSchemaObjectProperties(functionsModule[fn.name]?.args ?? {}),
+      },
     };
   }
   const ephemeralRefs = dict();
@@ -5897,6 +5906,7 @@ function renderApiTypes(
     '  implementationHash: string;',
     '  argsContractHash: string;',
     '  resultContractHash: string;',
+    '  argumentSchema: Readonly<Record<string, unknown>>;',
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
     '}',
@@ -7494,7 +7504,7 @@ function validateContractModuleFilenames(modules, err) {
 // Version labels are durable identities. A materialized or cached graph is
 // prior evidence even when its source checkout has moved on; reusing the
 // label for different canonical bytes fails before the next graph is written.
-// @ref LLP 0103#16-final-author-reconciliation-after-round-3 — version reuse is
+// @ref LLP 0109#16-final-author-reconciliation-after-round-3 — version reuse is
 // a deterministic codegen refusal, not a runtime best effort.
 function validateSeedVersionEvidence(backendRoot, outputDirectory, candidate) {
   const evidence = new Set([

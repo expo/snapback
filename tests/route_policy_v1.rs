@@ -2693,6 +2693,7 @@ async fn connection_carriers_are_authenticated_before_any_body_inspection() {
 // buffering, so every activation attempt drains well below the 30000 ms
 // quiescence deadline.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[allow(clippy::result_large_err)] // SnapbackResult is the API under test.
 async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 

@@ -73,7 +73,7 @@ export class SnapbackAdapter implements BackendAdapter {
     });
   }
 
-  // @ref LLP 0107#evidence-and-acceptance — the product adapter exposes only
+  // @ref LLP 0112#evidence-and-acceptance — the product adapter exposes only
   // non-secret boot provenance and bounded owner counts so its retained
   // receipt can distinguish real registered adoption from a lower-level fake.
   inspection() {

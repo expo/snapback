@@ -1,9 +1,9 @@
 // Closed, purpose-bound SupervisorResponseV1 signing and verification.
 //
-// @ref LLP 0108#41-purpose-limited-service-intermediates — an online response
+// @ref LLP 0113#41-purpose-limited-service-intermediates — an online response
 // key is accepted only through the exact `supervisor-response` intermediate
 // chain and signature domain.
-// @ref LLP 0105#atomic-request-response-replay — these exact signed bytes are
+// @ref LLP 0111#atomic-request-response-replay — these exact signed bytes are
 // the response retained by the operator request transaction.
 
 import {

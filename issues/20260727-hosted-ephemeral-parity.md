@@ -50,7 +50,7 @@ qualified; no blanket hosted inheritance is allowed.
 
 ## Implementation checkpoint — 2026-07-28
 
-LLP 0105 selected `single-instance-sticky-memory.v1` and completed its
+LLP 0111 selected `single-instance-sticky-memory.v1` and completed its
 three-round Fable 5/Codex super-refine. The authority-instance carrier,
 must-understand negotiation, headless/React/Swift/Contract replacement and
 republisher paths, and deterministic supervisor core now exist with local

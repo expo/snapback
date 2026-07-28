@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @ref LLP 0105#one-fail-closed-hosted-authority-and-recoverable-supervisor —
+// @ref LLP 0111#one-fail-closed-hosted-authority-and-recoverable-supervisor —
 // the installed service has a volume-backed canonical database, an external
 // incarnation anchor, and a mutually authenticated control endpoint.
 
@@ -437,7 +437,7 @@ async function commitSupervisorState(supervisor) {
     mirror: supervisor.mirror,
     anchor: supervisor.anchor,
   };
-  // @ref LLP 0105#one-fail-closed-hosted-authority-and-recoverable-supervisor
+  // @ref LLP 0111#one-fail-closed-hosted-authority-and-recoverable-supervisor
   // — SQLite FULL-sync precedes immutable mirror and conditional anchor.
   persistState(canonicalDatabase, nextState);
   try {
@@ -901,7 +901,7 @@ health.listen(Number(process.env.SNAPBACK_SUPERVISOR_HEALTH_PORT ?? 8081), '::')
 control.listen(Number(process.env.SNAPBACK_SUPERVISOR_CONTROL_PORT ?? 8443), '::');
 
 if (operatorSurface !== null) {
-  // @ref LLP 0105#public-operator-and-command-authority — this listener has a
+  // @ref LLP 0111#public-operator-and-command-authority — this listener has a
   // distinct operator CA and accepts only the closed device-signed request.
   const operatorControl = createHttpsServer({
     key: readFileSync(tls.key),

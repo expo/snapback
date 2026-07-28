@@ -257,42 +257,30 @@
       rotating: function(name) { return lookup(name, true); }
     };
   }
-  // Unhandled-rejection ledger (ENG-23361). The vendored eval loop drains
-  // every microtask before the host reads the invocation result, but the only
-  // promise anything observes is the invoke IIFE's own. A rejection in a
-  // detached chain the handler spawned (forEach(async ...) is the classic
-  // shape) could therefore leave earlier ctx.db.* writes buffered while later
-  // work silently stopped, and the invocation still reported success.
-  //
-  // Hermes' internal Promise bytecode exposes its rejection and handle hooks
-  // as constructor properties. Constructor identity cannot be replaced:
-  // Promise.prototype.then deliberately branches on that exact identity.
-  // Patched Hermes therefore exposes a one-shot registrar consumed first by
-  // the trusted Ibex bundle. That bundle owns the engine callback, feeds the
-  // generic tracker, and publishes the distinct downstream one-shot bridge
-  // this bootstrap consumes before application source. Rejection records and matching
-  // reaction-completion generations remain inside the engine's Promise
-  // closure; `_B`/`_C` are sealed inert. This covers native `await`, adoption,
-  // and combinator paths without accepting handler-reachable assertions.
-  // An engine without this seam fails harness initialization: a stale runtime
-  // may not silently weaken the proof. A hostile own constructor can make
-  // native `then` return without attaching, so the canonical constructor gate
-  // remains independently required.
-  // Calling the reachable hook functions therefore cannot turn a real
-  // unhandled rejection into success; an invalid direct call can at worst fail
-  // the caller's own invocation closed.
-  // The host inspects the ledger after every successful eval and burns a VM
-  // with any remaining rejection.
+  // Unhandled-rejection floor (ENG-23361). Both targets keep enrollment and
+  // handled-state cancellation outside handler reach: current Ibex publishes
+  // rooted failures through its owner-thread native queue, while workerd owns
+  // a closure-private event ledger in handler-server.mjs. The host drains its
+  // target-native reporter after every successful evaluation and burns a VM
+  // with any remaining rejection. The only handler-reachable control here is
+  // a sealed canonical-constructor gate around `then`, which prevents hostile
+  // child capabilities from making propagation disappear before either
+  // reporter can observe it.
   //
   // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
   // Obligation 3: settlement of the invocation promise does not prove the
-  // handler's detached chains succeeded; the ledger closes that gap.
-  (function installRejectionLedger() {
+  // handler's detached chains succeeded; the target-native checkpoint closes
+  // that gap.
+  (function installRejectionFloor() {
     var OriginalPromise = g.__OriginalPromise;
-    // V8/workerd owns a closure-private event ledger in handler-server.mjs.
-    // It still needs the same constructor-path gate: native `then` lets an own
-    // constructor supply no-op child resolve/reject capabilities, which would
-    // make a propagated rejection disappear from the event ledger.
+    // Current Ibex keeps rejection enrollment, handled-state cancellation,
+    // and the rooted failure queue inside Hermes; V8/workerd owns its event
+    // ledger in handler-server.mjs. Neither target gives this realm an observer
+    // callback. Both still need the same constructor-path gate: native `then`
+    // lets an own constructor supply no-op child resolve/reject capabilities,
+    // which would make a propagated rejection disappear before either native
+    // reporter can observe it.
+    // @ref LLP 0009#harness-control-plane-boundary
     if (!OriginalPromise) {
       var workerdPromisePrototype = TrustedPromise.prototype;
       var workerdMediatedThen = function(onFulfilled, onRejected) {

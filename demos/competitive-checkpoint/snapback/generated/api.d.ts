@@ -28,6 +28,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   implementationHash: string;
   argsContractHash: string;
   resultContractHash: string;
+  argumentSchema: Readonly<Record<string, unknown>>;
   readonly __args?: Args;
   readonly __result?: Result;
 }

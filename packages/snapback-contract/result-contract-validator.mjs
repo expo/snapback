@@ -1,9 +1,9 @@
 // Browser-safe result-contract admission and validation shared by generated
 // artifacts and client projections.
 //
-// @ref LLP 0101#result-contract-vocabulary — this module mirrors the closed
+// @ref LLP 0108#result-contract-vocabulary — this module mirrors the closed
 // Rust-owned descriptor grammar and validates the post-JSON image.
-// @ref LLP 0106#optimistic-mutation-projection — React compiles the exact
+// @ref LLP 0107#optimistic-mutation-projection — React compiles the exact
 // deployed descriptor once and never maintains a second result grammar.
 
 export const RESULT_CONTRACT_LIMITS_V1 = Object.freeze({

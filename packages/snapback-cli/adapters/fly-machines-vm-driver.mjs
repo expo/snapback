@@ -147,7 +147,7 @@ async function observe(target) {
   }
   const appFacts = JSON.parse(appRead.body);
   const machines = JSON.parse(machinesRead.body);
-  // @ref LLP 0105#one-fail-closed-hosted-authority-and-recoverable-supervisor
+  // @ref LLP 0111#one-fail-closed-hosted-authority-and-recoverable-supervisor
   // — stale/zero/multiple/ambiguous roster facts withdraw every protected
   // hosted path. V1 has no independent route roster endpoint, so every
   // Machine in the bound app is conservatively treated as production-routed.
@@ -349,7 +349,7 @@ async function handleLifecycle(request) {
     restore: null,
     diagnostics: [...diagnostics, { code, severity: 'error', message }],
   });
-  // @ref LLP 0105#corrective-implementation-addendum--2026-07-28 — the
+  // @ref LLP 0111#corrective-implementation-addendum--2026-07-28 — the
   // legacy V1 protocol cannot carry the supervisor-owned reservation,
   // credential binding, control head, and opaque lease journal. Refuse before
   // observation or credential resolution so no provider call can escape.

@@ -1140,7 +1140,7 @@ fn preview_identity(
 /// simulated DML byte is confined to the disposable copy, preserving the
 /// preview contract for the database and its WAL.
 ///
-/// @ref LLP 0103#165-executable-effect-accounting — preview reports the same
+/// @ref LLP 0109#165-executable-effect-accounting — preview reports the same
 /// distinct changed projection-output rows as a real install.
 fn simulate_versioned_seed_projection_rows(
     database: &LocalDatabase,
@@ -2483,7 +2483,7 @@ impl LocalDatabase {
         Ok(replay)
     }
 
-    /// The versioned reset half of LLP 0103 rides the exact same durable
+    /// The versioned reset half of LLP 0109 rides the exact same durable
     /// transaction and commit-certainty machinery as every shipped reset.
     pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
         &mut self,
@@ -2668,7 +2668,7 @@ impl LocalDatabase {
     /// Row effects, projection effects, identity, receipt, and idempotency
     /// evidence share this one SQLite writer transaction.
     ///
-    /// @ref LLP 0103#165-executable-effect-accounting — application effects
+    /// @ref LLP 0109#165-executable-effect-accounting — application effects
     /// are bounded before the transaction can publish any byte.
     pub fn ensure_versioned_seed(
         &mut self,
@@ -3685,7 +3685,7 @@ impl LocalDatabase {
                         }
                     }
                 }
-                // @ref LLP 0104#protected-relation-incarnation-and-stamping —
+                // @ref LLP 0110#protected-relation-incarnation-and-stamping —
                 // this host-owned assertion executes inside the same SQLite
                 // transaction as the following read/write. It compares both
                 // relationship axes to the current active registry token, so
@@ -4686,7 +4686,7 @@ impl LocalDatabase {
               records INTEGER NOT NULL CHECK(records >= 0),
               bytes INTEGER NOT NULL CHECK(bytes >= 0)
             );
-            -- @ref LLP 0104#protected-relation-incarnation-and-stamping —
+            -- @ref LLP 0110#protected-relation-incarnation-and-stamping —
             -- delete/recreate of one logical id mints a distinct incarnation,
             -- so stale children never reconnect to its successor.
             CREATE TABLE IF NOT EXISTS _snapback_relation_incarnations_v1 (
@@ -4837,7 +4837,7 @@ impl LocalDatabase {
              ON _snapback_client_mutations(auth_fingerprint)",
             [],
         )?;
-        // @ref LLP 0103#151-active-identity-is-stream-keyed — future-unaware
+        // @ref LLP 0109#151-active-identity-is-stream-keyed — future-unaware
         // predecessor resets remain safe because active identity is keyed by
         // the already-governed data-version stream.
         crate::seed_identity::create_infra(&tx)?;
@@ -13879,7 +13879,7 @@ fn relation_incarnation_write_protected(table: &TableManifest, field: &str) -> S
 /// parent delete has no referential action, and a dangling/buffered-pending
 /// child write must refuse at the write boundary.
 ///
-/// @ref LLP 0104#protected-relation-incarnation-and-stamping — central
+/// @ref LLP 0110#protected-relation-incarnation-and-stamping — central
 /// writers stamp, and missing/inactive parents fail with one public outcome.
 fn resolve_relation_stamps(
     tx: &Transaction<'_>,
@@ -13960,7 +13960,7 @@ fn activate_relation_incarnation(
     // the data stream, so a later insert of that row id must retire the stale
     // active stamp before creating the successor incarnation.
     //
-    // @ref LLP 0104#protected-relation-incarnation-and-stamping — one active
+    // @ref LLP 0110#protected-relation-incarnation-and-stamping — one active
     // incarnation belongs to the actually-present parent row; delete/recreate
     // always receives a fresh value and never revives predecessor children.
     tx.execute(
@@ -15568,7 +15568,7 @@ mod guarded_commit_tests {
             .collect()
     }
 
-    // @ref LLP 0104#protected-relation-incarnation-and-stamping — the
+    // @ref LLP 0110#protected-relation-incarnation-and-stamping — the
     // registry has exactly one active incarnation, every central writer
     // stamps from a present active parent, direct writes refuse, and
     // delete/recreate cannot revive an orphan.
@@ -15760,7 +15760,7 @@ mod guarded_commit_tests {
         assert_eq!(stale_body, "old");
     }
 
-    // @ref LLP 0104#relation-registry-lifecycle — backup/restore carries the
+    // @ref LLP 0110#relation-registry-lifecycle — backup/restore carries the
     // registry byte-for-byte, activation validates both directions, and a
     // legacy relation is admitted only after an explicit migration backfill.
     #[test]
@@ -15995,7 +15995,7 @@ mod guarded_commit_tests {
         );
     }
 
-    // @ref LLP 0104#total-effect-formulas — source-effect assertion and the
+    // @ref LLP 0110#total-effect-formulas — source-effect assertion and the
     // activity append share one transaction; exact replay commits once, and
     // no-op/wrong-operation paths roll back before activity or settlement.
     #[test]
@@ -16243,7 +16243,7 @@ mod guarded_commit_tests {
         (input, identity)
     }
 
-    // @ref LLP 0104#result-and-settlement-dependency — the retained result
+    // @ref LLP 0110#result-and-settlement-dependency — the retained result
     // boundary is exactly 65,536/65,537 serialized bytes; ACK and recovery
     // purge remove only settlement evidence, never ordinary activity data,
     // and a retry after either reclamation demonstrably executes again.
@@ -16365,7 +16365,7 @@ mod guarded_commit_tests {
         );
     }
 
-    // @ref LLP 0104#82-write-plus-activity — every observable failure cut
+    // @ref LLP 0110#82-write-plus-activity — every observable failure cut
     // executes inside the same SQLite transaction and leaves the scope cut,
     // source/activity rows, version, and successful settlement unchanged.
     #[test]

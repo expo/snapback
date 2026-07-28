@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "de9dcf2176c76e71a84c2ea77627ff1a286a5939"
+    "commit": "0ef600628597f88c12bec3049e4ecc96dc6fea88"
   },
   "nav": {
     ".": [
@@ -216,6 +216,11 @@
         "id": "realtime.ephemeral-state",
         "order": 2,
         "title": "Ephemeral realtime state"
+      },
+      {
+        "id": "realtime.snapshot-bundles",
+        "order": 3,
+        "title": "Route snapshot bundles"
       }
     ],
     "recipes": [
@@ -587,7 +592,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "c20c2f27b0f69c430d450c088f052a1dcec3e57ebdc7ad59e2e9978c65a2d16c",
+      "sha256": "4a813c77d7b0708a3055ce4a2c2f205a2b201dd725c4c453d56fb5ed8461df02",
       "snippets": [
         {
           "lang": "js",
@@ -623,7 +628,7 @@
         "llp/0004-application-data-api.rfc.md",
         "llp/0007-storage-portability.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
-        "llp/0101-inline-handlers-and-result-contracts.spec.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "src/server.rs",
         "src/result_contract.rs",
         "schemas/mutation.output.schema.json",
@@ -638,7 +643,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "f50314b0008f75af51d631bd3d61c7c4d03f63504a274bc9c3f5dcba111f3477",
+      "sha256": "bd0ec6dbef6fc939902f66dad0b8cf1375db411cb90bf81f94d02a260a9e07fd",
       "snippets": [
         {
           "lang": "js",
@@ -679,7 +684,7 @@
         "llp/0003-local-code-hosting-and-storage-core.rfc.md",
         "llp/0004-application-data-api.rfc.md",
         "llp/0007-storage-portability.spec.md",
-        "llp/0101-inline-handlers-and-result-contracts.spec.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/result-contracts.mjs",
@@ -693,7 +698,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "89b05d018d41bb65ab6c7779dcc9886643d5d7d91e87ba06db81dee7cc6a717b",
+      "sha256": "50338c42c865aeffe8eed44f82a43497e59590cb4a7af5c04ab57efcd9d8e62c",
       "snippets": [
         {
           "lang": "js",
@@ -721,7 +726,7 @@
       ],
       "authorities": [
         "llp/0080-portable-relational-queries-and-projections.rfc.md",
-        "llp/0104-bounded-children-and-activity-patterns.spec.md",
+        "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0065-generated-data-pattern-soundness.rfc.md",
         "packages/snapback-codegen/define.mjs"
       ],
@@ -731,7 +736,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "1ed045a2923c7d5a9daf592cc821e578819ae01168aef692d735a3aff5864a52",
+      "sha256": "c43d19b6aa4c8574bb56db1598e4aee262ac7b61d61eab43ceff9631b2cfd280",
       "snippets": [
         {
           "lang": "js",
@@ -760,8 +765,8 @@
       "authorities": [
         "llp/0051-language-neutral-data-tier.rfc.md",
         "llp/0065-generated-data-pattern-soundness.rfc.md",
-        "llp/0104-bounded-children-and-activity-patterns.spec.md",
-        "llp/0108-qualification-and-publication-authority.spec.md",
+        "llp/0110-bounded-children-and-activity-patterns.spec.md",
+        "llp/0113-qualification-and-publication-authority.spec.md",
         "packages/snapback-codegen/standard-patterns.mjs",
         "packages/snapback-codegen/define.mjs"
       ],
@@ -771,7 +776,7 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "26400f1c667ad147f026b0cbb60929410b62c7ddefb2f17dca26dd9d7cfb5703",
+      "sha256": "05d8818044348703472ac6dbc37afa66aea3da8ee3c88739dee841e13ddbec1e",
       "snippets": [
         {
           "lang": "js",
@@ -934,7 +939,7 @@
         "backend.versioned-seed"
       ],
       "authorities": [
-        "llp/0103-versioned-seed-evolution.spec.md",
+        "llp/0109-versioned-seed-evolution.spec.md",
         "src/seed_identity.rs",
         "src/storage.rs",
         "src/server.rs",
@@ -947,7 +952,7 @@
       "examples": [],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "bc0602cc20667a07032d2b578600821a15050c2f94a4e6a7fb572dc413613792",
+      "sha256": "227c3c0dd170b532bfbb10e05178bc3daa488a220b9c2d9cb2b2540d9e6f0771",
       "snippets": []
     },
     "meta.capabilities": {
@@ -973,7 +978,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "d1333a21bcc9ceb43f974c0059c645d9afa706ae1830b8e338f3a2b7f3209155",
+      "sha256": "c8b3bb65efaaaa90c336f632518b17d069c1cf8e4a19a0429d34263e52ef8261",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1144,7 +1149,7 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "79ece76ce6a589cfdb8c5f85ff86584927b803bb9851f74d619b970eb0842434",
+      "sha256": "282653bde94e0cf9e35e4abf428b971dad6b982c14ec8264a7e984343c67eca7",
       "snippets": [
         {
           "lang": "js",
@@ -1213,10 +1218,10 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
-        "llp/0101-inline-handlers-and-result-contracts.spec.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "llp/0102-first-class-react-and-query-groups.spec.md",
-        "llp/0106-react-presence-and-optimistic-lifecycle.spec.md",
-        "llp/0107-generated-query-group-bundle-adoption.spec.md",
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
+        "llp/0112-generated-query-group-bundle-adoption.spec.md",
         "packages/snapback-client/canonical-client-value.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-contract/result-contract-validator.mjs",
@@ -1236,7 +1241,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "391ed553a5bd151df01d4e401eb171eec04df32c72d2dcb0602aa2d7f8d90396",
+      "sha256": "364539304d43f0329090ee5ba1b36cb000f8d4d7bc53ae643960a5fbe9a3f3bf",
       "snippets": [
         {
           "lang": "ts",
@@ -1464,7 +1469,7 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "1e331f1b192ef2bfbdab1aba2a46fc6d4a9b951d7800e78d02f70b3ad87fbd4a",
+      "sha256": "e072514aa271d4c43aaa4c5a1b154b0291c7e744bf004b2a3ac2d28cbdf7773a",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1572,7 +1577,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "effe1026223c4e27b3f28a760bb63a9f33817dcf1aecd55cfbb41471fd7b5f08",
+      "sha256": "54ee11c0ea4ba554a8b067b0ef38d91643a7c704a0623cb25c930811c329b116",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1852,6 +1857,49 @@
         }
       ]
     },
+    "realtime.snapshot-bundles": {
+      "path": "guide/realtime/snapshot-bundles.md",
+      "title": "Route snapshot bundles",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "local",
+        "cloudflare"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "realtime.snapshot-bundles"
+      ],
+      "authorities": [
+        "llp/0090-resumable-query-snapshots.rfc.md",
+        "llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md",
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-codegen/index.mjs"
+      ],
+      "examples": [
+        "demos/public-dashboard"
+      ],
+      "reviewed": "2026-07-27",
+      "reviewedCommit": "HEAD",
+      "sha256": "e6095dbb252b3559fda8531d95e7780523be29c0771372c3d93247821dbecd48",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/snapback/routes.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/tests/acceptance/headless.mjs"
+        }
+      ]
+    },
     "recipes.hidden-hands": {
       "path": "guide/recipes/hidden-hands.md",
       "title": "Recipe: hidden hands",
@@ -2048,7 +2096,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "06a5a5f2af35a4617b5007ff57a8d3bcceb128c3a999b71b97db5c2eb88068dc",
+      "sha256": "d2b8c6b577feecb42eae852a5a53761f673f329d4dfefe6245b763d61dca150d",
       "snippets": [
         {
           "lang": "js",
@@ -2126,6 +2174,7 @@
       "realtime.durable-push",
       "realtime.ephemeral",
       "realtime.live-queries",
+      "realtime.snapshot-bundles",
       "sync.offline",
       "testing.acceptance"
     ],
@@ -2133,13 +2182,12 @@
       "backend.bounded-children-v1",
       "backend.write-activity-v1",
       "clients.non-js",
-      "clients.poll-hosted",
-      "realtime.snapshot-bundles"
+      "clients.poll-hosted"
     ]
   },
   "surfaces": {
     "routes": 73,
     "hostOps": 19
   },
-  "contentHash": "634a62b2a55fd8a11c29ad3ef89eb59d110c5d095473dd1ec7e9ef1812b68e5b"
+  "contentHash": "7d4f84862e6ac47cb04e5a1304cce66b576e7d53c101e3e2f814b34fd46dd102"
 }

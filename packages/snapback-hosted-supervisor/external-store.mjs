@@ -1,4 +1,4 @@
-// @ref LLP 0105#one-fail-closed-hosted-authority-and-recoverable-supervisor —
+// @ref LLP 0111#one-fail-closed-hosted-authority-and-recoverable-supervisor —
 // every canonical SQLite generation is mirrored immutably before an
 // If-Match update advances the external incarnation anchor.
 

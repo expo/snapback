@@ -1,4 +1,4 @@
-//! AEAD cursor for LLP 0104's bounded-children profile.
+//! AEAD cursor for LLP 0110's bounded-children profile.
 //!
 //! The credential has a purpose-specific prefix, HKDF key derivation and AAD;
 //! it cannot be replayed as an RQS, relational, standard-pattern, or search
@@ -251,7 +251,7 @@ mod tests {
         );
     }
 
-    // @ref LLP 0104#sbbc1-cursor-protocol-and-restart-precedence — one
+    // @ref LLP 0110#sbbc1-cursor-protocol-and-restart-precedence — one
     // committed fixed-nonce vector is consumed independently by Rust and
     // Node, pinning HKDF, length-framed AAD, struct serialization, XChaCha20-
     // Poly1305 bytes, and the canonical multi-type boundary vocabulary.

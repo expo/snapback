@@ -4217,7 +4217,7 @@ pub struct ConnectionGrant {
         skip_serializing_if = "is_false"
     )]
     pub hosted_ephemeral_authority_required: bool,
-    /// Echo present iff the connection lineage negotiated LLP 0106's
+    /// Echo present iff the connection lineage negotiated LLP 0107's
     /// monotonic ephemeral-expiry conversion protocol.
     #[serde(
         rename = "ephemeralExpiryProtocol",
@@ -5631,6 +5631,11 @@ impl ConnectionRegistry {
             ));
         };
         let grants = self.lock();
+        // Do not replace this with Iterator::any: it short-circuits and leaks
+        // which registry entry matched through request timing.
+        // @ref LLP 0039#session-transport-and-connection-binding — grant
+        // verification uses constant-time comparison under the small registry lock.
+        #[allow(clippy::unnecessary_fold)]
         let valid = grants.grants.values().fold(false, |valid, record| {
             constant_time_str_eq(&record.token, presented) || valid
         });
@@ -6117,7 +6122,7 @@ async fn open_connection(
         ))
         .with_ephemeral_authority_instance(hosted_ephemeral_authority_instance.as_deref()));
     }
-    // @ref LLP 0106#closed-presence-state — this is a must-understand,
+    // @ref LLP 0107#closed-presence-state — this is a must-understand,
     // lineage-bound offer; unknown values never silently downgrade.
     if ephemeral_expiry_protocol
         .is_some_and(|offered| offered != crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1)
@@ -7782,7 +7787,7 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(app_reset),
         ),
-        // @ref LLP 0103#153-routes-host-operations-and-authority — this
+        // @ref LLP 0109#153-routes-host-operations-and-authority — this
         // predecessor-unknown family has four closed AdminWrite routes.
         RegisteredRoute::new(
             write(
@@ -21047,7 +21052,7 @@ fn ephemeral_http_json(
                 json!(server_observed_at_ms),
             );
         }
-        // LLP 0105 explicitly amends the flattened acknowledgement exception:
+        // LLP 0111 explicitly amends the flattened acknowledgement exception:
         // request outcomes carry the witness beside their existing fields,
         // while snapshot/remove variants also carry it in their typed member.
         if let Some(instance) = ephemeral_authority_instance {
@@ -21264,7 +21269,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0080 slice 1: two joined rows sharing a unique key conflict
         // with the index invariant; the executor refuses rather than picks.
         | "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY"
-        // @ref LLP 0104#final-author-reconciliation-after-round-3 — bounded
+        // @ref LLP 0110#final-author-reconciliation-after-round-3 — bounded
         // child cursors restart (rather than reposition) when their parent
         // incarnation changes; unavailable parents and effectless activity
         // writes likewise conflict with the current durable state.
@@ -21330,7 +21335,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PERMISSION_DENIED"
         | "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
         | "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
-        // LLP 0104: the closed activity profile accepts only authority classes
+        // LLP 0110: the closed activity profile accepts only authority classes
         // that project trustworthy, total provenance.
         | "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED"
         // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a permanently deactivated agent is
@@ -21695,7 +21700,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PLAN_SOURCE_INVALID"
         // LLP 0080 slice 1: a malformed relational plan is author input.
         | "SNAPBACK_RELATIONAL_PLAN_INVALID"
-        // LLP 0104: malformed bounded-child declarations/cursors and direct
+        // LLP 0110: malformed bounded-child declarations/cursors and direct
         // writes to the protected incarnation marker are author/client input.
         | "SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID"
         | "SNAPBACK_BOUNDED_CHILDREN_INDEX_INVALID"
@@ -34197,10 +34202,6 @@ globalThis.__snapbackHandlers = {
             "suffix of the __SNAPBACK_EXPORT__ embedded-runtime placeholder",
         ),
         (
-            "SNAPBACK_FRESH_VM",
-            "environment variable opting out of the warm VM pool",
-        ),
-        (
             "SNAPBACK_HANDLER_BACKEND",
             "environment variable selecting the handler backend",
         ),
@@ -34409,7 +34410,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
         "SNAPBACK_WIRE_VERSION_MISMATCH",
         "SNAPBACK_WIRE_VERSION_REQUIRED",
-        // LLP 0105/0106 additive ephemeral open-time offers follow the same
+        // LLP 0111/0107 additive ephemeral open-time offers follow the same
         // request-classed unsupported/mismatched lineage policy.
         "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
         "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
@@ -41369,7 +41370,7 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
         );
 
-        // LLP 0106: the additive expiry clock offer is exact. Version 1
+        // LLP 0107: the additive expiry clock offer is exact. Version 1
         // echoes; unknown values refuse rather than negotiating down.
         let unknown_expiry = router
             .clone()

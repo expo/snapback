@@ -4,7 +4,7 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, llp/0108-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
@@ -198,7 +198,7 @@ The helper makes one existing-owner transaction reviewable:
    row;
 4. insert exactly one activity row with server-derived authority provenance
    and the scope relation incarnation; and
-5. validate and durably retain the exact LLP 0101 result under LLP 0043's
+5. validate and durably retain the exact LLP 0108 result under LLP 0043's
    client mutation identity.
 
 Declare every non-scope primary table explicitly:

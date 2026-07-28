@@ -52,7 +52,7 @@ ordinary typed path is incomplete and has a soundness hole.
 
 ## Resolution
 
-Resolved 2026-07-28 by the LLP 0101 implementation slice.
+Resolved 2026-07-28 by the LLP 0108 implementation slice.
 
 - Codegen expands `results.documents`, `results.records`,
   `results.document`, and `results.value` into one closed, schema-bound
@@ -91,7 +91,7 @@ Evidence:
 - Signal Desk `npm run typecheck`, `npm run test:contract`, and
   `npm run test:snapback:extras` under Node 24 (3/3 app-specific checks)
 
-`result_contract_v1` remains an explicit experimental capability and LLP 0101
+`result_contract_v1` remains an explicit experimental capability and LLP 0108
 remains in Review. Closing this ticket records the implemented, tested
 repository surface; it does not claim author ratification of the broader
 proposal or the superseded expected-operation protocol.

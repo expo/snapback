@@ -1,4 +1,4 @@
-// @ref LLP 0107#evidence-and-acceptance — independently read the retained
+// @ref LLP 0112#evidence-and-acceptance — independently read the retained
 // report so generated, binding, adoption, adapter, delivery, and cleanup
 // provenance cannot disappear behind a green in-process check.
 import assert from 'node:assert/strict';

@@ -9,7 +9,7 @@
 **Systems:** Data API, Relational queries, Mutations, Code generation, Auth, Testing  
 **Author:** Codex, directed by Charlie Cheever  
 **Date:** 2026-07-27  
-**Related:** LLP 0004, LLP 0051, LLP 0065, LLP 0080, LLP 0104, LLP 0108
+**Related:** LLP 0004, LLP 0051, LLP 0065, LLP 0080, LLP 0110, LLP 0113
 
 Snapback ships bounded two-source joins, maintained projections, owner CRUD,
 unique lookup, and keyset pages. It does not ship the common one-to-many
@@ -52,7 +52,7 @@ generated transaction step inspectable.
 
 ## Resolution — 2026-07-27
 
-LLP 0104 completed three super-refine rounds with Fable 5 and Codex input. The
+LLP 0110 completed three super-refine rounds with Fable 5 and Codex input. The
 local landing now contains:
 
 - protected relation-incarnation schema type, registry lifecycle, automatic
@@ -69,7 +69,7 @@ local landing now contains:
   observations.
 
 The repository-scoped implementation is complete. Local evidence is recorded
-in LLP 0104 under “Implemented landing evidence” and includes the exact
+in LLP 0110 under “Implemented landing evidence” and includes the exact
 codegen/provider types, protected storage lifecycle, bounded persisted
 executor and cursor, atomic source/activity/replay behavior, exhaustive public
 diagnostic classification, Signal Desk declarations, guide/diary updates,
@@ -83,7 +83,7 @@ including atomic source/activity versions, exact replay, storage-equal no-op
 rollback, and an attempted development-impersonation refusal. The distinction
 is now executable rather than declaration-only.
 
-LLP 0104 remains Review because its first-publication lifecycle requires
+LLP 0110 remains Review because its first-publication lifecycle requires
 author acceptance after the non-dual-READY review. Positive capability facts
 therefore remain false. The additional paired-store/restore vectors,
 cross-language cursor goldens, hosted corpus, and full retained-settlement
@@ -96,7 +96,7 @@ An independent completed-lane audit found that the resolution above was
 narrower than this ticket's own acceptance criteria. The local executor and
 Signal Desk declaration/acceptance path are real, but a false capability fact
 means the helper is not yet an ordinary supported authoring choice. This ticket
-therefore remains open until the LLP 0104 publication evidence is complete:
+therefore remains open until the LLP 0110 publication evidence is complete:
 paired-store noninterference, restore/backfill vectors, cross-language cursor
 goldens, retained-settlement boundaries and queue-owner coverage, the hosted
 target corpus, full Signal Desk product adoption, and author acceptance or an
@@ -115,7 +115,7 @@ return the uniform invalid-cursor outcome before lineage restart comparison.
 
 ## Local source publication checkpoint — 2026-07-28
 
-LLP 0104 and LLP 0108 now explicitly narrow the first positive publication to
+LLP 0110 and LLP 0113 now explicitly narrow the first positive publication to
 the exact `local-dev-sqlite-ibex` source target. The tracked
 `LocalCapabilityPublicationV1` carrier binds the atomic capability pair to the
 qualification receipt and exact executor/schema bytes; Rust compiles and
@@ -135,7 +135,7 @@ publication review.
 The package audit found no embedded release public key or
 `PackageCapabilityAttestationV1` loader capable of binding the final binary,
 target triple, tarball/publication-ledger lineage, source revision, and local
-carrier digest. The package path therefore takes LLP 0104's honest fallback:
+carrier digest. The package path therefore takes LLP 0110's honest fallback:
 release binaries are compiled with the code-owned `public-package`
 distribution fact and withhold both capabilities as structured GAPs.
 

@@ -238,7 +238,7 @@ export const addTask = defineJsMutation({
   },
 });
 
-// Review-gated LLP 0104 proving declaration. The bakeoff's dev-impersonation
+// Review-gated LLP 0110 proving declaration. The bakeoff's dev-impersonation
 // transport intentionally keeps using the explicit handler until the reviewed
 // profile has a provenance-bearing non-dev authority in this fixture.
 export const addTaskWithActivity = defineWriteWithActivity({

@@ -4,7 +4,7 @@ export {
   RESULT_CONTRACT_LIMITS_V1,
 } from '@snapback/contract/result-contract-validator';
 
-// @ref LLP 0101#final-author-reconciliation-after-round-3 — the emitted
+// @ref LLP 0108#final-author-reconciliation-after-round-3 — the emitted
 // contract is the schema-expanded effective contract, and its hash is over
 // canonical JSON rather than an authored table-name shorthand.
 

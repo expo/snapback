@@ -1,0 +1,38 @@
+{
+  "title": "pulse-monitor / headless",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated app provisions with one cron job",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "demand-gated job is inactive without a subscriber",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "live demand arms the scheduler job",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "forced tick runs action, mutation, and live delivery",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "unsubscribe makes the demand-gated job inactive again",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

@@ -473,7 +473,7 @@
         },
         "vmLifecycle": {
           "default": "fresh-per-invocation",
-          "description": "VM lifecycle for handler execution: `\"fresh-per-invocation\"` (the\ndurable default and the only hosted posture) or `\"warm-pooled-reset\"`\n(the DK-4 trusted-local optimization — VM reuse per bundle behind a\nverified per-invocation reset). Surfaced so LLP 0012's honesty rule\nholds: an agent can see which execution semantics are in force.\n\n@ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — capability flag.",
+          "description": "VM lifecycle for handler execution. Current targets report\n`\"fresh-per-invocation\"`; `\"warm-pooled-reset\"` remains a recognized\nhistorical value for compatibility with older artifacts. Surfaced so\nLLP 0012's honesty rule holds.\n\n@ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 — lifecycle truthfulness.",
           "type": "string"
         }
       },
@@ -745,7 +745,7 @@
         },
         "scopeContract": {
           "default": null,
-          "description": "Frozen generated scope/value contracts retained for prepared clients.\nThe server's existing request validators remain authoritative.\n\n@ref LLP 0106#public-api — prepared React bindings admit the complete\ngenerated/deployed collection schema rather than reconstructing it."
+          "description": "Frozen generated scope/value contracts retained for prepared clients.\nThe server's existing request validators remain authoritative.\n\n@ref LLP 0107#public-api — prepared React bindings admit the complete\ngenerated/deployed collection schema rather than reconstructing it."
         },
         "scopeFields": {
           "default": [],
@@ -848,7 +848,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Framework-owned relation-incarnation stamp. It is stored as a string,\nbut unlike an application string it is never writable by application\narguments. The paired required foreign-key field is the complete\nrelationship declaration.\n\n@ref LLP 0104#protected-relation-incarnation-and-stamping — central\n  writers overwrite the stamp from the active parent registry.",
+          "description": "Framework-owned relation-incarnation stamp. It is stored as a string,\nbut unlike an application string it is never writable by application\narguments. The paired required foreign-key field is the complete\nrelationship declaration.\n\n@ref LLP 0110#protected-relation-incarnation-and-stamping — central\n  writers overwrite the stamp from the active parent registry.",
           "properties": {
             "RelationIncarnation": {
               "properties": {
@@ -2451,7 +2451,7 @@
       "type": "object"
     },
     "ResultValueContract": {
-      "description": "The schema-expanded value grammar used to validate handler results at the\nRust publication boundary.\n\n@ref LLP 0101#final-author-reconciliation-after-round-3 — result contracts\nare Rust-owned, bounded, and carried by every generated function.",
+      "description": "The schema-expanded value grammar used to validate handler results at the\nRust publication boundary.\n\n@ref LLP 0108#final-author-reconciliation-after-round-3 — result contracts\nare Rust-owned, bounded, and carried by every generated function.",
       "oneOf": [
         {
           "additionalProperties": false,

@@ -1,10 +1,10 @@
 // The shared hosted supervisor is the only writer of target bindings, control
 // heads, provider-effect journals, spend reservations, and cleanup authority.
 //
-// @ref LLP 0105#always-on-supervisor-and-canonical-single-writer-head — an
+// @ref LLP 0111#always-on-supervisor-and-canonical-single-writer-head — an
 // independently fenced supervisor commits mirror then external anchor before
 // an effect is capable.
-// @ref LLP 0105#stable-planned-bindings-and-immutable-reconciliation —
+// @ref LLP 0111#stable-planned-bindings-and-immutable-reconciliation —
 // provider ids never alter pre-target semantic effect identity and uncertain
 // attempts remain immutable after reconciliation.
 

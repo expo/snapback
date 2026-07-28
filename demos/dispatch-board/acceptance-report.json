@@ -1,0 +1,38 @@
+{
+  "title": "dispatch-board / headless",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated app provisions and closes trusted fields out of args",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "one mutation authors incident and audit identities at one time",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "a live owner query observes a second-client report",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "owner-scoped live query hides other dispatchers",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "callers cannot inject a trusted timestamp",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

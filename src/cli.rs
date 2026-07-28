@@ -1063,10 +1063,10 @@ struct HostedJourneyArtifactMapEntryV1 {
     path: PathBuf,
 }
 
-/// Product verifier for the Rust-owned LLP 0105 receipt. Receipt artifact ids
+/// Product verifier for the Rust-owned LLP 0111 receipt. Receipt artifact ids
 /// are opaque; filesystem paths live only in this operator-supplied local map
 /// and cannot enter the retained receipt or its digest.
-// @ref LLP 0105#4-public-cli-product-journey — public journey evidence is
+// @ref LLP 0111#4-public-cli-product-journey — public journey evidence is
 // independently reopened before the hosted capability boundary can pass.
 fn verify_hosted_product_journey(
     receipt_path: &Path,

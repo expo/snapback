@@ -149,7 +149,7 @@
               "type": "null"
             }
           ],
-          "description": "The same negotiated authorization-invalidation connection descriptor\nreturned by an ordinary connection open. Register-mode adoption needs\nit to install LLP 0053's authenticated expectation before the bundle\nrows become observable.\n\n@ref LLP 0107#registered-boot — auth-scoped registered children adopt\nthe complete connection and per-child authorization projections."
+          "description": "The same negotiated authorization-invalidation connection descriptor\nreturned by an ordinary connection open. Register-mode adoption needs\nit to install LLP 0053's authenticated expectation before the bundle\nrows become observable.\n\n@ref LLP 0112#registered-boot — auth-scoped registered children adopt\nthe complete connection and per-child authorization projections."
         },
         "connectionId": {
           "type": "string"

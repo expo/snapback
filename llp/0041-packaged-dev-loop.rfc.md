@@ -279,7 +279,7 @@ digests`.
 
 The hosted packer records every edge and the verifier reopens it. Target and
 supervisor images must name the same source SHA; declared skew is not permitted
-for this release. LLP 0105's capability-publication carrier may reference only
+for this release. LLP 0111's capability-publication carrier may reference only
 the successful post-promotion ledger and both final `latest` cold receipts.
 
 Before the first default-tag mutation, a refusing

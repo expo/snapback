@@ -175,7 +175,7 @@
       ]
     },
     "ephemeralExpiryProtocol": {
-      "description": "Echo present iff the connection lineage negotiated LLP 0106's\nmonotonic ephemeral-expiry conversion protocol.",
+      "description": "Echo present iff the connection lineage negotiated LLP 0107's\nmonotonic ephemeral-expiry conversion protocol.",
       "format": "uint32",
       "minimum": 0,
       "type": [

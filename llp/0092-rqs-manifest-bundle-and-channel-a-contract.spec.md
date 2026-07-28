@@ -101,7 +101,7 @@ routesManifest = { formatVersion: 1,
 routeEntry    = { route: string,            // pattern, e.g. "/board/:boardId"
                   queries: [ querySpec ],   // 1..32 (0D.2 query-count limit)
                   persist?: boolean,        // default true; LLP 0091 §0A.5 opt-out
-                  registerGroupEligible?: true } // codegen-derived; LLP 0107
+                  registerGroupEligible?: true } // codegen-derived; LLP 0112
 querySpec     = { function: string,         // exported function name
                   args: argsMapping }       // §0E.6 (Q2), mapping version "params-v1"
 ```
@@ -119,7 +119,7 @@ querySpec     = { function: string,         // exported function name
   bundle invocation authority. Codegen emits it only when every child is a
   `LiveQuery` and every `$param` target is string-typed; served-manifest
   admission rechecks any asserted `true`. Absence preserves the broader read
-  bundle route while omitting LLP 0107's generated register reference.
+  bundle route while omitting LLP 0112's generated register reference.
 - `publicInline` is deliberately **not** a `routeEntry` field. Whether a
   route is Channel A-eligible is derived: every named query must carry the
   codegen-compiled `publicInline` fact (§0C.3). A route-manifest author can
@@ -333,7 +333,7 @@ entry = { function: string,
   the pending-registration owner of the LLP 0031 amendment; it is scoped
   to credentialed callers (§0D.3).
 
-**Registered authorization-adoption amendment (2026-07-28, LLP 0107).**
+**Registered authorization-adoption amendment (2026-07-28, LLP 0112).**
 `authInvalidationProtocol: 1` opts the registered connection into LLP 0053
 authorization invalidation. The server refuses an unknown protocol value; a
 nonempty `authorizationNamespaces` array requires protocol 1 and must have

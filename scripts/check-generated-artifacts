@@ -31,6 +31,11 @@ run node packages/snapback-codegen/index.mjs demos/rbac/snapback
 run node packages/snapback-codegen/index.mjs demos/shindig/snapback
 run node packages/snapback-codegen/index.mjs demos/partiful-matrix/snapback
 run node packages/snapback-codegen/index.mjs demos/backend-bakeoff/snapback
+run node packages/snapback-codegen/index.mjs demos/catalog-lens/snapback
+run node packages/snapback-codegen/index.mjs demos/dispatch-board/snapback
+run node packages/snapback-codegen/index.mjs demos/pulse-monitor/snapback
+run node packages/snapback-codegen/index.mjs demos/public-dashboard/snapback
+run node packages/snapback-codegen/index.mjs demos/access-desk/snapback
 run node admin-ui/generate-contract-bindings.mjs
 
 REVIEW_ROOTS=(
@@ -47,6 +52,11 @@ REVIEW_ROOTS=(
     demos/shindig/snapback/generated
     demos/partiful-matrix/snapback/generated
     demos/backend-bakeoff/snapback/generated
+    demos/catalog-lens/snapback/generated
+    demos/dispatch-board/snapback/generated
+    demos/pulse-monitor/snapback/generated
+    demos/public-dashboard/snapback/generated
+    demos/access-desk/snapback/generated
 )
 
 REVIEW_PATHS=()

@@ -302,7 +302,7 @@ fn emit_build_identity() {
         println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_DIRTY={dirty}");
     }
 
-    // @ref LLP 0104#local-and-packaged-publication-authority — contributor
+    // @ref LLP 0110#local-and-packaged-publication-authority — contributor
     // source builds may consume the source-embedded relation/activity carrier,
     // while public packages must carry a release-key attestation. The current
     // package pipeline has no such attestation, so it compiles an explicit

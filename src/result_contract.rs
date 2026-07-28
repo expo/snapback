@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 /// Every handler result, including an `unknown` compatibility result, is
 /// bounded before it can be published or committed.
 ///
-/// @ref LLP 0101#final-author-reconciliation-after-round-3 — the Rust host
+/// @ref LLP 0108#final-author-reconciliation-after-round-3 — the Rust host
 /// validates the post-JSON value; mutations are checked while effects are
 /// still buffered.
 pub const MAX_HANDLER_RESULT_BYTES: usize = 4 * 1024 * 1024;

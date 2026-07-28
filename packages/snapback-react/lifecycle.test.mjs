@@ -6,7 +6,7 @@ import {
   observeSnapbackPresence,
 } from './index.mjs';
 
-// @ref LLP 0106#resync-authority-and-lifecycle — React must project the
+// @ref LLP 0107#resync-authority-and-lifecycle — React must project the
 // headless room's stale/resyncing/ready transitions without retaining a
 // predecessor-authority snapshot or creating a second reconnect owner.
 // @ref LLP 0102#strict-mode-hmr-replacement-and-late-work — provider

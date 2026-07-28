@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// @ref LLP 0105#tls-admission-evidence-and-packaging — one closed,
+// @ref LLP 0111#tls-admission-evidence-and-packaging — one closed,
 // content-addressed record binds the staged native/runtime/app closure to the
 // exact digest-pinned bases and intended Fly registry identity.
 
@@ -364,7 +364,7 @@ function validateManifest(manifest, { verifyReleaseId }) {
       '/run/secrets/supervisor-server-ca.pem',
     ])
   ) {
-    refusal('SNAPBACK_HOSTED_RELEASE_MANIFEST_INVALID', 'admission channel does not match LLP 0105');
+    refusal('SNAPBACK_HOSTED_RELEASE_MANIFEST_INVALID', 'admission channel does not match LLP 0111');
   }
 
   exactObject(manifest.image, ['repository', 'tag', 'intendedReference'], 'image');

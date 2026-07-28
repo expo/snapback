@@ -78,6 +78,14 @@ const server = await startServer({ port: 4399, db: ':memory:', cwd: repoRoot,
 const db = new SnapbackClient(server.baseUrl, server.clientOptions);
 ```
 
+Small headless app kernels may use
+`openHeadlessApp(import.meta.url, { appId })` from
+`demos/_kit/headless-app.mjs`. It resolves the app directory, starts the same
+provenance-verified server, provisions generated schema/functions/routes and
+seed, then returns fresh `client` and admin-gated `admin` clients plus one
+`close` cleanup. The five-app workout corpus runs this helper through
+`node scripts/run-workout-apps.mjs`.
+
 What it guarantees:
 
 - **Isolated ports by default.** Ordinary starts pass `--port 0`, so the OS

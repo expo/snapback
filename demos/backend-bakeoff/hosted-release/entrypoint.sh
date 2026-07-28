@@ -3,7 +3,7 @@
 # One target boot owns one admission renewer, one loopback Snapback origin, and
 # one in-namespace TLS terminator. Any renewer failure terminates the origin.
 #
-# @ref LLP 0105#always-on-supervisor-and-canonical-single-writer-head — the
+# @ref LLP 0111#always-on-supervisor-and-canonical-single-writer-head — the
 # target pulls short-lived authority over outbound mTLS and never holds Fly
 # control or admission-signing credentials.
 set -eu

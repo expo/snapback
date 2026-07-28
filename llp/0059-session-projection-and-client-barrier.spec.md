@@ -3008,7 +3008,7 @@ closed. This document is Accepted; neither LLP 0039 nor LLP 0053 is unfrozen.
 
 ## Dated amendment: versioned seed reset reuse (2026-07-27)
 
-LLP 0103 reset-install and clear are callers of this Spec's existing single
+LLP 0109 reset-install and clear are callers of this Spec's existing single
 reset coordinator, not alternate reset implementations. Their protected
 identity/operation writes occur in the same SQLite transaction as deletion and
 data-stream rotation. They retain the stream ticket, blocked admission,

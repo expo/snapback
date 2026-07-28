@@ -272,7 +272,7 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "vm-adapter.lifecycle-response.schema.json",
             schemars::schema_for!(AdapterLifecycleResponse),
         ),
-        // LLP 0105 hosted Fly v2 carriers. These stay unavailable as public
+        // LLP 0111 hosted Fly v2 carriers. These stay unavailable as public
         // capabilities until their deterministic and real-provider gates pass.
         finish(
             "fly-target.binding-v2.schema.json",

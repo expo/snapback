@@ -1390,7 +1390,7 @@ pub struct FlyCredentialBindingV2 {
 
 /// Closed, generation-fenced binding for one Fly target.
 ///
-/// @ref LLP 0105#expiring-routed-machine-authority — effect-time discovery is
+/// @ref LLP 0111#expiring-routed-machine-authority — effect-time discovery is
 /// forbidden; the control plane pins the complete roster, routes, storage,
 /// certificate posture, supervisor, and separated credential roles.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1989,7 +1989,7 @@ pub struct HostedJourneyClaimBoundaryV1 {
 /// first-class artifact: it retains every completed remote row and closed
 /// cleanup inventory without becoming capability evidence.
 ///
-/// @ref LLP 0105#4-public-cli-product-journey — the public journey is one
+/// @ref LLP 0111#4-public-cli-product-journey — the public journey is one
 /// Rust-owned closed receipt, including coded failure and cleanup posture.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2015,7 +2015,7 @@ impl HostedProductJourneyV1 {
     /// use [`Self::validate_claim_boundary_with_artifacts`] so every evidence
     /// digest is reopened.
     ///
-    /// @ref LLP 0105#4-public-cli-product-journey — a passing receipt binds the
+    /// @ref LLP 0111#4-public-cli-product-journey — a passing receipt binds the
     /// package, source, remote identities, command outcomes, and lifecycle
     /// evidence instead of relying on an unstructured narrative.
     pub fn validate_claim_boundary(&self) -> Result<(), Vec<String>> {

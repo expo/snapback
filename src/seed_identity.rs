@@ -311,7 +311,7 @@ pub struct ActiveSeedInstallationV1 {
 }
 
 pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
-    // @ref LLP 0103#15-round-2-author-reconciliation-for-the-first-landing —
+    // @ref LLP 0109#15-round-2-author-reconciliation-for-the-first-landing —
     // identity is keyed by the already-rotated data stream, so an unmodified
     // predecessor reset cannot leave a stale identity active.
     tx.execute_batch(
@@ -402,7 +402,7 @@ pub fn active_installation(
 
 /// Strictly read the stream that scopes seed identity without creating it.
 ///
-/// @ref LLP 0103#161-replay-observes-current-state-before-historical-completion
+/// @ref LLP 0109#161-replay-observes-current-state-before-historical-completion
 /// — replay and preview observe currentness before classifying completion.
 pub fn strict_current_data_version_stream(tx: &Transaction<'_>) -> SnapbackResult<Option<String>> {
     let value: Option<(String, Vec<u8>)> = tx
@@ -498,7 +498,7 @@ pub fn store_completed_operation(
 /// completion is also retained so replay cannot change merely because newer,
 /// unrelated operations arrived.
 ///
-/// @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate —
+/// @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate —
 /// historical seed rows are bounded without weakening current-stream replay.
 pub fn best_effort_prune_history(tx: &Transaction<'_>, current_stream: &str) {
     // Prune installations first while the full operation reference set is

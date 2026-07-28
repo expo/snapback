@@ -1102,7 +1102,7 @@ exercise the migrated paths and gates.
 
 ## Dated amendment: versioned seed route family (2026-07-27)
 
-LLP 0103 registers
+LLP 0109 registers
 `/_snapback/api/app/seed/{ensure-v1,preview-v1,reset-install-v1,clear-v1}` as
 reserved administrative app-lifecycle routes. Each is centrally classified
 AdminWrite and NonProd before its closed Rust body is parsed or seed state is

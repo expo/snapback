@@ -478,7 +478,7 @@
       "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs --write",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step1-keyed-scopes.json",
-        "sha256": "07109ed180a41f93fed1a29550edbcd44bf004b02d1ad2900145c614fe07d0f0"
+        "sha256": "eda16c63dc34c9f2ebccb9a00c960851eefd2ab4d3966c6675a1e85bf5dda8a8"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes",
@@ -496,7 +496,7 @@
       "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs --write",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step1-mutation-projection.json",
-        "sha256": "8b1d28ff501142c01130f643451ad7119ebf80bb9f1d99f514fa5ff0ad0cd558"
+        "sha256": "506bb02afaf7bbeabdb0a24ddc6028b297f511f3bbc88a2bf4615fef5eb65fa1"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-5--structural-mutation-outcomes-and-excellent-diagnostics",

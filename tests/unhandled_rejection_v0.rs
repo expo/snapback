@@ -4,8 +4,8 @@
 //! spawned (`forEach(async ...)` is the classic shape) executes during the
 //! microtask drain — its earlier `ctx.db.*` writes land in the commit buffer,
 //! its later ones are silently skipped when it rejects — and nothing reported
-//! the rejection. These tests pin the fix: the ctx bootstrap's rejection
-//! ledger plus the host's post-eval sweep turn that into
+//! the rejection. These tests pin the fix: the target-native rejection
+//! checkpoint plus the host's post-eval drain turn that into
 //! `SNAPBACK_HANDLER_UNHANDLED_REJECTION` with nothing committed, while
 //! rejections handled anywhere before completion still succeed.
 
@@ -36,7 +36,7 @@ globalThis.__snapbackHandlers = {
   },
   // The recommended shape for the same work: the handler awaits the fan-out,
   // so a rejection propagates and fails the invocation as the handler's own
-  // error (not via the ledger).
+  // error (not via the detached-failure checkpoint).
   async awaitedParallelInsert(ctx, args) {
     await Promise.all(args.items.map(async function(item) {
       if (item.bad) { throw new Error("validation failed: " + item.n); }
@@ -53,7 +53,7 @@ globalThis.__snapbackHandlers = {
   },
   // Generic web-event tracking inspects a private suppression symbol on the
   // reason. A hostile getter may throw there, but that independent consumer
-  // must never suppress the authenticated Snapback ledger/rollback path.
+  // must never suppress the authenticated native checkpoint/rollback path.
   async hostileDetachedRejectionReason(ctx) {
     ctx.db.insert('items', { n: 907 });
     var reason = new Proxy({}, {
@@ -65,30 +65,8 @@ globalThis.__snapbackHandlers = {
     Promise.reject(reason);
     return "must-not-succeed";
   },
-  // Rejection enrollment must survive a throwing accessor on Hermes's public
-  // pending-reaction bookkeeping. The captured reject may throw, but the
-  // private generation still has to reach the downstream ledger.
-  async throwingFinaleBookkeepingBypass(ctx) {
-    ctx.db.insert('items', { n: 908 });
-    var rejectLater;
-    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
-    rejected.then(function() {}, function() {});
-    var pendingKey = null;
-    var pendingKeys = Object.keys(rejected);
-    for (var i = 0; i < pendingKeys.length; i++) {
-      if (rejected[pendingKeys[i]] === 1) pendingKey = pendingKeys[i];
-    }
-    if (pendingKey === null) throw new Error('pending bookkeeping key unavailable');
-    Object.defineProperty(rejected, pendingKey, {
-      configurable: true,
-      get: function() { throw new Error('hostile-finale-bookkeeping'); }
-    });
-    try { rejectLater(new Error('throwing-finale-must-remain-visible')); }
-    catch (_) {}
-    return "must-not-succeed";
-  },
   // A rejection that is handled later in the same drain must not trip the
-  // sweep: the ledger entry is cleared when the handler attaches.
+  // checkpoint: the native pending entry is cleared when the handler attaches.
   async rejectionHandledLater(ctx) {
     var rejected = Promise.reject(new Error("caught-later"));
     Promise.resolve().then(function() { rejected.catch(function() {}); });
@@ -189,7 +167,7 @@ globalThis.__snapbackHandlers = {
     var nativeApply = Reflect.apply;
     try {
       Function.prototype.call = function(receiver, onFulfilled, onRejected) {
-        // The legacy Ibex rejection observer used this exact dynamic call
+        // The retired Ibex JavaScript observer used this exact dynamic call
         // shape. Return normally without attaching its rejection callback,
         // while forwarding every other call so settlement can still report.
         if (arguments.length === 3 && onFulfilled === undefined &&
@@ -201,7 +179,7 @@ globalThis.__snapbackHandlers = {
     } catch (_) {
       // The current harness seals Function.prototype.call. Keep the probe
       // running so the detached rejection still proves that failed poisoning
-      // cannot blind the authenticated ledger.
+      // cannot blind the native checkpoint.
     }
     Promise.reject(new Error("call-poison-detached-rejection"));
     return "must-not-succeed";
@@ -215,54 +193,18 @@ globalThis.__snapbackHandlers = {
     return {};
   },
   async rejectionHookSurfaceProbe(ctx) {
-    var instance = Promise.resolve("surface-probe");
-    // Pinned Hermes has a descriptor-free @@species path; its exact native
-    // constructor is the default when the optional compatibility property is
-    // absent.
     var Species = Promise[Symbol.species] || Promise;
     var speciesInstance = new Species(function(resolve) { resolve("species-probe"); });
-    var candidates = [
-      globalThis.__OriginalPromise,
-      Promise.prototype.constructor,
-      Promise[Symbol.species] || Promise,
-      instance.constructor
-    ];
     var NativePromise = Promise.prototype.constructor;
-    var hookBDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_B");
-    var hookCDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_C");
     var observerDescriptor = Object.getOwnPropertyDescriptor(
       NativePromise,
       "__ibexRegisterPromiseObserver"
     );
     var thenDescriptor = Object.getOwnPropertyDescriptor(NativePromise.prototype, "then");
-    var functionCallDescriptor = Object.getOwnPropertyDescriptor(Function.prototype, "call");
-    var nativeConstructorPathsAgree = true;
-    for (var i = 0; i < candidates.length; i++) {
-      var candidate = candidates[i];
-      if (i > 0) nativeConstructorPathsAgree =
-        nativeConstructorPathsAgree && candidate === NativePromise;
-    }
     return [{
-      originalAliasIsPublic: globalThis.__OriginalPromise === Promise,
-      publicAliasUsesSealedHooks:
-        globalThis.__OriginalPromise._B === hookBDescriptor.value &&
-        globalThis.__OriginalPromise._C === hookCDescriptor.value,
-      nativeConstructorPathsAgree: nativeConstructorPathsAgree,
+      originalAliasAbsent: typeof globalThis.__OriginalPromise === "undefined",
+      observerRegistrarAbsent: !observerDescriptor,
       speciesResultUsesNativeConstructor: speciesInstance.constructor === NativePromise,
-      functionCallIsSealed:
-        !!functionCallDescriptor && typeof functionCallDescriptor.value === "function" &&
-        functionCallDescriptor.configurable === false && functionCallDescriptor.writable === false,
-      hookBIsSealedMediator:
-        !!hookBDescriptor && typeof hookBDescriptor.value === "function" &&
-        hookBDescriptor.configurable === false && hookBDescriptor.writable === false,
-      hookCIsSealedMediator:
-        !!hookCDescriptor && typeof hookCDescriptor.value === "function" &&
-        hookCDescriptor.configurable === false && hookCDescriptor.writable === false,
-      observerRegistrarIsSealed:
-        !!observerDescriptor && typeof observerDescriptor.value === "function" &&
-        observerDescriptor.configurable === false && observerDescriptor.writable === false,
-      observerRegistrarReplayRefused:
-        !!observerDescriptor && observerDescriptor.value(function() {}, function() {}) === false,
       thenIsSealedMediator:
         !!thenDescriptor && typeof thenDescriptor.value === "function" &&
         thenDescriptor.configurable === false && thenDescriptor.writable === false
@@ -304,40 +246,6 @@ globalThis.__snapbackHandlers = {
         candidate._B(rejected);
       }
     }
-    return {};
-  },
-  // Attaching a reaction is not itself proof that it can run. Hermes exposes
-  // its Promise bookkeeping fields for compatibility; erase the pending
-  // queue after attachment and ensure the rejection remains visible.
-  async erasedPendingReactionProbe(ctx) {
-    ctx.db.insert('items', { n: 939 });
-    var rejectLater;
-    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
-    rejected.then(undefined, function() {});
-    Object.keys(rejected).forEach(function(key) { delete rejected[key]; });
-    rejectLater(new Error("erased-reaction-must-remain-visible"));
-    return {};
-  },
-  // A stale queued reaction must not clear a newer rejection generation on
-  // the same mutable Promise object. Point the queued handler's child back at
-  // its source so propagation re-rejects that source before completion.
-  async staleReactionGenerationProbe(ctx) {
-    ctx.db.insert('items', { n: 949 });
-    var rejectLater;
-    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
-    rejected.then();
-    var deferred = null;
-    Object.keys(rejected).forEach(function(key) {
-      var candidate = rejected[key];
-      if (candidate && typeof candidate === "object" &&
-          Object.prototype.hasOwnProperty.call(candidate, "promise") &&
-          Object.prototype.hasOwnProperty.call(candidate, "onRejected")) {
-        deferred = candidate;
-      }
-    });
-    if (!deferred) throw new Error("Promise reaction record unavailable");
-    deferred.promise = rejected;
-    rejectLater(new Error("newer-generation-must-remain-visible"));
     return {};
   },
   async rejectionHookConstructorPoison(ctx) {
@@ -411,59 +319,6 @@ globalThis.__snapbackHandlers = {
     try { rejected.then(); } catch (_) {}
     return {};
   },
-  async pendingHandlerSnapshotMutationProbe(ctx) {
-    var rejectLater;
-    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
-    var child = rejected.then(null, function(error) { return error.message; });
-    // The pending Handler is public compatibility state. Mutating its callback
-    // and child after scheduling must not replace the closure-private snapshot
-    // that Hermes authenticated at canonical `.then()` time.
-    var handlerRecord = null;
-    var recordKeys = Object.keys(rejected);
-    for (var i = 0; i < recordKeys.length; i++) {
-      var candidate = rejected[recordKeys[i]];
-      if (candidate && typeof candidate === 'object') handlerRecord = candidate;
-    }
-    if (handlerRecord === null) throw new Error('Promise Handler record unavailable');
-    handlerRecord.onRejected = function() { throw new Error('mutated-public-handler'); };
-    handlerRecord.promise = rejected;
-    rejectLater(new Error('private-handler-snapshot-wins'));
-    return await child;
-  },
-  async crossPromiseHandlerTransplantProbe(ctx) {
-    ctx.db.insert('items', { n: 935 });
-    var rejectSource;
-    var rejectTarget;
-    var source = new Promise(function(_, reject) { rejectSource = reject; });
-    var target = new Promise(function(_, reject) { rejectTarget = reject; });
-    var sourceChild = source.then(null, function(error) { return error.message; });
-    target.then(null, function() { return 'target-handler-must-not-be-discarded'; });
-
-    function pendingHandlerSlot(promise) {
-      var keys = Object.keys(promise);
-      for (var i = 0; i < keys.length; i++) {
-        var candidate = promise[keys[i]];
-        if (
-          candidate &&
-          typeof candidate === 'object' &&
-          Object.prototype.hasOwnProperty.call(candidate, 'onRejected') &&
-          Object.prototype.hasOwnProperty.call(candidate, 'promise')
-        ) {
-          return keys[i];
-        }
-      }
-      throw new Error('Promise Handler record unavailable');
-    }
-
-    var sourceSlot = pendingHandlerSlot(source);
-    var targetSlot = pendingHandlerSlot(target);
-    // Both records were created by canonical `.then()`, but only the target's
-    // record may authenticate completion of the target rejection. Transplant
-    // the source record through Hermes' public compatibility state.
-    target[targetSlot] = source[sourceSlot];
-    rejectTarget(new Error('cross-promise-handler-transplant-must-not-clear'));
-    return await sourceChild;
-  },
   async frozenPromiseBookkeepingBypass(ctx) {
     ctx.db.insert('items', { n: 936 });
     var rejectLater;
@@ -494,50 +349,6 @@ globalThis.__snapbackHandlers = {
     rejectLater(new Error('inherited-handler-accessor-must-not-authenticate'));
     return {};
   },
-  async preBindReactionReentrancyBypass(ctx) {
-    ctx.db.insert('items', { n: 938 });
-    var rejectTarget;
-    var target = new Promise(function(_, reject) { rejectTarget = reject; });
-    target.then(null, function() { return 'original-target-handler'; });
-    var targetSlot = Object.keys(target).find(function(key) {
-      var value = target[key];
-      return value && typeof value === 'object'
-        && Object.prototype.hasOwnProperty.call(value, 'onRejected')
-        && Object.prototype.hasOwnProperty.call(value, 'promise');
-    });
-    if (!targetSlot) throw new Error('target Handler record unavailable');
-
-    var source = new Promise(function() {});
-    var capturedHandler = null;
-    Object.defineProperty(Object.prototype, 'onFulfilled', {
-      configurable: true,
-      set: function() { capturedHandler = this; }
-    });
-    var fired = false;
-    var zeroStateKeys = Object.keys(source).filter(function(key) { return source[key] === 0; });
-    if (zeroStateKeys.length < 2) throw new Error('Promise zero-valued state keys unavailable');
-    zeroStateKeys.forEach(function(key) {
-      Object.defineProperty(source, key, {
-        configurable: true,
-        get: function() {
-          if (!fired) {
-            fired = true;
-            if (capturedHandler === null) throw new Error('source Handler was not captured');
-            target[targetSlot] = capturedHandler;
-            rejectTarget(new Error('pre-bind-reentrancy-must-not-authenticate'));
-          }
-          return 0;
-        },
-        set: function() {}
-      });
-    });
-    try {
-      source.then(null, function() { return 'transplanted-handler-swallowed'; });
-    } finally {
-      delete Object.prototype.onFulfilled;
-    }
-    return {};
-  },
   async directConstructorReinitializationBypass(ctx) {
     ctx.db.insert('items', { n: 939 });
     var rejectOriginal;
@@ -552,52 +363,6 @@ globalThis.__snapbackHandlers = {
       reinitialized = true;
     } catch (_) {}
     if (reinitialized) await rejected.catch(function() {});
-    return {};
-  },
-  async fabricatedHandlerResettlementBypass(ctx) {
-    ctx.db.insert('items', { n: 940 });
-    function handlerSlot(promise) {
-      var keys = Object.keys(promise);
-      for (var i = 0; i < keys.length; i++) {
-        var value = promise[keys[i]];
-        if (
-          value &&
-          typeof value === 'object' &&
-          Object.prototype.hasOwnProperty.call(value, 'onRejected') &&
-          Object.prototype.hasOwnProperty.call(value, 'promise')
-        ) return keys[i];
-      }
-      throw new Error('Promise Handler record unavailable');
-    }
-
-    var rejectChild;
-    var child = new Promise(function(_, reject) { rejectChild = reject; });
-    child.then();
-    // Erase the genuine child reaction while retaining the generic wrapper's
-    // handled assertion. Only execution-proven engine state may clear it.
-    child[handlerSlot(child)] = null;
-
-    var rejectSource;
-    var source = new Promise(function(_, reject) { rejectSource = reject; });
-    source.then(null, function() { return 'genuine-source-handler'; });
-    source[handlerSlot(source)] = {
-      onFulfilled: null,
-      onRejected: null,
-      promise: child
-    };
-
-    var decoy = new Error('fabricated-handler-decoy-generation');
-    rejectSource(decoy);
-    rejectChild(new Error('fabricated-handler-original-generation'));
-    source.catch(function() {});
-    await Promise.resolve();
-
-    // On a vulnerable engine the fabricated record has re-rejected `child`
-    // with the decoy through the internal settle primitive. Handle that decoy
-    // to demonstrate that the original generation disappeared. The fixed
-    // engine ignores the fake record, leaving the original unhandled.
-    var decoyVisible = Object.keys(child).some(function(key) { return child[key] === decoy; });
-    if (decoyVisible) await child.catch(function() {});
     return {};
   },
   // A Proxy can lie to Object.getPrototypeOf/getOwnPropertyDescriptor and then
@@ -807,7 +572,7 @@ fn foreach_async_rejection_fails_and_commits_nothing() {
 
 #[test]
 fn foreach_async_without_failures_still_succeeds() {
-    // Positive control: detached chains that all resolve leave no ledger
+    // Positive control: detached chains that all resolve leave no checkpoint
     // entries, and their writes commit as before.
     let mut snapback = configured();
     let output = snapback
@@ -823,7 +588,7 @@ fn foreach_async_without_failures_still_succeeds() {
 #[test]
 fn awaited_parallel_rejection_is_the_handlers_own_error() {
     // The recommended fix pattern fails as a plain handler error — the
-    // rejection is handled (by Promise.all and the await), so the ledger
+    // rejection is handled (by Promise.all and the await), so the checkpoint
     // stays out of it — and still commits nothing.
     let mut snapback = configured();
     let error = snapback
@@ -849,7 +614,7 @@ fn rejection_after_settlement_is_still_caught() {
 }
 
 #[test]
-fn generic_tracker_failure_cannot_suppress_authenticated_rejection_ledger() {
+fn generic_tracker_failure_cannot_suppress_native_rejection_checkpoint() {
     let mut snapback = configured();
     let error = snapback
         .invoke_mutation("hostileDetachedRejectionReason", input(json!({})))
@@ -861,26 +626,6 @@ fn generic_tracker_failure_cannot_suppress_authenticated_rejection_ledger() {
     assert!(
         items(&snapback).is_empty(),
         "a generic tracker exception must not commit buffered writes"
-    );
-}
-
-#[test]
-fn throwing_public_finale_bookkeeping_cannot_skip_rejection_enrollment() {
-    let mut snapback = configured();
-    let error = snapback
-        .invoke_mutation("throwingFinaleBookkeepingBypass", input(json!({})))
-        .expect_err("throwing public Promise bookkeeping must not skip enrollment");
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
-    );
-    assert_eq!(
-        error.diagnostic.details["rejections"],
-        json!(["throwing-finale-must-remain-visible"])
-    );
-    assert!(
-        items(&snapback).is_empty(),
-        "throwing public Promise bookkeeping must not commit buffered writes"
     );
 }
 
@@ -962,7 +707,7 @@ fn standard_promise_combinators_produce_reaction_completion_proof() {
     let mut snapback = configured();
     let output = snapback
         .invoke_mutation("handledPromiseCombinators", input(json!({})))
-        .expect("handled aggregate rejections must not remain in the ledger");
+        .expect("handled aggregate rejections must not remain in the checkpoint");
     assert_eq!(output.result, json!("all,race,allSettled,any"));
 }
 
@@ -974,7 +719,7 @@ fn harness_observes_an_immediately_rejected_handler_promise() {
         .expect_err("the handler's returned rejection must fail the invocation");
     assert_eq!(
         error.diagnostic.code, "SNAPBACK_HANDLER_FAILED",
-        "the harness's own reaction must keep this out of the detached-rejection ledger"
+        "the harness's own reaction must keep this out of the detached-rejection checkpoint"
     );
     assert_eq!(
         error.diagnostic.details["message"],
@@ -1020,7 +765,7 @@ fn hostile_intrinsics_cannot_erase_or_forge_a_typed_host_rejection() {
 }
 
 #[test]
-fn function_call_poisoning_cannot_blind_the_detached_rejection_ledger() {
+fn function_call_poisoning_cannot_blind_the_native_rejection_checkpoint() {
     let mut snapback = configured();
     let error = snapback
         .invoke_mutation("functionCallPoisoningProbe", input(json!({})))
@@ -1069,7 +814,7 @@ fn detached_rejection_fails_actions_too() {
 }
 
 #[test]
-fn exact_promise_rejection_hooks_are_sealed_mediators() {
+fn native_promise_checkpoint_exposes_no_legacy_observer_authority() {
     let snapback = configured();
     let rows = snapback
         .invoke_query("rejectionHookSurfaceProbe", input(json!({})))
@@ -1078,23 +823,17 @@ fn exact_promise_rejection_hooks_are_sealed_mediators() {
     assert_eq!(
         rows,
         vec![json!({
-            "originalAliasIsPublic": true,
-            "publicAliasUsesSealedHooks": true,
-            "nativeConstructorPathsAgree": true,
+            "originalAliasAbsent": true,
+            "observerRegistrarAbsent": true,
             "speciesResultUsesNativeConstructor": true,
-            "functionCallIsSealed": true,
-            "hookBIsSealedMediator": true,
-            "hookCIsSealedMediator": true,
-            "observerRegistrarIsSealed": true,
-            "observerRegistrarReplayRefused": true,
             "thenIsSealedMediator": true,
         })],
-        "every native constructor path must terminate at the same sealed rejection-hook mediators"
+        "the handler realm must expose only the sealed constructor gate, not Ibex's native checkpoint authority"
     );
 }
 
 #[test]
-fn exact_promise_rejection_hooks_cannot_clear_the_ledger() {
+fn legacy_promise_rejection_hooks_cannot_clear_the_native_checkpoint() {
     let mut snapback = configured();
     let error = snapback
         .invoke_mutation("rejectionHookBypassProbe", input(json!({})))
@@ -1108,40 +847,6 @@ fn exact_promise_rejection_hooks_cannot_clear_the_ledger() {
         json!(["hook-bypass-must-remain-visible"]),
         "the handler must neither forge the rejection reason through _C nor delete it through _B"
     );
-}
-
-#[test]
-fn erased_pending_reaction_does_not_count_as_handled() {
-    let mut snapback = configured();
-    let error = snapback
-        .invoke_mutation("erasedPendingReactionProbe", input(json!({})))
-        .expect_err("a reaction erased before dispatch must not clear its rejection");
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
-    );
-    assert_eq!(
-        error.diagnostic.details["rejections"],
-        json!(["erased-reaction-must-remain-visible"])
-    );
-    assert!(items(&snapback).is_empty());
-}
-
-#[test]
-fn stale_reaction_cannot_clear_a_newer_rejection_generation() {
-    let mut snapback = configured();
-    let error = snapback
-        .invoke_mutation("staleReactionGenerationProbe", input(json!({})))
-        .expect_err("an old completion must not clear a new rejection generation");
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
-    );
-    assert_eq!(
-        error.diagnostic.details["rejections"],
-        json!(["newer-generation-must-remain-visible"])
-    );
-    assert!(items(&snapback).is_empty());
 }
 
 #[test]
@@ -1207,7 +912,7 @@ fn exact_promise_reaction_gate_rejects_no_op_child_capabilities() {
 }
 
 #[test]
-fn cached_primitive_promises_remain_compatible_after_observer_registration() {
+fn cached_primitive_promises_remain_compatible_after_checkpoint_setup() {
     let mut snapback = configured();
     let output = snapback
         .invoke_mutation("cachedPrimitivePromiseProbe", input(json!({})))
@@ -1222,37 +927,6 @@ fn sealed_promise_tracker_preserves_catch_and_finally() {
         .invoke_mutation("catchFinallyCompatibilityProbe", input(json!({})))
         .expect("the sealed generic then wrapper must remain compatible with catch/finally");
     assert_eq!(output.result, json!("caught-by-method:1"));
-}
-
-#[test]
-fn exact_promise_reaction_snapshot_is_not_mutable_handler_state() {
-    let mut snapback = configured();
-    let output = snapback
-        .invoke_mutation("pendingHandlerSnapshotMutationProbe", input(json!({})))
-        .expect("pending Handler mutation must not replace the private snapshot");
-    assert_eq!(output.result, json!("private-handler-snapshot-wins"));
-}
-
-#[test]
-fn exact_promise_reaction_authentication_is_bound_to_its_source_promise() {
-    let mut snapback = configured();
-    let error = snapback
-        .invoke_mutation("crossPromiseHandlerTransplantProbe", input(json!({})))
-        .expect_err(
-            "a reaction transplanted from another Promise must not authenticate completion",
-        );
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
-    );
-    assert_eq!(
-        error.diagnostic.details["rejections"],
-        json!(["cross-promise-handler-transplant-must-not-clear"])
-    );
-    assert!(
-        items(&snapback).is_empty(),
-        "the transplanted reaction must not allow the mutation to commit"
-    );
 }
 
 #[test]
@@ -1296,26 +970,6 @@ fn private_reaction_snapshot_does_not_read_inherited_handler_accessors() {
 }
 
 #[test]
-fn reaction_source_binding_cannot_be_stolen_by_pre_bind_reentrancy() {
-    let mut snapback = configured();
-    let error = snapback
-        .invoke_mutation("preBindReactionReentrancyBypass", input(json!({})))
-        .expect_err("reentrant Handler transplantation must not steal source authentication");
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
-    );
-    assert_eq!(
-        error.diagnostic.details["rejections"],
-        json!(["pre-bind-reentrancy-must-not-authenticate"])
-    );
-    assert!(
-        items(&snapback).is_empty(),
-        "pre-bind reentrancy must not allow the mutation to commit"
-    );
-}
-
-#[test]
 fn branded_promises_cannot_be_reinitialized_by_direct_constructor_call() {
     let mut snapback = configured();
     let error = snapback
@@ -1332,26 +986,6 @@ fn branded_promises_cannot_be_reinitialized_by_direct_constructor_call() {
     assert!(
         items(&snapback).is_empty(),
         "constructor reentry must not allow the mutation to commit"
-    );
-}
-
-#[test]
-fn fabricated_public_handlers_cannot_resettle_branded_children() {
-    let mut snapback = configured();
-    let error = snapback
-        .invoke_mutation("fabricatedHandlerResettlementBypass", input(json!({})))
-        .expect_err("an unauthenticated public Handler must not invoke internal settlement");
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
-    );
-    assert_eq!(
-        error.diagnostic.details["rejections"],
-        json!(["fabricated-handler-original-generation"])
-    );
-    assert!(
-        items(&snapback).is_empty(),
-        "a fabricated Handler must not allow the mutation to commit"
     );
 }
 
@@ -1376,8 +1010,8 @@ fn exact_promise_reaction_gate_rejects_proxy_spoofed_receivers() {
 }
 
 #[test]
-fn pool_stays_healthy_and_ledger_does_not_leak_across_invocations() {
-    // The sweep drains the ledger and the VM is checked back in, so a failed
+fn pool_stays_healthy_and_checkpoint_does_not_leak_across_invocations() {
+    // The host drains the native queue and the VM is checked back in, so a failed
     // invocation must not poison the next one on the same warm VM.
     let mut snapback = configured();
     for _ in 0..2 {

@@ -2985,7 +2985,7 @@ export async function createSnapbackContractSurface({
       // headless client; it does not create a second authority or publish
       // transport.
       //
-      // @ref LLP 0105#complete-carriers-and-remaining-exact-assignments —
+      // @ref LLP 0111#complete-carriers-and-remaining-exact-assignments —
       // Contract shares headless registration, replacement, empty-snapshot,
       // generation-fence, acknowledgement, inspection, and disposal.
       registerEphemeralRepublisher: (reference, callback) => (

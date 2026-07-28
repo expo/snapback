@@ -1,0 +1,385 @@
+{
+  "appId": "catalog-lens",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/addBook.args.schema.json",
+    "operations/addPublisher.args.schema.json",
+    "operations/booksWithPublisher.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/addBook.mutation.ts",
+    "contract/addBook.mutation.contract-meta.ts",
+    "contract/addPublisher.mutation.ts",
+    "contract/addPublisher.mutation.contract-meta.ts",
+    "contract/booksWithPublisher.query.ts",
+    "contract/booksWithPublisher.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:82687016d10a45de",
+  "cache": {
+    "graphPath": "../../.snapback/codegen-cache/056b2e991755b880165a32b4f0e4433058727783340519b421385363fbceba11",
+    "key": "056b2e991755b880165a32b4f0e4433058727783340519b421385363fbceba11",
+    "regenerationRule": "regenerate-or-fail-closed"
+  },
+  "config": [],
+  "cronJobs": [],
+  "custody": {
+    "consumer-committed": 0,
+    "regenerable-cache": 20,
+    "review-manifest": 1
+  },
+  "ephemeralCollections": [],
+  "files": [
+    {
+      "bytes": 6245,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:953a072a062d6531a889b9eb61c767ba7d0960b09458d0591e736e3d8aab02e8"
+    },
+    {
+      "bytes": 2900,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.mjs",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:300e8681732c6f42315411dc364077f3f288de2a2393c37ef50dd4f3e343b2fb"
+    },
+    {
+      "bytes": 6011,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "capability-manifest",
+      "path": "capability.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:082d55c32cf6e91842fcc80615dbbce0c3d24bceafab21311313fb03e06fff59"
+    },
+    {
+      "bytes": 4768,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-data-manifest",
+      "path": "contract-data.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:24b2e6a40f049cf322cac0c1d7402352db99a21bfc7c11bc90a93c7a80374a2e"
+    },
+    {
+      "bytes": 273,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/addBook.mutation.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:b365c5f00beaf4e6a22cc211c54f32c4bb3d22b972bd9834d9147910d7173928"
+    },
+    {
+      "bytes": 516,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/addBook.mutation.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:821c6995fb6c1308d8f70a09e954c39d89a4f77006d98494153a5345e57d7a69"
+    },
+    {
+      "bytes": 293,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/addPublisher.mutation.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e8c2e4bce9371b3601e7ca62d83f756dd56bdb6ff9538a205f29af779eb5e3fa"
+    },
+    {
+      "bytes": 539,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/addPublisher.mutation.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e2b097a9fa6e341b02cc98822bb67df687de44f31786ed74ed6ee88c085f109c"
+    },
+    {
+      "bytes": 436,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/booksWithPublisher.query.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:6f6c6ae17e6f3b1d446686361e55811e93aa4c67b709342e00204645a7965f39"
+    },
+    {
+      "bytes": 544,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/booksWithPublisher.query.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:527762ce68510939c66bd191ff26e660ae2caa3913e840e687a06739a1268002"
+    },
+    {
+      "bytes": 879,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/runtime-links.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:9b12da9174b735d8dbec475aebd1660803fa3102db5391a76287687a3e1e6a20"
+    },
+    {
+      "bytes": 9270,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "function-manifest",
+      "path": "functions.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e9953a8040a692f1e788445a119bfd43f7f419f90d30272c55ab85567c52bcc4"
+    },
+    {
+      "bytes": 476,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/addBook.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:a97dcb03e0d3013b820617ba033b4ba4409c8a07d75db361a9eb89dff3c13499"
+    },
+    {
+      "bytes": 472,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/addPublisher.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:569c6329b9385fc12af050fa493d7257b49245f85ce53bebf8d29ea30246eadb"
+    },
+    {
+      "bytes": 336,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/booksWithPublisher.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:2ee0cab0ca206dfb14a1c26e8505887b7aabb8aba29a28a37cda310deb239d4a"
+    },
+    {
+      "bytes": 523,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "package-metadata",
+      "path": "package.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981"
+    },
+    {
+      "bytes": 869,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-binding",
+      "path": "provider-bindings.d.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:f1f71b0129221bec4b8f428282500a7bedc351434dd9822b64d6d3adc42d63ce"
+    },
+    {
+      "bytes": 1936,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-binding",
+      "path": "provider-bindings.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:5783c862f100f5633e970db9190f01e958438d99ccdaea4389deafbe1e50af98"
+    },
+    {
+      "bytes": 6631,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-introspection",
+      "path": "provider-introspection.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e12d40bf3041c8db0d7269fb4df69a61b1a7da50290325c57133d4ee2e1ac5f1"
+    },
+    {
+      "bytes": 2141,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "schema-manifest",
+      "path": "schema.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:bf389a24cc3f0935531853ad615da1a8a788fd46dc176508a5cbb5fb5ef3c55c"
+    }
+  ],
+  "functions": [
+    {
+      "id": "catalog-lens:addBook",
+      "kind": "Mutation",
+      "name": "addBook"
+    },
+    {
+      "id": "catalog-lens:addPublisher",
+      "kind": "Mutation",
+      "name": "addPublisher"
+    },
+    {
+      "id": "catalog-lens:booksWithPublisher",
+      "kind": "LiveQuery",
+      "name": "booksWithPublisher"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "056b2e991755b880165a32b4f0e4433058727783340519b421385363fbceba11",
+  "manifestVersion": 2,
+  "reviewManifest": {
+    "authority": "@snapback/codegen/review-manifest.schema.json",
+    "custody": "review-manifest",
+    "path": "artifacts.json"
+  },
+  "schemaHash": "sha256:a35b065067e00ba7",
+  "schemaVersion": "snapback.v0",
+  "summary": {
+    "appId": "catalog-lens",
+    "counts": {
+      "custody": {
+        "consumerCommitted": 0,
+        "regenerableCache": 20,
+        "reviewManifest": 1,
+        "total": 21
+      },
+      "degradedResults": 3,
+      "ephemeralCollections": 0,
+      "operations": {
+        "action": 0,
+        "live": 1,
+        "liveQuery": 1,
+        "mutation": 2,
+        "query": 0,
+        "total": 3
+      },
+      "tables": 2,
+      "warnings": 1
+    },
+    "degradedResults": [
+      {
+        "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+        "kind": "Mutation",
+        "operation": "addBook",
+        "output": {
+          "path": "generated/api.d.ts",
+          "symbol": "GeneratedApi[\"addBook\"]"
+        },
+        "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addBook` in functions.mjs and regenerate.",
+        "source": {
+          "column": 14,
+          "line": 15,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+        "kind": "Mutation",
+        "operation": "addPublisher",
+        "output": {
+          "path": "generated/api.d.ts",
+          "symbol": "GeneratedApi[\"addPublisher\"]"
+        },
+        "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addPublisher` in functions.mjs and regenerate.",
+        "source": {
+          "column": 14,
+          "line": 31,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+        "kind": "LiveQuery",
+        "operation": "booksWithPublisher",
+        "output": {
+          "path": "generated/api.d.ts",
+          "symbol": "GeneratedApi[\"booksWithPublisher\"]"
+        },
+        "remediation": "Add `result: results.documents(\"table\")` for complete stored rows or `result: results.records(v.object({ ... }))` for computed rows to `booksWithPublisher` in functions.mjs and regenerate.",
+        "source": {
+          "column": 14,
+          "line": 41,
+          "path": "functions.mjs"
+        }
+      }
+    ],
+    "inputsHash": "056b2e991755b880165a32b4f0e4433058727783340519b421385363fbceba11",
+    "schemaVersion": "snapback.codegen-summary.v1"
+  },
+  "tables": [
+    "books",
+    "publishers"
+  ]
+}

@@ -379,7 +379,7 @@ fn pool_stays_healthy_after_an_unsettled_invocation() {
 
 #[test]
 fn declared_result_contract_refuses_before_mutation_commit() {
-    // @ref LLP 0101#final-author-reconciliation-after-round-3 — mutation
+    // @ref LLP 0108#final-author-reconciliation-after-round-3 — mutation
     // result validation runs while handler writes are still buffered.
     let mut snapback = configured();
     let error = snapback
@@ -417,7 +417,7 @@ fn declared_result_contract_refuses_before_query_publication() {
 
 #[test]
 fn inline_query_live_mutation_and_action_execute_with_precise_contracts() {
-    // @ref LLP 0101#final-author-reconciliation-after-round-3 — the generated
+    // @ref LLP 0108#final-author-reconciliation-after-round-3 — the generated
     // inline form uses the ordinary native runtime after load-time admission;
     // every operation kind still crosses the same effective result validator.
     let mut snapback = configured();

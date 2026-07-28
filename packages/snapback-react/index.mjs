@@ -343,7 +343,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       boot: null,
     });
   };
-  // @ref LLP 0107#registered-boot — once the shared connection attaches,
+  // @ref LLP 0112#registered-boot — once the shared connection attaches,
   // frames for a not-yet-demanded child cannot be dropped and followed by an
   // older bundle snapshot presented as current. Mark it for a fresh
   // superseding subscribe before its first store can publish.
@@ -1623,7 +1623,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       notifyConnection();
     },
     clearMemory() {
-      // @ref LLP 0107#authority-races-and-cleanup — a successor authority
+      // @ref LLP 0112#authority-races-and-cleanup — a successor authority
       // may never lazily adopt predecessor bundle registrations or boot rows.
       invalidatePreparedRegistrations('authority-replaced');
     },

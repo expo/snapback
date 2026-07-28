@@ -1,4 +1,4 @@
-# @ref LLP 0105#same-origin-tls-transition — Fly forwards raw TCP and Caddy
+# @ref LLP 0111#same-origin-tls-transition — Fly forwards raw TCP and Caddy
 # terminates TLS in the target namespace; its state survives in /data/caddy.
 {
 	http_port 8080

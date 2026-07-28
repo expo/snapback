@@ -1,4 +1,4 @@
-// @ref LLP 0103#63-reset-install-and-clear — destructive demo isolation is
+// @ref LLP 0109#63-reset-install-and-clear — destructive demo isolation is
 // explicit reset-install against the previewed predecessor stream; it never
 // falls back to legacy reset/seed once a generated seed identity exists.
 export async function resetInstallGeneratedSeed(client, artifact) {

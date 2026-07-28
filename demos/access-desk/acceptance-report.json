@@ -1,0 +1,38 @@
+{
+  "title": "access-desk / headless",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated app provisions with private membership metadata",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "bootstrap creates a workspace and its owner atomically",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "outsider sees an empty membership-filtered result",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "owner admission grants the member read and write access",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "permission helper blocks an unrelated writer",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

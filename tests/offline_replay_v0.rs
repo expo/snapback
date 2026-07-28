@@ -45,7 +45,7 @@ fn artifacts() -> (SchemaManifest, FunctionManifest) {
             .required_capabilities
             .push("permission_epoch_resync".to_owned());
     }
-    // @ref LLP 0101#final-author-reconciliation-after-round-3 — exercise the
+    // @ref LLP 0108#final-author-reconciliation-after-round-3 — exercise the
     // existing durable settlement lane with one frozen precise result
     // contract, including process-reopen replay of the validated payload.
     let contract = FunctionResultContract::Value {

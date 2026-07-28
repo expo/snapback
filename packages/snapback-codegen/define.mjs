@@ -188,7 +188,7 @@ export const v = {
     return validator({ Id: { table } }, 'string');
   },
   /** Framework-owned child stamp; application inserts/patches never author it.
-   * @ref LLP 0104#protected-relation-incarnation-and-stamping */
+   * @ref LLP 0110#protected-relation-incarnation-and-stamping */
   relationIncarnationOf: ({ foreignKeyField, parentTable } = {}) => {
     assert(
       typeof foreignKeyField === 'string' && foreignKeyField.length > 0
@@ -1039,7 +1039,7 @@ function boundedProjectionValidator(facts, leaf, where) {
   );
   assert(
     portable,
-    `${where} projection ${facts.name}.${leaf.field} must be an LLP 0104 portable scalar (JSON, relation-incarnation, object, and array leaves are not admitted)`,
+    `${where} projection ${facts.name}.${leaf.field} must be an LLP 0110 portable scalar (JSON, relation-incarnation, object, and array leaves are not admitted)`,
   );
   const stored = { ...field, optional: false };
   // Persisted projections materialize optional storage as a present JSON null;
@@ -1048,7 +1048,7 @@ function boundedProjectionValidator(facts, leaf, where) {
 }
 
 /** One visible parent plus one index-bounded child page.
- * @ref LLP 0104#1-bounded-parentchild-query-profile */
+ * @ref LLP 0110#1-bounded-parentchild-query-profile */
 export function defineBoundedChildrenQuery(spec) {
   assertKnownSpecFields(spec, 'BoundedChildrenQuery', new Set(['parent', 'children', 'take', 'parentDeletion']));
   const parent = spec.parent;
@@ -1841,7 +1841,7 @@ function mutationStepUsesRuntimeId(step) {
 }
 
 /** Closed source write plus one provenance-bearing activity append.
- * @ref LLP 0104#2-closed-write-plus-activity-profile */
+ * @ref LLP 0110#2-closed-write-plus-activity-profile */
 export function defineWriteWithActivity(spec) {
   assertKnownSpecFields(spec, 'WriteWithActivity', new Set([
     'args', 'scope', 'primary', 'relations', 'source', 'activity', 'idempotency',
@@ -2093,7 +2093,7 @@ export function defineWriteWithActivity(spec) {
       });
       continue;
     }
-    // @ref LLP 0104#protected-relation-incarnation-and-stamping — the
+    // @ref LLP 0110#protected-relation-incarnation-and-stamping — the
     // transaction-local host assertion compares both row axes with the
     // registry's current active parent incarnation. A non-null historical
     // stamp alone is insufficient after delete/recreate with an id reuse.

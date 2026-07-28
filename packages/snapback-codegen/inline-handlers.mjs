@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { createHash } from 'node:crypto';
 
-// @ref LLP 0101#final-author-reconciliation-after-round-3 — inline v1 is one
+// @ref LLP 0108#final-author-reconciliation-after-round-3 — inline v1 is one
 // self-contained function expression. This extractor never obtains executable
 // authority from Function.prototype.toString() and never follows a source graph.
 

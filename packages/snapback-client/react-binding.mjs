@@ -658,7 +658,7 @@ export function abandonConsumedReactQueryGroup(value) {
 // registrations rather than racing a manual prime against later live work.
 // @ref LLP 0102#bundle-primed-generated-query-groups — bundle acquisition is
 // pre-mount and group-scoped; hooks never arm registrations in an effect.
-// @ref LLP 0107#preparation-and-admission — generated identity, exact route
+// @ref LLP 0112#preparation-and-admission — generated identity, exact route
 // parameters, capability admission, and one-shot ownership are all settled
 // before React can receive the group.
 export async function prepareReactQueryGroupForBinding(

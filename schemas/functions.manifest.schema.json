@@ -138,7 +138,7 @@
     },
     "BoundedChildrenQueryPlan": {
       "additionalProperties": false,
-      "description": "`bounded-children.v1`: one visible parent point read followed by one exact,\nforward, `take + 1` child-index range. The one computed result record keeps\nits continuation inside the row, leaving the ordinary top-level query\ncursor unused.\n\n@ref LLP 0104#cursor-and-result-closure — the result is a closed computed\n  record and the cursor binds the current parent version/incarnation.",
+      "description": "`bounded-children.v1`: one visible parent point read followed by one exact,\nforward, `take + 1` child-index range. The one computed result record keeps\nits continuation inside the row, leaving the ordinary top-level query\ncursor unused.\n\n@ref LLP 0110#cursor-and-result-closure — the result is a closed computed\n  record and the cursor binds the current parent version/incarnation.",
       "properties": {
         "childForeignKey": {
           "type": "string"
@@ -2049,7 +2049,7 @@
       "type": "object"
     },
     "ResultValueContract": {
-      "description": "The schema-expanded value grammar used to validate handler results at the\nRust publication boundary.\n\n@ref LLP 0101#final-author-reconciliation-after-round-3 — result contracts\nare Rust-owned, bounded, and carried by every generated function.",
+      "description": "The schema-expanded value grammar used to validate handler results at the\nRust publication boundary.\n\n@ref LLP 0108#final-author-reconciliation-after-round-3 — result contracts\nare Rust-owned, bounded, and carried by every generated function.",
       "oneOf": [
         {
           "additionalProperties": false,
@@ -2846,7 +2846,7 @@
     },
     "WriteWithActivityPlan": {
       "additionalProperties": false,
-      "description": "One normalized `write-with-activity.v1` plan. `mutation` is the complete\nexecutable closed IR including scope/source guards, the host-checked source\neffect assertion, the activity insert, and final result expression.\n\n@ref LLP 0104#total-effect-formulas — the plan carries its mode-indexed,\n  quantitative ceiling rather than reconstructing it from names.",
+      "description": "One normalized `write-with-activity.v1` plan. `mutation` is the complete\nexecutable closed IR including scope/source guards, the host-checked source\neffect assertion, the activity insert, and final result expression.\n\n@ref LLP 0110#total-effect-formulas — the plan carries its mode-indexed,\n  quantitative ceiling rather than reconstructing it from names.",
       "properties": {
         "activityScopeForeignKey": {
           "type": "string"

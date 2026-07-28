@@ -3,13 +3,13 @@
 **Status:** open
 **Owner:** Snapback hosted control plane
 **Opened:** 2026-07-28
-**Authorities:** LLP 0105, LLP 0108
+**Authorities:** LLP 0111, LLP 0113
 
 ## Problem
 
 The generated `AdapterLifecycleRequestV2`/`AdapterLifecycleResponseV2` carrier
 names all seventeen lifecycle operations but cannot express the closed,
-operation-specific authority and recovery facts LLP 0105 requires. The gap
+operation-specific authority and recovery facts LLP 0111 requires. The gap
 includes exact desired provider state, verified upload/backup/migration
 receipts, cutover state, uncertain-attempt reconciliation evidence, and an
 internal opaque lease handle bound to provider lease expiry, version,

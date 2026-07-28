@@ -101,7 +101,7 @@ pub struct HostedAdmissionEnvelope {
     pub first_contact_transport: FirstContactTransport,
     pub renewal: AdmissionRenewal,
     pub admission: HostedAdmission,
-    /// LLP 0105's routed-Machine authority. Mandatory for online renewal and
+    /// LLP 0111's routed-Machine authority. Mandatory for online renewal and
     /// independently signed by the same release-bound key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hosted_target_admission: Option<HostedAdmissionV2>,

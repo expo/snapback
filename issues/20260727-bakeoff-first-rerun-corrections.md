@@ -9,7 +9,7 @@
 **Systems:** Authoring, Security, React, Client integration, Developer experience, Acceptance testing  
 **Author:** Codex, directed by Charlie Cheever  
 **Date:** 2026-07-27  
-**Related:** `demos/backend-bakeoff/acceptance/results/bakeoff-first-rerun.v1.json`, LLP 0101, LLP 0102, LLP 0103, LLP 0104, LLP 0107  
+**Related:** `demos/backend-bakeoff/acceptance/results/bakeoff-first-rerun.v1.json`, LLP 0108, LLP 0102, LLP 0109, LLP 0110, LLP 0112
 **Marker:** backend-bakeoff, first-rerun-feedback
 
 The first full rerun deliberately stopped short of a revised ranking: the
@@ -50,7 +50,7 @@ contracts that must be corrected before rerunning.
 - Bind sessions comparator evidence to the server-minted principal; classify
   development labels as asserted behavioral identities and retain an explicit
   authentication nonclaim.
-- Add dedicated capability requirements for the two LLP 0104 profiles so a
+- Add dedicated capability requirements for the two LLP 0110 profiles so a
   target cannot publish either from type/code presence alone.
 - Replace the cold browser-secret proof's field-name scan with a random
   high-entropy canary that would be inlined if the build leaked it.

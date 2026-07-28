@@ -4,7 +4,7 @@ id: backend.versioned-seed
 order: 8
 audience: agent-first
 capabilities: [backend.versioned-seed]
-authorities: [llp/0103-versioned-seed-evolution.spec.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
 examples: []
 status: current
 targets: [local]
@@ -88,6 +88,6 @@ the closed seed request only under `input`.
 - `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED`: the selected target does not
   advertise the required protocol; there is no compatibility fallback.
 
-The local protocol is advertised as **experimental** while LLP 0103 remains in
+The local protocol is advertised as **experimental** while LLP 0109 remains in
 Review. The executable manifest is the advertisement gate: every required
 local row must pass, while hosted compiled-seed custody stays visibly GAP.

@@ -4,7 +4,7 @@ id: backend.relational-queries
 order: 26
 audience: agent-first
 capabilities: [backend.relational-queries]
-authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
+authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
@@ -185,7 +185,7 @@ under `issues/`.
 
 ## Design reference: one bounded child page
 
-`defineBoundedChildrenQuery` is present for the LLP 0104 conformance program.
+`defineBoundedChildrenQuery` is present for the LLP 0110 conformance program.
 A contributor source build advertises it experimentally only when the tracked
 atomic local carrier matches the receipt and exact implementation bytes, and a
 requiring artifact acknowledges it. Public runtime packages, remote services,

@@ -3,12 +3,12 @@
 // canonical response replay, per-device revocation, and bounded release
 // upload transitions.
 //
-// @ref LLP 0105#standing-supervisor-root-and-operator-protocol — every remote
+// @ref LLP 0111#standing-supervisor-root-and-operator-protocol — every remote
 // request is device-signed, scoped, sequenced, and bound to the current
 // installation/root/revocation head.
-// @ref LLP 0105#atomic-request-response-replay — response bytes are retained
+// @ref LLP 0111#atomic-request-response-replay — response bytes are retained
 // before the device sequence advances, and exact replay does not rerun work.
-// @ref LLP 0105#bounded-release-upload — uploads reserve a nondeployable
+// @ref LLP 0111#bounded-release-upload — uploads reserve a nondeployable
 // temporary object before bytes and become immutable only after size and hash
 // verification.
 
@@ -750,7 +750,7 @@ export class SupervisorOperatorAuthority {
     return clone(response);
   }
 
-  // @ref LLP 0105#atomic-request-response-replay — provider I/O may await,
+  // @ref LLP 0111#atomic-request-response-replay — provider I/O may await,
   // but the canonical response is retained before sequence state advances.
   async handleRequestAsync(request, {
     nowMs = Date.now(),

@@ -1,6 +1,6 @@
 // Exact provider credential-role and resource admission.
 //
-// @ref LLP 0105#durable-spend-cleanup-and-credential-custody — a credential
+// @ref LLP 0111#durable-spend-cleanup-and-credential-custody — a credential
 // role authorizes only its closed provider verb and exact bound resource.
 
 import { SupervisorRefusal } from './index.mjs';

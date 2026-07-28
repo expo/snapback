@@ -1,0 +1,38 @@
+{
+  "title": "catalog-lens / headless",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated app provisions with relational capability",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "first page joins three roots and returns an opaque cursor",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "second page is terminal and preserves left-join nulls",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "owner authority partitions relational results",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "tampered cursor refuses with the stable diagnostic",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

@@ -761,7 +761,7 @@ pub enum FieldType {
     /// arguments. The paired required foreign-key field is the complete
     /// relationship declaration.
     ///
-    /// @ref LLP 0104#protected-relation-incarnation-and-stamping — central
+    /// @ref LLP 0110#protected-relation-incarnation-and-stamping — central
     ///   writers overwrite the stamp from the active parent registry.
     RelationIncarnation {
         #[serde(rename = "foreignKeyField", alias = "foreign_key_field")]
@@ -2952,7 +2952,7 @@ pub fn effective_query_limit(plan: &QueryPlan) -> usize {
 /// The schema-expanded value grammar used to validate handler results at the
 /// Rust publication boundary.
 ///
-/// @ref LLP 0101#final-author-reconciliation-after-round-3 — result contracts
+/// @ref LLP 0108#final-author-reconciliation-after-round-3 — result contracts
 /// are Rust-owned, bounded, and carried by every generated function.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
@@ -3457,7 +3457,7 @@ pub struct RelationalQueryPlan {
 /// its continuation inside the row, leaving the ordinary top-level query
 /// cursor unused.
 ///
-/// @ref LLP 0104#cursor-and-result-closure — the result is a closed computed
+/// @ref LLP 0110#cursor-and-result-closure — the result is a closed computed
 ///   record and the cursor binds the current parent version/incarnation.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3510,7 +3510,7 @@ pub struct BoundedProjectionField {
 /// executable closed IR including scope/source guards, the host-checked source
 /// effect assertion, the activity insert, and final result expression.
 ///
-/// @ref LLP 0104#total-effect-formulas — the plan carries its mode-indexed,
+/// @ref LLP 0110#total-effect-formulas — the plan carries its mode-indexed,
 ///   quantitative ceiling rather than reconstructing it from names.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3787,7 +3787,7 @@ pub struct PublicFunctionDefinition {
     pub implementation_hash: Option<String>,
     #[serde(rename = "argsContractHash", skip_serializing_if = "Option::is_none")]
     pub args_contract_hash: Option<String>,
-    // @ref LLP 0106#optimistic-mutation-projection — the browser verifies
+    // @ref LLP 0107#optimistic-mutation-projection — the browser verifies
     // the deployed descriptor as well as its hash before admitting an
     // optimistic reducer. Result contracts are bounded declarative schemas,
     // not executable handler source.
@@ -5362,12 +5362,12 @@ impl TargetCapabilityId {
             Self::BoundedResponseStreamV1 => {
                 manifest.outbound_actions && facts.bounded_response_stream_v1_registered
             }
-            // @ref LLP 0104#local-and-packaged-publication-authority — the
+            // @ref LLP 0110#local-and-packaged-publication-authority — the
             // relation/activity pair is one source-owned local publication:
             // both private registrations and the compiled carrier must hold
             // on the exact auth-aware local profile. A generated artifact,
             // derived service profile, or hosted target cannot set the facts.
-            // @ref LLP 0108#1-closed-capability-registry-assignment — static
+            // @ref LLP 0113#1-closed-capability-registry-assignment — static
             // experimental maturity is independent of this runtime predicate
             // and still requires an artifact acknowledgment at admission.
             Self::BoundedChildrenV1 | Self::WriteActivityV1 => {
@@ -5412,7 +5412,7 @@ impl TargetCapabilityId {
                         .any(|form| form == "cron-action-run-mutation")
             }
             Self::PermissionEpochResync => facts.permission_epoch_resync_registered,
-            // @ref LLP 0107#fallback-and-capability-honesty — positive
+            // @ref LLP 0112#fallback-and-capability-honesty — positive
             // presence means this exact target instance implements the
             // route/register endpoint, pending-owner/grant custody, and the
             // generated client's registered-adoption cleanup contract.
@@ -5434,7 +5434,7 @@ impl TargetCapabilityId {
                     })
             }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
-            // @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate
+            // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate
             // — the local fact is enabled only by the complete mandatory
             // conformance receipt; hosted/default target facts remain false.
             Self::VersionedSeedInstallV1 => facts.versioned_seed_install_v1_registered,
@@ -5533,10 +5533,10 @@ fn sha256_prefixed(bytes: &[u8]) -> String {
 /// GAP at the target manifest boundary: an unreviewed carrier edit cannot
 /// become target authority through a generated application artifact.
 ///
-/// @ref LLP 0104#local-and-packaged-publication-authority — source builds
+/// @ref LLP 0110#local-and-packaged-publication-authority — source builds
 /// bind the exact local profile, both atomic capability ids, the executable
 /// evidence receipt, and the implementation/schema source bytes.
-/// @ref LLP 0108#6-acceptance — carrier and registry tampering must withhold
+/// @ref LLP 0113#6-acceptance — carrier and registry tampering must withhold
 /// runtime support while leaving the static maturity assignment intact.
 fn local_relation_activity_publication_verified_for(
     build_distribution: &str,
@@ -5548,7 +5548,7 @@ fn local_relation_activity_publication_verified_for(
     // loader embeds and verifies PackageCapabilityAttestationV1, one
     // distribution predicate closes every substitution/tamper path as a GAP.
     //
-    // @ref LLP 0104#local-and-packaged-publication-authority — package support
+    // @ref LLP 0110#local-and-packaged-publication-authority — package support
     // requires the release-key-signed binary/triple/ledger/source/carrier
     // binding; absence or mismatch withholds the atomic pair.
     if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
@@ -5637,9 +5637,9 @@ impl TargetCapabilityFacts {
                 LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
                 LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
             );
-        // @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
+        // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
-        // mandatory local row; LLP 0103 remains Review, so registry maturity
+        // mandatory local row; LLP 0109 remains Review, so registry maturity
         // stays experimental until the author accepts the contract.
         Self {
             bounded_children_v1_registered: true,
@@ -5658,7 +5658,7 @@ impl TargetCapabilityFacts {
             ibex_ctx_db_host_bridge_available: true,
             mutation_read_set_validator_registered: true,
             permission_epoch_resync_registered: true,
-            // @ref LLP 0107#evidence-and-acceptance — the closed bundle DTO,
+            // @ref LLP 0112#evidence-and-acceptance — the closed bundle DTO,
             // sender-bound mint/replay, socket-preflight handoff, expiry,
             // and generated-client adoption/cleanup suites jointly prove the
             // local/auth-aware target implementation behind this positive
@@ -5829,13 +5829,12 @@ pub struct CapabilityManifest {
     pub resource_limits: Vec<ResourceLimit>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
     pub capability_gaps: Vec<String>,
-    /// VM lifecycle for handler execution: `"fresh-per-invocation"` (the
-    /// durable default and the only hosted posture) or `"warm-pooled-reset"`
-    /// (the DK-4 trusted-local optimization — VM reuse per bundle behind a
-    /// verified per-invocation reset). Surfaced so LLP 0012's honesty rule
-    /// holds: an agent can see which execution semantics are in force.
+    /// VM lifecycle for handler execution. Current targets report
+    /// `"fresh-per-invocation"`; `"warm-pooled-reset"` remains a recognized
+    /// historical value for compatibility with older artifacts. Surfaced so
+    /// LLP 0012's honesty rule holds.
     ///
-    /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — capability flag.
+    /// @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 — lifecycle truthfulness.
     #[serde(
         rename = "vmLifecycle",
         alias = "vm_lifecycle",
@@ -6187,7 +6186,7 @@ impl CapabilityManifest {
                 },
                 ResourceLimit {
                     name: "maximum_result_size".to_owned(),
-                    // @ref LLP 0101#result-contract-vocabulary — every
+                    // @ref LLP 0108#result-contract-vocabulary — every
                     // handler result now crosses the shared 4 MiB
                     // post-JSON-image validator before publication/commit.
                     status: ResourceLimitStatus::Enforced,
@@ -6212,8 +6211,8 @@ impl CapabilityManifest {
                 },
             ],
             capability_gaps,
-            // Conservative default; `LocalSnapback::inspect` overrides it
-            // with the live per-instance value (warm pool enabled or not).
+            // Current Ibex is owner-thread-affine, so every target uses the
+            // conservative fresh-per-invocation lifecycle.
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };
@@ -7012,7 +7011,7 @@ mod membership_manifest_grammar_tests {
             &stale_receipt,
         ));
 
-        // @ref LLP 0104#local-and-packaged-publication-authority — until a
+        // @ref LLP 0110#local-and-packaged-publication-authority — until a
         // release-key verifier and exact PackageCapabilityAttestationV1 are
         // embedded, the public-package distribution cut must reject every
         // mandatory negative before any carrier detail can become authority.

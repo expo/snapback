@@ -675,7 +675,7 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/hosted-product-journey-v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Machine-readable packed product-journey receipt. A failed receipt is a\nfirst-class artifact: it retains every completed remote row and closed\ncleanup inventory without becoming capability evidence.\n\n@ref LLP 0105#4-public-cli-product-journey — the public journey is one\nRust-owned closed receipt, including coded failure and cleanup posture.",
+  "description": "Machine-readable packed product-journey receipt. A failed receipt is a\nfirst-class artifact: it retains every completed remote row and closed\ncleanup inventory without becoming capability evidence.\n\n@ref LLP 0111#4-public-cli-product-journey — the public journey is one\nRust-owned closed receipt, including coded failure and cleanup posture.",
   "properties": {
     "claimBoundary": {
       "$ref": "#/$defs/HostedJourneyClaimBoundaryV1"

@@ -128,7 +128,7 @@ pub struct BundleRouteEntry {
     /// schema completeness — the client store consumes it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub persist: Option<bool>,
-    /// Codegen-derived eligibility for LLP 0107 registered query-group
+    /// Codegen-derived eligibility for LLP 0112 registered query-group
     /// adoption. It is true only for all-LiveQuery routes whose `$param`
     /// references target string args, so clients need not duplicate server
     /// route-parameter coercion before I/O.
@@ -222,7 +222,7 @@ pub struct BundleConnection {
     /// it to install LLP 0053's authenticated expectation before the bundle
     /// rows become observable.
     ///
-    /// @ref LLP 0107#registered-boot — auth-scoped registered children adopt
+    /// @ref LLP 0112#registered-boot — auth-scoped registered children adopt
     /// the complete connection and per-child authorization projections.
     #[serde(
         default,

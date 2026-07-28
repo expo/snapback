@@ -85,7 +85,7 @@ try {
   assert.equal(
     Object.hasOwn(carrier, 'seed'),
     false,
-    'LLP 0103 forbids passing a versioned artifact through the legacy startup seed member',
+    'LLP 0109 forbids passing a versioned artifact through the legacy startup seed member',
   );
 
   const sessionResponse = await fetch(`${dev.serverUrl}/auth/session`, {
