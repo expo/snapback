@@ -190,6 +190,50 @@ function bindingElementPropertyName(node, checker, boundary) {
   return ts.isIdentifier(node.name) ? node.name.text : null;
 }
 
+function destructuringAssignmentProblem(node, checker, boundary) {
+  if (
+    !ts.isBinaryExpression(node)
+    || node.operatorToken.kind !== ts.SyntaxKind.EqualsToken
+  ) return null;
+  const unwrap = (value) => {
+    let current = value;
+    while (ts.isParenthesizedExpression(current)) current = current.expression;
+    return current;
+  };
+  const inspectPattern = (value) => {
+    const pattern = unwrap(value);
+    if (ts.isArrayLiteralExpression(pattern)) {
+      for (const element of pattern.elements) {
+        if (ts.isOmittedExpression(element) || ts.isSpreadElement(element)) continue;
+        const problem = inspectPattern(element);
+        if (problem) return problem;
+      }
+      return null;
+    }
+    if (!ts.isObjectLiteralExpression(pattern)) return null;
+    for (const property of pattern.properties) {
+      if (ts.isSpreadAssignment(property)) continue;
+      const name = property.name;
+      let resolved = propertyName(name);
+      if (ts.isComputedPropertyName(name)) {
+        resolved = staticString(name.expression, checker, boundary);
+        if (resolved === null) {
+          return 'dynamic computed destructuring assignment is outside inline_handler_v1';
+        }
+      }
+      if (resolved && REFLECTION_PROPERTY_NAMES.has(resolved)) {
+        return `${resolved} destructuring assignment reflection is outside inline_handler_v1`;
+      }
+      if (ts.isPropertyAssignment(property)) {
+        const problem = inspectPattern(property.initializer);
+        if (problem) return problem;
+      }
+    }
+    return null;
+  };
+  return inspectPattern(node.left);
+}
+
 function isDeclarationIdentifier(node) {
   const parent = node.parent;
   if (!parent) return false;
@@ -248,8 +292,21 @@ function selfContainedProblems(expression, checker) {
         forbidden.push({ node, reason });
       }
     }
+    const assignmentReason = destructuringAssignmentProblem(node, checker, expression);
+    if (assignmentReason) {
+      forbidden.push({ node, reason: assignmentReason });
+    }
     const destructured = bindingElementPropertyName(node, checker, expression);
-    if (destructured && REFLECTION_PROPERTY_NAMES.has(destructured)) {
+    const dynamicComputedDestructuring = ts.isBindingElement(node)
+      && node.propertyName
+      && ts.isComputedPropertyName(node.propertyName)
+      && destructured === null;
+    if (dynamicComputedDestructuring) {
+      forbidden.push({
+        node,
+        reason: 'dynamic computed destructuring is outside inline_handler_v1',
+      });
+    } else if (destructured && REFLECTION_PROPERTY_NAMES.has(destructured)) {
       forbidden.push({
         node,
         reason: `${destructured} destructuring reflection is outside inline_handler_v1`,

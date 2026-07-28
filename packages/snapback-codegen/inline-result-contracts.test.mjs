@@ -364,6 +364,18 @@ try {
       `const key = 'con' + 'structor'; const { [key]: Ctor } = async () => {}; return Ctor('return []')();`,
     ],
     [
+      'dynamic computed destructured constructor',
+      `const key = ['con', 'structor'].join(''); const { [key]: Ctor } = async () => {}; return Ctor('return []')();`,
+    ],
+    [
+      'destructuring assignment constructor',
+      `let Ctor; ({ constructor: Ctor } = async () => {}); return Ctor('return []')();`,
+    ],
+    [
+      'dynamic computed destructuring assignment constructor',
+      `let Ctor; const key = ['con', 'structor'].join(''); ({ [key]: Ctor } = async () => {}); return Ctor('return []')();`,
+    ],
+    [
       'prototype reflection',
       `const proto = Object.getPrototypeOf(async () => {}); return proto.constructor('return []')();`,
     ],

@@ -5,7 +5,8 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (adversarial closure: constant-alias and destructuring
+**Revised:** 2026-07-28 (adversarial follow-up: dynamic computed binding and
+assignment-pattern destructuring fail closed). 2026-07-28 (adversarial closure: constant-alias and destructuring
 reflection refusal, default-deny dynamic computed member access, runtime
 constructor-walk probes, stored optional JSON normalization, and exact record
 row bounds). 2026-07-27 (final author reconciliation after the three-round
@@ -746,6 +747,10 @@ to a future profile instead of allowing an array-built
 `["con", "structor"].join("")` key to reach a constructor. The Ibex boundary
 continues to deny constructor walks, destructured constructors, `eval`,
 `Function`, `Reflect.apply`, and `Reflect.construct` as the runtime backstop.
+Both declaration binding patterns and later destructuring assignments share
+that admission rule. Static `constructor`/`prototype`/`__proto__` assignment
+keys refuse, and a computed assignment key that cannot be resolved to a safe
+constant refuses rather than being ignored.
 
 Stored optional JSON fields expand to one required `json` contract because
 JSON already admits null; emitting `null | json` would create an overlapping,

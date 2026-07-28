@@ -485,6 +485,7 @@ class TableBuilder {
    *  declaration, not a handler convention. */
   index(name, fields, options = {}) {
     assert(Array.isArray(fields) && fields.length > 0, `index ${name} needs fields`);
+    assert(new Set(fields).size === fields.length, `index ${name} fields must not contain duplicates`);
     assertKnownSpecFields(options, `index ${name} options`, new Set(['unique']));
     const unique = options.unique ?? false;
     assert(typeof unique === 'boolean', `index ${name} unique must be boolean`);
@@ -1022,6 +1023,7 @@ export const throughScope = ({ scopeField, scopeIncarnationField } = {}) => {
 function selectedFields(select, where) {
   assert(select && typeof select === 'object' && !Array.isArray(select), `${where} select is required`);
   return Object.entries(select).map(([name, field]) => {
+    assert(name.length > 0, `${where} select output names must be non-empty`);
     assert(typeof field === 'string' && field.length > 0, `${where} select.${name} must name a field`);
     return { name, field };
   });
@@ -1054,6 +1056,10 @@ export function defineBoundedChildrenQuery(spec) {
   const parentFacts = relationalTable(parent?.table, 'parent.table');
   const childFacts = relationalTable(children?.table, 'children.table');
   assert(parentFacts.name !== childFacts.name, 'bounded children parent and child tables must differ');
+  assert(
+    !parentFacts.permissionBacking && !childFacts.permissionBacking,
+    'bounded children requires ordinary non-permission-backing parent and child tables',
+  );
   assert(typeof parent.idArg === 'string' && parent.idArg.length > 0, 'parent.idArg is required');
   const visibility = relationalVisibility(parentFacts, parent.visibility, 'parent');
   assert(children.visibility?.kind === 'through-parent.v1', 'children visibility must be throughParent()');
@@ -1070,6 +1076,10 @@ export function defineBoundedChildrenQuery(spec) {
     'children.parentIncarnation must be the matching required relationIncarnationOf field',
   );
   assert(Array.isArray(children.order) && children.order.length > 0 && children.order.every((entry) => entry.direction === 'Asc'), 'children.order must be non-empty ascending order');
+  assert(
+    new Set(children.order.map((entry) => entry.field)).size === children.order.length,
+    'children.order fields must not contain duplicates',
+  );
   for (const entry of children.order) {
     const validator = childFacts.fields[entry.field];
     assert(
@@ -1163,7 +1173,13 @@ function relationalTable(table, where) {
     table?.__table === true && typeof table.__tableName === 'string' && table.__tableName.length > 0,
     `defineRelationalQuery ${where} must be a defineTable(...) installed in defineSchema(...)`,
   );
-  return { name: table.__tableName, fields: table.fields, indexes: table.indexes ?? [] };
+  return {
+    name: table.__tableName,
+    fields: table.fields,
+    indexes: table.indexes ?? [],
+    permissionBacking: table.permissionBackingDeclared === true
+      || table.membershipDeclaration != null,
+  };
 }
 
 // The v1 join-key comparator classes (LLP 0080 §1): string, principal,
@@ -1776,10 +1792,53 @@ export const mutationPlan = (...steps) => Object.freeze({
 export const existingOwner = ({ table, id, visibility } = {}) => {
   assert(table?.__table === true && id?.__expr === true, 'existingOwner() expects a table and id expression');
   assert(visibility?.kind === 'owner', 'existingOwner() visibility must be owner(field)');
+  const ownerField = table.fields?.[visibility.field];
+  assert(
+    ownerField
+      && !ownerField.optional
+      && ['String', 'Principal'].includes(ownerField.fieldType),
+    'existingOwner() visibility field must be a required string or principal',
+  );
   return Object.freeze({ __activityScope: true, mode: 'existing-owner.v1', table, id, visibility });
 };
 
 export const clientMutation = () => Object.freeze({ kind: 'client-mutation.v1' });
+
+function expressionUsesRuntimeId(expr) {
+  if (!expr || typeof expr !== 'object' || expr.__expr !== true) return false;
+  if (expr.kind === 'RuntimeId') return true;
+  if (Object.hasOwn(expr, 'Field')) return expressionUsesRuntimeId(expr.Field.base);
+  if (Object.hasOwn(expr, 'Binary')) {
+    return expressionUsesRuntimeId(expr.Binary.left)
+      || expressionUsesRuntimeId(expr.Binary.right);
+  }
+  if (Object.hasOwn(expr, 'Unary')) return expressionUsesRuntimeId(expr.Unary.expr);
+  if (Object.hasOwn(expr, 'If')) {
+    return expressionUsesRuntimeId(expr.If.cond)
+      || expressionUsesRuntimeId(expr.If.then)
+      || expressionUsesRuntimeId(expr.If.else);
+  }
+  if (Object.hasOwn(expr, 'Concat')) return expr.Concat.some(expressionUsesRuntimeId);
+  if (Object.hasOwn(expr, 'Call')) return expr.Call.args.some(expressionUsesRuntimeId);
+  if (Object.hasOwn(expr, 'Record')) {
+    return Object.values(expr.Record.fields).some(expressionUsesRuntimeId);
+  }
+  // Literal JSON is inert even if its data happens to resemble an expression.
+  return false;
+}
+
+function mutationStepUsesRuntimeId(step) {
+  const [kind, payload] = Object.entries(step)[0];
+  if (kind === 'Insert') return Object.values(payload.values).some(expressionUsesRuntimeId);
+  if (kind === 'Patch') {
+    return expressionUsesRuntimeId(payload.id)
+      || Object.values(payload.values).some(expressionUsesRuntimeId);
+  }
+  if (kind === 'Delete' || kind === 'Get') return expressionUsesRuntimeId(payload.id);
+  if (kind === 'Guard') return expressionUsesRuntimeId(payload.cond);
+  if (kind === 'Let') return expressionUsesRuntimeId(payload.expr);
+  return false;
+}
 
 /** Closed source write plus one provenance-bearing activity append.
  * @ref LLP 0104#2-closed-write-plus-activity-profile */
@@ -1792,16 +1851,29 @@ export function defineWriteWithActivity(spec) {
   assert(spec.primary?.__mutationPlan === true, 'primary must use mutationPlan()');
   assert(spec.idempotency?.kind === 'client-mutation.v1', 'idempotency must use clientMutation()');
   assert(spec.result?.__resultContract === true && spec.result.kind === 'value', 'result must use results.value(...)');
-  const scopeTable = spec.scope.table.__tableName;
-  const sourceTable = spec.source?.table?.__tableName;
-  const activityTable = spec.activity?.table?.__tableName;
+  const scopeFacts = relationalTable(spec.scope?.table, 'scope.table');
+  const sourceFacts = relationalTable(spec.source?.table, 'source.table');
+  const activityFacts = relationalTable(spec.activity?.table, 'activity.table');
+  const scopeTable = scopeFacts.name;
+  const sourceTable = sourceFacts.name;
+  const activityTable = activityFacts.name;
   assert(scopeTable && sourceTable && activityTable, 'scope/source/activity tables must be installed schema tables');
   assert(scopeTable !== sourceTable && sourceTable !== activityTable && scopeTable !== activityTable, 'scope, source, and activity tables must be distinct');
+  assert(
+    !scopeFacts.permissionBacking
+      && !sourceFacts.permissionBacking
+      && !activityFacts.permissionBacking,
+    'write-with-activity requires ordinary non-permission-backing scope, source, and activity tables',
+  );
   assert(Array.isArray(spec.relations) && spec.relations.length > 0, 'relations must declare every non-scope primary table');
   const relations = new Map();
   for (const [index, relation] of spec.relations.entries()) {
     const facts = relationalTable(relation?.table, `relations[${index}].table`);
     assert(facts.name !== scopeTable && facts.name !== activityTable, 'relations may name only non-scope primary tables');
+    assert(
+      !facts.permissionBacking,
+      `write-with-activity relation ${facts.name} must be an ordinary non-permission-backing table`,
+    );
     assert(!relations.has(facts.name), `relations repeats table ${facts.name}`);
     const foreignKey = facts.fields[relation.scopeForeignKey];
     const incarnation = facts.fields[relation.scopeIncarnation];
@@ -1827,12 +1899,23 @@ export function defineWriteWithActivity(spec) {
     spec.primary.steps.every((step) => admittedSteps.has(Object.keys(step)[0])),
     'primary contains a step outside the closed point-operation profile',
   );
+  assert(
+    !spec.primary.steps.some(mutationStepUsesRuntimeId)
+      && !Object.values(spec.activity.values ?? {}).some(expressionUsesRuntimeId)
+      && !expressionUsesRuntimeId(spec.returns)
+      && !expressionUsesRuntimeId(spec.scope.id),
+    'write-with-activity runtime ids are host-owned by the source/activity inserts; authored runtimeId() expressions are outside the closed effect formula',
+  );
   const sourceSteps = spec.primary.steps.filter((step) => {
     const [kind] = Object.keys(step);
     return ['Insert', 'Patch', 'Delete'].includes(kind) && step[kind].table === sourceTable;
   });
   assert(sourceSteps.length === 1, 'primary must contain exactly one source write');
   const sourceStep = sourceSteps[0];
+  assert(
+    !sourceStep.Patch || Object.keys(sourceStep.Patch.values).length > 0,
+    'write-with-activity source Patch values must be nonempty',
+  );
   const authoredWrites = spec.primary.steps.filter((step) => (
     ['Insert', 'Patch', 'Delete'].includes(Object.keys(step)[0])
   ));
@@ -1898,15 +1981,6 @@ export function defineWriteWithActivity(spec) {
     new Set(Object.values(provenance)).size === Object.values(provenance).length,
     'activity.provenance field mappings must be distinct',
   );
-  const activityFacts = relationalTable(spec.activity.table, 'activity');
-  for (const [slot, fieldName] of Object.entries(provenance)) {
-    const fieldValidator = activityFacts.fields[fieldName];
-    assert(fieldValidator, `activity.provenance.${slot} names unknown field ${activityTable}.${fieldName}`);
-    assert(
-      slot === 'grant' || !fieldValidator.optional,
-      `activity provenance field ${activityTable}.${fieldName} must be required`,
-    );
-  }
   assert(
     provenance.scopeId === visibility.scopeField,
     'activity provenance scopeId must equal visibility.scopeField',
@@ -1916,10 +1990,55 @@ export function defineWriteWithActivity(spec) {
     'activity scope id and incarnation fields must differ',
   );
   assert(
+    !Object.values(provenance).includes(visibility.scopeIncarnationField),
+    'activity scope incarnation field is protected and may not alias a provenance mapping',
+  );
+  for (const [slot, fieldName] of Object.entries(provenance)) {
+    const fieldValidator = activityFacts.fields[fieldName];
+    assert(fieldValidator, `activity.provenance.${slot} names unknown field ${activityTable}.${fieldName}`);
+    assert(
+      slot === 'grant' || !fieldValidator.optional,
+      `activity provenance field ${activityTable}.${fieldName} must be required`,
+    );
+  }
+  const provenanceField = (slot) => activityFacts.fields[provenance[slot]];
+  const isType = (slot, admitted) => admitted(provenanceField(slot)?.fieldType);
+  assert(
+    isType('scopeId', (type) => type?.Id?.table === scopeTable)
+      && !provenanceField('scopeId').optional,
+    `activity provenance scopeId must be a required id of ${scopeTable}`,
+  );
+  for (const slot of ['sourceTable', 'operation', 'actorKind', 'mutation']) {
+    assert(
+      isType(slot, (type) => type === 'String') && !provenanceField(slot).optional,
+      `activity provenance ${slot} must be a required string`,
+    );
+  }
+  assert(
+    isType('sourceId', (type) => type === 'String' || type?.Id?.table === sourceTable)
+      && !provenanceField('sourceId').optional,
+    `activity provenance sourceId must be a required string or id of ${sourceTable}`,
+  );
+  for (const slot of ['effectiveSubject', 'actualActor']) {
+    assert(
+      isType(slot, (type) => type === 'String' || type === 'Principal')
+        && !provenanceField(slot).optional,
+      `activity provenance ${slot} must be a required string or principal`,
+    );
+  }
+  assert(
+    isType('grant', (type) => type === 'String') && provenanceField('grant').optional,
+    'activity provenance grant must be an optional string field',
+  );
+  assert(
+    isType('occurredAt', (type) => type === 'Integer')
+      && !provenanceField('occurredAt').optional,
+    'activity provenance occurredAt must be a required integer',
+  );
+  assert(
     activityFacts.fields[visibility.scopeIncarnationField]?.fieldType?.RelationIncarnation,
     'activity visibility scopeIncarnationField must be a relationIncarnationOf field',
   );
-  const sourceFacts = relationalTable(spec.source.table, 'source');
   const activityRelation = {
     table: activityTable,
     scopeForeignKey: visibility.scopeField,

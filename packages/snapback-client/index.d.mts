@@ -590,8 +590,16 @@ export class SnapbackClient {
   }): Promise<Extract<SeedInstallReceiptV1, { readonly operation: 'clear' }>>;
   releaseConnection(
     connectionId: string,
-    options?: { readonly attachDeadline?: number | null; readonly timeoutMs?: number },
-  ): Promise<Readonly<{ released: boolean; attached?: boolean; reason?: 'not-owned' }>>;
+    options?: {
+      readonly attachDeadline?: number | null;
+      readonly timeoutMs?: number;
+      readonly ifIdle?: boolean;
+    },
+  ): Promise<Readonly<{
+    released: boolean;
+    attached?: boolean;
+    reason?: 'not-owned' | 'shared-demand';
+  }>>;
   fetchBundle(options: {
     readonly route: string;
     readonly params?: Readonly<Record<string, string>>;

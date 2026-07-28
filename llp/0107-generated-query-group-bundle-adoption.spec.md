@@ -5,7 +5,8 @@
 **Systems:** Code generation, Client integration, React, Live Queries, RQS, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-07-28 (unreviewed post-round-3 reconciliation: string-target
+**Revised:** 2026-07-28 (shared-recovery reconciliation: exact per-subscription
+retirement without closing a demanded sibling connection). 2026-07-28 (unreviewed post-round-3 reconciliation: string-target
 register eligibility and provider-custody opacity; three-round review budget
 exhausted)
 **Related:** LLP 0012, LLP 0034, LLP 0053, LLP 0058, LLP 0059, LLP 0064, LLP 0090, LLP 0092, LLP 0101, LLP 0102
@@ -371,6 +372,13 @@ headless settlement, and joins barrier unregistration; the list is an
 obligation set rather than a requirement to unregister the barrier before
 blanking. Late callbacks are fenced by provider/store generation.
 
+Releasing an unconsumed registered child is independent of releasing the
+connection. Deadline, authority, and disposal recovery unsubscribe every exact
+registered subscription ID under the captured connection and development
+principal. Whole-connection release is conditional on zero manager demand; if
+a sibling provider still owns socket demand, recovery leaves that connection
+and sibling live after retiring only the abandoned registrations.
+
 Malformed post-response validation, authority replacement, abandoned
 preparation, provider-construction failure, deadline recovery, and ordinary
 provider disposal each have an idempotent terminal cleanup path. A prepared
@@ -401,7 +409,8 @@ Implementation is complete only when all of the following pass:
    same-commit initial snapshots, lazy child adoption, post-boot independent
    deltas, unadopted-delta superseding recovery, one-shot transfer, cleanup,
    HMR replacement, capability-only fallback, authority replacement, and
-   attach-expiry live recovery;
+   attach-expiry live recovery, including exact abandoned-registration
+   retirement while a same-connection sibling continues receiving updates;
 4. the generated Signal Desk adapter is exercised end to end and its retained
    receipt records `source: "registered-bundle"`, the non-null commit, live
    delivery after boot, mutation settlement, and cleanup;

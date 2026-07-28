@@ -5355,12 +5355,23 @@ export class SnapbackClient {
   async releaseConnection(connectionId, {
     attachDeadline = null,
     timeoutMs = 2_000,
+    ifIdle = false,
   } = {}) {
     if (!this.__connectionGrants.has(connectionId)) {
       return { released: false, reason: 'not-owned' };
     }
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
       throw new TypeError('releaseConnection timeoutMs must be a positive safe integer');
+    }
+    if (typeof ifIdle !== 'boolean') {
+      throw new TypeError('releaseConnection ifIdle must be a boolean');
+    }
+    const existingManager = this.__liveStreamManagers?.get(connectionId) ?? null;
+    if (
+      ifIdle
+      && (existingManager?.inspection?.().socketDemand ?? 0) > 0
+    ) {
+      return { released: false, reason: 'shared-demand' };
     }
     const remaining = Number.isSafeInteger(attachDeadline)
       ? Math.max(1, Math.min(timeoutMs, attachDeadline - Date.now()))
@@ -5376,10 +5387,15 @@ export class SnapbackClient {
       // Expiry, refusal, process death, and network loss are all covered by
       // the server's bounded pending-owner reaper. Cleanup remains best-effort.
     } finally {
-      manager.close();
-      this.__liveStreamManagers?.delete(connectionId);
-      this.__connectionGrants.delete(connectionId);
-      this.__laneConsumers.delete(connectionId);
+      if (!ifIdle || (manager.inspection?.().socketDemand ?? 0) === 0) {
+        manager.close();
+        this.__liveStreamManagers?.delete(connectionId);
+        this.__connectionGrants.delete(connectionId);
+        this.__laneConsumers.delete(connectionId);
+      }
+    }
+    if (ifIdle && (manager.inspection?.().socketDemand ?? 0) > 0) {
+      return { released: false, attached, reason: 'shared-demand' };
     }
     return { released: true, attached };
   }

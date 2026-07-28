@@ -5,7 +5,12 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (adversarial implementation reconciliation: exact-one
+**Revised:** 2026-07-28 (schema-admission reconciliation: ordinary-table and
+owner-field eligibility, exact provenance types, unique projection/order
+axes, and direct bounded relation binding). 2026-07-28 (direct-artifact reconciliation: reconstructs the
+existing-owner plan, provenance, and quantitative ceiling at Rust admission;
+reserves create-owner until its own implementation corpus; and closes dynamic
+runtime-id overclaim). 2026-07-28 (adversarial implementation reconciliation: exact-one
 sealed outer result; portable scalar projections with stored-null optionals;
 transaction-local active-incarnation assertions before every non-scope
 read/write; protected insert stamping; dedicated Review capability
@@ -1305,3 +1310,41 @@ Spec:
   committed targets, and emitted as structured GAPs. A generation attempt
   preserves the last-good graph rather than laundering either Review profile
   into a positive capability claim.
+- Rust admission reconstructs the generated `existing-owner.v1` prefix,
+  source operation, relationship assertions, final provenance-bearing append,
+  Guard/Let bound, return-expression class, and every quantitative effect
+  count. A direct artifact cannot add a scope insert/delete/read, move the
+  source assertion, submit an empty source patch, alias protected incarnation
+  storage with provenance, forge activity actor fields, or understate its
+  reads and writes while retaining the profile discriminator.
+- `runtime.id` remains host-owned by the source/activity insert allocations.
+  Authoring and direct artifacts reject an additional `RuntimeId` expression
+  in primary values, guards, lets, activity payloads, or results; repeated
+  `runtime.now` references continue to name the transaction's one recorded
+  answer. The existing insert-versus-patch/delete formula is therefore exact.
+- The `create-owner.v1` discriminator remains reserved rather than being
+  accepted by a generic direct manifest. The first publication candidate is
+  explicitly `existing-owner.v1`; create-owner requires a generated evaluator
+  and its own corpus before admission can turn positive.
+- Authoring and Rust activation both bind the bounded parent/child foreign
+  key, protected incarnation, order fields, index boundary, and projected
+  boundary leaves to ordinary non-permission-backing tables. Projection output
+  names and order fields are unique, and maintained-projection outputs cannot
+  be smuggled into the profile by a direct manifest.
+- Write/activity activation proves the scope owner is a required
+  string/principal, every scope/source/relation/activity table is ordinary and
+  not a maintained-projection output, and each mapped provenance field has its
+  semantic storage type. In particular the scope is an exact typed ID, subject
+  fields are string/principal, occurrence time is integer, and the optional
+  grant carrier remains string-typed.
+- Runtime profile shape implies its function-level capability requirements:
+  a bounded-child artifact must be a `LiveQuery` carrying both
+  `bounded_children_v1` and `live_subscriptions`, while write/activity carries
+  `write_activity_v1`. The plan-local discriminator cannot launder an omitted
+  function requirement past target gating. The same implication check covers
+  the established search and relational host profiles.
+- The specialized write/activity expression walk rejects not only extra
+  `RuntimeId` allocation but also authoritative-only membership expressions
+  in steps and returns. Membership reads require a separately modeled
+  authorization profile and cannot hide outside this profile's quantitative
+  relationship-read formula.

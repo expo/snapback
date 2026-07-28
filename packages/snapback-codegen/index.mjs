@@ -712,6 +712,9 @@ export async function generateInProcess(backendDir, options = {}) {
       if (index.fields.length === 0) {
         err('SCHEMA_EMPTY_INDEX', 'schema', `index ${name}.${index.name} has no fields`, { table: name, index: index.name });
       }
+      if (new Set(index.fields).size !== index.fields.length) {
+        err('SCHEMA_DUPLICATE_INDEX_FIELD', 'schema', `index ${name}.${index.name} repeats a field`, { table: name, index: index.name });
+      }
       for (const f of index.fields) {
         if (!seenFields.has(f)) {
           err('SCHEMA_UNKNOWN_FIELD', 'schema', `index ${name}.${index.name} references unknown field ${f}`, { table: name, index: index.name, field: f });

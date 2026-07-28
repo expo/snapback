@@ -52,7 +52,7 @@ export default defineSchema({ incidents, tasks, activity });
   const profileSource = `
 import {
   arg, asc, binding, clientMutation, defineBoundedChildrenQuery,
-  defineWriteWithActivity, existingOwner, insert, literal, mutationPlan,
+  defineWriteWithActivity, existingOwner, insert, literal, mutationPlan, patch,
   owner, record, results, runtimeNow, throughParent, throughScope, v,
 } from '${defineUrl}';
 import { activity, incidents, tasks } from './schema.mjs';
@@ -324,12 +324,94 @@ export const baseline = defineLiveQuery({
       /may not author protected relation fields/u,
     ],
     [
+      'authored extra runtime id',
+      profileSource.replace(
+        `    position: runtimeNow(),`,
+        `    position: runtimeId(),`,
+      ).replace(
+        `runtimeNow, throughParent`,
+        `runtimeId, runtimeNow, throughParent`,
+      ),
+      /authored runtimeId\(\) expressions are outside the closed effect formula/u,
+    ],
+    [
+      'authored runtime id scope',
+      profileSource.replace(
+        `id: arg('incidentId'),`,
+        `id: runtimeId(),`,
+      ).replace(
+        `runtimeNow, throughParent`,
+        `runtimeId, runtimeNow, throughParent`,
+      ),
+      /authored runtimeId\(\) expressions are outside the closed effect formula/u,
+    ],
+    [
+      'empty source patch',
+      profileSource
+        .replace(
+          `primary: mutationPlan(insert('tasks', {
+    position: runtimeNow(),
+    body: arg('body'),
+  }, { bindIdAs: 'taskId' }))`,
+          `primary: mutationPlan(patch('tasks', arg('taskId'), {}))`,
+        )
+        .replace(
+          `args: { incidentId: v.id('incidents'), body: v.string() }`,
+          `args: { incidentId: v.id('incidents'), taskId: v.id('tasks'), body: v.string() }`,
+        )
+        .replace(
+          `source: { table: tasks, id: binding('taskId') }`,
+          `source: { table: tasks, id: arg('taskId') }`,
+        ),
+      /source Patch values must be nonempty/u,
+    ],
+    [
+      'protected incarnation provenance alias',
+      profileSource.replace(
+        `actualActor: 'actualActor',`,
+        `actualActor: 'incidentIncarnation',`,
+      ),
+      /scope incarnation field is protected and may not alias a provenance mapping/u,
+    ],
+    [
+      'missing scope owner field',
+      profileSource.replace(
+        `scope: existingOwner({
+    table: incidents,
+    id: arg('incidentId'),
+    visibility: owner('ownerId'),
+  }),`,
+        `scope: existingOwner({
+    table: incidents,
+    id: arg('incidentId'),
+    visibility: owner('missingOwner'),
+  }),`,
+      ),
+      /visibility field must be a required string or principal/u,
+    ],
+    [
       'JSON bounded projection',
       profileSource.replace(
         `select: { id: '_id', position: 'position', body: 'body', note: 'note' }`,
         `select: { id: '_id', position: 'position', body: 'body', metadata: 'metadata' }`,
       ),
       /must be an LLP 0104 portable scalar/u,
+    ],
+    [
+      'duplicate bounded order',
+      profileSource.replace(
+        `order: [asc('position')],`,
+        `order: [asc('position'), asc('position')],`,
+      ),
+      /children\.order fields must not contain duplicates/u,
+    ],
+    [
+      'empty bounded output name',
+      profileSource.replace(
+        `select: { id: '_id', position: 'position', body: 'body', note: 'note' }`,
+        `select: { id: '_id', '': 'position', body: 'body', note: 'note' }`,
+      ),
+      /select output names must be non-empty/u,
     ],
   ]) {
     writeFileSync(join(dir, 'functions.mjs'), invalidSource);
@@ -342,6 +424,67 @@ export const baseline = defineLiveQuery({
       `${label} must preserve the last good generation`,
     );
   }
+
+  const ordinarySchema = readFileSync(join(dir, 'schema.mjs'), 'utf8');
+  writeFileSync(
+    join(dir, 'schema.mjs'),
+    ordinarySchema.replace(
+      `}).sync();
+export default defineSchema({ incidents, tasks, activity });`,
+      `}).permissionBacking().sync();
+export default defineSchema({ incidents, tasks, activity });`,
+    ),
+  );
+  writeFileSync(join(dir, 'functions.mjs'), profileSource);
+  const permissionBackingActivity = await generate(dir);
+  assert.equal(permissionBackingActivity.ok, false);
+  assert.match(
+    JSON.stringify(permissionBackingActivity.diagnostics),
+    /write-with-activity requires ordinary non-permission-backing/u,
+  );
+  assert.equal(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+    lastGoodFunctions,
+    'permission-backing profile refusal preserves the last good generation',
+  );
+
+  writeFileSync(
+    join(dir, 'schema.mjs'),
+    ordinarySchema.replace(`occurredAt: v.integer(),`, `occurredAt: v.boolean(),`),
+  );
+  const incompatibleProvenance = await generate(dir);
+  assert.equal(incompatibleProvenance.ok, false);
+  assert.match(
+    JSON.stringify(incompatibleProvenance.diagnostics),
+    /provenance occurredAt must be a required integer/u,
+  );
+  assert.equal(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+    lastGoodFunctions,
+    'incompatible provenance refusal preserves the last good generation',
+  );
+
+  writeFileSync(
+    join(dir, 'schema.mjs'),
+    ordinarySchema.replace(`sourceId: v.string(),`, `sourceId: v.id('incidents'),`),
+  );
+  const wrongSourceIdDomain = await generate(dir);
+  assert.equal(wrongSourceIdDomain.ok, false);
+  assert.match(
+    JSON.stringify(wrongSourceIdDomain.diagnostics),
+    /provenance sourceId must be a required string or id of tasks/u,
+  );
+
+  writeFileSync(
+    join(dir, 'schema.mjs'),
+    ordinarySchema.replace(`grantId: v.optional(v.string()),`, `grantId: v.string(),`),
+  );
+  const requiredGrant = await generate(dir);
+  assert.equal(requiredGrant.ok, false);
+  assert.match(
+    JSON.stringify(requiredGrant.diagnostics),
+    /provenance grant must be an optional string/u,
+  );
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

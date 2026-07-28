@@ -14454,6 +14454,7 @@ fn ephemeral_manifest_error(error: crate::ephemeral::EphemeralError) -> Snapback
 fn validate_write_activity_schema_plan(
     plan: &crate::manifest::WriteWithActivityPlan,
     schema: &SchemaManifest,
+    projection_outputs: &BTreeSet<String>,
 ) -> SnapbackResult<()> {
     use crate::manifest::{FieldType, WriteActivityRelation};
 
@@ -14471,10 +14472,34 @@ fn validate_write_activity_schema_plan(
             ))
         })
     };
+    let ordinary_table = |name: &str| -> SnapbackResult<&crate::manifest::TableManifest> {
+        let declared = table(name)?;
+        if declared.is_permission_backing() || projection_outputs.contains(name) {
+            return Err(invalid(format!(
+                "write-with-activity table {name} must be an ordinary non-permission-backing table that is not a maintained-projection output"
+            )));
+        }
+        Ok(declared)
+    };
+    let scope = ordinary_table(&plan.scope_table)?;
+    ordinary_table(&plan.source_table)?;
+    ordinary_table(&plan.activity_table)?;
+    let owner = scope.field(&plan.scope_owner_field).ok_or_else(|| {
+        invalid(format!(
+            "write-with-activity scope owner field {}.{} is missing",
+            plan.scope_table, plan.scope_owner_field
+        ))
+    })?;
+    if owner.optional || !matches!(owner.field_type, FieldType::Principal | FieldType::String) {
+        return Err(invalid(format!(
+            "write-with-activity scope owner field {}.{} must be a required principal or string",
+            plan.scope_table, plan.scope_owner_field
+        )));
+    }
     let validate_relation = |relation: &WriteActivityRelation,
                              activity: bool|
      -> SnapbackResult<()> {
-        let declared = table(&relation.table)?;
+        let declared = ordinary_table(&relation.table)?;
         let foreign_key = declared.field(&relation.scope_foreign_key).ok_or_else(|| {
             invalid(format!(
                 "write-with-activity relation references unknown field {}.{}",
@@ -14524,6 +14549,109 @@ fn validate_write_activity_schema_plan(
         },
         true,
     )?;
+    let activity = ordinary_table(&plan.activity_table)?;
+    let provenance = &plan.provenance_fields;
+    let provenance_field = |slot: &str, name: &str| {
+        activity.field(name).ok_or_else(|| {
+            invalid(format!(
+                "write-with-activity provenance {slot} references unknown field {}.{name}",
+                activity.name
+            ))
+        })
+    };
+    let required =
+        |slot: &str, name: &str, admitted: &dyn Fn(&FieldType) -> bool| -> SnapbackResult<()> {
+            let field = provenance_field(slot, name)?;
+            if field.optional || !admitted(&field.field_type) {
+                return Err(invalid(format!(
+                    "write-with-activity provenance {slot} has an incompatible field type"
+                )));
+            }
+            Ok(())
+        };
+    required("scopeId", &provenance.scope_id, &|field_type| {
+        field_type
+            == &FieldType::Id {
+                table: plan.scope_table.clone(),
+            }
+    })?;
+    for (slot, name) in [
+        ("sourceTable", &provenance.source_table),
+        ("operation", &provenance.operation),
+        ("actorKind", &provenance.actor_kind),
+        ("mutation", &provenance.mutation),
+    ] {
+        required(slot, name, &|field_type| {
+            matches!(field_type, FieldType::String)
+        })?;
+    }
+    required("sourceId", &provenance.source_id, &|field_type| {
+        matches!(field_type, FieldType::String)
+            || field_type
+                == &FieldType::Id {
+                    table: plan.source_table.clone(),
+                }
+    })?;
+    for (slot, name) in [
+        ("effectiveSubject", &provenance.effective_subject),
+        ("actualActor", &provenance.actual_actor),
+    ] {
+        required(slot, name, &|field_type| {
+            matches!(field_type, FieldType::String | FieldType::Principal)
+        })?;
+    }
+    let grant = provenance_field("grant", &provenance.grant)?;
+    if !grant.optional || !matches!(grant.field_type, FieldType::String) {
+        return Err(invalid(
+            "write-with-activity provenance grant must be an optional string field".to_owned(),
+        ));
+    }
+    required("occurredAt", &provenance.occurred_at, &|field_type| {
+        matches!(field_type, FieldType::Integer)
+    })?;
+    let insert_covers_required = |declared: &crate::manifest::TableManifest,
+                                  values: &BTreeMap<String, ValueExpr>|
+     -> SnapbackResult<()> {
+        if let Some(missing) = declared.fields.iter().find(|field| {
+            !field.optional
+                && !matches!(field.field_type, FieldType::RelationIncarnation { .. })
+                && !values.contains_key(&field.name)
+        }) {
+            return Err(invalid(format!(
+                "write-with-activity insert into {} omits required field {}",
+                declared.name, missing.name
+            )));
+        }
+        Ok(())
+    };
+    let activity_values = plan
+        .mutation
+        .steps
+        .last()
+        .and_then(|step| match step {
+            MutationStep::Insert { table, values, .. } if table == &plan.activity_table => {
+                Some(values)
+            }
+            _ => None,
+        })
+        .ok_or_else(|| {
+            invalid("write-with-activity final activity insert is missing".to_owned())
+        })?;
+    insert_covers_required(activity, activity_values)?;
+    if plan.source_operation == crate::manifest::WriteWithActivitySourceOperation::Insert {
+        let source_values = plan
+            .mutation
+            .steps
+            .iter()
+            .find_map(|step| match step {
+                MutationStep::Insert { table, values, .. } if table == &plan.source_table => {
+                    Some(values)
+                }
+                _ => None,
+            })
+            .ok_or_else(|| invalid("write-with-activity source insert is missing".to_owned()))?;
+        insert_covers_required(ordinary_table(&plan.source_table)?, source_values)?;
+    }
 
     let relation_assertion =
         |step: Option<&MutationStep>, id: &ValueExpr, relation: &WriteActivityRelation| {
@@ -14631,6 +14759,124 @@ fn validate_write_activity_schema_plan(
             "every declared primary relation must be used and exactly one activity insert is required"
                 .to_owned(),
         ));
+    }
+    Ok(())
+}
+
+fn validate_bounded_children_schema_plan(
+    plan: &crate::manifest::BoundedChildrenQueryPlan,
+    parent: &crate::manifest::TableManifest,
+    child: &crate::manifest::TableManifest,
+    projection_outputs: &BTreeSet<String>,
+) -> SnapbackResult<()> {
+    use crate::manifest::{BoundedParentVisibility, FieldType};
+
+    let invalid = |message: String| {
+        SnapbackError::error("SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID", "query", message)
+    };
+    if parent.name == child.name
+        || parent.is_permission_backing()
+        || child.is_permission_backing()
+        || projection_outputs.contains(&parent.name)
+        || projection_outputs.contains(&child.name)
+    {
+        return Err(invalid(
+            "bounded children requires distinct ordinary application tables that are not maintained-projection outputs"
+                .to_owned(),
+        ));
+    }
+    if let BoundedParentVisibility::Owner { field } = &plan.parent_visibility {
+        let owner = parent.field(field).ok_or_else(|| {
+            invalid(format!(
+                "bounded parent owner field {}.{} is missing",
+                parent.name, field
+            ))
+        })?;
+        if owner.optional || !matches!(owner.field_type, FieldType::Principal | FieldType::String) {
+            return Err(invalid(format!(
+                "bounded parent owner field {}.{} must be a required principal or string",
+                parent.name, field
+            )));
+        }
+    }
+    let foreign_key = child.field(&plan.child_foreign_key).ok_or_else(|| {
+        invalid(format!(
+            "bounded child foreign key {}.{} is missing",
+            child.name, plan.child_foreign_key
+        ))
+    })?;
+    if foreign_key.optional
+        || foreign_key.field_type
+            != (FieldType::Id {
+                table: parent.name.clone(),
+            })
+    {
+        return Err(invalid(format!(
+            "bounded child foreign key {}.{} must be a required id<{}>",
+            child.name, plan.child_foreign_key, parent.name
+        )));
+    }
+    let incarnation = child
+        .field(&plan.child_relation_incarnation)
+        .ok_or_else(|| {
+            invalid(format!(
+                "bounded child incarnation {}.{} is missing",
+                child.name, plan.child_relation_incarnation
+            ))
+        })?;
+    if incarnation.optional
+        || incarnation.field_type
+            != (FieldType::RelationIncarnation {
+                foreign_key_field: plan.child_foreign_key.clone(),
+                parent_table: parent.name.clone(),
+            })
+    {
+        return Err(invalid(format!(
+            "bounded child incarnation {}.{} must be the matching required relationIncarnationOf field",
+            child.name, plan.child_relation_incarnation
+        )));
+    }
+
+    let child_projection: BTreeSet<&str> = plan
+        .child_projection
+        .iter()
+        .map(|projection| projection.field.as_str())
+        .collect();
+    if !child_projection.contains("_id") {
+        return Err(invalid(
+            "bounded child projection must include _id".to_owned(),
+        ));
+    }
+    let mut order_fields = BTreeSet::new();
+    for order in &plan.order {
+        if !order_fields.insert(order.field.as_str()) {
+            return Err(invalid(
+                "bounded child order fields must be unique".to_owned(),
+            ));
+        }
+        let field = child.field(&order.field).ok_or_else(|| {
+            invalid(format!(
+                "bounded child order field {}.{} is missing",
+                child.name, order.field
+            ))
+        })?;
+        if field.optional
+            || !matches!(
+                field.field_type,
+                FieldType::String | FieldType::Integer | FieldType::Boolean | FieldType::Id { .. }
+            )
+        {
+            return Err(invalid(format!(
+                "bounded child order field {}.{} must be a required string, integer, boolean, or id",
+                child.name, order.field
+            )));
+        }
+        if !child_projection.contains(order.field.as_str()) {
+            return Err(invalid(format!(
+                "bounded child projection must include order field {}",
+                order.field
+            )));
+        }
     }
     Ok(())
 }
@@ -14912,6 +15158,12 @@ fn validate_function_schema_references(
                 };
                 let parent = table(&plan.parent_table)?;
                 let child = table(&plan.child_table)?;
+                let projection_outputs = manifest
+                    .projections
+                    .iter()
+                    .map(|projection| projection.output_table.clone())
+                    .collect();
+                validate_bounded_children_schema_plan(plan, parent, child, &projection_outputs)?;
                 field(&plan.child_table, &plan.child_foreign_key)?;
                 field(&plan.child_table, &plan.child_relation_incarnation)?;
                 for projection in &plan.parent_projection {
@@ -15111,7 +15363,12 @@ fn validate_function_schema_references(
             FunctionRuntime::HostPlan(HandlerPlan::Action(_)) | FunctionRuntime::IbexModule(_) => {}
         }
         if let FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) = &function.runtime {
-            validate_write_activity_schema_plan(plan, schema)?;
+            let projection_outputs = manifest
+                .projections
+                .iter()
+                .map(|projection| projection.output_table.clone())
+                .collect();
+            validate_write_activity_schema_plan(plan, schema, &projection_outputs)?;
         }
         for dependency in function
             .read_set_summary
@@ -16873,7 +17130,7 @@ mod tests {
         RetryEpisodeKey, RetryReservationKind, SnapbackError, StagedNestedMutation,
         next_secret_read_reset_generation, now_millis,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
-        validate_function_schema_references,
+        validate_bounded_children_schema_plan, validate_function_schema_references,
     };
     use crate::admin::ServerProfile;
     use crate::auth::admission::AdmissionController;
@@ -21034,6 +21291,12 @@ globalThis.__snapbackHandlers = {
             );
             function.result_contract = bounded_result.clone();
             function
+                .required_capabilities
+                .push("bounded_children_v1".to_owned());
+            function
+                .required_capabilities
+                .push("live_subscriptions".to_owned());
+            function
         };
         let relation = relation_function("parentChildren", relation_plan.clone());
         let other_relation = relation_function("otherParentChildren", relation_plan.clone());
@@ -21108,6 +21371,137 @@ globalThis.__snapbackHandlers = {
                 ..FunctionManifest::default()
             },
         )
+    }
+
+    #[test]
+    fn bounded_children_direct_artifact_binds_relation_order_and_table_eligibility() {
+        let (schema, functions) = bounded_children_publication_fixture(16);
+        let plan = match &functions.functions[0].runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => plan.clone(),
+            _ => panic!("bounded fixture"),
+        };
+        let projection_outputs = BTreeSet::new();
+        let parent = schema.table("parents").expect("parent");
+        let child = schema.table("children").expect("child");
+        validate_bounded_children_schema_plan(&plan, parent, child, &projection_outputs)
+            .expect("generated bounded schema binding");
+
+        let mut wrong_foreign_key = schema.clone();
+        wrong_foreign_key
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "children")
+            .and_then(|table| {
+                table
+                    .fields
+                    .iter_mut()
+                    .find(|field| field.name == "parentId")
+            })
+            .expect("foreign key")
+            .field_type = FieldType::String;
+        assert!(
+            validate_bounded_children_schema_plan(
+                &plan,
+                wrong_foreign_key.table("parents").unwrap(),
+                wrong_foreign_key.table("children").unwrap(),
+                &projection_outputs,
+            )
+            .is_err(),
+            "a direct artifact cannot erase the nominal parent relation",
+        );
+
+        let mut optional_order = schema.clone();
+        optional_order
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "children")
+            .and_then(|table| {
+                table
+                    .fields
+                    .iter_mut()
+                    .find(|field| field.name == "position")
+            })
+            .expect("order field")
+            .optional = true;
+        assert!(
+            validate_bounded_children_schema_plan(
+                &plan,
+                optional_order.table("parents").unwrap(),
+                optional_order.table("children").unwrap(),
+                &projection_outputs,
+            )
+            .is_err(),
+            "a direct artifact cannot order through an optional boundary",
+        );
+
+        let mut missing_boundary = plan.clone();
+        missing_boundary
+            .child_projection
+            .retain(|field| field.field != "position");
+        assert!(
+            validate_bounded_children_schema_plan(
+                &missing_boundary,
+                parent,
+                child,
+                &projection_outputs,
+            )
+            .is_err(),
+            "every order component must travel in the closed child projection",
+        );
+
+        let mut permission_parent = schema.clone();
+        permission_parent
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "parents")
+            .expect("parent")
+            .permission_backing = true;
+        assert!(
+            validate_bounded_children_schema_plan(
+                &plan,
+                permission_parent.table("parents").unwrap(),
+                permission_parent.table("children").unwrap(),
+                &projection_outputs,
+            )
+            .is_err(),
+            "bounded profiles cannot treat permission-backing data as application rows",
+        );
+
+        assert!(
+            validate_bounded_children_schema_plan(
+                &plan,
+                parent,
+                child,
+                &BTreeSet::from(["children".to_owned()]),
+            )
+            .is_err(),
+            "bounded profiles cannot bind a maintained-projection output",
+        );
+
+        let mut missing_capability = functions.clone();
+        missing_capability.functions[0]
+            .required_capabilities
+            .clear();
+        assert_eq!(
+            missing_capability
+                .validate_artifact()
+                .expect_err("plan-local capability cannot bypass target gating")
+                .diagnostic
+                .code,
+            "SNAPBACK_CAPABILITY_UNSUPPORTED",
+        );
+
+        let mut duplicate_projection = functions;
+        let FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) =
+            &mut duplicate_projection.functions[0].runtime
+        else {
+            panic!("bounded fixture");
+        };
+        plan.child_projection[1].name = plan.child_projection[0].name.clone();
+        assert!(
+            duplicate_projection.validate_artifact().is_err(),
+            "a direct artifact cannot collapse two bounded leaves into one JSON output key",
+        );
     }
 
     fn seed_bounded_publication_fixture(snapback: &mut LocalSnapback, foreign_secret: &str) {

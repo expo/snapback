@@ -950,7 +950,7 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)),
                 ) => validate_search_query_plan_shape(plan)?,
                 (
-                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionKind::LiveQuery,
                     FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
                 ) => validate_bounded_children_plan_shape(plan)?,
                 (
@@ -975,6 +975,41 @@ impl FunctionManifest {
                         format!(
                             "function {} kind {:?} does not match its host-plan runtime",
                             function.name, function.kind
+                        ),
+                    ));
+                }
+            }
+            let implied_capabilities: &[&str] = match &function.runtime {
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_)) => {
+                    if function.kind == FunctionKind::LiveQuery {
+                        &["relational_query_v1", "live_subscriptions"]
+                    } else {
+                        &["relational_query_v1"]
+                    }
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_)) => {
+                    &[crate::search::types::SEARCH_CAPABILITY]
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_)) => {
+                    &["bounded_children_v1", "live_subscriptions"]
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_)) => {
+                    &["write_activity_v1"]
+                }
+                _ => &[],
+            };
+            for required in implied_capabilities {
+                if !function
+                    .required_capabilities
+                    .iter()
+                    .any(|capability| capability == *required)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                        "capability",
+                        format!(
+                            "function {} uses a runtime profile without required capability {required}",
+                            function.name
                         ),
                     ));
                 }
@@ -2472,11 +2507,18 @@ pub fn validate_search_query_plan_shape(plan: &SearchQueryPlanV1) -> SnapbackRes
 
 pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> SnapbackResult<()> {
     let valid_projection = |fields: &[BoundedProjectionField]| {
+        let names: BTreeSet<&str> = fields.iter().map(|field| field.name.as_str()).collect();
         !fields.is_empty()
+            && names.len() == fields.len()
             && fields
                 .iter()
                 .all(|field| !field.name.trim().is_empty() && !field.field.trim().is_empty())
     };
+    let order_fields: BTreeSet<&str> = plan
+        .order
+        .iter()
+        .map(|order| order.field.as_str())
+        .collect();
     if plan.profile != "bounded-children.v1"
         || plan.required_capability != "bounded_children_v1"
         || plan.parent_table.trim().is_empty()
@@ -2490,6 +2532,7 @@ pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> 
             .order
             .iter()
             .any(|order| order.direction != OrderDirection::Asc)
+        || order_fields.len() != plan.order.len()
         || plan.take > 1024
         || plan.parent_deletion != "hide-orphans.v1"
         || !valid_projection(&plan.parent_projection)
@@ -2505,20 +2548,49 @@ pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> 
 }
 
 pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> SnapbackResult<()> {
+    let invalid = || {
+        SnapbackError::error(
+            "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
+            "mutation",
+            "write-with-activity plan is outside the closed v1 profile",
+        )
+    };
     let relation_tables: BTreeSet<&str> = plan
         .relations
         .iter()
         .map(|relation| relation.table.as_str())
         .collect();
+    let provenance_fields = [
+        plan.provenance_fields.scope_id.as_str(),
+        plan.provenance_fields.source_table.as_str(),
+        plan.provenance_fields.source_id.as_str(),
+        plan.provenance_fields.operation.as_str(),
+        plan.provenance_fields.effective_subject.as_str(),
+        plan.provenance_fields.actual_actor.as_str(),
+        plan.provenance_fields.actor_kind.as_str(),
+        plan.provenance_fields.grant.as_str(),
+        plan.provenance_fields.occurred_at.as_str(),
+        plan.provenance_fields.mutation.as_str(),
+    ];
+    let distinct_provenance_fields: BTreeSet<&str> = provenance_fields.iter().copied().collect();
     if plan.profile != "write-with-activity.v1"
         || plan.required_capability != "write_activity_v1"
+        // Only the existing-owner authoring mode has a generated evaluator
+        // and publication corpus. A direct artifact cannot opt into the
+        // reserved create-owner discriminator ahead of that implementation.
+        || plan.mode != WriteWithActivityMode::ExistingOwnerV1
         || plan.scope_table.trim().is_empty()
+        || plan.scope_owner_field.trim().is_empty()
         || plan.source_table.trim().is_empty()
         || plan.activity_table.trim().is_empty()
+        || plan.scope_table == plan.source_table
         || plan.source_table == plan.activity_table
         || plan.scope_table == plan.activity_table
         || plan.activity_scope_foreign_key.trim().is_empty()
         || plan.activity_scope_incarnation.trim().is_empty()
+        || plan.activity_scope_foreign_key != plan.provenance_fields.scope_id
+        || distinct_provenance_fields.len() != provenance_fields.len()
+        || distinct_provenance_fields.contains(plan.activity_scope_incarnation.as_str())
         || plan.relations.is_empty()
         || relation_tables.len() != plan.relations.len()
         || !relation_tables.contains(plan.source_table.as_str())
@@ -2532,30 +2604,283 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         })
         || plan.effect_formula.source_writes != 1
         || plan.effect_formula.activity_inserts != 1
+        || plan.effect_formula.scope_reads != 1
         || plan.effect_formula.runtime_now != 1
         || plan.effect_formula.settlement_lookups != 1
-        || plan.effect_formula.settlement_writes > 1
+        || plan.effect_formula.settlement_writes != 1
         || plan.effect_formula.auxiliary_point_reads > 8
         || plan.effect_formula.maximum_application_writes > 3
     {
-        return Err(SnapbackError::error(
-            "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
-            "mutation",
-            "write-with-activity plan is outside the closed v1 profile",
-        ));
+        return Err(invalid());
     }
-    let assertions = plan
-        .mutation
-        .steps
+
+    let steps = &plan.mutation.steps;
+    if steps.len() < 4 {
+        return Err(invalid());
+    }
+    let scope_binding = "__activityScope";
+    let activity_binding = "__activityId";
+    if !matches!(
+        &steps[0],
+        MutationStep::Get {
+            table,
+            id,
+            bind_as,
+            else_error,
+        } if table == &plan.scope_table
+            && id == &plan.scope_id
+            && bind_as == scope_binding
+            && else_error.as_deref() == Some("SNAPBACK_ROW_NOT_FOUND")
+    ) {
+        return Err(invalid());
+    }
+    let exact_owner_guard = match &steps[1] {
+        MutationStep::Guard {
+            cond:
+                ValueExpr::Binary {
+                    op: BinaryOp::Eq,
+                    left,
+                    right,
+                },
+            else_error,
+        } if else_error == "SNAPBACK_ROW_NOT_FOUND"
+            && matches!(right.as_ref(), ValueExpr::AuthUserId) =>
+        {
+            matches!(
+                left.as_ref(),
+                ValueExpr::Field { base, key }
+                    if key == &plan.scope_owner_field
+                        && matches!(
+                            base.as_ref(),
+                            ValueExpr::Binding(binding) if binding == scope_binding
+                        )
+            )
+        }
+        _ => false,
+    };
+    if !exact_owner_guard {
+        return Err(invalid());
+    }
+    let source_assertion_index = steps.len() - 2;
+    let guard_and_let_count = steps[2..source_assertion_index]
         .iter()
-        .filter(|step| matches!(step, MutationStep::AssertSourceChanged { .. }))
+        .filter(|step| matches!(step, MutationStep::Guard { .. } | MutationStep::Let { .. }))
         .count();
-    if assertions != 1 {
-        return Err(SnapbackError::error(
-            "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
-            "mutation",
-            "write-with-activity plan must contain one source-effect assertion",
-        ));
+    let forbidden_expr =
+        |expr: &ValueExpr| expr.uses_runtime_id() || expr.uses_authoritative_only();
+    let step_uses_forbidden_expr = |step: &MutationStep| match step {
+        MutationStep::Insert { values, .. } => values.values().any(forbidden_expr),
+        MutationStep::Patch { id, values, .. } => {
+            forbidden_expr(id) || values.values().any(forbidden_expr)
+        }
+        MutationStep::Delete { id, .. } | MutationStep::Get { id, .. } => forbidden_expr(id),
+        MutationStep::Guard { cond, .. } => forbidden_expr(cond),
+        MutationStep::AssertCurrentRelation { id, scope_id, .. } => {
+            forbidden_expr(id) || forbidden_expr(scope_id)
+        }
+        MutationStep::Let { expr, .. } => forbidden_expr(expr),
+        MutationStep::DeleteWhere { filter, .. } => {
+            filter.iter().any(|entry| forbidden_expr(&entry.value))
+        }
+        MutationStep::InsertEach { source, values, .. } => {
+            forbidden_expr(source) || values.values().any(forbidden_expr)
+        }
+        MutationStep::AssertSourceChanged { id, .. } => forbidden_expr(id),
+    };
+    let return_uses_forbidden_expr = match &plan.mutation.return_value {
+        Some(ReturnValue::Document { id, .. }) => forbidden_expr(id),
+        Some(ReturnValue::Expr(expr)) => forbidden_expr(expr),
+        _ => false,
+    };
+    if guard_and_let_count > 16
+        || steps.iter().any(step_uses_forbidden_expr)
+        || return_uses_forbidden_expr
+    {
+        return Err(invalid());
+    }
+
+    if !matches!(
+        &steps[source_assertion_index],
+        MutationStep::AssertSourceChanged {
+            table,
+            id,
+            operation,
+        } if table == &plan.source_table
+            && id == &plan.source_id
+            && operation == &plan.source_operation
+    ) {
+        return Err(invalid());
+    }
+    let activity_values = match &steps[steps.len() - 1] {
+        MutationStep::Insert {
+            table,
+            values,
+            bind_id_as,
+        } if table == &plan.activity_table && bind_id_as.as_deref() == Some(activity_binding) => {
+            values
+        }
+        _ => return Err(invalid()),
+    };
+    let provenance = &plan.provenance_fields;
+    let literal_string = |field: &str, expected: &str| {
+        matches!(
+            activity_values.get(field),
+            Some(ValueExpr::Literal(serde_json::Value::String(value))) if value == expected
+        )
+    };
+    if activity_values.get(&provenance.scope_id) != Some(&plan.scope_id)
+        || !literal_string(&provenance.source_table, &plan.source_table)
+        || activity_values.get(&provenance.source_id) != Some(&plan.source_id)
+        || !literal_string(&provenance.operation, plan.source_operation.as_str())
+        || !matches!(
+            activity_values.get(&provenance.effective_subject),
+            Some(ValueExpr::AuthUserId)
+        )
+        || !matches!(
+            activity_values.get(&provenance.actual_actor),
+            Some(ValueExpr::AuthActorUserId)
+        )
+        || !matches!(
+            activity_values.get(&provenance.actor_kind),
+            Some(ValueExpr::AuthActivityActorKind)
+        )
+        || !matches!(
+            activity_values.get(&provenance.grant),
+            Some(ValueExpr::AuthGrantId)
+        )
+        || !matches!(
+            activity_values.get(&provenance.occurred_at),
+            Some(ValueExpr::RuntimeNow)
+        )
+        || !matches!(
+            activity_values.get(&provenance.mutation),
+            Some(ValueExpr::ClientMutationDigest)
+        )
+        || activity_values.contains_key(&plan.activity_scope_incarnation)
+        || !matches!(&plan.mutation.return_value, Some(ReturnValue::Expr(_)))
+    {
+        return Err(invalid());
+    }
+
+    let mut source_writes = 0_u8;
+    let mut scope_patches = 0_u8;
+    let mut auxiliary_point_reads = 0_u8;
+    for index in 2..source_assertion_index {
+        let step = &steps[index];
+        match step {
+            MutationStep::Get { table, id, .. } => {
+                if table == &plan.scope_table
+                    || !matches!(
+                        steps.get(index - 1),
+                        Some(MutationStep::AssertCurrentRelation {
+                            table: asserted_table,
+                            id: asserted_id,
+                            ..
+                        }) if asserted_table == table && asserted_id == id
+                    )
+                {
+                    return Err(invalid());
+                }
+                auxiliary_point_reads += 2;
+            }
+            MutationStep::Insert {
+                table, bind_id_as, ..
+            } => {
+                if table != &plan.source_table
+                    || plan.source_operation != WriteWithActivitySourceOperation::Insert
+                    || !matches!(
+                        (&plan.source_id, bind_id_as),
+                        (ValueExpr::Binding(source_binding), Some(insert_binding))
+                            if source_binding == insert_binding
+                    )
+                {
+                    return Err(invalid());
+                }
+                source_writes += 1;
+            }
+            MutationStep::Patch { table, id, values } => {
+                if table == &plan.scope_table {
+                    if id != &plan.scope_id {
+                        return Err(invalid());
+                    }
+                    scope_patches += 1;
+                } else {
+                    if table != &plan.source_table
+                        || id != &plan.source_id
+                        || values.is_empty()
+                        || plan.source_operation != WriteWithActivitySourceOperation::Patch
+                        || !matches!(
+                            steps.get(index - 1),
+                            Some(MutationStep::AssertCurrentRelation {
+                                table: asserted_table,
+                                id: asserted_id,
+                                ..
+                            }) if asserted_table == table && asserted_id == id
+                        )
+                    {
+                        return Err(invalid());
+                    }
+                    source_writes += 1;
+                    auxiliary_point_reads += 2;
+                }
+            }
+            MutationStep::Delete { table, id } => {
+                if table != &plan.source_table
+                    || id != &plan.source_id
+                    || plan.source_operation != WriteWithActivitySourceOperation::Delete
+                    || !matches!(
+                        steps.get(index - 1),
+                        Some(MutationStep::AssertCurrentRelation {
+                            table: asserted_table,
+                            id: asserted_id,
+                            ..
+                        }) if asserted_table == table && asserted_id == id
+                    )
+                {
+                    return Err(invalid());
+                }
+                source_writes += 1;
+                auxiliary_point_reads += 2;
+            }
+            MutationStep::AssertCurrentRelation { table, id, .. } => {
+                if !matches!(
+                    steps.get(index + 1),
+                    Some(MutationStep::Get {
+                        table: operation_table,
+                        id: operation_id,
+                        ..
+                    } | MutationStep::Patch {
+                        table: operation_table,
+                        id: operation_id,
+                        ..
+                    } | MutationStep::Delete {
+                        table: operation_table,
+                        id: operation_id,
+                    }) if operation_table == table && operation_id == id
+                ) {
+                    return Err(invalid());
+                }
+            }
+            MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
+            MutationStep::AssertSourceChanged { .. }
+            | MutationStep::DeleteWhere { .. }
+            | MutationStep::InsertEach { .. } => return Err(invalid()),
+        }
+    }
+    let expected_runtime_ids = if plan.source_operation == WriteWithActivitySourceOperation::Insert
+    {
+        2
+    } else {
+        1
+    };
+    if source_writes != 1
+        || scope_patches > 1
+        || plan.effect_formula.scope_patches != scope_patches
+        || plan.effect_formula.auxiliary_point_reads != auxiliary_point_reads
+        || plan.effect_formula.runtime_ids != expected_runtime_ids
+        || plan.effect_formula.maximum_application_writes != 2 + scope_patches
+    {
+        return Err(invalid());
     }
     Ok(())
 }
@@ -4246,6 +4571,70 @@ pub enum ValueExpr {
 }
 
 impl ValueExpr {
+    fn uses_runtime_id(&self) -> bool {
+        match self {
+            Self::RuntimeId => true,
+            Self::Field { base, .. } => base.uses_runtime_id(),
+            Self::Binary { left, right, .. } => left.uses_runtime_id() || right.uses_runtime_id(),
+            Self::Unary { expr, .. } => expr.uses_runtime_id(),
+            Self::If { cond, then, r#else } => {
+                cond.uses_runtime_id() || then.uses_runtime_id() || r#else.uses_runtime_id()
+            }
+            Self::Concat(values) | Self::Call { args: values, .. } => {
+                values.iter().any(Self::uses_runtime_id)
+            }
+            Self::Record { fields } => fields.values().any(Self::uses_runtime_id),
+            Self::Arg(_)
+            | Self::Args
+            | Self::AuthUserId
+            | Self::AuthKind
+            | Self::AuthActorKind
+            | Self::AuthActivityActorKind
+            | Self::AuthActorUserId
+            | Self::AuthGrantId
+            | Self::ClientMutationDigest
+            | Self::AuthIsDelegated
+            | Self::Binding(_)
+            | Self::Literal(_)
+            | Self::RuntimeNow
+            | Self::MembershipExists(_) => false,
+        }
+    }
+
+    fn uses_authoritative_only(&self) -> bool {
+        match self {
+            Self::MembershipExists(_) => true,
+            Self::Field { base, .. } => base.uses_authoritative_only(),
+            Self::Binary { left, right, .. } => {
+                left.uses_authoritative_only() || right.uses_authoritative_only()
+            }
+            Self::Unary { expr, .. } => expr.uses_authoritative_only(),
+            Self::If { cond, then, r#else } => {
+                cond.uses_authoritative_only()
+                    || then.uses_authoritative_only()
+                    || r#else.uses_authoritative_only()
+            }
+            Self::Concat(values) | Self::Call { args: values, .. } => {
+                values.iter().any(Self::uses_authoritative_only)
+            }
+            Self::Record { fields } => fields.values().any(Self::uses_authoritative_only),
+            Self::Arg(_)
+            | Self::Args
+            | Self::AuthUserId
+            | Self::AuthKind
+            | Self::AuthActorKind
+            | Self::AuthActivityActorKind
+            | Self::AuthActorUserId
+            | Self::AuthGrantId
+            | Self::ClientMutationDigest
+            | Self::AuthIsDelegated
+            | Self::Binding(_)
+            | Self::Literal(_)
+            | Self::RuntimeNow
+            | Self::RuntimeId => false,
+        }
+    }
+
     pub(crate) fn uses_actor_projection(&self) -> bool {
         match self {
             Self::AuthActorKind
@@ -6279,6 +6668,248 @@ mod membership_manifest_grammar_tests {
                 .diagnostic
                 .code,
             "SNAPBACK_CAPABILITY_UNSUPPORTED"
+        );
+    }
+
+    fn write_activity_plan_fixture() -> WriteWithActivityPlan {
+        let scope_id = ValueExpr::Arg("incidentId".to_owned());
+        let source_id = ValueExpr::Arg("taskId".to_owned());
+        let provenance = WriteActivityProvenanceFields {
+            scope_id: "incidentId".to_owned(),
+            source_table: "sourceTable".to_owned(),
+            source_id: "sourceId".to_owned(),
+            operation: "operation".to_owned(),
+            effective_subject: "effectiveSubject".to_owned(),
+            actual_actor: "actualActor".to_owned(),
+            actor_kind: "actorKind".to_owned(),
+            grant: "grantId".to_owned(),
+            occurred_at: "occurredAt".to_owned(),
+            mutation: "mutationDigest".to_owned(),
+        };
+        let activity_values = BTreeMap::from([
+            (provenance.scope_id.clone(), scope_id.clone()),
+            (
+                provenance.source_table.clone(),
+                ValueExpr::Literal(json!("tasks")),
+            ),
+            (provenance.source_id.clone(), source_id.clone()),
+            (
+                provenance.operation.clone(),
+                ValueExpr::Literal(json!("patch")),
+            ),
+            (provenance.effective_subject.clone(), ValueExpr::AuthUserId),
+            (provenance.actual_actor.clone(), ValueExpr::AuthActorUserId),
+            (
+                provenance.actor_kind.clone(),
+                ValueExpr::AuthActivityActorKind,
+            ),
+            (provenance.grant.clone(), ValueExpr::AuthGrantId),
+            (provenance.occurred_at.clone(), ValueExpr::RuntimeNow),
+            (provenance.mutation.clone(), ValueExpr::ClientMutationDigest),
+        ]);
+        let relation_assertion = MutationStep::AssertCurrentRelation {
+            table: "tasks".to_owned(),
+            id: source_id.clone(),
+            scope_table: "incidents".to_owned(),
+            scope_id: scope_id.clone(),
+            foreign_key_field: "incidentId".to_owned(),
+            incarnation_field: "incidentIncarnation".to_owned(),
+            else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+        };
+        WriteWithActivityPlan {
+            profile: "write-with-activity.v1".to_owned(),
+            required_capability: "write_activity_v1".to_owned(),
+            mode: WriteWithActivityMode::ExistingOwnerV1,
+            scope_table: "incidents".to_owned(),
+            scope_id: scope_id.clone(),
+            scope_owner_field: "ownerId".to_owned(),
+            source_table: "tasks".to_owned(),
+            source_id: source_id.clone(),
+            source_operation: WriteWithActivitySourceOperation::Patch,
+            activity_table: "activity".to_owned(),
+            activity_scope_foreign_key: provenance.scope_id.clone(),
+            activity_scope_incarnation: "incidentIncarnation".to_owned(),
+            relations: vec![WriteActivityRelation {
+                table: "tasks".to_owned(),
+                scope_foreign_key: "incidentId".to_owned(),
+                scope_incarnation: "incidentIncarnation".to_owned(),
+            }],
+            provenance_fields: provenance,
+            effect_formula: WriteWithActivityEffectFormula {
+                scope_reads: 1,
+                scope_patches: 0,
+                auxiliary_point_reads: 2,
+                source_writes: 1,
+                activity_inserts: 1,
+                runtime_ids: 1,
+                runtime_now: 1,
+                settlement_lookups: 1,
+                settlement_writes: 1,
+                maximum_application_writes: 2,
+            },
+            mutation: MutationPlan {
+                steps: vec![
+                    MutationStep::Get {
+                        table: "incidents".to_owned(),
+                        id: scope_id,
+                        bind_as: "__activityScope".to_owned(),
+                        else_error: Some("SNAPBACK_ROW_NOT_FOUND".to_owned()),
+                    },
+                    MutationStep::Guard {
+                        cond: ValueExpr::Binary {
+                            op: BinaryOp::Eq,
+                            left: Box::new(ValueExpr::Field {
+                                base: Box::new(ValueExpr::Binding("__activityScope".to_owned())),
+                                key: "ownerId".to_owned(),
+                            }),
+                            right: Box::new(ValueExpr::AuthUserId),
+                        },
+                        else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+                    },
+                    relation_assertion,
+                    MutationStep::Patch {
+                        table: "tasks".to_owned(),
+                        id: source_id.clone(),
+                        values: BTreeMap::from([(
+                            "body".to_owned(),
+                            ValueExpr::Literal(json!("patched")),
+                        )]),
+                    },
+                    MutationStep::AssertSourceChanged {
+                        table: "tasks".to_owned(),
+                        id: source_id,
+                        operation: WriteWithActivitySourceOperation::Patch,
+                    },
+                    MutationStep::Insert {
+                        table: "activity".to_owned(),
+                        values: activity_values,
+                        bind_id_as: Some("__activityId".to_owned()),
+                    },
+                ],
+                return_value: Some(ReturnValue::Expr(ValueExpr::Binding(
+                    "__activityId".to_owned(),
+                ))),
+            },
+        }
+    }
+
+    #[test]
+    fn write_activity_direct_artifact_cannot_forge_the_closed_plan_or_ceiling() {
+        let valid = write_activity_plan_fixture();
+        validate_write_with_activity_plan_shape(&valid).expect("generated closed plan");
+
+        let mut extra_scope_write = valid.clone();
+        extra_scope_write.mutation.steps.insert(
+            4,
+            MutationStep::Delete {
+                table: "incidents".to_owned(),
+                id: extra_scope_write.scope_id.clone(),
+            },
+        );
+        assert!(
+            validate_write_with_activity_plan_shape(&extra_scope_write).is_err(),
+            "a direct artifact cannot hide an extra scope write behind the claimed ceiling",
+        );
+
+        let mut forged_provenance = valid.clone();
+        let actor_field = forged_provenance.provenance_fields.actual_actor.clone();
+        let Some(MutationStep::Insert { values, .. }) = forged_provenance.mutation.steps.last_mut()
+        else {
+            panic!("activity insert fixture");
+        };
+        values.insert(actor_field, ValueExpr::Arg("claimedActor".to_owned()));
+        assert!(
+            validate_write_with_activity_plan_shape(&forged_provenance).is_err(),
+            "activity actor provenance is server-owned",
+        );
+
+        let mut forged_ceiling = valid.clone();
+        forged_ceiling.effect_formula.auxiliary_point_reads = 0;
+        assert!(
+            validate_write_with_activity_plan_shape(&forged_ceiling).is_err(),
+            "the declared quantitative ceiling is reconstructed from the executable plan",
+        );
+
+        let mut extra_runtime_id = valid.clone();
+        let Some(MutationStep::Patch { values, .. }) = extra_runtime_id.mutation.steps.get_mut(3)
+        else {
+            panic!("source patch fixture");
+        };
+        values.insert("nonce".to_owned(), ValueExpr::RuntimeId);
+        assert!(
+            validate_write_with_activity_plan_shape(&extra_runtime_id).is_err(),
+            "runtime ids are allocated only by the source/activity insert steps",
+        );
+
+        let mut authoritative_escape = valid.clone();
+        authoritative_escape.mutation.steps.insert(
+            2,
+            MutationStep::Guard {
+                cond: ValueExpr::MembershipExists(Box::new(MembershipPredicate {
+                    declaration: "incidentMembers".to_owned(),
+                    resource: MembershipResourceRef::Arg {
+                        path: "incidentId".to_owned(),
+                        resource_table: Some("incidents".to_owned()),
+                    },
+                    roles: None,
+                })),
+                else_error: "SNAPBACK_GUARD_FAILED".to_owned(),
+            },
+        );
+        assert!(
+            validate_write_with_activity_plan_shape(&authoritative_escape).is_err(),
+            "the closed write profile cannot smuggle in an authoritative membership read",
+        );
+
+        let mut empty_source_patch = valid.clone();
+        let Some(MutationStep::Patch { values, .. }) = empty_source_patch.mutation.steps.get_mut(3)
+        else {
+            panic!("source patch fixture");
+        };
+        values.clear();
+        assert!(
+            validate_write_with_activity_plan_shape(&empty_source_patch).is_err(),
+            "an empty source patch cannot enter the source-effect profile",
+        );
+
+        let mut aliased_provenance = valid.clone();
+        aliased_provenance.provenance_fields.actual_actor =
+            aliased_provenance.activity_scope_incarnation.clone();
+        assert!(
+            validate_write_with_activity_plan_shape(&aliased_provenance).is_err(),
+            "the protected incarnation field cannot alias activity provenance",
+        );
+
+        let mut maximum_guards = valid.clone();
+        for _ in 0..16 {
+            maximum_guards.mutation.steps.insert(
+                2,
+                MutationStep::Guard {
+                    cond: ValueExpr::Literal(json!(true)),
+                    else_error: "SNAPBACK_GUARD_FAILED".to_owned(),
+                },
+            );
+        }
+        validate_write_with_activity_plan_shape(&maximum_guards)
+            .expect("sixteen authored Guard/Let steps are admitted");
+        let mut too_many_guards = maximum_guards;
+        too_many_guards.mutation.steps.insert(
+            2,
+            MutationStep::Guard {
+                cond: ValueExpr::Literal(json!(true)),
+                else_error: "SNAPBACK_GUARD_FAILED".to_owned(),
+            },
+        );
+        assert!(
+            validate_write_with_activity_plan_shape(&too_many_guards).is_err(),
+            "direct artifacts share the authored Guard/Let ceiling",
+        );
+
+        let mut future_mode = valid;
+        future_mode.mode = WriteWithActivityMode::CreateOwnerV1;
+        assert!(
+            validate_write_with_activity_plan_shape(&future_mode).is_err(),
+            "the reserved create-owner mode stays unavailable until it has an implementation corpus",
         );
     }
 

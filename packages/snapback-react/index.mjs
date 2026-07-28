@@ -244,10 +244,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       ]),
   );
   const unadoptedPreparedSubscriptions = new Map(
-    [...preparedRegistrations.values()].map((registration) => [
-      registration.subscriptionId,
-      registration,
-    ]),
+    (preparedGroup?.entries ?? [])
+      .filter((entry) => entry.registeredSubscription !== null)
+      .map((entry) => [
+        entry.registeredSubscription.subscriptionId,
+        Object.freeze({
+          registration: entry.registeredSubscription,
+          reference: entry.ref,
+        }),
+      ]),
   );
   let manager = typeof client.liveStreamManager === 'function'
     ? client.liveStreamManager(connectionId)
@@ -260,6 +265,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let leaseSequence = 0;
   let registeredConnectionAttached = false;
   let registeredRecovery = null;
+  let registeredRetirement = Promise.resolve();
   const dirtyPreparedSubscriptions = new Set();
   let connectionSnapshotKey = null;
   let connectionSnapshot = Object.freeze({
@@ -279,6 +285,27 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     try { options.onDiagnostic?.(diagnostics.at(-1)); } catch { /* observational */ }
     notifyConnection();
   };
+  const retireUnadoptedPreparedSubscriptions = () => {
+    const pending = [...unadoptedPreparedSubscriptions.values()];
+    unadoptedPreparedSubscriptions.clear();
+    if (pending.length === 0 || typeof client.unsubscribeLive !== 'function') {
+      return registeredRetirement;
+    }
+    registeredRetirement = registeredRetirement.then(async () => {
+      await Promise.allSettled(pending.map(async ({ registration, reference }) => {
+        try {
+          await client.unsubscribeLive(reference, {
+            subscriptionId: registration.subscriptionId,
+            connectionId,
+            ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
+          });
+        } catch (error) {
+          recordDiagnostic(error);
+        }
+      }));
+    });
+    return registeredRetirement;
+  };
   const invalidatePreparedRegistrations = (reason) => {
     if (
       preparedGroup === null
@@ -289,8 +316,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         )
       )
     ) return;
+    const retirement = retireUnadoptedPreparedSubscriptions();
     preparedRegistrations.clear();
-    unadoptedPreparedSubscriptions.clear();
     for (const store of stores.values()) store.registeredSubscription = null;
     preparedGroup = Object.freeze({
       ...preparedGroup,
@@ -305,6 +332,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         registeredSubscription: null,
       }))),
     });
+    return retirement;
   };
   const markPreparedGroupRecovery = (reason) => {
     if (preparedGroup?.source !== 'registered-bundle') return;
@@ -360,11 +388,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         (entry) => Number.isSafeInteger(entry.registeredSubscription?.attachDeadline),
       )?.registeredSubscription?.attachDeadline
       ?? null;
-    invalidatePreparedRegistrations('attach-deadline-expired');
-    manager?.close?.();
-    registeredRecovery = Promise.resolve(client.releaseConnection?.(connectionId, {
-      attachDeadline,
-    }))
+    const retirement = invalidatePreparedRegistrations('attach-deadline-expired');
+    const connectionRelease = Promise.resolve(client.releaseConnection?.(connectionId, {
+        attachDeadline,
+        ifIdle: true,
+      }));
+    registeredRecovery = Promise.allSettled([retirement, connectionRelease])
+      .then((settlements) => {
+        for (const settlement of settlements) {
+          if (settlement.status === 'rejected') recordDiagnostic(settlement.reason);
+        }
+      })
       .catch(recordDiagnostic)
       .then(() => {
         if (terminal) return;
@@ -1688,6 +1722,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           || unadoptedPreparedSubscriptions.size > 0
         );
       const pendingAttachDeadline = preparedGroup?.boot?.attachDeadline ?? null;
+      const pendingRegisteredRetirement = retireUnadoptedPreparedSubscriptions();
       for (const lease of [...leases]) releaseLease(lease);
       for (const token of [...roomLeases]) releasePresenceToken(token);
       for (const store of stores.values()) stopStore(store, { blank: true });
@@ -1696,6 +1731,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ...[...allHandles].map((handle) => handle.settled()),
         ...[...rooms.values()].map((room) => room.cleanup),
         ...(registeredRecovery === null ? [] : [registeredRecovery]),
+        pendingRegisteredRetirement,
       ]);
       // @ref LLP 0102#closed-connection-and-cancellation-protocol — adopted
       // and ordinary children retire through their own handle refcounts.
@@ -1712,6 +1748,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         try {
           await client.releaseConnection(connectionId, {
             attachDeadline: pendingAttachDeadline,
+            ifIdle: true,
           });
         } catch (error) {
           recordDiagnostic(error);

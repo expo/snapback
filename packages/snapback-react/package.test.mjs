@@ -82,6 +82,7 @@ function createFakeClient({
   authInvalidationProtocol = 1,
   routeManifestHash = 'sha256:f5f932754bef8663f6097c5e1cb5135cabdb522f19e277a244d4e9646b7cd1c8',
   deferRegisteredFunction = null,
+  managerSocketDemand = 0,
 } = {}) {
   const handles = new Set();
   const byFunction = new Map();
@@ -95,6 +96,9 @@ function createFakeClient({
   let namespaceSequence = 0;
   let disconnects = 0;
   let releases = 0;
+  let managerCloses = 0;
+  let registeredRetirements = 0;
+  const serverRegistrations = new Set();
   const barriers = [];
   let barrierUnregistered = 0;
   const client = {
@@ -130,9 +134,22 @@ function createFakeClient({
       });
     },
     async disconnect() { disconnects += 1; },
-    async releaseConnection() {
+    liveStreamManager() {
+      return {
+        close() { managerCloses += 1; },
+        inspection() { return { socketDemand: managerSocketDemand }; },
+      };
+    },
+    async releaseConnection(_connectionId, { ifIdle = false } = {}) {
+      if (ifIdle && managerSocketDemand > 0) {
+        return { released: false, reason: 'shared-demand' };
+      }
       releases += 1;
       return { released: true, attached: true };
+    },
+    async unsubscribeLive(_ref, { subscriptionId } = {}) {
+      if (serverRegistrations.delete(subscriptionId)) registeredRetirements += 1;
+      return { removed: true };
     },
     registerAuthBarrierParticipant(participant) {
       barriers.push(participant);
@@ -211,6 +228,23 @@ function createFakeClient({
         authMode === 'sessions' ? 1 : null,
       );
       if (bundleError !== null) throw bundleError;
+      const entries = [
+        {
+          function: 'feed',
+          args: { id: params.id },
+          rows: [{ id: `feed:${params.id}`, revision: 41 }],
+          resume: null,
+          subscriptionId: 'registered-feed',
+        },
+        {
+          function: 'details',
+          args: { id: params.id },
+          rows: [{ id: `details:${params.id}`, revision: 41 }],
+          resume: null,
+          subscriptionId: 'registered-details',
+        },
+      ];
+      for (const entry of entries) serverRegistrations.add(entry.subscriptionId);
       return {
         commitVersion: 41,
         generation: 'generation-41',
@@ -220,22 +254,7 @@ function createFakeClient({
           grant: '[adopted-by-client-owner]',
           attachDeadline: Date.now() + attachDeadlineOffsetMs,
         },
-        entries: [
-          {
-            function: 'feed',
-            args: { id: params.id },
-            rows: [{ id: `feed:${params.id}`, revision: 41 }],
-            resume: null,
-            subscriptionId: 'registered-feed',
-          },
-          {
-            function: 'details',
-            args: { id: params.id },
-            rows: [{ id: `details:${params.id}`, revision: 41 }],
-            resume: null,
-            subscriptionId: 'registered-details',
-          },
-        ],
+        entries,
       };
     },
     emit(ref, rows, connection = 'live') {
@@ -255,6 +274,9 @@ function createFakeClient({
         namespaceSequence,
         disconnects,
         releases,
+        managerCloses,
+        registeredRetirements,
+        serverRegistrations: serverRegistrations.size,
         barriers,
         barrierUnregistered,
         durableConsumers: durableConsumers.size,
@@ -905,6 +927,54 @@ expiredObserver.dispose();
 await flush();
 await expiredProvider.dispose();
 assert.equal(expiredFake.inspection().disconnects, 0);
+
+const sharedExpiredFake = createFakeClient({
+  attachDeadlineOffsetMs: 20,
+  managerSocketDemand: 1,
+});
+const sharedExpiredBinding = await prepareReactBindingForClient(sharedExpiredFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const sharedExpiredGroup = await sharedExpiredBinding.prepareQueryGroup(
+  sharedExpiredBinding.groups['/workspace/:id'],
+  { id: 'incident-shared-expired' },
+);
+const sharedExpiredSibling = createSnapbackReactProvider(sharedExpiredBinding, {
+  connectionId: sharedExpiredGroup.connectionId,
+});
+const sharedExpiredSiblingObserver = observeSnapbackQueries(sharedExpiredSibling, {
+  feed: { ref: feed, args: { id: 'incident-shared-expired' } },
+}, () => {});
+const sharedExpiredProvider = createSnapbackReactProvider(sharedExpiredBinding, {
+  preparedGroup: sharedExpiredGroup,
+});
+await new Promise((resolve) => setTimeout(resolve, 30));
+const sharedExpiredObserver = observeSnapbackQueries(
+  sharedExpiredProvider,
+  sharedExpiredGroup,
+  () => {},
+);
+await flush();
+assert.equal(sharedExpiredFake.inspection().releases, 0);
+assert.equal(sharedExpiredFake.inspection().managerCloses, 0);
+assert.equal(sharedExpiredFake.inspection().registeredRetirements, 2);
+assert.equal(sharedExpiredFake.inspection().serverRegistrations, 0);
+sharedExpiredFake.emit(feed, [{
+  id: 'feed:incident-shared-expired',
+  revision: 53,
+}]);
+await flush();
+assert.equal(
+  sharedExpiredSiblingObserver.snapshot().queries.feed.data[0].revision,
+  53,
+  'registered recovery must leave a same-connection sibling live',
+);
+sharedExpiredObserver.dispose();
+sharedExpiredSiblingObserver.dispose();
+await sharedExpiredProvider.dispose();
+await sharedExpiredSibling.dispose();
+assert.equal(sharedExpiredFake.inspection().releases, 0);
+assert.equal(sharedExpiredFake.inspection().managerCloses, 0);
 
 const sharedConnectionFake = createFakeClient();
 const sharedConnectionBinding = await prepareReactBindingForClient(
