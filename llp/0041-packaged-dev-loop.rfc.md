@@ -55,6 +55,11 @@ closure, prior-tag inventory, ledger lineage, and verified-versus-attested
 provenance edges. The amendment defines gates only; it does not claim
 publication.)
 
+**Revised (unreviewed post-round correction):** 2026-07-28 (default-tag
+promotion now requires an externally authorized publication lease and epoch,
+expected-value checks around every registry mutation, and reverse-order
+full-vector rollback that never overwrites drift.)
+
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
 GitHub-hosted macOS/arm64 and Linux/x64 machines. Both platform receipts prove
@@ -259,6 +264,46 @@ byte-reverified. Clean-source → compiled binary is a clean-run attestation
 bound to the source SHA, builder image, toolchain digests, command transcript,
 and resulting binary digest; it is not described as independently
 reproducible unless a separate reproducible-build row passes.
+
+### Unreviewed post-round correction: publication lease and rollback
+
+Default-tag mutation requires an `AuthorizedPublicationLeaseV1` stored outside
+npm in the standing release authority. The signed lease binds the publisher
+instance, monotonically increasing `publicationEpoch`, candidate-ledger digest,
+complete nine-package vector, candidate tag, default tag, exact expected prior
+value or absence and intended new value for every package, issue/expiry times,
+and single release operation id. The publisher must acquire this lease by an
+expected-value transition from the release authority's prior head. An expired,
+superseded, differently bound, or unreachable lease refuses every further npm
+mutation; a local lock or possession of npm credentials is not publication
+authority.
+
+Immediately before **and** immediately after each `npm dist-tag` add or remove,
+the publisher reads the complete nine-package default-tag vector from the
+official registry and the current external lease head. The pre-mutation vector
+must equal the last journaled expected vector exactly, including absence for a
+first-publish package, and the lease epoch and operation id must still equal
+the authorized values. The post-mutation vector must differ in exactly the
+single intended package and must equal the newly journaled expected vector.
+Registry ambiguity, cache disagreement, lease-head drift, or any unrelated tag
+change stops promotion before the next mutation. The publisher records both
+registry observations, the lease observation, request result, and resulting
+vector; it never treats an npm command's exit status alone as proof.
+
+Rollback covers the full vector of successfully changed packages, including a
+root move, and visits them in the reverse of their actual mutation order. For
+each package it first re-reads the complete registry vector and external lease
+head. It restores the recorded prior exact version, or removes a default tag
+that was absent before first publication, only when the package still equals
+this operation's intended new value and all other entries equal the preceding
+rollback checkpoint. A package that contains a newer, absent, or otherwise
+unexpected value is never overwritten or removed. Such drift, a lost lease, or
+an ambiguous read is retained as a failed rollback step with the observed
+full vector and stable failure reason; rollback continues only where the next
+reverse step's full-vector expected value is still provable. The release
+receipt remains failed and no capability carrier may cite it unless the final
+full vector equals the recorded prior vector and the external authority closes
+the exact lease epoch as rolled back.
 
 ### CLI commands
 

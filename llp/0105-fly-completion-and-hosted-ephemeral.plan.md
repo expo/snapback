@@ -5,7 +5,9 @@
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (LLP 0108 corrective reconciliation: closed
+**Revised:** 2026-07-28 (unreviewed post-round correction: purpose-limited
+service intermediates, recovery bootstrap/rebind, transitive delegation,
+atomic response replay, publication authority, and bounded upload). 2026-07-28 (LLP 0108 corrective reconciliation: closed
 operator/root lifecycle, release-upload separation, self-expiring claim
 families, and ledger lineage). 2026-07-28 (post-bakeoff round-2 reconciliation: root-signed
 operator enrollment and scopes, exact first-publication claim semantics,
@@ -430,8 +432,10 @@ explicit residual; data-plane admission bounds it to the signed expiry.
 
 ### Ephemeral wire and custody
 
-Connection open negotiates the must-understand offer/echo
-`ephemeralAuthorityProtocol: "ephemeral-authority.v1"`. Missing or unsupported
+Connection open negotiates the must-understand numeric offer/echo
+`ephemeralAuthorityProtocol: 1` under LLP 0094's controlling per-boundary
+matrix. The former string spelling `"ephemeral-authority.v1"` is superseded
+and must be refused. Missing or unsupported
 negotiation disables/refuses only ephemeral operations with
 `SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED`; durable connection features remain
 available. The negotiated protocol conditionally adds the opaque
@@ -1335,7 +1339,7 @@ without weakening the reviewed carriers or gates.
 This section closes the operator trust root, request scope/replay protocol,
 claim-family publication, post-CAS revocation, and remaining legacy/adoption
 details. LLP 0104's registered qualification and local-carrier amendment, LLP
-0058/0094's gate/wire amendments, LLP 0099's reconciled executor state machine,
+0108/0094's addendum/wire amendments, LLP 0099's reconciled executor state machine,
 and LLP 0041's prior-closure preflight are part of the same landing.
 
 ### Standing-supervisor root and operator protocol
@@ -1534,3 +1538,183 @@ future post-promotion digest. The final ledger supplied by the supervisor must
 canonically extend that digest through `previousLedgerSha256`. Qualification,
 release upload, deploy, final publication, and both public cold-install
 receipts reopen the same nine-package lineage.
+
+## Unreviewed post-round authority closure — 2026-07-28
+
+This section applies the terminal dispositions in LLP 0108's corrective review
+journal. It has not received a further independent review. LLP 0105 remains
+Review and no hosted capability claim advances without the complete executable
+receipt.
+
+### Purpose-limited service intermediates
+
+The offline installation root certifies closed
+`SupervisorServiceIntermediateV1` envelopes:
+
+```text
+{
+  schemaVersion: 1,
+  installationId,
+  rootKeyId,
+  intermediateKeyId,
+  publicKey,
+  purpose,
+  notBefore,
+  expiresAt,
+  rootSignature
+}
+```
+
+`purpose` is exactly `operator-enrollment`, `qualification-grant`,
+`capability-publication`, `migration-deadline`, `hosted-admission`, or
+`supervisor-response`.
+`expiresAt` is no more than seven days after `notBefore`. The root signature
+uses Ed25519 over
+`"snapback-supervisor-service-intermediate-v1\0" || RFC8785_JCS(envelope
+without rootSignature)`. A key is accepted only for its one purpose, current
+root/incarnation, and overlap window. Grants, claim families, deadlines, and
+admissions carry the complete intermediate chain and their own domain-separated
+signed envelope; no operator-enrollment key can sign a capability claim.
+
+Intermediate private keys are generated inside the standing supervisor's
+native custody helper, encrypted under a platform-held service secret, and
+unsealed only into locked native memory. They never enter JavaScript strings,
+repository files, CLI output, or application secrets. Issue, renewal, and
+rotation require a 2-of-3 recovery-key authorization over the current external
+head. The helper decrypts the offline recovery package only for the bounded
+signing ceremony, zeroizes plaintext before returning, and emits a custody
+receipt. An expired intermediate disables its purpose; there is no implicit
+extension. During a root/intermediate rotation, both complete chains are
+accepted only for the recorded overlap.
+
+The exact ceremony registry is:
+
+| CLI command | Request | Authority |
+| --- | --- | --- |
+| `hosted root intermediate issue` | `root.intermediate.issue` | `root.admin` plus 2-of-3 recovery signatures |
+| `hosted root intermediate renew` | `root.intermediate.renew` | `root.admin` plus 2-of-3 recovery signatures |
+| `hosted root intermediate rotate` | `root.intermediate.rotate` | `root.admin` plus 2-of-3 recovery signatures |
+| `hosted root intermediate unseal` | `root.intermediate.unseal` | local threshold ceremony; no operator scope substitutes |
+
+`SupervisorEnrollmentBundleV1` and
+`SupervisorOperatorCertificateV1` are signed by the current
+`operator-enrollment` intermediate, not the offline root. Both carry the
+intermediate chain/key id, issuer certificate digest, `effectiveScopes`, and
+`delegableScopes`. Requested effective and delegable scopes must be transitive
+subsets of the issuer's delegable scopes. `operator.admin` and `root.admin`
+are not ordinarily delegable; granting either uses the separately retained
+`operator.delegation.plan|confirm|apply` operation with `root.admin` and
+2-of-3 recovery signatures.
+
+### Recovery bootstrap and revocation
+
+`root.recover.apply` atomically commits the new installation incarnation and
+root, revokes all old intermediates/operator certificates/target enrollments,
+and returns one encrypted, ten-minute, one-use
+`RecoveryOwnerBootstrapV1`. The bootstrap binds the recovery operation, new
+root/incarnation, intended initial-owner device keys, maximum owner scopes,
+nonce, and current external head; it is signed by the 2-of-3 recovery
+authorization. It can perform only:
+
+| CLI command | Request | Authority |
+| --- | --- | --- |
+| `hosted operator device rebind` | `operator.device.rebind` | current one-use recovery-owner bootstrap plus device proof |
+| `hosted target rebind` | `target.rebind` | current owner certificate plus prior target ownership proof and new-root challenge |
+
+Device rebind consumes the bootstrap and issues the first new owner
+certificate. Target rebind requires that certificate, provider/target
+read-back, the prior target identity, and a target-generated proof-of-
+possession challenge before the target pins the new root. Replay, expiry,
+cross-target use, or a behind external head refuses. With no valid 2-of-3
+authorization, no bootstrap is minted and the new-installation path remains
+the only recovery.
+
+`operatorRevocationGeneration` is a global monotone head with a per-device
+status map. Revoking one device advances the head and marks that device
+revoked; unaffected devices prove the current head on their next request and
+renewal, which rolls their certificate lineage forward without broad
+revocation. Admission order is current installation/root, global head not
+behind, device not revoked, certificate/device signature, then scope and
+request sequence.
+
+### Atomic request-response replay
+
+The request transaction retains the canonical response, not only its digest,
+before advancing the device sequence, enrollment nonce, or effect state.
+Responses up to 1 MiB are encrypted inline in the external authority store;
+larger bounded responses use an encrypted content-addressed object reference,
+at most 64 MiB, whose digest and object generation are committed in the same
+transaction. Retention is at least 30 days. Receipt-bearing GC leaves a
+tombstone that returns 410 to an exact replay; different bytes at the same
+sequence remain 409.
+
+Exact replay after mere certificate expiry returns the committed response
+without rerunning the effect. Device revocation, root-overlap end, or recovery
+may override replay of credential-bearing secret bytes: the response becomes
+410 with a redacted terminal-result receipt, never a newly valid credential.
+Noncredential effect results remain replayable when their target/head still
+matches; otherwise they return the stable reconciliation result. Recovery
+cannot restore response bytes, sequences, tombstones, or revocation state
+behind the monotone mirror.
+
+### Capability-publication authority and state machine
+
+Capability publication is never implicit in `deploy.apply`. The command and
+scope registry adds:
+
+| CLI command | Request | Scope |
+| --- | --- | --- |
+| `hosted capability publication plan` | `capability.publication.plan` | `capability.publish` |
+| `hosted capability publication confirm` | `capability.publication.confirm` | `capability.publish` plus explicit approval |
+| `hosted capability publication provision` | `capability.publication.provision` | `capability.publish` |
+| `hosted capability publication finalize` | `capability.publication.finalize` | `capability.publish` |
+| `hosted capability publication withdraw` | `capability.publication.withdraw` | `capability.withdraw` |
+| `hosted capability publication renew` | `capability.publication.renew` | `capability.publish` |
+| `hosted capability publication reconcile` | `capability.publication.reconcile` | `capability.publish` or `capability.withdraw`, matching the operation |
+
+Plan/confirm binds the deploy approval, exact candidate graph, target/head,
+claim families, qualification and package ledgers, receipt vector, observation
+principal, and expiry. `provision` performs LLP 0108's provisional activation
+CAS. Only that principal can observe provisional support through the public
+origin. `finalize` consumes the retained passing observation and changes the
+same live family epoch to final; `withdraw` advances the family epoch and
+support gate. Each claim is signed by the `capability-publication`
+intermediate. Lost responses use the atomic replay protocol above.
+
+### Hosted-ephemeral enforcement
+
+LLP 0094's later per-boundary table is the only hosted-ephemeral wire
+authority: numeric open offer/echo `1`, HTTP
+`x-snapback-ephemeral-authority-instance`, WebSocket upgrade subprotocol
+`snapback.ephemeral-authority-instance.<eai1 token>`, and the required
+authority-instance field on every governed response/frame. The earlier string
+offer and any ambiguous generic "member" wording are non-controlling.
+
+The connection lineage carries `hostedEphemeralAuthorityRequired`. Hosted
+ephemeral operations require negotiated protocol 1 and the exact authority
+instance; `(None,None)` is admitted only on a legacy local target that does
+not carry the required fact. Offerless/missing instance uses HTTP 400
+`SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED`; unknown or mismatched
+protocol uses HTTP 400 `SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED` or
+`SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH`; a changed instance uses HTTP
+409 `SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED`. Socket failures occur at
+upgrade when possible, otherwise close with the generated error frame and
+force reconnect/resnapshot. The four-way client/server corpus includes direct
+server enforcement, not only capability discovery.
+
+### Bounded release upload
+
+`release.upload` reserves spend and a temporary object before reading bytes.
+The first profile permits at most 2 GiB declared and received bytes, 15 minutes
+total, and 30 seconds idle. The stream is hashed while writing under
+`uploads/<installationId>/<requestId>/<attemptId>`; declared length and
+SHA-256 must match before an immutable content-addressed object and
+`ReleaseUploadReceiptV1` become visible atomically. No partially uploaded
+object is deployable.
+
+Exact replay returns the retained receipt. A different digest/body at the same
+request id refuses. Disconnect, timeout, size/hash mismatch, or lost staging
+response leaves a cleanup-only temporary object and releases only the unused
+spend reservation. The standing cleanup worker deletes terminal partial
+objects within 24 hours and emits an inventory/absence receipt; uncertain
+objects remain nondeployable and continue to report cost until reconciled.

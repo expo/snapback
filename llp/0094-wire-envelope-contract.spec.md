@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-28 (LLP 0108 corrective addendum: complete
+**Revised:** 2026-07-28 (unreviewed post-corrective-round reconciliation:
+use-only live qualification transport, carrier-stripped sender binding, and
+the exact hosted-ephemeral per-boundary/refusal contract; the status remains
+Review). 2026-07-28 (LLP 0108 corrective addendum: complete
 qualification-use/refusal contract, hosted-ephemeral authority-instance wire
 closure, and HTTP-400 invalidation-protocol reconciliation). 2026-07-28 (LLP 0104 qualification amendment: exact
 connection-open DTO members and query/mutation headers carry the bounded hidden
@@ -68,7 +71,7 @@ instances, and real served-frame validation for all four reply variants;
 the §0A.1 conformance caveat is retired)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
-LLP 0092, LLP 0093, LLP 0101
+LLP 0092, LLP 0093, LLP 0101, LLP 0104, LLP 0108
 
 ## Summary
 
@@ -1212,3 +1215,78 @@ Every committed schema, Rust authority type, hosted serializer, JS client
 validator, and real-served-byte gate must agree on the matrix. A serializer
 that cannot stamp the bound instance withholds the hosted claim rather than
 emitting a partially governed frame.
+
+## Unreviewed post-round wire closure — 2026-07-28
+
+This section supersedes the incomplete route and hosted-ephemeral tables above.
+It applies the terminal LLP 0108 review dispositions, has not received a
+further independent review, and does not advance this Spec beyond Review.
+
+### Qualification transport
+
+The complete route matrix is:
+
+| Route/boundary | Grant carrier | Use carrier |
+| --- | --- | --- |
+| `POST /connection/open` new/reopen | required closed `qualificationGrant` body member | required closed `qualificationUse` body member |
+| `POST /query/{name}` | required `Snapback-Qualification-Grant` header | required `Snapback-Qualification-Use` header |
+| `POST /mutation/{name}` | required `Snapback-Qualification-Grant` header | required `Snapback-Qualification-Use` header |
+| `POST /live/{name}/subscribe` over a qualification-bound connection | **forbidden**, inherited immutably from the connection | required `Snapback-Qualification-Use` header |
+| in-band socket `subscribe` over a qualification-bound connection | **forbidden**, inherited immutably from the connection | required closed `qualificationUse` frame member |
+
+The paired-carrier rule applies to open, query, and mutation. Live subscribe is
+the sole use-only exception: a use on an ordinary connection, a grant supplied
+on subscribe, or a missing use on a qualification-bound connection refuses.
+The live use binds connection and function but omits the server-assigned
+subscription id; reservation atomically assigns and retains that id. No later
+frame carries a grant or use.
+
+For open, `requestBodySha256` hashes JCS of the successfully decoded body after
+removing `qualificationGrant` and `qualificationUse`; for the socket frame it
+removes `qualificationUse`; an empty body hashes the empty byte string. The
+sender-proof extension separately binds method, canonical route template,
+function id, that carrier-stripped digest, and SHA-256 of the exact compact
+grant/inherited-grant and use bytes under LLP 0108's domain. This prevents the
+open-body carrier from recursively hashing itself.
+
+Before ordinary authentication, only the route's generic transport byte/time
+ceiling may refuse and it emits no qualification-specific code. After
+authentication, the server decodes carriers, verifies signatures/bindings, and
+applies LLP 0108's journal-first replay/expiry precedence and refusal matrix.
+
+### Hosted-ephemeral per-boundary contract
+
+The protocol token is the JSON integer `1`. The former string token
+`"ephemeral-authority.v1"` is invalid. The exact carriers are:
+
+| Boundary | Offer/presentation | Required response/frame |
+| --- | --- | --- |
+| local legacy open | offer absent is permitted | protocol/instance absent |
+| hosted-authority-required open/reopen request | body `ephemeralAuthorityProtocol: 1` | body echo `ephemeralAuthorityProtocol: 1` plus `ephemeralAuthorityInstance` |
+| hosted ephemeral HTTP publish/subscribe/delete/drain/ack | `x-snapback-ephemeral-authority-instance: <eai1 token>` | every success and error body carries `ephemeralAuthorityInstance` |
+| hosted ephemeral WebSocket upgrade | offered subprotocol `snapback.ephemeral-authority-instance.<eai1 token>` beside the connection/sender-proof subprotocols | selected ordinary live subprotocol; the bound instance is stamped in every snapshot/change/upsert/remove/ack/resync/drain/error/final frame |
+| in-band socket ephemeral request after upgrade | no duplicate free instance member; the upgrade-bound value controls | every response/frame carries the upgrade-bound instance |
+
+The connection grant lineage contains
+`hostedEphemeralAuthorityRequired: true` whenever a current hosted admission
+provides the single-instance sticky-memory profile. On that lineage the server
+must not accept an offerless open or `(expected=None, presented=None)`;
+absence is legal only for legacy local operation whose lineage carries false.
+An exact instance is opaque `eai1.<43 unpadded base64url characters>`.
+
+The stable status matrix is:
+
+| Code | HTTP/pre-upgrade status | Meaning and recovery |
+| --- | ---: | --- |
+| `SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED` | 400 | required offer absent or unsupported; negotiate protocol 1 |
+| `SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH` | 400 | reopen/request lineage disagrees with the bound protocol; open a new connection |
+| `SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED` | 400 | governed HTTP/upgrade request omitted the bound instance; reconnect |
+| `SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED` | 409 | presented instance differs from the connection/admission epoch; reconnect and resnapshot |
+
+When a mismatch is detected before socket upgrade, the ordinary generated
+error envelope carries the table status. After upgrade, the server emits one
+generated error frame stamped with the current instance when safe, closes the
+socket, and requires reconnect/resnapshot; it never continues under a replaced
+authority. Generated schemas, Rust authorities, hosted serializers, client
+validators, and the four-way old/new local/hosted corpus use this table
+literally.

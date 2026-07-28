@@ -185,3 +185,33 @@ Accordingly, the orchestrator may apply the dispositions above as a later
 and keep every sensitive capability false until the complete executable
 receipt passes. No review artifact is rewritten and no Accepted status is
 inferred.
+
+## Later unreviewed post-round revision — 2026-07-28
+
+The author-directed implementation pass applied every terminal disposition
+after the one authorized review round. This later vector has **not** received
+an independent review:
+
+- LLP 0041:
+  `43824536b11e27d35fef50a72461abafe1b9b44c2a39c008dd162556349d8ec6`
+- LLP 0094:
+  `9390977a7f9457e04c7f90101dffcc38489e8c1f15eddee4c4aa07927b980193`
+- LLP 0099:
+  `78373faef60f427bc0489e361a4f5441a42c4cd9e1840fa466309169d75f3010`
+- LLP 0104:
+  `8c954fadc1c790b83f914d14522f8be4a47653e7de82426d0f5d55a5b2ae2fa2`
+- LLP 0105:
+  `392e7e62b12572816dc2039c34cd5573cf087f93613dcf86e6bfd3f96ce975f8`
+- LLP 0108:
+  `1930e460130854cf8659a761cadbe13db2068e1abc1de6223ab6ceada71ed149`
+- vector SHA-256:
+  `81b514b802d2fa7603acfcf30ab93bb10af043c756fb27db3da10cd5ac03475a`
+
+The later revision closes live-subscribe transport and nonrecursive binding,
+total journal/replay precedence, grant lifetime/device binding, production-
+schema identity, provisional observation/finalization, static maturity versus
+runtime support, purpose-limited service signing, publication commands,
+hosted-ephemeral wire/enforcement, migration deadline authority, offline-root
+recovery/delegation/replay, bounded upload, and serialized npm tag rollback.
+It remains a Review recommendation only. Accepted LLP 0058 was not changed,
+and all sensitive support facts remain false pending implementation receipts.

@@ -5,7 +5,9 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (LLP 0108 corrective reconciliation: isolated
+**Revised:** 2026-07-28 (unreviewed post-round correction: device-bound
+qualification, schema-identical activation, provisional observation, and
+code-owned experimental maturity). 2026-07-28 (LLP 0108 corrective reconciliation: isolated
 qualification data, complete use protocol, self-expiring family epochs, and
 candidate-ledger lineage). 2026-07-28 (post-bakeoff round-2 reconciliation: registered
 qualification transport and durable budgets, source-owned local publication,
@@ -453,7 +455,8 @@ field:
   was evaluated;
 - `actualActor`: the canonical human/service/agent actor that submitted the
   invocation;
-- `actorKind`: the closed `human | service | agent` actor class;
+- `actorKind`: the closed `human | agent` actor class; service principals are
+  represented as `agent`, and bare `service` refuses;
 - `grant`: optional canonical delegation/grant identity, present exactly when
   the authority descriptor carries one; the mapped activity property is
   schema-required and nullable, storing null when absent;
@@ -1512,8 +1515,8 @@ the executable gates.
 ## Post-bakeoff round-2 reconciliation — 2026-07-28
 
 This section closes the remaining qualification, local-authority, carrier, and
-revocation semantics. Same-landing amendments to LLP 0058 and LLP 0094 register
-the transport and gate integration.
+revocation semantics. LLP 0108 and LLP 0094 register the addendum-owned
+transport and gate integration; Accepted LLP 0058 is context only.
 
 ### Registered qualification invocation
 
@@ -1649,5 +1652,45 @@ safety cut even if supervisor withdrawal CAS fails. Epoch is rechecked at
 admission and every operation-specific effect/serialization boundary listed
 there. Expiry or withdrawal withholds the relation/activity pair and makes its
 functions refuse; it does not roll back the active graph or production data.
-The final CAS is the only transition of `bounded_children_v1` and
-`write_activity_v1` from `proposed` to `experimental`.
+The final CAS changes only the verified runtime support fact. Code-owned
+maturity is `experimental` in the publishing binary; no external CAS can
+rewrite it.
+
+## Unreviewed post-round correction — 2026-07-28
+
+This section applies the terminal dispositions in LLP 0108's corrective review
+journal. It has not received a further independent review. The document
+remains Review and both capability facts remain false until the complete
+executable receipt passes.
+
+`QualificationGrantV1` expires at most ten minutes after issue and binds the
+acceptance-device Ed25519 key id and fingerprint, its current revocation
+generation, subject/session, target, generation, functions, operation budgets,
+and audience. The client-signed `QualificationUseV1` field matrix and
+replay/crash semantics are exactly LLP 0108's later correction.
+`liveSubscribe` inherits the grant from its connection but carries its own
+use-only HTTP header or socket-frame member; it cannot carry or replace a
+grant. The client does not sign a server-assigned subscription id. Reservation
+atomically assigns and retains that id.
+
+The first publication admits only a candidate whose required physical schema,
+indexes, and source schema digest already equal production. Any production
+DDL/backfill is a separately approved ordinary migration completed before the
+qualification backup; no isolated-database schema object is transferred during
+promotion. A candidate that requires different physical schema is ineligible
+for this release.
+
+Capability maturity is a code-owned static fact. This release compiles
+`bounded_children_v1` and `write_activity_v1` as `experimental`; the ordinary
+target support predicate remains false without an applicable verified family
+fact. A provisional family fact activates the graph and support only for the
+receipt-bound observation principal through the public origin, and self-expires
+within 120 seconds. A distinct finalization CAS opens support to ordinary
+clients that acknowledge the experimental ids. Crash, timeout, failed
+observation, or failed finalization leaves general support false. No CAS
+rewrites the code-owned maturity registry.
+
+Local/package publication remains separately gated by the source-embedded
+attestation described above. It cannot use hosted provisional authority, and
+its positive support stays false until its own complete reviewed carrier and
+receipt are committed.

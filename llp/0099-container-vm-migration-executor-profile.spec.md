@@ -5,8 +5,11 @@
 **Systems:** Migrations, Deployment, Storage, Backup and restore, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-26
-**Revised:** 2026-07-28 (LLP 0108 corrective reconciliation: trusted absolute
-deadline, reboot-safe budget exhaustion, admission expiry, and exact
+**Revised:** 2026-07-28 (unreviewed post-round correction: LLP 0081-compatible
+pre-publication ceiling semantics, a closed signed deadline envelope,
+interruption handling, and a separate LLP 0108 provisional-publication
+observation gate). 2026-07-28 (LLP 0108 corrective reconciliation: trusted
+absolute deadline, reboot-safe budget exhaustion, admission expiry, and exact
 forward/recovery cutoffs). 2026-07-28 (round-2 reconciliation: admission binds a backup
 policy then an exact supplemental checkpoint; cancellation uses LLP 0081's
 states and a signed generation; the 180-second ceiling reserves bounded
@@ -276,26 +279,36 @@ external head rather than CLI timeout.
 
 ### Downtime ceiling and checkpoint
 
-The initial `container-vm-migration-executor.v1` profile ceiling is
-`180000 ms`, measured from successful write-withdrawal/barrier acquisition
-until either successor publication health or predecessor reopen health.
+LLP 0081's implemented ceiling semantics remain controlling. The plan's
+approved maximum barrier downtime applies through the publication attempt and
+expires when the journal durably enters `published-held`; once
+`published-held` exists, that migration ceiling no longer applies. This
+profile accepts an approved ceiling from `45000 ms` through `180000 ms`. It
+is measured conservatively from the signed pre-barrier authorization
+timestamp defined below, which is no later than actual write withdrawal,
+through the checked attempt that either enters `published-held` or takes the
+safe pre-publication abort path.
 
-The profile reserves the final `45000 ms` for abort and predecessor reopen.
-Forward work has a hard `135000 ms` cutoff. Every non-interruptible batch is
-limited to `5000 ms` by the SQLite progress interrupt and checked before and
-after commit, so abort begins no later than `140000 ms`. Qualification must
-prove a worst observed abort-plus-reopen bound plus 50% margin no greater than
-`40000 ms`; otherwise this profile remains unsupported. The remaining
-`5000 ms` is fixed scheduling margin.
+For any admitted ceiling, the final `45000 ms` is reserved for abort and
+predecessor reopen. No batch starts at or after `migrationCeilingAt - 45000
+ms`. The one batch already running at that cutoff has at most `5000 ms` to
+reach an interrupted transaction boundary; abort must begin by
+`migrationCeilingAt - 40000 ms`. Qualification must prove a worst observed
+abort-plus-reopen bound plus 50% margin no greater than `40000 ms`; otherwise
+this profile remains unsupported. At the profile maximum those instants are
+`barrierStartedAt + 135000 ms`, `+140000 ms`, and `+180000 ms`. The five
+seconds is part of the 45-second recovery reserve, not extra deadline
+tolerance or a reason to extend the plan ceiling.
 
-Barrier start and accumulated downtime are recorded from a monotonic clock in
-the durable journal. Crash resume reconstructs the remaining budget from
-journaled elapsed intervals and may never reset it. Rehearsal p95 is admission
-evidence only, measured from barrier acquisition through the same public-health
-or predecessor-health terminal; it cannot relax the forward cutoff. If provider
-behavior nevertheless exceeds 180 seconds, the run is a conformance failure,
-the capability carrier is revoked, and the receipt reports the violation—no
-provider SLA is inferred.
+Rehearsal p95 is admission evidence only, measured against the same
+pre-publication ceiling; it cannot relax a cutoff. Exceeding the approved
+ceiling before `published-held` is the LLP 0081 conformance failure and safe
+abort; predecessor health must be restored by `migrationCeilingAt` or the
+receipt records a conformance failure, with no provider SLA inferred.
+Successor observation, release, and rollback after `published-held` follow
+LLP 0081's fenced state machine and the separate LLP 0108 provisional-
+publication gate below; they are not included in or constrained by the
+migration ceiling.
 
 At every checkpoint and final publication the target freshly verifies the
 signed cancellation generation and supervisor/control head. Network partition,
@@ -331,57 +344,130 @@ control-plane approval.
 These decisions close open questions 1–4 for this profile. The questions remain
 historical context for other hosted profiles and future ceiling changes.
 
-### Corrective deadline and admission closure — 2026-07-28
+### Unreviewed post-round correction: deadline and admission closure
 
-The monotonic-clock reconstruction above is superseded by a
-supervisor-signed `MigrationDeadlineV1`, persisted in both the external head
-and target journal before the barrier:
+The target does not reconstruct absolute time by summing process-local
+intervals. Before write withdrawal, the supervisor samples its trusted
+control-plane clock, creates one `MigrationDeadlineV1`, writes it to the
+external operation head, and requires the target to persist the identical
+bytes before acquiring the barrier:
 
 ```text
 {
+  schemaVersion: 1,
+  issuer,
+  keyId,
   admissionId,
+  operationId,
+  approvalSha256,
+  admissionSha256,
+  audienceSha256,
+  barrierLeaseEpoch,
+  issuedAt,
+  admissionExpiresAt,
   barrierStartedAt,
+  approvedBarrierCeilingMs,
+  migrationCeilingAt,
   noNewBatchAt,
   abortMustBeginBy,
-  successorOrRollbackDecisionBy,
-  terminalHealthBy,
-  supervisorTimeHead,
+  provisionalObservationDecisionAt,
+  provisionalPublicationExpiresAt,
   signature
 }
 ```
 
-The supervisor obtains time from its trusted control-plane clock and fixes
-`noNewBatchAt = barrierStartedAt + 135 s`,
-`abortMustBeginBy = barrierStartedAt + 140 s`,
-`successorOrRollbackDecisionBy = barrierStartedAt + 140 s`, and
-`terminalHealthBy = barrierStartedAt + 180 s`. The target's monotonic clock is
-used only to fail earlier. Restart, stop/start, replacement, backwards wall
-clock, unavailable supervisor time, or uncertainty about elapsed downtime
-conservatively exhausts the affected budget and enters abort/reconciliation;
-no process may create a fresh barrier timestamp for the same admission.
+The object has exactly those members and is canonicalized with RFC 8785 JCS.
+`approvalSha256` and `admissionSha256` hash the JCS bytes of the exact
+`MigrationApprovalV1` and `MigrationAdmissionV1`; `audienceSha256` hashes the
+JCS object containing all nine required `MigrationAudienceV1` fields.
+`barrierLeaseEpoch` is the exact subordinate migration-lease fencing epoch.
+All digests are lowercase 64-character hexadecimal SHA-256. All timestamps
+are canonical UTC RFC 3339 strings with exactly millisecond precision and a
+literal `Z`; parsing and reserialization must produce identical bytes, and
+unknown members or invalid ordering relations are refused. `schemaVersion` is
+the JSON integer `1`; `approvedBarrierCeilingMs` is the exact approved-plan
+JSON integer in the inclusive range `45000..180000`. IDs, issuer, key id, and
+lease epoch use their existing closed generated scalar grammars.
 
-The 5-second value is the maximum allowance for the one batch already running
-at the 135-second forward cutoff. It is inside the 45-second recovery reserve,
-leaving 40 seconds for abort, predecessor reopen, and public health. No new
-batch starts at or after 135 seconds. The current batch is interrupted and its
-transaction resolved by 140 seconds, when abort must already be under way.
+The signature is a 64-byte Ed25519 signature encoded as unpadded base64url
+over:
 
-For a pre-publication run, predecessor health must be proved by 180 seconds.
-For `published-held`, the successor must be healthy by the 140-second decision
-point or the supervisor invokes a pre-authorized, generation-bound republish
-rollback whose public health must be proved by 180 seconds. After the terminal
-deadline no late successor, predecessor, or rollback result is accepted as
-success. The run remains fenced, reports the conformance failure, and revokes
-the migration claim family under LLP 0108.
+```text
+"snapback-migration-deadline-v1\0" ||
+JCS(MigrationDeadlineV1 without signature)
+```
 
-`MigrationAdmissionV1.admissionExpiresAt` is monotone. If it expires before the
-checkpoint/barrier, `admitted -> abandoned` is recorded, incomplete artifacts
-are cleanup-only, and a new approval/admission/checkpoint is required. Expiry
-during backup aborts and cleans the partial backup. Source durable-head,
-schema, stream-incarnation, or version drift at barrier invalidates the
-admission as well as the checkpoint; the executor releases the barrier and
-starts again from a fresh admission. Neither reboot nor operator retry can
-revive an abandoned/stale admission.
+`keyId` resolves only under the supervisor service-intermediate purpose
+`migration-deadline`; a release, operator, target, or general
+control-plane key cannot sign this envelope. Verification binds the current
+supervisor installation, issuer, operation, admission, approval, complete
+audience, and barrier lease before consulting a timestamp. A replay across any
+of those values is invalid even if its signature and time window are
+otherwise valid.
+
+`issuedAt` is the trusted sample taken immediately before the one-shot barrier
+authorization, and `barrierStartedAt` equals that sample. Actual write
+withdrawal may occur slightly later, so this value starts the budget early and
+is conservative. Failure or uncertainty while acquiring the named barrier
+abandons the admission; no replacement envelope or later
+`barrierStartedAt` may be issued for that admission. The target additionally
+records its local monotonic barrier-acquisition tick and uses it only to fail
+earlier.
+
+`MigrationAdmissionV1` has a fixed, nonextendable maximum TTL:
+`admissionExpiresAt` must be no later than 30 minutes after the admission's
+canonical `issuedAt`. The admission and checkpoint must both remain unexpired
+when the deadline is issued and when the barrier is acquired. There is no
+renew operation and an expiry cannot be moved; expiry before the barrier
+records `admitted -> abandoned`, makes incomplete backup artifacts cleanup
+only, and requires a new approval, admission, checkpoint, and deadline.
+Expiry during backup aborts and cleans the partial backup. Source durable-head,
+schema, stream-incarnation, or version drift at the barrier likewise
+invalidates both admission and checkpoint. Neither reboot nor operator retry
+revives an abandoned or stale admission.
+
+Validation requires
+`admission.issuedAt <= issuedAt == barrierStartedAt < admissionExpiresAt`;
+the exact cutoff arithmetic below establishes the remaining timestamp order.
+`migrationCeilingAt = barrierStartedAt + approvedBarrierCeilingMs`,
+`noNewBatchAt = migrationCeilingAt - 45000 ms`, and
+`abortMustBeginBy = migrationCeilingAt - 40000 ms`. The target checks trusted
+absolute time before and after every batch and immediately before the
+publication transition. At `noNewBatchAt` it starts no new batch. The SQLite
+progress interrupt gives the one in-flight batch at most five seconds to
+commit or roll back its transaction; by `abortMustBeginBy` the journal must
+be on the abort path. The remaining 40 seconds are the qualified
+abort-and-predecessor-reopen reserve. These arithmetic relations are part of
+signature validation, not advisory fields.
+
+After a crash, stop/start, or instance replacement, the target asks the
+supervisor for a fresh signed time-and-head observation bound to the original
+operation, admission, audience digest, lease epoch, and external operation
+head. The target supplies a fresh 16-byte random nonce; the proof signs that
+nonce, the bound fields, head digest, and `observedAt` under the same dedicated
+key purpose. The target accepts it only when its monotonic request round trip
+is at most five seconds and `observedAt` was sampled after the supervisor
+received that nonce. If that proof agrees with the original deadline, the
+target compares its absolute `observedAt` with the unchanged cutoffs and may
+resume only in the state LLP 0081 permits; it never issues a new deadline or
+resets elapsed time. Unavailable or stale supervisor time, a mismatched head,
+clock uncertainty, or inability to prove the original barrier epoch takes the
+safe abort/reconciliation path before publication. From `published-held`, the
+same uncertainty remains fenced and permits only LLP 0081's explicit release
+or audited rollback; it never guesses that the predecessor is active.
+
+The last two timestamps are not migration-ceiling fields.
+`provisionalObservationDecisionAt = barrierStartedAt + 140000 ms` and
+`provisionalPublicationExpiresAt = barrierStartedAt + 180000 ms` implement
+LLP 0108's target-enforced provisional-publication observation window after
+`published-held`. If successor health is absent at the decision point, the
+supervisor may invoke only the separately authorized, generation-bound
+rollback that LLP 0081 permits. At expiry the provisional migration claim
+family becomes unusable at the target even if supervisor withdrawal fails.
+Expiry records a publication-observation failure; it does not extend the
+migration ceiling, invent a journal transition, implicitly restore the
+predecessor, or accept a late health result. A later claim requires a new
+LLP 0108 qualification generation and publication epoch.
 
 ## Non-goals
 
@@ -415,8 +501,11 @@ profile.
 3. Should the profile's declared downtime ceiling be recalibrated from
    remote measurements (provider restart latency is part of the barrier
    window on this adapter), and does LLP 0072 open question 3's measured
-   ceiling subsume it? **Resolved:** fixed 180-second ceiling with explicit
-   forward/recovery budgets; measurements admit or refuse but never recalibrate.
+   ceiling subsume it? **Resolved:** a 180-second maximum approved
+   pre-publication ceiling with explicit forward/recovery budgets;
+   measurements admit or refuse but never recalibrate. Post-`published-held`
+   `+140`/`+180` observations are the separate LLP 0108 provisional-
+   publication gate, not migration-ceiling time.
 4. Is the pre-apply checkpoint a provider volume snapshot or the existing
    streaming SQLite backup to the separately permissioned object store —
    and if both are offered, which one satisfies
