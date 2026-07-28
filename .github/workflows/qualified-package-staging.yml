@@ -6,6 +6,9 @@ name: qualified-package-staging
 # platforms before any registry mutation is eligible.
 
 on:
+  push:
+    tags:
+      - qualified-package-staging-*
   workflow_dispatch:
     inputs:
       version:
@@ -17,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: qualified-package-staging-${{ github.ref }}-${{ inputs.version }}
+  group: qualified-package-staging-${{ github.ref }}-${{ inputs.version || '0.1.1' }}
   cancel-in-progress: false
 
 jobs:
@@ -103,7 +106,7 @@ jobs:
       - name: Bind the immutable release identity
         id: identity
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ inputs.version || '0.1.1' }}
         run: |
           node -e '
             const version = process.env.RELEASE_VERSION;
@@ -125,7 +128,7 @@ jobs:
 
       - name: Assemble and dry-run the exact public closure
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ inputs.version || '0.1.1' }}
           CANDIDATE_TAG: ${{ steps.identity.outputs.candidate_tag }}
           SNAPBACK_PACKAGE_OUT: ${{ runner.temp }}/snapback-qualified
           SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY: ${{ runner.temp }}/snapback-linux-runtime/snapback
