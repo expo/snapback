@@ -1,6 +1,6 @@
 # Package-owned comparator acceptance kit
 
-**Status:** Open  
+**Status:** Resolved
 **Impact:** 4  
 **Urgency:** 3  
 **Ease:** 2  
@@ -45,3 +45,25 @@ to a package-owned helper.
   keeps its six claims.
 - One documented command works from a packed/public installation without
   repository-relative imports.
+
+## Resolution — 2026-07-28
+
+The package-owned `snapback accept comparator` profile now owns the isolated
+server/database lifecycle, generated-reference admission, two-client native
+live proof, rollback and durable-version observations, presence cleanup,
+ephemeral/durable separation, cleanup attestation, receipt writing, and stable
+diagnostics. Its package suite retains a green fixture plus deliberate
+failures for incomplete execution, missing capability, dead server, timeout,
+cleanup rejection, polling attribution, stale identity, and each named
+property.
+
+Signal Desk is a thin `snapback-comparator.config.mjs` configuration and keeps
+its six domain claims without importing the repository-private harness. The
+immutable staged-package cold-install receipt at
+`demos/backend-bakeoff/acceptance/cold-install-react.v1.json` proves the CLI
+and comparator closure install without sibling-source resolution; public npm
+publication remains an explicit nonclaim of that receipt and is tracked by the
+starter/release gate rather than this repository implementation ticket.
+
+Verified with the full `@snapback/cli` package suite, Signal Desk comparator
+acceptance, package inventory, and the staged cold-install proof.

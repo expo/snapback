@@ -46,3 +46,24 @@ imports and custom glue even though most required primitives exist.
 
 This ticket consumes the first-class React and result-contract tickets; it
 must not recreate their missing provider or typing logic inside the template.
+
+## Implementation checkpoint — 2026-07-28
+
+The `todo-react` scaffold, generated refs, first-party provider/query/mutation
+surface, managed `snapback dev` loop, web typecheck/build/live witness, and
+Expo iOS export witness are implemented. A disposable loopback registry
+installed the exact packed tarballs into a fresh directory with no sibling
+source checkout; the retained receipt is
+`demos/backend-bakeoff/acceptance/cold-install-react.v1.json`.
+
+That cold proof found and corrected a stale-native-runtime packaging hazard:
+the previously staged runtime binary predated the result-contract projection,
+so the new client correctly refused it. Rebuilding the release binary at the
+current source revision made the exact generated/deployed contract comparison
+pass. Two consecutive clean staged runs then passed the complete web/Expo/live
+matrix.
+
+The ticket remains open until the Linux x64 cold run passes and the complete
+versioned closure is published and read back from the decided
+`@ccheever/snapback-*` public aliases. The retained local receipt deliberately
+marks public-registry and separately provisioned clean-machine claims false.
