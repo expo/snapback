@@ -55,19 +55,34 @@ files, and owns shutdown. The demo does not import a repository server binary.
 ## Verify
 
 With the local Snapback and Convex processes running and the Supabase migration
-applied:
+applied, start from a clean checkout and run the package-owned aggregate:
 
 ```sh
-bun run test:contract
-bun run test:snapback
-bun run test:convex
-bun run test:supabase
-bun run typecheck
-bun run build
+bun run bakeoff:run
 ```
 
-The integration tests use each vendor's native client and push transport. They
-do not infer backend correctness from rendered UI.
+The aggregate runs eight required lanes at one exact source revision: contract
+inventory, the Snapback comparator, Snapback extras, the separate React suite,
+Convex, Supabase, TypeScript, and the production build. There are no optional
+backend lanes: a missing service or credential is a red receipt and a nonzero
+exit. The runner reopens the comparator, React presence, and generated
+query-group receipts, binds their runtime and executing package identities,
+and refuses a green result unless every lane and every child receipt passes.
+
+Sanitized stdout/stderr logs are bounded and content-addressed under
+`acceptance/logs/`. Sanitized, content-addressed child-receipt projections live
+under `acceptance/evidence/`, so a later run cannot overwrite an earlier
+aggregate's evidence. The closed, schema-validated aggregate is written as
+`acceptance/results/backend-bakeoff-run.<sha256>.v2.json`. Reopen an aggregate
+and all of its log/child-receipt digests with:
+
+```sh
+bun run bakeoff:verify acceptance/results/backend-bakeoff-run.<sha256>.v2.json
+```
+
+The integration tests use each vendor's native client and push transport. The
+aggregate does not infer backend correctness from rendered UI and does not
+claim hosted or public-package qualification.
 
 The full findings and ranking are in [COMPARISON.md](./COMPARISON.md). The build
 diary is [Diary 0022](../../diaries/0022-backend-bakeoff.diary.md).

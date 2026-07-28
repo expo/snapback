@@ -375,3 +375,30 @@ current `@snapback/vite`-dependent React scaffold is newer than those public
 bytes and still needs an expanded versioned public closure and browser pass.
 
 No browser evidence was gathered in this correction, so none is claimed.
+
+## 2026-07-28 — one revision, one retained matrix
+
+The earlier bakeoff checkpoints were useful but too hand-assembled: a summary
+could say that all three backend suites, React, typecheck, and build passed
+without mechanically proving that they ran from one clean revision. That
+became especially weak once the comparator started carrying exact CLI/client
+package identities and the React suites wrote their own package-bound
+receipts.
+
+Signal Desk now owns one aggregate runner. It refuses a dirty starting tree,
+runs the closed eight-command matrix, and records each argv, bounded duration,
+exit status, and redacted content-addressed stdout/stderr log. Convex and
+Supabase are required, not opportunistic: an unavailable local deployment,
+hosted project, or credential produces a failed aggregate instead of a skip.
+After the commands, the runner reopens the comparator, React presence, and
+generated query-group receipts. A green result requires the comparator's
+runtime build stamp to equal the clean source revision, its executing
+CLI/client package digests to validate, the React receipt to name the same
+revision with zero skips, and the query-group source hashes to still match.
+
+The final envelope has a closed JSON Schema and a digest-derived filename.
+Its verifier re-hashes the envelope content, every retained log, and every
+child receipt. Logs replace workspace, home, and temporary paths and redact
+credential-shaped values before hashing. This does not make the run a scale
+benchmark or a hosted/public-package proof; it makes the local functional
+ranking input reproducible and independently reopenable.

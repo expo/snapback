@@ -11,6 +11,9 @@
     "convex:dev": "convex dev --local",
     "convex:once": "convex dev --local --once",
     "supabase:migrate": "node scripts/migrate-supabase.mjs",
+    "bakeoff:run": "node scripts/run-bakeoff.mjs",
+    "bakeoff:verify": "node scripts/run-bakeoff.mjs --verify",
+    "test:bakeoff-runner": "node --test scripts/bakeoff-runner.test.mjs",
     "test:contract": "node tests/contract.mjs",
     "test:snapback": "bun run test:snapback:comparator && bun run test:snapback:extras",
     "test:snapback:comparator": "snapback accept comparator --config ./snapback-comparator.config.mjs --receipt ./.snapback/comparator-receipt.json --timeout-ms 30000",
@@ -39,6 +42,7 @@
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
     "@vitejs/plugin-react": "5.0.2",
+    "ajv": "8.20.0",
     "postgres": "3.4.7",
     "typescript": "5.9.3",
     "vite": "7.1.7"

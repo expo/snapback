@@ -65,6 +65,12 @@
       "requirement": "required-hosted-comparison",
       "runner": "bun run --cwd demos/backend-bakeoff test:supabase",
       "toolchain": "configured Supabase project with Realtime"
+    },
+    "retainedThreeBackendMatrix": {
+      "requirement": "required-local-comparison",
+      "runner": "bun run --cwd demos/backend-bakeoff bakeoff:run",
+      "toolchain": "clean Git revision, Bun/Node.js, running local Snapback and Convex services, configured Supabase project",
+      "receipt": "acceptance/results/backend-bakeoff-run.<content-sha256>.v2.json"
     }
   },
   "acceptanceChecks": {
