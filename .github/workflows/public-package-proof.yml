@@ -1,4 +1,5 @@
 name: public-package-proof
+run-name: public-package-proof-${{ inputs.operation_id || 'manual' }}
 
 # @ref LLP 0041#acceptance — install the exact public package closure on new
 # GitHub-hosted macOS/arm64 and Linux/x64 VMs, then aggregate both receipts.
@@ -13,12 +14,24 @@ on:
         description: Committed successful publication ledger
         required: true
         default: demos/partiful-matrix/acceptance/evidence/step5-package-publication.json
+      root_selector:
+        description: Exact package aliases or the promoted latest CLI root
+        required: true
+        default: exact
+        type: choice
+        options:
+          - exact
+          - latest
+      operation_id:
+        description: Correlation identity for bounded promotion-time proof collection
+        required: true
+        default: manual
 
 permissions:
   contents: read
 
 concurrency:
-  group: public-package-proof-${{ github.ref }}
+  group: public-package-proof-${{ github.ref }}-${{ inputs.operation_id || 'manual' }}
   cancel-in-progress: false
 
 jobs:
@@ -76,16 +89,18 @@ jobs:
           node scripts/snapback-package-cold-install.mjs \
             --ledger "$RUNNER_TEMP/snapback-publication-ledger.json" \
             --install-source public \
+            --root-selector "${{ inputs.root_selector }}" \
             --receipt "$RECEIPT_PATH"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: snapback-${{ matrix.id }}-public-package-receipt
+          name: snapback-${{ matrix.id }}-${{ inputs.root_selector }}-public-package-receipt-${{ github.run_id }}
           path: ${{ runner.temp }}/snapback-${{ matrix.id }}-public-package-receipt.json
           if-no-files-found: error
           retention-days: 30
 
   aggregate:
+    if: ${{ inputs.root_selector == 'exact' }}
     needs: platform-proof
     runs-on: ubuntu-latest
     steps:
@@ -107,7 +122,7 @@ jobs:
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: snapback-*-public-package-receipt
+          pattern: snapback-*-exact-public-package-receipt-${{ github.run_id }}
           path: ${{ runner.temp }}/platform-receipts
           merge-multiple: true
 

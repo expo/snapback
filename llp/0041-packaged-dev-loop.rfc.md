@@ -68,6 +68,15 @@ HTTP endpoints, a candidate-ledger request client, and package-owned closed
 schemas/tests implement the previously external-only gate. No deployment or
 npm mutation is claimed by this revision.)
 
+**Revised (bounded final `latest` proof collection):** 2026-07-28 (the
+existing public-package workflow now accepts an exact-vs-`latest` root
+selector and an operation correlation id. Promotion-time collection dispatches
+one correlated matrix run, waits within the lease budget, and downloads the
+two run-id-bound GitHub-hosted receipts; the promoter still validates their
+complete candidate closure. Exact-root aggregation remains the ordinary
+post-publication mode. This is an instrument only; no registry mutation is
+claimed by this revision.)
+
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
 GitHub-hosted macOS/arm64 and Linux/x64 machines. Both platform receipts prove
@@ -237,6 +246,18 @@ Publication is a closed state machine:
    back to its recorded prior tag when npm permits; if the root move cannot be
    reversed, the release receipt is failed loudly and no target capability
    carrier may reference it.
+
+The two final receipts come from one correlated
+`.github/workflows/public-package-proof.yml` GitHub-hosted matrix execution.
+`scripts/snapback-github-latest-proof.mjs` dispatches that execution only after
+the tag vector reaches the intended value, waits for a successful terminal run
+within the publication-lease budget, downloads the exact run-id-named
+`darwin-arm64` and `linux-x64` artifacts, and refuses local, stale, exact-root,
+or differently correlated receipts. The publication proof plan remains two
+bounded argv-only commands: the first performs the correlated dispatch and
+materializes both receipts; the second reopens the already-materialized Linux
+receipt. The promoter then performs the full candidate-ledger validation over
+both files before external-authority close.
 
 The release receipt is not a bag of hashes. It proves a directed provenance
 chain:
