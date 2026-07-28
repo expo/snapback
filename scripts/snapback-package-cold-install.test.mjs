@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import {
   aggregatePublicPackageProofs,
   browserAssetsContainSecretCanary,
+  browserForbiddenMarkerVariants,
+  createBoundedBrowserSurfaceCollector,
   findBrowserVisibleLeaks,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
@@ -27,8 +29,77 @@ import {
 } from './snapback-publish-core.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
+const DEFAULT_BROWSER_SOURCE_REVISION = '0'.repeat(40);
 
 function browserJourneyFixture(overrides = {}) {
+  const {
+    capture: captureOverrides = {},
+    captureSha256: captureSha256Override,
+    sourceRevision = DEFAULT_BROWSER_SOURCE_REVISION,
+    ...journeyOverrides
+  } = overrides;
+  const {
+    browser: captureBrowserOverrides = {},
+    coverage: captureCoverageOverrides = {},
+    surfaceManifest: captureSurfaceManifest,
+    ...captureFieldOverrides
+  } = captureOverrides;
+  const surfaceManifest = captureSurfaceManifest ?? [
+    { kind: 'request', bytesScanned: 80 },
+    { kind: 'response-metadata', bytesScanned: 100 },
+    { kind: 'response-body', bytesScanned: 200 },
+    { kind: 'response-metadata', bytesScanned: 100 },
+    { kind: 'response-body', bytesScanned: 300 },
+    { kind: 'websocket-url', bytesScanned: 40 },
+    { kind: 'websocket-frame-received', bytesScanned: 120 },
+    { kind: 'page-state', bytesScanned: 500 },
+    { kind: 'cache-metadata', bytesScanned: 20 },
+    { kind: 'indexeddb-metadata', bytesScanned: 20 },
+  ];
+  const capture = {
+    schemaVersion: 'snapback.package-browser-capture.v1',
+    sourceRevision,
+    startedAtMs: 1_000_000,
+    completedAtMs: 1_001_000,
+    maxSurfaceBytes: 16 * 1024 * 1024,
+    maxTotalBytes: 128 * 1024 * 1024,
+    totalBytesScanned: surfaceManifest.reduce((sum, entry) => sum + entry.bytesScanned, 0),
+    surfaceManifest,
+    coverage: {
+      responseBodiesObserved: 2,
+      responseBodiesScanned: 2,
+      workersObserved: 0,
+      workersScanned: 0,
+      serviceWorkersObserved: 0,
+      serviceWorkersScanned: 0,
+      cacheEntriesObserved: 0,
+      cacheEntriesScanned: 0,
+      indexedDbRecordsObserved: 0,
+      indexedDbRecordsScanned: 0,
+      scanTruncated: false,
+      ...captureCoverageOverrides,
+    },
+    browser: {
+      packageVersion: '1.62.0',
+      packageTreeSha256: '8'.repeat(64),
+      executableSha256: '9'.repeat(64),
+      executableBytes: 1_000_000,
+      ...captureBrowserOverrides,
+    },
+    forbiddenMarkerKindsChecked: [
+      'admin-token',
+      'admin-token-file',
+      'backend-origin',
+      'browser-secret-canary',
+      'database-path',
+      'ready-file',
+      'repository-path',
+      'runtime-path',
+    ],
+    captureSanitized: true,
+    forbiddenValueRetention: 'none',
+    ...captureFieldOverrides,
+  };
   return {
     schemaVersion: 'snapback.package-browser-journey.v1',
     browserPackage: 'playwright',
@@ -40,17 +111,10 @@ function browserJourneyFixture(overrides = {}) {
     postMutationTodoCount: 2,
     reloadedTodoCount: 2,
     liveFramesAfterMutation: 1,
-    browserReadableSurfaceCount: 17,
-    forbiddenMarkerKindsChecked: [
-      'admin-token',
-      'admin-token-file',
-      'backend-origin',
-      'browser-secret-canary',
-      'database-path',
-      'ready-file',
-      'repository-path',
-      'runtime-path',
-    ],
+    browserReadableSurfaceCount: capture.surfaceManifest.length,
+    forbiddenMarkerKindsChecked: capture.forbiddenMarkerKindsChecked,
+    capture,
+    captureSha256: captureSha256Override ?? sha256Hex(canonicalJcs(capture)),
     checks: {
       realBrowserRendered: true,
       renderedSeededTodo: true,
@@ -63,13 +127,20 @@ function browserJourneyFixture(overrides = {}) {
       browserReadableFilesystemPathsAbsent: true,
       browserReadableCanaryAbsent: true,
     },
-    ...overrides,
+    ...journeyOverrides,
   };
 }
 
-function browserReceiptEvidence(overrides = {}) {
+function browserReceiptEvidence(
+  sourceRevision = DEFAULT_BROWSER_SOURCE_REVISION,
+  overrides = {},
+) {
   return {
-    browserJourney: browserJourneyFixture(overrides.browserJourney),
+    sourceRevision,
+    browserJourney: browserJourneyFixture({
+      sourceRevision,
+      ...(overrides.browserJourney ?? {}),
+    }),
     checks: {
       packedReactRealBrowserSeedLiveReload: true,
       browserPrivateSurfaceAbsence: true,
@@ -118,10 +189,46 @@ test('browser-visible leak scanner reports marker classes without retaining secr
   );
 });
 
+test('browser origin scanner normalizes HTTP(S), WS(S), and encoded forms', () => {
+  const backend = 'http://127.0.0.1:45731';
+  const marker = { kind: 'backend-origin', value: backend };
+  assert.ok(browserForbiddenMarkerVariants(marker).includes('ws://127.0.0.1:45731'));
+  for (const surface of [
+    'ws://127.0.0.1:45731/live/connection/stream',
+    'wss://127.0.0.1:45731/live/connection/stream',
+    'https://127.0.0.1:45731/health',
+    encodeURIComponent(backend),
+  ]) {
+    assert.deepEqual(
+      findBrowserVisibleLeaks({ surfaces: [surface], forbiddenMarkers: [marker] }),
+      ['backend-origin'],
+      surface,
+    );
+  }
+});
+
+test('bounded browser scanner covers binary bytes and retains only sanitized shape', () => {
+  const secret = `snapback-cold-canary-${'c'.repeat(48)}`;
+  const collector = createBoundedBrowserSurfaceCollector({
+    maxSurfaceBytes: 1024,
+    maxTotalBytes: 2048,
+  });
+  collector.add('response-body', Buffer.from(`binary-prefix\0${secret}\0binary-suffix`));
+  assert.deepEqual(
+    collector.findLeaks([{ kind: 'browser-secret-canary', value: secret }]),
+    ['browser-secret-canary'],
+  );
+  const summary = collector.sanitizedSummary();
+  assert.equal(summary.totalBytesScanned, Buffer.byteLength(`binary-prefix\0${secret}\0binary-suffix`));
+  assert.doesNotMatch(JSON.stringify(summary), new RegExp(secret, 'u'));
+  assert.throws(
+    () => collector.add('response-body', Buffer.alloc(1025)),
+    /scan bound/u,
+  );
+});
+
 test('qualified browser evidence fails closed on simulated, non-live, stale, or under-scanned journeys', () => {
-  const valid = {
-    ...browserReceiptEvidence(),
-  };
+  const valid = browserReceiptEvidence();
   assert.equal(validateColdInstallBrowserEvidence(valid), valid.browserJourney);
   for (const mutation of [
     (receipt) => { receipt.browserJourney.headless = false; },
@@ -132,13 +239,27 @@ test('qualified browser evidence fails closed on simulated, non-live, stale, or 
       receipt.browserJourney.forbiddenMarkerKindsChecked =
         receipt.browserJourney.forbiddenMarkerKindsChecked.filter((kind) => kind !== 'runtime-path');
     },
+    (receipt) => { delete receipt.browserJourney.capture; },
+    (receipt) => { receipt.browserJourney.capture.surfaceManifest[0].bytesScanned += 1; },
+    (receipt) => { receipt.browserJourney.capture.sourceRevision = 'f'.repeat(40); },
+    (receipt) => { receipt.browserJourney.capture.completedAtMs += 11 * 60 * 1000; },
+    (receipt) => {
+      receipt.browserJourney.capture.coverage.responseBodiesScanned = 1;
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
+    (receipt) => {
+      receipt.browserJourney.capture.browser.executableSha256 = 'not-a-digest';
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
     (receipt) => { receipt.checks.browserPrivateSurfaceAbsence = false; },
   ]) {
     const receipt = structuredClone(valid);
     mutation(receipt);
     assert.throws(
       () => validateColdInstallBrowserEvidence(receipt),
-      /real-browser seed\/live\/reload\/private-surface proof/u,
+      /real-browser seed\/live\/reload\/private-surface proof|unknown or missing members/u,
     );
   }
 });
@@ -401,9 +522,9 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       checks: {
         stagedRegistryAliasResolution: true,
         noSiblingSourceCheckout: true,
-        ...browserReceiptEvidence().checks,
+        ...browserReceiptEvidence(qualified.revision).checks,
       },
-      browserJourney: browserJourneyFixture(),
+      browserJourney: browserJourneyFixture({ sourceRevision: qualified.revision }),
     },
   });
   const records = [
@@ -566,9 +687,9 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
       checks: {
         latestRootCandidateClosure: true,
         publicRegistryTarballDigestMatch: true,
-        ...browserReceiptEvidence().checks,
+        ...browserReceiptEvidence(candidate.revision).checks,
       },
-      browserJourney: browserJourneyFixture(),
+      browserJourney: browserJourneyFixture({ sourceRevision: candidate.revision }),
     },
     };
   };
@@ -581,6 +702,11 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     records,
   });
   assert.deepEqual(final.map((row) => row.platform), ['darwin-arm64', 'linux-x64']);
+  assert.equal(final[0].browserCaptureSha256, records[0].receipt.browserJourney.captureSha256);
+  assert.equal(
+    final[0].browserExecutableSha256,
+    records[0].receipt.browserJourney.capture.browser.executableSha256,
+  );
   const vectorDrift = structuredClone(records);
   vectorDrift[0].receipt.latestRootResolution.defaultTagVector[
     candidate.packages[0].name
@@ -667,12 +793,12 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
       packagedManagedDevReadyAttachWatchAndStop: true,
       packedReactWebTypecheckTestBuildAndLiveAcceptance: true,
       packedReactOneCommandBackendViteJourney: true,
-      ...browserReceiptEvidence().checks,
+      ...browserReceiptEvidence(ledger.revision).checks,
       packedReactExpoTypecheckAndIosExport: true,
       packagedViteRelativeVersionedSeedSeam: true,
       browserAdapterBundle: true,
     },
-    browserJourney: browserJourneyFixture(),
+    browserJourney: browserJourneyFixture({ sourceRevision: ledger.revision }),
   });
   const receipts = [
     {
@@ -697,6 +823,10 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
   });
   assert.equal(aggregate.claimSatisfied, true);
   assert.equal(aggregate.platforms.length, 2);
+  assert.equal(
+    aggregate.platforms[0].browserPackageTreeSha256,
+    receipts[0].receipt.browserJourney.capture.browser.packageTreeSha256,
+  );
   assert.deepEqual(aggregate.nonclaims, []);
   assert.throws(
     () => aggregatePublicPackageProofs({

@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   browserAssetsContainSecretCanary,
-  findBrowserVisibleLeaks,
+  createBoundedBrowserSurfaceCollector,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
   runAsync,
@@ -39,9 +39,13 @@ import {
   validatePublicPublicationLedger,
   validateStagedPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
+import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BROWSER_PACKAGE_VERSION = '1.62.0';
+const BROWSER_MAX_SURFACE_BYTES = 16 * 1024 * 1024;
+const BROWSER_MAX_TOTAL_BYTES = 128 * 1024 * 1024;
+const BROWSER_MAX_STORAGE_ENTRIES = 10_000;
 
 function fail(message) {
   console.error(`snapback-package-cold-install: ${message}`);
@@ -94,6 +98,32 @@ function sha256(path) {
 
 function digest(path, algorithm, encoding) {
   return createHash(algorithm).update(readFileSync(path)).digest(encoding);
+}
+
+function browserPackageTreeSha256(packageRoots) {
+  const hash = createHash('sha256');
+  const visit = (directory, logicalRoot, relative = '') => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name))) {
+      if (entry.name === '.local-browsers') continue;
+      const relativePath = relative === '' ? entry.name : `${relative}/${entry.name}`;
+      const absolutePath = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(absolutePath, logicalRoot, relativePath);
+        continue;
+      }
+      if (!entry.isFile()) {
+        fail(`real-browser package tree contains an unsupported entry: ${logicalRoot}/${relativePath}`);
+      }
+      const bytes = readFileSync(absolutePath);
+      hash.update(`${logicalRoot}/${relativePath}\0${bytes.byteLength}\0`);
+      hash.update(bytes);
+    }
+  };
+  for (const [logicalRoot, directory] of packageRoots) {
+    visit(directory, logicalRoot);
+  }
+  return hash.digest('hex');
 }
 
 async function startStagedRegistry(ledgerDirectory, ledger) {
@@ -226,7 +256,301 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
   return { readyFile, database };
 }
 
-async function proveOneCommandReactStarter(scaffoldRoot) {
+async function inspectBrowserStorage(page) {
+  return page.evaluate(async ({
+    maxSurfaceBytes,
+    maxTotalBytes,
+    maxEntries,
+  }) => {
+    const encoder = new TextEncoder();
+    const surfaces = [];
+    let totalBytes = 0;
+    let storageEntries = 0;
+    const admitBytes = (byteLength) => {
+      if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > maxSurfaceBytes) {
+        throw new Error('browser storage surface exceeded its scan bound');
+      }
+      totalBytes += byteLength;
+      if (totalBytes > maxTotalBytes) {
+        throw new Error('browser storage surfaces exceeded their aggregate scan bound');
+      }
+    };
+    const encodeBase64 = (bytes) => {
+      let binary = '';
+      for (let offset = 0; offset < bytes.byteLength; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+      }
+      return btoa(binary);
+    };
+    const addText = (kind, text) => {
+      const byteLength = encoder.encode(text).byteLength;
+      admitBytes(byteLength);
+      surfaces.push({ kind, text });
+    };
+    const addBinary = (kind, bytes) => {
+      admitBytes(bytes.byteLength);
+      surfaces.push({ kind, base64: encodeBase64(bytes) });
+    };
+    const countEntry = () => {
+      storageEntries += 1;
+      if (storageEntries > maxEntries) {
+        throw new Error('browser storage entry count exceeded its scan bound');
+      }
+    };
+    const normalizeReadableValue = async (value, seen, binaryParts) => {
+      if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return value;
+      if (typeof value === 'undefined') return { $type: 'undefined' };
+      if (typeof value === 'bigint') return { $type: 'bigint', value: value.toString() };
+      if (typeof value === 'symbol') return { $type: 'symbol', value: value.description ?? '' };
+      if (value instanceof Date) return { $type: 'date', value: value.toISOString() };
+      if (value instanceof RegExp) return { $type: 'regexp', source: value.source, flags: value.flags };
+      if (value instanceof URL) return { $type: 'url', value: value.href };
+      if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+        const bytes = value instanceof ArrayBuffer
+          ? new Uint8Array(value)
+          : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+        if (bytes.byteLength > maxSurfaceBytes) {
+          throw new Error('IndexedDB binary value exceeded its scan bound');
+        }
+        binaryParts.push(encodeBase64(bytes));
+        return { $type: 'bytes', byteLength: bytes.byteLength, part: binaryParts.length - 1 };
+      }
+      if (value instanceof Blob) {
+        if (value.size > maxSurfaceBytes) {
+          throw new Error('IndexedDB Blob exceeded its scan bound');
+        }
+        const bytes = new Uint8Array(await value.arrayBuffer());
+        binaryParts.push(encodeBase64(bytes));
+        return {
+          $type: 'blob',
+          byteLength: bytes.byteLength,
+          contentType: value.type,
+          part: binaryParts.length - 1,
+        };
+      }
+      if (typeof CryptoKey !== 'undefined' && value instanceof CryptoKey) {
+        const metadata = {
+          $type: 'crypto-key',
+          algorithm: value.algorithm,
+          extractable: value.extractable,
+          type: value.type,
+          usages: value.usages,
+        };
+        if (value.extractable) {
+          try {
+            metadata.exportedJwk = await crypto.subtle.exportKey('jwk', value);
+          } catch {
+            metadata.exportRefused = true;
+          }
+        }
+        return metadata;
+      }
+      if (typeof value !== 'object') return { $type: typeof value, value: String(value) };
+      if (seen.has(value)) return { $ref: seen.get(value) };
+      const identity = seen.size;
+      seen.set(value, identity);
+      if (Array.isArray(value)) {
+        return {
+          $id: identity,
+          $type: 'array',
+          values: await Promise.all(
+            value.map((entry) => normalizeReadableValue(entry, seen, binaryParts)),
+          ),
+        };
+      }
+      if (value instanceof Map) {
+        const entries = [];
+        for (const [key, entry] of value.entries()) {
+          entries.push([
+            await normalizeReadableValue(key, seen, binaryParts),
+            await normalizeReadableValue(entry, seen, binaryParts),
+          ]);
+        }
+        return { $id: identity, $type: 'map', entries };
+      }
+      if (value instanceof Set) {
+        const values = [];
+        for (const entry of value.values()) {
+          values.push(await normalizeReadableValue(entry, seen, binaryParts));
+        }
+        return { $id: identity, $type: 'set', values };
+      }
+      const properties = {};
+      for (const key of Reflect.ownKeys(value)) {
+        const renderedKey = typeof key === 'symbol' ? `symbol:${key.description ?? ''}` : key;
+        try {
+          properties[renderedKey] = await normalizeReadableValue(value[key], seen, binaryParts);
+        } catch (error) {
+          properties[renderedKey] = { $type: 'unreadable', reason: error?.name ?? 'error' };
+        }
+      }
+      return {
+        $id: identity,
+        $type: value.constructor?.name ?? 'object',
+        properties,
+      };
+    };
+
+    let cacheEntriesObserved = 0;
+    if ('caches' in globalThis) {
+      const cacheNames = await caches.keys();
+      addText('cache-metadata', JSON.stringify({ cacheNames }));
+      for (const cacheName of cacheNames) {
+        const cache = await caches.open(cacheName);
+        const requests = await cache.keys();
+        for (const request of requests) {
+          countEntry();
+          cacheEntriesObserved += 1;
+          const response = await cache.match(request);
+          if (!response) throw new Error('Cache Storage entry disappeared during inspection');
+          addText('cache-metadata', JSON.stringify({
+            cacheName,
+            request: {
+              url: request.url,
+              method: request.method,
+              headers: [...request.headers.entries()],
+            },
+            response: {
+              status: response.status,
+              statusText: response.statusText,
+              headers: [...response.headers.entries()],
+            },
+          }));
+          addBinary('cache-body', new Uint8Array(await response.clone().arrayBuffer()));
+        }
+      }
+    } else {
+      addText('cache-metadata', JSON.stringify({ unavailable: true }));
+    }
+
+    let indexedDbRecordsObserved = 0;
+    if ('indexedDB' in globalThis && typeof indexedDB.databases === 'function') {
+      const databases = await indexedDB.databases();
+      addText('indexeddb-metadata', JSON.stringify({ databases }));
+      for (const descriptor of databases) {
+        if (typeof descriptor.name !== 'string') continue;
+        const database = await new Promise((resolveOpen, rejectOpen) => {
+          const request = indexedDB.open(descriptor.name);
+          request.onerror = () => rejectOpen(request.error ?? new Error('IndexedDB open failed'));
+          request.onsuccess = () => resolveOpen(request.result);
+          request.onupgradeneeded = () => {
+            request.transaction?.abort();
+            rejectOpen(new Error('IndexedDB changed during inspection'));
+          };
+        });
+        try {
+          for (const storeName of database.objectStoreNames) {
+            const { records, metadata } = await new Promise((resolveRecords, rejectRecords) => {
+              const output = [];
+              const transaction = database.transaction(storeName, 'readonly');
+              const store = transaction.objectStore(storeName);
+              const storeMetadata = {
+                autoIncrement: store.autoIncrement,
+                indexNames: [...store.indexNames],
+                indexes: [...store.indexNames].map((indexName) => {
+                  const index = store.index(indexName);
+                  return {
+                    name: index.name,
+                    keyPath: index.keyPath,
+                    multiEntry: index.multiEntry,
+                    unique: index.unique,
+                  };
+                }),
+                keyPath: store.keyPath,
+              };
+              const cursorRequest = store.openCursor();
+              cursorRequest.onerror = () => rejectRecords(
+                cursorRequest.error ?? new Error('IndexedDB cursor failed'),
+              );
+              cursorRequest.onsuccess = () => {
+                const cursor = cursorRequest.result;
+                if (!cursor) return;
+                try {
+                  countEntry();
+                } catch (error) {
+                  rejectRecords(error);
+                  transaction.abort();
+                  return;
+                }
+                output.push({ key: cursor.key, primaryKey: cursor.primaryKey, value: cursor.value });
+                cursor.continue();
+              };
+              transaction.oncomplete = () => resolveRecords({
+                records: output,
+                metadata: storeMetadata,
+              });
+              transaction.onerror = () => rejectRecords(
+                transaction.error ?? new Error('IndexedDB transaction failed'),
+              );
+              transaction.onabort = () => rejectRecords(
+                transaction.error ?? new Error('IndexedDB transaction aborted'),
+              );
+            });
+            addText('indexeddb-metadata', JSON.stringify({
+              database: descriptor.name,
+              version: database.version,
+              storeName,
+              ...metadata,
+              recordCount: records.length,
+            }));
+            for (const record of records) {
+              indexedDbRecordsObserved += 1;
+              const binaryParts = [];
+              const normalized = await normalizeReadableValue(record, new Map(), binaryParts);
+              const text = JSON.stringify(normalized);
+              const textBytes = encoder.encode(text);
+              const parts = [textBytes, ...binaryParts.map((part) => {
+                const binary = atob(part);
+                return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+              })];
+              const byteLength = parts.reduce((sum, part) => sum + part.byteLength, 0);
+              if (byteLength > maxSurfaceBytes) {
+                throw new Error('IndexedDB record exceeded its combined scan bound');
+              }
+              const combined = new Uint8Array(byteLength + Math.max(0, parts.length - 1));
+              let offset = 0;
+              for (const part of parts) {
+                combined.set(part, offset);
+                offset += part.byteLength + 1;
+              }
+              addBinary('indexeddb-record', combined);
+            }
+          }
+        } finally {
+          database.close();
+        }
+      }
+    } else {
+      addText('indexeddb-metadata', JSON.stringify({ unavailable: true }));
+    }
+    return {
+      surfaces,
+      coverage: {
+        cacheEntriesObserved,
+        indexedDbRecordsObserved,
+      },
+    };
+  }, {
+    maxSurfaceBytes: BROWSER_MAX_SURFACE_BYTES,
+    maxTotalBytes: BROWSER_MAX_TOTAL_BYTES,
+    maxEntries: BROWSER_MAX_STORAGE_ENTRIES,
+  });
+}
+
+async function inspectWorker(worker) {
+  return worker.evaluate(() => ({
+    location: globalThis.location?.href ?? null,
+    globalStrings: Object.getOwnPropertyNames(globalThis).flatMap((name) => {
+      try {
+        return typeof globalThis[name] === 'string' ? [`${name}=${globalThis[name]}`] : [];
+      } catch {
+        return [];
+      }
+    }),
+  }));
+}
+
+async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
   const playwrightBrowsersPath = '0';
   const playwrightCli = join(scaffoldRoot, 'node_modules', 'playwright', 'cli.js');
   const browserInstallArgs = [
@@ -262,6 +586,15 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
   ) {
     fail('real-browser proof did not materialize its headless browser inside the fresh package install');
   }
+  const browserExecutablePath = chromium.executablePath();
+  if (!existsSync(browserExecutablePath) || !lstatSync(browserExecutablePath).isFile()) {
+    fail('real-browser proof could not resolve its installed browser executable');
+  }
+  const browserExecutableBytes = readFileSync(browserExecutablePath);
+  const browserPackageTreeDigest = browserPackageTreeSha256([
+    ['playwright', dirname(requireFromScaffold.resolve('playwright/package.json'))],
+    ['playwright-core', dirname(requireFromScaffold.resolve('playwright-core/package.json'))],
+  ]);
 
   const browserSecretCanary = `snapback-cold-canary-${randomBytes(24).toString('hex')}`;
   const child = spawn('npm', ['run', 'dev'], {
@@ -348,53 +681,113 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
     // @ref LLP 0041#acceptance — the browser and its driver are installed in
     // this fresh external package project; repository or ambient browsers do
     // not satisfy the packed-loop gate.
+    const browserCaptureStartedAtMs = Date.now();
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
     const page = await context.newPage();
+    const surfaceCollector = createBoundedBrowserSurfaceCollector({
+      maxSurfaceBytes: BROWSER_MAX_SURFACE_BYTES,
+      maxTotalBytes: BROWSER_MAX_TOTAL_BYTES,
+    });
     const responseCaptures = [];
-    const requestSurfaces = [];
-    const webSocketSurfaces = [];
     const consoleErrors = [];
     const pageErrors = [];
+    const observedWorkers = new Map();
+    let captureFailure = null;
+    let responseBodiesObserved = 0;
+    let responseBodiesScanned = 0;
     let liveFrames = 0;
-    page.on('request', (request) => {
-      requestSurfaces.push(JSON.stringify({
+    const captureSurface = (kind, value) => {
+      if (captureFailure) return;
+      try {
+        surfaceCollector.add(kind, value);
+      } catch (error) {
+        captureFailure = error;
+      }
+    };
+    const observeWorker = (worker, kind) => {
+      if (observedWorkers.has(worker)) return;
+      const inspection = inspectWorker(worker)
+        .then((state) => {
+          captureSurface(kind, JSON.stringify(state));
+          return true;
+        })
+        .catch((error) => {
+          captureFailure ??= new Error(`could not inspect ${kind}: ${error.message}`);
+          return false;
+        });
+      observedWorkers.set(worker, { kind, inspection });
+    };
+    page.on('worker', (worker) => observeWorker(worker, 'worker-state'));
+    context.on('serviceworker', (worker) => observeWorker(worker, 'service-worker-state'));
+    context.on('request', (request) => {
+      captureSurface('request', JSON.stringify({
         url: request.url(),
         method: request.method(),
         headers: request.headers(),
         postData: request.postData(),
       }));
     });
-    page.on('response', (response) => {
-      const contentType = response.headers()['content-type'] ?? '';
-      if (!/(?:javascript|json|text|css)/iu.test(contentType)) return;
+    context.on('response', (response) => {
+      responseBodiesObserved += 1;
       responseCaptures.push(
-        response.text()
-          .then((body) => JSON.stringify({
+        (async () => {
+          captureSurface('response-metadata', JSON.stringify({
             url: response.url(),
             status: response.status(),
             headers: response.headers(),
-            body,
-          }))
-          .catch((error) => {
-            throw new Error(`could not capture browser-readable response ${response.url()}: ${error.message}`);
-          }),
+          }));
+          let body;
+          try {
+            body = await response.body();
+          } catch (error) {
+            const status = response.status();
+            const method = response.request().method();
+            if (
+              method === 'HEAD'
+              || status === 101
+              || status === 204
+              || status === 205
+              || status === 304
+              || (status >= 300 && status < 400)
+            ) {
+              body = Buffer.alloc(0);
+            } else {
+              throw new Error(
+                `could not capture browser-readable response bytes ${response.url()}: ${error.message}`,
+              );
+            }
+          }
+          captureSurface('response-body', body);
+          responseBodiesScanned += 1;
+        })().catch((error) => {
+          captureFailure ??= error;
+          return false;
+        }),
       );
     });
     page.on('console', (message) => {
-      if (message.type() === 'error') consoleErrors.push(message.text());
+      if (message.type() === 'error') {
+        consoleErrors.push(message.text());
+        captureSurface('console', message.text());
+      }
     });
-    page.on('pageerror', (error) => pageErrors.push(error.message));
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message);
+      captureSurface('page-error', error.message);
+    });
     page.on('websocket', (socket) => {
-      webSocketSurfaces.push(socket.url());
+      captureSurface('websocket-url', socket.url());
       socket.on('framereceived', ({ payload }) => {
         liveFrames += 1;
-        webSocketSurfaces.push(
+        captureSurface(
+          'websocket-frame-received',
           typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8'),
         );
       });
       socket.on('framesent', ({ payload }) => {
-        webSocketSurfaces.push(
+        captureSurface(
+          'websocket-frame-sent',
           typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8'),
         );
       });
@@ -456,15 +849,32 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
         }),
         userAgent: navigator.userAgent,
       }));
-      const responseSurfaces = await Promise.all(responseCaptures);
-      const browserVisibleSurfaces = [
-        ...responseSurfaces,
-        ...requestSurfaces,
-        ...webSocketSurfaces,
-        ...consoleErrors,
-        ...pageErrors,
-        JSON.stringify(browserState),
-      ];
+      captureSurface('page-state', JSON.stringify(browserState));
+      let settledResponseCount = -1;
+      while (settledResponseCount !== responseCaptures.length) {
+        settledResponseCount = responseCaptures.length;
+        await Promise.all(responseCaptures.slice());
+        await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
+      }
+      for (const worker of page.workers()) observeWorker(worker, 'worker-state');
+      for (const worker of context.serviceWorkers()) {
+        observeWorker(worker, 'service-worker-state');
+      }
+      const workerResults = await Promise.all(
+        [...observedWorkers.values()].map(({ inspection }) => inspection),
+      );
+      const storageInspection = await inspectBrowserStorage(page);
+      for (const surface of storageInspection.surfaces) {
+        captureSurface(
+          surface.kind,
+          Object.hasOwn(surface, 'text')
+            ? surface.text
+            : Buffer.from(surface.base64, 'base64'),
+        );
+      }
+      if (captureFailure) {
+        throw captureFailure;
+      }
       const runtimePath = join(
         scaffoldRoot,
         'node_modules',
@@ -487,10 +897,7 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
           value: descriptor.impersonationCapabilityFile,
         },
       ].filter(({ value }) => typeof value === 'string' && value.length > 0);
-      const leaks = findBrowserVisibleLeaks({
-        surfaces: browserVisibleSurfaces,
-        forbiddenMarkers,
-      });
+      const leaks = surfaceCollector.findLeaks(forbiddenMarkers);
       if (leaks.length > 0) {
         fail(`real browser exposed private marker classes: ${leaks.join(', ')}`);
       }
@@ -498,6 +905,50 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
         fail(`real browser emitted errors: ${[...consoleErrors, ...pageErrors].join('; ')}`);
       }
 
+      const forbiddenMarkerKindsChecked = [
+        ...new Set(forbiddenMarkers.map(({ kind }) => kind)),
+      ].sort();
+      const sanitizedCapture = surfaceCollector.sanitizedSummary();
+      const workers = [...observedWorkers.values()];
+      const browserCapture = {
+        schemaVersion: 'snapback.package-browser-capture.v1',
+        sourceRevision,
+        startedAtMs: browserCaptureStartedAtMs,
+        completedAtMs: Date.now(),
+        maxSurfaceBytes: sanitizedCapture.maxSurfaceBytes,
+        maxTotalBytes: sanitizedCapture.maxTotalBytes,
+        totalBytesScanned: sanitizedCapture.totalBytesScanned,
+        surfaceManifest: sanitizedCapture.surfaceManifest,
+        coverage: {
+          responseBodiesObserved,
+          responseBodiesScanned,
+          workersObserved: workers.filter(({ kind }) => kind === 'worker-state').length,
+          workersScanned: workers.filter(
+            ({ kind }, index) => kind === 'worker-state' && workerResults[index] === true,
+          ).length,
+          serviceWorkersObserved:
+            workers.filter(({ kind }) => kind === 'service-worker-state').length,
+          serviceWorkersScanned: workers.filter(
+            ({ kind }, index) => (
+              kind === 'service-worker-state' && workerResults[index] === true
+            ),
+          ).length,
+          cacheEntriesObserved: storageInspection.coverage.cacheEntriesObserved,
+          cacheEntriesScanned: storageInspection.coverage.cacheEntriesObserved,
+          indexedDbRecordsObserved: storageInspection.coverage.indexedDbRecordsObserved,
+          indexedDbRecordsScanned: storageInspection.coverage.indexedDbRecordsObserved,
+          scanTruncated: false,
+        },
+        browser: {
+          packageVersion: playwrightManifest.version,
+          packageTreeSha256: browserPackageTreeDigest,
+          executableSha256: createHash('sha256').update(browserExecutableBytes).digest('hex'),
+          executableBytes: browserExecutableBytes.byteLength,
+        },
+        forbiddenMarkerKindsChecked,
+        captureSanitized: true,
+        forbiddenValueRetention: 'none',
+      };
       browserJourney = {
         schemaVersion: 'snapback.package-browser-journey.v1',
         browserPackage: 'playwright',
@@ -509,8 +960,10 @@ async function proveOneCommandReactStarter(scaffoldRoot) {
         postMutationTodoCount,
         reloadedTodoCount,
         liveFramesAfterMutation,
-        browserReadableSurfaceCount: browserVisibleSurfaces.length,
-        forbiddenMarkerKindsChecked: forbiddenMarkers.map(({ kind }) => kind).sort(),
+        browserReadableSurfaceCount: sanitizedCapture.surfaceManifest.length,
+        forbiddenMarkerKindsChecked,
+        capture: browserCapture,
+        captureSha256: sha256Hex(canonicalJcs(browserCapture)),
         checks: {
           realBrowserRendered: true,
           renderedSeededTodo: true,
@@ -984,7 +1437,10 @@ await build({
       VITE_SNAPBACK_ADMIN_TOKEN: browserSecretCanary,
     },
   });
-  const managedStarter = await proveOneCommandReactStarter(reactScaffoldRoot);
+  const managedStarter = await proveOneCommandReactStarter(
+    reactScaffoldRoot,
+    ledger.revision,
+  );
   run('npm', ['run', 'test:live'], { cwd: reactScaffoldRoot, timeout: 120_000 });
   const reactManifest = JSON.parse(readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'));
   const reactMain = readFileSync(join(reactScaffoldRoot, 'src', 'main.tsx'), 'utf8');

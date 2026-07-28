@@ -18,27 +18,126 @@ export function browserAssetsContainSecretCanary(builtAssets, canary) {
   return builtAssets.includes(canary);
 }
 
-export function findBrowserVisibleLeaks({ surfaces, forbiddenMarkers }) {
-  if (!Array.isArray(surfaces) || surfaces.some((value) => typeof value !== 'string')) {
-    throw new TypeError('browser-visible surfaces must be an array of strings');
+function browserSurfaceBytes(value) {
+  if (typeof value === 'string') return Buffer.from(value);
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
   }
+  throw new TypeError('browser-visible surfaces must contain strings or bytes');
+}
+
+export function browserForbiddenMarkerVariants({ kind, value } = {}) {
   if (
-    !Array.isArray(forbiddenMarkers)
-    || forbiddenMarkers.some(({ kind, value } = {}) => (
-      typeof kind !== 'string'
-      || kind.length === 0
-      || typeof value !== 'string'
-      || value.length === 0
-    ))
+    typeof kind !== 'string'
+    || kind.length === 0
+    || typeof value !== 'string'
+    || value.length === 0
   ) {
     throw new TypeError('browser forbidden markers must be non-empty kind/value pairs');
   }
-  const visible = surfaces.join('\n');
+  const variants = new Set([value]);
+  try {
+    variants.add(encodeURI(value));
+    variants.add(encodeURIComponent(value));
+  } catch {
+    // The exact value remains covered when an unusual string cannot be URI encoded.
+  }
+  variants.add(JSON.stringify(value).slice(1, -1));
+  variants.add(value.replaceAll('/', '\\/'));
+  variants.add(Buffer.from(value).toString('base64'));
+  variants.add(Buffer.from(value).toString('base64url'));
+  if (kind === 'backend-origin') {
+    let origin;
+    try {
+      origin = new URL(value);
+    } catch {
+      throw new TypeError('browser backend origin marker must be an absolute URL');
+    }
+    if (!['http:', 'https:', 'ws:', 'wss:'].includes(origin.protocol)) {
+      throw new TypeError('browser backend origin marker must use HTTP(S) or WS(S)');
+    }
+    const suffix = `${origin.host}${origin.pathname === '/' ? '' : origin.pathname}`;
+    for (const protocol of ['http:', 'https:', 'ws:', 'wss:']) {
+      variants.add(`${protocol}//${suffix}`);
+    }
+    variants.add(`//${suffix}`);
+    variants.add(origin.host);
+  }
+  return [...variants].filter((entry) => entry.length > 0);
+}
+
+export function findBrowserVisibleLeaks({ surfaces, forbiddenMarkers }) {
+  if (!Array.isArray(surfaces)) {
+    throw new TypeError('browser-visible surfaces must be an array');
+  }
+  if (
+    !Array.isArray(forbiddenMarkers)
+    || forbiddenMarkers.some((marker) => {
+      try {
+        browserForbiddenMarkerVariants(marker);
+        return false;
+      } catch {
+        return true;
+      }
+    })
+  ) {
+    throw new TypeError('browser forbidden markers must be non-empty kind/value pairs');
+  }
+  const visible = surfaces.map(browserSurfaceBytes);
   return [...new Set(
     forbiddenMarkers
-      .filter(({ value }) => visible.includes(value))
+      .filter((marker) => browserForbiddenMarkerVariants(marker).some((variant) => {
+        const needle = Buffer.from(variant);
+        return visible.some((surface) => surface.indexOf(needle) !== -1);
+      }))
       .map(({ kind }) => kind),
   )].sort();
+}
+
+export function createBoundedBrowserSurfaceCollector({
+  maxSurfaceBytes,
+  maxTotalBytes,
+}) {
+  if (
+    !Number.isSafeInteger(maxSurfaceBytes)
+    || maxSurfaceBytes < 1
+    || !Number.isSafeInteger(maxTotalBytes)
+    || maxTotalBytes < maxSurfaceBytes
+  ) {
+    throw new TypeError('browser scan budgets must be positive safe integers');
+  }
+  const surfaces = [];
+  const manifest = [];
+  let totalBytesScanned = 0;
+  return Object.freeze({
+    add(kind, value) {
+      if (typeof kind !== 'string' || kind.length === 0) {
+        throw new TypeError('browser surface kind must be non-empty');
+      }
+      const bytes = Buffer.from(browserSurfaceBytes(value));
+      if (bytes.byteLength > maxSurfaceBytes) {
+        throw new RangeError(`browser surface exceeded the ${maxSurfaceBytes}-byte scan bound`);
+      }
+      if (totalBytesScanned + bytes.byteLength > maxTotalBytes) {
+        throw new RangeError(`browser surfaces exceeded the ${maxTotalBytes}-byte aggregate scan bound`);
+      }
+      surfaces.push(bytes);
+      manifest.push(Object.freeze({ kind, bytesScanned: bytes.byteLength }));
+      totalBytesScanned += bytes.byteLength;
+    },
+    findLeaks(forbiddenMarkers) {
+      return findBrowserVisibleLeaks({ surfaces, forbiddenMarkers });
+    },
+    sanitizedSummary() {
+      return Object.freeze({
+        maxSurfaceBytes,
+        maxTotalBytes,
+        totalBytesScanned,
+        surfaceManifest: Object.freeze([...manifest]),
+      });
+    },
+  });
 }
 
 // @ref LLP 0041#acceptance — the external package proof exposes a closed
@@ -390,6 +489,9 @@ export function validateFinalLatestReceipts({ ledger, records }) {
       sha256: record.sha256,
       machine: receipt.machine,
       latestRootResolution: resolution,
+      browserCaptureSha256: receipt.browserJourney.captureSha256,
+      browserExecutableSha256: receipt.browserJourney.capture.browser.executableSha256,
+      browserPackageTreeSha256: receipt.browserJourney.capture.browser.packageTreeSha256,
     });
   }
   return ['darwin-arm64', 'linux-x64'].map((platform) => {
@@ -488,6 +590,9 @@ export function aggregatePublicPackageProofs({
       sha256: record.sha256,
       machine: receipt.machine,
       checks: receipt.checks,
+      browserCaptureSha256: receipt.browserJourney.captureSha256,
+      browserExecutableSha256: receipt.browserJourney.capture.browser.executableSha256,
+      browserPackageTreeSha256: receipt.browserJourney.capture.browser.packageTreeSha256,
     });
   }
   for (const platform of expectedPlatforms.keys()) {

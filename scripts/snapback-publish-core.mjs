@@ -103,6 +103,8 @@ const BROWSER_JOURNEY_KEYS = [
   'browserPackage',
   'browserPackageVersion',
   'browserReadableSurfaceCount',
+  'capture',
+  'captureSha256',
   'checks',
   'engine',
   'engineVersion',
@@ -136,6 +138,57 @@ const REQUIRED_BROWSER_FORBIDDEN_MARKER_KINDS = [
   'repository-path',
   'runtime-path',
 ];
+const BROWSER_CAPTURE_KEYS = [
+  'browser',
+  'captureSanitized',
+  'completedAtMs',
+  'coverage',
+  'forbiddenMarkerKindsChecked',
+  'forbiddenValueRetention',
+  'maxSurfaceBytes',
+  'maxTotalBytes',
+  'schemaVersion',
+  'sourceRevision',
+  'startedAtMs',
+  'surfaceManifest',
+  'totalBytesScanned',
+];
+const BROWSER_CAPTURE_BROWSER_KEYS = [
+  'executableBytes',
+  'executableSha256',
+  'packageTreeSha256',
+  'packageVersion',
+];
+const BROWSER_CAPTURE_COVERAGE_KEYS = [
+  'cacheEntriesObserved',
+  'cacheEntriesScanned',
+  'indexedDbRecordsObserved',
+  'indexedDbRecordsScanned',
+  'responseBodiesObserved',
+  'responseBodiesScanned',
+  'scanTruncated',
+  'serviceWorkersObserved',
+  'serviceWorkersScanned',
+  'workersObserved',
+  'workersScanned',
+];
+const BROWSER_CAPTURE_SURFACE_KINDS = new Set([
+  'cache-body',
+  'cache-metadata',
+  'console',
+  'indexeddb-metadata',
+  'indexeddb-record',
+  'page-error',
+  'page-state',
+  'request',
+  'response-body',
+  'response-metadata',
+  'service-worker-state',
+  'websocket-frame-received',
+  'websocket-frame-sent',
+  'websocket-url',
+  'worker-state',
+]);
 
 function requireExactKeys(value, keys, field) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -161,6 +214,46 @@ export function validateColdInstallBrowserEvidence(receipt) {
   const journey = receipt?.browserJourney;
   requireExactKeys(journey, BROWSER_JOURNEY_KEYS, 'cold-install browser journey');
   requireExactKeys(journey.checks, BROWSER_JOURNEY_CHECK_KEYS, 'cold-install browser journey checks');
+  const capture = journey.capture;
+  requireExactKeys(capture, BROWSER_CAPTURE_KEYS, 'cold-install browser capture');
+  requireExactKeys(capture.browser, BROWSER_CAPTURE_BROWSER_KEYS, 'cold-install browser identity');
+  requireExactKeys(capture.coverage, BROWSER_CAPTURE_COVERAGE_KEYS, 'cold-install browser coverage');
+  const manifest = Array.isArray(capture.surfaceManifest) ? capture.surfaceManifest : [];
+  let manifestBytes = 0;
+  const manifestCounts = new Map();
+  let manifestValid = manifest.length > 0;
+  for (const entry of manifest) {
+    try {
+      requireExactKeys(entry, ['bytesScanned', 'kind'], 'cold-install browser surface');
+    } catch {
+      manifestValid = false;
+      continue;
+    }
+    if (
+      !BROWSER_CAPTURE_SURFACE_KINDS.has(entry.kind)
+      || !Number.isSafeInteger(entry.bytesScanned)
+      || entry.bytesScanned < 0
+      || entry.bytesScanned > capture.maxSurfaceBytes
+    ) {
+      manifestValid = false;
+      continue;
+    }
+    manifestBytes += entry.bytesScanned;
+    manifestCounts.set(entry.kind, (manifestCounts.get(entry.kind) ?? 0) + 1);
+  }
+  const markerKindsAgree = (
+    Array.isArray(capture.forbiddenMarkerKindsChecked)
+    && capture.forbiddenMarkerKindsChecked.length === journey.forbiddenMarkerKindsChecked.length
+    && capture.forbiddenMarkerKindsChecked.every(
+      (value, index) => value === journey.forbiddenMarkerKindsChecked[index],
+    )
+  );
+  const coverage = capture.coverage;
+  const countPairValid = (observed, scanned) => (
+    Number.isSafeInteger(observed)
+    && observed >= 0
+    && observed === scanned
+  );
   if (
     journey.schemaVersion !== 'snapback.package-browser-journey.v1'
     || journey.engine !== 'chromium'
@@ -176,6 +269,7 @@ export function validateColdInstallBrowserEvidence(receipt) {
     || journey.liveFramesAfterMutation < 1
     || !Number.isSafeInteger(journey.browserReadableSurfaceCount)
     || journey.browserReadableSurfaceCount < 1
+    || journey.browserReadableSurfaceCount !== manifest.length
     || !Array.isArray(journey.forbiddenMarkerKindsChecked)
     || journey.forbiddenMarkerKindsChecked.some(
       (value, index, values) => (
@@ -187,6 +281,52 @@ export function validateColdInstallBrowserEvidence(receipt) {
     || REQUIRED_BROWSER_FORBIDDEN_MARKER_KINDS.some(
       (kind) => !journey.forbiddenMarkerKindsChecked.includes(kind),
     )
+    || capture.schemaVersion !== 'snapback.package-browser-capture.v1'
+    || capture.captureSanitized !== true
+    || capture.forbiddenValueRetention !== 'none'
+    || capture.sourceRevision !== receipt.sourceRevision
+    || !/^[0-9a-f]{40}$/u.test(capture.sourceRevision ?? '')
+    || !Number.isSafeInteger(capture.startedAtMs)
+    || !Number.isSafeInteger(capture.completedAtMs)
+    || capture.startedAtMs <= 0
+    || capture.completedAtMs < capture.startedAtMs
+    || capture.completedAtMs - capture.startedAtMs > 10 * 60 * 1000
+    || !Number.isSafeInteger(capture.maxSurfaceBytes)
+    || capture.maxSurfaceBytes < 1
+    || !Number.isSafeInteger(capture.maxTotalBytes)
+    || capture.maxTotalBytes < capture.maxSurfaceBytes
+    || !Number.isSafeInteger(capture.totalBytesScanned)
+    || capture.totalBytesScanned < 1
+    || capture.totalBytesScanned > capture.maxTotalBytes
+    || manifestBytes !== capture.totalBytesScanned
+    || !manifestValid
+    || !markerKindsAgree
+    || manifestCounts.get('page-state') !== 1
+    || (manifestCounts.get('request') ?? 0) < 1
+    || (manifestCounts.get('websocket-url') ?? 0) < 1
+    || (manifestCounts.get('websocket-frame-received') ?? 0) < journey.liveFramesAfterMutation
+    || (manifestCounts.get('cache-metadata') ?? 0) < 1
+    || (manifestCounts.get('indexeddb-metadata') ?? 0) < 1
+    || coverage.scanTruncated !== false
+    || !countPairValid(coverage.responseBodiesObserved, coverage.responseBodiesScanned)
+    || coverage.responseBodiesScanned < 1
+    || manifestCounts.get('response-body') !== coverage.responseBodiesScanned
+    || manifestCounts.get('response-metadata') !== coverage.responseBodiesScanned
+    || !countPairValid(coverage.workersObserved, coverage.workersScanned)
+    || (manifestCounts.get('worker-state') ?? 0) !== coverage.workersScanned
+    || !countPairValid(coverage.serviceWorkersObserved, coverage.serviceWorkersScanned)
+    || (manifestCounts.get('service-worker-state') ?? 0) !== coverage.serviceWorkersScanned
+    || !countPairValid(coverage.cacheEntriesObserved, coverage.cacheEntriesScanned)
+    || (manifestCounts.get('cache-body') ?? 0) !== coverage.cacheEntriesScanned
+    || !countPairValid(coverage.indexedDbRecordsObserved, coverage.indexedDbRecordsScanned)
+    || (manifestCounts.get('indexeddb-record') ?? 0) !== coverage.indexedDbRecordsScanned
+    || !/^[0-9a-f]{64}$/u.test(capture.browser.executableSha256 ?? '')
+    || !Number.isSafeInteger(capture.browser.executableBytes)
+    || capture.browser.executableBytes < 1
+    || !/^[0-9a-f]{64}$/u.test(capture.browser.packageTreeSha256 ?? '')
+    || capture.browser.packageVersion !== journey.browserPackageVersion
+    || !/^[0-9a-f]{64}$/u.test(journey.captureSha256 ?? '')
+    || journey.captureSha256 !== sha256Hex(canonicalJcs(capture))
     || BROWSER_JOURNEY_CHECK_KEYS.some((key) => journey.checks[key] !== true)
     || receipt.checks?.packedReactRealBrowserSeedLiveReload !== true
     || receipt.checks?.browserPrivateSurfaceAbsence !== true
