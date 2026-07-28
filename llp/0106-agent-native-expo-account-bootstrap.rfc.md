@@ -1,11 +1,11 @@
 # LLP 0106: Agent-native Expo account bootstrap
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Developer experience, Expo accounts, Identity, Auth, Agent tooling, Provisioning, Billing, Payments, Security, Audit
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-07-28 (initial draft after Snapback and Universe source review and primary-source standards research)
+**Revised:** 2026-07-28 (initial draft after Snapback and Universe source review and primary-source standards research); 2026-07-28 (/llp-super-refine round 1 revision: claim URL pinned as an acknowledged bearer ownership capability with confirmation/notification/hold-reversal/recovery; normative trusted-host account-linking rule + identity-creation liveness gate + canonical signed request digest; orthogonal durable state dimensions with pinned transaction boundaries; normative RFC 9449 proof/replay contract grounded on Universe's jti/nonce gap; flow-letter consistency, RFC 8628 UX-vs-wire scoping, RAR/token-exchange Expo profile, pre-claim owner-of-record + 0104 amendment, escrow-source claim vs 0103, local-only discovery, Slice-0-gates-Slice-2, CIMD SSRF); 2026-07-28 (/llp-super-refine round 2 revision: bearer-claim recovery authority + evidence hierarchy anchored on the bootstrap-request key holder for the no-contact-hint case; workspace stays PROVISIONAL through the hold with the 0103/0104 cutover pinned to the single CLAIM_COMMITTING transition and CLAIM_HELD → REVERSED defined; DPoP replay keyed by jkt+jti with retention ≥ iat window and RFC 9449 nonce challenge/retry for bootstrap.begin; Expo-issued opaque trusted-host continuation token; provisional-scoped credentials during CLAIM_HELD gated on hold-clear; escrow-source prepare/abort newly defined (no 0103 old-owner lease); deferred hold/jti/nonce/revocation values framed as security parameters; SSO hard block corrected to PreventSSOUserOAuthIdentityValidator); 2026-07-28 (/llp-super-refine round 3 revision: REVERSED made the terminal state of an immutable claim attempt with a workspace current-claim pointer that resets to a new UNCLAIMED generation on reversal; normative lifecycle fence inhibiting EXPIRED/cleanup and suspending/bounded-extending TTL during hold/commit/contested states with held-not-destroyed safe terminal; trusted-host contract split into one coherent rule — resolved (issuer,subject) case completes in-agent with no Expo detour, unresolved first-use/collision/SSO/new-identity/recovery cases require an Expo-authored continuation (Expo-hosted or host-rendered opaque UI) that never exposes the collision classification, with Flow C/Summary/Goals narrowed to the resolved case; DPoP bounded-nonce overlap window for concurrency; self-authenticated-unassociated first claimant does not out-rank the PoP holder; gate limb default absent live PoP-holder ack and PoP-holder contest freeze-only; hold-window floor invariant stated; jti cache upper-bound eviction + per-jkt cardinality cap); 2026-07-28 (/llp-super-refine post-convergence touch-up: r4 items folded in); 2026-07-28 (Accepted by author Charlie Cheever after /llp-super-refine — Fable READY r2–r4, GPT-5 residual r4 items folded in)
 **Related:** LLP 0000, LLP 0009, LLP 0010, LLP 0018, LLP 0019, LLP 0024, LLP 0036, LLP 0055, LLP 0060, LLP 0069, LLP 0071, LLP 0089, LLP 0103, LLP 0104, LLP 0105, https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization, https://www.rfc-editor.org/rfc/rfc8628.html, https://www.rfc-editor.org/rfc/rfc8693.html, https://www.rfc-editor.org/rfc/rfc9396.html, https://www.rfc-editor.org/rfc/rfc9449.html, https://www.rfc-editor.org/rfc/rfc9700.html, https://www.rfc-editor.org/rfc/rfc9728.html, https://www.ietf.org/archive/id/draft-ietf-oauth-client-id-metadata-document-02.html, https://openid.net/specs/openid-connect-core-1_0.html, https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html, https://www.w3.org/TR/webauthn-3/, https://docs.stripe.com/payments/checkout, https://docs.stripe.com/payments/setup-intents, https://github.com/agentic-commerce-protocol/agentic-commerce-protocol, https://github.com/google-agentic-commerce/AP2
 
 ## Summary
@@ -16,23 +16,35 @@ API key.” It should also avoid inventing a second Expo identity when the human
 already has one, avoid handling raw card data, and leave the human with clear
 ownership, recovery, audit, and revocation.
 
-This RFC proposes an **agent-native Expo bootstrap protocol** with three paths:
+This RFC proposes an **agent-native Expo bootstrap protocol** with three trust
+paths, lettered here to match §"Product flows" (A–F) throughout this document:
 
-1. An agent with a valid Expo delegation discovers and uses the existing
-   account. Within the delegation's scopes and spending policy, the entire flow
-   can be unattended.
-2. A trusted agent host can, with the human's consent, pass Expo a signed
-   identity assertion and render Expo's exact authorization request in its own
-   secure UI. Expo links or creates the human identity and enrolls the agent
-   without making the human navigate to an Expo webpage.
-3. An agent without either trust path creates an expiring, tightly limited
-   **provisional workspace** and receives a proof-key-bound bootstrap
-   credential. It can build and deploy a free preview immediately. Expo returns
-   one trusted claim URL and QR code. When durable ownership, production
-   capabilities, or billing is needed, the human uses that single page to sign
-   into or create an Expo identity, select the owning account, approve the
-   agent's authority, and optionally complete Stripe-hosted payment. The agent
-   polls, then resumes automatically.
+- **Flow A — standing delegation.** An agent with a valid Expo delegation
+  discovers and uses the existing account. Within the delegation's scopes and
+  spending policy, the entire flow can be unattended.
+- **Flow C — trusted agent host.** A trusted agent host can, with the human's
+  consent, pass Expo a signed identity assertion and render Expo's exact
+  authorization request in its own secure UI. For the **resolved common case**
+  (an existing `(issuer, subject)` mapping), Expo signs the human in and enrolls
+  the agent **without making the human navigate to an Expo webpage**. For
+  unresolved first-use, collision, SSO, new-identity, or recovery cases an
+  **Expo-authored continuation** is required — an Expo-hosted step or
+  Expo-authored opaque UI the host renders — which never exposes the collision
+  classification (§"Trusted-host account-linking rule").
+- **Flow B → Flow D — provisional workspace and universal claim.** An agent
+  without either trust path creates an expiring, tightly limited **provisional
+  workspace** (Flow B) and receives a proof-key-bound bootstrap credential. It
+  can build and deploy a free preview immediately. Expo returns one trusted
+  claim URL and QR code. When durable ownership, production capabilities, or
+  billing is needed, the human uses that single page (Flow D) to sign into or
+  create an Expo identity, select the owning account, approve the agent's
+  authority, and optionally complete Stripe-hosted payment. The agent polls,
+  then resumes automatically.
+
+Flows E (payment from a phone) and F (preauthorized paid automation) are
+extensions of these three; the letter mapping is stable across the Summary,
+§"Product flows", the operation surface, and any downstream implementation
+specs and tests.
 
 The protocol optimizes for **zero interruption when prior authority exists**,
 **in-agent approval when the host can carry trusted identity**, and **one
@@ -57,7 +69,12 @@ Expo should build the following product contract:
   `AccountEntity`. It is held in platform escrow, expires, cannot incur paid
   overages, and has only the capabilities needed for a useful preview.
 - The agent generates a key pair locally. Bootstrap and subsequent tokens are
-  bound to that key so a leaked bearer string is insufficient by itself.
+  bound to that key so a leaked bearer string is insufficient by itself. The
+  binding is normative and includes an explicit proof-of-possession replay
+  contract (unique proof id with server-side rejection, and authorization-server
+  nonces where replay risk warrants); see §"Proof-of-possession and replay
+  contract". A key-bound credential without replay protection does not satisfy
+  this decision.
 - A trusted agent host may replace the Expo webpage with an in-product approval
   surface only when it provides a signed, audience-bound identity assertion,
   proves fresh human consent, and renders the Expo-supplied request and receipt
@@ -109,7 +126,11 @@ account inside that backend.
 - Let an agent with a standing Expo grant create, configure, deploy, and pay
   within policy without human interruption.
 - Let a trusted agent host create or link a durable Expo identity through a
-  secure in-agent consent surface, without an Expo-site detour.
+  secure in-agent consent surface — without an Expo-site detour for the resolved
+  common case (an existing `(issuer, subject)` mapping), and with an
+  Expo-authored continuation (Expo-hosted or host-rendered opaque UI) for
+  unresolved first-use, collision, SSO, new-identity, or recovery cases
+  (§"Trusted-host account-linking rule").
 - Collapse unavoidable human interaction into one trustworthy link rather than
   a trail of dashboard instructions.
 - Reuse an existing Expo account whenever one exists.
@@ -209,7 +230,16 @@ new auth protocol:
 - **OAuth authorization code with PKCE** for browser-capable clients and
   **RFC 8628 Device Authorization Grant** for decoupled completion. The latter
   already models “agent displays a URL/code and polls while a person acts on
-  another device.”
+  another device.” This RFC adopts RFC 8628's **UX and polling semantics**
+  (`verification_uri_complete`, a short user code, polling interval, expiry,
+  and the `authorization_pending`/`slow_down` back-pressure vocabulary) as the
+  claim path's shape; `bootstrap.begin`, provisional deployment, and
+  receipt-bound enrollment are **not** an RFC 8628 device-authorization/token
+  endpoint. Whether the claim path also exposes a literally wire-compatible
+  RFC 8628 device-authorization + token endpoint (with `device_code`,
+  `user_code`, `verification_uri[_complete]`, and the standard error set) is an
+  implementation-spec decision; until specified, the RFC does not imply wire
+  compatibility, only the borrowed interaction model.
 - **OAuth 2.0 Security Best Current Practice (RFC 9700)** for exact redirects,
   PKCE, sender/audience discipline, and rejection of password grants.
 - **OAuth Protected Resource Metadata (RFC 9728)** and authorization-server
@@ -223,8 +253,17 @@ new auth protocol:
 - **DPoP (RFC 9449)** to bind tokens to the agent's local key.
 - **Rich Authorization Requests (RFC 9396)** to express project, environment,
   action class, and budget constraints that do not fit a flat scope string.
+  RFC 9396 carries structured detail but does not itself define Expo semantics
+  or enforce a spend mandate, so a follow-on spec must register the Expo
+  **authorization-detail types**, their **canonical comparison rules**, and
+  **resource indicators/audiences**.
 - **OAuth Token Exchange (RFC 8693)** as a model for attenuating a parent grant
-  into a shorter, narrower task or CI credential.
+  into a shorter, narrower task or CI credential. RFC 8693 is only a framework;
+  strict attenuation and delegation depth remain Expo policy, so the same
+  follow-on spec must define **server-side subset checking against the Expo
+  authorization-detail types for every child grant** (a child must be a strict
+  subset of the parent's accounts, projects, environments, actions, audiences,
+  time, and budget).
 - **WebAuthn/passkeys** for low-friction, phishing-resistant human account
   claim and recovery.
 - **OpenID Connect** for a trusted agent host to assert a stable issuer/subject
@@ -342,7 +381,10 @@ the main path to duplicate accounts.
    - a bootstrap request id;
    - an expiring proof-key-bound credential;
    - the preview workspace/project identity;
-   - a trusted `verification_uri_complete`;
+   - a trusted `verification_uri_complete`, treated as an acknowledged bearer
+     ownership capability with the disclosure, confirmation, notification,
+     hold/reversal, and recovery constraints in §"The claim capability is an
+     acknowledged bearer capability";
    - a short human code and QR representation;
    - expiry and polling interval;
    - machine-readable limits and next actions.
@@ -368,24 +410,45 @@ provisioning host, not as an all-powerful agent:
    privacy posture, and supported approval/payment capabilities.
 2. The host asks the human to share the minimum identity claims with Expo and
    displays Expo's exact requested app, scopes, duration, destination, plan,
-   and budget in trusted host UI outside the model-controlled transcript.
+   and budget in trusted host UI outside the model-controlled transcript. What
+   the host renders is a **canonical Expo-signed, nonce-bound authorization
+   request object** (with a policy/terms version); the host does not compose
+   this text.
 3. The host sends a one-time signed assertion containing issuer, stable subject,
    Expo audience, nonce, issue/expiry time, verified claims, consent receipt,
-   agent installation key, and bootstrap request.
-4. Universe verifies the assertion and resolves the issuer/subject to an
-   existing Expo identity. Account linking follows explicit verified-identity
-   and SSO policy; it never relies on an unsigned email hint.
-5. If no identity exists, Universe can create the human identity and primary
-   account from the federated assertion, subject to required terms, age,
-   region, recovery, and organization policy.
+   agent installation key, bootstrap request, and a **digest of the exact signed
+   request object it displayed**. Expo rejects the assertion if the echoed
+   digest does not match a current, unexpired request it issued, so a stale or
+   altered request cannot be consented to.
+4. Universe verifies the assertion and applies the normative linking rule in
+   §"Trusted-host account-linking rule". An existing `(issuer, subject)` mapping
+   signs directly into its bound Expo identity. First-time linking of a
+   newly-trusted issuer's subject to a **pre-existing** Expo human is **not**
+   done on a host-asserted verified email alone; it requires either
+   authentication under that Expo identity or an explicitly approved enterprise
+   federation/account-linking policy with defined assurance. Responses stay
+   generic and non-enumerating.
+5. If the collision check finds no existing identity, Universe may create a new
+   durable human identity and primary account from the federated assertion —
+   only after the collision check and the required terms/age/region/recovery
+   ceremony, and only when identity *creation* passes an additional
+   freshness/liveness check on the assertion (not merely signature validity),
+   subject to organization policy.
 6. The host returns Expo's signed authorization receipt to the client and the
    agent completes key-bound enrollment.
 
 This is the closest match to “ask the agent to make an app and never visit an
-Expo page.” It still includes human consent when a new identity, broad
-authority, or payment mandate is created, but the consent happens in the
-already-open agent product. The model cannot self-assert the user's identity or
-click its own approval.
+Expo page.” That fully in-agent, no-detour completion holds for the **resolved
+common case** — an existing `(issuer, subject)` mapping (step 4's direct
+sign-in). For **unresolved** first-use linking, collision with a pre-existing
+Expo human, SSO, new-identity creation (step 5), or recovery, an **Expo-authored
+continuation** is required — either an Expo-hosted step or Expo-authored opaque
+UI steps the host renders and returns signed results for — driven by an opaque
+continuation token that never reveals the collision classification
+(§"Trusted-host account-linking rule"). It still includes human consent when a
+new identity, broad authority, or payment mandate is created, but the consent
+happens in the already-open agent product or the trusted Expo continuation. The
+model cannot self-assert the user's identity or click its own approval.
 
 The host may embed a provider-controlled payment component or present an
 ACP/AP2-style mandate when Expo and the payment provider support it. Until
@@ -428,6 +491,129 @@ The approval receipt is cryptographically and durably bound to:
 The browser redirect is never proof that payment or claim succeeded. Universe
 advances state only after validating its own authorization transaction and,
 for payment, the provider's signed webhook or authoritative API state.
+
+#### The claim capability is an acknowledged bearer capability
+
+The claim URL (`verification_uri_complete`) and its short human code are, by
+construction, a **bearer ownership capability**: absent an independent binding
+to a specific human, anyone who opens the link and authenticates as themselves
+can attempt to select a destination account. This RFC accepts that model
+explicitly rather than pretending the link proves identity, and constrains it so
+possession alone cannot silently and irreversibly capture another agent's work.
+The following are normative for the universal claim path:
+
+- **Narrow disclosure.** The URL/code is single-use, short-lived, high-entropy,
+  and delivered only to the agent that created the bootstrap request (or, with
+  consent and a rate-limited verified channel, to a contact hint). It is never
+  echoed into model-visible prose, logs, analytics, or support views
+  (acceptance scenario 16), and non-enumerating responses hide its existence
+  from unauthenticated parties.
+- **Explicit human confirmation of claimant and destination.** The receipt
+  (§Flow D and below) shows, in a human-readable summary the authenticated
+  claimant must confirm, **both who is claiming (the authenticated Expo human)
+  and the destination owning account**, alongside the agent client, scopes,
+  duration, plan, and maximum spend. The claimant cannot approve without seeing
+  the destination they are selecting.
+- **Notification on claim.** A successful first claim notifies the workspace's
+  associated and prior contact channels (any consented contact hint, and any
+  channel already associated with a matched-but-not-authenticated existing
+  identity) through the notification system, so an unexpected claim is
+  observable to the intended human. In the common **no-contact-hint anonymous
+  case** — a workspace created with no contact hint and no matched pre-existing
+  identity, whose claim URL lives only in the chat, terminal, or QR — those
+  channels do not exist, so a bare notification reaches no one. For that case a
+  claim MUST **either notify the originating agent channel** (the bootstrap
+  request's proof-of-possession holder; see the recovery authority below), so
+  that the hold window is actually invoked, **or gate durable ownership on a
+  stronger binding** (an independent claimant binding as below). A claim that
+  can reach no observer and offers no stronger binding does not durably commit.
+  The **gate limb is the default** whenever **no live PoP-holder acknowledgement
+  is observed within the hold window** (the originating agent may be gone, or may
+  itself be the adversary): absent a live ack, durable ownership is gated on a
+  stronger binding rather than committed on the possessor's say-so. A
+  **PoP-holder contest is freeze-only — it can freeze or reverse toward the
+  safe "held" outcome but never selects a destination** — so a hostile or absent
+  originating agent yields at most **denial-of-completion, never takeover**.
+- **Hold / reversal window.** A first claim is **not irreversible merely through
+  possession of the URL.** It enters a bounded hold/reversal window (the exact
+  duration is an open question, balanced against immediate usefulness) during
+  which the claim can be reversed via the recovery path before ownership,
+  credentials, and any billing mandate become durable. Provisional preview use
+  may continue during the hold; irreversible or paid actions are gated until it
+  clears.
+- **Recovery path.** A contested or mistaken claim has a defined recovery
+  ceremony (§Notifications, audit, and recovery) that can reverse an in-window
+  claim and, after the window, follow the project-transfer/tombstone recovery
+  for a wrongly captured workspace. Recovery does not depend on the same claim
+  capability that was used.
+- **No silent key/destination substitution.** A stolen claim URL cannot change
+  the approved agent public-key thumbprint or the destination without producing
+  a visible receipt and notification; the approved key is bound at enrollment
+  and any change is an auditable event, not an ambient effect of URL possession
+  (acceptance scenario 10).
+
+Where a stronger guarantee is required (for example an enterprise destination,
+or when a matched existing identity is present), Expo may additionally require
+an **independent binding to the intended claimant** — authentication under an
+already-associated identity, or an enterprise federation policy — before the
+claim can select that destination.
+
+##### Recovery authority and evidence hierarchy
+
+A bearer capability is only safely reversible if some party has provably
+**superior evidence** to the possessor. Because a no-contact-hint workspace has
+no contact channel and no pre-existing identity, the notification/recovery path
+would otherwise have no actor: a stolen-URL claim would notify no one and, once
+the hold clears, become durable. This RFC closes that gap by designating a
+first-class recovery principal that exists even in the anonymous case, and by
+pinning who may reverse a claim on what evidence. The following is normative:
+
+- **Bootstrap-request proof-of-possession holder is a recovery/dispute
+  principal.** The holder of the agent-installation key that created the
+  bootstrap request (proven by the same key-bound proof-of-possession used for
+  `bootstrap.read`/`bootstrap.status`) is a first-class principal that can
+  **observe and contest a claim during the hold window**. This is the only
+  anchor present in the no-contact-hint case: the legitimate agent holds the
+  installation key, and a claim thief who merely intercepted the URL does not.
+  It is the counterpart to the notification requirement above — the originating
+  agent channel that a no-hint claim must notify is exactly this principal.
+- **Evidence hierarchy (who can freeze/reverse during the hold).** In order of
+  strength: (1) authentication under an **already-associated existing identity**
+  matched to the workspace; (2) an **enterprise federation/account-linking
+  policy** governing the destination; (3) **proof-of-possession of the bootstrap
+  request** (the installation key holder). A party with strictly superior
+  evidence can freeze or reverse an in-window claim made by a party with weaker
+  evidence. Conflicting claims are adjudicated in favor of the superior evidence
+  tier; ties within a tier hold the workspace (no durable commit) pending
+  out-of-band support adjudication rather than silently resolving to the current
+  possessor.
+- **A self-authenticated first claimant does not out-rank the PoP holder.** In
+  the no-contact-hint anonymous case the first claimant authenticates as
+  themselves but has **no prior association to this workspace**, so is *not* a
+  tier-(1) party with respect to it. Such a **self-authenticated-but-unassociated
+  first claimant does not out-rank the bootstrap-request proof-of-possession
+  holder (tier 3)**. Consequently a PoP-holder contest during the hold is not
+  out-ranked by the bare claimant and **forces the "held / does-not-durably-
+  commit" branch** (§notification-on-claim), resolving toward reversibility
+  rather than to the possessor.
+- **An unauthenticated contact hint MUST NOT reverse a claim.** A contact hint
+  is a routing hint, not proof (§"Contact hints are routing hints"); allowing a
+  hinted address to reverse a claim would create a **new takeover path** (steal
+  or spoof the hint, reverse the legitimate owner). A contact hint can only
+  cause a notification and can only lead to reversal by authenticating into an
+  associated identity or completing the recovery ceremony under an evidence tier
+  above.
+- **Safe terminal outcome when no party has superior proof.** If a claim is
+  contested and no party can establish evidence superior to the current
+  possessor, the workspace does **not** durably commit to the disputed
+  destination on hold-clear: it either remains held pending support adjudication
+  or falls back to the project-transfer/tombstone recovery, and the provisional
+  container is not silently erased. The default resolves toward reversibility,
+  not toward the possessor.
+
+Recovery never depends solely on the same claim capability that was used to
+claim, nor solely on the agent being recovered (§"Notifications, audit, and
+recovery").
 
 ### Flow E: payment from a phone
 
@@ -472,7 +658,9 @@ Recommended launch limits include:
 - a short TTL, with a clearly returned absolute expiry;
 - one or a very small number of projects per bootstrap/client/risk bucket;
 - fixed compute, request, bandwidth, storage, build, and log ceilings;
-- no paid overage and no negative balance;
+- no paid overage and no negative balance, enforced by LLP 0104's account-budget/
+  lease protocol against the pre-claim owner-of-record (§"EAS Hosting and
+  Snapback"), not merely asserted here;
 - no custom domains, organization invites, production credentials, or account
   recovery changes;
 - no arbitrary email/SMS/push sending;
@@ -492,23 +680,145 @@ not fall back to creating unverified permanent users.
 
 ## State machine and idempotency
 
-A bootstrap request has one explicit state:
+A single linear machine conflates concerns that must fail and recover
+independently: a retryable payment failure must not roll back ownership, and
+cancelling agent enrollment must not delete a human-owned project. Bootstrap
+state is therefore modeled as **orthogonal durable dimensions**, each with its
+own terminality, compensation, and idempotency ownership. A bootstrap request is
+the product of these dimensions plus explicit substates, not a point on one
+line:
 
-```text
-REQUESTED
-  → PROVISIONING
-  → PROVISIONAL
-  → AWAITING_CLAIM
-  → AWAITING_POLICY
-  → AWAITING_PAYMENT
-  → ACTIVE_FREE | ACTIVE_PAID
+- **Workspace lifecycle.** `REQUESTED → PROVISIONING → PROVISIONAL →
+  {CLAIMED, EXPIRED, CANCELLED}`. Owns the escrow container and its TTL. The
+  workspace **remains `PROVISIONAL` (escrow retained) throughout the ownership
+  hold** and terminalizes to `CLAIMED` only when the ownership-transfer
+  dimension durably commits (hold cleared). It is *not* terminalized on hold
+  entry, so an in-window reversal never has to un-terminalize it. Terminal at
+  `CLAIMED` (ownership durably left escrow), `EXPIRED`, or `CANCELLED`.
+  **Lifecycle fence (normative).** Entering ownership `CLAIM_HELD` /
+  `CLAIM_COMMITTING`, or any contested-adjudication state under §"Recovery
+  authority and evidence hierarchy", **inhibits destructive expiry and
+  cleanup**: while a claim or dispute is in flight, the workspace-lifecycle
+  dimension **cannot fire `EXPIRED`** and the cleanup dimension **cannot begin
+  deletion**. The PROVISIONAL TTL is **suspended (or bounded-extended)** to
+  cover the hold plus any dispute/adjudication window, so a running TTL can
+  never destroy the container mid-claim or mid-dispute. On **`REVERSED`** the
+  container resumes its normal `PROVISIONAL` TTL (under the new-generation
+  `UNCLAIMED` pointer). On **abandoned or timed-out adjudication** the safe
+  terminal is **held-not-destroyed** — the container enters a **durable
+  adjudication state** (`CLAIM_DISPUTED`/`ADJUDICATING`) and is retained until a
+  bounded safe cutoff (a security parameter), never silently erased while
+  ownership is unresolved. **Cutoff transition (normative).** At the bounded
+  cutoff, if no resolving support adjudication has landed, the container makes a
+  single explicit transition to a **support-controlled `QUARANTINED`/tombstone
+  terminal** rather than either destructive `EXPIRED` (which the fence forbids
+  while ownership was disputed) or indefinite retention (which defeats the
+  bound). That transition is **non-destructive** — data is retained and remains
+  **exportable, and is never silently erased while a dispute was live** — and it
+  **atomically clears the in-flight-dispute fence** with these consequences:
+  **ownership** stays escrow/none (the disputed destination is not committed);
+  **capabilities** are frozen (no provisional preview, no new credentials, no
+  paid or irreversible actions); and a defined **quarantine-retention TTL** (a
+  security parameter) begins, after which — and only then — ordinary
+  `EXPIRED`/cleanup becomes eligible for the quarantined container. A resolving
+  support adjudication before or during quarantine routes the container to the
+  correct owner (claim commit or project-transfer/tombstone recovery per
+  §"Recovery authority and evidence hierarchy") instead. `EXPIRED`/cleanup may
+  therefore only fire once no claim or dispute is in flight **and** any
+  quarantine-retention TTL has elapsed.
+- **Ownership transfer (claim).** Ownership is modeled as an immutable **claim
+  attempt** plus a workspace-level **current-claim pointer**. A single claim
+  attempt runs `UNCLAIMED → CLAIM_HELD →
+  {REVERSED, CLAIM_COMMITTING → CLAIMED}` and its states are *append-only*:
+  `CLAIM_HELD` is the hold/reversal window, from which the attempt goes to
+  **`REVERSED`** (reversal invoked, or a superior-evidence contest under
+  §"Recovery authority and evidence hierarchy") **or** to
+  **`CLAIM_COMMITTING → CLAIMED`** (the hold clears and ownership durably
+  commits). **`REVERSED` and `CLAIMED` are both terminal states of that
+  attempt** — a `REVERSED` attempt is an immutable, idempotent reversal record
+  and is *never* mutated back to `UNCLAIMED`. Instead, on **`REVERSED`** the
+  workspace's **current-claim pointer resets to a new claim-attempt generation**
+  (a fresh attempt id at `UNCLAIMED` with a **fresh idempotency scope**), so the
+  workspace's *effective* ownership state is `UNCLAIMED` again and a subsequent
+  claim is well-defined against the new generation while the reversed attempt
+  stays terminal for audit and replay-idempotency. To compose this with the
+  caller-generated idempotency key (§"Every mutating request carries"), the
+  **effective idempotency key for `workspace.claim` is
+  `(caller-generated key, current claim-attempt generation)`**: a retry of
+  `workspace.claim` with the same caller key **across a generation boundary**
+  lands on the *new* generation rather than replay-deduping onto the terminal
+  `REVERSED` attempt of the prior generation, so a legitimate re-claim is never
+  stuck on a reversed record and a replay never resurrects one. The explicit
+  workspace-level transition is therefore **`REVERSED ⇒ new-generation
+  UNCLAIMED`** (pointer reset, not a state edge on the reversed attempt). The 0103/0104
+  ownership-interval cutover happens at **exactly one transition — the commit in
+  `CLAIM_COMMITTING` at hold-clear**, not on `CLAIM_HELD` entry; entering the
+  hold binds intent and starts the window but does not yet open the destination
+  ownership interval. On **`REVERSED`** the escrow container returns to
+  workspace-lifecycle `PROVISIONAL` under the new-generation `UNCLAIMED` pointer
+  (the container is not erased; TTL and the recovery path resume). During
+  `CLAIM_HELD`, the authoritative
+  **owner-of-record remains the pre-claim platform-escrow interval** (see
+  §"EAS Hosting and Snapback"), the **permitted principal is provisional-scoped
+  only**, and **metering continues to attribute to the escrow interval** until
+  the cutover at commit. Compensation is claim reversal, then the
+  project-transfer/tombstone recovery. This dimension, not payment, owns whether
+  a human owns the project.
+- **Human authorization.** `NONE → IDENTITY_LINKED_OR_CREATED`, following the
+  §"Trusted-host account-linking rule" and the universal claim ceremony.
+- **Agent enrollment.** `NONE → CODE_ISSUED → ENROLLED → {ENROLL_CANCELLED,
+  REVOKED}`. `CODE_ISSUED but not exchanged` and `ENROLL_CANCELLED` are
+  first-class. This dimension commits **independently of the billing
+  dimension**, but not independently of the ownership hold: `ENROLLED` may issue
+  **provisional-scoped** credentials during ownership `CLAIM_HELD`, while
+  **durable/production credential authority is gated on hold-clear** (the same
+  gate §Flow D and §Notifications apply to credentials becoming durable).
+  Cancelling or revoking enrollment **never** deletes a human-owned project — it
+  only removes the agent's authority.
+- **Billing / entitlement.** `FREE → CHECKOUT_PENDING → {PAID, PAYMENT_FAILED}`,
+  where `PAYMENT_FAILED` is retryable and leaves ownership and entitlement at
+  their last good state (`ACTIVE_FREE` after a failed upgrade, not rolled back).
+  Authoritative only from provider webhook/API state.
+- **Cleanup.** `NONE → SCHEDULED → DONE`, racing against claim: a claim that
+  lands while provisional cleanup is scheduled **wins** and cancels cleanup;
+  cleanup that has begun deletion blocks a late claim with a typed `expired`
+  outcome and the recovery path. This race is defined, not left implicit.
+  The **lifecycle fence** above bounds this race on the claim side: once a claim
+  or dispute is in flight (ownership in `CLAIM_HELD` / `CLAIM_COMMITTING` or a
+  contested-adjudication state), cleanup **cannot advance to `SCHEDULED` or
+  begin deletion**, so the only surviving race is a claim landing against an
+  *already-scheduled* cleanup before any hold exists — which the claim wins.
 
-Any non-terminal state → DENIED | EXPIRED | CANCELLED
-```
+Transaction boundaries are pinned per operation, not across the whole request:
+**claim** commits the ownership-transfer dimension **entering `CLAIM_HELD`**
+atomically with the human-authorization result (this binds the intended
+destination and starts the hold; it does **not** open the destination ownership
+interval); the **0103/0104 cutover** is a *separate* boundary that fires once,
+in **`CLAIM_COMMITTING` at hold-clear** (see §"Three different operations" /
+§"Escrow-source claim"), and the mirror-image **`REVERSED`** boundary
+terminalizes the immutable claim attempt and **resets the workspace current-claim
+pointer to a new-generation `UNCLAIMED`**, returning the container to
+`PROVISIONAL`; **transfer** is the account-to-account
+0103 transfer boundary; **credential issuance/enrollment** commits the
+agent-enrollment dimension **independently of the billing dimension** — but
+"independently of billing" is **not** "independent of the hold": durable and
+production credential authority is gated on hold-clear, and only
+provisional-scoped credentials may issue while ownership is in `CLAIM_HELD` (see
+§"Agent enrollment"); **subscription creation** commits only the billing
+dimension after webhook confirmation; **expiry** commits workspace-lifecycle +
+cleanup, but is **inhibited by the lifecycle fence** while a claim or dispute is
+in flight (it cannot fire during `CLAIM_HELD`/`CLAIM_COMMITTING` or a
+contested-adjudication state). No single transaction spans ownership and payment.
 
-Not every request visits every state. An existing valid delegation may go from
-`REQUESTED` to `ACTIVE_FREE` or `ACTIVE_PAID` without creating a provisional
-workspace.
+Not every request visits every dimension's non-initial states. An existing valid
+delegation (Flow A) may reach `ACTIVE_FREE`/`ACTIVE_PAID` billing directly
+without a provisional workspace, leaving the workspace-lifecycle and
+ownership-transfer dimensions unused.
+
+The composite outcome vocabulary below is a projection of these dimensions;
+`ready`/`pending`/`action_required`/`conflict`/`denied`/`expired` describe the
+request as a whole, while the durable dimensions above record which concern is
+in which state.
 
 Every mutating request carries:
 
@@ -550,6 +860,15 @@ signals include:
 
 These signals may suggest a match but must not silently prove ownership.
 
+All **pre-authority** discovery is **local-only**: for the no-authority case,
+discovery-before-creation relies solely on signals the client already holds (a
+credential in the broker, `.expo` project linkage, local repository/build
+metadata). Any **server-side** match query — including bundle/package id or
+repository-remote lookups, not just contact hints — requires **authenticated
+authority** or returns a **non-enumerating generic result**, so discovery never
+becomes an account- or project-enumeration oracle. This is why `identity.inspect`
+is marked `Anonymous? No`: it is not a public lookup surface.
+
 ### Contact hints are routing hints
 
 An email address or phone supplied by the agent is not proof. If it matches an
@@ -563,6 +882,97 @@ existing verified user, Expo should:
 For a new user, Expo should prefer a provider-verified identity or passkey plus
 a verified recovery channel. Generated `something+agent@…` addresses are not a
 sound ownership model.
+
+### Trusted-host account-linking rule
+
+Trusted-host federation (Flow C) accepts a signed assertion carrying an issuer
+and stable subject. A newly-trusted issuer's `sub` has no existing Expo mapping
+on first use, so the linking decision is where takeover risk concentrates. The
+following rule is **normative**:
+
+1. **Existing `(issuer, subject)` mapping.** Signs in directly to the bound Expo
+   identity. This is the only case that federates authority without a further
+   Expo-side identity proof.
+2. **First-time link to a pre-existing Expo human.** A host-asserted verified
+   email is **never sufficient by itself** to bind an issuer/subject to an
+   existing Expo human — doing so would risk account takeover and bypass that
+   account's MFA/recovery posture. Linking requires **either** the human to
+   authenticate under the existing Expo identity (the same standard Universe's
+   interactive OAuth link path enforces today — the user proves control of the
+   Expo account, not merely of a matching mailbox), **or** an explicitly
+   approved enterprise federation/account-linking policy with defined assurance
+   requirements and honored SSO/conflict handling — the hard block for an
+   SSO-governed user is `PreventSSOUserOAuthIdentityValidator`, with
+   `OAuthLoginPendingSSOConflict` preserved as an interactive warning, never a
+   silent bypass.
+3. **No matching identity.** A new durable identity may be created **only after
+   the collision check** and the required terms/age/region/recovery ceremony,
+   and identity *creation* via a federated assertion is additionally gated
+   behind a freshness/liveness check (Fable review, §Flow C) beyond signature
+   validity.
+
+In every case responses are generic and non-enumerating: the unauthenticated
+host learns neither that a colliding Expo identity exists nor its recovery
+posture. Because the three cases above require **materially different
+ceremonies** (direct sign-in, authenticate-under-existing-identity or enterprise
+policy, and new-identity terms/recovery), a naive response would let the host
+distinguish them and thereby enumerate. This creates one coherent contract with
+two branches, resolving the apparent tension between non-enumeration and Flow C's
+in-agent, no-Expo-detour promise:
+
+- **RESOLVED common case — in-agent, no detour.** When the assertion resolves to
+  an **existing `(issuer, subject)` mapping**, the host completes sign-in
+  **entirely in its own trusted UI without an Expo-page detour**. This is the
+  case Flow C, the Summary, and the Goals' "no Expo-site detour" language refers
+  to, and it is the expected steady-state for a returning human of an approved
+  host: the mapping already exists, no collision classification is exposed, and
+  the host renders Expo's canonical signed request and returns the signed
+  consent/enrollment result directly.
+- **UNRESOLVED cases — Expo-authored continuation required.** For **first-use**
+  linking of a newly-trusted subject, a **collision** with a pre-existing Expo
+  human, an **SSO**-governed user, **new-identity creation**, or a **recovery**
+  requirement, the ceremonies differ materially *and* must not be distinguishable
+  by the host. Universe therefore returns an **Expo-issued opaque
+  continuation/challenge token** and requires an **Expo-authored continuation** —
+  either **(a)** an **Expo-hosted continuation step** (the host hands off to a
+  trusted Expo surface for that step), **or (b)** an **Expo-authored opaque UI
+  step the host renders**, driven entirely by the opaque token. An opaque token
+  by itself does **not** hide UI content, interaction shape, timing, or returned
+  results from the host that renders it, so branch (b) cannot deliver the stated
+  non-enumeration as a plain host-rendered protocol. Branch (b) is therefore
+  permitted **only via an Expo-controlled isolated component/origin** — an
+  Expo-origin sandboxed surface the host embeds but cannot introspect (e.g. an
+  Expo-origin iframe/webview) — that presents a **uniform observable envelope**
+  (constant step count, field shapes, asset set, and latency profile across all
+  unresolved ceremonies) and returns a **generic signed terminal result**, so
+  the host **relays only** and cannot classify collision vs SSO vs
+  new-identity vs recovery from what it can observe. **Shape-uniformity across
+  the unresolved ceremonies is an explicit Flow C conformance requirement** for
+  branch (b). If that Expo-origin isolation is not available, the unresolved case
+  **falls back to the fully-Expo-hosted branch (a)**, and the **strict
+  non-enumeration guarantee is explicitly restricted to branch (a) or the
+  isolated-component branch (b)** — it is **never** provided by a plain
+  host-rendered protocol. In either permitted branch the host renders a single
+  generic "continue" step against the token and **does not learn whether the
+  cause was a first-time-link, an SSO conflict, a new-identity requirement, or a
+  recovery path** — the collision classification is never exposed. Only Expo,
+  when the human proceeds against the token, resolves it to the correct ceremony.
+  The host cannot compose these steps or observe which one it is driving; it only
+  relays Expo-authored UI and returns signed results.
+
+Flow C's "the host completes linking/creation in its own UI without an Expo
+detour" claim is thereby **narrowed explicitly to the resolved
+`(issuer, subject)` case**; unresolved cases require the Expo-authored
+continuation above (opaque-token-driven, whether Expo-hosted or host-rendered),
+which no longer contradicts Flow C, the Summary, or the Goals. This mirrors
+Universe's existing OAuth deduplication and SSO-conflict handling
+(`_loginOrSignupUserWithOAuthAsync`, `PreventSSOUserOAuthIdentityValidator`),
+in which a provider-verified email can link to a verified Expo user **during an
+interactive flow where the user authenticated with the provider** and no
+conflicting link/SSO policy applies — not on the strength of an asserted email
+string alone. (The genuine hard block for an SSO-governed user is
+`PreventSSOUserOAuthIdentityValidator`; `OAuthLoginPendingSSOConflict` is a
+dismissible interactive warning, not the block.)
 
 ### Three different operations
 
@@ -581,6 +991,31 @@ which:
 The paved recovery for accidental agent bootstrap is (1) plus (2), not (3).
 Claiming a provisional workspace is a transfer out of platform escrow. It
 preserves project/environment ids, deployment history, and resource identity.
+
+`workspace.claim` is classified as an **escrow-source specialization of LLP
+0103's transfer boundary**, not a separate ad-hoc mechanism: it reuses 0103's
+atomic ownership-attribution cutover (which opens a new ownership interval
+without rekeying the durable id) with the **source owner being platform escrow
+(a non-`AccountEntity`) instead of an existing `expoAccountId`**. This requires a
+**0103 amendment** to admit an escrow/null-owner source in its transfer
+protocol (0103's app-wide transfer today assumes an existing account source);
+the first-run claim otherwise inherits 0103's cutover fence, epoch/lease
+revocation, and admission-bound attribution. `project.transfer` remains the
+account-to-account case; `workspace.claim` is the escrow-to-account first-run
+case — the two are listed separately for exactly this reason. Where an
+implementation cannot yet reuse 0103's boundary, claim is instead a **distinct
+fenced first-run operation** that must still provide the same cutover-atomicity
+and attribution guarantees.
+
+"Specialization" here does **not** mean "zero new mechanism." 0103's
+prepare/commit/abort is built on **old-owner leases frozen at prepare and
+revoked at commit**; an escrow/null-owner source has **no such old-owner
+lease**, so the escrow case's **prepare/abort semantics are newly defined** even
+when the commit reuses 0103's cutover fence (this is precisely the 0103
+amendment flagged above, and why the fallback is a distinct fenced operation).
+The cutover fires at exactly the `CLAIM_COMMITTING → CLAIMED` transition
+(§"State machine and idempotency"); on `REVERSED` the escrow source is simply
+retained, since there is no old-owner lease to restore.
 
 Project transfer must:
 
@@ -628,6 +1063,70 @@ The preferred enrollment result consists of:
 The existing static Expo access token remains usable for compatibility, but
 official agent flows should immediately exchange or wrap it into a narrower
 session rather than copying it into every tool.
+
+### Proof-of-possession and replay contract
+
+Proof-key binding is only as strong as its replay defense. The following
+RFC 9449 (DPoP) validation is **normative** for the bootstrap credential and for
+every enrolled credential presented at an Expo protected resource or
+authorization endpoint:
+
+- `typ` is `dpop+jwt`; the signing algorithm is asymmetric and allowlisted
+  (`ES256`/`ES384`/`RS256`/`PS256`), never `none` or HMAC;
+- `htm` matches the request method and `htu` matches the normalized request URI
+  (origin + path, query/fragment stripped);
+- `iat` is present and within a bounded acceptance window;
+- `jti` is present and **unique per proof, with server-side replay rejection**
+  over at least the `iat` acceptance window. Replay identity is keyed by the
+  tuple **(confirming key thumbprint `jkt` + `jti`)**, not `jti` alone, so proof
+  ids are scoped to the presenting key; the `jti` cache **retention MUST cover
+  at least the `iat` acceptance window** (a proof outside that window is already
+  rejected on `iat`, so a shorter cache would reopen the replay hole the window
+  is meant to close). Beyond that retention *floor*, the replay store MUST also
+  carry an **upper-bound/eviction discipline and a per-`jkt` cardinality cap** so
+  it cannot become a memory-exhaustion target: entries are evicted once past the
+  `iat` window, and a single key thumbprint cannot pin unbounded `jti` entries
+  (proofs beyond the per-`jkt` cap are rejected rather than cached without
+  limit). Because any evicted entry is necessarily outside the `iat` window, it
+  is already rejected on `iat`, so bounded eviction never reopens the replay
+  hole;
+- `ath` binds the proof to the presented access token at protected resources;
+- the confirming key thumbprint (`cnf.jkt`) is continuous with the enrolled
+  installation key across bootstrap, status, exchange, and enrollment;
+- an **authorization-server-issued nonce** is required where replay risk is
+  elevated — explicitly at `bootstrap.begin`, `bootstrap.read`/status, and the
+  approval-to-credential exchange — so a proof cannot be replayed even within
+  the `iat` window. Because `bootstrap.begin` is the client's first contact and
+  cannot carry a server nonce it has not yet seen, it uses the **RFC 9449 nonce
+  challenge/retry**: the initial nonce-less request is answered with a
+  `use_dpop_nonce` error and a fresh nonce in the **`DPoP-Nonce` response
+  header**, and the client **retries** the same request with a proof carrying
+  that server nonce. Subsequent nonce-required operations reuse the most
+  recently issued nonce and are re-challenged the same way when it is stale. To
+  keep concurrency and retries safe, the authorization server MUST accept a
+  **bounded set / overlap window of recently-issued nonces** (not only the single
+  latest one), so concurrent requests and retries that each carry a
+  recently-issued nonce do not invalidate one another; `(jkt, jti)` remains
+  independently single-use regardless of which in-window nonce a proof carries.
+  The nonce **validity/overlap window MUST NOT exceed (and should be derivable
+  from) the `iat` acceptance window**, so a proof carrying a nonce accepted late
+  in its overlap window still falls inside the `iat` window and the replay store
+  plus the independent `iat` check remain the **joint gate** — a nonce outliving
+  the `iat` window would let the `iat` check pass responsibility to the nonce
+  alone.
+
+Universe's current DPoP validator (`server/mcp/src/auth/dpop.ts`) already checks
+`typ`, algorithm policy, `htm`, normalized `htu`, `iat`, and `ath`, and returns
+the `jkt` thumbprint, but it **explicitly does not yet implement a `jti` replay
+cache or server-issued nonces** (its own follow-up note says so). The `jti`
+replay store and nonce issuance are therefore **required new work**, not
+existing behavior, and the stolen-credential guarantee in this RFC and in
+acceptance scenario 10 depends on them.
+
+If a bootstrap or enrollment credential is ever issued as something other than
+an OAuth access token, it must carry an equivalent, explicitly specified
+proof-of-possession and replay contract (unique proof id, server-side replay
+rejection, and nonce where warranted); a bare bearer string is never sufficient.
 
 ### Credential delivery
 
@@ -805,11 +1304,24 @@ The security/activity view records:
 - time, approximate client/network risk data, and outcome;
 - links to revoke, dispute, or get support.
 
-High-risk approvals should have a short cancellation/hold window when feasible.
+High-risk approvals, including a first workspace claim, should have a short
+cancellation/hold window when feasible; during that window a claim can be
+reversed before ownership, credentials, and any billing mandate become durable.
 Recovery must cover a lost agent device, lost human login method, dead email
-address, enterprise administrator change, payment dispute, and an expired
-provisional workspace. Recovery cannot depend solely on the agent that is being
-recovered.
+address, enterprise administrator change, payment dispute, an expired
+provisional workspace, and a **contested or mistaken claim** (a workspace
+claimed into the wrong account). In-window, the recovery ceremony reverses the
+claim; after the window, it follows the project-transfer/tombstone path to move
+a wrongly captured workspace back and disable the incorrect owner after
+retention checks. Who may invoke reversal, and on what evidence, is pinned by
+the **recovery authority and evidence hierarchy** in §"The claim capability is
+an acknowledged bearer capability": the bootstrap-request proof-of-possession
+holder (the agent-installation key holder) is a first-class recovery/dispute
+principal — the anchor that exists even in the no-contact-hint anonymous case —
+an unauthenticated contact hint may never itself reverse a claim, and when no
+party has superior proof the workspace resolves toward reversibility rather than
+toward the current possessor. Recovery cannot depend solely on the agent that is
+being recovered, nor on the same claim capability that was used to claim.
 
 ## Security and abuse model
 
@@ -835,22 +1347,45 @@ recovered.
 - A trusted agent recursively mints broader or longer-lived credentials.
 - A user confuses the agent software's identity with the Expo account that will
   own and pay for the project.
+- A CIMD (client-id metadata document) fetch is pointed at an internal address
+  or a hostile/oversized/redirecting endpoint to drive SSRF, resource
+  exhaustion, or metadata poisoning, or a client presents metadata to imply
+  authority it does not have.
 
 ### Required defenses
 
-- Proof-key binding for bootstrap and enrolled credentials; PKCE, state, nonce,
-  exact redirect matching, and short expiries.
+- Proof-key binding for bootstrap and enrolled credentials, including the
+  normative RFC 9449 replay contract in §"Proof-of-possession and replay
+  contract" (unique `jti` with server-side replay rejection, key-thumbprint
+  continuity, and authorization-server nonces at bootstrap/status/exchange);
+  PKCE, state, nonce, exact redirect matching, and short expiries.
 - A human approval summary naming the agent, owner, project, scopes, duration,
   price, and maximum spend; a signed/durable receipt records the same facts.
 - Strict trust registration, signature/issuer/audience/nonce/time validation,
   minimum claims, replay prevention, and incident revocation for federated
-  agent-host assertions. Expo—not model-provided text—supplies the request
-  displayed by the host.
+  agent-host assertions, with a bounded maximum issuer-revocation propagation
+  time (a compromised trusted host is the highest-privilege blast radius, since
+  it can create or link human identities). First-time linking follows the
+  §"Trusted-host account-linking rule"; identity *creation* via a federated
+  assertion is additionally gated behind a freshness/liveness check. Expo—not
+  model-provided text—supplies the request displayed by the host, as a
+  canonical Expo-signed, nonce-bound request object/digest that the assertion
+  and consent receipt must echo (stale or altered requests are rejected).
 - Provider webhooks/API state, never redirects, as payment authority.
 - Non-enumerating responses and rate limits for email, SMS, client metadata
-  fetch, signup, claim, and workspace creation.
+  fetch, signup, claim, and workspace creation. CIMD metadata fetches apply an
+  SSRF-safe fetch policy (address/scheme allowlisting, no private-network
+  targets, redirect and response-size limits, timeouts, and cache/trust
+  controls). Client identity established via CIMD identifies which software is
+  acting and never by itself authorizes an Expo account.
 - Trusted, visibly Expo-owned universal links with no caller-selected return
-  origin outside a strict allowlist.
+  origin outside a strict allowlist. The claim URL/code is an acknowledged
+  bearer ownership capability (see §Flow D): single-use, short-lived,
+  narrowly disclosed, with a receipt showing both claimant and destination,
+  notification to associated/prior channels on claim, a hold/reversal window so
+  a first claim is not irreversible through possession alone, and a recovery
+  path independent of the claim capability. Possession never silently changes
+  the approved agent key or destination.
 - Resource/audience-constrained access tokens, sender constraints, child-grant
   attenuation, and revocation cascades.
 - Server-side policy checks at every operation; the approval UI does not create
@@ -863,6 +1398,42 @@ recovered.
   an explicit cutover.
 - Clear Expo-versus-agent branding and a security inbox independent of the
   agent client.
+
+Several values this RFC defers to implementation specs are **security
+parameters with justified minimums, not free UX knobs**: the hold/reversal
+window duration parametrizes the bearer-capability reversal guarantee (§Flow D,
+concern-driven), the `jti`/nonce cache retention must cover **at least the `iat`
+acceptance window** (§"Proof-of-possession and replay contract", underpinning
+acceptance scenario 10), and the **issuer-revocation propagation bound** limits
+a compromised trusted host's blast radius. The follow-on specs must set these
+against a defensible security floor rather than optimize them purely for
+friction. For the **hold/reversal window**, the invariant the floor MUST satisfy
+is stated here even though the number is deferred: **the window MUST exceed the
+maximum notification-delivery plus human-reaction latency for the
+fastest-observing channel** available to the workspace (so a contesting party
+can actually observe and freeze an errant claim before it commits). Violating
+that floor **weakens the reversal security guarantee** — an under-sized window
+(shorter than notification-delivery plus reaction latency) may leave a
+legitimate observer unable to contest before commitment — even though absent
+acknowledgements and active contests still **fail safe** (the default resolves
+toward reversibility and paid/irreversible actions stay gated until the hold
+clears). The *floor* is therefore a security parameter, and deriving the
+concrete value is a Slice-0 threat-model output, not a UX knob.
+
+The hold-window **floor invariant and the recovery gate limb are two mechanisms
+for two distinct cases, not one mechanism that always yields a human observer**.
+The **floor invariant governs the case with a human-observable channel** — a
+consented contact hint or a channel associated with a matched-but-not-
+authenticated existing identity — where a real human can be notified and must be
+given time to contest before commitment. The **gate limb** (§"The claim
+capability is an acknowledged bearer capability"; §"Recovery authority and
+evidence hierarchy") **governs the no-live-observer case** — the anonymous
+PoP-only workspace whose only observer is the bootstrap-request
+proof-of-possession holder (a polling machine, possibly gone or hostile): absent
+a live PoP-holder acknowledgement within the window, durable ownership is
+**gated on a stronger binding** rather than committed on possession. The floor
+does not presuppose a human observer in that case; the gate limb, not the
+notification-latency floor, is what carries the guarantee there.
 
 ## Enterprise and policy considerations
 
@@ -936,9 +1507,25 @@ project/environment identity and enforce the corresponding entitlement.
 Provisional resources must be mechanically unable to consume paid overage.
 
 When claimed, stable project and Snapback environment ids survive. Usage before
-claim is charged to the promotional/provisional pool; usage after the
+claim is attributed to the **pre-claim ownership interval**, and usage after the
 authoritative cutover is attributed to the destination Expo account. LLP 0104
 owns exact meter and invoice semantics.
+
+Because a provisional workspace is explicitly **not** an `AccountEntity`, it has
+no `expoAccountId` to be the owner-of-record for that pre-claim interval. This
+RFC pins the pre-claim owner-of-record to **either** a platform/promotional
+pseudo-account **or** an explicit **null-owner (platform-escrow) interval** that
+0104's metering identity must admit — LLP 0104's §"Metering identity and event
+contract" makes the *ownership interval* authoritative and derives
+`expoAccountId` from it, so this is the natural amendment point: **0104 must
+admit a non-`AccountEntity` (platform-escrow) owner for the pre-claim interval**,
+which the claim cutover then closes and reopens under the destination account
+(consistent with 0104 listing `transfer`/`preview-TTL governance` as
+non-chargeable). The "mechanically cannot consume paid overage" property is **not**
+a local assertion of this RFC: it is enforced by **0104's authoritative
+account-budget/lease protocol** (§"Authoritative account-budget protocol"),
+under which a provisional/escrow owner is issued a fixed free budget and no
+paid-overage lease, so the enforcement lives in the meter, not in preview code.
 
 ### Credential broker
 
@@ -963,7 +1550,15 @@ dotfile is not the default.
 - Decide which current agentic-provisioning draft fields Expo can share.
 - Prototype the key-bound flow against one official CLI/agent.
 - Threat-model anonymous resource creation, contact delivery, and claim
-  hijacking.
+  hijacking, and **produce a defensible anonymous-preview abuse budget**
+  (open question #1).
+
+**This spike gates Slice 2.** Slice 2 (anonymous provisional workspace and
+claim) MUST NOT ship until Slice 0's threat model has produced an acceptable
+anonymous-preview abuse budget. If that budget is not defensible for a remotely
+deployed preview, Slice 2 begins instead with the local artifact/build-sandbox
+fallback (§"Provisional workspace contract") rather than an anonymous deployed
+preview.
 
 ### Slice 1: existing-account paved path
 
@@ -1024,9 +1619,19 @@ be tested unambiguously:
    splits usage attribution at an explicit cutover.
 9. An organization requiring SSO/admin approval blocks claim without leaking
    policy details or bypassing the requirement.
-10. A compromised bootstrap bearer value cannot be used without the agent key,
-   and a stolen claim URL cannot silently change the approved agent key or
-   destination.
+10. A compromised bootstrap bearer value cannot be used without the agent key
+   (proof-of-possession with `jti` replay rejection and, where required, a
+   server nonce). The claim URL/code is an acknowledged bearer capability: a
+   stolen claim URL cannot silently change the approved agent key or
+   destination, cannot make a first claim irreversible through possession
+   alone, produces a receipt naming both claimant and destination, notifies the
+   workspace's associated/prior channels on claim, and is reversible within the
+   hold window through a recovery path that does not reuse the claim capability.
+   For a no-contact-hint anonymous workspace, the claim notifies the originating
+   agent channel (the bootstrap-request key holder) or gates durable ownership
+   on a stronger binding, and that key holder — which a URL thief lacks — can
+   contest the claim during the hold; an unauthenticated contact hint can never
+   reverse a claim.
 11. A child credential cannot exceed the parent's scopes, resources, lifetime,
    audience, spend, or delegation depth.
 12. Revoking an installation invalidates refresh authority and all configured
@@ -1077,7 +1682,12 @@ ratify:
 
 - provisional workspace instead of synthetic permanent user;
 - trusted-host in-agent signup, universal one-link claim, and
-  standing-delegation trust boundaries;
+  standing-delegation trust boundaries, including the §"Trusted-host
+  account-linking rule", a bounded issuer-revocation propagation time, and the
+  freshness/liveness gate on identity *creation* via federated assertion;
+- the claim URL/code as an acknowledged bearer ownership capability with
+  receipt (claimant + destination), notification, hold/reversal window, and
+  recovery path;
 - human/account/robot identity model;
 - scoped proof-key-bound credential model and child delegation;
 - Stripe-hosted payment as launch default;
@@ -1089,8 +1699,8 @@ ratify:
 
 ## Status
 
-Draft. This RFC proposes the product and trust model. It does not authorize
-anonymous production workloads, autonomous uncapped billing, or a new
-credential format until the relevant owners ratify the decisions above and
-follow-on implementation specs define wire, storage, policy, and rollout
-details.
+Accepted (2026-07-28) via `/llp-super-refine` dual-family review. This RFC
+establishes the product and trust model. It still does not authorize anonymous
+production workloads, autonomous uncapped billing, or a new credential format
+until the follow-on implementation specs define wire, storage, policy, and
+rollout details and the named LLP 0103/0104 amendments land.
