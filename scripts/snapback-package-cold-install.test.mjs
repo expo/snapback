@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -8,12 +14,18 @@ import { fileURLToPath } from 'node:url';
 
 import {
   aggregatePublicPackageProofs,
+  boundedSerializeBrowserValue,
   browserAssetsContainSecretCanary,
   browserForbiddenMarkerVariants,
+  createBoundedAsyncTaskPool,
+  createBoundedByteAccumulator,
   createBoundedBrowserSurfaceCollector,
+  digestBoundedBrowserFilesystem,
   findBrowserVisibleLeaks,
+  measureGitCheckoutIdentity,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
+  resolveInstalledBrowserDistribution,
   resolveInstalledBrowserExecutable,
   runAsync,
   validateFinalLatestReceipts,
@@ -59,6 +71,169 @@ test('resolveInstalledBrowserExecutable binds the only installed headless shell'
   }
 });
 
+test('browser distribution identity streams every entry and refuses links, escapes, and bounds', async () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'snapback-browser-tree-'));
+  try {
+    const distribution = join(temporary, 'chromium_headless_shell-1234');
+    const bin = join(distribution, 'chrome-headless-shell-linux64');
+    mkdirSync(bin, { recursive: true });
+    const executable = join(bin, 'chrome-headless-shell');
+    const support = join(distribution, 'support.dat');
+    writeFileSync(executable, 'browser-one');
+    writeFileSync(support, 'same-size-a');
+    const resolved = resolveInstalledBrowserDistribution(temporary);
+    assert.equal(resolved?.distributionRoot, distribution);
+    assert.equal(resolved?.executablePath, executable);
+
+    const limits = {
+      domain: 'snapback-test-browser-tree-v1',
+      roots: [['chromium-headless-shell', distribution]],
+      executablePath: executable,
+      maxEntries: 10,
+      maxTotalBytes: 1024,
+      maxFileBytes: 1024,
+    };
+    const first = await digestBoundedBrowserFilesystem(limits);
+    assert.equal(first.fileCount, 2);
+    assert.equal(first.executableBytes, Buffer.byteLength('browser-one'));
+    writeFileSync(support, 'same-size-b');
+    const second = await digestBoundedBrowserFilesystem(limits);
+    assert.notEqual(second.sha256, first.sha256, 'same-size content drift changes the tree digest');
+
+    const link = join(distribution, 'linked-support');
+    symlinkSync(support, link);
+    await assert.rejects(
+      digestBoundedBrowserFilesystem(limits),
+      /contains a symlink/u,
+    );
+    rmSync(link);
+    await assert.rejects(
+      digestBoundedBrowserFilesystem({ ...limits, maxEntries: 1 }),
+      /entry bound/u,
+    );
+    await assert.rejects(
+      digestBoundedBrowserFilesystem({ ...limits, maxFileBytes: 4 }),
+      /file exceeded/u,
+    );
+    const outsideExecutable = join(temporary, 'outside-headless-shell');
+    writeFileSync(outsideExecutable, 'outside');
+    await assert.rejects(
+      digestBoundedBrowserFilesystem({ ...limits, executablePath: outsideExecutable }),
+      /contained regular file/u,
+    );
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('measured checkout identity reads HEAD and dirty state from Git itself', () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'snapback-browser-git-'));
+  const git = (args) => {
+    const result = spawnSync('git', args, { cwd: temporary, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '--quiet']);
+    writeFileSync(join(temporary, 'proof.txt'), 'clean\n');
+    git(['add', 'proof.txt']);
+    git([
+      '-c', 'user.name=Snapback Browser Proof',
+      '-c', 'user.email=snapback-browser-proof@example.invalid',
+      'commit', '--quiet', '-m', 'fixture',
+    ]);
+    const clean = measureGitCheckoutIdentity(temporary);
+    assert.equal(clean.revision, git(['rev-parse', 'HEAD']));
+    assert.equal(clean.dirty, false);
+    writeFileSync(join(temporary, 'proof.txt'), 'dirty\n');
+    assert.equal(measureGitCheckoutIdentity(temporary).dirty, true);
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('browser deep serializer covers nested maps, sets, buffers, and refuses byte/count/depth excess', async () => {
+  const secret = `deep-browser-secret-${'d'.repeat(48)}`;
+  const value = {
+    nested: new Map([
+      ['set', new Set([{ bytes: new TextEncoder().encode(secret) }])],
+    ]),
+  };
+  const limits = {
+    maxBytes: 16 * 1024,
+    maxDepth: 8,
+    maxNodes: 100,
+    maxProperties: 100,
+  };
+  const rendered = await boundedSerializeBrowserValue(value, limits);
+  assert.match(rendered, /"\$type":"map"/u);
+  assert.match(rendered, /"\$type":"set"/u);
+  assert.ok(rendered.includes(Buffer.from(secret).toString('base64')));
+  await assert.rejects(
+    boundedSerializeBrowserValue({ a: { b: { c: true } } }, { ...limits, maxDepth: 1 }),
+    /depth bound/u,
+  );
+  await assert.rejects(
+    boundedSerializeBrowserValue(Array.from({ length: 20 }, (_, index) => index), {
+      ...limits,
+      maxProperties: 5,
+    }),
+    /property bound/u,
+  );
+  await assert.rejects(
+    boundedSerializeBrowserValue('x'.repeat(1024), { ...limits, maxBytes: 128 }),
+    /byte bound/u,
+  );
+});
+
+test('bounded async evidence pool limits concurrency and fails closed on task count', async () => {
+  const pool = createBoundedAsyncTaskPool({ maxTasks: 8, maxConcurrency: 2 });
+  let active = 0;
+  let peak = 0;
+  const tasks = Array.from({ length: 8 }, () => pool.add(async () => {
+    active += 1;
+    peak = Math.max(peak, active);
+    await new Promise((resolveWait) => setTimeout(resolveWait, 5));
+    active -= 1;
+  }));
+  await Promise.all(tasks);
+  const settled = await pool.settle();
+  assert.equal(peak, 2);
+  assert.equal(settled.peakActive, 2);
+
+  const refusing = createBoundedAsyncTaskPool({ maxTasks: 1, maxConcurrency: 1 });
+  const first = refusing.add(async () => {});
+  await assert.rejects(refusing.add(async () => {}), /task bound/u);
+  await first;
+  await assert.rejects(refusing.settle(), /task bound/u);
+});
+
+test('response, cache, IndexedDB, WebSocket, and chunked byte limits fail before retention', () => {
+  for (const kind of [
+    'response-body',
+    'cache-body',
+    'indexeddb-record',
+    'websocket-frame-received',
+  ]) {
+    const collector = createBoundedBrowserSurfaceCollector({
+      maxSurfaceBytes: 8,
+      maxTotalBytes: 16,
+      maxSurfaces: 2,
+    });
+    assert.throws(() => collector.add(kind, Buffer.alloc(9)), /scan bound/u, kind);
+    assert.equal(collector.sanitizedSummary().surfaceManifest.length, 0, kind);
+  }
+  const chunked = createBoundedByteAccumulator({
+    label: 'chunked response',
+    maxBytes: 8,
+    maxChunks: 2,
+  });
+  chunked.add(Buffer.alloc(4));
+  chunked.add(Buffer.alloc(4));
+  assert.equal(chunked.finish().byteLength, 8);
+  assert.throws(() => chunked.add(Buffer.alloc(1)), /chunk bound/u);
+});
+
 function browserJourneyFixture(overrides = {}) {
   const {
     capture: captureOverrides = {},
@@ -79,21 +254,36 @@ function browserJourneyFixture(overrides = {}) {
     { kind: 'response-metadata', bytesScanned: 100 },
     { kind: 'response-body', bytesScanned: 300 },
     { kind: 'websocket-url', bytesScanned: 40 },
+    { kind: 'websocket-handshake-request', bytesScanned: 80 },
+    { kind: 'websocket-handshake-response', bytesScanned: 80 },
     { kind: 'websocket-frame-received', bytesScanned: 120 },
     { kind: 'page-state', bytesScanned: 500 },
     { kind: 'cache-metadata', bytesScanned: 20 },
     { kind: 'indexeddb-metadata', bytesScanned: 20 },
-  ];
+  ].map((entry, index) => ({
+    ...entry,
+    contentSha256: ((index % 15) + 1).toString(16).repeat(64),
+  }));
   const capture = {
     schemaVersion: 'snapback.package-browser-capture.v1',
     sourceRevision,
+    sourceDirty: false,
     startedAtMs: 1_000_000,
     completedAtMs: 1_001_000,
     maxSurfaceBytes: 16 * 1024 * 1024,
     maxTotalBytes: 128 * 1024 * 1024,
+    maxSurfaces: 20_000,
     totalBytesScanned: surfaceManifest.reduce((sum, entry) => sum + entry.bytesScanned, 0),
     surfaceManifest,
     coverage: {
+      asyncTasksObserved: 4,
+      asyncTasksPeakConcurrency: 2,
+      consoleArgumentsObserved: 0,
+      consoleArgumentsScanned: 0,
+      consoleMessagesObserved: 0,
+      networkResourcesObserved: 1,
+      requestBodiesObserved: 0,
+      requestBodiesScanned: 0,
       responseBodiesObserved: 2,
       responseBodiesScanned: 2,
       workersObserved: 0,
@@ -104,12 +294,21 @@ function browserJourneyFixture(overrides = {}) {
       cacheEntriesScanned: 0,
       indexedDbRecordsObserved: 0,
       indexedDbRecordsScanned: 0,
+      webSocketFramesObserved: 1,
+      webSocketFramesScanned: 1,
+      webSocketHandshakesObserved: 1,
+      webSocketHandshakesScanned: 1,
       scanTruncated: false,
       ...captureCoverageOverrides,
     },
     browser: {
       packageVersion: '1.62.0',
       packageTreeSha256: '8'.repeat(64),
+      packageTreeEntries: 100,
+      packageTreeBytes: 100_000,
+      distributionSha256: '7'.repeat(64),
+      distributionEntries: 50,
+      distributionBytes: 2_000_000,
       executableSha256: '9'.repeat(64),
       executableBytes: 1_000_000,
       ...captureBrowserOverrides,
@@ -165,6 +364,7 @@ function browserReceiptEvidence(
 ) {
   return {
     sourceRevision,
+    sourceDirty: false,
     browserJourney: browserJourneyFixture({
       sourceRevision,
       ...(overrides.browserJourney ?? {}),
@@ -228,19 +428,42 @@ test('browser secret proof allows API field names but refuses an injected canary
 test('browser-visible leak scanner reports marker classes without retaining secret values', () => {
   const secret = `snapback-cold-canary-${'b'.repeat(48)}`;
   const backend = 'http://127.0.0.1:45731';
+  const surfaceSecrets = Object.fromEntries(
+    ['console', 'response', 'cache', 'indexeddb', 'websocket', 'worker']
+      .map((kind, index) => [kind, `${kind}-leak-${String(index).repeat(48)}`]),
+  );
   assert.deepEqual(
     findBrowserVisibleLeaks({
       surfaces: [
         `window.__bad = ${JSON.stringify(secret)}`,
         `fetch(${JSON.stringify(backend)})`,
+        Buffer.from(surfaceSecrets.console),
+        Buffer.from(surfaceSecrets.response),
+        Buffer.from(surfaceSecrets.cache),
+        Buffer.from(surfaceSecrets.indexeddb),
+        Buffer.from(surfaceSecrets.websocket),
+        Buffer.from(surfaceSecrets.worker),
       ],
       forbiddenMarkers: [
         { kind: 'browser-secret-canary', value: secret },
         { kind: 'backend-origin', value: backend },
         { kind: 'runtime-path', value: '/private/runtime/snapback' },
+        ...Object.entries(surfaceSecrets).map(([kind, value]) => ({
+          kind: `${kind}-fixture`,
+          value,
+        })),
       ],
     }),
-    ['backend-origin', 'browser-secret-canary'],
+    [
+      'backend-origin',
+      'browser-secret-canary',
+      'cache-fixture',
+      'console-fixture',
+      'indexeddb-fixture',
+      'response-fixture',
+      'websocket-fixture',
+      'worker-fixture',
+    ],
   );
   assert.throws(
     () => findBrowserVisibleLeaks({
@@ -289,6 +512,25 @@ test('bounded browser scanner covers binary bytes and retains only sanitized sha
     () => collector.add('response-body', Buffer.alloc(1025)),
     /scan bound/u,
   );
+
+  const sameSizeLeft = createBoundedBrowserSurfaceCollector({
+    maxSurfaceBytes: 64,
+    maxTotalBytes: 64,
+    maxSurfaces: 1,
+  });
+  const sameSizeRight = createBoundedBrowserSurfaceCollector({
+    maxSurfaceBytes: 64,
+    maxTotalBytes: 64,
+    maxSurfaces: 1,
+  });
+  sameSizeLeft.add('response-body', 'left');
+  sameSizeRight.add('response-body', 'rift');
+  const leftCommitment = sameSizeLeft.sanitizedSummary().surfaceManifest[0];
+  const rightCommitment = sameSizeRight.sanitizedSummary().surfaceManifest[0];
+  assert.equal(leftCommitment.bytesScanned, rightCommitment.bytesScanned);
+  assert.notEqual(leftCommitment.contentSha256, rightCommitment.contentSha256);
+  assert.doesNotMatch(JSON.stringify(leftCommitment), /left/u);
+  assert.throws(() => sameSizeLeft.add('response-body', 'more'), /surface bound/u);
 });
 
 test('qualified browser evidence fails closed on simulated, non-live, stale, or under-scanned journeys', () => {
@@ -305,7 +547,11 @@ test('qualified browser evidence fails closed on simulated, non-live, stale, or 
     },
     (receipt) => { delete receipt.browserJourney.capture; },
     (receipt) => { receipt.browserJourney.capture.surfaceManifest[0].bytesScanned += 1; },
+    (receipt) => {
+      receipt.browserJourney.capture.surfaceManifest[0].contentSha256 = 'not-a-digest';
+    },
     (receipt) => { receipt.browserJourney.capture.sourceRevision = 'f'.repeat(40); },
+    (receipt) => { receipt.browserJourney.capture.sourceDirty = true; },
     (receipt) => { receipt.browserJourney.capture.completedAtMs += 11 * 60 * 1000; },
     (receipt) => {
       receipt.browserJourney.capture.coverage.responseBodiesScanned = 1;
@@ -314,6 +560,16 @@ test('qualified browser evidence fails closed on simulated, non-live, stale, or 
     },
     (receipt) => {
       receipt.browserJourney.capture.browser.executableSha256 = 'not-a-digest';
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
+    (receipt) => {
+      receipt.browserJourney.capture.browser.distributionSha256 = 'not-a-digest';
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
+    (receipt) => {
+      receipt.browserJourney.capture.coverage.webSocketHandshakesScanned = 0;
       receipt.browserJourney.captureSha256 =
         sha256Hex(canonicalJcs(receipt.browserJourney.capture));
     },

@@ -106,6 +106,18 @@ acquired head before constructing the post ledger and close. These are
 corrective implementation details of this amendment, not a new release
 claim.)
 
+**Revised (bounded browser-evidence closure):** 2026-07-28 (the packed React
+browser qualification now binds the measured checkout HEAD/dirty state, the
+complete selected Chromium headless-shell distribution, and the Playwright
+support tree with domain-separated streaming filesystem digests. It scans all
+console types and deeply serialized arguments, complete request/response and
+WebSocket-handshake metadata, binary bodies/frames, worker and service-worker
+data globals, Cache Storage, and IndexedDB. Count, byte, depth, file, task, and
+concurrency ceilings fail closed during collection; retained surface rows carry
+content commitments but no captured secret, origin, or filesystem value. This
+is an evidence-instrument correction and makes no new package-publication
+claim.)
+
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
 GitHub-hosted macOS/arm64 and Linux/x64 machines. Both platform receipts prove
@@ -613,6 +625,14 @@ outside the root workspace and exercise independent consumer setups.
   reach-through.
 - `snapback doctor` catches missing runtime setup with stable diagnostic codes.
 - CI runs at least one template from a packed or published package artifact.
+- The packed React browser proof launches the exact headless-shell distribution
+  whose complete path/type/mode/size/content identity is retained, not an
+  ambient browser. It refuses symlinks, unsupported entries, checkout
+  HEAD/dirty drift, any truncated or over-limit surface, incomplete
+  request/response/console/worker/storage/WebSocket coverage, and any private
+  marker found in those browser-readable bytes. The receipt retains bounded
+  per-surface byte counts and domain-separated content commitments, never the
+  captured values themselves.
 
 ## Open Questions
 

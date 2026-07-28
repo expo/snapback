@@ -160,25 +160,40 @@ const BROWSER_CAPTURE_KEYS = [
   'coverage',
   'forbiddenMarkerKindsChecked',
   'forbiddenValueRetention',
+  'maxSurfaces',
   'maxSurfaceBytes',
   'maxTotalBytes',
   'schemaVersion',
+  'sourceDirty',
   'sourceRevision',
   'startedAtMs',
   'surfaceManifest',
   'totalBytesScanned',
 ];
 const BROWSER_CAPTURE_BROWSER_KEYS = [
+  'distributionBytes',
+  'distributionEntries',
+  'distributionSha256',
   'executableBytes',
   'executableSha256',
+  'packageTreeBytes',
+  'packageTreeEntries',
   'packageTreeSha256',
   'packageVersion',
 ];
 const BROWSER_CAPTURE_COVERAGE_KEYS = [
+  'asyncTasksObserved',
+  'asyncTasksPeakConcurrency',
   'cacheEntriesObserved',
   'cacheEntriesScanned',
+  'consoleArgumentsObserved',
+  'consoleArgumentsScanned',
+  'consoleMessagesObserved',
   'indexedDbRecordsObserved',
   'indexedDbRecordsScanned',
+  'networkResourcesObserved',
+  'requestBodiesObserved',
+  'requestBodiesScanned',
   'responseBodiesObserved',
   'responseBodiesScanned',
   'scanTruncated',
@@ -186,21 +201,31 @@ const BROWSER_CAPTURE_COVERAGE_KEYS = [
   'serviceWorkersScanned',
   'workersObserved',
   'workersScanned',
+  'webSocketFramesObserved',
+  'webSocketFramesScanned',
+  'webSocketHandshakesObserved',
+  'webSocketHandshakesScanned',
 ];
 const BROWSER_CAPTURE_SURFACE_KINDS = new Set([
   'cache-body',
   'cache-metadata',
   'console',
+  'console-arg',
   'indexeddb-metadata',
   'indexeddb-record',
   'page-error',
   'page-state',
   'request',
+  'request-body',
+  'request-headers',
   'response-body',
+  'response-headers',
   'response-metadata',
   'service-worker-state',
   'websocket-frame-received',
   'websocket-frame-sent',
+  'websocket-handshake-request',
+  'websocket-handshake-response',
   'websocket-url',
   'worker-state',
 ]);
@@ -283,7 +308,11 @@ export function validateColdInstallBrowserEvidence(receipt) {
   let manifestValid = manifest.length > 0;
   for (const entry of manifest) {
     try {
-      requireExactKeys(entry, ['bytesScanned', 'kind'], 'cold-install browser surface');
+      requireExactKeys(
+        entry,
+        ['bytesScanned', 'contentSha256', 'kind'],
+        'cold-install browser surface',
+      );
     } catch {
       manifestValid = false;
       continue;
@@ -293,6 +322,7 @@ export function validateColdInstallBrowserEvidence(receipt) {
       || !Number.isSafeInteger(entry.bytesScanned)
       || entry.bytesScanned < 0
       || entry.bytesScanned > capture.maxSurfaceBytes
+      || !/^[0-9a-f]{64}$/u.test(entry.contentSha256 ?? '')
     ) {
       manifestValid = false;
       continue;
@@ -344,6 +374,8 @@ export function validateColdInstallBrowserEvidence(receipt) {
     || capture.captureSanitized !== true
     || capture.forbiddenValueRetention !== 'none'
     || capture.sourceRevision !== receipt.sourceRevision
+    || capture.sourceDirty !== receipt.sourceDirty
+    || capture.sourceDirty !== false
     || !/^[0-9a-f]{40}$/u.test(capture.sourceRevision ?? '')
     || !Number.isSafeInteger(capture.startedAtMs)
     || !Number.isSafeInteger(capture.completedAtMs)
@@ -354,6 +386,8 @@ export function validateColdInstallBrowserEvidence(receipt) {
     || capture.maxSurfaceBytes < 1
     || !Number.isSafeInteger(capture.maxTotalBytes)
     || capture.maxTotalBytes < capture.maxSurfaceBytes
+    || !Number.isSafeInteger(capture.maxSurfaces)
+    || capture.maxSurfaces < manifest.length
     || !Number.isSafeInteger(capture.totalBytesScanned)
     || capture.totalBytesScanned < 1
     || capture.totalBytesScanned > capture.maxTotalBytes
@@ -362,11 +396,26 @@ export function validateColdInstallBrowserEvidence(receipt) {
     || !markerKindsAgree
     || manifestCounts.get('page-state') !== 1
     || (manifestCounts.get('request') ?? 0) < 1
+    || manifestCounts.get('request') !== coverage.networkResourcesObserved
     || (manifestCounts.get('websocket-url') ?? 0) < 1
     || (manifestCounts.get('websocket-frame-received') ?? 0) < journey.liveFramesAfterMutation
     || (manifestCounts.get('cache-metadata') ?? 0) < 1
     || (manifestCounts.get('indexeddb-metadata') ?? 0) < 1
     || coverage.scanTruncated !== false
+    || !Number.isSafeInteger(coverage.asyncTasksObserved)
+    || coverage.asyncTasksObserved < 1
+    || !Number.isSafeInteger(coverage.asyncTasksPeakConcurrency)
+    || coverage.asyncTasksPeakConcurrency < 1
+    || coverage.asyncTasksPeakConcurrency > 8
+    || !countPairValid(coverage.consoleArgumentsObserved, coverage.consoleArgumentsScanned)
+    || !Number.isSafeInteger(coverage.consoleMessagesObserved)
+    || coverage.consoleMessagesObserved < 0
+    || (manifestCounts.get('console') ?? 0) !== coverage.consoleMessagesObserved
+    || (manifestCounts.get('console-arg') ?? 0) !== coverage.consoleArgumentsScanned
+    || !Number.isSafeInteger(coverage.networkResourcesObserved)
+    || coverage.networkResourcesObserved < 1
+    || !countPairValid(coverage.requestBodiesObserved, coverage.requestBodiesScanned)
+    || (manifestCounts.get('request-body') ?? 0) !== coverage.requestBodiesScanned
     || !countPairValid(coverage.responseBodiesObserved, coverage.responseBodiesScanned)
     || coverage.responseBodiesScanned < 1
     || manifestCounts.get('response-body') !== coverage.responseBodiesScanned
@@ -379,10 +428,31 @@ export function validateColdInstallBrowserEvidence(receipt) {
     || (manifestCounts.get('cache-body') ?? 0) !== coverage.cacheEntriesScanned
     || !countPairValid(coverage.indexedDbRecordsObserved, coverage.indexedDbRecordsScanned)
     || (manifestCounts.get('indexeddb-record') ?? 0) !== coverage.indexedDbRecordsScanned
+    || !countPairValid(coverage.webSocketFramesObserved, coverage.webSocketFramesScanned)
+    || (manifestCounts.get('websocket-frame-received') ?? 0)
+      + (manifestCounts.get('websocket-frame-sent') ?? 0) !== coverage.webSocketFramesScanned
+    || !countPairValid(
+      coverage.webSocketHandshakesObserved,
+      coverage.webSocketHandshakesScanned,
+    )
+    || coverage.webSocketHandshakesScanned < 1
+    || manifestCounts.get('websocket-handshake-request')
+      !== coverage.webSocketHandshakesScanned
+    || manifestCounts.get('websocket-handshake-response')
+      !== coverage.webSocketHandshakesScanned
     || !/^[0-9a-f]{64}$/u.test(capture.browser.executableSha256 ?? '')
     || !Number.isSafeInteger(capture.browser.executableBytes)
     || capture.browser.executableBytes < 1
+    || !/^[0-9a-f]{64}$/u.test(capture.browser.distributionSha256 ?? '')
+    || !Number.isSafeInteger(capture.browser.distributionEntries)
+    || capture.browser.distributionEntries < 1
+    || !Number.isSafeInteger(capture.browser.distributionBytes)
+    || capture.browser.distributionBytes < capture.browser.executableBytes
     || !/^[0-9a-f]{64}$/u.test(capture.browser.packageTreeSha256 ?? '')
+    || !Number.isSafeInteger(capture.browser.packageTreeEntries)
+    || capture.browser.packageTreeEntries < 1
+    || !Number.isSafeInteger(capture.browser.packageTreeBytes)
+    || capture.browser.packageTreeBytes < 1
     || capture.browser.packageVersion !== journey.browserPackageVersion
     || !/^[0-9a-f]{64}$/u.test(journey.captureSha256 ?? '')
     || journey.captureSha256 !== sha256Hex(canonicalJcs(capture))
