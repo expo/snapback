@@ -7291,6 +7291,10 @@ mod tests {
             first_admission.commit_planned_issuance(&mut database, &first_plan.commit_plan()),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
         ));
+        // Address admissions retain their stripe guard. Release it before
+        // admitting another address: the randomized stripe assignment may
+        // legitimately collide, and holding both would deadlock this test.
+        drop(first_admission);
 
         let second_admission = provider
             .admit_email("sender-key-bound-second@example.com")
@@ -7317,6 +7321,7 @@ mod tests {
             second_admission.commit_planned_issuance(&mut database, &second_commit_plan),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
         ));
+        drop(second_admission);
 
         let facts: (i64, i64, i64, String, i64) = database
             .with_auth_read(|connection| {
