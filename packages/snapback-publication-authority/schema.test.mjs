@@ -5,6 +5,8 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import Ajv2020 from 'ajv/dist/2020.js';
+
 import { PublicationLeaseAuthority } from './authority.mjs';
 import {
   AUTHORITY_HEAD_KEYS,
@@ -13,6 +15,7 @@ import {
   ISSUE_REQUEST_KEYS,
   LEASE_KEYS,
   PROMOTION_PACKAGE_NAMES,
+  publicationAuthoritySigningKeyId,
   publicationAuthorityTransition,
   validatePublicationAuthorityHead,
   validatePublicationAuthorityReceipt,
@@ -72,14 +75,25 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     PROMOTION_PACKAGE_NAMES,
   );
 
-  const { privateKey } = generateKeyPairSync('ed25519');
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  const authorityInstallationId = 'snapback-publication-schema';
+  const authorityOrigin = 'https://publication-authority.example';
   const authority = new PublicationLeaseAuthority({
-    store: new InMemoryPublicationAuthorityStore(),
+    store: new InMemoryPublicationAuthorityStore({
+      authorityInstallationId,
+      authorityOrigin,
+      publicKey,
+    }),
     privateKey,
+    authorityInstallationId,
+    authorityOrigin,
     now: () => Date.parse('2026-07-28T20:00:00.000Z'),
   });
   const request = {
-    schemaVersion: 'snapback.publication-lease-issue-request.v1',
+    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    authorityInstallationId,
+    authorityOrigin,
+    signingKeyId: publicationAuthoritySigningKeyId(publicKey),
     operationId: 'release-schema-authority-test',
     publisherInstanceId: 'publisher-schema-test',
     expectedPublicationEpoch: 0,
@@ -99,14 +113,32 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     () => validatePublicationLeaseIssueRequest({ ...request, extra: true }),
     /unknown or missing members/u,
   );
-
   const lease = authority.issue(request);
 
   const head = authority.head();
-  assert.equal(validatePublicationAuthorityHead(head), head);
+  assert.equal(validatePublicationAuthorityHead({
+    head,
+    publicKey,
+    authorityInstallationId,
+    authorityOrigin,
+  }), head);
   assert.throws(
-    () => validatePublicationAuthorityHead({ ...head, extra: true }),
+    () => validatePublicationAuthorityHead({
+      head: { ...head, extra: true },
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin,
+    }),
     /unknown or missing members/u,
+  );
+  assert.throws(
+    () => validatePublicationAuthorityHead({
+      head: { ...head, authorityGeneration: head.authorityGeneration + 1 },
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin,
+    }),
+    /digest mismatch|signature is invalid/u,
   );
 
   const transition = publicationAuthorityTransition({
@@ -117,7 +149,30 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
   assert.equal(validatePublicationAuthorityTransition(transition), transition);
   const receipt = authority.acquire(transition);
   assert.equal(
-    validatePublicationAuthorityReceipt({ receipt, transition }),
+    validatePublicationAuthorityReceipt({
+      receipt,
+      transition,
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin,
+    }),
     receipt,
   );
+
+  const ajv = new Ajv2020({ allErrors: true, strict: true });
+  for (const [schemaName, value] of [
+    ['publication-lease-issue-request.schema.json', request],
+    ['authorized-publication-lease.schema.json', lease],
+    ['publication-authority-head.schema.json', head],
+    ['publication-authority-transition.schema.json', transition],
+    ['publication-authority-transition-receipt.schema.json', receipt],
+  ]) {
+    const validate = ajv.compile(schema(schemaName));
+    assert.equal(
+      validate(value),
+      true,
+      `${schemaName}: ${ajv.errorsText(validate.errors)}`,
+    );
+    assert.equal(validate({ ...value, unknown: true }), false);
+  }
 });

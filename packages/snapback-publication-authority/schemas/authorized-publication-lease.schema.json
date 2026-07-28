@@ -1,11 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/authorized-publication-lease.v1.json",
-  "title": "AuthorizedPublicationLeaseV1",
+  "$id": "https://snapback.dev/schemas/authorized-publication-lease.v2.json",
+  "title": "AuthorizedPublicationLeaseV2",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "authorityInstallationId",
+    "authorityOrigin",
+    "signingKeyId",
     "operationId",
     "publisherInstanceId",
     "publicationEpoch",
@@ -18,7 +21,18 @@
     "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.authorized-publication-lease.v1" },
+    "schemaVersion": { "const": "snapback.authorized-publication-lease.v2" },
+    "authorityInstallationId": { "$ref": "#/$defs/id" },
+    "authorityOrigin": {
+      "oneOf": [
+        { "type": "string", "pattern": "^https://[^/@?#]+$" },
+        {
+          "type": "string",
+          "pattern": "^http://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?$"
+        }
+      ]
+    },
+    "signingKeyId": { "$ref": "#/$defs/sha256" },
     "operationId": { "$ref": "#/$defs/id" },
     "publisherInstanceId": { "$ref": "#/$defs/id" },
     "publicationEpoch": { "type": "integer", "minimum": 1 },
@@ -134,7 +148,7 @@
       ],
       "items": false
     },
-    "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]{80,128}$" }
+    "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" }
   },
   "$defs": {
     "id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },

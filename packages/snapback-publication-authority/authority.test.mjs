@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -8,8 +8,11 @@ import test from 'node:test';
 
 import { PublicationLeaseAuthority } from './authority.mjs';
 import {
+  canonicalJcs,
   PROMOTION_PACKAGE_NAMES,
+  publicationAuthoritySigningKeyId,
   publicationAuthorityTransition,
+  sha256Hex,
   validatePublicationLease,
   vectorFromLease,
 } from './protocol.mjs';
@@ -20,17 +23,29 @@ import {
 } from './store.mjs';
 
 const NOW = Date.parse('2026-07-28T20:00:00.000Z');
+const AUTHORITY_INSTALLATION_ID = 'snapback-publication-primary';
+const AUTHORITY_ORIGIN = 'https://publication-authority.example';
 
 function fixture() {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-  const store = new InMemoryPublicationAuthorityStore();
+  const context = {
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    publicKey,
+  };
+  const store = new InMemoryPublicationAuthorityStore(context);
   const authority = new PublicationLeaseAuthority({
     store,
     privateKey,
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
     now: () => NOW,
   });
   const request = {
-    schemaVersion: 'snapback.publication-lease-issue-request.v1',
+    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    signingKeyId: publicationAuthoritySigningKeyId(publicKey),
     operationId: 'release-0.1.1-authority-test',
     publisherInstanceId: 'publisher-authority-test',
     expectedPublicationEpoch: 0,
@@ -45,7 +60,7 @@ function fixture() {
       newVersion: '0.1.1',
     })),
   };
-  return { authority, privateKey, publicKey, request, store };
+  return { authority, context, privateKey, publicKey, request, store };
 }
 
 test('issue allocates and signs one exact short-lived nine-package epoch', () => {
@@ -56,6 +71,8 @@ test('issue allocates and signs one exact short-lived nine-package epoch', () =>
   validatePublicationLease({
     lease,
     publicKey,
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
     candidateLedgerSha256: request.candidateLedgerSha256,
     candidateTag: request.candidateTag,
     publisherInstanceId: request.publisherInstanceId,
@@ -87,7 +104,7 @@ test('issue is exact-replay idempotent and stale or altered requests refuse', ()
 });
 
 test('acquire and promoted close are vector-bound, replay-safe transitions', () => {
-  const { authority, request } = fixture();
+  const { authority, publicKey, request } = fixture();
   const lease = authority.issue(request);
   const acquire = publicationAuthorityTransition({
     lease,
@@ -96,6 +113,7 @@ test('acquire and promoted close are vector-bound, replay-safe transitions', () 
   });
   const acquired = authority.acquire(acquire);
   assert.equal(acquired.closed, false);
+  assert.equal(acquired.signingKeyId, publicationAuthoritySigningKeyId(publicKey));
   assert.deepEqual(authority.acquire(structuredClone(acquire)), acquired);
   assert.equal(authority.head().status, 'acquired');
 
@@ -115,6 +133,11 @@ test('acquire and promoted close are vector-bound, replay-safe transitions', () 
   assert.equal(authority.head().status, 'closed');
   assert.equal(authority.head().outcome, 'promoted');
   assert.deepEqual(authority.close(structuredClone(close)), closed);
+  assert.throws(
+    () => authority.acquire(structuredClone(acquire)),
+    /cannot be acquired from its current state/u,
+    'a retained acquisition is never replayable after terminal closure',
+  );
   assert.throws(
     () => authority.close({ ...close, publicationLedgerSha256: 'd'.repeat(64) }),
     /already committed with different bytes/u,
@@ -137,6 +160,8 @@ test('tampered vector, stale epoch, and expiry cannot advance authority', () => 
   const expiredAuthority = new PublicationLeaseAuthority({
     store: authority.store,
     privateKey: authority.privateKey,
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
     now: () => NOW + 15 * 60_000,
   });
   const acquire = publicationAuthorityTransition({
@@ -178,21 +203,34 @@ test('SQLite volume state survives restart with monotone replay identity', () =>
   const root = mkdtempSync(join(tmpdir(), 'snapback-publication-authority-'));
   try {
     const path = join(root, 'authority.sqlite3');
-    const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-    const request = fixture().request;
-    const firstStore = new SqliteVolumePublicationAuthorityStore(path);
+    const { privateKey, publicKey, request } = fixture();
+    const context = {
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+      publicKey,
+    };
+    const firstStore = new SqliteVolumePublicationAuthorityStore(path, context);
     const first = new PublicationLeaseAuthority({
       store: firstStore,
       privateKey,
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
       now: () => NOW,
     });
     const lease = first.issue(request);
+    for (const securedPath of [path, `${path}-wal`, `${path}-shm`]) {
+      if (existsSync(securedPath)) {
+        assert.equal(statSync(securedPath).mode & 0o777, 0o600);
+      }
+    }
     firstStore.close();
 
-    const reopenedStore = new SqliteVolumePublicationAuthorityStore(path);
+    const reopenedStore = new SqliteVolumePublicationAuthorityStore(path, context);
     const reopened = new PublicationLeaseAuthority({
       store: reopenedStore,
       privateKey,
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
       now: () => NOW,
     });
     assert.deepEqual(reopened.issue(request), lease);
@@ -200,6 +238,8 @@ test('SQLite volume state survives restart with monotone replay identity', () =>
     validatePublicationLease({
       lease,
       publicKey,
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
       candidateLedgerSha256: request.candidateLedgerSha256,
       candidateTag: request.candidateTag,
       publisherInstanceId: request.publisherInstanceId,
@@ -214,19 +254,86 @@ test('SQLite volume state survives restart with monotone replay identity', () =>
       WHERE singleton = 1
     `).run('0'.repeat(64));
     corruptor.close();
-    const refusedStore = new SqliteVolumePublicationAuthorityStore(path);
     assert.throws(
-      () => refusedStore.read(),
+      () => new SqliteVolumePublicationAuthorityStore(path, context),
       /durable state digest mismatch/u,
     );
-    refusedStore.close();
+    assert.equal(statSync(root).mode & 0o777, 0o700);
+    assert.equal(statSync(path).mode & 0o777, 0o600);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
+test('durable reopen rejects semantically inconsistent state even with a recomputed digest', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-publication-authority-semantic-'));
+  try {
+    const path = join(root, 'authority.sqlite3');
+    const { context, privateKey, request } = fixture();
+    const store = new SqliteVolumePublicationAuthorityStore(path, context);
+    const authority = new PublicationLeaseAuthority({
+      store,
+      privateKey,
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+      now: () => NOW,
+    });
+    authority.issue(request);
+    store.close();
+
+    const corruptor = new DatabaseSync(path);
+    const retained = JSON.parse(corruptor.prepare(`
+      SELECT state_json FROM publication_authority_state WHERE singleton = 1
+    `).get().state_json);
+    retained.records[0].status = 'closed';
+    const stateJson = canonicalJcs(retained);
+    corruptor.prepare(`
+      UPDATE publication_authority_state
+      SET state_json = ?, state_sha256 = ?
+      WHERE singleton = 1
+    `).run(stateJson, sha256Hex(stateJson));
+    corruptor.close();
+    assert.throws(
+      () => new SqliteVolumePublicationAuthorityStore(path, context),
+      /status is inconsistent/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('key type and exact signature encoding fail closed at startup and validation', () => {
+  const { authority, publicKey, request, store } = fixture();
+  const { privateKey: rsaPrivateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+  });
+  assert.throws(
+    () => new PublicationLeaseAuthority({
+      store,
+      privateKey: rsaPrivateKey,
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+    }),
+    /must be Ed25519/u,
+  );
+  const lease = authority.issue(request);
+  assert.throws(
+    () => validatePublicationLease({
+      lease: { ...lease, signature: `${lease.signature}=` },
+      publicKey,
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+      candidateLedgerSha256: request.candidateLedgerSha256,
+      candidateTag: request.candidateTag,
+      publisherInstanceId: request.publisherInstanceId,
+      now: NOW,
+    }),
+    /exact unpadded Ed25519/u,
+  );
+});
+
 test('request builder closes candidate-ledger and observed-prior-vector inventory', () => {
-  const { authority, request } = fixture();
+  const { authority, publicKey, request } = fixture();
   const head = authority.head();
   const ledger = {
     candidateLedgerSha256: request.candidateLedgerSha256,
@@ -244,6 +351,8 @@ test('request builder closes candidate-ledger and observed-prior-vector inventor
     ledger,
     priorVector,
     head,
+    publicKey,
+    authorityOrigin: AUTHORITY_ORIGIN,
     operationId: request.operationId,
     publisherInstanceId: request.publisherInstanceId,
     lifetimeSeconds: 600,

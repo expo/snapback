@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 
+import {
+  createPublicationAuthorityReceipt,
+  publicationAuthorityHeadSha256,
+  publicationAuthoritySigningKeyId,
+  signPublicationAuthorityHead,
+  signPublicationLease,
+} from '../packages/snapback-publication-authority/protocol.mjs';
 import {
   buildPostPromotionLedger,
   canonicalJcs,
@@ -12,6 +19,7 @@ import {
   validatePublicationLease,
   validatePublicationAuthorityReceipt,
   validatePostPromotionLedger,
+  vectorFromLease,
 } from './snapback-promotion-core.mjs';
 
 const names = [
@@ -25,11 +33,16 @@ const names = [
   '@ccheever/snapback-app-cli',
   '@ccheever/snapback-cli',
 ];
+const authorityInstallationId = 'snapback-publication-promotion';
+const authorityOrigin = 'https://publication-authority.example';
 
 function fixture() {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-  const lease = {
-    schemaVersion: 'snapback.authorized-publication-lease.v1',
+  const unsigned = {
+    schemaVersion: 'snapback.authorized-publication-lease.v2',
+    authorityInstallationId,
+    authorityOrigin,
+    signingKeyId: publicationAuthoritySigningKeyId(publicKey),
     operationId: 'release-0.1.1-test',
     publisherInstanceId: 'publisher-test-01',
     publicationEpoch: 7,
@@ -44,12 +57,29 @@ function fixture() {
       newVersion: '0.1.1',
     })),
   };
-  const payload = Buffer.concat([
-    Buffer.from('snapback-authorized-publication-lease-v1\0'),
-    Buffer.from(canonicalJcs(lease)),
-  ]);
-  lease.signature = sign(null, payload, privateKey).toString('base64url');
-  return { lease, publicKey };
+  const lease = signPublicationLease({ unsigned, privateKey });
+  return { lease, privateKey, publicKey };
+}
+
+function acquiredHead(lease, privateKey, overrides = {}) {
+  const unsigned = {
+    schemaVersion: 'snapback.publication-authority-head.v2',
+    authorityInstallationId: lease.authorityInstallationId,
+    authorityOrigin: lease.authorityOrigin,
+    signingKeyId: lease.signingKeyId,
+    authorityGeneration: 2,
+    publicationEpoch: lease.publicationEpoch,
+    status: 'acquired',
+    operationId: lease.operationId,
+    publisherInstanceId: lease.publisherInstanceId,
+    leaseSha256: leaseSha256(lease),
+    expiresAt: lease.expiresAt,
+    outcome: null,
+    headSha256: null,
+    ...overrides,
+  };
+  unsigned.headSha256 = publicationAuthorityHeadSha256(unsigned);
+  return signPublicationAuthorityHead({ unsigned, privateKey });
 }
 
 test('lease is signature, candidate, time, and nine-package bound', () => {
@@ -58,6 +88,8 @@ test('lease is signature, candidate, time, and nine-package bound', () => {
     validatePublicationLease({
       lease,
       publicKey,
+      authorityInstallationId,
+      authorityOrigin,
       candidateLedgerSha256: 'a'.repeat(64),
       candidateTag: lease.candidateTag,
       publisherInstanceId: lease.publisherInstanceId,
@@ -71,6 +103,8 @@ test('lease is signature, candidate, time, and nine-package bound', () => {
     () => validatePublicationLease({
       lease: tampered,
       publicKey,
+      authorityInstallationId,
+      authorityOrigin,
       candidateLedgerSha256: 'a'.repeat(64),
       candidateTag: lease.candidateTag,
       publisherInstanceId: lease.publisherInstanceId,
@@ -84,6 +118,8 @@ test('lease is signature, candidate, time, and nine-package bound', () => {
     () => validatePublicationLease({
       lease: unknown,
       publicKey,
+      authorityInstallationId,
+      authorityOrigin,
       candidateLedgerSha256: 'a'.repeat(64),
       candidateTag: lease.candidateTag,
       publisherInstanceId: lease.publisherInstanceId,
@@ -91,21 +127,31 @@ test('lease is signature, candidate, time, and nine-package bound', () => {
     }),
     /unknown or missing members/,
   );
+  assert.throws(
+    () => validatePublicationLease({
+      lease,
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin: 'https://substitute-authority.example',
+      candidateLedgerSha256: 'a'.repeat(64),
+      candidateTag: lease.candidateTag,
+      publisherInstanceId: lease.publisherInstanceId,
+      now: Date.parse('2026-07-28T19:05:00.000Z'),
+    }),
+    /authority origin mismatch/u,
+  );
 });
 
 test('promotion checks the complete vector around each tag mutation', async () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
   ]));
-  const head = {
-    operationId: lease.operationId,
-    publicationEpoch: lease.publicationEpoch,
-    leaseSha256: leaseSha256(lease),
-  };
+  const head = acquiredHead(lease, privateKey);
   const result = await promoteDefaultVector({
     lease,
+    authorityPublicKey: publicKey,
     readVector: async () => structuredClone(vector),
     readLeaseHead: async () => structuredClone(head),
     setTag: async (name, version) => { vector[name] = version; },
@@ -121,21 +167,18 @@ test('promotion checks the complete vector around each tag mutation', async () =
 });
 
 test('failure rolls back every changed tag in reverse order', async () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
   ]));
   const prior = structuredClone(vector);
-  const head = {
-    operationId: lease.operationId,
-    publicationEpoch: lease.publicationEpoch,
-    leaseSha256: leaseSha256(lease),
-  };
+  const head = acquiredHead(lease, privateKey);
   let writes = 0;
   await assert.rejects(
     promoteDefaultVector({
       lease,
+      authorityPublicKey: publicKey,
       readVector: async () => structuredClone(vector),
       readLeaseHead: async () => structuredClone(head),
       setTag: async (name, version) => {
@@ -157,26 +200,22 @@ test('failure rolls back every changed tag in reverse order', async () => {
 });
 
 test('post-mutation lease-head failure rolls the proven mutation back completely', async () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
   ]));
   const prior = structuredClone(vector);
-  const currentHead = {
-    operationId: lease.operationId,
-    publicationEpoch: lease.publicationEpoch,
-    leaseSha256: leaseSha256(lease),
-  };
-  const driftedHead = {
-    ...currentHead,
+  const currentHead = acquiredHead(lease, privateKey);
+  const driftedHead = acquiredHead(lease, privateKey, {
     publicationEpoch: lease.publicationEpoch + 1,
-  };
+  });
   let headReads = 0;
   const recorded = [];
   await assert.rejects(
     promoteDefaultVector({
       lease,
+      authorityPublicKey: publicKey,
       readVector: async () => structuredClone(vector),
       readLeaseHead: async () => {
         headReads += 1;
@@ -209,20 +248,17 @@ test('post-mutation lease-head failure rolls the proven mutation back completely
 });
 
 test('failed final latest-root proof rolls the complete promoted vector back', async () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
   ]));
   const prior = structuredClone(vector);
-  const head = {
-    operationId: lease.operationId,
-    publicationEpoch: lease.publicationEpoch,
-    leaseSha256: leaseSha256(lease),
-  };
+  const head = acquiredHead(lease, privateKey);
   await assert.rejects(
     promoteDefaultVector({
       lease,
+      authorityPublicKey: publicKey,
       readVector: async () => structuredClone(vector),
       readLeaseHead: async () => structuredClone(head),
       setTag: async (name, version) => { vector[name] = version; },
@@ -242,21 +278,18 @@ test('failed final latest-root proof rolls the complete promoted vector back', a
 });
 
 test('an ambiguous command error is reconciled from the registry and rolled back', async () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
   ]));
   const prior = structuredClone(vector);
-  const head = {
-    operationId: lease.operationId,
-    publicationEpoch: lease.publicationEpoch,
-    leaseSha256: leaseSha256(lease),
-  };
+  const head = acquiredHead(lease, privateKey);
   let writes = 0;
   await assert.rejects(
     promoteDefaultVector({
       lease,
+      authorityPublicKey: publicKey,
       readVector: async () => structuredClone(vector),
       readLeaseHead: async () => structuredClone(head),
       setTag: async (name, version) => {
@@ -278,20 +311,17 @@ test('an ambiguous command error is reconciled from the registry and rolled back
 });
 
 test('rollback never clobbers an independently advanced tag', async () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
   ]));
-  const head = {
-    operationId: lease.operationId,
-    publicationEpoch: lease.publicationEpoch,
-    leaseSha256: leaseSha256(lease),
-  };
+  const head = acquiredHead(lease, privateKey);
   let writes = 0;
   await assert.rejects(
     promoteDefaultVector({
       lease,
+      authorityPublicKey: publicKey,
       readVector: async () => structuredClone(vector),
       readLeaseHead: async () => structuredClone(head),
       setTag: async (name, version) => {
@@ -315,16 +345,12 @@ test('rollback never clobbers an independently advanced tag', async () => {
 });
 
 test('lease expiry is rechecked immediately around every mutation', async () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
   ]));
-  const head = {
-    operationId: lease.operationId,
-    publicationEpoch: lease.publicationEpoch,
-    leaseSha256: leaseSha256(lease),
-  };
+  const head = acquiredHead(lease, privateKey);
   const times = [
     '2026-07-28T19:14:59.000Z',
     '2026-07-28T19:14:59.500Z',
@@ -334,6 +360,7 @@ test('lease expiry is rechecked immediately around every mutation', async () => 
   await assert.rejects(
     promoteDefaultVector({
       lease,
+      authorityPublicKey: publicKey,
       readVector: async () => structuredClone(vector),
       readLeaseHead: async () => structuredClone(head),
       setTag: async (name, version) => {
@@ -355,8 +382,32 @@ test('lease expiry is rechecked immediately around every mutation', async () => 
   );
 });
 
+test('a signed closed head refuses every mutation even when lease identity still matches', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const closedHead = acquiredHead(lease, privateKey, {
+    authorityGeneration: 3,
+    status: 'closed',
+    outcome: 'rolled-back',
+  });
+  let writes = 0;
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(closedHead),
+      setTag: async () => { writes += 1; },
+      removeTag: async () => { writes += 1; },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+    }),
+    /external publication lease head drifted/u,
+  );
+  assert.equal(writes, 0);
+});
+
 test('external authority acquisition and close receipts are exact-value bound', () => {
-  const { lease } = fixture();
+  const { lease, privateKey, publicKey } = fixture();
   const vector = Object.fromEntries(lease.packages.map((row) => [
     row.name,
     row.expectedPriorVersion,
@@ -366,20 +417,18 @@ test('external authority acquisition and close receipts are exact-value bound', 
     outcome: 'acquired',
     vector,
   });
-  const acquisitionReceipt = {
-    schemaVersion: 'snapback.publication-authority-transition-receipt.v1',
-    operationId: acquisition.operationId,
-    publicationEpoch: acquisition.publicationEpoch,
-    leaseSha256: acquisition.leaseSha256,
-    outcome: acquisition.outcome,
-    publicationLedgerSha256: null,
-    vectorSha256: acquisition.vectorSha256,
-    closed: false,
-  };
+  const acquisitionReceipt = createPublicationAuthorityReceipt({
+    transition: acquisition,
+    authorityGeneration: 2,
+    privateKey,
+  });
   assert.equal(
     validatePublicationAuthorityReceipt({
       receipt: acquisitionReceipt,
       transition: acquisition,
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin,
     }),
     acquisitionReceipt,
   );
@@ -389,21 +438,34 @@ test('external authority acquisition and close receipts are exact-value bound', 
     vector: Object.fromEntries(names.map((name) => [name, '0.1.1'])),
     publicationLedgerSha256: 'b'.repeat(64),
   });
-  const closeReceipt = {
-    ...acquisitionReceipt,
-    outcome: promoted.outcome,
-    publicationLedgerSha256: promoted.publicationLedgerSha256,
-    vectorSha256: promoted.vectorSha256,
-    closed: true,
-  };
+  const closeReceipt = createPublicationAuthorityReceipt({
+    transition: promoted,
+    authorityGeneration: 3,
+    privateKey,
+  });
   assert.equal(
-    validatePublicationAuthorityReceipt({ receipt: closeReceipt, transition: promoted }),
+    validatePublicationAuthorityReceipt({
+      receipt: closeReceipt,
+      transition: promoted,
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin,
+    }),
     closeReceipt,
   );
+  const wrongTransition = { ...promoted, vectorSha256: 'c'.repeat(64) };
+  const wrongReceipt = createPublicationAuthorityReceipt({
+    transition: wrongTransition,
+    authorityGeneration: 3,
+    privateKey,
+  });
   assert.throws(
     () => validatePublicationAuthorityReceipt({
-      receipt: { ...closeReceipt, vectorSha256: 'c'.repeat(64) },
+      receipt: wrongReceipt,
       transition: promoted,
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin,
     }),
     /vectorSha256 mismatch/u,
   );

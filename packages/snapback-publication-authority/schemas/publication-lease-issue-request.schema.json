@@ -1,11 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/publication-lease-issue-request.v1.json",
-  "title": "PublicationLeaseIssueRequestV1",
+  "$id": "https://snapback.dev/schemas/publication-lease-issue-request.v2.json",
+  "title": "PublicationLeaseIssueRequestV2",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "authorityInstallationId",
+    "authorityOrigin",
+    "signingKeyId",
     "operationId",
     "publisherInstanceId",
     "expectedPublicationEpoch",
@@ -17,7 +20,24 @@
     "packages"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.publication-lease-issue-request.v1" },
+    "schemaVersion": { "const": "snapback.publication-lease-issue-request.v2" },
+    "authorityInstallationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,160}$"
+    },
+    "authorityOrigin": {
+      "oneOf": [
+        { "type": "string", "pattern": "^https://[^/@?#]+$" },
+        {
+          "type": "string",
+          "pattern": "^http://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?$"
+        }
+      ]
+    },
+    "signingKeyId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "operationId": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },
     "publisherInstanceId": {
       "type": "string",

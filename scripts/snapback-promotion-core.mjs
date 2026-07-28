@@ -9,6 +9,7 @@ import {
   requireExactKeys,
   sha256Hex,
   unsignedLease,
+  validatePublicationAuthorityHead,
   validatePublicationAuthorityReceipt,
   validatePublicationLease,
   vectorFromLease,
@@ -20,6 +21,7 @@ export {
   publicationAuthorityTransition,
   sha256Hex,
   unsignedLease,
+  validatePublicationAuthorityHead,
   validatePublicationAuthorityReceipt,
   validatePublicationLease,
   vectorFromLease,
@@ -57,10 +59,25 @@ function changedNames(before, after, names) {
   return names.filter((name) => (before[name] ?? null) !== (after[name] ?? null));
 }
 
-function requireLeaseHead(head, lease) {
-  if (head?.operationId !== lease.operationId
+function requireLeaseHead(head, lease, authorityPublicKey) {
+  try {
+    validatePublicationAuthorityHead({
+      head,
+      publicKey: authorityPublicKey,
+      authorityInstallationId: lease.authorityInstallationId,
+      authorityOrigin: lease.authorityOrigin,
+    });
+  } catch (cause) {
+    throw new Error('external publication lease head drifted', { cause });
+  }
+  if (head.status !== 'acquired'
+      || head.outcome !== null
+      || head.operationId !== lease.operationId
       || head?.publicationEpoch !== lease.publicationEpoch
-      || head?.leaseSha256 !== leaseSha256(lease)) {
+      || head.publisherInstanceId !== lease.publisherInstanceId
+      || head.signingKeyId !== lease.signingKeyId
+      || head.expiresAt !== lease.expiresAt
+      || head.leaseSha256 !== leaseSha256(lease)) {
     throw new Error('external publication lease head drifted');
   }
 }
@@ -186,6 +203,7 @@ export function validatePostPromotionLedger(ledger) {
  */
 export async function promoteDefaultVector({
   lease,
+  authorityPublicKey,
   readVector,
   readLeaseHead,
   setTag,
@@ -206,8 +224,9 @@ export async function promoteDefaultVector({
   try {
     for (const row of lease.packages) {
       const beforeLeaseHead = await readLeaseHead();
-      requireLeaseHead(beforeLeaseHead, lease);
-      requireCurrentLease(lease, now());
+      const beforeAuthorityTime = now();
+      requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
+      requireCurrentLease(lease, beforeAuthorityTime);
       const before = await readVector(names);
       if (!vectorsEqual(before, expected, names)) {
         throw new Error(`default-tag vector drift before ${row.name}`);
@@ -238,8 +257,9 @@ export async function promoteDefaultVector({
       let afterLeaseHead = null;
       try {
         afterLeaseHead = await readLeaseHead();
-        requireLeaseHead(afterLeaseHead, lease);
-        requireCurrentLease(lease, now());
+        const afterAuthorityTime = now();
+        requireLeaseHead(afterLeaseHead, lease, authorityPublicKey, afterAuthorityTime);
+        requireCurrentLease(lease, afterAuthorityTime);
       } catch (postMutationAuthorityCause) {
         emit({
           phase: 'promote',
@@ -286,8 +306,9 @@ export async function promoteDefaultVector({
     for (const row of [...changed].reverse()) {
       try {
         const beforeLeaseHead = await readLeaseHead();
-        requireLeaseHead(beforeLeaseHead, lease);
-        requireCurrentLease(lease, now());
+        const beforeAuthorityTime = now();
+        requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
+        requireCurrentLease(lease, beforeAuthorityTime);
         const before = await readVector(names);
         if (!vectorsEqual(before, rollbackExpected, names)
             || (before[row.name] ?? null) !== row.newVersion) {
@@ -304,8 +325,9 @@ export async function promoteDefaultVector({
           throw new Error(`rollback vector drift after ${row.name}`);
         }
         const afterLeaseHead = await readLeaseHead();
-        requireLeaseHead(afterLeaseHead, lease);
-        requireCurrentLease(lease, now());
+        const afterAuthorityTime = now();
+        requireLeaseHead(afterLeaseHead, lease, authorityPublicKey, afterAuthorityTime);
+        requireCurrentLease(lease, afterAuthorityTime);
         rollbackExpected = next;
         const event = {
           phase: 'rollback',

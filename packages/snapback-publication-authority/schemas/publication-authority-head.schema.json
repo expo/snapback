@@ -1,11 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/publication-authority-head.v1.json",
-  "title": "PublicationAuthorityHeadV1",
+  "$id": "https://snapback.dev/schemas/publication-authority-head.v2.json",
+  "title": "PublicationAuthorityHeadV2",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "authorityInstallationId",
+    "authorityOrigin",
+    "signingKeyId",
     "authorityGeneration",
     "publicationEpoch",
     "status",
@@ -14,10 +17,28 @@
     "leaseSha256",
     "expiresAt",
     "outcome",
-    "headSha256"
+    "headSha256",
+    "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.publication-authority-head.v1" },
+    "schemaVersion": { "const": "snapback.publication-authority-head.v2" },
+    "authorityInstallationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,160}$"
+    },
+    "authorityOrigin": {
+      "oneOf": [
+        { "type": "string", "pattern": "^https://[^/@?#]+$" },
+        {
+          "type": "string",
+          "pattern": "^http://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?$"
+        }
+      ]
+    },
+    "signingKeyId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "authorityGeneration": { "type": "integer", "minimum": 0 },
     "publicationEpoch": { "type": "integer", "minimum": 0 },
     "status": { "enum": ["empty", "issued", "acquired", "closed"] },
@@ -59,7 +80,8 @@
         { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         { "type": "null" }
       ]
-    }
+    },
+    "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" }
   },
   "allOf": [
     {

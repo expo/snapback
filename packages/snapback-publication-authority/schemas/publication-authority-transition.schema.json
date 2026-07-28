@@ -1,11 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/publication-authority-transition.v1.json",
-  "title": "PublicationAuthorityTransitionV1",
+  "$id": "https://snapback.dev/schemas/publication-authority-transition.v2.json",
+  "title": "PublicationAuthorityTransitionV2",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "authorityInstallationId",
+    "authorityOrigin",
+    "signingKeyId",
     "operationId",
     "publicationEpoch",
     "publisherInstanceId",
@@ -15,7 +18,24 @@
     "vectorSha256"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.publication-authority-transition.v1" },
+    "schemaVersion": { "const": "snapback.publication-authority-transition.v2" },
+    "authorityInstallationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,160}$"
+    },
+    "authorityOrigin": {
+      "oneOf": [
+        { "type": "string", "pattern": "^https://[^/@?#]+$" },
+        {
+          "type": "string",
+          "pattern": "^http://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?$"
+        }
+      ]
+    },
+    "signingKeyId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "operationId": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,160}$" },
     "publicationEpoch": { "type": "integer", "minimum": 1 },
     "publisherInstanceId": {

@@ -35,12 +35,18 @@ export function createPublicationLeaseIssueRequest({
   ledger,
   priorVector,
   head,
+  publicKey,
+  authorityOrigin,
   operationId,
   publisherInstanceId,
   lifetimeSeconds = 900,
 }) {
   validateObservedPriorVector(priorVector);
-  validatePublicationAuthorityHead(head);
+  validatePublicationAuthorityHead({
+    head,
+    publicKey,
+    authorityOrigin,
+  });
   const packagesByName = new Map(
     (ledger?.packages ?? []).map((row) => [row.name, row]),
   );
@@ -59,7 +65,10 @@ export function createPublicationLeaseIssueRequest({
     };
   });
   return validatePublicationLeaseIssueRequest({
-    schemaVersion: 'snapback.publication-lease-issue-request.v1',
+    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    authorityInstallationId: head.authorityInstallationId,
+    authorityOrigin: head.authorityOrigin,
+    signingKeyId: head.signingKeyId,
     operationId,
     publisherInstanceId,
     expectedPublicationEpoch: head.publicationEpoch,

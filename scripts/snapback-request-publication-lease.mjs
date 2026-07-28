@@ -34,8 +34,8 @@ const usage = `usage: node scripts/snapback-request-publication-lease.mjs
   --out <authorized-lease.json>
   [--lifetime-seconds <1..900>] [--allow-loopback-http]
 
-SNAPBACK_PUBLICATION_LEASE_TOKEN supplies Bearer authentication. The token is
-never accepted as an argument or written to output.`;
+SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE names the Bearer-token file. The token is
+never accepted as an argument, environment value, or written to output.`;
 
 function fail(message, code = 1) {
   process.stderr.write(`snapback-request-publication-lease: ${message}\n`);
@@ -97,11 +97,16 @@ function parseArgs(argv) {
   ) {
     fail('--authority-url must use HTTPS (loopback HTTP requires explicit test opt-in)', 2);
   }
-  if (authority.username || authority.password || authority.search || authority.hash) {
-    fail('--authority-url must not contain credentials, query, or fragment', 2);
+  if (
+    authority.username
+    || authority.password
+    || authority.search
+    || authority.hash
+    || (authority.pathname !== '' && authority.pathname !== '/')
+  ) {
+    fail('--authority-url must be one origin without path or credentials', 2);
   }
-  authority.pathname = authority.pathname.replace(/\/+$/u, '');
-  options.authorityUrl = authority.href.replace(/\/$/u, '');
+  options.authorityUrl = authority.origin;
   return options;
 }
 
@@ -113,11 +118,7 @@ function readJson(path, label) {
   }
 }
 
-function headers() {
-  const token = process.env.SNAPBACK_PUBLICATION_LEASE_TOKEN;
-  if (typeof token !== 'string' || token.length < 16) {
-    fail('SNAPBACK_PUBLICATION_LEASE_TOKEN must be present and at least 16 bytes', 2);
-  }
+function headers(token) {
   return {
     accept: 'application/json',
     authorization: `Bearer ${token}`,
@@ -167,6 +168,20 @@ function writePrivateAtomic(path, value) {
 }
 
 const options = parseArgs(process.argv.slice(2));
+const tokenPath = process.env.SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE;
+if (!tokenPath) {
+  fail('SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE must name a Bearer-token file', 2);
+}
+let token;
+try {
+  token = readFileSync(tokenPath, 'utf8').trim();
+} catch (error) {
+  fail(`Bearer-token file could not be read: ${error.message}`, 2);
+}
+if (token.length < 16) {
+  fail('SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE must contain at least 16 bytes', 2);
+}
+const publicKey = readFileSync(options.publicKey);
 const ledger = readJson(options.ledger, 'candidate ledger');
 try {
   validateCandidateLedger(ledger);
@@ -183,26 +198,34 @@ try {
 }
 let lease;
 try {
-  const head = validatePublicationAuthorityHead(await authorityJson(
-    `${options.authorityUrl}/v1/head`,
-    { headers: headers() },
-  ));
+  const head = validatePublicationAuthorityHead({
+    head: await authorityJson(
+      `${options.authorityUrl}/v1/head`,
+      { headers: headers(token) },
+    ),
+    publicKey,
+    authorityOrigin: options.authorityUrl,
+  });
   const request = createPublicationLeaseIssueRequest({
     ledger,
     priorVector,
     head,
+    publicKey,
+    authorityOrigin: options.authorityUrl,
     operationId: options.operationId,
     publisherInstanceId: options.publisherInstanceId,
     lifetimeSeconds: options.lifetimeSeconds,
   });
   lease = await authorityJson(`${options.authorityUrl}/v1/leases/issue`, {
     method: 'POST',
-    headers: { ...headers(), 'content-type': 'application/json' },
+    headers: { ...headers(token), 'content-type': 'application/json' },
     body: canonicalJcs(request),
   });
   validatePublicationLease({
     lease,
-    publicKey: readFileSync(options.publicKey),
+    publicKey,
+    authorityInstallationId: head.authorityInstallationId,
+    authorityOrigin: options.authorityUrl,
     candidateLedgerSha256: ledger.candidateLedgerSha256,
     candidateTag: ledger.tag,
     publisherInstanceId: options.publisherInstanceId,

@@ -7,6 +7,7 @@ import { PublicationLeaseAuthority } from './authority.mjs';
 import {
   canonicalJcs,
   PROMOTION_PACKAGE_NAMES,
+  publicationAuthoritySigningKeyId,
   publicationAuthorityTransition,
   vectorFromLease,
 } from './protocol.mjs';
@@ -14,10 +15,16 @@ import { createPublicationAuthorityServer } from './server.mjs';
 import { InMemoryPublicationAuthorityStore } from './store.mjs';
 
 const TOKEN = 'publication-authority-test-bearer-token';
+const AUTHORITY_INSTALLATION_ID = 'snapback-publication-http';
+const AUTHORITY_ORIGIN = 'https://publication-authority.example';
+let testSigningKeyId;
 
 function issueRequest() {
   return {
-    schemaVersion: 'snapback.publication-lease-issue-request.v1',
+    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    signingKeyId: testSigningKeyId,
     operationId: 'release-http-authority-test',
     publisherInstanceId: 'publisher-http-test',
     expectedPublicationEpoch: 0,
@@ -35,17 +42,29 @@ function issueRequest() {
 }
 
 async function withServer(run) {
-  const { privateKey } = generateKeyPairSync('ed25519');
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  testSigningKeyId = publicationAuthoritySigningKeyId(publicKey);
   const authority = new PublicationLeaseAuthority({
-    store: new InMemoryPublicationAuthorityStore(),
+    store: new InMemoryPublicationAuthorityStore({
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+      publicKey,
+    }),
     privateKey,
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
     now: () => Date.parse('2026-07-28T20:00:00.000Z'),
   });
   const server = createPublicationAuthorityServer({ authority, bearerToken: TOKEN });
+  assert.equal(server.requestTimeout, 15_000);
+  assert.equal(server.headersTimeout, 10_000);
+  assert.equal(server.keepAliveTimeout, 5_000);
+  assert.equal(server.maxRequestsPerSocket, 100);
+  assert.equal(server.maxHeadersCount, 64);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   try {
-    await run(`http://127.0.0.1:${address.port}`);
+    await run(`http://127.0.0.1:${address.port}`, publicKey);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -174,5 +193,31 @@ test('duplicate Authorization headers and route/query smuggling refuse', async (
       `duplicate authorization was not refused: HTTP ${duplicate.statusCode}`,
     );
     duplicate.resume();
+  });
+});
+
+test('GET bodies are rejected and drained instead of reaching health or head', async () => {
+  await withServer(async (base) => {
+    const response = await new Promise((resolve, reject) => {
+      const url = new URL(`${base}/v1/head`);
+      const request = httpRequest({
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          'content-length': '2',
+          'content-type': 'application/json',
+        },
+      }, resolve);
+      request.on('error', reject);
+      request.end('{}');
+    });
+    assert.equal(response.statusCode, 400);
+    let body = '';
+    response.setEncoding('utf8');
+    for await (const chunk of response) body += chunk;
+    assert.equal(JSON.parse(body).code, 'SNAPBACK_PUBLICATION_GET_BODY_REFUSED');
   });
 });

@@ -9,7 +9,11 @@ import {
 // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
 // — this module is the one package-owned wire/signature authority shared by
 // the standing service and the registry publisher.
-export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v1\0');
+export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v2\0');
+export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v2\0');
+export const RECEIPT_DOMAIN = Buffer.from(
+  'snapback-publication-authority-transition-receipt-v2\0',
+);
 export const PACKAGE_COUNT = 9;
 export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-runtime-darwin-arm64',
@@ -24,6 +28,8 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
 ]);
 
 export const LEASE_KEYS = Object.freeze([
+  'authorityInstallationId',
+  'authorityOrigin',
   'candidateLedgerSha256',
   'candidateTag',
   'defaultTag',
@@ -35,6 +41,7 @@ export const LEASE_KEYS = Object.freeze([
   'publisherInstanceId',
   'schemaVersion',
   'signature',
+  'signingKeyId',
 ]);
 export const LEASE_PACKAGE_KEYS = Object.freeze([
   'expectedPriorVersion',
@@ -42,6 +49,8 @@ export const LEASE_PACKAGE_KEYS = Object.freeze([
   'newVersion',
 ]);
 export const ISSUE_REQUEST_KEYS = Object.freeze([
+  'authorityInstallationId',
+  'authorityOrigin',
   'candidateLedgerSha256',
   'candidateTag',
   'defaultTag',
@@ -52,8 +61,11 @@ export const ISSUE_REQUEST_KEYS = Object.freeze([
   'packages',
   'publisherInstanceId',
   'schemaVersion',
+  'signingKeyId',
 ]);
 export const AUTHORITY_TRANSITION_KEYS = Object.freeze([
+  'authorityInstallationId',
+  'authorityOrigin',
   'leaseSha256',
   'operationId',
   'outcome',
@@ -61,20 +73,29 @@ export const AUTHORITY_TRANSITION_KEYS = Object.freeze([
   'publicationEpoch',
   'publisherInstanceId',
   'schemaVersion',
+  'signingKeyId',
   'vectorSha256',
 ]);
 export const AUTHORITY_RECEIPT_KEYS = Object.freeze([
+  'authorityGeneration',
+  'authorityInstallationId',
+  'authorityOrigin',
   'closed',
   'leaseSha256',
   'operationId',
   'outcome',
   'publicationLedgerSha256',
   'publicationEpoch',
+  'publisherInstanceId',
   'schemaVersion',
+  'signature',
+  'signingKeyId',
   'vectorSha256',
 ]);
 export const AUTHORITY_HEAD_KEYS = Object.freeze([
   'authorityGeneration',
+  'authorityInstallationId',
+  'authorityOrigin',
   'expiresAt',
   'headSha256',
   'leaseSha256',
@@ -83,8 +104,13 @@ export const AUTHORITY_HEAD_KEYS = Object.freeze([
   'publicationEpoch',
   'publisherInstanceId',
   'schemaVersion',
+  'signature',
+  'signingKeyId',
   'status',
 ]);
+
+const ID_PATTERN = /^[A-Za-z0-9._:-]{8,160}$/u;
+const SIGNATURE_PATTERN = /^[A-Za-z0-9_-]{86}$/u;
 
 export function canonicalJcs(value) {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') {
@@ -106,15 +132,6 @@ export function canonicalJcs(value) {
 
 export function sha256Hex(value) {
   return createHash('sha256').update(value).digest('hex');
-}
-
-export function unsignedLease(lease) {
-  const { signature: _signature, ...unsigned } = lease;
-  return unsigned;
-}
-
-export function leaseSha256(lease) {
-  return sha256Hex(canonicalJcs(lease));
 }
 
 export function assertHexSha256(value, field) {
@@ -154,13 +171,136 @@ export function requireExactKeys(value, keys, field) {
   }
 }
 
+export function normalizeAuthorityOrigin(value, { allowLoopbackHttp = false } = {}) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('authorityOrigin must be an absolute URL origin');
+  }
+  const loopback = ['127.0.0.1', '::1', 'localhost'].includes(url.hostname);
+  if (
+    url.protocol !== 'https:'
+    && !(allowLoopbackHttp && url.protocol === 'http:' && loopback)
+  ) {
+    throw new Error('authorityOrigin must use HTTPS');
+  }
+  if (
+    url.username
+    || url.password
+    || url.search
+    || url.hash
+    || (url.pathname !== '' && url.pathname !== '/')
+    || url.origin !== value
+  ) {
+    throw new Error('authorityOrigin must be one canonical origin without path or credentials');
+  }
+  return url.origin;
+}
+
+function asEd25519PublicKey(publicKey) {
+  const key = typeof publicKey === 'string' || Buffer.isBuffer(publicKey)
+    ? createPublicKey(publicKey)
+    : publicKey;
+  if (key?.type !== 'public' || key.asymmetricKeyType !== 'ed25519') {
+    throw new Error('publication authority public key must be Ed25519');
+  }
+  return key;
+}
+
+function asEd25519PrivateKey(privateKey) {
+  const key = typeof privateKey === 'string' || Buffer.isBuffer(privateKey)
+    ? createPrivateKey(privateKey)
+    : privateKey;
+  if (key?.type !== 'private' || key.asymmetricKeyType !== 'ed25519') {
+    throw new Error('publication authority private key must be Ed25519');
+  }
+  return key;
+}
+
+export function publicationAuthoritySigningKeyId(publicKey) {
+  const key = asEd25519PublicKey(publicKey);
+  return sha256Hex(key.export({ type: 'spki', format: 'der' }));
+}
+
+function assertSignatureEncoding(signature, field) {
+  if (!SIGNATURE_PATTERN.test(signature ?? '')) {
+    throw new Error(`${field} must be an exact unpadded Ed25519 base64url signature`);
+  }
+  const decoded = Buffer.from(signature, 'base64url');
+  if (decoded.byteLength !== 64 || decoded.toString('base64url') !== signature) {
+    throw new Error(`${field} must be an exact unpadded Ed25519 base64url signature`);
+  }
+  return decoded;
+}
+
+function signEnvelope(domain, unsigned, privateKey) {
+  return signValue(
+    null,
+    Buffer.concat([domain, Buffer.from(canonicalJcs(unsigned))]),
+    asEd25519PrivateKey(privateKey),
+  ).toString('base64url');
+}
+
+function verifyEnvelope(domain, signed, publicKey, field) {
+  assertSignatureEncoding(signed.signature, `${field}.signature`);
+  const key = asEd25519PublicKey(publicKey);
+  if (signed.signingKeyId !== publicationAuthoritySigningKeyId(key)) {
+    throw new Error(`${field} signing key id mismatch`);
+  }
+  const { signature, ...unsigned } = signed;
+  const valid = verifySignature(
+    null,
+    Buffer.concat([domain, Buffer.from(canonicalJcs(unsigned))]),
+    key,
+    Buffer.from(signature, 'base64url'),
+  );
+  if (!valid) throw new Error(`${field} signature is invalid`);
+  return signed;
+}
+
+function validateIdentifier(value, field) {
+  if (!ID_PATTERN.test(value ?? '')) throw new Error(`invalid ${field}`);
+}
+
 function validateOperationBindings(value) {
-  if (!/^[A-Za-z0-9._:-]{8,160}$/u.test(value.operationId ?? '')) {
-    throw new Error('invalid publication operationId');
+  validateIdentifier(value.operationId, 'publication operationId');
+  validateIdentifier(value.publisherInstanceId, 'publication publisherInstanceId');
+}
+
+function validateAuthorityBinding(value, {
+  authorityInstallationId,
+  authorityOrigin,
+} = {}) {
+  validateIdentifier(
+    value.authorityInstallationId,
+    'publication authorityInstallationId',
+  );
+  normalizeAuthorityOrigin(value.authorityOrigin, { allowLoopbackHttp: true });
+  assertHexSha256(value.signingKeyId, 'signingKeyId');
+  if (
+    authorityInstallationId !== undefined
+    && value.authorityInstallationId !== authorityInstallationId
+  ) {
+    throw new Error('publication authority installation mismatch');
   }
-  if (!/^[A-Za-z0-9._:-]{8,160}$/u.test(value.publisherInstanceId ?? '')) {
-    throw new Error('invalid publication publisherInstanceId');
+  if (
+    authorityOrigin !== undefined
+    && value.authorityOrigin !== normalizeAuthorityOrigin(authorityOrigin, {
+      allowLoopbackHttp: true,
+    })
+  ) {
+    throw new Error('publication authority origin mismatch');
   }
+}
+
+export function unsignedLease(lease) {
+  const { signature: _signature, ...unsigned } = lease;
+  return unsigned;
+}
+
+export function leaseSha256(lease) {
+  return sha256Hex(canonicalJcs(lease));
 }
 
 export function validateLeasePackages(packages, field = 'publication lease') {
@@ -194,15 +334,18 @@ export function validateLeasePackages(packages, field = 'publication lease') {
 export function validatePublicationLease({
   lease,
   publicKey,
+  authorityInstallationId,
+  authorityOrigin,
   candidateLedgerSha256,
   candidateTag,
   publisherInstanceId,
   now = Date.now(),
 }) {
   requireExactKeys(lease, LEASE_KEYS, 'publication lease');
-  if (lease?.schemaVersion !== 'snapback.authorized-publication-lease.v1') {
+  if (lease?.schemaVersion !== 'snapback.authorized-publication-lease.v2') {
     throw new Error('unsupported publication lease schema');
   }
+  validateAuthorityBinding(lease, { authorityInstallationId, authorityOrigin });
   validateOperationBindings(lease);
   if (lease.publisherInstanceId !== publisherInstanceId) {
     throw new Error('publication lease publisher instance mismatch');
@@ -220,23 +363,11 @@ export function validatePublicationLease({
   if (expiresAt <= issuedAt || expiresAt - issuedAt > 15 * 60_000) {
     throw new Error('publication lease lifetime must be in (0, 15 minutes]');
   }
-  if (now < issuedAt || now >= expiresAt) {
+  if (now !== null && (now < issuedAt || now >= expiresAt)) {
     throw new Error('publication lease is not current');
   }
   validateLeasePackages(lease.packages);
-  if (typeof lease.signature !== 'string' || lease.signature.length < 80) {
-    throw new Error('publication lease signature is missing');
-  }
-  const key = typeof publicKey === 'string' || Buffer.isBuffer(publicKey)
-    ? createPublicKey(publicKey)
-    : publicKey;
-  const payload = Buffer.concat([
-    LEASE_DOMAIN,
-    Buffer.from(canonicalJcs(unsignedLease(lease))),
-  ]);
-  if (!verifySignature(null, payload, key, Buffer.from(lease.signature, 'base64url'))) {
-    throw new Error('publication lease signature is invalid');
-  }
+  verifyEnvelope(LEASE_DOMAIN, lease, publicKey, 'publication lease');
   return lease;
 }
 
@@ -246,22 +377,23 @@ export function signPublicationLease({ unsigned, privateKey }) {
     LEASE_KEYS,
     'unsigned publication lease',
   );
-  const key = typeof privateKey === 'string' || Buffer.isBuffer(privateKey)
-    ? createPrivateKey(privateKey)
-    : privateKey;
-  const signature = signValue(
-    null,
-    Buffer.concat([LEASE_DOMAIN, Buffer.from(canonicalJcs(unsigned))]),
-    key,
-  ).toString('base64url');
-  return { ...unsigned, signature };
+  validateAuthorityBinding(unsigned);
+  const publicKey = createPublicKey(asEd25519PrivateKey(privateKey));
+  if (unsigned.signingKeyId !== publicationAuthoritySigningKeyId(publicKey)) {
+    throw new Error('unsigned publication lease signing key id mismatch');
+  }
+  return {
+    ...unsigned,
+    signature: signEnvelope(LEASE_DOMAIN, unsigned, privateKey),
+  };
 }
 
-export function validatePublicationLeaseIssueRequest(request) {
+export function validatePublicationLeaseIssueRequest(request, expectedBinding = {}) {
   requireExactKeys(request, ISSUE_REQUEST_KEYS, 'publication lease issue request');
-  if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v1') {
+  if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v2') {
     throw new Error('unsupported publication lease issue request schema');
   }
+  validateAuthorityBinding(request, expectedBinding);
   validateOperationBindings(request);
   if (!Number.isSafeInteger(request.expectedPublicationEpoch)
       || request.expectedPublicationEpoch < 0) {
@@ -293,15 +425,16 @@ export function vectorFromLease(lease, side) {
   ]));
 }
 
-export function validatePublicationAuthorityTransition(transition) {
+export function validatePublicationAuthorityTransition(transition, expectedBinding = {}) {
   requireExactKeys(
     transition,
     AUTHORITY_TRANSITION_KEYS,
     'publication authority transition',
   );
-  if (transition.schemaVersion !== 'snapback.publication-authority-transition.v1') {
+  if (transition.schemaVersion !== 'snapback.publication-authority-transition.v2') {
     throw new Error('unsupported publication authority transition schema');
   }
+  validateAuthorityBinding(transition, expectedBinding);
   validateOperationBindings(transition);
   assertSafePositiveInteger(transition.publicationEpoch, 'publicationEpoch');
   assertHexSha256(transition.leaseSha256, 'leaseSha256');
@@ -327,7 +460,10 @@ export function publicationAuthorityTransition({
   publicationLedgerSha256 = null,
 }) {
   const transition = {
-    schemaVersion: 'snapback.publication-authority-transition.v1',
+    schemaVersion: 'snapback.publication-authority-transition.v2',
+    authorityInstallationId: lease.authorityInstallationId,
+    authorityOrigin: lease.authorityOrigin,
+    signingKeyId: lease.signingKeyId,
     operationId: lease.operationId,
     publicationEpoch: lease.publicationEpoch,
     publisherInstanceId: lease.publisherInstanceId,
@@ -339,49 +475,111 @@ export function publicationAuthorityTransition({
   return validatePublicationAuthorityTransition(transition);
 }
 
-export function validatePublicationAuthorityReceipt({ receipt, transition }) {
-  validatePublicationAuthorityTransition(transition);
+function receiptTransition(receipt) {
+  const transition = Object.fromEntries(
+    AUTHORITY_TRANSITION_KEYS.map((key) => [key, receipt[key]]),
+  );
+  transition.schemaVersion = 'snapback.publication-authority-transition.v2';
+  return transition;
+}
+
+export function validatePublicationAuthorityReceipt({
+  receipt,
+  transition = null,
+  publicKey,
+  authorityInstallationId,
+  authorityOrigin,
+}) {
   requireExactKeys(receipt, AUTHORITY_RECEIPT_KEYS, 'publication authority receipt');
-  if (
-    receipt.schemaVersion !== 'snapback.publication-authority-transition-receipt.v1'
-    || receipt.closed !== (transition.outcome !== 'acquired')
-  ) {
+  if (receipt.schemaVersion !== 'snapback.publication-authority-transition-receipt.v2') {
+    throw new Error('unsupported publication authority receipt schema');
+  }
+  const retainedTransition = validatePublicationAuthorityTransition(
+    receiptTransition(receipt),
+    { authorityInstallationId, authorityOrigin },
+  );
+  assertSafePositiveInteger(receipt.authorityGeneration, 'authorityGeneration');
+  if (receipt.closed !== (receipt.outcome !== 'acquired')) {
     throw new Error('publication authority transition receipt state mismatch');
   }
-  for (const field of [
-    'operationId',
-    'publicationEpoch',
-    'leaseSha256',
-    'outcome',
-    'publicationLedgerSha256',
-    'vectorSha256',
-  ]) {
-    if (receipt[field] !== transition[field]) {
-      throw new Error(`publication authority transition receipt ${field} mismatch`);
+  verifyEnvelope(RECEIPT_DOMAIN, receipt, publicKey, 'publication authority receipt');
+  if (transition !== null) {
+    validatePublicationAuthorityTransition(transition, {
+      authorityInstallationId,
+      authorityOrigin,
+    });
+    for (const field of AUTHORITY_TRANSITION_KEYS.filter(
+      (field) => field !== 'schemaVersion',
+    )) {
+      if (retainedTransition[field] !== transition[field]) {
+        throw new Error(`publication authority transition receipt ${field} mismatch`);
+      }
     }
   }
   return receipt;
 }
 
-export function createPublicationAuthorityReceipt(transition) {
+export function createPublicationAuthorityReceipt({
+  transition,
+  authorityGeneration,
+  privateKey,
+}) {
   validatePublicationAuthorityTransition(transition);
-  return {
-    schemaVersion: 'snapback.publication-authority-transition-receipt.v1',
+  assertSafePositiveInteger(authorityGeneration, 'authorityGeneration');
+  const unsigned = {
+    schemaVersion: 'snapback.publication-authority-transition-receipt.v2',
+    authorityInstallationId: transition.authorityInstallationId,
+    authorityOrigin: transition.authorityOrigin,
+    signingKeyId: transition.signingKeyId,
+    authorityGeneration,
     operationId: transition.operationId,
     publicationEpoch: transition.publicationEpoch,
+    publisherInstanceId: transition.publisherInstanceId,
     leaseSha256: transition.leaseSha256,
     outcome: transition.outcome,
     publicationLedgerSha256: transition.publicationLedgerSha256,
     vectorSha256: transition.vectorSha256,
     closed: transition.outcome !== 'acquired',
   };
+  return {
+    ...unsigned,
+    signature: signEnvelope(RECEIPT_DOMAIN, unsigned, privateKey),
+  };
 }
 
-export function validatePublicationAuthorityHead(head) {
+export function publicationAuthorityHeadSha256(unsignedHead) {
+  const {
+    headSha256: _headSha256,
+    signature: _signature,
+    schemaVersion: _schemaVersion,
+    ...identity
+  } = unsignedHead;
+  return sha256Hex(canonicalJcs(identity));
+}
+
+export function signPublicationAuthorityHead({ unsigned, privateKey }) {
+  requireExactKeys(
+    { ...unsigned, signature: '' },
+    AUTHORITY_HEAD_KEYS,
+    'unsigned publication authority head',
+  );
+  return {
+    ...unsigned,
+    signature: signEnvelope(HEAD_DOMAIN, unsigned, privateKey),
+  };
+}
+
+export function validatePublicationAuthorityHead({
+  head,
+  publicKey,
+  authorityInstallationId,
+  authorityOrigin,
+}) {
   requireExactKeys(head, AUTHORITY_HEAD_KEYS, 'publication authority head');
-  if (head.schemaVersion !== 'snapback.publication-authority-head.v1') {
+  if (head.schemaVersion !== 'snapback.publication-authority-head.v2') {
     throw new Error('unsupported publication authority head schema');
   }
+  validateAuthorityBinding(head, { authorityInstallationId, authorityOrigin });
   if (!Number.isSafeInteger(head.authorityGeneration) || head.authorityGeneration < 0) {
     throw new Error('authorityGeneration must be a non-negative safe integer');
   }
@@ -390,7 +588,8 @@ export function validatePublicationAuthorityHead(head) {
   }
   if (head.status === 'empty') {
     if (
-      head.publicationEpoch !== 0
+      head.authorityGeneration !== 0
+      || head.publicationEpoch !== 0
       || [
         head.operationId,
         head.publisherInstanceId,
@@ -402,21 +601,25 @@ export function validatePublicationAuthorityHead(head) {
     ) {
       throw new Error('empty publication authority head is inconsistent');
     }
-    return head;
+  } else {
+    if (!['issued', 'acquired', 'closed'].includes(head.status)) {
+      throw new Error('publication authority head status is invalid');
+    }
+    validateOperationBindings(head);
+    assertSafePositiveInteger(head.publicationEpoch, 'publicationEpoch');
+    assertHexSha256(head.leaseSha256, 'leaseSha256');
+    assertHexSha256(head.headSha256, 'headSha256');
+    parseTimestamp(head.expiresAt, 'expiresAt');
+    if (head.headSha256 !== publicationAuthorityHeadSha256(head)) {
+      throw new Error('publication authority head digest mismatch');
+    }
+    if (
+      (head.status === 'closed') !== (head.outcome !== null)
+      || (head.outcome !== null && !['promoted', 'rolled-back'].includes(head.outcome))
+    ) {
+      throw new Error('publication authority head outcome is inconsistent');
+    }
   }
-  if (!['issued', 'acquired', 'closed'].includes(head.status)) {
-    throw new Error('publication authority head status is invalid');
-  }
-  validateOperationBindings(head);
-  assertSafePositiveInteger(head.publicationEpoch, 'publicationEpoch');
-  assertHexSha256(head.leaseSha256, 'leaseSha256');
-  assertHexSha256(head.headSha256, 'headSha256');
-  parseTimestamp(head.expiresAt, 'expiresAt');
-  if (
-    (head.status === 'closed') !== (head.outcome !== null)
-    || (head.outcome !== null && !['promoted', 'rolled-back'].includes(head.outcome))
-  ) {
-    throw new Error('publication authority head outcome is inconsistent');
-  }
+  verifyEnvelope(HEAD_DOMAIN, head, publicKey, 'publication authority head');
   return head;
 }

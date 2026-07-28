@@ -17,6 +17,7 @@ import {
   publicationAuthorityTransition,
   promoteDefaultVector,
   sha256Hex,
+  validatePublicationAuthorityHead,
   validatePublicationLease,
   validatePublicationAuthorityReceipt,
 } from './snapback-promotion-core.mjs';
@@ -32,18 +33,17 @@ const registry = 'https://registry.npmjs.org';
 const usage = `usage: node scripts/snapback-promote.mjs
   --ledger <candidate-ledger.json> --lease <authorized-lease.json>
   --public-key <ed25519-public-key.pem>
-  --lease-acquire-url <https-url> --lease-head-url <https-url>
-  --lease-close-url <https-url> --publisher-instance <id>
+  --authority-url <https-origin> --publisher-instance <id>
   --latest-proof-plan <plan.json> --post-ledger <ledger.json>
   --out <promotion-receipt.json> [--otp <code>]
 
 Default-tag promotion is always a real registry operation. It requires
 SNAPBACK_PUBLISH_CONFIRM=yes-really and an externally authorized, current
-publication lease. SNAPBACK_PUBLICATION_LEASE_TOKEN may carry a bearer token
-for the external authority endpoints. The proof plan contains two bounded,
-argv-only commands which produce fresh macOS/arm64 and Linux/x64 latest-root
-receipts after the tag vector moves. Any proof or authority-close failure
-enters the same strict reverse-order rollback path.`;
+publication lease. SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE names the mounted
+Bearer-token file for the lease-bound authority origin. The proof plan contains
+two bounded, argv-only commands which produce fresh macOS/arm64 and Linux/x64
+latest-root receipts after the tag vector moves. Any proof or authority-close
+failure enters the same strict reverse-order rollback path.`;
 
 function fail(message, code = 1) {
   console.error(`snapback-promote: ${message}`);
@@ -63,9 +63,7 @@ function parseArgs(argv) {
     if (arg === '--ledger') options.ledger = resolve(value);
     else if (arg === '--lease') options.lease = resolve(value);
     else if (arg === '--public-key') options.publicKey = resolve(value);
-    else if (arg === '--lease-head-url') options.leaseHeadUrl = value;
-    else if (arg === '--lease-acquire-url') options.leaseAcquireUrl = value;
-    else if (arg === '--lease-close-url') options.leaseCloseUrl = value;
+    else if (arg === '--authority-url') options.authorityUrl = value;
     else if (arg === '--publisher-instance') options.publisherInstanceId = value;
     else if (arg === '--latest-proof-plan') options.latestProofPlan = resolve(value);
     else if (arg === '--post-ledger') options.postLedger = resolve(value);
@@ -77,9 +75,7 @@ function parseArgs(argv) {
     'ledger',
     'lease',
     'publicKey',
-    'leaseHeadUrl',
-    'leaseAcquireUrl',
-    'leaseCloseUrl',
+    'authorityUrl',
     'publisherInstanceId',
     'latestProofPlan',
     'postLedger',
@@ -87,18 +83,23 @@ function parseArgs(argv) {
   ]) {
     if (!options[field]) fail(`--${field.replace(/[A-Z]/g, (value) => `-${value.toLowerCase()}`)} is required\n${usage}`, 2);
   }
-  for (const field of ['leaseHeadUrl', 'leaseAcquireUrl', 'leaseCloseUrl']) {
-    let url;
-    try {
-      url = new URL(options[field]);
-    } catch {
-      fail(`--${field.replace(/[A-Z]/g, (value) => `-${value.toLowerCase()}`)} must be an absolute HTTPS URL`, 2);
-    }
-    if (url.protocol !== 'https:') {
-      fail(`--${field.replace(/[A-Z]/g, (value) => `-${value.toLowerCase()}`)} must use HTTPS`, 2);
-    }
-    options[field] = url.href;
+  let authority;
+  try {
+    authority = new URL(options.authorityUrl);
+  } catch {
+    fail('--authority-url must be an absolute HTTPS origin', 2);
   }
+  if (
+    authority.protocol !== 'https:'
+    || authority.username
+    || authority.password
+    || authority.search
+    || authority.hash
+    || (authority.pathname !== '' && authority.pathname !== '/')
+  ) {
+    fail('--authority-url must be one HTTPS origin without path or credentials', 2);
+  }
+  options.authorityUrl = authority.origin;
   return options;
 }
 
@@ -126,11 +127,21 @@ try {
   fail(`candidate ledger refused: ${error.message}`);
 }
 const candidateLedgerSha256 = ledger.candidateLedgerSha256;
+const authorityPublicKey = readFileSync(options.publicKey);
+const authorityTokenPath = process.env.SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE;
+if (!authorityTokenPath) {
+  fail('SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE must name a Bearer-token file');
+}
+const authorityToken = readFileSync(authorityTokenPath, 'utf8').trim();
+if (authorityToken.length < 16) {
+  fail('SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE must contain at least 16 bytes');
+}
 
 const lease = JSON.parse(readFileSync(options.lease, 'utf8'));
 validatePublicationLease({
   lease,
-  publicKey: readFileSync(options.publicKey),
+  publicKey: authorityPublicKey,
+  authorityOrigin: options.authorityUrl,
   candidateLedgerSha256,
   candidateTag: ledger.tag,
   publisherInstanceId: options.publisherInstanceId,
@@ -230,16 +241,21 @@ async function preflightPriorDefaultClosure() {
 }
 
 async function readLeaseHead() {
-  const headers = { accept: 'application/json' };
-  const token = process.env.SNAPBACK_PUBLICATION_LEASE_TOKEN;
-  if (token) headers.authorization = `Bearer ${token}`;
-  const response = await fetch(options.leaseHeadUrl, {
-    headers,
+  const response = await fetch(`${options.authorityUrl}/v1/head`, {
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${authorityToken}`,
+    },
     redirect: 'error',
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`external lease head returned HTTP ${response.status}`);
-  return response.json();
+  return validatePublicationAuthorityHead({
+    head: await response.json(),
+    publicKey: authorityPublicKey,
+    authorityInstallationId: lease.authorityInstallationId,
+    authorityOrigin: options.authorityUrl,
+  });
 }
 
 function authorityHeaders() {
@@ -247,13 +263,12 @@ function authorityHeaders() {
     accept: 'application/json',
     'content-type': 'application/json',
   };
-  const token = process.env.SNAPBACK_PUBLICATION_LEASE_TOKEN;
-  if (token) headers.authorization = `Bearer ${token}`;
+  headers.authorization = `Bearer ${authorityToken}`;
   return headers;
 }
 
-async function transitionAuthority(url, transition) {
-  const response = await fetch(url, {
+async function transitionAuthority(path, transition) {
+  const response = await fetch(`${options.authorityUrl}${path}`, {
     method: 'POST',
     headers: authorityHeaders(),
     body: canonicalJcs(transition),
@@ -266,6 +281,9 @@ async function transitionAuthority(url, transition) {
   return validatePublicationAuthorityReceipt({
     receipt: await response.json(),
     transition,
+    publicKey: authorityPublicKey,
+    authorityInstallationId: lease.authorityInstallationId,
+    authorityOrigin: options.authorityUrl,
   });
 }
 
@@ -370,7 +388,7 @@ try {
     vector: priorVector,
   });
   receipt.authorityAcquisition = await transitionAuthority(
-    options.leaseAcquireUrl,
+    '/v1/leases/acquire',
     acquisition,
   );
   authorityAcquired = true;
@@ -379,6 +397,7 @@ try {
   writeFileSync(options.out, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
   const result = await promoteDefaultVector({
     lease,
+    authorityPublicKey,
     readVector,
     readLeaseHead,
     setTag,
@@ -391,7 +410,8 @@ try {
       const latestRootReceipts = executeLatestProofPlan();
       validatePublicationLease({
         lease,
-        publicKey: readFileSync(options.publicKey),
+        publicKey: authorityPublicKey,
+        authorityOrigin: options.authorityUrl,
         candidateLedgerSha256,
         candidateTag: ledger.tag,
         publisherInstanceId: options.publisherInstanceId,
@@ -415,7 +435,7 @@ try {
         vector,
         publicationLedgerSha256: postLedger.postPromotionLedgerSha256,
       });
-      const authorityClosure = await transitionAuthority(options.leaseCloseUrl, closure);
+      const authorityClosure = await transitionAuthority('/v1/leases/close', closure);
       return {
         postPromotionLedger: options.postLedger,
         postPromotionLedgerSha256: postLedger.postPromotionLedgerSha256,
@@ -445,7 +465,7 @@ try {
           vector: priorVector,
         });
         receipt.authorityRollbackClosure = await transitionAuthority(
-          options.leaseCloseUrl,
+          '/v1/leases/close',
           rollbackClosure,
         );
       } catch (closeError) {

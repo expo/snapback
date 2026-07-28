@@ -47,6 +47,18 @@ async function readCanonicalRequest(request, limit = 128 * 1024) {
       415,
     );
   }
+  const declaredLength = request.headers['content-length'];
+  if (
+    declaredLength !== undefined
+    && (!/^\d+$/u.test(declaredLength) || Number(declaredLength) > limit)
+  ) {
+    request.resume();
+    throw new PublicationAuthorityError(
+      'SNAPBACK_PUBLICATION_REQUEST_TOO_LARGE',
+      'authority request exceeds 128 KiB',
+      413,
+    );
+  }
   const chunks = [];
   let length = 0;
   for await (const chunk of request) {
@@ -81,6 +93,14 @@ async function readCanonicalRequest(request, limit = 128 * 1024) {
   return parsed;
 }
 
+function getCarriesBody(request) {
+  return request.headers['transfer-encoding'] !== undefined
+    || (
+      request.headers['content-length'] !== undefined
+      && request.headers['content-length'] !== '0'
+    );
+}
+
 // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
 // — all mutable authority operations are authenticated, closed canonical
 // requests; health never projects the lease head or signing material.
@@ -89,9 +109,20 @@ export function createPublicationAuthorityServer({ authority, bearerToken }) {
     throw new TypeError('publication authority bearer token must contain at least 16 bytes');
   }
   const expectedTokenDigest = tokenDigest(bearerToken);
-  return createServer(async (request, response) => {
+  const server = createServer({
+    maxHeaderSize: 16 * 1024,
+    requireHostHeader: true,
+  }, async (request, response) => {
     try {
       const url = new URL(request.url, 'http://publication-authority.invalid');
+      if (request.method === 'GET' && getCarriesBody(request)) {
+        request.resume();
+        send(response, 400, errorBody(
+          'SNAPBACK_PUBLICATION_GET_BODY_REFUSED',
+          'publication authority GET requests must not carry a body',
+        ));
+        return;
+      }
       if (url.pathname === '/healthz' && request.method === 'GET') {
         if (url.search !== '') {
           send(response, 404, errorBody(
@@ -107,6 +138,7 @@ export function createPublicationAuthorityServer({ authority, bearerToken }) {
         return;
       }
       if (!authorized(request, expectedTokenDigest)) {
+        request.resume();
         response.setHeader('www-authenticate', 'Bearer');
         send(response, 401, errorBody(
           'SNAPBACK_PUBLICATION_AUTH_REQUIRED',
@@ -150,4 +182,10 @@ export function createPublicationAuthorityServer({ authority, bearerToken }) {
       }
     }
   });
+  server.requestTimeout = 15_000;
+  server.headersTimeout = 10_000;
+  server.keepAliveTimeout = 5_000;
+  server.maxRequestsPerSocket = 100;
+  server.maxHeadersCount = 64;
+  return server;
 }

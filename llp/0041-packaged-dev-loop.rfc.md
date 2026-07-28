@@ -68,6 +68,17 @@ HTTP endpoints, a candidate-ledger request client, and package-owned closed
 schemas/tests implement the previously external-only gate. No deployment or
 npm mutation is claimed by this revision.)
 
+**Revised (publication authority corrective hardening):** 2026-07-28 (the v2
+protocol binds every lease to one authority installation, canonical origin,
+and pinned Ed25519 key id; heads and transition receipts gain independent
+domain-separated signatures. Promotion uses one lease-bound base origin and
+requires a signed, current `acquired`/null-outcome head around every mutation
+and rollback. A closed lease can no longer replay acquisition. Durable reopen
+semantically verifies the complete retained history; secret-file-only
+production inputs, owner-only SQLite permissions, and bounded HTTP handling
+close the operational findings. This correction still claims no deployment or
+npm mutation.)
+
 **Revised (bounded final `latest` proof collection):** 2026-07-28 (the
 existing public-package workflow now accepts an exact-vs-`latest` root
 selector and an operation correlation id. Promotion-time collection dispatches
@@ -296,24 +307,29 @@ reproducible unless a separate reproducible-build row passes.
 
 ### Unreviewed post-round correction: publication lease and rollback
 
-Default-tag mutation requires an `AuthorizedPublicationLeaseV1` stored outside
+Default-tag mutation requires an `AuthorizedPublicationLeaseV2` stored outside
 npm in the standing release authority. The signed lease binds the publisher
-instance, monotonically increasing `publicationEpoch`, candidate-ledger digest,
+instance, authority installation id, canonical HTTPS origin, pinned Ed25519 key
+id, monotonically increasing `publicationEpoch`, candidate-ledger digest,
 complete nine-package vector, candidate tag, default tag, exact expected prior
 value or absence and intended new value for every package, issue/expiry times,
 and single release operation id. The publisher must acquire this lease by an
 expected-value transition from the release authority's prior head. An expired,
-superseded, differently bound, or unreachable lease refuses every further npm
-mutation; a local lock or possession of npm credentials is not publication
-authority.
+superseded, closed, differently bound, or unreachable lease refuses every
+further npm mutation; a local lock or possession of npm credentials is not
+publication authority.
 
 Immediately before **and** immediately after each `npm dist-tag` add or remove,
 the publisher reads the complete nine-package default-tag vector from the
 official registry and the current external lease head. The pre-mutation vector
 must equal the last journaled expected vector exactly, including absence for a
 first-publish package, and the lease epoch and operation id must still equal
-the authorized values. The post-mutation vector must differ in exactly the
-single intended package and must equal the newly journaled expected vector.
+the authorized values. The head is independently domain-separated
+Ed25519-signed and must bind the lease's installation, origin, key id,
+publisher, expiry, epoch, operation, and lease digest while reporting exactly
+`status: acquired` and `outcome: null`. The post-mutation vector must differ in
+exactly the single intended package and must equal the newly journaled expected
+vector.
 Registry ambiguity, cache disagreement, lease-head drift, or any unrelated tag
 change stops promotion before the next mutation. The publisher records both
 registry observations, the lease observation, request result, and resulting
@@ -339,35 +355,51 @@ the exact lease epoch as rolled back.
 `@snapback/publication-authority` is the natural owner of this client/service
 protocol under LLP 0037's non-Rust-artifact revisit rule. Its one shared
 `protocol.mjs` module and closed package-local JSON Schemas define
-`AuthorizedPublicationLeaseV1`, the issue request, public head, authority
+`AuthorizedPublicationLeaseV2`, the issue request, public head, authority
 transition, and transition receipt. The existing promotion engine imports
 that module; it does not carry a second signature or transition definition.
+Lease, head, and receipt signatures use distinct preimage domains. Heads and
+receipts carry the stable installation id, exact origin, and public-key digest;
+the publisher accepts one base authority origin and derives the three fixed
+endpoint paths instead of accepting independently replaceable URLs.
 
 The service exposes authenticated `issue`, `head`, `acquire`, and `close`
 endpoints. `issue` accepts the expected current `publicationEpoch` and exact
 head digest, then allocates the next epoch inside the durable transaction;
 the requester never chooses an epoch. The retained state keeps every canonical
 issue request, signed lease, acquire request/receipt, and close
-request/receipt. An exact replay returns retained bytes without advancing the
-authority generation. Reusing an operation id with changed bytes, presenting a
-stale head/epoch, acquiring against anything except the exact prior vector, or
-closing against anything except the exact promoted or rolled-back vector
-refuses.
+request/receipt. An exact issue replay, or an exact close replay while its
+record remains the current head, returns retained bytes without advancing the
+authority generation. Exact acquisition replay is idempotent only while the
+record remains `acquired`; terminal closure makes every later acquisition
+attempt refuse. Reusing an operation id with changed bytes,
+presenting a stale head/epoch, acquiring against anything except the exact
+prior vector, or closing against anything except the exact promoted or
+rolled-back vector refuses.
 
 The volume adapter uses SQLite `BEGIN IMMEDIATE`, `synchronous=FULL`, a
 generation compare-and-swap, and a digest over canonical state. The service
-accepts signing and Bearer authority from mounted secret files and writes
-neither into receipts or logs. `GET /healthz` reveals readiness only; all
-authority state requires a single Bearer header. POST bodies are canonical JCS
-bytes, so duplicate, non-canonical, unknown, or missing members cannot be
-silently normalized. TLS is terminated by the private service ingress; the
-request client refuses cleartext except explicit loopback test use.
+accepts signing and Bearer authority only from mounted secret files in
+production and writes neither into receipts or logs. It validates the Ed25519
+key and a sign/verify readiness probe before listening, forces the volume
+directory to `0700` and SQLite/database-sidecar files to `0600`, and on every
+reopen verifies each retained lease/receipt signature, epoch/order, request
+digest, state transition, status, and generation in addition to the outer
+digest. `GET /healthz` reveals readiness only; all authority state requires a
+single Bearer header. Header, request, canonical body, keep-alive, and
+per-socket request bounds are explicit; GET bodies are rejected and drained.
+POST bodies are canonical JCS bytes, so duplicate, non-canonical, unknown, or
+missing members cannot be silently normalized. TLS is terminated by the
+private service ingress; request and promotion clients refuse cleartext except
+explicit loopback test use.
 
 `scripts/snapback-request-publication-lease.mjs` validates the successful
 candidate ledger, a separately retained complete official-registry prior
 vector, and the just-read authority head, then requests and locally verifies
-the signed lease without accepting a Bearer token on argv or writing it to the
-lease. Deploying the authority and executing a publication remain separate
+the signed head and lease with the pinned public key without accepting a Bearer
+token on argv, as an inline production environment value, or writing it to the
+lease. The promoter applies the same verification to every head and transition
+receipt. Deploying the authority and executing a publication remain separate
 operator acts; this implementation creates neither claim by itself.
 
 ### CLI commands

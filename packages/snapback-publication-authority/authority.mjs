@@ -1,12 +1,17 @@
-import { createPublicKey } from 'node:crypto';
+import { createPrivateKey, createPublicKey } from 'node:crypto';
 
 import {
   canonicalJcs,
   createPublicationAuthorityReceipt,
   leaseSha256,
+  normalizeAuthorityOrigin,
   parseTimestamp,
+  publicationAuthorityHeadSha256,
+  publicationAuthoritySigningKeyId,
   sha256Hex,
+  signPublicationAuthorityHead,
   signPublicationLease,
+  validatePublicationAuthorityHead,
   validatePublicationAuthorityTransition,
   validatePublicationLease,
   validatePublicationLeaseIssueRequest,
@@ -33,36 +38,33 @@ function currentRecord(state) {
   return state.records.at(-1) ?? null;
 }
 
-function headIdentity(record) {
-  if (record === null) return null;
-  return {
-    leaseSha256: leaseSha256(record.lease),
-    operationId: record.lease.operationId,
-    outcome: record.closure?.receipt.outcome ?? null,
-    publicationEpoch: record.lease.publicationEpoch,
-    status: record.status,
-  };
-}
-
-export function projectPublicationAuthorityHead(state) {
+export function projectPublicationAuthorityHead(state, privateKey) {
   const record = currentRecord(state);
-  if (record === null) {
-    return {
-      schemaVersion: 'snapback.publication-authority-head.v1',
-      authorityGeneration: state.generation,
-      publicationEpoch: state.publicationEpoch,
-      status: 'empty',
-      operationId: null,
-      publisherInstanceId: null,
-      leaseSha256: null,
-      expiresAt: null,
-      outcome: null,
-      headSha256: null,
-    };
-  }
-  return {
-    schemaVersion: 'snapback.publication-authority-head.v1',
+  const common = {
+    schemaVersion: 'snapback.publication-authority-head.v2',
+    authorityInstallationId: state.authorityInstallationId,
+    authorityOrigin: state.authorityOrigin,
+    signingKeyId: state.signingKeyId,
     authorityGeneration: state.generation,
+  };
+  if (record === null) {
+    return signPublicationAuthorityHead({
+      privateKey,
+      unsigned: {
+        ...common,
+        publicationEpoch: state.publicationEpoch,
+        status: 'empty',
+        operationId: null,
+        publisherInstanceId: null,
+        leaseSha256: null,
+        expiresAt: null,
+        outcome: null,
+        headSha256: null,
+      },
+    });
+  }
+  const unsigned = {
+    ...common,
     publicationEpoch: record.lease.publicationEpoch,
     status: record.status,
     operationId: record.lease.operationId,
@@ -70,8 +72,10 @@ export function projectPublicationAuthorityHead(state) {
     leaseSha256: leaseSha256(record.lease),
     expiresAt: record.lease.expiresAt,
     outcome: record.closure?.receipt.outcome ?? null,
-    headSha256: sha256Hex(canonicalJcs(headIdentity(record))),
+    headSha256: null,
   };
+  unsigned.headSha256 = publicationAuthorityHeadSha256(unsigned);
+  return signPublicationAuthorityHead({ unsigned, privateKey });
 }
 
 function transactionResult(result) {
@@ -85,7 +89,10 @@ function changedTransaction(state, result) {
 
 function matchesTransition(record, transition) {
   return (
-    transition.operationId === record.lease.operationId
+    transition.authorityInstallationId === record.lease.authorityInstallationId
+    && transition.authorityOrigin === record.lease.authorityOrigin
+    && transition.signingKeyId === record.lease.signingKeyId
+    && transition.operationId === record.lease.operationId
     && transition.publicationEpoch === record.lease.publicationEpoch
     && transition.publisherInstanceId === record.lease.publisherInstanceId
     && transition.leaseSha256 === leaseSha256(record.lease)
@@ -115,23 +122,65 @@ function vectorSha256(lease, side) {
  * expected-value transition, and close binds either the final or prior vector.
  */
 export class PublicationLeaseAuthority {
-  constructor({ store, privateKey, now = () => Date.now() }) {
+  constructor({
+    store,
+    privateKey,
+    authorityInstallationId,
+    authorityOrigin,
+    now = () => Date.now(),
+  }) {
     if (!store || typeof store.read !== 'function' || typeof store.transact !== 'function') {
       throw new TypeError('publication authority store is required');
     }
+    if (!/^[A-Za-z0-9._:-]{8,160}$/u.test(authorityInstallationId ?? '')) {
+      throw new TypeError('publication authority installation id is invalid');
+    }
     this.store = store;
-    this.privateKey = privateKey;
-    this.publicKey = createPublicKey(privateKey);
+    this.privateKey = typeof privateKey === 'string' || Buffer.isBuffer(privateKey)
+      ? createPrivateKey(privateKey)
+      : privateKey;
+    if (this.privateKey?.type !== 'private'
+        || this.privateKey.asymmetricKeyType !== 'ed25519') {
+      throw new TypeError('publication authority private key must be Ed25519');
+    }
+    this.publicKey = createPublicKey(this.privateKey);
+    this.authorityInstallationId = authorityInstallationId;
+    this.authorityOrigin = normalizeAuthorityOrigin(authorityOrigin, {
+      allowLoopbackHttp: true,
+    });
+    this.signingKeyId = publicationAuthoritySigningKeyId(this.publicKey);
     this.now = now;
+
+    const readiness = projectPublicationAuthorityHead({
+      schemaVersion: 'snapback.publication-authority-state.v2',
+      authorityInstallationId: this.authorityInstallationId,
+      authorityOrigin: this.authorityOrigin,
+      signingKeyId: this.signingKeyId,
+      generation: 0,
+      publicationEpoch: 0,
+      records: [],
+    }, this.privateKey);
+    validatePublicationAuthorityHead({
+      head: readiness,
+      publicKey: this.publicKey,
+      authorityInstallationId: this.authorityInstallationId,
+      authorityOrigin: this.authorityOrigin,
+    });
   }
 
   head() {
-    return projectPublicationAuthorityHead(this.store.read());
+    return projectPublicationAuthorityHead(this.store.read(), this.privateKey);
   }
 
   issue(request) {
     try {
-      validatePublicationLeaseIssueRequest(request);
+      validatePublicationLeaseIssueRequest(request, {
+        authorityInstallationId: this.authorityInstallationId,
+        authorityOrigin: this.authorityOrigin,
+      });
+      if (request.signingKeyId !== this.signingKeyId) {
+        throw new Error('publication authority signing key id mismatch');
+      }
     } catch (error) {
       refuse('SNAPBACK_PUBLICATION_ISSUE_INVALID', error.message, 400);
     }
@@ -151,7 +200,7 @@ export class PublicationLeaseAuthority {
         return transactionResult(duplicate.lease);
       }
 
-      const head = projectPublicationAuthorityHead(state);
+      const head = projectPublicationAuthorityHead(state, this.privateKey);
       if (
         request.expectedPublicationEpoch !== state.publicationEpoch
         || request.expectedHeadSha256 !== head.headSha256
@@ -176,7 +225,10 @@ export class PublicationLeaseAuthority {
       const issuedAt = new Date(now).toISOString();
       const expiresAt = new Date(now + request.lifetimeSeconds * 1_000).toISOString();
       const unsigned = {
-        schemaVersion: 'snapback.authorized-publication-lease.v1',
+        schemaVersion: 'snapback.authorized-publication-lease.v2',
+        authorityInstallationId: this.authorityInstallationId,
+        authorityOrigin: this.authorityOrigin,
+        signingKeyId: this.signingKeyId,
         operationId: request.operationId,
         publisherInstanceId: request.publisherInstanceId,
         publicationEpoch: state.publicationEpoch + 1,
@@ -191,6 +243,8 @@ export class PublicationLeaseAuthority {
       validatePublicationLease({
         lease,
         publicKey: this.publicKey,
+        authorityInstallationId: this.authorityInstallationId,
+        authorityOrigin: this.authorityOrigin,
         candidateLedgerSha256: request.candidateLedgerSha256,
         candidateTag: request.candidateTag,
         publisherInstanceId: request.publisherInstanceId,
@@ -198,6 +252,7 @@ export class PublicationLeaseAuthority {
       });
       state.publicationEpoch = lease.publicationEpoch;
       state.records.push({
+        issueRequest: structuredClone(request),
         issueRequestSha256: digest,
         lease,
         status: 'issued',
@@ -210,7 +265,13 @@ export class PublicationLeaseAuthority {
 
   acquire(transition) {
     try {
-      validatePublicationAuthorityTransition(transition);
+      validatePublicationAuthorityTransition(transition, {
+        authorityInstallationId: this.authorityInstallationId,
+        authorityOrigin: this.authorityOrigin,
+      });
+      if (transition.signingKeyId !== this.signingKeyId) {
+        throw new Error('publication authority signing key id mismatch');
+      }
     } catch (error) {
       refuse('SNAPBACK_PUBLICATION_TRANSITION_INVALID', error.message, 400);
     }
@@ -224,6 +285,14 @@ export class PublicationLeaseAuthority {
           'acquire transition does not match durable authority head',
         );
       }
+      if (!['issued', 'acquired'].includes(record.status)
+          || transition.outcome !== 'acquired') {
+        refuse(
+          'SNAPBACK_PUBLICATION_TRANSITION_STATE_MISMATCH',
+          'lease cannot be acquired from its current state',
+        );
+      }
+      assertCurrent(record, now);
       if (record.acquisition) {
         if (record.acquisition.requestSha256 !== digest) {
           refuse(
@@ -233,13 +302,6 @@ export class PublicationLeaseAuthority {
         }
         return transactionResult(record.acquisition.receipt);
       }
-      if (record.status !== 'issued' || transition.outcome !== 'acquired') {
-        refuse(
-          'SNAPBACK_PUBLICATION_TRANSITION_STATE_MISMATCH',
-          'lease cannot be acquired from its current state',
-        );
-      }
-      assertCurrent(record, now);
       if (
         transition.publicationLedgerSha256 !== null
         || transition.vectorSha256 !== vectorSha256(record.lease, 'prior')
@@ -249,7 +311,11 @@ export class PublicationLeaseAuthority {
           'acquire transition does not bind the authorized prior vector',
         );
       }
-      const receipt = createPublicationAuthorityReceipt(transition);
+      const receipt = createPublicationAuthorityReceipt({
+        transition,
+        authorityGeneration: state.generation + 1,
+        privateKey: this.privateKey,
+      });
       record.acquisition = { requestSha256: digest, receipt };
       record.status = 'acquired';
       return changedTransaction(state, receipt);
@@ -258,7 +324,13 @@ export class PublicationLeaseAuthority {
 
   close(transition) {
     try {
-      validatePublicationAuthorityTransition(transition);
+      validatePublicationAuthorityTransition(transition, {
+        authorityInstallationId: this.authorityInstallationId,
+        authorityOrigin: this.authorityOrigin,
+      });
+      if (transition.signingKeyId !== this.signingKeyId) {
+        throw new Error('publication authority signing key id mismatch');
+      }
     } catch (error) {
       refuse('SNAPBACK_PUBLICATION_TRANSITION_INVALID', error.message, 400);
     }
@@ -298,7 +370,11 @@ export class PublicationLeaseAuthority {
           'close transition does not bind the authorized terminal vector',
         );
       }
-      const receipt = createPublicationAuthorityReceipt(transition);
+      const receipt = createPublicationAuthorityReceipt({
+        transition,
+        authorityGeneration: state.generation + 1,
+        privateKey: this.privateKey,
+      });
       record.closure = { requestSha256: digest, receipt };
       record.status = 'closed';
       return changedTransaction(state, receipt);
