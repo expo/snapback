@@ -145,7 +145,10 @@ const TARGET_CAPABILITY_IDS = new Set([
   'permission_epoch_resync',
   'registered_bundle_boot_v1',
   'relational_query_v1',
+  'migration_keyset_scan_v1',
   'result_contract_v1',
+  'versioned_seed_install_v1',
+  'versioned_seed_reset_v1',
   'write_activity_v1',
 ]);
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
@@ -158,10 +161,13 @@ const TARGET_CAPABILITY_IDS = new Set([
 // (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
 // 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
-  'full_text_search_v1',
+  'bounded_children_v1',
   'inline_handler_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
+  'versioned_seed_install_v1',
+  'versioned_seed_reset_v1',
+  'write_activity_v1',
 ]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
@@ -1733,6 +1739,70 @@ export async function generateInProcess(backendDir, options = {}) {
           checkExpr(body.expr, 'let expression');
         } else if (kind === 'AssertSourceChanged') {
           checkExpr(body.id, 'source id');
+        } else if (kind === 'AssertCurrentRelation') {
+          if (!def.writeWithActivityPlan) {
+            err(
+              'MUTATION_ASSERT_CURRENT_RELATION_FORBIDDEN',
+              'function',
+              `${name}: AssertCurrentRelation is host-owned by write-with-activity.v1`,
+              { function: name, step: kind },
+            );
+          }
+          checkExpr(body.id, 'relation row id');
+          checkExpr(body.scope_id, 'relation scope id');
+          const scopeTable = tables[body.scope_table];
+          if (!scopeTable) {
+            err(
+              'QUERY_UNKNOWN_TABLE',
+              'function',
+              `${name}: AssertCurrentRelation names unknown scope table ${body.scope_table}`,
+              { function: name, table: body.scope_table },
+            );
+          }
+          const foreignKey = tables[t]?.fields.find(
+            (field) => field.name === body.foreign_key_field,
+          );
+          const incarnation = tables[t]?.fields.find(
+            (field) => field.name === body.incarnation_field,
+          );
+          if (idFieldTypeTable(foreignKey?.field_type) !== body.scope_table) {
+            err(
+              'FUNCTION_RELATION_ASSERTION_INVALID',
+              'function',
+              `${name}: AssertCurrentRelation foreign key must be an id of ${body.scope_table}`,
+              {
+                function: name,
+                table: t,
+                field: body.foreign_key_field,
+                scopeTable: body.scope_table,
+              },
+            );
+          }
+          const relation = incarnation?.field_type?.RelationIncarnation;
+          if (
+            relation?.foreignKeyField !== body.foreign_key_field
+            || relation?.parentTable !== body.scope_table
+          ) {
+            err(
+              'FUNCTION_RELATION_ASSERTION_INVALID',
+              'function',
+              `${name}: AssertCurrentRelation incarnation field does not protect the declared relation`,
+              {
+                function: name,
+                table: t,
+                field: body.incarnation_field,
+                scopeTable: body.scope_table,
+              },
+            );
+          }
+          if (body.else_error !== 'SNAPBACK_ROW_NOT_FOUND') {
+            err(
+              'FUNCTION_RELATION_ASSERTION_INVALID',
+              'function',
+              `${name}: AssertCurrentRelation must use the uniform missing-row outcome`,
+              { function: name, step: kind },
+            );
+          }
         } else if (kind === 'DeleteWhere') {
           writes.add(t);
           for (const filter of body.filter) {
@@ -2854,6 +2924,7 @@ function planExprs(serialized) {
     if (kind === 'InsertEach') exprs.push(body.source);
     if (kind === 'Patch') exprs.push(body.id, ...Object.values(body.values));
     if (kind === 'Delete' || kind === 'Get') exprs.push(body.id);
+    if (kind === 'AssertCurrentRelation') exprs.push(body.id, body.scope_id);
     if (kind === 'Guard') exprs.push(body.cond);
     if (kind === 'Let') exprs.push(body.expr);
     if (kind === 'DeleteWhere') exprs.push(...body.filter.map((f) => f.value));
@@ -2906,7 +2977,23 @@ export function serializeMutationPlan(plan, functionName, err) {
         },
       };
     }
-    return { Delete: { table: body.table, id: serializeExpr(body.id) } };
+    if (kind === 'AssertCurrentRelation') {
+      return {
+        AssertCurrentRelation: {
+          table: body.table,
+          id: serializeExpr(body.id),
+          scope_table: body.scope_table,
+          scope_id: serializeExpr(body.scope_id),
+          foreign_key_field: body.foreign_key_field,
+          incarnation_field: body.incarnation_field,
+          else_error: body.else_error,
+        },
+      };
+    }
+    if (kind === 'Delete') {
+      return { Delete: { table: body.table, id: serializeExpr(body.id) } };
+    }
+    throw new TypeError(`${functionName}: unsupported mutation step ${kind}`);
   });
   let return_value = null;
   const rv = plan.return_value;
@@ -3158,6 +3245,10 @@ function mutationReadTables(plan) {
     const body = step[kind];
     if (kind === 'Patch' || kind === 'Delete' || kind === 'Get' || kind === 'DeleteWhere' || kind === 'AssertSourceChanged') {
       reads.add(body.table);
+    }
+    if (kind === 'AssertCurrentRelation') {
+      reads.add(body.table);
+      reads.add(body.scope_table);
     }
   }
   return [...reads];
@@ -4171,9 +4262,12 @@ function requiredCapabilities(fn) {
       ? ['live_subscriptions', ...relational, ...contractCapabilities]
       : [...relational, ...contractCapabilities];
   }
-  // @ref LLP 0104#first-publication-gate — Review profiles carry dedicated
-  // requirements. Both committed target manifests retain matching GAPs, so
-  // attempting to publish either profile fails before an artifact is written.
+  // @ref LLP 0104#local-and-packaged-publication-authority — these profiles
+  // retain dedicated requirements even where the exact local source target
+  // publishes them; application artifacts acknowledge but cannot mint the
+  // experimental support facts.
+  // @ref LLP 0108#1-closed-capability-registry-assignment — static maturity
+  // and runtime support remain independent admission gates.
   if (fn.runtime?.HostPlan?.BoundedChildrenQuery) {
     return [
       'live_subscriptions',

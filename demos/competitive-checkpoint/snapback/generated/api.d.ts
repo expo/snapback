@@ -3,6 +3,20 @@ export type SchemaVersion = 'snapback.v0';
 export type Principal = string & { readonly __snapbackPrincipal: unique symbol };
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
+export type SearchMatchAtomV1 =
+  | { Term: { value: string; field?: string } }
+  | { Phrase: { values: readonly string[]; field?: string } }
+  | { Prefix: { value: string; field?: string } };
+export type SearchClauseV1 = SearchMatchAtomV1
+  | { Any: readonly SearchMatchAtomV1[] }
+  | { Not: SearchMatchAtomV1 }
+  | { Filter: { field: string; op: 'eq'; value: string | number | boolean } };
+export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
+export interface SearchRequestV1 { query: SearchQueryAstV1; limit?: number; after?: string }
+export interface SearchMatchRangeV1 { start: number; end: number }
+export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }
+export interface SearchItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; score: number; fields: Fields; highlights: readonly SearchHighlightV1[] }
+export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
 export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
@@ -22,18 +36,42 @@ export type FunctionResult<Ref> = Ref extends FunctionReference<string, Function
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
 export type MutationInvocation<Ref extends FunctionReference<string, 'Mutation', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
 export type ActionInvocation<Ref extends FunctionReference<string, 'Action', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
-export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
+export interface QueryGroupEntry<Name extends string = string, Ref extends FunctionReference<string, "LiveQuery", unknown, unknown> = FunctionReference<string, "LiveQuery", unknown, unknown>, Args extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
+  readonly name: Name;
+  readonly ref: Ref;
+  readonly args: Args;
+}
+export type QueryGroupEntryResults<Queries extends readonly QueryGroupEntry[]> = {
+  readonly [Entry in Queries[number] as Entry["name"]]: { readonly ref: Entry["ref"]; readonly args: FunctionArgs<Entry["ref"]> };
+};
+export interface QueryGroupReference<Route extends string, Params, Queries extends readonly QueryGroupEntry[]> {
+  readonly artifactKind: 'queryGroupReference';
+  readonly formatVersion: 1;
+  readonly schemaVersion: SchemaVersion;
+  readonly appId: string;
+  readonly id: `${string}:query-group:${Route}`;
+  readonly route: Route;
+  readonly definitionHash: `sha256:${string}`;
+  readonly queries: Queries;
+  readonly persist?: false;
+  readonly __params?: Params;
+  readonly __entries?: QueryGroupEntryResults<Queries>;
+}
+export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;
+export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;
+export interface EphemeralCollectionReference<Name extends string, Scope, Value, KeyMode extends EphemeralKeyMode = EphemeralKeyMode> {
   artifactKind: 'ephemeralCollectionReference';
   schemaVersion: SchemaVersion;
   appId: string;
   id: string;
   name: Name;
-  keyMode: EphemeralKeyMode;
+  keyMode: KeyMode;
   scopeFields: readonly string[];
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
   maxValueBytes: number;
+  publishRate: { readonly sustainedHz: number; readonly burst: number };
   deliveryMode: 'latest';
   readonly __scope?: Scope;
   readonly __value?: Value;
@@ -73,6 +111,8 @@ export interface GeneratedFunctionContexts {
 }
 export interface GeneratedEphemeral {
 }
+export interface GeneratedQueryGroups {
+}
 export interface GeneratedApi {
   applyReplyProgress: FunctionReference<'applyReplyProgress', 'Mutation', { attemptId: string; sequence: number; delta: string }, unknown>;
   cancelReply: FunctionReference<'cancelReply', 'Mutation', { attemptId: string }, unknown>;
@@ -85,7 +125,7 @@ export interface GeneratedApi {
   getConversation: FunctionReference<'getConversation', 'LiveQuery', { id: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
   listConversationCards: FunctionReference<'listConversationCards', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["conversationCards"]>>;
   listConversations: FunctionReference<'listConversations', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["conversations"]>>;
-  listMessages: FunctionReference<'listMessages', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": string; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": string; "conversationId": string; "role": string; "content": string; "status": string; "attemptId": string; "idempotencyKey": string; "sequence": number; "lastProgressAt": number; "pageKey": string }>>;
+  listMessages: FunctionReference<'listMessages', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": string; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": string; "conversationId": Id<"conversations">; "role": string; "content": string; "status": string; "attemptId": string; "idempotencyKey": string; "sequence": number; "lastProgressAt": number; "pageKey": string }>>;
   nextConversationPage: FunctionReference<'nextConversationPage', 'LiveQuery', { after: string }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
   registerModel: FunctionReference<'registerModel', 'Mutation', { slug: string; displayName: string; provider?: string }, unknown>;
   settleReply: FunctionReference<'settleReply', 'Mutation', { attemptId: string; status: string }, unknown>;
@@ -93,7 +133,9 @@ export interface GeneratedApi {
   streamReply: FunctionReference<'streamReply', 'Action', { attemptId: string; streamUrl: string; method: string; upstreamIdempotent: boolean }, unknown>;
   updateConversation: FunctionReference<'updateConversation', 'Mutation', { id: Id<'conversations'>; title: string; model: string }, GeneratedDataModel["conversations"]>;
   ephemeral: GeneratedEphemeral;
+  groups: GeneratedQueryGroups;
 }
 export declare const ephemeral: GeneratedEphemeral;
+export declare const groups: GeneratedQueryGroups;
 export declare const api: GeneratedApi;
 export default api;

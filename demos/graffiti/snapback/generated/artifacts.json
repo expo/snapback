@@ -25,10 +25,10 @@
     "contract/paintCell.mutation.ts",
     "contract/paintCell.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:a1acd2e2d510efe7",
+  "bundleHash": "sha256:7b3d039a70dc98c2",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/b2b642fd4db93580c1fddd2d79db31b57b832c4fa4532a7ef44ae820dbca4556",
-    "key": "b2b642fd4db93580c1fddd2d79db31b57b832c4fa4532a7ef44ae820dbca4556",
+    "graphPath": "../../.snapback/codegen-cache/91073296a75a5b4d2f4db87a72421b085b6869609fc53daea0f8c46df0c5a6be",
+    "key": "91073296a75a5b4d2f4db87a72421b085b6869609fc53daea0f8c46df0c5a6be",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -67,7 +67,7 @@
       "sha256": "sha256:8d98defd6589b04355bcdee4e1f20664fe18c2fd8750835e6646d05518875fa3"
     },
     {
-      "bytes": 5875,
+      "bytes": 6011,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -76,7 +76,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:655eedccc61d0d3d20ba67478e8b3baa89d07a3ec7db21a3de11521dfb471adb"
+      "sha256": "sha256:082d55c32cf6e91842fcc80615dbbce0c3d24bceafab21311313fb03e06fff59"
     },
     {
       "bytes": 7771,
@@ -88,7 +88,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:bf54c1286d9faa096e37905e7d7bf19965f07de843978bebc8a31b9428377900"
+      "sha256": "sha256:ca37845ad68470bd3178532e6d77e9ef638a0a2dd844542c52d912f18510920d"
     },
     {
       "bytes": 689,
@@ -208,7 +208,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:66b4d6d98aa1191f5d1344d631c83e82be3bfe7482b049f3c1861f7317cbfdc9"
+      "sha256": "sha256:b7f020f3ed2eafc16ada6022e453bdecd96cc7ee0260b6798a5442cf7641c6c7"
     },
     {
       "bytes": 346,
@@ -268,7 +268,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:ae11c8129dc4ef66270ee76ffc99f07e781c41bcce2df9eba182b4d3c57b7fb0"
+      "sha256": "sha256:1339e67918daa014b132d957b778d7603b44d78f68a7fa86ce8f05f551bd9ee4"
     },
     {
       "bytes": 9494,
@@ -280,7 +280,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:62618e1e97ae0139ea059c30b196d678e0f8bae1d2f5ec69bc55a9e13fb70600"
+      "sha256": "sha256:4f40b968a08a71ba839692ba6c57815f01672788158bfee03a456f5e484502ca"
     },
     {
       "bytes": 549,
@@ -304,7 +304,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:909ef11f5440a51f90ee26f4a8047842eb42efa798467a053f87b5b3ef86a6e6"
+      "sha256": "sha256:caba6eb9cc053f298adeb9cc69520c1a6259fc6bfe4243a544a7682ce0ab7893"
     }
   ],
   "functions": [
@@ -320,14 +320,14 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "b2b642fd4db93580c1fddd2d79db31b57b832c4fa4532a7ef44ae820dbca4556",
+  "inputsHash": "91073296a75a5b4d2f4db87a72421b085b6869609fc53daea0f8c46df0c5a6be",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@snapback/codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:e73334666c2de705",
+  "schemaHash": "sha256:c0d780a2eb7357ad",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "graffiti",
@@ -368,7 +368,7 @@
         }
       }
     ],
-    "inputsHash": "b2b642fd4db93580c1fddd2d79db31b57b832c4fa4532a7ef44ae820dbca4556",
+    "inputsHash": "91073296a75a5b4d2f4db87a72421b085b6869609fc53daea0f8c46df0c5a6be",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generate } from './index.mjs';
+import { generate, serializeMutationPlan } from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
@@ -134,10 +134,6 @@ export const baseline = defineLiveQuery({
 `);
   let result = await generate(dir);
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
-  const lastGoodFunctions = readFileSync(
-    join(dir, 'generated', 'functions.manifest.json'),
-    'utf8',
-  );
   const schema = JSON.parse(
     readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8'),
   );
@@ -278,6 +274,19 @@ export const baseline = defineLiveQuery({
       assertCurrentRelation(patchSteps[index - 1], step.Patch.id);
     }
   }
+  const serializedGuardedPatch = serializeMutationPlan(guardedPatch.plan);
+  const serializedRelationAssertion = serializedGuardedPatch.steps.find(
+    (step) => step.AssertCurrentRelation,
+  );
+  assert.deepEqual(serializedRelationAssertion.AssertCurrentRelation, {
+    table: 'tasks',
+    id: { Arg: 'taskId' },
+    scope_table: 'incidents',
+    scope_id: { Arg: 'incidentId' },
+    foreign_key_field: 'incidentId',
+    incarnation_field: 'incidentIncarnation',
+    else_error: 'SNAPBACK_ROW_NOT_FOUND',
+  });
   const deleteSteps = guardedDelete.plan.steps;
   assert.equal(guardedDelete.writeWithActivityPlan.effectFormula.auxiliaryPointReads, 2);
   const deleteIndex = deleteSteps.findIndex((step) => step.Delete?.table === 'tasks');
@@ -287,17 +296,39 @@ export const baseline = defineLiveQuery({
   );
 
   result = await generate(dir);
-  assert.equal(result.ok, false);
-  for (const capability of ['bounded_children_v1', 'write_activity_v1']) {
-    assert(result.diagnostics.some(({ code, details, message }) => (
-      code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
-      && (details?.capability === capability || message.includes(capability))
-    )), `${capability} must remain a dedicated publication GAP while LLP 0104 is Review`);
-  }
-  assert.equal(
-    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
-    lastGoodFunctions,
-    'a review-only capability refusal must preserve the last good generation',
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const publishedFunctionsText = readFileSync(
+    join(dir, 'generated', 'functions.manifest.json'),
+    'utf8',
+  );
+  const publishedFunctions = JSON.parse(publishedFunctionsText);
+  const byName = new Map(publishedFunctions.functions.map((fn) => [fn.name, fn]));
+  assert.deepEqual(
+    byName.get('incidentTasks').requiredCapabilities,
+    [
+      'live_subscriptions',
+      'host_plan_runtime',
+      'bounded_children_v1',
+      'result_contract_v1',
+    ],
+  );
+  assert.deepEqual(
+    byName.get('addTask').requiredCapabilities,
+    [
+      'host_plan_runtime',
+      'mutation_read_set_validation',
+      'write_activity_v1',
+      'result_contract_v1',
+    ],
+  );
+  assert.deepEqual(
+    publishedFunctions.acknowledgedExperimentalCapabilities,
+    ['bounded_children_v1', 'result_contract_v1', 'write_activity_v1'],
+  );
+  const guardedManifest = byName.get('addTask').runtime.HostPlan.WriteWithActivity.mutation;
+  assert(
+    guardedManifest.steps.some((step) => step.AssertSourceChanged),
+    'the published write/activity manifest retains its host-owned source-effect assertion',
   );
 
   const relationBlock = `  relations: [{
@@ -420,7 +451,7 @@ export const baseline = defineLiveQuery({
     assert.match(JSON.stringify(invalid.diagnostics), expected);
     assert.equal(
       readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
-      lastGoodFunctions,
+      publishedFunctionsText,
       `${label} must preserve the last good generation`,
     );
   }
@@ -444,7 +475,7 @@ export default defineSchema({ incidents, tasks, activity });`,
   );
   assert.equal(
     readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
-    lastGoodFunctions,
+    publishedFunctionsText,
     'permission-backing profile refusal preserves the last good generation',
   );
 
@@ -460,7 +491,7 @@ export default defineSchema({ incidents, tasks, activity });`,
   );
   assert.equal(
     readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
-    lastGoodFunctions,
+    publishedFunctionsText,
     'incompatible provenance refusal preserves the last good generation',
   );
 

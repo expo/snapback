@@ -36,8 +36,10 @@ const inventories = [
       'comparator-profile.test.mjs',
       'dev-loop.test.mjs',
       'hosted-admission-producer.test.mjs',
+      'load-generated.test.mjs',
       'mcp-control.test.mjs',
       'package.test.mjs',
+      'sessions-dev-loop.test.mjs',
     ],
   },
   {
@@ -124,6 +126,7 @@ const inventories = [
       'remote-service-publication.test.mjs',
       'retainability-profile.test.mjs',
       'review-surface.test.mjs',
+      'search-result-contracts.test.mjs',
       'seed-artifact.test.mjs',
       'standard-patterns.test.mjs',
     ],
@@ -283,7 +286,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // legacy-preserving credential-staging plan corpus.
 // 105 -> 106 (LLP 0106): @snapback/react gains the maintained lifecycle
 // wrapper corpus alongside its optimistic and presence suites.
-assert.equal(total, 106, 'reviewed package/admin test count changed');
+// 106 -> 109 (backend-bakeoff first-rerun corrections): @snapback/cli gains
+// maintained generated-load identity diagnostics and sessions-mode one-command
+// dev-loop coverage, while @snapback/codegen gains maintained search
+// result-contract coverage.
+assert.equal(total, 109, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
