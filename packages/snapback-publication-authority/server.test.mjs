@@ -72,6 +72,65 @@ async function withServer(run) {
   }
 }
 
+async function fastBodyRequest(base, path, {
+  method,
+  headers,
+  totalBytes = 512 * 1024,
+}) {
+  const url = new URL(`${base}${path}`);
+  return new Promise((resolve, reject) => {
+    let responseStarted = false;
+    const deadline = setTimeout(() => {
+      reject(new Error('connection-closing refusal timed out'));
+    }, 2_000);
+    const request = httpRequest({
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname,
+      method,
+      headers,
+    }, async (response) => {
+      responseStarted = true;
+      try {
+        const chunks = [];
+        for await (const chunk of response) chunks.push(chunk);
+        clearTimeout(deadline);
+        resolve({
+          status: response.statusCode,
+          headers: response.headers,
+          body: JSON.parse(Buffer.concat(chunks).toString('utf8')),
+        });
+      } catch (error) {
+        clearTimeout(deadline);
+        reject(error);
+      }
+    });
+    request.on('error', (error) => {
+      // A connection-closing refusal may reset the writable side after its
+      // complete response has already begun. Preserve only pre-response errors.
+      if (!responseStarted) {
+        if (['EPIPE', 'ECONNRESET'].includes(error.code)) {
+          clearTimeout(deadline);
+          resolve({
+            status: null,
+            headers: {},
+            body: null,
+            connectionClosed: true,
+          });
+        } else {
+          clearTimeout(deadline);
+          reject(error);
+        }
+      }
+    });
+    const chunk = Buffer.alloc(16 * 1024, 0x78);
+    for (let written = 0; written < totalBytes; written += chunk.byteLength) {
+      request.write(chunk.subarray(0, Math.min(chunk.byteLength, totalBytes - written)));
+    }
+    request.end();
+  });
+}
+
 test('health is unprivileged while head and mutation endpoints require Bearer auth', async () => {
   await withServer(async (base) => {
     const health = await fetch(`${base}/healthz`);
@@ -270,7 +329,7 @@ test('duplicate Authorization headers and route/query smuggling refuse', async (
   });
 });
 
-test('GET bodies are rejected and drained instead of reaching health or head', async () => {
+test('GET bodies are rejected with a connection-closing refusal', async () => {
   await withServer(async (base) => {
     const response = await new Promise((resolve, reject) => {
       const url = new URL(`${base}/v1/head`);
@@ -289,9 +348,66 @@ test('GET bodies are rejected and drained instead of reaching health or head', a
       request.end('{}');
     });
     assert.equal(response.statusCode, 400);
+    assert.equal(response.headers.connection, 'close');
     let body = '';
     response.setEncoding('utf8');
     for await (const chunk of response) body += chunk;
     assert.equal(JSON.parse(body).code, 'SNAPBACK_PUBLICATION_GET_BODY_REFUSED');
+  });
+});
+
+test('oversized, chunked GET, and unauthenticated fast bodies close without draining', async () => {
+  await withServer(async (base) => {
+    const cases = [
+      {
+        method: 'GET',
+        path: '/v1/head',
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          'transfer-encoding': 'chunked',
+        },
+        status: 400,
+        code: 'SNAPBACK_PUBLICATION_GET_BODY_REFUSED',
+      },
+      {
+        method: 'POST',
+        path: '/v1/leases/issue',
+        headers: {
+          'content-type': 'application/json',
+          'transfer-encoding': 'chunked',
+        },
+        status: 401,
+        code: 'SNAPBACK_PUBLICATION_AUTH_REQUIRED',
+      },
+      {
+        method: 'POST',
+        path: '/v1/leases/issue',
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          'content-length': String(1024 * 1024),
+          'content-type': 'application/json',
+        },
+        status: 413,
+        code: 'SNAPBACK_PUBLICATION_REQUEST_TOO_LARGE',
+      },
+      {
+        method: 'POST',
+        path: '/v1/leases/issue',
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          'content-type': 'application/json',
+          'transfer-encoding': 'chunked',
+        },
+        status: 413,
+        code: 'SNAPBACK_PUBLICATION_REQUEST_TOO_LARGE',
+      },
+    ];
+    for (const row of cases) {
+      const response = await fastBodyRequest(base, row.path, row);
+      if (response.connectionClosed === true) continue;
+      assert.equal(response.status, row.status);
+      assert.equal(response.headers.connection, 'close');
+      assert.equal(response.body.code, row.code);
+    }
   });
 });
