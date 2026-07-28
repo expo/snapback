@@ -85,7 +85,10 @@ const inventories = [
       'index.test.mjs',
       'operator-authority-transaction.test.mjs',
       'operator-authority.test.mjs',
+      'operator-service.test.mjs',
       'package.test.mjs',
+      'provider-executor.test.mjs',
+      'supervisor-response.test.mjs',
       'target-onboarding.test.mjs',
     ],
   },
@@ -312,7 +315,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // canonical operator request/response transaction and recovery corpus.
 // 113 -> 116 (LLP 0041 external publication authority): retain the durable
 // epoch/lease protocol, authenticated HTTP surface, and closed-schema corpus.
-assert.equal(total, 116, 'reviewed package/admin test count changed');
+// 116 -> 119 (LLP 0105 hosted operator transport): retain the mTLS operator
+// service, closed signed response, and provider-executor corpora.
+assert.equal(total, 119, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
