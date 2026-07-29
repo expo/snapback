@@ -159,6 +159,12 @@ const senderIndeterminateSuccessError = () => {
 const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 // Kit receipt ring bound — mirrors the server-side retention cap (LLP 0034 §3).
 const RECEIPT_RING_CAP = 256;
+// @ref LLP 0059#plan-begin-commit-finalize — authorization-reservation
+// contention is retryable only when the closed refusal proves no effect
+// committed. Keep the retry trace bounded alongside the receipt ring.
+const RESERVATION_RETRY_DIAGNOSTIC_RING_CAP = 256;
+const DEFAULT_RESERVATION_RETRY_MAX_ATTEMPTS = 40;
+const DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS = Object.freeze([20, 80]);
 // A subscription registers its lane consumer before dispatching the snapshot
 // request, then buffers deltas until that snapshot arrives. Keep a hung request
 // from turning the temporary queue into an unbounded client-memory sink.
@@ -1240,6 +1246,11 @@ export class SnapbackClient {
     // the diagnostic is recorded on `wireVersionDiagnostics` and emitted via
     // console.warn — a downgrade is never silent.
     onWireVersionDiagnostic = null,
+    // LLP 0059's effect-free authorization-reservation retry contract. A
+    // value of 1 disables retries while retaining the exact refusal.
+    reservationRetryMaxAttempts = DEFAULT_RESERVATION_RETRY_MAX_ATTEMPTS,
+    reservationRetryJitterMilliseconds = DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS,
+    onReservationRetryDiagnostic = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -1286,10 +1297,41 @@ export class SnapbackClient {
     if (onWireVersionDiagnostic !== null && typeof onWireVersionDiagnostic !== 'function') {
       throw new TypeError('onWireVersionDiagnostic must be a function');
     }
+    if (
+      !Number.isSafeInteger(reservationRetryMaxAttempts)
+      || reservationRetryMaxAttempts < 1
+      || reservationRetryMaxAttempts > 1_000
+    ) {
+      throw new TypeError('reservationRetryMaxAttempts must be a safe integer from 1 through 1000');
+    }
+    if (
+      !Array.isArray(reservationRetryJitterMilliseconds)
+      || reservationRetryJitterMilliseconds.length !== 2
+      || !reservationRetryJitterMilliseconds.every(
+        (value) => Number.isSafeInteger(value) && value >= 0,
+      )
+      || reservationRetryJitterMilliseconds[0] > reservationRetryJitterMilliseconds[1]
+    ) {
+      throw new TypeError(
+        'reservationRetryJitterMilliseconds must be an ascending pair of non-negative safe integers',
+      );
+    }
+    if (
+      onReservationRetryDiagnostic !== null
+      && typeof onReservationRetryDiagnostic !== 'function'
+    ) {
+      throw new TypeError('onReservationRetryDiagnostic must be a function');
+    }
     this.strictWireVersion = strictWireVersion;
     this.onWireVersionDiagnostic = onWireVersionDiagnostic;
     // §0B.6: the structured wire-version diagnostics this client surfaced.
     this.wireVersionDiagnostics = [];
+    this.reservationRetryMaxAttempts = reservationRetryMaxAttempts;
+    this.reservationRetryJitterMilliseconds = Object.freeze([
+      ...reservationRetryJitterMilliseconds,
+    ]);
+    this.onReservationRetryDiagnostic = onReservationRetryDiagnostic;
+    this.__reservationRetryDiagnostics = [];
     this.__liveQueryAllocator = allocatorForClientStore(clientStoreId);
     this.authProtocols = Object.freeze({
       authClient: authClientProtocol,
@@ -3052,6 +3094,44 @@ export class SnapbackClient {
     return () => this.__receiptListeners.delete(listener);
   }
 
+  /// Structured effect-free reservation retry evidence, oldest first.
+  reservationRetryDiagnostics() {
+    return [...this.__reservationRetryDiagnostics];
+  }
+
+  #recordReservationRetryDiagnostic(diagnostic) {
+    const frozen = Object.freeze({ ...diagnostic });
+    this.__reservationRetryDiagnostics.push(frozen);
+    while (
+      this.__reservationRetryDiagnostics.length
+      > RESERVATION_RETRY_DIAGNOSTIC_RING_CAP
+    ) this.__reservationRetryDiagnostics.shift();
+    if (this.onReservationRetryDiagnostic !== null) {
+      try {
+        this.onReservationRetryDiagnostic(frozen);
+      } catch {
+        // Observation cannot change mutation settlement or retry ownership.
+      }
+    }
+    return frozen;
+  }
+
+  #reservationRetryDelayMilliseconds() {
+    const [minimum, maximum] = this.reservationRetryJitterMilliseconds;
+    if (minimum === maximum) return minimum;
+    return minimum + Math.floor(Math.random() * (maximum - minimum + 1));
+  }
+
+  #isEffectFreeReservationStale(error) {
+    const details = error?.diagnostic?.details;
+    return error?.status === 409
+      && error?.diagnostic?.code === 'SNAPBACK_AUTH_RESERVATION_STALE'
+      && details?.retryable === true
+      && details?.retryStrategy === 'short-jitter'
+      && details?.effectCommitted === false
+      && error?.effectMayHaveCommitted !== true;
+  }
+
   #laneConsumersFor(connectionId) {
     let consumers = this.__laneConsumers.get(connectionId);
     if (!consumers) {
@@ -4181,24 +4261,64 @@ export class SnapbackClient {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
-    try {
-      const json = await this.#req(
-        'POST',
-        `/mutation/${encodeURIComponent(name)}`,
-        body,
-        undefined,
-        { expectedAuthorityCapture: authorityCapture },
-      );
-      if (json?.receipt) {
-        this.recordReceipt(json.receipt, json?.[AUTHORITY_CAPTURE] ?? null);
+    for (
+      let attempt = 1;
+      attempt <= this.reservationRetryMaxAttempts;
+      attempt += 1
+    ) {
+      try {
+        const json = await this.#req(
+          'POST',
+          `/mutation/${encodeURIComponent(name)}`,
+          body,
+          undefined,
+          { expectedAuthorityCapture: authorityCapture },
+        );
+        if (json?.receipt) {
+          this.recordReceipt(json.receipt, json?.[AUTHORITY_CAPTURE] ?? null);
+        }
+        if (attempt > 1) {
+          this.#recordReservationRetryDiagnostic({
+            code: 'SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED',
+            mutation: name,
+            outcome: 'settled',
+            attempts: attempt,
+            effectCommittedExactlyOnce: true,
+          });
+        }
+        return json;
+      } catch (error) {
+        // A REJECTED mutation still produced its receipt (it rides the error
+        // envelope) — retain it before rethrowing.
+        if (error?.receipt) this.recordReceipt(error.receipt);
+        if (!this.#isEffectFreeReservationStale(error)) throw error;
+        if (attempt >= this.reservationRetryMaxAttempts) {
+          this.#recordReservationRetryDiagnostic({
+            code: 'SNAPBACK_AUTH_RESERVATION_RETRY_EXHAUSTED',
+            mutation: name,
+            outcome: 'exhausted',
+            attempts: attempt,
+            effectCommitted: false,
+          });
+          throw error;
+        }
+        const delayMilliseconds = this.#reservationRetryDelayMilliseconds();
+        this.#recordReservationRetryDiagnostic({
+          code: 'SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED',
+          mutation: name,
+          outcome: 'effect-free-refusal',
+          attempt,
+          nextAttempt: attempt + 1,
+          maximumAttempts: this.reservationRetryMaxAttempts,
+          delayMilliseconds,
+          effectCommitted: false,
+        });
+        if (delayMilliseconds > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMilliseconds));
+        }
       }
-      return json;
-    } catch (error) {
-      // A REJECTED mutation still produced its receipt (it rides the error
-      // envelope) — retain it before rethrowing.
-      if (error?.receipt) this.recordReceipt(error.receipt);
-      throw error;
     }
+    throw new Error('unreachable authorization reservation retry exhaustion');
   }
 
   subscribeLive(ref, options = {}) {
