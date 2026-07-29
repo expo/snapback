@@ -134,6 +134,25 @@ All seven Partiful arms have now been assigned in exact frozen order.
 | 6 | Research Room / Appwrite | Worker 1 / control-plane Mac after Research/SpacetimeDB cleanup and Convex start gate | Detached worktree `/private/tmp/llp0102-research-appwrite-w1` at the then-current evidence-integration base; official Compose project/volume namespace `llp0102-research-appwrite-w1`; API `8093`, secondary gateway `8493`, installer `20083`, Vite `4346`; worktree-local CLI/config/session/browser state and fresh project/database/team/users | Worker must receive coordinator confirmation that Research/Convex has started before provisioning; returns only arm artifacts and diary draft |
 | 7 | Research Room / InstantDB | Worker 3 / control-plane Mac after Research/Firebase cleanup and Appwrite start gate | Detached worktree `/private/tmp/llp0102-research-instantdb-w3` at the then-current evidence-integration base; worktree-local CLI/XDG/browser state; Vite `4347`, browser debug `9347`; fresh disposable hosted app with exact redacted target identity and target-scoped cleanup | Worker must receive coordinator confirmation that Research/Appwrite has started before provisioning; returns only arm artifacts and diary draft |
 
+## Final confirmation and material provider refresh
+
+**Frozen Snapback source:** `4e5da63c33064082c73359f0ee02efcd11e360ff`
+
+All Snapback confirmations use immutable staged package tarballs from the exact
+freeze. They run from temporary external projects with no repository-relative
+imports. A staged package proof is deliberately not represented as a public
+npm release; public-release absence remains SB-015 evidence. Workers return
+only lane-local handoffs and diary drafts. The coordinator alone integrates
+reports, audits evidence, scores, calibrates subjective ratings, and owns every
+merge.
+
+| Start order | Lane | Worker / machine | Isolation | Merge ownership |
+| ---: | --- | --- | --- | --- |
+| 1 | Todo + Chat / Snapback, then Chat / Firebase refresh | Worker 2 / Minisforum Linux | Detached exact-freeze worktree; two `mktemp` external projects; staged Linux runtime/package closure; unique HOME/XDG/npm/Bun/browser state; API/Vite ports 33101/43101 and 33102/43102; Firebase project/emulator namespace `llp0102-final-chat-firebase-w2` on a disjoint port block | Worker returns final-confirmation handoffs only; coordinator serializes Todo/Chat diaries, package receipts, and refreshed Firebase capsule |
+| 2 | Linear + Partiful / Snapback, then Linear / Firebase refresh | Worker 3 / MacBook fleet worker | Detached exact-freeze worktree; two `mktemp` external projects; staged Darwin package closure; unique HOME/XDG/npm/Bun/browser state; API/provider ports 33103/43103 and 33104/43104; Firebase project/emulator namespace `llp0102-final-linear-firebase-w3` on a disjoint port block | Worker returns handoffs only; coordinator integrates Linear/Partiful diaries and refreshed Firebase capsule |
+| 3 | Research Room / Snapback, then Research Room / Supabase refresh | Worker 1 / control-plane Mac | Detached exact-freeze worktree; `mktemp` external Snapback project; staged Darwin package closure; API/Vite/effect/browser ports 33105/43105/53105/63105; fresh Supabase Docker project `llp0102-final-research-supabase-w1` with separate volumes, ports, config, and generated credentials | Worker returns handoffs only; coordinator integrates Research diary, exact cleanup, and refreshed Supabase capsule |
+| coordinator | Package staging, retained-arm verification, scoring, sensitivity, independent rating audit, final synthesis | Primary / control-plane Mac | Builds immutable host packages at the exact freeze; distributes only tarballs and ledger; maintains central receipt roots; never shares worker target state | Sole owner of shared reports, diaries, ledgers, scoring files, final freeze declaration, and commits |
+
 All seven Research Room arms are assigned in exact frozen order. Appwrite and
 InstantDB retain explicit start barriers so faster earlier workers cannot
 violate that order.

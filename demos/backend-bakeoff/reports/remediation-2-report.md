@@ -4,7 +4,7 @@
 
 **Product repair commit:** `894ddaf99d4b7681499eec12ecbb3fc7a1a492e5`
 
-**Final-confirmation Snapback freeze:** pending integration commit
+**Final-confirmation Snapback freeze:** `4e5da63c33064082c73359f0ee02efcd11e360ff`
 
 **Frozen rerun:** Research Room
 

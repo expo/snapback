@@ -23,7 +23,8 @@
       "acceptanceWitness": "A clean external sessions application requiring bounded_response_stream_v1 cold-starts only when this exact process enables outbound actions; two sessions observe durable intermediate progress, cancellation fences late writes, all terminal outcomes remain distinct, and the egress-disabled twin refuses before bind.",
       "destination": "immediate-fix",
       "decision": "accept",
-      "status": "in-progress",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
       "beforeEvidencePaths": [
         "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
         "demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json"
@@ -169,7 +170,8 @@
       "acceptanceWitness": "A clean documented fetch/stream example generates and runs with the gate enabled; codegen-disabled and runtime-disabled twins fail with different actionable value-free diagnostics; Guide snippets are CI-verified.",
       "destination": "immediate-fix",
       "decision": "accept",
-      "status": "in-progress",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
       "beforeEvidencePaths": [
         "issues/closed/20260728-guide-gap-codegen-action-egress-gate.md",
         "issues/closed/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
@@ -199,7 +201,8 @@
       "acceptanceWitness": "A CI-verified example imports more than one mutation ceiling in bounded chunks, resumes without duplicates, and an over-limit mutation retains SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED.",
       "destination": "immediate-fix",
       "decision": "accept",
-      "status": "in-progress",
+      "status": "landed",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
       "beforeEvidencePaths": [
         "issues/closed/20260728-guide-gap-mutation-buffered-write-ceiling.md"
       ],
@@ -250,7 +253,8 @@
       "acceptanceWitness": "Guide search reaches both rows, the Guide checker validates their metadata, and an agent reading only the index correctly predicts the Partiful and Research Room outcomes.",
       "destination": "immediate-fix",
       "decision": "accept",
-      "status": "in-progress",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
       "beforeEvidencePaths": [
         "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md"
       ],
@@ -325,7 +329,8 @@
       "acceptanceWitness": "A documented Research Room setup creates two resources and two member grants through four idempotent calls; a one-mutation four-command twin refuses atomically with SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED.",
       "destination": "immediate-fix",
       "decision": "accept",
-      "status": "in-progress",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
       "beforeEvidencePaths": [
         "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/commands-and-failures.v1.json",
         "issues/closed/20260729-guide-gap-membership-command-batch-limit.md"

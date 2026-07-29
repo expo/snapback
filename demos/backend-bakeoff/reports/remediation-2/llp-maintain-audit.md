@@ -2,7 +2,7 @@
 
 **Intent:** audit / pre-demo landing
 
-**Scope:** `c42feb250..pending-final-freeze` plus coordinator-owned remediation evidence
+**Scope:** `c42feb250..4e5da63c` plus coordinator-owned remediation evidence
 
 **Mode:** propose-only; this artifact applies no LLP edits by itself
 
