@@ -31,6 +31,11 @@ export const api = Object.freeze({
   "activityRows": {
     "appId": "app",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "app:activityRows",
     "implementationHash": "sha256:b57ce30e925a5f6f30b030d2a6092aa41175306cc65a0dd57fb0b8a56dcbc2ad",
@@ -67,6 +72,11 @@ export const api = Object.freeze({
   "liveRows": {
     "appId": "app",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "app:liveRows",
     "implementationHash": "sha256:5edd9ca4944a06a5c1bf962a29bf231c0d038c4a1f25c8ede2fffdecf0301696",
@@ -78,6 +88,11 @@ export const api = Object.freeze({
   "primaryRows": {
     "appId": "app",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "app:primaryRows",
     "implementationHash": "sha256:2421830293b53ebd55114614924ea4592e1a1bfe0708b0c0bad06c7e7d0f77e4",
@@ -89,6 +104,18 @@ export const api = Object.freeze({
   "publishLiveRow": {
     "appId": "app",
     "argsContractHash": "sha256:8f4a0b35032b4065fdd92bf3969a17ec55c6001da2326c576dfdaf62d7dce9e4",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "app:publishLiveRow",
     "implementationHash": "sha256:70556b75a69e78855b53c5c1d3f10c93a030a8a4398d91e283f12dc5f06b74eb",
@@ -100,6 +127,18 @@ export const api = Object.freeze({
   "rejectInvalidWrite": {
     "appId": "app",
     "argsContractHash": "sha256:667ce5de2952fbf2c8a1db169e3f9fd2d2e1946c3f60c9b6828dbb2fc4a7e1f1",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "app:rejectInvalidWrite",
     "implementationHash": "sha256:729a47250b5c74fe3be36269230b0430dfea60b83ff66ddf2e18e27c7e001e2f",
@@ -111,6 +150,11 @@ export const api = Object.freeze({
   "rejectionRows": {
     "appId": "app",
     "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "app:rejectionRows",
     "implementationHash": "sha256:8f012aad5a4928fd73976c0edaa566990bf5b6f5c9b3bc2c3f39f1b51e3a6d80",
@@ -122,6 +166,22 @@ export const api = Object.freeze({
   "writePrimaryAndActivity": {
     "appId": "app",
     "argsContractHash": "sha256:b80cc87f8cb46c6ec07f7efb9bc81eab489b912d6f6973605f6ea7b7136d6a00",
+    "argumentSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "activity": {
+          "type": "string"
+        },
+        "primary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "primary",
+        "activity"
+      ],
+      "type": "object"
+    },
     "artifactKind": "functionReference",
     "id": "app:writePrimaryAndActivity",
     "implementationHash": "sha256:2e30a434cd1ffbd07cdf2972ba1f01ab63f7bf0c875e2359b8dfab147ba9ccd2",
