@@ -58,19 +58,23 @@ const LATEST_ROOT_RECEIPT_KEYS = [
   'browserExecutableSha256',
   'browserPackageTreeSha256',
   'github',
+  'latestRootPropagationSha256',
   'latestRootResolution',
   'machine',
   'platform',
   'sha256',
 ];
 const LATEST_ROOT_GITHUB_KEYS = [
+  'authorizedLeaseSha256',
   'artifactApiDigest',
   'artifactArchiveSha256',
   'artifactId',
   'artifactName',
   'collectedAt',
   'dispatchStartedAt',
+  'expectedPriorRootVersion',
   'operationId',
+  'publicationEpoch',
   'ref',
   'repository',
   'runAttempt',
@@ -83,14 +87,17 @@ const LATEST_ROOT_GITHUB_KEYS = [
   'workflowPath',
 ];
 const LATEST_PROOF_PLAN_KEYS = [
+  'authorizedLeaseSha256',
   'collection',
   'darwinReceipt',
   'dispatchTimeoutMs',
   'expectedHeadSha',
+  'expectedPriorRootVersion',
   'helperSha256',
   'ledgerPath',
   'linuxReceipt',
   'operationId',
+  'publicationEpoch',
   'ref',
   'repository',
   'schemaVersion',
@@ -376,27 +383,39 @@ export function validateClosedLatestProofPlan({
   expectedHelperSha256,
   expectedLedgerPath,
   expectedHeadSha,
+  expectedPriorRootVersion,
+  expectedAuthorizedLeaseSha256,
+  expectedPublicationEpoch,
 }) {
   requireExactKeys(plan, LATEST_PROOF_PLAN_KEYS, 'latest-root proof plan');
   if (
-    plan.schemaVersion !== 'snapback.latest-root-proof-plan.v2'
+    plan.schemaVersion !== 'snapback.latest-root-proof-plan.v3'
     || plan.repository !== 'ccheever/snapback'
     || plan.workflow !== 'public-package-proof.yml'
     || plan.operationId !== expectedOperationId
+    || plan.authorizedLeaseSha256 !== expectedAuthorizedLeaseSha256
+    || plan.publicationEpoch !== expectedPublicationEpoch
     || plan.expectedHeadSha !== expectedHeadSha
+    || plan.expectedPriorRootVersion !== expectedPriorRootVersion
     || plan.helperSha256 !== expectedHelperSha256
     || plan.ledgerPath !== expectedLedgerPath
     || !/^[A-Za-z0-9._/-]{1,200}$/u.test(plan.ref ?? '')
     || plan.ref.includes('..')
     || !/^[0-9a-f]{40}$/u.test(plan.expectedHeadSha ?? '')
     || !/^[0-9a-f]{64}$/u.test(plan.helperSha256 ?? '')
+    || !/^[0-9a-f]{64}$/u.test(plan.authorizedLeaseSha256 ?? '')
+    || !Number.isSafeInteger(plan.publicationEpoch)
+    || plan.publicationEpoch < 1
+    || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(
+      plan.expectedPriorRootVersion ?? '',
+    )
     || !Number.isSafeInteger(plan.dispatchTimeoutMs)
     || plan.dispatchTimeoutMs < 1_000
-    || plan.dispatchTimeoutMs > 450_000
+    || plan.dispatchTimeoutMs > 560_000
     || !Number.isSafeInteger(plan.verifyTimeoutMs)
     || plan.verifyTimeoutMs < 1_000
     || plan.verifyTimeoutMs > 30_000
-    || plan.dispatchTimeoutMs + plan.verifyTimeoutMs > 8 * 60_000
+    || plan.dispatchTimeoutMs + plan.verifyTimeoutMs > 9.5 * 60_000
   ) {
     throw new Error('latest-root proof plan is not the closed package-owned plan');
   }
@@ -481,7 +500,7 @@ export function buildPostPromotionLedger({
     throw new TypeError('post-promotion ledger inputs are not closed');
   }
   const ledger = {
-    schemaVersion: 'snapback.package-post-promotion-ledger.v1',
+    schemaVersion: 'snapback.package-post-promotion-ledger.v2',
     previousLedgerSha256: candidateLedger.candidateLedgerSha256,
     operationId: lease.operationId,
     publicationEpoch: lease.publicationEpoch,
@@ -524,6 +543,7 @@ export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
       'browserDistributionSha256',
       'browserExecutableSha256',
       'browserPackageTreeSha256',
+      'latestRootPropagationSha256',
     ]) {
       assertHexSha256(receipt[field], `post-promotion latest receipt ${index}.${field}`);
     }
@@ -547,6 +567,12 @@ export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
       receipt.github.repository !== 'ccheever/snapback'
       || receipt.github.workflow !== 'public-package-proof.yml'
       || receipt.github.operationId !== operationId
+      || !/^[0-9a-f]{64}$/u.test(receipt.github.authorizedLeaseSha256 ?? '')
+      || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(
+        receipt.github.expectedPriorRootVersion ?? '',
+      )
+      || !Number.isSafeInteger(receipt.github.publicationEpoch)
+      || receipt.github.publicationEpoch < 1
       || receipt.github.artifactApiDigest
         !== `sha256:${receipt.github.artifactArchiveSha256}`
       || !Number.isSafeInteger(receipt.github.runId)
@@ -575,6 +601,9 @@ export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
     'runAttempt',
     'runHeadSha',
     'operationId',
+    'authorizedLeaseSha256',
+    'publicationEpoch',
+    'expectedPriorRootVersion',
     'dispatchStartedAt',
     'runCreatedAt',
     'runStartedAt',
@@ -592,6 +621,9 @@ export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
 
 export function validatePostPromotionLedger(ledger) {
   requireExactKeys(ledger, POST_PROMOTION_LEDGER_KEYS, 'post-promotion ledger');
+  if (ledger.schemaVersion !== 'snapback.package-post-promotion-ledger.v2') {
+    throw new Error('unsupported post-promotion ledger schema');
+  }
   assertHexSha256(ledger.previousLedgerSha256, 'previousLedgerSha256');
   assertHexSha256(ledger.postPromotionLedgerSha256, 'postPromotionLedgerSha256');
   const { postPromotionLedgerSha256, ...withoutDigest } = ledger;
@@ -665,6 +697,15 @@ export function validatePostPromotionLedger(ledger) {
     ledger.latestRootReceipts,
     ledger.operationId,
   );
+  if (
+    ledger.latestRootReceipts.some((receipt) => (
+      receipt.github.authorizedLeaseSha256
+        !== ledger.preCloseAuthorityHead.leaseSha256
+      || receipt.github.publicationEpoch !== ledger.publicationEpoch
+    ))
+  ) {
+    throw new Error('post-promotion latest receipt authority binding drifted');
+  }
   return ledger;
 }
 

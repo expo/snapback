@@ -183,6 +183,27 @@ assert.ok(
   (publicPackageProof.match(/scripts\/check-checkout-credentials/g) ?? []).length >= 2,
   'public package proof must credential-check both harness and source checkouts',
 );
+for (const input of [
+  'expected_prior_root_version',
+  'authorized_lease_sha256',
+  'publication_epoch',
+]) {
+  assert.match(
+    publicPackageProof,
+    new RegExp(`^      ${input}:`, 'mu'),
+    `public package proof must declare the ${input} authority input`,
+  );
+}
+assert.match(
+  publicPackageProof,
+  /if \[\[ "\$ROOT_SELECTOR" == latest \]\]; then[\s\S]*--expected-prior-root-version "\$EXPECTED_PRIOR_ROOT_VERSION"[\s\S]*--authorized-lease-sha256 "\$AUTHORIZED_LEASE_SHA256"[\s\S]*--publication-epoch "\$PUBLICATION_EPOCH"/u,
+  'latest public proof must pass the complete signed retry authority to the package-owned harness',
+);
+assert.match(
+  publicPackageProof,
+  /else[\s\S]*\[\[ -z "\$EXPECTED_PRIOR_ROOT_VERSION" \]\][\s\S]*\[\[ -z "\$AUTHORIZED_LEASE_SHA256" \]\][\s\S]*\[\[ -z "\$PUBLICATION_EPOCH" \]\]/u,
+  'exact public proof must refuse latest-root retry authority inputs',
+);
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');

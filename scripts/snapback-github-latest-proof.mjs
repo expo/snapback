@@ -25,16 +25,24 @@ import {
   readBoundedJsonFile,
   validatePublicationReceiptProvenance,
 } from './snapback-publish-core.mjs';
+import {
+  validateLatestRootPropagationWitness,
+} from './snapback-package-cold-install-lib.mjs';
 
 export const LATEST_PROOF_REPOSITORY = 'ccheever/snapback';
 export const LATEST_PROOF_WORKFLOW = 'public-package-proof.yml';
 const COLLECTION_KEYS = [
+  'authorizedLeaseSha256',
   'artifacts',
+  'candidateLedgerSha256',
+  'candidateRootVersion',
   'collectedAt',
   'dispatchStartedAt',
   'expectedHeadSha',
+  'expectedPriorRootVersion',
   'ledgerRevision',
   'operationId',
+  'publicationEpoch',
   'ref',
   'repository',
   'runAttempt',
@@ -60,13 +68,17 @@ const usage = `usage:
   node scripts/snapback-github-latest-proof.mjs dispatch
     --repository ccheever/snapback --workflow public-package-proof.yml
     --ref <branch> --expected-head-sha <sha>
+    --expected-prior-root-version <version>
+    --authorized-lease-sha256 <sha256> --publication-epoch <integer>
     --ledger-path <repo-relative-ledger.json> --operation-id <id>
     --darwin-receipt <path> --linux-receipt <path> --collection <path>
-    [--timeout-ms <1000..450000>]
+    [--timeout-ms <1000..560000>]
 
   node scripts/snapback-github-latest-proof.mjs verify-collection
     --repository ccheever/snapback --workflow public-package-proof.yml
     --ref <branch> --expected-head-sha <sha>
+    --expected-prior-root-version <version>
+    --authorized-lease-sha256 <sha256> --publication-epoch <integer>
     --ledger-path <repo-relative-ledger.json> --operation-id <id>
     --darwin-receipt <path> --linux-receipt <path> --collection <path>
     [--timeout-ms <1000..30000>]`;
@@ -89,11 +101,11 @@ function exactKeys(value, keys, label) {
   }
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const mode = argv[0];
   if (mode === '--help' || mode === '-h') return { help: true };
   if (!['dispatch', 'verify-collection'].includes(mode)) fail(`unknown mode\n${usage}`);
-  const options = { mode, timeoutMs: mode === 'dispatch' ? 440_000 : 30_000 };
+  const options = { mode, timeoutMs: mode === 'dispatch' ? 540_000 : 30_000 };
   for (let index = 1; index < argv.length; index += 1) {
     const argument = argv[index];
     const value = argv[++index];
@@ -103,6 +115,9 @@ function parseArgs(argv) {
       '--workflow': 'workflow',
       '--ref': 'ref',
       '--expected-head-sha': 'expectedHeadSha',
+      '--expected-prior-root-version': 'expectedPriorRootVersion',
+      '--authorized-lease-sha256': 'authorizedLeaseSha256',
+      '--publication-epoch': 'publicationEpoch',
       '--ledger-path': 'ledgerPath',
       '--operation-id': 'operationId',
       '--darwin-receipt': 'darwinReceipt',
@@ -114,13 +129,18 @@ function parseArgs(argv) {
     if (Object.hasOwn(options, key) && key !== 'timeoutMs') {
       fail(`duplicate argument ${argument}`);
     }
-    options[key] = key === 'timeoutMs' ? Number(value) : value;
+    options[key] = ['timeoutMs', 'publicationEpoch'].includes(key)
+      ? Number(value)
+      : value;
   }
   for (const key of [
     'repository',
     'workflow',
     'ref',
     'expectedHeadSha',
+    'expectedPriorRootVersion',
+    'authorizedLeaseSha256',
+    'publicationEpoch',
     'ledgerPath',
     'operationId',
     'darwinReceipt',
@@ -141,6 +161,15 @@ function parseArgs(argv) {
   if (!/^[0-9a-f]{40}$/u.test(options.expectedHeadSha)) {
     fail('--expected-head-sha must be one lowercase Git SHA');
   }
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(options.expectedPriorRootVersion)) {
+    fail('--expected-prior-root-version must be one exact version');
+  }
+  if (!/^[0-9a-f]{64}$/u.test(options.authorizedLeaseSha256)) {
+    fail('--authorized-lease-sha256 must be one lowercase SHA-256');
+  }
+  if (!Number.isSafeInteger(options.publicationEpoch) || options.publicationEpoch < 1) {
+    fail('--publication-epoch must be a positive integer');
+  }
   if (
     options.ledgerPath.startsWith('/')
     || options.ledgerPath.split('/').some((part) => part === '..' || part === '')
@@ -150,7 +179,7 @@ function parseArgs(argv) {
   if (!/^[A-Za-z0-9._:-]{8,160}$/u.test(options.operationId)) {
     fail('--operation-id is invalid');
   }
-  const maximum = mode === 'dispatch' ? 450_000 : 30_000;
+  const maximum = mode === 'dispatch' ? 560_000 : 30_000;
   if (
     !Number.isSafeInteger(options.timeoutMs)
     || options.timeoutMs < 1_000
@@ -216,7 +245,7 @@ function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function readLedgerRevision(options) {
+function readLedgerIdentity(options) {
   let ledger;
   try {
     ledger = readBoundedJsonFile(
@@ -231,10 +260,19 @@ function readLedgerRevision(options) {
     || ledger.mode !== 'publish'
     || ledger.sourceDirty !== false
     || !/^[0-9a-f]{40}$/u.test(ledger.revision ?? '')
+    || !/^[0-9a-f]{64}$/u.test(ledger.candidateLedgerSha256 ?? '')
+    || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(ledger.version ?? '')
   ) {
     fail('candidate ledger is not publication-qualified');
   }
-  return ledger.revision;
+  if (ledger.version === options.expectedPriorRootVersion) {
+    fail('candidate and signed prior root versions must differ');
+  }
+  return {
+    revision: ledger.revision,
+    candidateLedgerSha256: ledger.candidateLedgerSha256,
+    version: ledger.version,
+  };
 }
 
 function expectedWorkflowPath(ref) {
@@ -244,7 +282,7 @@ function expectedWorkflowPath(ref) {
 export function validateExistingLatestReceipt(receipt, platform, context = null) {
   const [expectedPlatform, expectedArchitecture] = platform.split('-');
   if (
-    receipt?.schemaVersion !== 'snapback.package-cold-install.v1'
+    receipt?.schemaVersion !== 'snapback.package-cold-install.v2'
     || receipt.ok !== true
     || receipt.rootSelector !== 'latest'
     || receipt.installSource !== 'public'
@@ -267,9 +305,22 @@ export function validateExistingLatestReceipt(receipt, platform, context = null)
       || receipt.githubProof.runAttempt !== String(context.runAttempt)
       || receipt.githubProof.runHeadSha !== context.expectedHeadSha
       || receipt.githubProof.ref !== `refs/heads/${context.ref}`
+      || receipt.version !== context.candidateRootVersion
+      || receipt.candidateLedgerSha256 !== context.candidateLedgerSha256
     ) {
       fail(`${platform} receipt GitHub run correlation drifted`);
     }
+    validateLatestRootPropagationWitness({
+      witness: receipt.latestRootPropagation,
+      expectedPriorRootVersion: context.expectedPriorRootVersion,
+      expectedAuthorizedLeaseSha256: context.authorizedLeaseSha256,
+      expectedPublicationEpoch: context.publicationEpoch,
+      expectedCandidateLedgerSha256: context.candidateLedgerSha256,
+      expectedCandidateRootVersion: context.candidateRootVersion,
+      expectedOperationId: context.operationId,
+      expectedPlatform: platform,
+      latestRootResolution: receipt.latestRootResolution,
+    });
   }
   return receipt;
 }
@@ -420,20 +471,25 @@ function downloadArtifactReceipt(options, artifact, platform, context) {
 export function validateGithubLatestProofCollection({
   collection,
   options,
-  ledgerRevision,
+  ledgerIdentity,
   receiptBytesByPlatform,
   now = Date.now(),
 }) {
   exactKeys(collection, COLLECTION_KEYS, 'latest-root proof collection');
   if (
-    collection.schemaVersion !== 'snapback.github-latest-root-proof-collection.v2'
+    collection.schemaVersion !== 'snapback.github-latest-root-proof-collection.v3'
     || collection.repository !== options.repository
     || collection.workflow !== options.workflow
     || collection.ref !== options.ref
     || collection.expectedHeadSha !== options.expectedHeadSha
+    || collection.expectedPriorRootVersion !== options.expectedPriorRootVersion
+    || collection.authorizedLeaseSha256 !== options.authorizedLeaseSha256
+    || collection.publicationEpoch !== options.publicationEpoch
     || collection.runHeadSha !== options.expectedHeadSha
     || collection.operationId !== options.operationId
-    || collection.ledgerRevision !== ledgerRevision
+    || collection.ledgerRevision !== ledgerIdentity.revision
+    || collection.candidateLedgerSha256 !== ledgerIdentity.candidateLedgerSha256
+    || collection.candidateRootVersion !== ledgerIdentity.version
     || collection.workflowPath !== expectedWorkflowPath(options.ref)
     || !Number.isSafeInteger(collection.workflowId)
     || collection.workflowId < 1
@@ -490,7 +546,7 @@ export function validateGithubLatestProofCollection({
   return collection;
 }
 
-function reopenCollection(options, collection, ledgerRevision) {
+function reopenCollection(options, collection, ledgerIdentity) {
   const receiptBytesByPlatform = new Map([
     [
       'darwin-arm64',
@@ -504,7 +560,7 @@ function reopenCollection(options, collection, ledgerRevision) {
   validateGithubLatestProofCollection({
     collection,
     options,
-    ledgerRevision,
+    ledgerIdentity,
     receiptBytesByPlatform,
   });
   const observed = readRun(
@@ -553,13 +609,13 @@ function reopenCollection(options, collection, ledgerRevision) {
   return validateGithubLatestProofCollection({
     collection,
     options,
-    ledgerRevision,
+    ledgerIdentity,
     receiptBytesByPlatform,
   });
 }
 
 async function dispatch(options) {
-  const ledgerRevision = readLedgerRevision(options);
+  const ledgerIdentity = readLedgerIdentity(options);
   const dispatchStartedAt = Date.now();
   runGh([
     'workflow', 'run', options.workflow,
@@ -567,6 +623,9 @@ async function dispatch(options) {
     '--ref', options.ref,
     '-f', `ledger_path=${options.ledgerPath}`,
     '-f', 'root_selector=latest',
+    '-f', `expected_prior_root_version=${options.expectedPriorRootVersion}`,
+    '-f', `authorized_lease_sha256=${options.authorizedLeaseSha256}`,
+    '-f', `publication_epoch=${options.publicationEpoch}`,
     '-f', `operation_id=${options.operationId}`,
   ]);
   const runId = await discoverRun(options, dispatchStartedAt);
@@ -577,8 +636,13 @@ async function dispatch(options) {
     workflow: options.workflow,
     ref: options.ref,
     expectedHeadSha: options.expectedHeadSha,
+    expectedPriorRootVersion: options.expectedPriorRootVersion,
+    authorizedLeaseSha256: options.authorizedLeaseSha256,
+    publicationEpoch: options.publicationEpoch,
     operationId: options.operationId,
-    ledgerRevision,
+    ledgerRevision: ledgerIdentity.revision,
+    candidateLedgerSha256: ledgerIdentity.candidateLedgerSha256,
+    candidateRootVersion: ledgerIdentity.version,
     runId,
     runAttempt: observed.run.run_attempt,
   };
@@ -606,16 +670,21 @@ async function dispatch(options) {
     });
   }
   const collection = {
-    schemaVersion: 'snapback.github-latest-root-proof-collection.v2',
+    schemaVersion: 'snapback.github-latest-root-proof-collection.v3',
     repository: options.repository,
     workflow: options.workflow,
     workflowId: observed.workflow.id,
     workflowPath: observed.run.path,
     ref: options.ref,
     expectedHeadSha: options.expectedHeadSha,
+    expectedPriorRootVersion: options.expectedPriorRootVersion,
+    authorizedLeaseSha256: options.authorizedLeaseSha256,
+    publicationEpoch: options.publicationEpoch,
     runHeadSha: observed.run.head_sha,
     operationId: options.operationId,
-    ledgerRevision,
+    ledgerRevision: ledgerIdentity.revision,
+    candidateLedgerSha256: ledgerIdentity.candidateLedgerSha256,
+    candidateRootVersion: ledgerIdentity.version,
     runId,
     runAttempt: observed.run.run_attempt,
     dispatchStartedAt: new Date(dispatchStartedAt).toISOString(),
@@ -628,7 +697,7 @@ async function dispatch(options) {
     options.collection,
     Buffer.from(`${JSON.stringify(collection, null, 2)}\n`),
   );
-  reopenCollection(options, collection, ledgerRevision);
+  reopenCollection(options, collection, ledgerIdentity);
   process.stdout.write(`${JSON.stringify(collection)}\n`);
 }
 
@@ -639,14 +708,14 @@ async function main() {
     return;
   }
   if (options.mode === 'verify-collection') {
-    const ledgerRevision = readLedgerRevision(options);
+    const ledgerIdentity = readLedgerIdentity(options);
     const collection = readBoundedJsonFile(
       options.collection,
       'latest-root proof collection',
     );
-    reopenCollection(options, collection, ledgerRevision);
+    reopenCollection(options, collection, ledgerIdentity);
     process.stdout.write(`${JSON.stringify({
-      schemaVersion: 'snapback.github-latest-root-proof-verification.v2',
+      schemaVersion: 'snapback.github-latest-root-proof-verification.v3',
       runId: collection.runId,
       runAttempt: collection.runAttempt,
       operationId: collection.operationId,

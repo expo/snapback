@@ -99,18 +99,22 @@ node scripts/snapback-promote.mjs \
 
 The latest-proof plan is data for the package-owned
 `scripts/snapback-github-latest-proof.mjs` helper, not a command runner. Its
-closed v2 shape pins the GitHub repository, workflow, source ref and HEAD,
+closed v3 shape pins the GitHub repository, workflow, source ref and HEAD,
 helper digest, operation id, committed ledger path, receipt paths, collection
-path, and bounded dispatch/verification timeouts. Promotion refuses unknown
+path, bounded dispatch/verification timeouts, signed prior CLI version,
+authorized lease digest, and publication epoch. Promotion refuses unknown
 members, absolute or traversing paths, a dirty checkout, a mismatched helper
 digest, or any substituted identity before acquiring the authority lease, then
 reopens the frozen plan immediately before dispatch. After all tags converge,
 promotion also requires a fresh-cache, scripts-disabled npm alias install to
-resolve the candidate CLI and complete package closure. Only the exact signed
-prior CLI is a bounded retryable propagation result, and every probe preserves
-the hosted-proof timeout plus rollback lease reserve. The helper then
-dispatches the pinned workflow and reopens the run, workflow, and artifact
-inventory through the GitHub API before accepting the two platform receipts.
+resolve the candidate CLI and complete package closure. That publisher-region
+probe preserves the hosted-proof timeout plus rollback lease reserve but is
+not cross-host authority. The helper then dispatches the pinned workflow; each
+hosted platform uses distinct empty caches to retry only a structurally valid
+signed-prior root under one package-owned wall bound before running the full
+proof once. Receipts retain the closed retry policy and lease-bound attempt
+witness. The helper reopens the run, workflow, and artifact inventory through
+the GitHub API before accepting the two platform receipts.
 
 The authority assigns `publicationEpoch`; callers can only present the
 expected epoch and head they just observed. Exact issue replay returns the

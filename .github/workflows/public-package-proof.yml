@@ -26,6 +26,18 @@ on:
         description: Correlation identity for bounded promotion-time proof collection
         required: true
         default: manual
+      expected_prior_root_version:
+        description: Lease-bound prior CLI version eligible for latest-only retry
+        required: false
+        default: ''
+      authorized_lease_sha256:
+        description: Lease digest authorizing the latest-only retry
+        required: false
+        default: ''
+      publication_epoch:
+        description: Publication epoch authorizing the latest-only retry
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -95,13 +107,33 @@ jobs:
         env:
           RECEIPT_PATH: ${{ runner.temp }}/snapback-${{ matrix.id }}-public-package-receipt.json
           SNAPBACK_PROOF_OPERATION_ID: ${{ inputs.operation_id }}
+          ROOT_SELECTOR: ${{ inputs.root_selector }}
+          EXPECTED_PRIOR_ROOT_VERSION: ${{ inputs.expected_prior_root_version }}
+          AUTHORIZED_LEASE_SHA256: ${{ inputs.authorized_lease_sha256 }}
+          PUBLICATION_EPOCH: ${{ inputs.publication_epoch }}
         run: |
+          authority_args=()
+          if [[ "$ROOT_SELECTOR" == latest ]]; then
+            [[ "$EXPECTED_PRIOR_ROOT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+            [[ "$AUTHORIZED_LEASE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+            [[ "$PUBLICATION_EPOCH" =~ ^[1-9][0-9]*$ ]]
+            authority_args=(
+              --expected-prior-root-version "$EXPECTED_PRIOR_ROOT_VERSION"
+              --authorized-lease-sha256 "$AUTHORIZED_LEASE_SHA256"
+              --publication-epoch "$PUBLICATION_EPOCH"
+            )
+          else
+            [[ -z "$EXPECTED_PRIOR_ROOT_VERSION" ]]
+            [[ -z "$AUTHORIZED_LEASE_SHA256" ]]
+            [[ -z "$PUBLICATION_EPOCH" ]]
+          fi
           node scripts/snapback-package-cold-install.mjs \
             --ledger "$RUNNER_TEMP/snapback-publication-ledger.json" \
             --install-source public \
-            --root-selector "${{ inputs.root_selector }}" \
+            --root-selector "$ROOT_SELECTOR" \
             --source-checkout "$RUNNER_TEMP/snapback-package-source" \
             --proof-harness-revision "${{ github.sha }}" \
+            "${authority_args[@]}" \
             --receipt "$RECEIPT_PATH"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

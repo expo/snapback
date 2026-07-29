@@ -65,10 +65,17 @@ validates and freezes the closed proof plan, helper digest, clean checkout, and
 HEAD before authority acquisition; after tag convergence it fences a
 fresh-cache, scripts-disabled `@snapback/cli@latest` install with the complete
 vector and signed acquired head on both sides. Only the exact signed prior CLI
-root is retryable. The candidate root with an incomplete closure, a missing or
+root is retryable. Run `30481827652` then showed that one publisher-region
+success can precede both fresh GitHub regions. The publisher probe therefore
+remains a necessary load-shedding signal, while each authoritative macOS and
+Linux proof now performs its own bounded, unique-cache selector retry. The
+closed plan and retained receipts bind the signed prior CLI version, lease
+digest, and publication epoch. Only a structurally valid, uniform prior
+closure may wait; the candidate root with an incomplete closure, a missing or
 third root, resolver error, vector/head drift, or insufficient hosted-proof
-plus rollback lease budget refuses and enters the existing full rollback. This
-is a corrective instrument and does not itself claim a completed promotion.)
+plus rollback lease budget refuses and enters the existing full rollback.
+This is a corrective instrument and does not itself claim a completed
+promotion.)
 
 **Revised (nine-package candidate promotion):** 2026-07-28 (the next public
 closure uses immutable exact-version candidate publication, exact-registry
@@ -387,15 +394,34 @@ root is exactly the lease's signed prior CLI version. A missing root, any third
 version, the candidate root with stale or malformed transitive dependencies,
 or any resolver error refuses immediately.
 
-Every resolver attempt is bracketed by a fresh complete-vector read and a
-challenge-bound acquired authority head. The attempt has one absolute process
-deadline and begins only while the lease retains the closed proof-plan timeout
-plus an explicit reverse-transition reserve. Those fences and a bounded
-attempt witness are retained under
+Every publisher-region resolver attempt is bracketed by a fresh
+complete-vector read and a challenge-bound acquired authority head. The
+attempt has one absolute process deadline and begins only while the lease
+retains the closed proof-plan timeout plus an explicit reverse-transition
+reserve. Those fences and a bounded attempt witness are retained under
 `publicLatestRootBarrier` in the promotion receipt, separately from the nine
-closed tag events. This publisher-region barrier prevents a known propagation
-race; it does not replace the final macOS and Linux GitHub-hosted executions,
-which remain the authoritative cross-host evidence.
+closed tag events. That probe is necessary but not sufficient dispatch
+evidence.
+
+The final macOS and Linux GitHub-hosted executions are authoritative for their
+own resolver regions. The closed v3 proof plan carries the signed prior CLI
+version, authorized lease digest, and publication epoch through the
+package-owned helper and workflow inputs. Before the expensive product and
+browser journey, each host retries only a successful, structurally valid npm
+tree whose CLI and every installed Snapback dependency are uniformly the
+signed prior version. Each attempt removes install state, uses a distinct
+empty npm cache, disables lifecycle scripts, reopens the complete candidate
+tag vector, and is governed by package-owned limits: a 350-second wall bound,
+at most 18 attempts, a 45-second child bound, and 20 seconds between prior
+observations. The closed dispatch budget is 540 seconds under a 560-second hard
+cap; the promoter reserves that budget, collection verification, and rollback
+before beginning the hosted proof. Resolver/process errors, missing or third roots, mixed prior
+closures, tag drift, and malformed candidate closures are terminal. A
+successful latest-root receipt uses schema v2 and retains the exact policy,
+ordered classifications and timestamps, cache-identity digests, lease
+identity, and final candidate-closure digest; the v3 GitHub collection and
+v2 post-promotion ledger bind those receipts without treating self-consistent
+workflow input as publication authority.
 
 Cross-host assembly never executes a foreign native binary. The native Linux
 builder launches `build-identity` itself and retains one closed
@@ -452,7 +478,8 @@ within the publication-lease budget, downloads the exact run-id-named
 or differently correlated receipts. The publication proof plan is a closed
 data object. It names the fixed repository/workflow/ref, expected workflow
 HEAD, committed candidate-ledger path, release operation id, output paths, two
-bounded time budgets, and the SHA-256 of the package-owned helper; it cannot
+bounded time budgets, the SHA-256 of the package-owned helper, and the
+lease-bound prior CLI version, lease digest, and publication epoch; it cannot
 name an executable or arbitrary argv. The promoter invokes that helper first
 to dispatch/materialize both receipts and then to reopen the retained
 collection. The helper and promoter require one exact GitHub repository,

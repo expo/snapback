@@ -35,8 +35,8 @@ import {
   validateCandidateLedger,
 } from './snapback-publish-core.mjs';
 import {
+  classifyLatestRootObservation,
   validateFinalLatestReceipts,
-  validateLatestRootResolution,
 } from './snapback-package-cold-install-lib.mjs';
 import {
   fetchPublicationAuthorityJson,
@@ -297,16 +297,26 @@ async function observePublicLatestRootInstallability({ expectedVector }) {
       { maxBytes: 8 * 1024 * 1024 },
     );
     try {
-      const closure = validateLatestRootResolution({
+      const observation = classifyLatestRootObservation({
         tree,
         ledger,
         hostRuntime,
         tagVector: expectedVector,
+        expectedPriorRootVersion: cliLeaseRow.expectedPriorVersion,
       });
+      if (observation.classification === 'signed-prior-stale') {
+        return {
+          ok: false,
+          rootVersion: observation.rootVersion,
+          closure: null,
+          error: 'fresh-cache npm tree selected the signed prior root',
+          retryablePriorRoot: true,
+        };
+      }
       return {
         ok: true,
-        rootVersion,
-        closure,
+        rootVersion: observation.rootVersion,
+        closure: observation.resolution,
         error: null,
         retryablePriorRoot: false,
       };
@@ -316,9 +326,7 @@ async function observePublicLatestRootInstallability({ expectedVector }) {
         rootVersion,
         closure: null,
         error: error.message.slice(0, 1_000),
-        retryablePriorRoot:
-          cliLeaseRow.expectedPriorVersion !== cliLeaseRow.newVersion
-          && rootVersion === cliLeaseRow.expectedPriorVersion,
+        retryablePriorRoot: false,
       };
     }
   } finally {
@@ -503,12 +511,25 @@ function loadLatestProofPlan() {
   if (checkoutHead !== plan.expectedHeadSha || checkoutDirty) {
     throw new Error('latest-root proof helper checkout provenance drifted');
   }
+  const cliLeaseRow = lease.packages.find(
+    (row) => row.name === '@ccheever/snapback-cli',
+  );
+  if (
+    !cliLeaseRow
+    || cliLeaseRow.expectedPriorVersion === null
+    || cliLeaseRow.expectedPriorVersion === cliLeaseRow.newVersion
+  ) {
+    throw new Error('latest-root proof has no distinct signed prior CLI root');
+  }
   return validateClosedLatestProofPlan({
     plan,
     expectedOperationId: lease.operationId,
     expectedHelperSha256: sha256File(latestProofHelper),
     expectedLedgerPath: ledgerRelative,
     expectedHeadSha: checkoutHead,
+    expectedPriorRootVersion: cliLeaseRow.expectedPriorVersion,
+    expectedAuthorizedLeaseSha256: leaseSha256(lease),
+    expectedPublicationEpoch: lease.publicationEpoch,
   });
 }
 
@@ -526,6 +547,9 @@ function executeLatestProofPlan(plan) {
     '--workflow', plan.workflow,
     '--ref', plan.ref,
     '--expected-head-sha', plan.expectedHeadSha,
+    '--expected-prior-root-version', plan.expectedPriorRootVersion,
+    '--authorized-lease-sha256', plan.authorizedLeaseSha256,
+    '--publication-epoch', String(plan.publicationEpoch),
     '--ledger-path', plan.ledgerPath,
     '--operation-id', plan.operationId,
     '--darwin-receipt', darwinReceipt,
@@ -578,6 +602,9 @@ function executeLatestProofPlan(plan) {
     ledger,
     records,
     githubCollection: collection,
+    expectedPriorRootVersion: plan.expectedPriorRootVersion,
+    expectedAuthorizedLeaseSha256: plan.authorizedLeaseSha256,
+    expectedPublicationEpoch: plan.publicationEpoch,
   });
 }
 

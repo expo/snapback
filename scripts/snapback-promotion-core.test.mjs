@@ -1252,18 +1252,21 @@ test('exhausted promoted installability enters the complete vector rollback', as
 
 test('latest proof plan cannot inject a local command or substitute GitHub identity', () => {
   const plan = {
-    schemaVersion: 'snapback.latest-root-proof-plan.v2',
+    schemaVersion: 'snapback.latest-root-proof-plan.v3',
+    authorizedLeaseSha256: '5'.repeat(64),
     repository: 'ccheever/snapback',
     workflow: 'public-package-proof.yml',
     ref: 'main',
     expectedHeadSha: '1'.repeat(40),
+    expectedPriorRootVersion: '0.1.0',
     ledgerPath: 'demos/signal-desk/candidate-ledger.json',
     operationId: 'release-plan-test',
+    publicationEpoch: 17,
     helperSha256: '2'.repeat(64),
     darwinReceipt: 'proof/darwin.json',
     linuxReceipt: 'proof/linux.json',
     collection: 'proof/collection.json',
-    dispatchTimeoutMs: 440_000,
+    dispatchTimeoutMs: 540_000,
     verifyTimeoutMs: 30_000,
   };
   const expected = {
@@ -1271,6 +1274,9 @@ test('latest proof plan cannot inject a local command or substitute GitHub ident
     expectedHelperSha256: plan.helperSha256,
     expectedLedgerPath: plan.ledgerPath,
     expectedHeadSha: plan.expectedHeadSha,
+    expectedPriorRootVersion: plan.expectedPriorRootVersion,
+    expectedAuthorizedLeaseSha256: plan.authorizedLeaseSha256,
+    expectedPublicationEpoch: plan.publicationEpoch,
   };
   assert.equal(validateClosedLatestProofPlan({ plan, ...expected }), plan);
   assert.throws(
@@ -1289,6 +1295,9 @@ test('latest proof plan cannot inject a local command or substitute GitHub ident
     (candidate) => { candidate.expectedHeadSha = '3'.repeat(40); },
     (candidate) => { candidate.helperSha256 = '4'.repeat(64); },
     (candidate) => { candidate.operationId = 'other-operation'; },
+    (candidate) => { candidate.expectedPriorRootVersion = '0.0.9'; },
+    (candidate) => { candidate.authorizedLeaseSha256 = '6'.repeat(64); },
+    (candidate) => { candidate.publicationEpoch = 18; },
     (candidate) => { candidate.darwinReceipt = '../forged.json'; },
   ]) {
     const candidate = structuredClone(plan);
@@ -1322,6 +1331,7 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
     platform,
     sha256: fill.repeat(64),
     github: {
+      authorizedLeaseSha256: leaseSha256(lease),
       repository: 'ccheever/snapback',
       workflow: 'public-package-proof.yml',
       workflowId: 42,
@@ -1331,6 +1341,8 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
       runAttempt: 1,
       runHeadSha: 'd'.repeat(40),
       operationId: lease.operationId,
+      publicationEpoch: lease.publicationEpoch,
+      expectedPriorRootVersion: '0.1.0',
       dispatchStartedAt: '2026-07-28T19:00:00.000Z',
       runCreatedAt: '2026-07-28T19:00:01.000Z',
       runStartedAt: '2026-07-28T19:00:02.000Z',
@@ -1342,6 +1354,7 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
     },
     machine: {},
     latestRootResolution: {},
+    latestRootPropagationSha256: '4'.repeat(64),
     browserCaptureSha256: 'f'.repeat(64),
     browserDistributionSha256: '3'.repeat(64),
     browserExecutableSha256: '1'.repeat(64),
@@ -1361,8 +1374,16 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
     preCloseAuthorityHead,
     preCloseRegistryObservation,
   });
+  assert.equal(post.schemaVersion, 'snapback.package-post-promotion-ledger.v2');
   assert.equal(post.previousLedgerSha256, lease.candidateLedgerSha256);
   assert.equal(validatePostPromotionLedger(post), post);
+  assert.throws(
+    () => validatePostPromotionLedger({
+      ...post,
+      schemaVersion: 'snapback.package-post-promotion-ledger.v1',
+    }),
+    /unsupported post-promotion ledger schema/u,
+  );
   assert.throws(
     () => validatePostPromotionLedger({
       ...post,

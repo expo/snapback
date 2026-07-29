@@ -29,6 +29,11 @@ import {
   digestBoundedBrowserFilesystem,
   extractViteClientOrigin,
   findBrowserVisibleLeaks,
+  classifyLatestRootObservation,
+  LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS,
+  LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS,
+  LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS,
+  LATEST_ROOT_PROPAGATION_WALL_BOUND_MS,
   measureGitCheckoutIdentity,
   parseArguments,
   parseBoundedJsonBytes,
@@ -38,6 +43,7 @@ import {
   runAsync,
   validateFinalLatestReceipts,
   validateLatestRootResolution,
+  validateLatestRootPropagationWitness,
   validatePublicPublicationLedger,
   validateRetainedComparatorReceipt,
 } from './snapback-package-cold-install-lib.mjs';
@@ -1246,6 +1252,9 @@ test('public-install arguments are explicit and normalized', () => {
       receipt: 'proof.json',
       keep: true,
       rootSelector: 'exact',
+      expectedPriorRootVersion: null,
+      authorizedLeaseSha256: null,
+      publicationEpoch: null,
       sourceCheckout: null,
       proofHarnessRevision: null,
     },
@@ -1264,6 +1273,23 @@ test('public-install arguments are explicit and normalized', () => {
       '--source-checkout', '/tmp/package-source',
     ]),
     /must be provided together/u,
+  );
+  const latest = parseArguments([
+    '--install-source', 'public',
+    '--root-selector', 'latest',
+    '--expected-prior-root-version', '0.1.0',
+    '--authorized-lease-sha256', 'b'.repeat(64),
+    '--publication-epoch', '7',
+  ]);
+  assert.equal(latest.expectedPriorRootVersion, '0.1.0');
+  assert.equal(latest.authorizedLeaseSha256, 'b'.repeat(64));
+  assert.equal(latest.publicationEpoch, 7);
+  assert.throws(
+    () => parseArguments([
+      '--install-source', 'public',
+      '--expected-prior-root-version', '0.1.0',
+    ]),
+    /latest-root authority arguments/u,
   );
 });
 
@@ -1708,6 +1734,199 @@ test('latest-root proof binds the root closure and complete default-tag vector',
   );
 });
 
+test('latest-root host classification retries only one coherent signed prior root', () => {
+  const candidate = closedCandidateFixture();
+  const makeTree = (version) => ({
+    dependencies: {
+      '@snapback/cli': {
+        version,
+        dependencies: {
+          '@snapback/client': {
+            version,
+            dependencies: {
+              '@snapback/contract': { version },
+            },
+          },
+          '@snapback/codegen': { version },
+          '@snapback/runtime-darwin-arm64': { version },
+          '@snapback/runtime-linux-x64': {},
+        },
+      },
+    },
+  });
+  const tagVector = Object.fromEntries(candidate.packages.map((row) => [
+    row.name,
+    row.version,
+  ]));
+  assert.equal(classifyLatestRootObservation({
+    tree: makeTree(candidate.version),
+    ledger: candidate,
+    hostRuntime: '@snapback/runtime-darwin-arm64',
+    tagVector,
+    expectedPriorRootVersion: '0.1.0',
+  }).classification, 'candidate-complete');
+  assert.deepEqual(classifyLatestRootObservation({
+    tree: makeTree('0.1.0'),
+    ledger: candidate,
+    hostRuntime: '@snapback/runtime-darwin-arm64',
+    tagVector,
+    expectedPriorRootVersion: '0.1.0',
+  }), {
+    classification: 'signed-prior-stale',
+    rootVersion: '0.1.0',
+    resolution: null,
+  });
+  for (const [tree, pattern] of [
+    [makeTree('0.0.9'), /third root/u],
+    [{ dependencies: {} }, /no exact top-level CLI root/u],
+    [(() => {
+      const value = makeTree(candidate.version);
+      delete value.dependencies['@snapback/cli'].dependencies['@snapback/client'];
+      return value;
+    })(), /omits @snapback\/client/u],
+    [(() => {
+      const value = makeTree('0.1.0');
+      value.dependencies['@snapback/cli'].dependencies['@snapback/client'].version = '9.9.9';
+      return value;
+    })(), /mixed or unsigned dependency/u],
+  ]) {
+    assert.throws(() => classifyLatestRootObservation({
+      tree,
+      ledger: candidate,
+      hostRuntime: '@snapback/runtime-darwin-arm64',
+      tagVector,
+      expectedPriorRootVersion: '0.1.0',
+    }), pattern);
+  }
+  assert.throws(() => classifyLatestRootObservation({
+    tree: makeTree('0.1.0'),
+    ledger: candidate,
+    hostRuntime: '@snapback/runtime-darwin-arm64',
+    tagVector: { ...tagVector, [candidate.packages[0].name]: '0.1.0' },
+    expectedPriorRootVersion: '0.1.0',
+  }), /default-tag vector drifted/u);
+});
+
+function latestRootPropagationFixture({
+  candidate,
+  operationId,
+  platform,
+  resolution,
+  attempts = ['signed-prior-stale', 'candidate-complete'],
+  propagationStartGapMs = 0,
+}) {
+  const startedAtMs = Date.parse('2026-07-28T19:00:10.000Z');
+  const attemptRows = attempts.map((classification, index) => {
+    const attemptStartedAtMs =
+      startedAtMs + index * (LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS + 1_000);
+    const attemptCompletedAtMs = attemptStartedAtMs + 1_000;
+    return {
+      attempt: index + 1,
+      startedAt: new Date(attemptStartedAtMs).toISOString(),
+      completedAt: new Date(attemptCompletedAtMs).toISOString(),
+      durationMs: 1_000,
+      installTimeoutMs: LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS,
+      cacheIdentitySha256: String(index + 1).repeat(64),
+      rootVersion: classification === 'candidate-complete'
+        ? candidate.version
+        : '0.1.0',
+      classification,
+      npmTreeSha256: String(index + 3).repeat(64),
+      tagVectorSha256: '9'.repeat(64),
+    };
+  });
+  return {
+    schemaVersion: 'snapback.latest-root-host-retry.v1',
+    authorizedLeaseSha256: 'a'.repeat(64),
+    publicationEpoch: 17,
+    operationId,
+    platform,
+    candidateLedgerSha256: candidate.candidateLedgerSha256,
+    package: '@ccheever/snapback-cli',
+    candidateRootVersion: candidate.version,
+    expectedPriorRootVersion: '0.1.0',
+    registry: PUBLIC_NPM_REGISTRY,
+    wallBoundMs: LATEST_ROOT_PROPAGATION_WALL_BOUND_MS,
+    maxAttempts: LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS,
+    retryDelayMs: LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS,
+    cachePolicy: 'unique-empty-per-attempt',
+    lifecycleScripts: 'disabled',
+    startedAt: new Date(startedAtMs - propagationStartGapMs).toISOString(),
+    completedAt: attemptRows.at(-1).completedAt,
+    status: 'candidate-complete',
+    distinctCacheCount: attemptRows.length,
+    attempts: attemptRows,
+    finalCandidateClosureSha256: sha256Hex(canonicalJcs(resolution)),
+  };
+}
+
+test('latest-root propagation witness closes policy, authority, caches, and timeline', () => {
+  assert.ok(
+    (LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS - 1)
+      * LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS
+      + 1_000
+      <= LATEST_ROOT_PROPAGATION_WALL_BOUND_MS,
+    'attempt cap must permit one bounded attempt after npm metadata max-age',
+  );
+  const candidate = closedCandidateFixture();
+  const operationId = 'release-propagation-test';
+  const platform = 'darwin-arm64';
+  const resolution = { root: '@snapback/cli', selected: candidate.version };
+  const witness = latestRootPropagationFixture({
+    candidate,
+    operationId,
+    platform,
+    resolution,
+  });
+  const validate = (value) => validateLatestRootPropagationWitness({
+    witness: value,
+    expectedPriorRootVersion: '0.1.0',
+    expectedCandidateRootVersion: candidate.version,
+    expectedAuthorizedLeaseSha256: 'a'.repeat(64),
+    expectedPublicationEpoch: 17,
+    expectedCandidateLedgerSha256: candidate.candidateLedgerSha256,
+    expectedOperationId: operationId,
+    expectedPlatform: platform,
+    latestRootResolution: resolution,
+  });
+  assert.equal(validate(witness), witness);
+  assert.equal(validate(latestRootPropagationFixture({
+    candidate,
+    operationId,
+    platform,
+    resolution,
+    propagationStartGapMs: 1,
+  })).status, 'candidate-complete');
+  for (const mutate of [
+    (value) => { value.retryDelayMs = 0; },
+    (value) => { value.wallBoundMs = 1; },
+    (value) => { value.maxAttempts = 1; },
+    (value) => { value.cachePolicy = 'shared'; },
+    (value) => { value.lifecycleScripts = 'enabled'; },
+    (value) => { value.registry = 'https://registry.example.test'; },
+    (value) => { value.package = '@ccheever/other'; },
+    (value) => { value.authorizedLeaseSha256 = 'b'.repeat(64); },
+    (value) => { value.publicationEpoch = 18; },
+    (value) => { value.expectedPriorRootVersion = '0.0.9'; },
+    (value) => { value.candidateRootVersion = '0.1.2'; },
+    (value) => { value.candidateLedgerSha256 = 'e'.repeat(64); },
+    (value) => {
+      value.attempts[1].cacheIdentitySha256 =
+        value.attempts[0].cacheIdentitySha256;
+    },
+    (value) => {
+      value.attempts[1].startedAt =
+        new Date(Date.parse(value.attempts[0].completedAt) + 1).toISOString();
+    },
+    (value) => { value.attempts[0].classification = 'candidate-complete'; },
+    (value) => { value.finalCandidateClosureSha256 = 'f'.repeat(64); },
+  ]) {
+    const candidateWitness = structuredClone(witness);
+    mutate(candidateWitness);
+    assert.throws(() => validate(candidateWitness), /latest-root propagation/u);
+  }
+});
+
 test('final latest-root receipts are candidate- and platform-closed', () => {
   const candidate = closedCandidateFixture();
   const operationId = 'release-final-proof-test';
@@ -1717,6 +1936,32 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     const hostRuntime = platform === 'darwin'
       ? '@snapback/runtime-darwin-arm64'
       : '@snapback/runtime-linux-x64';
+    const latestRootResolution = {
+      root: '@snapback/cli',
+      selected: candidate.version,
+      installed: Object.fromEntries([
+        '@snapback/cli',
+        '@snapback/client',
+        '@snapback/codegen',
+        '@snapback/contract',
+        hostRuntime,
+      ].map((sourceName) => [sourceName, candidate.version])),
+      omittedOptionalPlatformRuntimes: [{
+        sourceName: platform === 'darwin'
+          ? '@snapback/runtime-linux-x64'
+          : '@snapback/runtime-darwin-arm64',
+        treePath: [
+          '@snapback/cli',
+          platform === 'darwin'
+            ? '@snapback/runtime-linux-x64'
+            : '@snapback/runtime-darwin-arm64',
+        ],
+      }],
+      defaultTagVector: Object.fromEntries(candidate.packages.map((row) => [
+        row.name,
+        row.version,
+      ])),
+    };
     return {
       sha256: receiptSha256,
       githubArtifact: {
@@ -1738,35 +1983,16 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
         runId: String(runId),
         runHeadSha,
       }),
-      schemaVersion: 'snapback.package-cold-install.v1',
+      schemaVersion: 'snapback.package-cold-install.v2',
       ok: true,
       rootSelector: 'latest',
-      latestRootResolution: {
-        root: '@snapback/cli',
-        selected: candidate.version,
-        installed: Object.fromEntries([
-          '@snapback/cli',
-          '@snapback/client',
-          '@snapback/codegen',
-          '@snapback/contract',
-          hostRuntime,
-        ].map((sourceName) => [sourceName, candidate.version])),
-        omittedOptionalPlatformRuntimes: [{
-          sourceName: platform === 'darwin'
-            ? '@snapback/runtime-linux-x64'
-            : '@snapback/runtime-darwin-arm64',
-          treePath: [
-            '@snapback/cli',
-            platform === 'darwin'
-              ? '@snapback/runtime-linux-x64'
-              : '@snapback/runtime-darwin-arm64',
-          ],
-        }],
-        defaultTagVector: Object.fromEntries(candidate.packages.map((row) => [
-          row.name,
-          row.version,
-        ])),
-      },
+      latestRootResolution,
+      latestRootPropagation: latestRootPropagationFixture({
+        candidate,
+        operationId,
+        platform: `${platform}-${architecture}`,
+        resolution: latestRootResolution,
+      }),
       candidateLedgerSha256: candidate.candidateLedgerSha256,
       sourceRevision: candidate.revision,
       sourceDirty: false,
@@ -1822,7 +2048,12 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     record('linux', 'x64', '8'.repeat(64)),
   ];
   const githubCollection = {
-    schemaVersion: 'snapback.github-latest-root-proof-collection.v2',
+    schemaVersion: 'snapback.github-latest-root-proof-collection.v3',
+    authorizedLeaseSha256: 'a'.repeat(64),
+    publicationEpoch: 17,
+    expectedPriorRootVersion: '0.1.0',
+    candidateLedgerSha256: candidate.candidateLedgerSha256,
+    candidateRootVersion: candidate.version,
     repository: 'ccheever/snapback',
     workflow: 'public-package-proof.yml',
     workflowId: 42,
@@ -1840,11 +2071,18 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     collectedAt: '2026-07-28T19:04:00.000Z',
     artifacts: records.map((row) => row.githubArtifact),
   };
-  const final = validateFinalLatestReceipts({
+  const finalValidation = (
+    candidateRecords,
+    collection = githubCollection,
+  ) => validateFinalLatestReceipts({
     ledger: candidate,
-    records,
-    githubCollection,
+    records: candidateRecords,
+    githubCollection: collection,
+    expectedPriorRootVersion: '0.1.0',
+    expectedAuthorizedLeaseSha256: 'a'.repeat(64),
+    expectedPublicationEpoch: 17,
   });
+  const final = finalValidation(records);
   assert.equal(
     validatePostPromotionLatestRootReceipts(final, operationId),
     final,
@@ -1859,58 +2097,58 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     final[0].browserExecutableSha256,
     records[0].receipt.browserJourney.capture.browser.executableSha256,
   );
+  for (const mutate of [
+    (value) => { value.expectedPriorRootVersion = '0.0.9'; },
+    (value) => { value.authorizedLeaseSha256 = 'b'.repeat(64); },
+    (value) => { value.publicationEpoch = 18; },
+    (value) => { value.candidateLedgerSha256 = 'c'.repeat(64); },
+    (value) => { value.candidateRootVersion = '0.1.2'; },
+  ]) {
+    const driftedCollection = structuredClone(githubCollection);
+    mutate(driftedCollection);
+    assert.throws(
+      () => finalValidation(records, driftedCollection),
+      /closed GitHub proof collection/u,
+    );
+  }
+  const witnessPolicyDrift = structuredClone(records);
+  witnessPolicyDrift[0].receipt.latestRootPropagation.cachePolicy = 'shared';
+  assert.throws(
+    () => finalValidation(witnessPolicyDrift),
+    /propagation witness/u,
+  );
   const vectorDrift = structuredClone(records);
   vectorDrift[0].receipt.latestRootResolution.defaultTagVector[
     candidate.packages[0].name
   ] = '0.1.0';
   assert.throws(
-    () => validateFinalLatestReceipts({
-      ledger: candidate,
-      records: vectorDrift,
-      githubCollection,
-    }),
-    /tag vector drifted/u,
+    () => finalValidation(vectorDrift),
+    /candidate closure digest drifted/u,
   );
   const packageDrift = structuredClone(records);
   packageDrift[1].receipt.packages[2].registrySha256 = '9'.repeat(64);
   assert.throws(
-    () => validateFinalLatestReceipts({
-      ledger: candidate,
-      records: packageDrift,
-      githubCollection,
-    }),
+    () => finalValidation(packageDrift),
     /package evidence drifted/u,
   );
   const installedDrift = structuredClone(records);
   installedDrift[0].receipt.latestRootResolution.installed['@snapback/codegen'] = '0.1.0';
   assert.throws(
-    () => validateFinalLatestReceipts({
-      ledger: candidate,
-      records: installedDrift,
-      githubCollection,
-    }),
-    /installed closure drifted/u,
+    () => finalValidation(installedDrift),
+    /candidate closure digest drifted/u,
   );
   const materializedOpposite = structuredClone(records);
   materializedOpposite[0].receipt.latestRootResolution.installed[
     '@snapback/runtime-linux-x64'
   ] = candidate.version;
   assert.throws(
-    () => validateFinalLatestReceipts({
-      ledger: candidate,
-      records: materializedOpposite,
-      githubCollection,
-    }),
-    /materialized the opposite runtime/u,
+    () => finalValidation(materializedOpposite),
+    /candidate closure digest drifted/u,
   );
   const harnessDrift = structuredClone(records);
   harnessDrift[1].receipt.proofHarnessCheckout.headSha = 'e'.repeat(40);
   assert.throws(
-    () => validateFinalLatestReceipts({
-      ledger: candidate,
-      records: harnessDrift,
-      githubCollection,
-    }),
+    () => finalValidation(harnessDrift),
     /proof harness/u,
   );
 });

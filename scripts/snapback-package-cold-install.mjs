@@ -37,6 +37,11 @@ import {
   createBoundedBrowserSurfaceCollector,
   digestBoundedBrowserFilesystem,
   extractViteClientOrigin,
+  classifyLatestRootObservation,
+  LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS,
+  LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS,
+  LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS,
+  LATEST_ROOT_PROPAGATION_WALL_BOUND_MS,
   measureGitCheckoutIdentity,
   parseArguments,
   readBoundedJsonFile,
@@ -45,7 +50,7 @@ import {
   runAsync,
   usage,
   validateColdInstallBrowserEvidence,
-  validateLatestRootResolution,
+  validateLatestRootPropagationWitness,
   validatePublicPublicationLedger,
   validateRetainedComparatorReceipt,
   validateStagedPublicationLedger,
@@ -131,6 +136,9 @@ const registry = parsedArgs.registry;
 const receiptPath = parsedArgs.receipt;
 const keep = parsedArgs.keep;
 const rootSelector = parsedArgs.rootSelector;
+const expectedPriorRootVersion = parsedArgs.expectedPriorRootVersion;
+const authorizedLeaseSha256 = parsedArgs.authorizedLeaseSha256;
+const publicationEpoch = parsedArgs.publicationEpoch;
 const sourceRoot = resolve(parsedArgs.sourceCheckout ?? root);
 const proofHarnessRevision = parsedArgs.proofHarnessRevision;
 
@@ -2037,6 +2045,7 @@ const temporary = mkdtempSync(join(tmpdir(), 'snapback-package-cold-'));
 const registryTarballs = [];
 if (installSource === 'public') {
   const downloadRoot = join(temporary, 'registry-tarballs');
+  const exactDownloadCache = join(temporary, 'npm-cache-exact-downloads');
   mkdirSync(downloadRoot, { recursive: true });
   for (const sourceName of allExpectedPackages) {
     const entry = publicEntries.get(sourceName);
@@ -2047,6 +2056,8 @@ if (installSource === 'public') {
       '--json',
       '--ignore-scripts',
       '--registry', registry,
+      '--cache', exactDownloadCache,
+      '--prefer-online',
     ], { cwd: temporary, timeout: 360_000 }))[0];
     const downloaded = join(downloadRoot, packed.filename);
     if (sha256(downloaded) !== entry.registrySha256) {
@@ -2133,40 +2144,177 @@ await build({
 `);
 
   run('git', ['init', '--quiet'], { cwd: appRoot });
-  await runAsyncOrFail('npm', [
-    'install',
-    '--no-audit',
-    '--no-fund',
-    '--registry', PUBLIC_NPM_REGISTRY,
-    ...tarballs,
-  ], {
-    cwd: appRoot,
-    timeout: 360_000,
-  });
   let latestRootResolution = null;
+  let latestRootPropagation = null;
+  let latestWinningCache = null;
   if (rootSelector === 'latest') {
-    const latestTree = JSON.parse(run('npm', ['ls', '--all', '--json'], { cwd: appRoot }));
-    const tagVector = {};
-    for (const entry of ledger.packages) {
-      const tags = JSON.parse(run('npm', [
-        'view',
-        entry.name,
-        'dist-tags',
-        '--json',
-        '--registry',
-        registry,
-      ], { cwd: appRoot }));
-      tagVector[entry.name] = tags.latest ?? null;
+    const operationId = process.env.SNAPBACK_PROOF_OPERATION_ID;
+    if (!/^[A-Za-z0-9._:-]{8,160}$/u.test(operationId ?? '')) {
+      fail('latest-root proof requires a closed propagation operation id');
     }
-    try {
-      latestRootResolution = validateLatestRootResolution({
-        tree: latestTree,
-        ledger,
-        hostRuntime,
-        tagVector,
+    if (
+      expectedPriorRootVersion === ledger.version
+      || !/^[0-9a-f]{64}$/u.test(ledger.candidateLedgerSha256 ?? '')
+    ) {
+      fail('latest-root proof prior/candidate identity is not retry-safe');
+    }
+    const propagationStartedAtMs = Date.now();
+    const propagationDeadlineMs =
+      propagationStartedAtMs + LATEST_ROOT_PROPAGATION_WALL_BOUND_MS;
+    const propagationAttempts = [];
+    for (
+      let attempt = 1;
+      attempt <= LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
+      const attemptStartedAtMs = Date.now();
+      const remainingMs = propagationDeadlineMs - attemptStartedAtMs;
+      if (remainingMs < 1_000) {
+        fail('latest-root propagation exhausted its wall-clock budget');
+      }
+      rmSync(join(appRoot, 'node_modules'), { recursive: true, force: true });
+      rmSync(join(appRoot, 'package-lock.json'), { force: true });
+      const cacheNonce = randomBytes(32).toString('hex');
+      const attemptCache = join(
+        temporary,
+        `npm-cache-latest-${attempt}-${cacheNonce}`,
+      );
+      const cacheIdentitySha256 = sha256Hex(Buffer.from(cacheNonce));
+      const installTimeoutMs = Math.min(
+        LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS,
+        remainingMs,
+      );
+      try {
+        await runAsync('npm', [
+          'install',
+          '--no-audit',
+          '--no-fund',
+          '--ignore-scripts',
+          '--prefer-online',
+          '--registry', PUBLIC_NPM_REGISTRY,
+          '--cache', attemptCache,
+          ...tarballs,
+        ], {
+          cwd: appRoot,
+          timeout: installTimeoutMs,
+        });
+      } catch (error) {
+        fail(`latest-root resolver failed terminally: ${error.message}`);
+      }
+      let latestTree;
+      try {
+        latestTree = JSON.parse(run('npm', ['ls', '--all', '--json'], {
+          cwd: appRoot,
+          timeout: Math.min(
+            LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS,
+            Math.max(1_000, propagationDeadlineMs - Date.now()),
+          ),
+        }));
+      } catch (error) {
+        fail(`latest-root npm tree failed terminally: ${error.message}`);
+      }
+      const tagVector = {};
+      for (const entry of ledger.packages) {
+        const tags = JSON.parse(run('npm', [
+          'view',
+          entry.name,
+          'dist-tags',
+          '--json',
+          '--registry',
+          registry,
+          '--cache',
+          attemptCache,
+          '--prefer-online',
+        ], {
+          cwd: appRoot,
+          timeout: Math.min(
+            LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS,
+            Math.max(1_000, propagationDeadlineMs - Date.now()),
+          ),
+        }));
+        tagVector[entry.name] = tags.latest ?? null;
+      }
+      let observation;
+      try {
+        observation = classifyLatestRootObservation({
+          tree: latestTree,
+          ledger,
+          hostRuntime,
+          tagVector,
+          expectedPriorRootVersion,
+        });
+      } catch (error) {
+        fail(`latest-root observation refused terminally: ${error.message}`);
+      }
+      const attemptCompletedAtMs = Date.now();
+      propagationAttempts.push({
+        attempt,
+        startedAt: new Date(attemptStartedAtMs).toISOString(),
+        completedAt: new Date(attemptCompletedAtMs).toISOString(),
+        durationMs: attemptCompletedAtMs - attemptStartedAtMs,
+        installTimeoutMs,
+        cacheIdentitySha256,
+        rootVersion: observation.rootVersion,
+        classification: observation.classification,
+        npmTreeSha256: sha256Hex(canonicalJcs(latestTree)),
+        tagVectorSha256: sha256Hex(canonicalJcs(tagVector)),
       });
-    } catch (error) {
-      fail(error.message);
+      if (observation.classification === 'candidate-complete') {
+        latestRootResolution = observation.resolution;
+        latestWinningCache = attemptCache;
+        latestRootPropagation = {
+          schemaVersion: 'snapback.latest-root-host-retry.v1',
+          authorizedLeaseSha256,
+          publicationEpoch,
+          operationId,
+          platform: hostPlatform,
+          candidateLedgerSha256: ledger.candidateLedgerSha256,
+          package: '@ccheever/snapback-cli',
+          candidateRootVersion: ledger.version,
+          expectedPriorRootVersion,
+          registry: PUBLIC_NPM_REGISTRY,
+          wallBoundMs: LATEST_ROOT_PROPAGATION_WALL_BOUND_MS,
+          maxAttempts: LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS,
+          retryDelayMs: LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS,
+          cachePolicy: 'unique-empty-per-attempt',
+          lifecycleScripts: 'disabled',
+          startedAt: new Date(propagationStartedAtMs).toISOString(),
+          completedAt: new Date(attemptCompletedAtMs).toISOString(),
+          status: 'candidate-complete',
+          distinctCacheCount: new Set(
+            propagationAttempts.map((row) => row.cacheIdentitySha256),
+          ).size,
+          attempts: propagationAttempts,
+          finalCandidateClosureSha256: sha256Hex(
+            canonicalJcs(latestRootResolution),
+          ),
+        };
+        validateLatestRootPropagationWitness({
+          witness: latestRootPropagation,
+          expectedPriorRootVersion,
+          expectedCandidateRootVersion: ledger.version,
+          expectedAuthorizedLeaseSha256: authorizedLeaseSha256,
+          expectedPublicationEpoch: publicationEpoch,
+          expectedCandidateLedgerSha256: ledger.candidateLedgerSha256,
+          expectedOperationId: operationId,
+          expectedPlatform: hostPlatform,
+          latestRootResolution,
+        });
+        break;
+      }
+      if (
+        attempt === LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS
+        || Date.now() + LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS + 1_000
+          >= propagationDeadlineMs
+      ) {
+        fail('latest-root propagation did not converge within its closed bounds');
+      }
+      await new Promise((resolveWait) => {
+        setTimeout(resolveWait, LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS);
+      });
+    }
+    if (latestRootResolution === null || latestRootPropagation === null) {
+      fail('latest-root propagation ended without a candidate closure');
     }
     // Retain the root-only observation above, then expand this same fresh
     // directory to the exact candidate vector for the complete product proof.
@@ -2184,11 +2332,26 @@ await build({
       '--no-audit',
       '--no-fund',
       '--registry', PUBLIC_NPM_REGISTRY,
+      '--cache', latestWinningCache,
+      '--prefer-online',
     ], {
       cwd: appRoot,
       timeout: 360_000,
     });
     Object.assign(dependencies, exactDependencies);
+  } else {
+    await runAsyncOrFail('npm', [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      '--registry', PUBLIC_NPM_REGISTRY,
+      '--cache', join(temporary, 'npm-cache-exact-install'),
+      '--prefer-online',
+      ...tarballs,
+    ], {
+      cwd: appRoot,
+      timeout: 360_000,
+    });
   }
   for (const name of expectedPackages) {
     const installPath = join(appRoot, 'node_modules', ...name.split('/'));
@@ -2486,7 +2649,9 @@ await build({
     operationId: process.env.SNAPBACK_PROOF_OPERATION_ID ?? null,
   } : null;
   const receipt = {
-    schemaVersion: 'snapback.package-cold-install.v1',
+    schemaVersion: rootSelector === 'latest'
+      ? 'snapback.package-cold-install.v2'
+      : 'snapback.package-cold-install.v1',
     ok: true,
     claimTreatment: 'checkpoint',
     claimSatisfied: false,
@@ -2503,6 +2668,7 @@ await build({
     installSource,
     rootSelector,
     latestRootResolution,
+    ...(rootSelector === 'latest' ? { latestRootPropagation } : {}),
     registry: installSource === 'public' ? registry : 'disposable-loopback',
     scopePreset: ledger.scopePreset,
     version: ledger.version,

@@ -20,8 +20,16 @@ import {
   validateQualifiedStagingLedger,
   validateRetainedComparatorReceipt,
 } from './snapback-publish-core.mjs';
+import {
+  canonicalJcs,
+  sha256Hex,
+} from './snapback-promotion-core.mjs';
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
+export const LATEST_ROOT_PROPAGATION_WALL_BOUND_MS = 350_000;
+export const LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS = 18;
+export const LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS = 20_000;
+export const LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS = 45_000;
 export {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   comparatorExecutorPackageNames,
@@ -1051,6 +1059,13 @@ Options:
                     Install all exact aliases (default), or first install only
                     @ccheever/snapback-cli@latest and verify its selected
                     closure/default-tag vector before expanding the proof
+  --expected-prior-root-version <version>
+                    Signed prior CLI version eligible for bounded retry;
+                    required only with --root-selector latest
+  --authorized-lease-sha256 <sha256>
+                    Signed publication lease digest for latest-root evidence
+  --publication-epoch <integer>
+                    Signed publication epoch for latest-root evidence
   --source-checkout <path>
                     Read fixtures from a separate clean checkout at the
                     publication ledger revision
@@ -1072,6 +1087,9 @@ export function parseArguments(args) {
     receipt: null,
     keep: false,
     rootSelector: 'exact',
+    expectedPriorRootVersion: null,
+    authorizedLeaseSha256: null,
+    publicationEpoch: null,
     sourceCheckout: null,
     proofHarnessRevision: null,
   };
@@ -1096,6 +1114,9 @@ export function parseArguments(args) {
       || argument === '--install-source'
       || argument === '--registry'
       || argument === '--root-selector'
+      || argument === '--expected-prior-root-version'
+      || argument === '--authorized-lease-sha256'
+      || argument === '--publication-epoch'
       || argument === '--source-checkout'
       || argument === '--proof-harness-revision'
     ) {
@@ -1109,12 +1130,18 @@ export function parseArguments(args) {
         ? 'installSource'
         : argument === '--root-selector'
           ? 'rootSelector'
+          : argument === '--expected-prior-root-version'
+            ? 'expectedPriorRootVersion'
+            : argument === '--authorized-lease-sha256'
+              ? 'authorizedLeaseSha256'
+              : argument === '--publication-epoch'
+                ? 'publicationEpoch'
           : argument === '--source-checkout'
             ? 'sourceCheckout'
             : argument === '--proof-harness-revision'
               ? 'proofHarnessRevision'
           : argument.slice(2);
-      parsed[key] = value;
+      parsed[key] = key === 'publicationEpoch' ? Number(value) : value;
       index += 1;
       continue;
     }
@@ -1128,6 +1155,42 @@ export function parseArguments(args) {
   }
   if (parsed.rootSelector === 'latest' && parsed.installSource !== 'public') {
     throw new TypeError('--root-selector latest requires --install-source public');
+  }
+  if (
+    parsed.rootSelector === 'latest'
+    && !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(
+      parsed.expectedPriorRootVersion ?? '',
+    )
+  ) {
+    throw new TypeError(
+      '--root-selector latest requires --expected-prior-root-version',
+    );
+  }
+  if (
+    parsed.rootSelector === 'latest'
+    && !/^[0-9a-f]{64}$/u.test(parsed.authorizedLeaseSha256 ?? '')
+  ) {
+    throw new TypeError(
+      '--root-selector latest requires --authorized-lease-sha256',
+    );
+  }
+  if (
+    parsed.rootSelector === 'latest'
+    && (!Number.isSafeInteger(parsed.publicationEpoch) || parsed.publicationEpoch < 1)
+  ) {
+    throw new TypeError('--root-selector latest requires --publication-epoch');
+  }
+  if (
+    parsed.rootSelector === 'exact'
+    && (
+      parsed.expectedPriorRootVersion !== null
+      || parsed.authorizedLeaseSha256 !== null
+      || parsed.publicationEpoch !== null
+    )
+  ) {
+    throw new TypeError(
+      'latest-root authority arguments require --root-selector latest',
+    );
   }
   if ((parsed.sourceCheckout === null) !== (parsed.proofHarnessRevision === null)) {
     throw new TypeError(
@@ -1287,20 +1350,35 @@ function collectInstalledSnapbackVersions(
   return { installed: output, omittedPlatformRuntimes };
 }
 
-export function validateLatestRootResolution({
-  tree,
-  ledger,
-  hostRuntime,
-  tagVector,
-}) {
-  validateCandidateLedger(ledger);
-  if (!SNAPBACK_PLATFORM_RUNTIMES.includes(hostRuntime)) {
-    throw new TypeError('latest-root proof selected an unsupported host runtime');
+function requireExactObjectKeys(value, keys, label) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError(`${label} must be an object`);
   }
-  const {
-    installed,
-    omittedPlatformRuntimes,
-  } = collectInstalledSnapbackVersions(tree, hostRuntime);
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  if (
+    actual.length !== expected.length
+    || actual.some((key, index) => key !== expected[index])
+  ) {
+    throw new TypeError(`${label} has unknown or missing members`);
+  }
+}
+
+function validateLatestTagVector(ledger, tagVector) {
+  if (tagVector === null || typeof tagVector !== 'object' || Array.isArray(tagVector)) {
+    throw new TypeError('latest-root proof has no complete default-tag vector');
+  }
+  if (Object.keys(tagVector).length !== ledger.packages.length) {
+    throw new TypeError('latest-root proof default-tag vector is not closed');
+  }
+  for (const row of ledger.packages) {
+    if (tagVector[row.name] !== row.version) {
+      throw new TypeError(`latest default-tag vector drifted for ${row.name}`);
+    }
+  }
+}
+
+function validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes) {
   const expectedOmittedRuntime = SNAPBACK_PLATFORM_RUNTIMES.find(
     (sourceName) => sourceName !== hostRuntime,
   );
@@ -1316,6 +1394,121 @@ export function validateLatestRootResolution({
   if (installed.has(expectedOmittedRuntime)) {
     throw new TypeError('latest root materialized the opposite platform runtime');
   }
+}
+
+/**
+ * Classify one successful npm alias install structurally. Only a complete
+ * candidate closure succeeds and only the plan-bound prior CLI root may ask
+ * the caller to wait. Missing, malformed, third-root, tag-drift, and malformed
+ * candidate observations throw and are never retryable.
+ *
+ * @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — cross-host
+ * cache propagation may retry the signed prior root without broadening the
+ * accepted candidate closure.
+ */
+export function classifyLatestRootObservation({
+  tree,
+  ledger,
+  hostRuntime,
+  tagVector,
+  expectedPriorRootVersion,
+}) {
+  validateCandidateLedger(ledger);
+  if (!SNAPBACK_PLATFORM_RUNTIMES.includes(hostRuntime)) {
+    throw new TypeError('latest-root proof selected an unsupported host runtime');
+  }
+  if (
+    !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(
+      expectedPriorRootVersion ?? '',
+    )
+    || expectedPriorRootVersion === ledger.version
+  ) {
+    throw new TypeError('latest-root proof has no distinct exact prior root');
+  }
+  validateLatestTagVector(ledger, tagVector);
+  if (tree === null || typeof tree !== 'object' || Array.isArray(tree)) {
+    throw new TypeError('latest-root npm tree is malformed');
+  }
+  const topLevelRoot = tree.dependencies?.['@snapback/cli'];
+  if (
+    topLevelRoot === null
+    || typeof topLevelRoot !== 'object'
+    || Array.isArray(topLevelRoot)
+    || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(topLevelRoot.version ?? '')
+  ) {
+    throw new TypeError('latest-root npm tree has no exact top-level CLI root');
+  }
+  const {
+    installed,
+    omittedPlatformRuntimes,
+  } = collectInstalledSnapbackVersions(tree, hostRuntime);
+  validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes);
+  if (installed.get('@snapback/cli') !== topLevelRoot.version) {
+    throw new TypeError('latest-root npm tree has an ambiguous CLI root');
+  }
+  for (const [sourceName, version] of installed) {
+    if (
+      !ledger.packages.some((row) => row.sourceName === sourceName)
+      || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(version)
+    ) {
+      throw new TypeError(`latest-root npm tree escaped at ${sourceName}`);
+    }
+  }
+  for (const sourceName of [
+    '@snapback/cli',
+    '@snapback/client',
+    '@snapback/codegen',
+    '@snapback/contract',
+    hostRuntime,
+  ]) {
+    if (!installed.has(sourceName)) {
+      throw new TypeError(`latest-root npm tree omits ${sourceName}`);
+    }
+  }
+  if (topLevelRoot.version === expectedPriorRootVersion) {
+    for (const [sourceName, version] of installed) {
+      if (version !== expectedPriorRootVersion) {
+        throw new TypeError(
+          `signed prior root has a mixed or unsigned dependency at ${sourceName}`,
+        );
+      }
+    }
+    return {
+      classification: 'signed-prior-stale',
+      rootVersion: topLevelRoot.version,
+      resolution: null,
+    };
+  }
+  if (topLevelRoot.version !== ledger.version) {
+    throw new TypeError(`latest-root npm tree selected third root ${topLevelRoot.version}`);
+  }
+  return {
+    classification: 'candidate-complete',
+    rootVersion: topLevelRoot.version,
+    resolution: validateLatestRootResolution({
+      tree,
+      ledger,
+      hostRuntime,
+      tagVector,
+    }),
+  };
+}
+
+export function validateLatestRootResolution({
+  tree,
+  ledger,
+  hostRuntime,
+  tagVector,
+}) {
+  validateCandidateLedger(ledger);
+  if (!SNAPBACK_PLATFORM_RUNTIMES.includes(hostRuntime)) {
+    throw new TypeError('latest-root proof selected an unsupported host runtime');
+  }
+  const {
+    installed,
+    omittedPlatformRuntimes,
+  } = collectInstalledSnapbackVersions(tree, hostRuntime);
+  validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes);
   for (const sourceName of [
     '@snapback/cli',
     '@snapback/client',
@@ -1333,14 +1526,7 @@ export function validateLatestRootResolution({
       throw new TypeError(`latest root escaped the candidate ledger at ${sourceName}`);
     }
   }
-  if (tagVector === null || typeof tagVector !== 'object' || Array.isArray(tagVector)) {
-    throw new TypeError('latest-root proof has no complete default-tag vector');
-  }
-  for (const row of ledger.packages) {
-    if (tagVector[row.name] !== row.version) {
-      throw new TypeError(`latest default-tag vector drifted for ${row.name}`);
-    }
-  }
+  validateLatestTagVector(ledger, tagVector);
   return {
     root: '@snapback/cli',
     selected: ledger.version,
@@ -1353,21 +1539,209 @@ export function validateLatestRootResolution({
   };
 }
 
+const LATEST_ROOT_PROPAGATION_KEYS = [
+  'attempts',
+  'authorizedLeaseSha256',
+  'cachePolicy',
+  'candidateLedgerSha256',
+  'candidateRootVersion',
+  'completedAt',
+  'distinctCacheCount',
+  'expectedPriorRootVersion',
+  'finalCandidateClosureSha256',
+  'lifecycleScripts',
+  'maxAttempts',
+  'operationId',
+  'package',
+  'platform',
+  'publicationEpoch',
+  'registry',
+  'retryDelayMs',
+  'schemaVersion',
+  'startedAt',
+  'status',
+  'wallBoundMs',
+];
+const LATEST_ROOT_PROPAGATION_ATTEMPT_KEYS = [
+  'attempt',
+  'cacheIdentitySha256',
+  'classification',
+  'completedAt',
+  'durationMs',
+  'installTimeoutMs',
+  'npmTreeSha256',
+  'rootVersion',
+  'startedAt',
+  'tagVectorSha256',
+];
+
+export function validateLatestRootPropagationWitness({
+  witness,
+  expectedPriorRootVersion,
+  expectedCandidateRootVersion,
+  expectedAuthorizedLeaseSha256,
+  expectedPublicationEpoch,
+  expectedCandidateLedgerSha256,
+  expectedOperationId,
+  expectedPlatform,
+  latestRootResolution,
+}) {
+  requireExactObjectKeys(
+    witness,
+    LATEST_ROOT_PROPAGATION_KEYS,
+    'latest-root propagation witness',
+  );
+  if (
+    witness.schemaVersion !== 'snapback.latest-root-host-retry.v1'
+    || witness.status !== 'candidate-complete'
+    || witness.package !== '@ccheever/snapback-cli'
+    || witness.registry !== PUBLIC_NPM_REGISTRY
+    || witness.cachePolicy !== 'unique-empty-per-attempt'
+    || witness.lifecycleScripts !== 'disabled'
+    || witness.expectedPriorRootVersion !== expectedPriorRootVersion
+    || witness.candidateRootVersion !== expectedCandidateRootVersion
+    || witness.authorizedLeaseSha256 !== expectedAuthorizedLeaseSha256
+    || witness.publicationEpoch !== expectedPublicationEpoch
+    || witness.candidateLedgerSha256 !== expectedCandidateLedgerSha256
+    || witness.operationId !== expectedOperationId
+    || witness.platform !== expectedPlatform
+    || witness.expectedPriorRootVersion === witness.candidateRootVersion
+    || witness.wallBoundMs !== LATEST_ROOT_PROPAGATION_WALL_BOUND_MS
+    || witness.maxAttempts !== LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS
+    || witness.retryDelayMs !== LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS
+    || !/^[0-9a-f]{64}$/u.test(witness.authorizedLeaseSha256 ?? '')
+    || !/^[0-9a-f]{64}$/u.test(witness.candidateLedgerSha256 ?? '')
+    || !Number.isSafeInteger(witness.publicationEpoch)
+    || witness.publicationEpoch < 1
+  ) {
+    throw new TypeError('latest-root propagation witness identity or policy drifted');
+  }
+  const startedAt = Date.parse(witness.startedAt);
+  const completedAt = Date.parse(witness.completedAt);
+  if (
+    !Number.isFinite(startedAt)
+    || !Number.isFinite(completedAt)
+    || completedAt < startedAt
+    || completedAt - startedAt > witness.wallBoundMs
+  ) {
+    throw new TypeError('latest-root propagation witness exceeded its wall bound');
+  }
+  if (
+    !Array.isArray(witness.attempts)
+    || witness.attempts.length < 1
+    || witness.attempts.length > witness.maxAttempts
+    || witness.distinctCacheCount !== witness.attempts.length
+  ) {
+    throw new TypeError('latest-root propagation witness attempts are not closed');
+  }
+  const cacheIdentities = new Set();
+  for (const [index, attempt] of witness.attempts.entries()) {
+    requireExactObjectKeys(
+      attempt,
+      LATEST_ROOT_PROPAGATION_ATTEMPT_KEYS,
+      `latest-root propagation attempt ${index + 1}`,
+    );
+    const attemptStartedAt = Date.parse(attempt.startedAt);
+    const attemptCompletedAt = Date.parse(attempt.completedAt);
+    const isFinal = index === witness.attempts.length - 1;
+    const expectedClassification = isFinal
+      ? 'candidate-complete'
+      : 'signed-prior-stale';
+    const expectedRootVersion = isFinal
+      ? witness.candidateRootVersion
+      : witness.expectedPriorRootVersion;
+    if (
+      attempt.attempt !== index + 1
+      || attempt.classification !== expectedClassification
+      || attempt.rootVersion !== expectedRootVersion
+      || !/^[0-9a-f]{64}$/u.test(attempt.cacheIdentitySha256 ?? '')
+      || !/^[0-9a-f]{64}$/u.test(attempt.npmTreeSha256 ?? '')
+      || !/^[0-9a-f]{64}$/u.test(attempt.tagVectorSha256 ?? '')
+      || !Number.isFinite(attemptStartedAt)
+      || !Number.isFinite(attemptCompletedAt)
+      || attemptStartedAt < startedAt
+      || attemptCompletedAt < attemptStartedAt
+      || attemptCompletedAt > completedAt
+      || attempt.durationMs !== attemptCompletedAt - attemptStartedAt
+      || !Number.isSafeInteger(attempt.installTimeoutMs)
+      || attempt.installTimeoutMs < 1_000
+      || attempt.installTimeoutMs > LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS
+      || (index > 0
+        && attemptStartedAt
+          < Date.parse(witness.attempts[index - 1].completedAt)
+            + LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS)
+    ) {
+      throw new TypeError(`latest-root propagation attempt ${index + 1} drifted`);
+    }
+    cacheIdentities.add(attempt.cacheIdentitySha256);
+  }
+  if (
+    cacheIdentities.size !== witness.attempts.length
+    || witness.attempts.at(-1).completedAt !== witness.completedAt
+  ) {
+    throw new TypeError('latest-root propagation cache or timeline drifted');
+  }
+  const expectedClosureSha256 = sha256Hex(canonicalJcs(latestRootResolution));
+  if (witness.finalCandidateClosureSha256 !== expectedClosureSha256) {
+    throw new TypeError('latest-root propagation candidate closure digest drifted');
+  }
+  return witness;
+}
+
 export function validateFinalLatestReceipts({
   ledger,
   records,
   githubCollection,
+  expectedPriorRootVersion,
+  expectedAuthorizedLeaseSha256,
+  expectedPublicationEpoch,
 }) {
   validateCandidateLedger(ledger);
   if (!Array.isArray(records) || records.length !== 2) {
     throw new TypeError('final promotion requires two latest-root receipts');
   }
+  requireExactObjectKeys(githubCollection, [
+    'artifacts',
+    'authorizedLeaseSha256',
+    'candidateLedgerSha256',
+    'candidateRootVersion',
+    'collectedAt',
+    'dispatchStartedAt',
+    'expectedHeadSha',
+    'expectedPriorRootVersion',
+    'ledgerRevision',
+    'operationId',
+    'publicationEpoch',
+    'ref',
+    'repository',
+    'runAttempt',
+    'runCreatedAt',
+    'runHeadSha',
+    'runId',
+    'runStartedAt',
+    'schemaVersion',
+    'workflow',
+    'workflowId',
+    'workflowPath',
+  ], 'final GitHub latest-root collection');
   if (
     githubCollection?.schemaVersion
-      !== 'snapback.github-latest-root-proof-collection.v2'
+      !== 'snapback.github-latest-root-proof-collection.v3'
     || githubCollection.repository !== 'ccheever/snapback'
     || githubCollection.workflow !== 'public-package-proof.yml'
     || githubCollection.ledgerRevision !== ledger.revision
+    || githubCollection.candidateLedgerSha256 !== ledger.candidateLedgerSha256
+    || githubCollection.candidateRootVersion !== ledger.version
+    || githubCollection.expectedPriorRootVersion !== expectedPriorRootVersion
+    || githubCollection.authorizedLeaseSha256 !== expectedAuthorizedLeaseSha256
+    || githubCollection.publicationEpoch !== expectedPublicationEpoch
+    || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(
+      githubCollection.expectedPriorRootVersion ?? '',
+    )
+    || githubCollection.expectedPriorRootVersion === ledger.version
+    || !/^[0-9a-f]{64}$/u.test(githubCollection.authorizedLeaseSha256 ?? '')
+    || !Number.isSafeInteger(githubCollection.publicationEpoch)
+    || githubCollection.publicationEpoch < 1
     || githubCollection.runHeadSha !== githubCollection.expectedHeadSha
     || !Number.isSafeInteger(githubCollection.runId)
     || githubCollection.runId < 1
@@ -1394,7 +1768,7 @@ export function validateFinalLatestReceipts({
       expectedWorkflowHead: githubCollection.expectedHeadSha,
     });
     if (
-      receipt?.schemaVersion !== 'snapback.package-cold-install.v1'
+      receipt?.schemaVersion !== 'snapback.package-cold-install.v2'
       || receipt.ok !== true
       || receipt.rootSelector !== 'latest'
       || receipt.latestRootResolution?.selected !== ledger.version
@@ -1415,6 +1789,17 @@ export function validateFinalLatestReceipts({
     ) {
       throw new TypeError(`invalid final latest-root receipt: ${platform}`);
     }
+    validateLatestRootPropagationWitness({
+      witness: receipt.latestRootPropagation,
+      expectedPriorRootVersion: githubCollection.expectedPriorRootVersion,
+      expectedCandidateRootVersion: ledger.version,
+      expectedAuthorizedLeaseSha256: githubCollection.authorizedLeaseSha256,
+      expectedPublicationEpoch: githubCollection.publicationEpoch,
+      expectedCandidateLedgerSha256: ledger.candidateLedgerSha256,
+      expectedOperationId: githubCollection.operationId,
+      expectedPlatform: platform,
+      latestRootResolution: receipt.latestRootResolution,
+    });
     validateColdInstallBrowserEvidence(receipt);
     validateRetainedComparatorReceipt(receipt, {
       sourceRevision: ledger.revision,
@@ -1550,6 +1935,9 @@ export function validateFinalLatestReceipts({
       platform,
       sha256: record.sha256,
       github: {
+        authorizedLeaseSha256: githubCollection.authorizedLeaseSha256,
+        publicationEpoch: githubCollection.publicationEpoch,
+        expectedPriorRootVersion: githubCollection.expectedPriorRootVersion,
         repository: githubCollection.repository,
         workflow: githubCollection.workflow,
         workflowId: githubCollection.workflowId,
@@ -1570,6 +1958,9 @@ export function validateFinalLatestReceipts({
       },
       machine: receipt.machine,
       latestRootResolution: resolution,
+      latestRootPropagationSha256: sha256Hex(
+        canonicalJcs(receipt.latestRootPropagation),
+      ),
       browserCaptureSha256: receipt.browserJourney.captureSha256,
       browserDistributionSha256:
         receipt.browserJourney.capture.browser.distributionSha256,
