@@ -970,6 +970,7 @@ export async function runBakeoff({
     nonclaims: [
       'This is functional acceptance, not a throughput, latency, scale, cost, or visual-quality benchmark.',
       'This local matrix does not claim hosted-target parity or public-package qualification.',
+      'This local matrix does not include the staged clean-install browser evidence required for public-package qualification.',
       'Configured Convex and Supabase services are prerequisites; this receipt does not attest their provisioning history.',
     ],
   };

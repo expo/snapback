@@ -402,3 +402,35 @@ child receipt. Logs replace workspace, home, and temporary paths and redact
 credential-shaped values before hashing. This does not make the run a scale
 benchmark or a hosted/public-package proof; it makes the local functional
 ranking input reproducible and independently reopenable.
+
+## 2026-07-28 — the first official matrix corrected competitor fairness
+
+The first content-addressed v2 matrix was honestly red: seven of eight commands
+passed, all three Snapback child receipts validated, and Supabase alone timed
+out waiting for a Postgres Changes event. Retaining the failed receipt was
+useful because it let a fresh Fable 5 review inspect the actual logs and catch
+an inverse fairness problem. Supabase used a strict single-shot shared
+deadline, while Convex could accept a stale `Convex live witness` comment from
+the reused local deployment as its initial subscription snapshot.
+
+Both arms now prove a new event. Convex creates a nonce-named acceptance
+incident, waits for the initial query subscription, inserts a nonce-bearing
+comment, records the subscribe/mutation/delivery timestamps, and deletes the
+complete incident afterward. Supabase creates the same isolated shape, starts
+the delivery budget only after the RPC insert completes, and gives its remote
+hosted transport one bounded retry with a fresh client, socket, channel, and
+witness. The first manual proof of the revised Supabase arm passed in 779 ms;
+the revised Convex arm passed against its local deployment in 5 ms.
+
+This made the comparison more honest rather than easier. A stale row cannot
+turn either native-live check green, a failed first Supabase attempt remains
+visible in stdout, and neither arm silently substitutes a post-event query for
+push delivery. The aggregate receipt also states directly that the local
+matrix does not include the separate staged clean-install browser proof.
+
+The same review window tightened package-publication evidence. Browser
+inspection now traverses custom-class and function-owned properties, bounds
+proof-owned transformations, and receipt-binds the exact host collection APIs
+whose result arrays exist before JavaScript can apply a post-return count
+ceiling. That is a more useful and defensible boundary than claiming the proof
+controls allocations made inside Chromium or CDP.

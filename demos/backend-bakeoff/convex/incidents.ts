@@ -214,7 +214,7 @@ export const addComment = mutation({
   args: { actorId: v.string(), incidentId, body: v.string(), now: v.number() },
   handler: async (ctx, args) => {
     const body = clean(args.body, 'comment');
-    await ctx.db.insert('comments', {
+    const id = await ctx.db.insert('comments', {
       incidentId: args.incidentId,
       authorId: args.actorId,
       body,
@@ -228,6 +228,37 @@ export const addComment = mutation({
       detail: body.slice(0, 80),
       now: args.now,
     });
+    return String(id);
+  },
+});
+
+export const deleteIncidentForAcceptance = mutation({
+  args: { actorId: v.string(), incidentId },
+  handler: async (ctx, args) => {
+    const incident = await ctx.db.get(args.incidentId);
+    if (
+      !incident
+      || incident.commanderId !== args.actorId
+      || !incident.title.startsWith('Bakeoff acceptance ')
+    ) {
+      throw new Error('acceptance incident not found');
+    }
+    const tasks = await ctx.db
+      .query('tasks')
+      .withIndex('by_incident_position', (q) => q.eq('incidentId', args.incidentId))
+      .collect();
+    const comments = await ctx.db
+      .query('comments')
+      .withIndex('by_incident_created', (q) => q.eq('incidentId', args.incidentId))
+      .collect();
+    const activity = await ctx.db
+      .query('activity')
+      .withIndex('by_incident_created', (q) => q.eq('incidentId', args.incidentId))
+      .collect();
+    for (const row of [...tasks, ...comments, ...activity]) {
+      await ctx.db.delete(row._id);
+    }
+    await ctx.db.delete(args.incidentId);
   },
 });
 

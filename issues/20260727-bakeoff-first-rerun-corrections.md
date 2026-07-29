@@ -54,6 +54,33 @@ contracts that must be corrected before rerunning.
   target cannot publish either from type/code presence alone.
 - Replace the cold browser-secret proof's field-name scan with a random
   high-entropy canary that would be inlined if the build leaked it.
+- Make every competitor live witness non-vacuous and comparably bounded.
+  Convex must not accept a stale row from a reused deployment; Supabase must
+  start its delivery budget after the insert and may use only one recorded
+  retry with a fresh transport and witness.
+
+## Official rerun checkpoint — 2026-07-28
+
+The first v2 aggregate receipt is retained at
+`demos/backend-bakeoff/acceptance/results/backend-bakeoff-run.87f231220e684164ec23a3d48a8b646cc141483205dc52d23597f2fd33f5d557.v2.json`.
+It is intentionally and validly failed: seven of eight commands passed and
+Supabase Realtime alone timed out. Fable 5 independently reverified its
+content digest, all logs and child projections, the clean source binding, and
+the runtime identity; the complete review is retained under
+`demos/backend-bakeoff/acceptance/reviews/official-rerun-round1-fable-5.md`.
+
+The review found that the Convex arm could pass from a stale witness in the
+initial subscription snapshot while Supabase used a single shared deadline.
+The corrected arms now use isolated nonce-bound incidents, subscription-ready
+barriers, separate post-insert delivery budgets, timestamped evidence, and
+cleanup. Supabase's one retry owns a fresh client/socket/channel/witness.
+
+The integrated security re-audit also found and closed a final browser proof
+overclaim: receipts now distinguish proof-owned transformations bounded before
+allocation after host return from nine exact browser collection APIs whose
+result allocation cannot be bounded until the host call returns. The second
+green matrix and independent review remain outstanding, so this ticket stays
+open.
 
 ## Acceptance
 
