@@ -102,22 +102,8 @@ export const snapbackProvider = {
     const client = await clientFor(persona);
     const reference = (api as Record<string, unknown>)[name];
     if (!reference) throw new Error(`unknown generated mutation ${name}`);
-    for (let attempt = 0; attempt < 24; attempt += 1) {
-      try {
-        const response = await client.mutate(reference, { args });
-        return response.result as Result;
-      } catch (error: any) {
-        if (
-          error?.diagnostic?.code !== 'SNAPBACK_AUTH_RESERVATION_STALE'
-          || error?.diagnostic?.details?.effectCommitted !== false
-          || attempt === 23
-        ) {
-          throw error;
-        }
-        await new Promise((resolveDelay) => setTimeout(resolveDelay, 5 * (attempt + 1)));
-      }
-    }
-    throw new Error('unreachable mutation retry exhaustion');
+    const response = await client.mutate(reference, { args });
+    return response.result as Result;
   },
   async subscribeActivity(
     personaId: Persona['id'],
@@ -129,10 +115,6 @@ export const snapbackProvider = {
     const suffix = connectionSequence += 1;
     const typingConnectionId = `llp0102_chat_typing_${persona.id}_${suffix}`;
     const presenceConnectionId = `llp0102_chat_presence_${persona.id}_${suffix}`;
-    await Promise.all([
-      client.liveStreamManager(typingConnectionId).waitUntilReady(),
-      client.liveStreamManager(presenceConnectionId).waitUntilReady(),
-    ]);
     const typing = await client.subscribeEphemeral(api.ephemeral.typing, {
       connectionId: typingConnectionId,
       scope: { channelId },

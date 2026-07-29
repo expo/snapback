@@ -544,22 +544,19 @@ try {
       readSet: [{ table: 'tasks', id: first._id, version: conflictBaseline._version }],
     }),
   ];
+  const conflictRetryStarts = [
+    aliceAfterRestart.reservationRetryDiagnostics().length,
+    bobAfterRestart.reservationRetryDiagnostics().length,
+  ];
   const conflictOutcomes = await Promise.allSettled(conflictAttempts.map((attempt) => attempt()));
   assert.equal(conflictOutcomes.filter(({ status }) => status === 'fulfilled').length, 1);
   const rejectedConflictIndex = conflictOutcomes.findIndex(({ status }) => status === 'rejected');
-  const firstConflictCode = diagnosticCode(conflictOutcomes[rejectedConflictIndex].reason);
-  let finalConflictCode = firstConflictCode;
-  if (firstConflictCode === 'SNAPBACK_AUTH_RESERVATION_STALE') {
-    // The documented reservation race precedes the durable transaction.
-    // Retry the complete attempt with its original baseline; the committed
-    // winner must now make that baseline an ordinary data conflict.
-    await delay(25);
-    await assert.rejects(conflictAttempts[rejectedConflictIndex](), (error) => {
-      finalConflictCode = diagnosticCode(error);
-      return finalConflictCode === 'SNAPBACK_MUTATION_CONFLICT';
-    });
-  }
-  assert.equal(finalConflictCode, 'SNAPBACK_MUTATION_CONFLICT');
+  const conflictCode = diagnosticCode(conflictOutcomes[rejectedConflictIndex].reason);
+  assert.equal(conflictCode, 'SNAPBACK_MUTATION_CONFLICT');
+  const conflictRetryDiagnostics = [
+    aliceAfterRestart.reservationRetryDiagnostics().slice(conflictRetryStarts[0]),
+    bobAfterRestart.reservationRetryDiagnostics().slice(conflictRetryStarts[1]),
+  ];
   const conflictAuthoritative = (await aliceAfterRestart.query(api.listTasks, {
     args: { workspaceId: primaryWorkspaceId },
   })).rows.find((task) => task._id === first._id);
@@ -568,9 +565,8 @@ try {
     policy: 'optimistic concurrency control rejects one stale read-set; the authoritative winner is the sole committed title',
     fulfilled: 1,
     rejected: 1,
-    initialRejectionCode: firstConflictCode,
-    finalRejectionCode: finalConflictCode,
-    reservationRetryApplied: firstConflictCode === 'SNAPBACK_AUTH_RESERVATION_STALE',
+    rejectionCode: conflictCode,
+    reservationRetryDiagnostics: conflictRetryDiagnostics.flat(),
     authoritativeTitle: conflictAuthoritative.title,
   });
 
@@ -590,19 +586,19 @@ try {
       readSet: orderRows.map((task) => ({ table: 'tasks', id: task._id, version: task._version })),
     }),
   ];
+  const orderRetryStarts = [
+    aliceAfterRestart.reservationRetryDiagnostics().length,
+    bobAfterRestart.reservationRetryDiagnostics().length,
+  ];
   const orderOutcomes = await Promise.allSettled(orderAttempts.map((attempt) => attempt()));
   assert.equal(orderOutcomes.filter(({ status }) => status === 'fulfilled').length, 1);
   const rejectedOrderIndex = orderOutcomes.findIndex(({ status }) => status === 'rejected');
-  const firstOrderCode = diagnosticCode(orderOutcomes[rejectedOrderIndex].reason);
-  let finalOrderCode = firstOrderCode;
-  if (firstOrderCode === 'SNAPBACK_AUTH_RESERVATION_STALE') {
-    await delay(25);
-    await assert.rejects(orderAttempts[rejectedOrderIndex](), (error) => {
-      finalOrderCode = diagnosticCode(error);
-      return finalOrderCode === 'SNAPBACK_MUTATION_CONFLICT';
-    });
-  }
-  assert.equal(finalOrderCode, 'SNAPBACK_MUTATION_CONFLICT');
+  const orderCode = diagnosticCode(orderOutcomes[rejectedOrderIndex].reason);
+  assert.equal(orderCode, 'SNAPBACK_MUTATION_CONFLICT');
+  const orderRetryDiagnostics = [
+    aliceAfterRestart.reservationRetryDiagnostics().slice(orderRetryStarts[0]),
+    bobAfterRestart.reservationRetryDiagnostics().slice(orderRetryStarts[1]),
+  ];
   const authoritativeOrder = (await aliceAfterRestart.query(api.listTasks, {
     args: { workspaceId: primaryWorkspaceId },
   })).rows.filter((task) => task.listId === firstListId)
@@ -612,8 +608,8 @@ try {
   recordPass('TODO-10-ORDER', {
     concurrentOutcomes: orderOutcomes.map(({ status }) => status),
     conflictPolicy: 'one atomic full-list reorder wins; the stale concurrent reorder is rejected',
-    initialRejectionCode: firstOrderCode,
-    finalRejectionCode: finalOrderCode,
+    rejectionCode: orderCode,
+    reservationRetryDiagnostics: orderRetryDiagnostics.flat(),
     stableUniquePositions: authoritativeOrder.map(({ position }) => position),
   });
 

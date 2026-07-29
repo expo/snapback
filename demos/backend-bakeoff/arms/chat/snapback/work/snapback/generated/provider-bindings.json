@@ -16,7 +16,7 @@
           ]
         },
         "name": "presence",
-        "resultType": "ReadonlyArray<unknown>"
+        "resultType": "ReadonlyArray<{ \"expiresAt\"?: number; \"key\": string; \"self\": boolean; \"sourceClientId\": string; \"updatedAt\": number; \"value\": { \"name\": string; \"state\": string } }>"
       },
       {
         "argumentsType": "{ \"channelId\": string }",
@@ -32,7 +32,7 @@
           ]
         },
         "name": "typing",
-        "resultType": "ReadonlyArray<unknown>"
+        "resultType": "ReadonlyArray<{ \"expiresAt\"?: number; \"key\": string; \"self\": boolean; \"sourceClientId\": string; \"updatedAt\": number; \"value\": { \"active\": boolean; \"name\": string } }>"
       }
     ],
     "mutations": [

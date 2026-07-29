@@ -65,7 +65,9 @@ checks its declared publish rate fits `sustainedHz` at init).
 
 `subscribeEphemeral` returns an overlay that applies the authoritative
 snapshot, then buffers and applies deltas from the shared live socket
-(registered before the snapshot request, so nothing can fall in the gap):
+(registered before the snapshot request, so nothing can fall in the gap).
+The default call acquires and readiness-proves its managed stream itself; do
+not prime it with a durable subscription or call `waitUntilReady()` first:
 
 ```ts source=demos/cursors-web/surfaces/react/src/useCursorRoom.ts
     void client
@@ -91,7 +93,8 @@ from the exact successful subscribe attempt, including a token-refresh retry.
 `onChange` also delivers a level-triggered `'needs_resync'` when
 connection continuity is lost (epoch boundary / queue overflow): present
 degraded state, then re-enter with a fresh `subscribeEphemeral` and swap
-the overlay.
+the overlay. `overlay.dispose()` releases the stream demand. Only manual
+headless drain loops should opt into `transport: "poll"`.
 
 ## 3. Publish samples under the declared budget
 

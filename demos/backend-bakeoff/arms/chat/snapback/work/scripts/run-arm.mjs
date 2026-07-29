@@ -178,31 +178,6 @@ async function expectDenied(operation, label) {
   });
 }
 
-async function withReservationRetry(operation, maximumAttempts = 24) {
-  const diagnostics = [];
-  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
-    try {
-      return {
-        response: await operation(),
-        attempts: attempt + 1,
-        retryDiagnostics: diagnostics,
-      };
-    } catch (error) {
-      const code = diagnosticCode(error);
-      if (
-        code !== 'SNAPBACK_AUTH_RESERVATION_STALE'
-        || error?.diagnostic?.details?.effectCommitted !== false
-        || attempt + 1 >= maximumAttempts
-      ) {
-        throw error;
-      }
-      diagnostics.push(code);
-      await delay(5 * (attempt + 1));
-    }
-  }
-  throw new Error('unreachable reservation retry exhaustion');
-}
-
 async function startVite() {
   const port = await freePort();
   const child = spawn(
@@ -451,8 +426,6 @@ try {
 
   const generalScope = { channelId: channelIds.general };
   const typingViewerConnection = 'llp0102-chat-typing-viewer';
-  const typingViewerStream = aliceClient.liveStreamManager(typingViewerConnection);
-  await typingViewerStream.waitUntilReady();
   const typingViewer = await aliceClient.subscribeEphemeral(api.ephemeral.typing, {
     connectionId: typingViewerConnection,
     scope: generalScope,
@@ -493,8 +466,6 @@ try {
   });
 
   const presenceViewerConnection = 'llp0102-chat-presence-viewer';
-  const presenceViewerStream = aliceClient.liveStreamManager(presenceViewerConnection);
-  await presenceViewerStream.waitUntilReady();
   const presenceViewer = await aliceClient.subscribeEphemeral(api.ephemeral.presence, {
     connectionId: presenceViewerConnection,
     scope: generalScope,
@@ -589,14 +560,22 @@ try {
     `concurrent-alice-${Date.now()}`,
     `concurrent-bob-${Date.now()}`,
   ];
+  const concurrentRetryStarts = [
+    aliceClient.reservationRetryDiagnostics().length,
+    bobClient.reservationRetryDiagnostics().length,
+  ];
   const concurrent = await Promise.all([
-    withReservationRetry(() => aliceClient.mutate(api.sendMessage, {
+    aliceClient.mutate(api.sendMessage, {
       args: { channelId: projectAlphaId, body: concurrentBodies[0] },
-    })),
-    withReservationRetry(() => bobClient.mutate(api.sendMessage, {
+    }),
+    bobClient.mutate(api.sendMessage, {
       args: { channelId: projectAlphaId, body: concurrentBodies[1] },
-    })),
+    }),
   ]);
+  const concurrentRetryDiagnostics = [
+    aliceClient.reservationRetryDiagnostics().slice(concurrentRetryStarts[0]),
+    bobClient.reservationRetryDiagnostics().slice(concurrentRetryStarts[1]),
+  ];
   const concurrentRows = (await aliceClient.query(api.listMessages, {
     args: { channelId: projectAlphaId },
   })).rows.filter((row) => concurrentBodies.includes(row.body));
@@ -606,9 +585,14 @@ try {
   assert(orderedConcurrent[0].sequence < orderedConcurrent[1].sequence);
   recordPass('CHAT-11-CONCURRENT-SEND', {
     barrier: 'Promise.all from distinct authenticated clients',
-    settlements: concurrent.map(({ response }) => response.receipt),
-    attempts: concurrent.map(({ attempts }) => attempts),
-    retryDiagnostics: concurrent.flatMap(({ retryDiagnostics }) => retryDiagnostics),
+    settlements: concurrent.map(({ receipt }) => receipt),
+    attempts: concurrentRetryDiagnostics.map((diagnostics) =>
+      diagnostics.findLast(({ attempts }) => attempts)?.attempts
+        ?? diagnostics.reduce(
+          (highest, diagnostic) => Math.max(highest, diagnostic.nextAttempt ?? 1),
+          1,
+        )),
+    retryDiagnostics: concurrentRetryDiagnostics.flat(),
     authoritativeOrder: orderedConcurrent.map(({ body, sequence }) => ({
       bodyHash: sha256(body),
       sequence,
@@ -812,12 +796,12 @@ try {
     for (let index = 0; index < 20; index += 1) {
       perfSequence += 1;
       const client = index % 2 === 0 ? aliceAfterRestart : bobAfterRestart;
-      attempts.push(withReservationRetry(() => client.mutate(api.sendMessage, {
+      attempts.push(client.mutate(api.sendMessage, {
         args: {
           channelId: projectAlphaId,
           body: `performance-burst-${perfSequence}`,
         },
-      })));
+      }));
     }
     await Promise.all(attempts);
   });

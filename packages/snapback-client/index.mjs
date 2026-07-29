@@ -6071,6 +6071,15 @@ export class SnapbackClient {
       externalBearerTransitionPermit = null,
     ) => {
       if (!subscriptionId) return Promise.resolve();
+      // A query-scoped terminal invalidation has already destroyed this
+      // exact server subscription and its authorization fence. Unlike a
+      // whole-session terminal blank, it does not pass through the global
+      // auth-materialization callback below, so recognize it here before
+      // attempting a second retirement under an intentionally stale capture.
+      if (terminalQueryDeleted()) {
+        markKnownSubscriptionRetired(subscriptionId);
+        return Promise.resolve(alreadyRetiredResponse(subscriptionId));
+      }
       if (isKnownSubscriptionRetired(subscriptionId)) {
         return Promise.resolve(alreadyRetiredResponse(subscriptionId));
       }

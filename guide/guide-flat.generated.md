@@ -918,6 +918,12 @@ The reachable-client sequence is:
    queue/store resolution, and local boundary.
 5. Only after that commit does it acknowledge the opaque resolution token.
 
+Within one authenticated authorization-stream incarnation, a strictly greater
+authorization epoch is the current obligation, not a stale subscribe
+expectation. The client advances that exact fence before applying the
+resolution. A lower epoch or different incarnation/version stream remains
+stale and requires the normal replacement bootstrap.
+
 The kit test pins the order:
 
 ```js source=demos/_kit/tests/auth-invalidation-client.mjs
@@ -1818,6 +1824,9 @@ Authorization-protected writes have one additional pre-transaction conflict:
 clients recognize only that exact closed refusal and retry the complete write
 within a bounded short-jitter budget. They do not retry a missing fact, a
 different status, an ambiguous outcome, or anything that may have committed.
+Every retry remains pinned to the first attempt's exact authority/carrier
+generation; logout, user switch, or credential replacement fails the operation
+stale instead of replaying predecessor intent as the successor.
 Do not add an application retry loop, treat it as backend downtime, or use
 service-style exponential backoff.
 
@@ -3535,7 +3544,10 @@ within its bounded client budget. Construction options
 budget. `reservationRetryDiagnostics()` and
 `onReservationRetryDiagnostic` expose structured scheduled, settled, and
 exhausted attempt evidence. No other status or ambiguous/committed outcome is
-automatically retried.
+automatically retried. The retry episode is pinned to the first attempt's
+authority/carrier generation: an overlapping logout, user switch, or bearer
+replacement fails with `SNAPBACK_CLIENT_AUTHORITY_STALE` and never replays the
+old arguments as the successor.
 
 ## Subscribe to durable state
 
@@ -3552,6 +3564,21 @@ Use `transport: 'stream'` for managed WebSocket push; the manager multiplexes
 all durable and ephemeral consumers sharing a `connectionId`. Consume
 `onUpdate`, `onConnectionChange`, subscription events, and authorization
 callbacks instead of reading socket internals. Always dispose the handle.
+High-level handle retirement is idempotent across ordinary disposal, repeated
+disposal, logout, and terminal authority loss. If the server confirms that
+this handle's exact subscription generation is already absent, lifecycle
+cleanup returns the typed
+`SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED` outcome and does not send another
+server effect. The same local-only outcome applies after this query's own
+terminal authorization deletion, whose exact server subscription and fence
+have already been retired. The low-level public `unsubscribeLive` method remains strict:
+foreign ids and ownership/session mismatches are errors, not idempotent
+success. `dispose()` performs local teardown synchronously and returns an
+awaitable cleanup task. UI unmount code may safely ignore it; acceptance and
+operations code should await it when typed server cleanup failures matter.
+`subscriptionId` is a read-only view of the handle's internally owned
+generation, so application code cannot substitute a foreign id into the
+idempotent path.
 
 The managed stream sends application ping frames every five seconds and forces
 reconnect only after its 15-second freshness budget is missed. A quiet socket
@@ -4173,6 +4200,13 @@ A binding must cover:
 | transient reservation conflict | retry only the exact typed refusal within the client budget |
 | terminal auth | expose an error state and blank predecessor materialization before callbacks resume |
 | scope disposal | release every handle even if an observer throws |
+
+High-level handle disposal is idempotent after its own logout or terminal
+authority retirement. Keep that exact-handle behavior in the binding; do not
+catch arbitrary low-level `unsubscribeLive` errors, because foreign ids and
+ownership/session mismatches remain fail-closed. View unmount may ignore the
+returned cleanup task after synchronous local teardown; lifecycle tests and
+operational cleanup should await it so genuine typed failures stay visible.
 
 The headless JS handle already supplies `pause()`, `resume()`, `dispose()`,
 connection events, and error state. Native clients expose equivalent
@@ -6116,6 +6150,11 @@ asserts on delta kinds like this:
 Membership-gated live replacement does not make a query safe for offline
 retention. V1 refuses retained role-gated queries until an authorized lease can
 bind the exact membership declaration/resource dependency and expiry floor.
+For online live state, declaration-bound `requireRole` dependencies are
+revocation-active: resource- or app-scoped membership deletion/downgrade first
+blanks the established result, then a trusted denial terminally deletes it and
+ACKs the exact obligation. Fresh reads remain denied and later writes cannot
+repopulate that handle.
 
 ## Connection state an author can observe
 
@@ -6269,7 +6308,15 @@ authorization beyond connection ownership is not shipped.
 
 `subscribeEphemeral(ref, { connectionId, scope, ... })` registers the lane
 consumer before requesting its authoritative snapshot, buffers in-flight
-deltas, then applies them after the snapshot boundary. The returned overlay
+deltas, then applies them after the snapshot boundary. Its default
+`transport: "stream"` path acquires managed-socket demand and proves current
+ping/pong readiness itself before subscribing; a fresh connection label needs
+no prior durable query and no manual
+`liveStreamManager(connectionId).waitUntilReady()` call. The overlay owns that
+demand until `dispose()`. Use `transport: "poll"` only for an explicit
+headless/manual-drain consumer.
+
+The returned overlay
 provides `currentEntries()`, `onChange`, `publish`, `delete`, `drain`, and
 `dispose`, plus `grantedConnectionId`: the exact opaque connection id used by
 that successful subscribe. Compare a connection-owned entry's `key` with this
@@ -6312,7 +6359,9 @@ Contract component reads the map as an `ephemeral` binding:
 
 The surface prewarms the room and configures the generated links; authored
 `publish ... rate=N` channels are statically checked against the generated
-publish budget. Keep imperative overlays in headless/React code and generated
+publish budget. Generated result rows preserve the collection's schema-known
+value type; a typed value must not degrade to `unknown` at provider
+introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
 
@@ -6511,7 +6560,9 @@ checks its declared publish rate fits `sustainedHz` at init).
 
 `subscribeEphemeral` returns an overlay that applies the authoritative
 snapshot, then buffers and applies deltas from the shared live socket
-(registered before the snapshot request, so nothing can fall in the gap):
+(registered before the snapshot request, so nothing can fall in the gap).
+The default call acquires and readiness-proves its managed stream itself; do
+not prime it with a durable subscription or call `waitUntilReady()` first:
 
 ```ts source=demos/cursors-web/surfaces/react/src/useCursorRoom.ts
     void client
@@ -6537,7 +6588,8 @@ from the exact successful subscribe attempt, including a token-refresh retry.
 `onChange` also delivers a level-triggered `'needs_resync'` when
 connection continuity is lost (epoch boundary / queue overflow): present
 degraded state, then re-enter with a fresh `subscribeEphemeral` and swap
-the overlay.
+the overlay. `overlay.dispose()` releases the stream demand. Only manual
+headless drain loops should opt into `transport: "poll"`.
 
 ## 3. Publish samples under the declared budget
 

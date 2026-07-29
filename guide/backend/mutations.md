@@ -111,6 +111,9 @@ Authorization-protected writes have one additional pre-transaction conflict:
 clients recognize only that exact closed refusal and retry the complete write
 within a bounded short-jitter budget. They do not retry a missing fact, a
 different status, an ambiguous outcome, or anything that may have committed.
+Every retry remains pinned to the first attempt's exact authority/carrier
+generation; logout, user switch, or credential replacement fails the operation
+stale instead of replaying predecessor intent as the successor.
 Do not add an application retry loop, treat it as backend downtime, or use
 service-style exponential backoff.
 
