@@ -3,6 +3,67 @@ import assert from 'node:assert/strict';
 import { SnapbackClient } from './index.mjs';
 
 const originalFetch = globalThis.fetch;
+const SESSION_USER_ID = '018f0d90-7b12-7a22-8c33-445566778899';
+const SESSION_ID = '018f0d90-7b13-7a22-8c33-445566778899';
+const SESSION_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
+const sessionHandshake = {
+  protocolVersion: 1,
+  serverStartupNonce: 'startup-reservation-retry',
+  authorizationStreamIncarnation: SESSION_INCARNATION,
+  transitionGeneration: 1,
+  activeMode: 'sessions',
+  desiredMode: 'sessions',
+  modeState: 'settled',
+  appDataAvailability: 'available',
+  quarantineCode: null,
+  clientProtocols: {
+    authClient: 1,
+    authInvalidation: 1,
+    authorityDescriptor: 1,
+    authorizedLease: null,
+  },
+  availability: {
+    onlineRequestResponse: { available: true, reason: null },
+    authScopedLive: {
+      available: true,
+      minimumAuthInvalidationProtocol: 1,
+      reason: null,
+    },
+    retainedReads: {
+      available: false,
+      minimumAuthInvalidationProtocol: 1,
+      minimumAuthorizedLeaseProtocol: 1,
+      reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+    },
+    queuedReplay: {
+      available: true,
+      minimumAuthorityDescriptorProtocol: 1,
+      reason: null,
+    },
+  },
+  provider: { key: 'email-code', available: true },
+  transports: ['bearer'],
+  authority: {
+    kind: 'humanSession',
+    userId: SESSION_USER_ID,
+    sessionId: SESSION_ID,
+    isAuthenticated: true,
+  },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: SESSION_INCARNATION,
+    sessionGeneration: 1,
+  },
+  deploymentIdentity: {
+    schemaVersion: 'snapback.v1',
+    authMode: 'sessions',
+    appId: '018f0d90-7b14-7a22-8c33-445566778899',
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+  },
+  authorizedLease: null,
+};
 const stale = ({
   status = 409,
   details = {
@@ -64,6 +125,44 @@ try {
     assert.equal(diagnostics[1].attempts, 2);
     assert.deepEqual(subject.reservationRetryDiagnostics(), diagnostics);
     assert.equal(subject.receipts().length, 1, 'only the confirmed attempt records a receipt');
+  }
+
+  {
+    const mutationBearers = [];
+    let transition = null;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === '/auth/session') return Response.json(sessionHandshake);
+      if (path === '/mutation/writeAsCapturedUser') {
+        mutationBearers.push(new Headers(init.headers).get('authorization'));
+        return stale();
+      }
+      throw new Error(`unexpected authority-pinning request: ${path}`);
+    };
+    let subject;
+    subject = new SnapbackClient('https://snapback.test', {
+      bearerToken: 'bearer-A',
+      authClientProtocol: 1,
+      authInvalidationProtocol: 1,
+      reservationRetryJitterMilliseconds: [0, 0],
+      onReservationRetryDiagnostic: (diagnostic) => {
+        if (diagnostic.outcome === 'effect-free-refusal') {
+          transition = subject.replaceBearerToken('bearer-B');
+        }
+      },
+    });
+    await assert.rejects(
+      subject.mutate('writeAsCapturedUser', { args: { owner: 'A' } }),
+      (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      'a retry must fail closed when its external bearer generation changes',
+    );
+    await transition;
+    assert.deepEqual(
+      mutationBearers,
+      ['Bearer bearer-A'],
+      'predecessor intent is never replayed under the successor bearer',
+    );
+    assert.equal(subject.bearerToken, 'bearer-B');
   }
 
   {

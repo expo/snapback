@@ -4261,18 +4261,49 @@ export class SnapbackClient {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
+    let reservationRetryAuthorityCapture = authorityCapture;
+    let reservationRetryExternalBearer = null;
+    let reservationRetryExternalTransportGeneration = null;
+    if (!this.authorityFence && this.authProtocols.authClient === 1) {
+      // A call started during an explicit bearer transition belongs to the
+      // successor, but once its first attempt starts every automatic retry
+      // remains pinned to that exact carrier generation.
+      if (this.__externalBearerTransition) await this.__externalBearerTransition;
+      reservationRetryExternalBearer = this.bearerToken;
+      reservationRetryExternalTransportGeneration = this.__authTransportGeneration;
+    }
+    const assertReservationRetryAuthority = () => {
+      if (reservationRetryAuthorityCapture !== null) {
+        const current = this.captureAuthority();
+        if (!sameAuthorityCapture(current, reservationRetryAuthorityCapture)) {
+          throw staleAuthorityError();
+        }
+      }
+      if (
+        reservationRetryExternalTransportGeneration !== null
+        && (
+          this.__externalBearerTransition !== null
+          || this.bearerToken !== reservationRetryExternalBearer
+          || this.__authTransportGeneration
+            !== reservationRetryExternalTransportGeneration
+        )
+      ) {
+        throw staleAuthorityError();
+      }
+    };
     for (
       let attempt = 1;
       attempt <= this.reservationRetryMaxAttempts;
       attempt += 1
     ) {
+      assertReservationRetryAuthority();
       try {
         const json = await this.#req(
           'POST',
           `/mutation/${encodeURIComponent(name)}`,
           body,
           undefined,
-          { expectedAuthorityCapture: authorityCapture },
+          { expectedAuthorityCapture: reservationRetryAuthorityCapture },
         );
         if (json?.receipt) {
           this.recordReceipt(json.receipt, json?.[AUTHORITY_CAPTURE] ?? null);
@@ -4283,7 +4314,6 @@ export class SnapbackClient {
             mutation: name,
             outcome: 'settled',
             attempts: attempt,
-            effectCommittedExactlyOnce: true,
           });
         }
         return json;
@@ -4292,6 +4322,22 @@ export class SnapbackClient {
         // envelope) — retain it before rethrowing.
         if (error?.receipt) this.recordReceipt(error.receipt);
         if (!this.#isEffectFreeReservationStale(error)) throw error;
+        if (this.authorityFence) {
+          const refusalCapture = this.authorityCaptureFor(error);
+          if (reservationRetryAuthorityCapture === null) {
+            if (refusalCapture === null) throw staleAuthorityError();
+            reservationRetryAuthorityCapture = refusalCapture;
+          } else if (
+            refusalCapture !== null
+            && !sameAuthorityCapture(
+              refusalCapture,
+              reservationRetryAuthorityCapture,
+            )
+          ) {
+            throw staleAuthorityError();
+          }
+        }
+        assertReservationRetryAuthority();
         if (attempt >= this.reservationRetryMaxAttempts) {
           this.#recordReservationRetryDiagnostic({
             code: 'SNAPBACK_AUTH_RESERVATION_RETRY_EXHAUSTED',
