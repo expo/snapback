@@ -707,3 +707,92 @@ Finally, match truly opaque secrets: runtime presence should be provable without
 management APIs, logs, receipts, or diagnostics revealing the value. A native
 semantic retrieval path remains a meaningful completeness differentiator for
 AI-shaped applications.
+
+## 2026-07-29 — Convex, deep round untimed extension, stopped
+
+### Environment and outcome
+
+The arm used Convex client/CLI 1.42.3 and a fresh anonymous local beta
+deployment on the Minisforum worker. All target, browser, configuration, and
+CLI state was worktree-local under namespace
+`llp0102-research-convex-w2`. Hosted production evidence was unavailable.
+
+The timed window froze before scenario work when an isolation diagnostic
+revealed a Stop-class defect. The exact first target was contained and deleted,
+the affected credential was rotated, and the r2 work continued only as an
+explicit untimed extension. The final result is 14 passes and one secrets
+failure.
+
+### What felt good
+
+Convex fit this application unusually well. One schema declared ordinary,
+full-text, and vector indexes. Scheduled mutations made four separately
+committed progress updates straightforward, and Bob's second native client
+observed each update without a custom subscription server.
+
+Native upload URLs, file identity, delivery, and deletion covered the source
+lifecycle with little glue. Generated APIs caught schema/function mistakes
+quickly. Queries and mutations made room-membership checks legible, while a
+compound room/dedupe index naturally converged retries on one question and
+answer.
+
+The settlement behavior was strong. Every scheduled progress mutation
+rechecked durable state, cancellation fenced both scheduled and explicitly
+injected late writes, and complete, failed, cancelled, timed-out, and ambiguous
+outcomes stayed distinct.
+
+### What felt bad or frustrating
+
+The local CLI path was surprisingly inconsistent. The explicit local creation
+command required login despite the anonymous-local documentation, while the
+less explicit `convex dev --once` path succeeded. Fixed local ports existed
+only as hidden flags, forcing source inspection to preserve worker isolation.
+
+The serious issue is operational security: the official local backend places a
+generated control credential in process argv and binds backend and site
+listeners to wildcard addresses. The application canary itself stayed
+server-side, but the product-level secret-boundary scenario must still fail.
+
+Our first process diagnostic also printed that argv into orchestration output.
+That was a separate builder failure, not evidence against Convex's application
+API. It happened before scenario work and was contained by deleting the target,
+rotating the credential, and retaining only hashes and redacted process facts.
+The provider behavior reproduced after rotation.
+
+Vector search also requires action → internal query → vector search → internal
+query composition so authorization and document hydration remain correct. It
+works, but adds conceptual overhead.
+
+### Realtime, operations, and performance
+
+Alice, Bob, and Mallory were distinct native local acting identities. Mallory's
+query, action, and subscription paths all refused protected data. This is good
+local acceptance evidence, though it does not prove hosted production Auth.
+
+Median local timings were 0.897 ms read, 8.256 ms write, 12.920 ms realtime,
+2.323 ms reconnect, and 172.361 ms build. Each path retains two warmups and
+seven samples. Because the Stop froze the timed window before scenarios, these
+remain untimed-extension measurements rather than a first-hour claim.
+
+Cleanup first deleted application data through the provider, then removed the
+exact process tree, listeners, target paths, configuration, and rotated
+credential. Final exact-value and generic scans are clean.
+
+### Would I choose it?
+
+No for this app on the tested local version while the Stop defect exists. If
+Convex removes control credentials from argv and defaults local listeners to
+loopback, it becomes a strong candidate: realtime, storage, scheduling,
+full-text search, and vector search are unusually complete and concise.
+
+### Lessons for Snapback
+
+Match the outcome of declarative transactional full-text and vector retrieval
+beside ordinary schema. Match scheduler-authored durable progress becoming
+realtime automatically for authorized subscribers, and provide deterministic
+development identities for multi-actor acceptance.
+
+Keep secrets out of argv by construction, bind local services to loopback by
+default, and make fixed-port isolation controls documented. Preserve
+Snapback's stronger settlement vocabulary while making the common
+action/query composition as compact as Convex's best paths.

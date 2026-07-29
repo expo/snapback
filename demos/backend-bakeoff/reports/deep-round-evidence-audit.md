@@ -976,3 +976,72 @@ synthesis remain coordinator-owned.
   hashes are retained after the cross-lane secret-safety amendment.
 - Adjudication: complete. No Stop-class disclosure, late durable patch,
   destructive cleanup, or false capability claim occurred.
+
+## Research Room / Convex
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator correction of
+  the frozen product source/base-commit fields.
+- Frozen identities: exact repaired Snapback source commit, coordinator base,
+  freeze aggregate, canonical r2 attempt ID, Convex client/CLI 1.42.3, fresh
+  anonymous local target hash, namespace, and cleanup identity agree. Hosted
+  production evidence is unavailable and remains explicitly unclaimed.
+- Results: 14 PASS, 1 FAIL. The application canary remained server-side, but
+  RESEARCH-13 fails because the official local backend receives its independent
+  control credential in process argv. The same runtime also binds backend and
+  site listeners to wildcard addresses. This is a provider Stop-class defect,
+  so Convex is ineligible as the go-to Research Room choice at the tested
+  version despite passing every other scenario.
+- Incident separation: the first diagnostic printed the unredacted process
+  argv into orchestration output. That propagation is a distinct builder
+  Stop-class failure. It occurred before scenario work; the exact r1 target was
+  contained and deleted, its credential was rotated, and all retained r2
+  diagnostics record only hashes, flag names, PIDs, executables, owners, and
+  bind addresses. The provider behavior reproduced after rotation.
+- Evidence confidence: coordinator-confirmed 14/16. Actor authority,
+  transaction/settlement, native push, cleanup, and artifact reproducibility
+  are direct. Reconnect is direct but no durable offline claim is made, so
+  offline/reconnect is 1. Fresh local target identity is direct, but hosted
+  identity is unavailable, so target identity is 1.
+- Referenced evidence: all nine unique capsule paths resolve. Acceptance,
+  cleanup, inventory, and capsule hashes match the retained digest ledger after
+  the coordinator identity correction. Generic credential-shaped scans find no
+  retained values; only SHA-256 fingerprints and the affected argv flag name
+  remain.
+- Authority: three native local acting identities exercise member and outsider
+  paths. Mallory's query, action, and subscription surfaces all refuse
+  protected room data. This is strong local development-authority evidence,
+  not production Convex Auth evidence.
+- Files/search: native upload, delivery, ownership, deletion, and post-delete
+  probes cover the 64 KiB source. Declared full-text and vector indexes return
+  the deterministic authorized keyword and nearest-neighbor sets. Vector
+  retrieval requires action-to-internal-query composition, but no external
+  search service or scan fallback is used.
+- Streaming/cancellation: four scheduled mutations write separately committed
+  progress rows, observed by Bob's independent native WebSocket client.
+  Cancellation changes the durable state first; scheduled and injected late
+  attempts may record rejection but cannot patch progress or an answer.
+- Retry/outcomes: the compound room/dedupe index converges two attempts on one
+  question and answer while retaining attempt lineage. Complete, failed,
+  cancelled, timed-out, and ambiguous values remain distinct.
+- Scheduling/secrets: native scheduled functions and a deterministic HTTP
+  action cover refresh. The application-owned canary passes exact-value,
+  bundle, evidence, and log scans. That narrower pass cannot override the
+  separate platform control-credential exposure.
+- Performance: read, write, realtime, reconnect, and production build each
+  retain two warmups, seven raw samples, median, and nearest-rank p95. Medians
+  are 0.897 ms read, 8.256 ms write, 12.920 ms realtime, 2.323 ms reconnect,
+  and 172.361 ms build on the fresh local target. The timed window froze at the
+  Stop before scenario work; all scenario measurements are explicitly an
+  untimed extension.
+- Cleanup: authoritative provider deletion reaches zero for all application
+  tables before the exact target process tree, listeners, config, state paths,
+  and rotated credential are removed. Final probes show zero rows, listeners,
+  recorded processes, target paths, or exact credential/canary matches.
+- Dependency/experience audit: about 105 MB of installed dependencies; generated
+  APIs, lockfile, deterministic fixtures, samples, cleanup scripts, and hashes
+  are retained. Anonymous local provisioning documentation and CLI behavior
+  disagreed, and isolation-critical fixed-port flags were hidden.
+- Adjudication: stopped for a provider Stop-class defect, with the separate
+  builder propagation contained and recorded. No result is promoted from the
+  untimed extension into a false first-window claim, and no hosted conclusion
+  is inferred.

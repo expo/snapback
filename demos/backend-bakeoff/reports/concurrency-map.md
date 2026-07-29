@@ -146,6 +146,6 @@ violate that order.
 | Research Room / Supabase | Complete | 15 PASS on a fresh prospective r2 target after a contained builder Stop; 14/16 calibrated confidence, diary, central audit, and exact two-target cleanup integrated |
 | Research Room / Firebase | Complete | 15 PASS, 15/16 coordinator-calibrated confidence, diary, central audit, screenshot/hash proof, and exact data/process/port cleanup integrated |
 | Research Room / SpacetimeDB | Complete | 13 PASS, two product GAPs, 15/16 calibrated confidence, diary, central audit, and exact database/process/port cleanup integrated |
-| Research Room / Convex | Assigned | Worker 2 queued on a fresh Minisforum anonymous deployment after Research/Supabase cleanup |
+| Research Room / Convex | Complete | 14 PASS, one Stop-class secrets FAIL, 14/16 coordinator-calibrated confidence, diary, central audit, exact rotated-target cleanup, and retained provider/builder defect separation integrated |
 | Research Room / Appwrite | Complete | 14 PASS, one native-vector GAP, 13/16 coordinator-calibrated confidence, diary, central audit, browser evidence, and exact Compose cleanup integrated |
 | Research Room / InstantDB | Complete | 11 PASS, four product/cleanup GAPs, 13/16 calibrated confidence, diary, central audit, screenshot/path proof, and scoped hosted cleanup integrated |
