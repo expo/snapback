@@ -9,253 +9,396 @@
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
     "providerVersions": {
-      "product": "SpacetimeDB",
+      "product": "SpacetimeDB 2.7.0",
       "client": "2.7.0",
-      "cli": "2.7.0"
+      "cli": "2.7.0-hotfix3 (d220349)"
     },
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "startedAt": "2026-07-29T07:34:04Z",
+    "finishedAt": "2026-07-29T08:05:36Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
-    "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "activeElapsedMs": 1892649,
+    "toolCalls": 61,
+    "timedWindowFrozenAt": "2026-07-29T08:05:36Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "9be6e3fbcf781a84c4e688bee8db628229de7d1e4ffb09d793a91ba5f9608c25",
+      "role": "owner"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "1039291a006013c8a4e1e3d1b74d54305033a0a12b932da033046f534b1839bd",
+      "role": "member"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "edd1d73498697aa63de700dda64aadbc3002d0f9f13a36c5db61bc957f742667",
       "role": "outsider"
     }
   },
   "targets": {
     "binding": {
       "mode": "fresh-local",
-      "namespace": "llp0102-research-room-spacetimedb-deep-research-room-spacetimedb-deep-01",
-      "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "namespace": "llp0102-research-spacetimedb-w1",
+      "baselineReceiptPath": "receipts/target-identity.v1.json",
+      "scopedCleanupPlanPath": "receipts/cleanup.v1.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
-      "profile": "official standalone local server",
+      "status": "cleaned",
+      "identityHash": "d04326695027c08e10c08a26924015299ffb59bb7f3529479abd4a0872980247",
+      "profile": "official SpacetimeDB 2.7 standalone local server",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "receipts/target-identity.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
     },
     "hosted": {
       "status": "explicit-gap",
       "identityHash": "",
       "profile": "Maincloud managed database/module",
-      "plan": "Maincloud Pro",
+      "plan": "shared/free target unavailable without an arm-scoped credential",
       "region": "provider-selected",
       "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
       "receiptPaths": []
     }
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "firstLocalReadMs": 1694000,
+    "firstAuthoritativeMutationMs": 1694000,
+    "firstRealtimeTransitionMs": 1695000,
+    "localAcceptanceMs": 1698680,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 1788000
   },
-  "assistanceEvents": [],
-  "commands": [],
+  "assistanceEvents": [
+    {
+      "kind": "cross-arm-convention-inspection",
+      "reason": "Consulted the existing SpacetimeDB chat arm only for isolated CLI and standalone lifecycle conventions.",
+      "sources": [
+        "demos/backend-bakeoff/arms/chat/spacetimedb"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "reason": "Used current official documentation for private tables, caller-dependent views, scheduled tables, procedures, HTTP, files, TypeScript clients, and CLI operations.",
+      "sources": [
+        "https://spacetimedb.com/docs"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "install isolated SpacetimeDB CLI 2.7.0",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267001683,
+      "finishedMonotonicMs": 267080000
+    },
+    {
+      "command": "spacetime start --listen-addr 127.0.0.1:3344",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267080001,
+      "finishedMonotonicMs": 267088000
+    },
+    {
+      "command": "spacetime build --project-path work/module/spacetimedb",
+      "exitStatus": 1,
+      "classification": "authoring-type-error",
+      "startedMonotonicMs": 267088001,
+      "finishedMonotonicMs": 267160000
+    },
+    {
+      "command": "spacetime build --project-path work/module/spacetimedb",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267160001,
+      "finishedMonotonicMs": 267235000
+    },
+    {
+      "command": "spacetime publish --server http://127.0.0.1:3344 llp0102-research-spacetimedb-w1",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267235001,
+      "finishedMonotonicMs": 267250000
+    },
+    {
+      "command": "spacetime generate --lang typescript --out-dir work/client/src/module_bindings",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267250001,
+      "finishedMonotonicMs": 267275000
+    },
+    {
+      "command": "spacetime generate --lang typescript --out-dir work/harness/module_bindings",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267275001,
+      "finishedMonotonicMs": 267300000
+    },
+    {
+      "command": "bun run tsc --noEmit",
+      "exitStatus": 1,
+      "classification": "generated-client-authoring-type-error",
+      "startedMonotonicMs": 267300001,
+      "finishedMonotonicMs": 267330000
+    },
+    {
+      "command": "bun run tsc --noEmit",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267330001,
+      "finishedMonotonicMs": 267360000
+    },
+    {
+      "command": "bun run build",
+      "exitStatus": 0,
+      "startedMonotonicMs": 267360001,
+      "finishedMonotonicMs": 267390000
+    },
+    {
+      "command": "bun run verify (localhost scheduled HTTP endpoint)",
+      "exitStatus": 1,
+      "classification": "expected-ssrf-refusal",
+      "startedMonotonicMs": 267390001,
+      "finishedMonotonicMs": 268540000
+    },
+    {
+      "command": "bun run verify (public non-deterministic endpoint)",
+      "exitStatus": 1,
+      "classification": "external-endpoint-non-200",
+      "startedMonotonicMs": 268540001,
+      "finishedMonotonicMs": 268610000
+    },
+    {
+      "command": "bun run verify (stable RFC 2606 public document)",
+      "exitStatus": 0,
+      "startedMonotonicMs": 268610001,
+      "finishedMonotonicMs": 268705000
+    },
+    {
+      "command": "nine recorded spacetime build/deploy benchmark iterations",
+      "exitStatus": 0,
+      "startedMonotonicMs": 268705001,
+      "finishedMonotonicMs": 268780000
+    },
+    {
+      "command": "spacetime delete --server http://127.0.0.1:3344 llp0102-research-spacetimedb-w1",
+      "exitStatus": 0,
+      "startedMonotonicMs": 268780001,
+      "finishedMonotonicMs": 268810000
+    },
+    {
+      "command": "post-delete SQL and HTTP probes",
+      "exitStatus": 0,
+      "startedMonotonicMs": 268810001,
+      "finishedMonotonicMs": 268825000
+    },
+    {
+      "command": "terminate exact arm-owned processes and prove assigned ports closed",
+      "exitStatus": 0,
+      "startedMonotonicMs": 268825001,
+      "finishedMonotonicMs": 268894332
+    }
+  ],
   "scenarioResults": [
     {
       "id": "RESEARCH-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json", "receipts/actors.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "private tables plus identity-scoped views contain two rooms, twenty 64 KiB sources, 32-dimensional embeddings, and three independent identities",
+      "note": "fresh target"
     },
     {
       "id": "RESEARCH-02-FILES",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "uploaded inline bytes round-trip with matching hash; Bob delete is refused; Alice delete evicts the subscribed row",
+      "note": "native table bytes, metadata, authority, and delivery path"
     },
     {
       "id": "RESEARCH-03-OUTSIDER",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "Mallory caller-dependent views are empty and direct private-table subscription is rejected",
+      "note": "negative authority evidence retained"
     },
     {
       "id": "RESEARCH-04-KEYWORD",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "server reducer scan materializes source-01 and source-02 in the identity-scoped result view",
+      "note": "authoritative server search"
     },
     {
       "id": "RESEARCH-05-SEMANTIC",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "gap",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "capability nonclaim",
+      "note": "SpacetimeDB 2.7 stores vectors but exposes no ordinary native vector index or nearest-neighbor query path; no fallback was used"
     },
     {
       "id": "RESEARCH-06-PROGRESS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "four distinct scheduled reducer commits arrive before terminal completion",
+      "note": "durable sequence and callback ordering retained"
     },
     {
       "id": "RESEARCH-07-CITATIONS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "completed answer retains two source citations resolvable through room authority",
+      "note": "source IDs and filenames retained"
     },
     {
       "id": "RESEARCH-08-COLLABORATOR",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "Bob receives all four Alice progress transitions through native WebSocket row callbacks",
+      "note": "no product-state polling"
     },
     {
       "id": "RESEARCH-09-CANCEL",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "confirmed cancellation deletes scheduled work and a late-patch probe leaves progress and terminal state unchanged",
+      "note": "350 ms post-probe observation"
     },
     {
       "id": "RESEARCH-10-RETRY",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "a repeated reducer call with the same idempotency key preserves exactly one question and answer lineage",
+      "note": "unique-index-backed idempotency"
     },
     {
       "id": "RESEARCH-11-OUTCOMES",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "five fixtures retain distinct durable complete, failed, timed-out, cancelled, and ambiguous outcome/effect pairs",
+      "note": "settlement distinctions are server-authoritative"
     },
     {
       "id": "RESEARCH-12-SCHEDULE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json", "receipts/commands-and-failures.v1.json"],
+      "transport": "push",
+      "authoritativeCheck": "schedule table invokes a native HTTP procedure against a stable RFC 2606 public document and commits one idempotent refresh result",
+      "note": "initial localhost attempt was correctly refused by SpacetimeDB SSRF protection"
     },
     {
       "id": "RESEARCH-13-SECRETS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "gap",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "capability nonclaim",
+      "note": "SpacetimeDB 2.7 exposes no native module secret-management or injection surface; no secret or canary value was fabricated"
     },
     {
       "id": "RESEARCH-14-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/performance.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "two warmups and seven retained samples cover read, write, four-transition realtime, reconnect, and build/deploy",
+      "note": "small repeatable product workload; not a production-scale claim"
     },
     {
       "id": "RESEARCH-15-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/cleanup.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "database absent by SQL/HTTP probes, exact runtime paths absent, and ports 3344, 4344, 20444, and 9344 closed",
+      "note": "isolated tool/runtime state moved to an arm-specific recoverable Trash directory"
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 8,
+      "lines": 1265
+    },
+    "generated": {
+      "files": 42,
+      "lines": 1368
+    },
+    "tests": {
+      "files": 1,
+      "lines": 492
+    },
+    "configuration": {
+      "files": 9
+    },
+    "policy": {
+      "files": 0,
+      "note": "authorization is expressed in module-private tables, membership indexes, reducers, and caller-dependent views"
+    },
+    "dependencyManifests": 2,
+    "installedDependencyBytes": 202214148,
+    "glue": [
+      "identity-scoped search result table",
+      "scheduled answer progress state machine",
+      "deterministic acceptance and cleanup harness"
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "three independent native identities, positive member access, empty outsider views, and a rejected private-table subscription",
+      "evidencePaths": ["receipts/actors.v1.json", "receipts/acceptance.partial.v1.json"]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "reducers, unique indexes, schedules, cancellation guards, and retry idempotency executed authoritatively",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "native WebSocket subscription callbacks directly observed rows and ordering",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "disconnect and reconnect timing was measured, but this arm does not claim a durable offline mutation queue",
+      "evidencePaths": ["receipts/performance.v1.json"]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "five terminal/effect outcomes plus cancellation and scheduled HTTP completion were observed from authoritative rows",
+      "evidencePaths": ["receipts/acceptance.partial.v1.json"]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "fresh database identity was hashed and tied to the exact namespace, server, source freeze, and cleanup proof",
+      "evidencePaths": ["receipts/target-identity.v1.json", "receipts/cleanup.v1.json"]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "database deletion, negative SQL/HTTP probes, exact-path removal, exact-process termination, and four closed ports are retained",
+      "evidencePaths": ["receipts/cleanup.v1.json"]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "module, client, harness, locks, generated bindings, commands, hashes, inventory, and receipts are retained",
+      "evidencePaths": ["receipts/inventory.v1.json", "receipts/commands-and-failures.v1.json"]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup.v1.json",
+    "receiptPaths": ["receipts/cleanup.v1.json"],
+    "postCleanupProbe": "database reports No such database / HTTP 404; runtime paths absent; ports 3344, 4344, 20444, and 9344 closed"
   },
-  "result": "pending"
+  "result": "complete"
 }

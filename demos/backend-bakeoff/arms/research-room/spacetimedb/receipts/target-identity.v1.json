@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "databaseName": "llp0102-research-spacetimedb-w1",
+  "databaseIdentityHash": "d04326695027c08e10c08a26924015299ffb59bb7f3529479abd4a0872980247",
+  "rawDatabaseIdentityPersisted": false,
+  "server": "http://127.0.0.1:3344",
+  "profile": "official standalone local server",
+  "productVersion": "2.7.0",
+  "cliVersion": "spacetimedb tool version 2.7.0; spacetimedb-lib version 2.7.0",
+  "cliRelease": "2.7.0-hotfix3",
+  "cliCommit": "d220349adb7af7eefa810eb08a185609356b83f6",
+  "machine": "Apartment Air / Mac17,3 / Apple M5 / arm64 / macOS 26.5.2 (25F84)",
+  "sourceCommit": "04c18b9e8f91b39bf9ba75e0a30e1a3ae1cc1b6b",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a"
+}

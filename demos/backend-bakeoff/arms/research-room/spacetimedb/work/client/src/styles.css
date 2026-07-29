@@ -1,0 +1,40 @@
+:root {
+  color: #22211f;
+  background: #f4f0e8;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input { font: inherit; }
+button { color: inherit; }
+.app-shell { min-height: 100vh; padding: 24px; }
+.topbar, .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.topbar { max-width: 1180px; margin: 0 auto 20px; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: 28px; }
+.eyebrow, .section-label { color: #716b61; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.status { border-radius: 999px; background: #dcedda; color: #32643a; padding: 8px 12px; font-size: 13px; }
+.status.error { background: #f7d8d3; color: #8f3024; }
+.workspace { max-width: 1180px; margin: auto; }
+.research-grid { display: grid; grid-template-columns: 270px 1fr; gap: 16px; }
+.panel { background: rgba(255,255,255,.86); border: 1px solid #ded7cb; border-radius: 18px; box-shadow: 0 10px 32px rgba(58,49,36,.07); }
+.source-nav { display: flex; flex-direction: column; gap: 7px; padding: 16px; }
+.primary { border: 0; border-radius: 10px; background: #2c5e50; color: white; padding: 11px 14px; text-align: left; }
+.nav-row { border: 0; border-radius: 9px; background: transparent; padding: 9px 10px; text-align: left; }
+.nav-row:hover { background: #f1ede5; }
+.research-panel { padding: 28px; }
+.question, .answer { border: 1px solid #e2dbcf; border-radius: 14px; padding: 16px; margin-top: 18px; }
+.answer { background: #f7f5ef; }
+.citations { display: flex; gap: 8px; }
+.citations button { border: 1px solid #cfc6b8; border-radius: 999px; background: white; padding: 6px 10px; }
+.progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 22px 0; }
+.progress span { height: 7px; border-radius: 999px; background: #ded9d0; }
+.progress .complete { background: #4f8f78; }
+.composer { display: grid; gap: 8px; color: #615c54; font-size: 13px; font-weight: 700; }
+.composer input { border: 1px solid #cbc3b7; border-radius: 12px; padding: 14px; background: white; }
+@media (max-width: 760px) {
+  .research-grid { grid-template-columns: 1fr; }
+  .source-nav { order: 2; }
+  .app-shell { padding: 12px; }
+}

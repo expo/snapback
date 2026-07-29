@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "target": "llp0102-research-spacetimedb-w1",
+  "actors": {
+    "Alice": "9be6e3fbcf781a84c4e688bee8db628229de7d1e4ffb09d793a91ba5f9608c25",
+    "Bob": "1039291a006013c8a4e1e3d1b74d54305033a0a12b932da033046f534b1839bd",
+    "Mallory": "edd1d73498697aa63de700dda64aadbc3002d0f9f13a36c5db61bc957f742667"
+  },
+  "hash": "sha256",
+  "rawTokensPersisted": false
+}

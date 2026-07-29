@@ -1,0 +1,14 @@
+{
+  "name": "llp0102-research-room-spacetimedb-harness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "tsx verify.ts"
+  },
+  "dependencies": {
+    "@types/node": "24.10.9",
+    "spacetimedb": "2.7.0",
+    "tsx": "4.20.6",
+    "typescript": "5.6.3"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "authoredSource": {"files":8,"bytes":45589,"lines":1265},
+  "dependencyManifests": {"files":2,"bytes":31136,"lines":292},
+  "configuration": {"files":9,"bytes":2262,"lines":114},
+  "generatedBindings": {"files":42,"bytes":43290,"lines":1368},
+  "installedDependencyBytes": 202214148,
+  "isolatedCliBytes": 305320384,
+  "runtimeTargetBytesBeforeCleanup": 30062373,
+  "clientProductionBuildBytes": 299319,
+  "moduleBuildBytes": 1474050,
+  "policy": {
+    "files": 0,
+    "note": "Authorization is expressed in the TypeScript module with private tables, indexed memberships, reducers, and caller-dependent views."
+  },
+  "glue": [
+    "identity-scoped search result table",
+    "scheduled answer progress state machine",
+    "deterministic acceptance and cleanup harness"
+  ]
+}
