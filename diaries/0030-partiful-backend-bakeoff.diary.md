@@ -714,3 +714,112 @@ settlement. Define asset capability revocation precisely, including already
 issued URLs. A coherent schedule/effect/secret/log lifecycle remains a major
 opportunity to beat a lightweight data platform without copying its
 last-write-wins or linked-permission semantics.
+
+## 2026-07-28 to 2026-07-29 — Convex, deep round, complete with hosted unavailable
+
+### Environment and outcome
+
+The arm used Convex client/CLI 1.42.3 and the pinned local backend on a fresh
+anonymous project-local deployment. Fourteen frozen scenarios pass. Managed
+deployment is an unavailable remote dependency because the supplied deploy key
+was empty; the readable shared target was not mutated.
+
+Coordinator evidence confidence is 14/16. Actor authority, contention,
+transport, settlement, target identity, and artifact reproducibility are
+direct. Reconnect is measured, but the Partiful workload has no persistent
+offline-write/retention scenario. Cleanup is exact, but the primary baseline
+fields were serialized during cleanup rather than in a separately timestamped
+pre-write receipt.
+
+The original timed PARTY-07 receipt directly proved two established clients
+observing the 20-post WebSocket burst, but it omitted an RSVP-total transition.
+That omission was not upgraded through prose. A separately named fresh local
+remediation target established two clients at `yes/seats=0/0, wall=1`; both
+later observed `2/2, wall=21`, and an independent authoritative query agreed.
+The original receipt and timed performance remain unchanged, and both targets
+were cleaned independently.
+
+### What felt good
+
+The product model needed little backend scaffolding. One schema and one
+functions module produced generated APIs and a running backend. The initial
+push compiled indexes, scheduler, Storage identities, and system-table
+inspection cleanly. Anonymous local startup required no account and kept
+durable SQLite data and Storage inside the project.
+
+Transactions and realtime were the standout. Two actors competed for the
+final seat; ordinary serializable mutations plus optimistic-concurrency retry
+yielded exactly one success and one typed capacity rejection without
+application locks. Native reactive queries then made ordinary reads into
+multi-client live state.
+
+Storage was cohesive: upload URL, opaque Storage identity, authorized delivery,
+exact 262,144-byte hash, outsider denial, deletion, and post-delete negative
+probes all fit the native surface. `runAfter` returned a durable scheduler ID
+whose terminal state was inspectable in `_scheduled_functions`.
+
+### What felt bad or surprising
+
+Parallel isolation exposed hidden CLI controls. Exact local backend and site
+ports exist but were omitted from `convex dev --help`, requiring installed
+source inspection. Noninteractive `--configure new` opened an interactive
+device flow; `CONVEX_AGENT_MODE=anonymous` was the working zero-account path.
+The backend also listened on `0.0.0.0` even though the app/browser were
+loopback-only.
+
+Realistic local authorization testing used a runtime acting-identity method
+present in both clients but absent from their public TypeScript declarations.
+The harness isolated one cast and all application checks still used
+`ctx.auth`, but this is not the same ergonomic confidence as a documented
+multi-persona test API or a complete Convex Auth setup.
+
+Outbound effects remained application policy. Actions made network fetch easy,
+but known-success suppression, attempt state, ambiguity, idempotency keys, and
+retry accounting required a custom ledger. When the receiver accepted a body
+and closed before response, Convex honestly left the attempt ambiguous.
+Retrying preserved the state machine but could duplicate the external effect;
+the product did not supply receiver-side exactly-once semantics.
+
+The local backend downloaded a dashboard the arm did not need, while the
+runtime binary came from a machine-global cache. State remained project-local,
+but hermetic accounting was less obvious. Scheduled IDs also needed
+string-storage and a cast back to the system-table ID type for inspection.
+
+### Performance and cleanup
+
+Each of seven local paths retains two warmups plus seven samples. Medians were
+1.328 ms read, 8.561 ms write, 123.430 ms final-seat contention, 40.168 ms
+asset round trip, 42.552 ms realtime delivery, 11.194 ms reconnect-to-first
+value, and 1,105.517 ms build/typecheck. No hosted latency, scale, or price is
+inferred.
+
+The primary namespace ended with all eight tables at zero, exact processes
+stopped, ports `3336/3337/4336` closed, and local target/config/browser state
+absent. The remediation namespace independently ended at zero and retired its
+exact target/runtime paths with `3356/3357` closed. One post-window diary
+erratum intentionally changes the original 52-file inventory's diary hash; all
+51 implementation/evidence hashes still match.
+
+### Would I choose it?
+
+Yes, Convex is a strong default for this workload. Serializable mutations,
+reactive queries, native Storage, scheduler receipts, generated APIs, and a
+zero-account local target form a cohesive path with unusually little product
+code.
+
+The main reservations are hosted evidence unavailability, hidden isolation
+flags, undocumented test identity injection, machine-global runtime cache, and
+application-owned effect ambiguity/dedupe policy.
+
+### Lessons for Snapback
+
+Match the outcome of one typed schema/function/client loop, serializable
+capacity mutations, reactive ordinary reads, authenticated object Storage, and
+inspectable scheduler IDs. Preserve Snapback's stricter authority and
+settlement model while making the safe path just as short.
+
+Snapback can exceed this experience with discoverable isolation controls, a
+typed multi-persona testing facility, fully relocatable runtime/cache roots,
+and a first-class effect-attempt primitive that distinguishes known success,
+failure, ambiguity, retry, and terminal replay without requiring every app to
+invent its own ledger.

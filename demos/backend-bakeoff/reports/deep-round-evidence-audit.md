@@ -570,3 +570,58 @@ synthesis remain coordinator-owned.
 - Adjudication: complete for the frozen arm. The general defect is eligible for
   the second Snapback remediation tranche; it must not be patched inside this
   frozen deep-round evidence.
+
+## Partiful / Convex
+
+- Capsule verifier: PASS after coordinator hosted-outcome and confidence
+  calibration plus the separately retained PARTY-07 remediation.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical attempt ID, Convex client/CLI/backend versions, primary identity,
+  and remediation identity match.
+- Results: 14 PASS, 1 unavailable remote dependency. PARTY-13 is credential
+  unavailable, not a Convex product GAP; no shared hosted target was mutated.
+- Evidence confidence: coordinator-adjusted to 14/16. Six dimensions are
+  direct. Seven reconnect samples are direct, but persistent offline writes or
+  retained-offline boot are absent, so offline/reconnect is 1. Primary cleanup
+  is exact, but its baseline fields were serialized during cleanup rather than
+  in a separately timestamped pre-write receipt, so cleanup isolation is 1.
+- Referenced evidence: all 27 unique capsule paths resolve. Fifty-one of the
+  original 52 content-hashed artifacts match; the sole mismatch is the
+  arm-local diary draft's explicitly appended post-window PARTY-07 erratum.
+  Remediation source, receipts, manifest, and cleanup evidence are separately
+  retained.
+- PARTY-07 remediation: the original timed receipt proves two established
+  WebSocket clients observed wall `1 → 21` but omitted an RSVP transition. A
+  fresh untimed remediation target established both clients before writes;
+  both directly observed `yes/seats 0/0 → 2/2` and wall `1 → 21`, and an
+  independent authoritative query agreed. Original scenario/performance files
+  are unchanged.
+- Authority: four deterministic identities exercise positive and negative
+  native `ctx.auth` paths. The local-admin acting-identity method exists at
+  runtime but is omitted from public TypeScript declarations; the harness
+  centralizes one cast. This test ergonomics caveat remains a rating input.
+- Contention: two actors crossed one final-seat barrier; Convex OCC/transaction
+  retry yielded one success, one typed `PARTY_CAPACITY_EXCEEDED`, and exactly
+  50 occupied seats.
+- Transport: established native WebSocket query clients directly observed
+  guest-list false/true transitions, the wall burst, and—on the separate
+  remediation target—the RSVP/seat transition. No polling is counted.
+- Assets/scheduling: native Storage proves exact bytes, authorization,
+  deletion, and post-delete absence. `runAfter` returns a stable ID with a
+  successful `_scheduled_functions` row.
+- Effects: Actions cross a real HTTP boundary. The application-authored ledger
+  suppresses known-success retry. Accepted-then-disconnect remains ambiguous;
+  retry preserves state but can duplicate an externally accepted effect, so no
+  exactly-once claim is made.
+- Performance: seven paths retain two warmups, seven raw samples, median,
+  nearest-rank p95, local machine context, and zero billed-provider scope.
+- Cleanup: primary table counts are all zero; exact process groups, ports
+  `3336/3337/4336`, target, config, browser, and credential paths are absent.
+  Remediation tables are independently zero and exact ports `3356/3357` and
+  target/runtime paths are absent.
+- Secret/dependency audit: committed artifacts retain only secret key names and
+  hashes, not values. npm audit reports zero findings. Hidden CLI ports,
+  anonymous agent mode, and machine-global binary/dashboard cache remain
+  discoverability/hermeticity deductions.
+- Adjudication: complete. No Stop-class defect is present; hosted behavior is
+  unavailable and no local evidence is used to infer it.
