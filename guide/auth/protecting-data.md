@@ -62,6 +62,7 @@ authorization-invalidation expectation:
       return response({
         connectionId: 'granted-auth',
         connectionToken: 'sct_auth',
+        ephemeralExpiryProtocol: 1,
         wireVersion: 'snapback.v1',
         authorizationInvalidation: {
           protocolVersion: 1,
