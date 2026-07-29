@@ -269,7 +269,7 @@
       "backendComparisons": ["convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"],
       "evidencePaths": [
         "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
-        "demos/backend-bakeoff/arms/research-room/snapback/receipts/control-streaming.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
         "diaries/0030-partiful-backend-bakeoff.diary.md",
         "diaries/0031-research-room-backend-bakeoff.diary.md"
       ],
