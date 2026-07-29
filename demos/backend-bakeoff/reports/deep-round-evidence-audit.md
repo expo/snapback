@@ -839,3 +839,70 @@ synthesis remain coordinator-owned.
 - Adjudication: complete. The builder Stop is contained, understood, and
   prospectively remediated. No provider Stop-class disclosure, late durable
   patch, destructive cleanup, or false capability pass occurred.
+
+## Research Room / InstantDB
+
+- Capsule verifier, artifact verifier, and Stage-0 verifier: PASS.
+- Frozen identities: exact repaired Snapback source commit, coordinator base,
+  freeze aggregate, canonical attempt ID, InstantDB client/Admin/CLI 1.0.52,
+  redacted fresh hosted target identity, namespace, and cleanup identity agree.
+- Results: 11 PASS, 4 explicit GAPs. RESEARCH-05 lacks an ordinary native
+  vector-similarity query. RESEARCH-12 lacks a first-party scheduler/cron path.
+  RESEARCH-13 therefore lacks the required provider-hosted scheduled Function
+  and secret boundary. RESEARCH-15 retires all mutable state but cannot
+  immediately delete the empty anonymous temporary app shell, which awaits
+  provider auto-expiry.
+- Evidence confidence: 13/16. Actor authority, transport, settlement, target
+  identity, and artifact reproducibility are direct. Stable-ID retry and
+  cancellation guards are direct, but no simultaneous/native transaction
+  conflict is exercised, so transaction/conflict is 1. Seven reconnect samples
+  omit durable offline queuing, so offline/reconnect is 1. Mutable cleanup is
+  direct but the surviving empty shell limits cleanup/isolation to 1.
+- Referenced evidence: all 22 unique capsule paths resolve. The arm verifier
+  confirms the exact 15-scenario set, five 2+7 performance paths, final cleanup
+  counts, zero exact secret-value matches, absent runtime, and zero Stop
+  defects. Pinned schema, permissions, source, locks, harnesses, raw samples,
+  screenshot, and cleanup scripts are retained.
+- UI evidence: the retained screenshot visibly renders two members, twenty
+  sources, four durable progress steps, Bob's live observation, citations, and
+  completion. It is a useful integration witness, but authoritative
+  provider-scoped queries and EventSource receipts—not the rendering—prove
+  authority and push.
+- Authority: Alice, Bob, and Mallory are three genuine hashed Instant
+  principals. Linked permission rules traverse room membership and question
+  state. Mallory's user-scoped query and subscription return zero protected
+  rows; member file paths and outsider negatives are direct.
+- Files/search: user-scoped Storage retains upload identity, exact fetched-byte
+  hash, ownership, deletion, and post-delete absence. Indexed `$ilike` returns
+  the exact keyword set. Embedding JSON is stored but not mislabeled as native
+  vector retrieval.
+- Streaming/cancellation: Bob's independent scoped client observes four durable
+  progress rows and terminal completion through native EventSource-backed
+  `subscribeQuery`. After cancellation, an injected user-scoped transaction is
+  rejected because its create rule follows the linked question status;
+  authoritative progress remains unchanged.
+- Retry/outcomes: stable-ID atomic upserts converge on one question/answer.
+  Complete, failed, cancelled, timed-out, and ambiguous rows remain distinct.
+  The workflow state machine is application-authored rather than a provider
+  effect primitive.
+- Scheduling/secrets: no ordinary scheduler, hosted Function, or provider
+  Function-secret path exists in the tested surface. Credential hygiene still
+  passes: exact scans find none of five target/canary values in client,
+  receipt, or evidence roots. The two gaps remain explicit rather than being
+  replaced by an external cron service.
+- Performance: hosted read, write, native realtime, reconnect, and local build
+  each retain two warmups, seven samples, median, nearest-rank p95, and a
+  small-workload scope. Medians are 156.864 ms read, 185.479 ms write,
+  252.457 ms realtime, 146.026 ms reconnect, and 425.330 ms build.
+- Cleanup: nine authoritative namespaces, twenty files, three users, and all
+  actor tokens are empty/invalid. Ports `4347/9347`, browser/CLI/runtime state,
+  and raw secret-bearing output are absent. The anonymous shell cannot be
+  listed/deleted immediately through the same temporary CLI identity and is
+  correctly a GAP pending documented auto-expiry.
+- Dependency/experience audit: the installed tree is about 163 MB and retains
+  one high plus one low npm advisory. Noninteractive config requires global
+  `--yes`; linked permission semantics (`data.ref` list shape, absent
+  `newData.ref`, and file-link bootstrap) plus nested Storage response shape
+  caused retained failed attempts.
+- Adjudication: complete. No Stop-class disclosure, late patch, destructive
+  cleanup, or false capability claim occurred.

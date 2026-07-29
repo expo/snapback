@@ -148,4 +148,4 @@ violate that order.
 | Research Room / SpacetimeDB | Complete | 13 PASS, two product GAPs, 15/16 calibrated confidence, diary, central audit, and exact database/process/port cleanup integrated |
 | Research Room / Convex | Assigned | Worker 2 queued on a fresh Minisforum anonymous deployment after Research/Supabase cleanup |
 | Research Room / Appwrite | Assigned / start-gated | Worker 1 queued on an isolated control-plane Compose project; provisioning waits for coordinator confirmation that Convex started |
-| Research Room / InstantDB | Assigned / start-gated | Worker 3 queued on a fresh hosted temporary app; provisioning waits for coordinator confirmation that Appwrite started |
+| Research Room / InstantDB | Complete | 11 PASS, four product/cleanup GAPs, 13/16 calibrated confidence, diary, central audit, screenshot/path proof, and scoped hosted cleanup integrated |

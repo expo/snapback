@@ -477,3 +477,103 @@ requested, and automated modes should emit structured allowlisted summaries.
 Most importantly, Snapback needs an admission path where sessions, durable
 progress, files, semantic retrieval, scheduling, and cancellation can coexist
 before fine-grained ergonomics comparisons matter.
+
+## 2026-07-29 — InstantDB, deep round, complete with four gaps
+
+### Environment and outcome
+
+A fresh official hosted temporary InstantDB app ran client, Admin SDK, and CLI
+1.0.52. The arm completed in 17m 38.4s with 11 passes, four explicit GAPs, no
+failure, and no Stop-class defect. The gaps are native vector similarity,
+first-party scheduling, the associated hosted Function/secret boundary, and
+immediate deletion of the otherwise empty anonymous target shell.
+
+Coordinator evidence confidence is 13/16. Actor authority, transport,
+settlement, target identity, and artifact reproducibility are direct.
+Transaction/conflict, reconnect/offline, and cleanup isolation are indirect:
+the app has no simultaneous native conflict, no durable offline queue, and no
+immediate shell deletion even though every mutable resource is gone.
+
+### What felt good
+
+A temporary hosted app came up from one official CLI command with no shared
+account state. Typed schema, unique/indexed keys, atomic linked writes, and the
+Admin SDK's `asUser` made it practical to run the adversarial harness against
+real principals.
+
+Linked permission traversal is expressive. The strongest moment was
+cancellation: after the question became `cancelled`, the provider rejected an
+injected late progress transaction because the create rule read the linked
+question status. Native live queries were compact and reliable; Bob's second
+scoped client observed all four durable progress rows and completion through
+EventSource-backed `subscribeQuery` without a separate realtime service.
+
+Indexed `$ilike`, Storage, and stable-ID upserts covered the ordinary product
+paths with little infrastructure.
+
+### What felt bad or surprising
+
+A noninteractive schema push can exit successfully while still sitting at a
+confirmation UI unless global `--yes` is supplied. That was easy to misread as
+deployment success.
+
+Permission semantics have sharp edges: `data.ref` always yields a list,
+`newData.ref` does not exist, and file linking creates a view-permission
+bootstrap problem before the reverse link exists. The official common-mistakes
+page was unusually useful, but these failures still cost several iterations.
+Storage upload's nested `{data: {id}}` response was also easy to misread.
+
+There was no ordinary native vector query, scheduler/cron, or hosted Function
+plus secrets surface. InstantDB was excellent for the collaborative data plane
+but incomplete for the AI/automation plane.
+
+The anonymous app could be created with an Admin token but not immediately
+listed/deleted through the same CLI identity. All data, files, users, tokens,
+ports, and local state were retired, but the empty shell must await
+provider-managed auto-expiry.
+
+The installed dependency tree was about 163 MB and npm retained one high and
+one low advisory.
+
+### Realtime, correctness, and performance
+
+Alice, Bob, and Mallory were separate native principals. Mallory's scoped
+query and subscription returned zero protected rows. File upload, member
+delivery, exact bytes, outsider denial, deletion, and post-delete absence
+passed.
+
+Bob's second client observed four durable progress rows and completion through
+native EventSource push. Stable-ID retry retained one question and answer, and
+complete, failed, cancelled, timed-out, and ambiguous outcomes remained
+distinct.
+
+Each of hosted read, write, realtime, reconnect, and local build retains two
+warmups plus seven samples. Medians were 156.864 ms read, 185.479 ms write,
+252.457 ms realtime, 146.026 ms reconnect, and 425.330 ms build. These are
+small-workload hosted measurements, not production-scale claims.
+
+### Would I choose it?
+
+Yes for a lightweight collaborative data plane where linked authorization and
+live queries dominate. Not as a complete backend for this AI research product:
+vector retrieval, scheduling, and server Function secrets need separate
+infrastructure, and target lifecycle control is incomplete for anonymous apps.
+
+### Lessons for Snapback
+
+InstantDB's linked-data permissions and `asUser` testing are excellent end-state
+targets: authorization should compose across relationships, and tests should
+switch identities without bespoke token plumbing.
+
+Live query ergonomics are also a benchmark. A subscription declares desired
+state, delivers an initial snapshot, and tracks authoritative transitions.
+
+Snapback can differentiate by making durable workflow progress, cancellation
+settlement, scheduling, server secrets, and semantic retrieval one coherent
+native path. It should also make noninteractive deploy behavior unambiguous and
+offer exact target deletion through the same credential that creates an
+ephemeral target.
+
+Assistance disclosure: the worker had provider-level experience from a prior
+InstantDB arm and recorded that event. This implementation was derived from
+official InstantDB documentation; no provider-arm code was copied.
