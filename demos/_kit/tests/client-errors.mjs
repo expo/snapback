@@ -383,6 +383,7 @@ try {
         return response(200, {
           connectionId: granted.id,
           connectionToken: granted.token,
+          ephemeralExpiryProtocol: 1,
           wireVersion: 'snapback.v1',
         });
       }
@@ -408,9 +409,14 @@ try {
     });
     try {
       assertEqual(openBodies, [
-        { connectionId: label, wireVersion: 'snapback.v1' },
+        {
+          connectionId: label,
+          ephemeralExpiryProtocol: 1,
+          wireVersion: 'snapback.v1',
+        },
         {
           connectionId: originalGrant.id,
+          ephemeralExpiryProtocol: 1,
           previousToken: originalGrant.token,
           wireVersion: 'snapback.v1',
         },
