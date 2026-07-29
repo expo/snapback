@@ -502,13 +502,20 @@ export async function promoteDefaultVector({
       requireCurrentLease(lease, now());
       // A refused observation proves nothing about the complete vector. Only
       // an observed preceding checkpoint permits another convergence read.
-      observed = await readVector(names);
+      try {
+        observed = await readVector(names);
+      } catch (error) {
+        error.registryConvergenceAttempts = attempt;
+        throw error;
+      }
       if (vectorsEqual(observed, intended, names)) {
         requireCurrentLease(lease, now());
         return { vector: observed, attempts: attempt };
       }
       if (!vectorsEqual(observed, before, names)) {
-        throw new Error(`${label} observed unrelated default-tag drift`);
+        const error = new Error(`${label} observed unrelated default-tag drift`);
+        error.registryConvergenceAttempts = attempt;
+        throw error;
       }
       if (attempt < registryConvergenceAttempts) {
         await wait(registryConvergenceDelayMs);
@@ -518,17 +525,32 @@ export async function promoteDefaultVector({
   };
 
   try {
+    let precedingForwardCheckpoint = null;
     for (const row of lease.packages) {
       const beforeLeaseHead = await readLeaseHead();
       const beforeAuthorityTime = now();
       requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
       requireCurrentLease(lease, beforeAuthorityTime);
-      const before = await readVector(names);
+      const beforeConvergence = precedingForwardCheckpoint === null
+        ? { vector: await readVector(names), attempts: 1 }
+        : await readConvergedVector({
+          before: precedingForwardCheckpoint,
+          intended: expected,
+          label: `pre-promotion checkpoint for ${row.name}`,
+        });
+      const before = beforeConvergence.vector;
       if (!vectorsEqual(before, expected, names)) {
         throw new Error(`default-tag vector drift before ${row.name}`);
       }
       if (row.expectedPriorVersion === row.newVersion) {
-        const after = await readVector(names);
+        const noOpConvergence = precedingForwardCheckpoint === null
+          ? { vector: await readVector(names), attempts: 1 }
+          : await readConvergedVector({
+            before: precedingForwardCheckpoint,
+            intended: expected,
+            label: `pre-promoted checkpoint for ${row.name}`,
+          });
+        const after = noOpConvergence.vector;
         if (!vectorsEqual(after, expected, names)) {
           throw new Error(`default-tag vector drift at pre-promoted ${row.name}`);
         }
@@ -545,7 +567,8 @@ export async function promoteDefaultVector({
           afterLeaseHead,
           commandReportedError: null,
           alreadyAtNewVersion: true,
-          registryConvergenceAttempts: 1,
+          preMutationRegistryConvergenceAttempts: beforeConvergence.attempts,
+          registryConvergenceAttempts: noOpConvergence.attempts,
         });
         continue;
       }
@@ -576,6 +599,7 @@ export async function promoteDefaultVector({
       // the changed row and its proven next vector before either fallible
       // post-mutation authority check so rollback starts from registry truth.
       changed.push(row);
+      precedingForwardCheckpoint = before;
       expected = next;
       let afterLeaseHead = null;
       try {
@@ -592,6 +616,7 @@ export async function promoteDefaultVector({
           after,
           afterLeaseHead,
           commandReportedError: mutationError?.message ?? null,
+          preMutationRegistryConvergenceAttempts: beforeConvergence.attempts,
           registryConvergenceAttempts: convergence.attempts,
           postMutationAuthorityError: {
             code: 'SNAPBACK_PUBLICATION_POST_MUTATION_AUTHORITY_REFUSED',
@@ -608,6 +633,7 @@ export async function promoteDefaultVector({
         after,
         afterLeaseHead,
         commandReportedError: mutationError?.message ?? null,
+        preMutationRegistryConvergenceAttempts: beforeConvergence.attempts,
         registryConvergenceAttempts: convergence.attempts,
       });
       if (mutationError) throw mutationError;
@@ -628,6 +654,7 @@ export async function promoteDefaultVector({
     // The last journaled expected vector, not a newly observed drifted vector,
     // is the only legal first rollback checkpoint.
     let rollbackExpected = structuredClone(expected);
+    let precedingRollbackCheckpoint = null;
     for (const row of [...changed].reverse()) {
       const rollbackCheckpoint = structuredClone(rollbackExpected);
       const intendedNext = {
@@ -638,18 +665,45 @@ export async function promoteDefaultVector({
       let before = null;
       let after = null;
       let mutationError = null;
+      let mutationAttempted = false;
+      let preMutationRegistryAttempts = null;
       let registryAttempts = null;
       try {
         beforeLeaseHead = await readLeaseHead();
         const beforeAuthorityTime = now();
         requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
         requireCurrentLease(lease, beforeAuthorityTime);
-        before = await readVector(names);
+        let beforeConvergence;
+        try {
+          if (precedingRollbackCheckpoint === null) {
+            let initialVector;
+            try {
+              initialVector = await readVector(names);
+            } catch (error) {
+              error.registryConvergenceAttempts = 1;
+              throw error;
+            }
+            beforeConvergence = { vector: initialVector, attempts: 1 };
+          } else {
+            beforeConvergence = await readConvergedVector({
+              before: precedingRollbackCheckpoint,
+              intended: rollbackCheckpoint,
+              label: `pre-rollback checkpoint for ${row.name}`,
+            });
+          }
+        } catch (error) {
+          preMutationRegistryAttempts =
+            error.registryConvergenceAttempts ?? null;
+          throw error;
+        }
+        before = beforeConvergence.vector;
+        preMutationRegistryAttempts = beforeConvergence.attempts;
         if (!vectorsEqual(before, rollbackCheckpoint, names)
             || (before[row.name] ?? null) !== row.newVersion) {
           throw new Error(`rollback expected-value drift for ${row.name}`);
         }
         requireCurrentLease(lease, now());
+        mutationAttempted = true;
         try {
           if (row.expectedPriorVersion === null) await removeTag(row.name);
           else await setTag(row.name, row.expectedPriorVersion);
@@ -659,11 +713,17 @@ export async function promoteDefaultVector({
         // A command can apply remotely and then lose its response. Registry
         // truth, not the transport status, decides whether the reverse
         // checkpoint advanced.
-        const convergence = await readConvergedVector({
-          before,
-          intended: intendedNext,
-          label: `rollback of ${row.name}`,
-        });
+        let convergence;
+        try {
+          convergence = await readConvergedVector({
+            before,
+            intended: intendedNext,
+            label: `rollback of ${row.name}`,
+          });
+        } catch (error) {
+          registryAttempts = error.registryConvergenceAttempts ?? null;
+          throw error;
+        }
         after = convergence.vector;
         registryAttempts = convergence.attempts;
         const changedNow = changedNames(before, after, names);
@@ -676,6 +736,7 @@ export async function promoteDefaultVector({
         }
         // Journal the observed reverse mutation before any later fallible
         // authority read, just as the forward path does.
+        precedingRollbackCheckpoint = before;
         rollbackExpected = intendedNext;
         const afterLeaseHead = await readLeaseHead();
         const afterAuthorityTime = now();
@@ -690,14 +751,19 @@ export async function promoteDefaultVector({
           after,
           afterLeaseHead,
           commandReportedError: mutationError?.message ?? null,
+          preMutationRegistryConvergenceAttempts: preMutationRegistryAttempts,
           registryConvergenceAttempts: registryAttempts,
         };
         rollback.push(event);
         emit(event);
       } catch (rollbackCause) {
+        const reconciliationRegistryObservations = after === null ? 1 : 0;
         const observation = after === null
           ? await observeVector(readVector, names)
           : { ok: true, value: after, error: null };
+        if (mutationAttempted && reconciliationRegistryObservations === 1) {
+          registryAttempts = (registryAttempts ?? 0) + 1;
+        }
         const reconciledChanges = (
           before !== null
           && observation.ok
@@ -715,6 +781,7 @@ export async function promoteDefaultVector({
           // The first post-write observation can fail after the registry
           // accepted the reverse mutation. One bounded retry may advance the
           // checkpoint only when it proves the exact intended full vector.
+          precedingRollbackCheckpoint = before;
           rollbackExpected = intendedNext;
         }
         const event = {
@@ -725,7 +792,9 @@ export async function promoteDefaultVector({
           beforeLeaseHead,
           before,
           commandReportedError: mutationError?.message ?? null,
+          preMutationRegistryConvergenceAttempts: preMutationRegistryAttempts,
           registryConvergenceAttempts: registryAttempts,
+          reconciliationRegistryObservations,
           observed: observation.value,
           observationError: observation.error,
           checkpointAdvanced: vectorsEqual(

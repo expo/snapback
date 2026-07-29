@@ -938,6 +938,7 @@ function githubReceiptProvenance({
 }) {
   return {
     sourceCheckout: { headSha: revision, dirty: false },
+    proofHarnessCheckout: { headSha: runHeadSha, dirty: false },
     githubProof: {
       repository: 'ccheever/snapback',
       workflowRef: `ccheever/snapback/.github/workflows/${workflow}@${ref}`,
@@ -957,6 +958,7 @@ function githubReceiptProvenance({
       githubRunAttempt: runAttempt,
       githubRepository: 'ccheever/snapback',
       githubWorkflowSha: runHeadSha,
+      proofHarnessRevision: runHeadSha,
     },
   };
 }
@@ -1203,6 +1205,8 @@ test('--help exits before reading the ledger or staging packages', () => {
   assert.match(result.stdout, /--install-source <staged\|public>/u);
   assert.match(result.stdout, /--registry <url>/u);
   assert.match(result.stdout, /--root-selector <exact\|latest>/u);
+  assert.match(result.stdout, /--source-checkout <path>/u);
+  assert.match(result.stdout, /--proof-harness-revision <sha>/u);
   assert.match(result.stdout, /--receipt <path>/u);
   assert.match(result.stdout, /--keep/u);
   assert.equal(result.stderr, '');
@@ -1242,7 +1246,24 @@ test('public-install arguments are explicit and normalized', () => {
       receipt: 'proof.json',
       keep: true,
       rootSelector: 'exact',
+      sourceCheckout: null,
+      proofHarnessRevision: null,
     },
+  );
+  assert.equal(
+    parseArguments([
+      '--install-source', 'public',
+      '--source-checkout', '/tmp/package-source',
+      '--proof-harness-revision', 'a'.repeat(40),
+    ]).proofHarnessRevision,
+    'a'.repeat(40),
+  );
+  assert.throws(
+    () => parseArguments([
+      '--install-source', 'public',
+      '--source-checkout', '/tmp/package-source',
+    ]),
+    /must be provided together/u,
   );
 });
 
@@ -1882,6 +1903,16 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     }),
     /materialized the opposite runtime/u,
   );
+  const harnessDrift = structuredClone(records);
+  harnessDrift[1].receipt.proofHarnessCheckout.headSha = 'e'.repeat(40);
+  assert.throws(
+    () => validateFinalLatestReceipts({
+      ledger: candidate,
+      records: harnessDrift,
+      githubCollection,
+    }),
+    /proof harness/u,
+  );
 });
 
 test('aggregate proof requires one public clean receipt for every runtime tuple', () => {
@@ -2037,6 +2068,26 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     }),
     /complete packaged-loop proof/u,
   );
+  for (const mutate of [
+    (receipt) => { delete receipt.proofHarnessCheckout; },
+    (receipt) => { receipt.proofHarnessCheckout.dirty = true; },
+    (receipt) => { receipt.proofHarnessCheckout.headSha = 'e'.repeat(40); },
+  ]) {
+    const harnessDrift = structuredClone(receipts);
+    mutate(harnessDrift[0].receipt);
+    assert.throws(
+      () => aggregatePublicPackageProofs({
+        ledger,
+        expectedSourceNames: sourceNames,
+        expectedPlatforms: new Map([
+          ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
+          ['linux-x64', '@snapback/runtime-linux-x64'],
+        ]),
+        receipts: harnessDrift,
+      }),
+      /proof harness/u,
+    );
+  }
 });
 
 test('spawn ENOENT rejects without hanging or escaping the promise', async () => {

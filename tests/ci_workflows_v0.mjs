@@ -158,7 +158,31 @@ for (const name of workflowNames) {
   }
 }
 assert.equal(setupNodeCount, 10, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 47, 'the reviewed workflow action inventory changed; review and update this count');
+assert.equal(actionCount, 46, 'the reviewed workflow action inventory changed; review and update this count');
+
+const publicPackageProof = readFileSync(
+  join(workflowDir, 'public-package-proof.yml'),
+  'utf8',
+);
+assert.match(
+  publicPackageProof,
+  /fetch-depth:\s*0/u,
+  'public package proof must fetch the immutable candidate revision for its detached source worktree',
+);
+assert.match(
+  publicPackageProof,
+  /git worktree add --detach[\s\S]*snapback-package-source[\s\S]*SOURCE_REVISION/u,
+  'public package proof must materialize candidate fixtures without replacing the current harness',
+);
+assert.match(
+  publicPackageProof,
+  /--source-checkout "\$RUNNER_TEMP\/snapback-package-source"[\s\S]*--proof-harness-revision "\$\{\{ github\.sha \}\}"/u,
+  'public package proof must bind separate source and harness revisions',
+);
+assert.ok(
+  (publicPackageProof.match(/scripts\/check-checkout-credentials/g) ?? []).length >= 2,
+  'public package proof must credential-check both harness and source checkouts',
+);
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');

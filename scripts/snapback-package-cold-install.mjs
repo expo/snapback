@@ -131,6 +131,8 @@ const registry = parsedArgs.registry;
 const receiptPath = parsedArgs.receipt;
 const keep = parsedArgs.keep;
 const rootSelector = parsedArgs.rootSelector;
+const sourceRoot = resolve(parsedArgs.sourceCheckout ?? root);
+const proofHarnessRevision = parsedArgs.proofHarnessRevision;
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -1233,6 +1235,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       { kind: 'database-path', value: descriptor.database?.path },
       { kind: 'ready-file', value: readyFile },
       { kind: 'repository-path', value: realpathSync(root) },
+      { kind: 'source-checkout-path', value: realpathSync(sourceRoot) },
       { kind: 'runtime-path', value: realpathSync(runtimePath) },
       { kind: 'secret-read-root-file', value: descriptor.secretReadRootFile },
       {
@@ -1932,14 +1935,37 @@ if (installSource === 'staged') {
     fail(error.message);
   }
 }
-const checkoutIdentity = measureGitCheckoutIdentity(root);
-if (checkoutIdentity.revision !== ledger.revision) {
+const proofHarnessIdentity = measureGitCheckoutIdentity(root);
+const sourceIdentity = measureGitCheckoutIdentity(sourceRoot);
+if (sourceIdentity.revision !== ledger.revision) {
   fail(
-    `measured checkout HEAD ${checkoutIdentity.revision} does not match ledger revision ${ledger.revision}`,
+    `measured source checkout HEAD ${sourceIdentity.revision} does not match ledger revision ${ledger.revision}`,
   );
 }
-if (checkoutIdentity.dirty) {
-  fail('cold-install qualification refuses a dirty measured checkout');
+if (sourceIdentity.dirty) {
+  fail('cold-install qualification refuses a dirty measured source checkout');
+}
+if (proofHarnessIdentity.dirty) {
+  fail('cold-install qualification refuses a dirty measured proof harness');
+}
+if (proofHarnessRevision === null) {
+  if (sourceRoot !== root || proofHarnessIdentity.revision !== sourceIdentity.revision) {
+    fail('cold-install proof omitted its separate proof-harness revision');
+  }
+} else {
+  if (
+    sourceRoot === root
+    || realpathSync(sourceRoot) === realpathSync(root)
+    || proofHarnessIdentity.revision !== proofHarnessRevision
+  ) {
+    fail('cold-install proof harness/source-checkout binding drifted');
+  }
+  if (
+    process.env.GITHUB_ACTIONS === 'true'
+    && process.env.GITHUB_SHA !== proofHarnessIdentity.revision
+  ) {
+    fail('cold-install proof harness differs from the GitHub workflow head');
+  }
 }
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
@@ -2061,7 +2087,10 @@ try {
   // Materialize the real Partitime backend source into the external checkout.
   // From this point onward the proof runs only against that copy and tarballs.
   for (const file of ['schema.mjs', 'functions.mjs', 'seed.json']) {
-    cpSync(join(root, 'demos', 'partiful-matrix', 'snapback', file), join(backendRoot, file));
+    cpSync(
+      join(sourceRoot, 'demos', 'partiful-matrix', 'snapback', file),
+      join(backendRoot, file),
+    );
   }
   writeFileSync(join(backendRoot, 'remote-service.publication.json'), `${JSON.stringify({
     profileId: 'remote-service-sqlite-ibex',
@@ -2351,7 +2380,10 @@ await build({
         fail(`${fixtureRoot}: ${name} is not a materialized tarball install`);
       }
       const resolved = realpathSync(installed);
-      if (resolved.startsWith(join(root, 'packages'))) {
+      if (
+        resolved.startsWith(join(root, 'packages'))
+        || resolved.startsWith(join(sourceRoot, 'packages'))
+      ) {
         fail(`${fixtureRoot}: ${name} resolved back into the repository source tree`);
       }
     }
@@ -2383,7 +2415,7 @@ await build({
   });
   const managedStarter = await proveOneCommandReactStarter(
     reactScaffoldRoot,
-    checkoutIdentity,
+    sourceIdentity,
   );
   run('npm', ['run', 'test:live'], { cwd: reactScaffoldRoot, timeout: 120_000 });
   const reactManifest = JSON.parse(readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'));
@@ -2415,7 +2447,7 @@ await build({
 
   const expoFixtureRoot = join(appRoot, 'react-expo');
   cpSync(
-    join(root, 'packages', 'snapback-react', 'fixtures', 'packed-expo'),
+    join(sourceRoot, 'packages', 'snapback-react', 'fixtures', 'packed-expo'),
     expoFixtureRoot,
     { recursive: true },
   );
@@ -2436,8 +2468,12 @@ await build({
   const cleanMachine = process.env.GITHUB_ACTIONS === 'true'
     && process.env.RUNNER_ENVIRONMENT === 'github-hosted';
   const sourceCheckout = {
-    headSha: checkoutIdentity.revision,
-    dirty: checkoutIdentity.dirty,
+    headSha: sourceIdentity.revision,
+    dirty: sourceIdentity.dirty,
+  };
+  const proofHarnessCheckout = {
+    headSha: proofHarnessIdentity.revision,
+    dirty: proofHarnessIdentity.dirty,
   };
   const githubProof = cleanMachine ? {
     repository: process.env.GITHUB_REPOSITORY ?? null,
@@ -2455,9 +2491,10 @@ await build({
     claimTreatment: 'checkpoint',
     claimSatisfied: false,
     platformClaimSatisfied: installSource === 'public' && cleanMachine,
-    sourceRevision: checkoutIdentity.revision,
-    sourceDirty: checkoutIdentity.dirty,
+    sourceRevision: sourceIdentity.revision,
+    sourceDirty: sourceIdentity.dirty,
     sourceCheckout,
+    proofHarnessCheckout,
     githubProof,
     publicationMode: ledger.mode,
     publicationLedgerSchema: ledger.schemaVersion,
@@ -2481,6 +2518,7 @@ await build({
       githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
       githubRepository: process.env.GITHUB_REPOSITORY ?? null,
       githubWorkflowSha: process.env.GITHUB_SHA ?? null,
+      proofHarnessRevision: proofHarnessIdentity.revision,
     },
     packages: ledger.packages.map((entry) => ({
       sourceName: entry.sourceName,
