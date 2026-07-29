@@ -906,3 +906,73 @@ synthesis remain coordinator-owned.
   caused retained failed attempts.
 - Adjudication: complete. No Stop-class disclosure, late patch, destructive
   cleanup, or false capability claim occurred.
+
+## Research Room / Appwrite
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator artifact-
+  reproducibility calibration.
+- Frozen identities: exact repaired Snapback source commit, coordinator base,
+  freeze aggregate, canonical attempt ID, Appwrite 1.9.6, web/Node SDK and CLI
+  versions, fresh namespace, pre-write empty baseline, target hash, and cleanup
+  identity agree.
+- Results: 14 PASS, 1 explicit product GAP. RESEARCH-05 stores the deterministic
+  32-dimensional vectors but Appwrite 1.9.6 has no ordinary native vector index
+  or nearest-neighbor query. No scan fallback is presented as provider
+  semantic retrieval. Appwrite Cloud remains credential-unavailable and is not
+  inferred from the local target.
+- Evidence confidence: coordinator-adjusted to 13/16. Actor authority,
+  transport, settlement, target identity, and cleanup are direct. Unique-index
+  idempotency and cancellation guards pass, but this workload does not exercise
+  the native transaction-conflict API, so transaction/conflict is 1. Seven
+  reconnect samples omit durable offline queuing, so offline/reconnect is 1.
+  Artifact reproducibility is 1 because the timed inventory predates eleven
+  retained final-file edits and three removed build outputs.
+- Referenced evidence: all 24 unique capsule paths resolve. Of 29 timed
+  inventory records, 15 retained hashes match, 11 retained source/config/test
+  hashes predate final edits, and three `dist/` records describe removed
+  build-time output. Final source, lockfile, Function, harnesses, raw receipts,
+  browser evidence, and cleanup scripts remain committed, but the inventory
+  drift is not upgraded through prose.
+- Authority: Alice, Bob, and Mallory are independent native Auth principals.
+  Alice and Bob share a native Team; Mallory does not. Team/row/file permissions
+  prove member reads, exact file delivery, outsider empty lists/direct refusals,
+  owner-only deletion, and Bob's refusal to delete Alice's object.
+- Files/search: Storage retains byte identity, ownership, authorization,
+  deletion, and post-delete absence. One full-text index plus `Query.search`
+  returns the exact authorized sources. Vector storage without a native query
+  remains a GAP.
+- Streaming/cancellation: Bob's independent browser session receives four
+  separately committed progress rows over native Appwrite Realtime WebSocket
+  before terminal completion. A confirmed cancellation fences a later Function
+  probe: progress and terminal state remain unchanged.
+- Retry/outcomes: unique question, answer, and progress indexes make same-key
+  retry converge on one question/answer and four progress rows. Complete,
+  failed, cancelled, timed-out, and ambiguous durable states remain distinct.
+  The workflow/effect state machine is application-authored Function logic.
+- Scheduling/secrets: a real one-off scheduled Function execution fetches a
+  stable RFC 2606 resource and retains inspectable execution plus refresh rows.
+  Secret Function variables are opaque through the management API; the Function
+  proves canary presence without returning the value.
+- Browser/performance: native email/password Auth, rendered authorized sources
+  and answer, and one Appwrite Realtime socket pass in a real browser. Read,
+  write, realtime, reconnect, and build each retain two warmups, seven samples,
+  median, and nearest-rank p95. Medians are 7.580 ms read, 10.912 ms write,
+  10.435 ms realtime, 386.780 ms reconnect, and 447.766 ms build.
+- Operations/friction: the installer event stream dropped after the stack was
+  healthy and required health-based idempotent recovery. The target advertised
+  Node 16 rather than Node 22; the Function needed low-level HTTP because that
+  runtime lacked built-in `fetch`. Delete/recreate under one Function ID left
+  variable-ID conflicts, requiring `research-worker-v2`. The Node Realtime
+  harness needed a browser-global heartbeat shim while the browser path itself
+  passed.
+- Footprint/dependencies: the local platform ran 29 Compose containers plus
+  runtime execution containers and 12 volumes. Installed JavaScript
+  dependencies occupied about 268 MB. The pinned graph retains 16 npm findings:
+  seven high, six moderate, and three low.
+- Cleanup: the exact empty baseline precedes provisioning. Final proof has zero
+  exact Compose containers/volumes/networks, installer, and runtime containers;
+  ports `8093/8493/20083/4346` are closed; six ignored runtime/build paths are
+  absent. Only allowlisted names/labels/PIDs/executables/ports/counts and output
+  hashes are retained after the cross-lane secret-safety amendment.
+- Adjudication: complete. No Stop-class disclosure, late durable patch,
+  destructive cleanup, or false capability claim occurred.

@@ -10,6 +10,7 @@
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
     "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "coordinatorBaseCommit": "0dc4b3ff6257edc2ee0fea869fca5142531d0ce5",
     "providerVersions": {
       "product": "Appwrite 1.9.6",
       "client": "appwrite 26.2.0 / node-appwrite 27.1.0",
@@ -379,8 +380,8 @@
       "evidencePaths": ["receipts/cleanup-plan.v1.json", "receipts/cleanup.v1.json"]
     },
     "artifact-reproducibility": {
-      "score": 2,
-      "reason": "source, lockfile, schema, Function, UI, commands, inventory, acceptance, performance, browser, and cleanup evidence are retained",
+      "score": 1,
+      "reason": "Source, lockfile, schema, Function, UI, commands, acceptance, performance, browser, and cleanup evidence are retained, but the timed inventory predates eleven final retained-file edits and three removed build outputs.",
       "evidencePaths": ["receipts/inventory.v1.json", "receipts/commands-and-failures.v1.json", "receipts/ui-integration.v1.json"]
     }
   },

@@ -147,5 +147,5 @@ violate that order.
 | Research Room / Firebase | Complete | 15 PASS, 15/16 coordinator-calibrated confidence, diary, central audit, screenshot/hash proof, and exact data/process/port cleanup integrated |
 | Research Room / SpacetimeDB | Complete | 13 PASS, two product GAPs, 15/16 calibrated confidence, diary, central audit, and exact database/process/port cleanup integrated |
 | Research Room / Convex | Assigned | Worker 2 queued on a fresh Minisforum anonymous deployment after Research/Supabase cleanup |
-| Research Room / Appwrite | Assigned / start-gated | Worker 1 queued on an isolated control-plane Compose project; provisioning waits for coordinator confirmation that Convex started |
+| Research Room / Appwrite | Complete | 14 PASS, one native-vector GAP, 13/16 coordinator-calibrated confidence, diary, central audit, browser evidence, and exact Compose cleanup integrated |
 | Research Room / InstantDB | Complete | 11 PASS, four product/cleanup GAPs, 13/16 calibrated confidence, diary, central audit, screenshot/path proof, and scoped hosted cleanup integrated |

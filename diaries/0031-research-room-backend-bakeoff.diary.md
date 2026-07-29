@@ -577,3 +577,133 @@ ephemeral target.
 Assistance disclosure: the worker had provider-level experience from a prior
 InstantDB arm and recorded that event. This implementation was derived from
 official InstantDB documentation; no provider-arm code was copied.
+
+## 2026-07-29 — Appwrite, deep round, complete with one gap
+
+### Environment and outcome
+
+The arm used the official Appwrite 1.9.6 self-hosted stack, web client 26.2.0,
+Node SDK 27.1.0, CLI 23.2.0, and the target-advertised Node 16 Function runtime
+inside the fresh `llp0102-research-appwrite-w1` namespace. It completed in
+22m 44.6s with 14 passes, one explicit GAP, no failure, and no Stop-class
+defect. The sole product GAP is ordinary native semantic/vector retrieval.
+Hosted Appwrite Cloud was credential-unavailable and is not inferred from the
+local target.
+
+Coordinator evidence confidence is 13/16. Actor authority, transport,
+settlement, target identity, and cleanup are direct. Transaction/conflict and
+offline/reconnect are indirect because the workload exercised neither native
+conflict nor durable offline queuing. Artifact reproducibility is indirect
+because the timed inventory predates eleven final retained-file edits and three
+removed build outputs.
+
+### What felt good
+
+Appwrite covered almost the whole Research Room inside one product. Native
+Auth, Teams, row permissions, full-text indexes, Storage, Realtime, Functions,
+scheduled executions, and secret variables all participated in executable
+evidence.
+
+`createTable` accepted columns and indexes together, keeping the server schema
+legible in one provisioning script. Full-text search was especially ordinary:
+one index plus `Query.search` returned the expected authorized sources.
+
+Storage's file permissions made the source lifecycle crisp. Alice uploaded,
+Bob downloaded identical bytes, Mallory was refused, Bob could not delete
+Alice's object, and Alice's deletion produced a clean negative probe.
+
+Realtime was direct and fast. Bob's independent session saw four separately
+committed progress rows over a WebSocket before the terminal answer; median
+delivery was 10.435 ms.
+
+Function variables marked secret were genuinely opaque on read. The Function
+could prove canary presence while the management API did not return the value.
+The scheduled-execution record was inspectable and connected naturally to the
+durable refresh row.
+
+Errors were often specific: the unsupported runtime response named the exact
+runtime/version, and permission failures named the roles Alice could grant.
+
+### What felt bad or frustrating
+
+The official web installer dropped its event stream after the stack was already
+healthy. A separate health probe and idempotent recovery were necessary to
+distinguish success from failure and recover generated Compose files.
+
+The fresh Appwrite 1.9.6 stack advertised only Node 16, PHP 8.0, Ruby 3.0, and
+Python 3.9. The first Node 22 deployment failed, and Node 16 lacked built-in
+`fetch`, forcing a low-level `http`/`https` helper.
+
+Deleting and immediately recreating a Function under the same ID left variable
+identifiers conflicting but unreadable under the recreated Function. A fresh
+`research-worker-v2` namespace was the reliable recovery.
+
+The Realtime web SDK assumed a browser `window` for heartbeat state. The real
+browser path worked, but the Node acceptance client needed a browser-global
+shim. This was harness friction, not a transport failure.
+
+The local stack was operationally heavy: 29 running Compose containers and
+12 volumes before runtime execution containers, plus about 268 MB of installed
+JavaScript dependencies. The pinned graph retained 16 audit findings: seven
+high, six moderate, and three low.
+
+One-off scheduled execution accepts minute-precision future times, so
+deterministic acceptance paid a long wall-clock wait. Alice also could not
+grant direct user read merely because both principals existed; shared access
+had to use their Team. The security rule is defensible but arrived late in the
+modeling loop.
+
+### Modeling and correctness
+
+Rooms, memberships, sources, questions, answers, progress, refresh runs, and
+outcome fixtures mapped cleanly to explicit tables. Unique indexes fenced
+question keys, answer lineage, and progress sequence.
+
+Cancellation was application-authored Function logic over durable rows. After
+confirmation, a late Function probe left terminal state and progress unchanged.
+Retry retained one question, one answer, and four progress rows. Complete,
+failed, cancelled, timed-out, and ambiguous states remained distinct.
+
+The arm did not exercise Appwrite's transaction API because the Research Room
+facts had no contended multi-row invariant. Semantic retrieval is a real GAP:
+vectors were stored, but no ordinary native vector index/nearest-neighbor path
+existed and no scan fallback was used.
+
+### Realtime, operations, and performance
+
+Alice, Bob, and Mallory were independent native Auth principals; Alice and Bob
+shared a native Team. Row and file security produced both member positives and
+direct outsider refusals. Bob's four callbacks were native Appwrite Realtime,
+not polling or animation.
+
+Fresh-client reconnect median was 386.780 ms. Other medians were 7.580 ms
+authorized read, 10.912 ms write, 10.435 ms realtime, and 447.766 ms build.
+Each path retains two warmups and seven samples under a small local workload.
+
+The exact empty baseline preceded provisioning. Cleanup removed the Compose
+project, 29 containers, 12 volumes, networks, installer, runtime containers,
+Vite, and six runtime/build paths; all four assigned ports are closed.
+
+### Would I choose it?
+
+Conditionally yes for a collaborative product that values a broad self-hostable
+platform and tolerates the operational footprint. Storage/Auth/Realtime/
+Functions integration is compelling. I would hesitate when semantic retrieval,
+local simplicity, current Function runtimes, or dependency health dominate.
+
+### Lessons for Snapback
+
+Match Appwrite's coherent resource breadth: data, identity, files, realtime,
+scheduled work, execution inspection, and opaque secrets should feel like one
+product.
+
+Preserve Snapback's opportunity to be radically lighter locally. Make
+authoritative multi-step progress and cancellation a first-class pattern rather
+than application-authored workflow glue. Full-text search should be as ordinary
+as one index and one query operator; runtime matrices and deployment lifecycles
+should be current, predictable, and idempotent.
+
+Finally, match truly opaque secrets: runtime presence should be provable without
+management APIs, logs, receipts, or diagnostics revealing the value. A native
+semantic retrieval path remains a meaningful completeness differentiator for
+AI-shaped applications.
