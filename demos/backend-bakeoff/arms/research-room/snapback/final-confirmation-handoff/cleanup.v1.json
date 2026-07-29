@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "targetIdentity": "5970165e83af358343e9c7916d6af22c5a4e80b2a8cc2231883404fdc3b5e5b4",
+  "namespace": "llp0102-final-research-snapback-w1",
+  "removed": {
+    "runtimeRoot": true,
+    "publicRoot": true
+  },
+  "absent": {
+    "runtimeRoot": true,
+    "publicRoot": true
+  },
+  "portsClosed": {
+    "33105": true,
+    "43105": true,
+    "53105": true,
+    "63105": true
+  },
+  "cleanupErrors": [],
+  "unrelatedBaselinePreserved": true,
+  "completedAt": "2026-07-29T12:21:02.156Z"
+}

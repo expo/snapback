@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "packageVersion": "0.1.1-llp0102.1",
+  "closure": {
+    "ledger": "package-publish-ledger.json",
+    "coldInstallReceipt": "package-cold-install-receipt.json",
+    "packageCount": 7,
+    "ledgerDigestsMatched": true,
+    "coldInstallPassed": true
+  },
+  "runtime": {
+    "package": "@snapback/runtime-darwin-arm64",
+    "tarballSha256": "df86fe1a0d61bba9969e6db1970ad4f9dd521e67bc3bb1e0943b1fdd6e548e74",
+    "installedBinarySha256": "4d3f2979d6d8e1e8dff691b10cf9215f757b1baacbe7831a64e08d87700193d7",
+    "tarballBinarySha256": "4d3f2979d6d8e1e8dff691b10cf9215f757b1baacbe7831a64e08d87700193d7",
+    "installedMatchesTarball": true,
+    "binaryBuildCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+    "binaryDirty": false,
+    "buildProfile": "release"
+  },
+  "lifecycle": {
+    "start": "installed snapback start",
+    "stop": "installed snapback stop",
+    "sourceBinaryUsed": false,
+    "cargoFallbackUsed": false,
+    "repositoryWrapperUsed": false
+  }
+}
+

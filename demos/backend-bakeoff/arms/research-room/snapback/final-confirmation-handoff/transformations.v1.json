@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "sealedSourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "externalProject": "fresh-copy",
+  "sealedFilesModified": false,
+  "transformations": [
+    {
+      "path": "package.json",
+      "sealedSha256": "942c95b38440a03d3d68f9512f02314bdeb7c762c1dda59dd9de042a8f377bca",
+      "externalSha256": "4a3eaff462d02a0d853672e171a4eaa2ff2c9b503f3e51917159b84866ade8b7",
+      "reason": "install exact staged package closure and invoke installed codegen"
+    },
+    {
+      "path": "package-lock.json",
+      "sealedSha256": "1fae6bfae0a089a6a8cab14db69a876b387024d0c05b38d4bf566e996b46d6c7",
+      "externalSha256": "154fbd930c5bb712c3b1caee9b82922fb4a91f35fa216b0da22b773340f28ac7",
+      "reason": "materialized clean external tarball installation"
+    },
+    {
+      "path": "snapback/schema.mjs",
+      "sealedSha256": "d648dedb8d2891297b7ae03bb1bfaf034af94315a996133d742d3f0ab280a409",
+      "externalSha256": "80b6523445f5be5ab3de9ac1e655654bff73eae410401bb961868adaf3fea0a7",
+      "reason": "replace repository define shim with @snapback/codegen/define"
+    },
+    {
+      "path": "snapback/functions.mjs",
+      "sealedSha256": "4571565400d4931e6ef60b99cce7f2f3f782a7e0ce7f98b49380b881ba6c3cc9",
+      "externalSha256": "8e428b3e15b0095c12c57bdd4d34eae71c6f53b3204d61e90a5c0720cbf262e7",
+      "reason": "package define import plus idempotent one-membership-write setup operations"
+    },
+    {
+      "path": "snapback/handlers.mjs",
+      "sealedSha256": "6a18a686ec01a16097ae38478e2df3be5afcc8473af7288b34a96734ecc074f4",
+      "externalSha256": "808c1c1729ca01fba49a808602bb7bbb436f2b1f381ec03845b2db468b85d648",
+      "reason": "decompose the same seed into four idempotent v1-compatible membership mutations"
+    },
+    {
+      "path": "snapback/actions.mjs",
+      "sealedSha256": "51292e6a5be6f15be05ff3866c0d68b04f5e262884786bd2f9752a746b5cdd1e",
+      "externalSha256": "bd67bf78f892b9a820350127f363460b7851680c21cf0499296959437ee7cb86",
+      "reason": "isolated deterministic receiver port 53105"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "sealedSha256": "155dc9a29d3304d3a38f1268ec0e00d9b6a2c194d3ce9177a192b8f739c0512a",
+      "externalSha256": "15876ed8ae67b4796e75e33e4ca80cd0901a9ce4b0b5f028e96cf18c3ca2aef8",
+      "reason": "package imports, installed start/stop, external roots, isolated ports, compatible setup, session-aware cron inspection, current identity and monotonic timing"
+    }
+  ],
+  "generated": {
+    "files": 53,
+    "lines": 4751,
+    "artifactsSha256": "caab5da82142f3aee3d81c53b2e064d24f10acbdeb44e55f13cbceb5af6f4c44"
+  },
+  "production": {
+    "jsSha256": "b6873ddc207c4939972817d7c2c6239eae526a74c2a262dd8baacd44685bdd13",
+    "cssSha256": "321e9c3d63d65ded4ea73d49bfec810f6838ac768df3921e1b0b39fd38679731"
+  },
+  "forbiddenDependencyChecks": {
+    "repositoryRelativeImports": 0,
+    "demosKitWrappers": 0,
+    "sourceBinaries": 0,
+    "cargoFallbacks": 0
+  }
+}
+

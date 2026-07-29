@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "mode": "fresh-local",
+  "namespace": "llp0102-final-research-snapback-w1",
+  "sourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "appId": "project",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:e6cf0d9dc1b7769fe77f4d35ed7b7a57e9961346f8684f2defd3ec3b40ad8279",
+  "identityHash": "5970165e83af358343e9c7916d6af22c5a4e80b2a8cc2231883404fdc3b5e5b4",
+  "packageVersion": "0.1.1-llp0102.1",
+  "packageRuntime": "@snapback/runtime-darwin-arm64",
+  "binaryIdentity": {
+    "crateVersion": "0.1.0",
+    "gitCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+    "gitDirty": false,
+    "buildProfile": "release",
+    "startupNonce": "019fadd1-f906-7e73-abd1-dbc8c7932e31"
+  },
+  "launch": {
+    "start": "installed snapback start",
+    "stop": "installed snapback stop",
+    "readyDescriptorKind": "snapbackHostReady"
+  },
+  "ports": {
+    "server": 33105,
+    "vite": 43105,
+    "effect": 53105,
+    "browserDebug": 63105
+  }
+}

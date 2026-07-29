@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "title": "LLP 0102 Research Room / Snapback",
+  "expectedCheckCount": 15,
+  "result": "fail-product-blocked",
+  "stopClass": null,
+  "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "namespace": "llp0102-research-snapback-w1",
+  "summary": {
+    "pass": 1,
+    "gap": 2,
+    "fail": 12
+  },
+  "scenarios": [
+    {"id":"RESEARCH-01-SEED","status":"fail","reason":"sessions deployment refused before listener bind"},
+    {"id":"RESEARCH-02-FILES","status":"gap","reason":"no shipped asset upload/byte-store path at the frozen commit"},
+    {"id":"RESEARCH-03-OUTSIDER","status":"fail","reason":"sessions deployment refused before personas could be minted"},
+    {"id":"RESEARCH-04-KEYWORD","status":"fail","reason":"sessions deployment refused before seed/query execution"},
+    {"id":"RESEARCH-05-SEMANTIC","status":"gap","reason":"no ordinary vector or semantic retrieval path at the frozen commit"},
+    {"id":"RESEARCH-06-PROGRESS","status":"fail","reason":"full sessions artifact requiring bounded_response_stream_v1 is inadmissible"},
+    {"id":"RESEARCH-07-CITATIONS","status":"fail","reason":"answer action could not run on the required sessions deployment"},
+    {"id":"RESEARCH-08-COLLABORATOR","status":"fail","reason":"authenticated two-member streamed progress deployment cannot start"},
+    {"id":"RESEARCH-09-CANCEL","status":"fail","reason":"authenticated streamed attempt/cancellation path cannot start"},
+    {"id":"RESEARCH-10-RETRY","status":"fail","reason":"sessions deployment refused before question mutation execution"},
+    {"id":"RESEARCH-11-OUTCOMES","status":"fail","reason":"authenticated streamed settlement path cannot start"},
+    {"id":"RESEARCH-12-SCHEDULE","status":"fail","reason":"the full function manifest is rejected before cron activation"},
+    {"id":"RESEARCH-13-SECRETS","status":"fail","reason":"the full function manifest is rejected before config can be set; no canary was persisted"},
+    {"id":"RESEARCH-14-PERFORMANCE","status":"fail","reason":"no valid full application target existed to measure"},
+    {"id":"RESEARCH-15-CLEANUP","status":"pass","reason":"fresh runtime/public paths removed and ports 3340/4340/20440/9340 closed"}
+  ],
+  "controlEvidence": {
+    "canonicalStreamedActionWitness": {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 node demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs",
+      "result": "8/8 pass",
+      "interpretation": "Streaming works in dev auth on the exact binary; the defect is the sessions artifact preflight composition."
+    },
+    "sessionsHotPublicationProbe": {
+      "result": "refused",
+      "code": "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+      "interpretation": "Starting a narrow sessions artifact and hot-loading the full manifest is not a supported workaround."
+    }
+  },
+  "cleanupReceipt": "receipts/cleanup.v1.json",
+  "defectReceipt": "receipts/sessions-stream-admission-defect.v1.json"
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "targetIdentity": "5970165e83af358343e9c7916d6af22c5a4e80b2a8cc2231883404fdc3b5e5b4",
+  "namespace": "llp0102-final-research-snapback-w1",
+  "freshTarget": true,
+  "targets": [
+    "/private/tmp/llp0102-final-research-snapback-w1.fg2Oic/state/runtime/target/research-room.sqlite",
+    "/private/tmp/llp0102-final-research-snapback-w1.fg2Oic/state/runtime/target/research-room.sqlite.lock",
+    "/private/tmp/llp0102-final-research-snapback-w1.fg2Oic/state/runtime/target/research-room.sqlite.config.json",
+    "/private/tmp/llp0102-final-research-snapback-w1.fg2Oic/state/runtime/target/startup-artifacts.json",
+    "/private/tmp/llp0102-final-research-snapback-w1.fg2Oic/state/public"
+  ],
+  "ownedPorts": [
+    33105,
+    43105,
+    53105,
+    63105
+  ],
+  "unrelatedTargets": "none; fresh local target",
+  "order": [
+    "dispose clients/browser",
+    "stop Vite/effect/Snapback",
+    "remove exact runtime/public paths",
+    "probe ports and paths"
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    {
+      "command": "npm install",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm run generate",
+      "exitStatus": 1,
+      "classification": "environment/workspace dependency missing: acorn"
+    },
+    {
+      "command": "npm install (repository root)",
+      "exitStatus": 1,
+      "classification": "builder error: repository requires bun workspace protocol"
+    },
+    {
+      "command": "bun install --frozen-lockfile (repository root)",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm run generate",
+      "exitStatus": 1,
+      "classification": "documentation/DX: egress env required during codegen"
+    },
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 npm run generate",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 1,
+      "classification": "builder error: missing vite client declaration"
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "classification": "product: sessions cold-start capability admission"
+    },
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 node demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs",
+      "exitStatus": 0,
+      "classification": "diagnostic control: exact binary streamed actions 8/8"
+    },
+    {
+      "command": "node scripts/probe-session-hotload.mjs",
+      "exitStatus": 1,
+      "classification": "diagnostic workaround refused: SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
+    }
+  ],
+  "assistanceEvents": [
+    {
+      "kind": "source-inspection",
+      "reason": "The guide streaming excerpt was insufficient for the host-owned attempt settlement pattern.",
+      "sources": [
+        "demos/competitive-checkpoint/snapback",
+        "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs"
+      ]
+    },
+    {
+      "kind": "cross-arm-convention-inspection",
+      "reason": "Consulted the existing Snapback chat arm for isolated sessions lifecycle and evidence packaging conventions.",
+      "sources": [
+        "demos/backend-bakeoff/arms/chat/snapback/work/scripts/run-arm.mjs"
+      ]
+    },
+    {
+      "kind": "source-inspection",
+      "reason": "Codegen diagnostic did not explain that outbound egress must be enabled during generation.",
+      "sources": [
+        "packages/snapback-codegen/index.mjs",
+        "packages/snapback-codegen/authoring-validation.test.mjs"
+      ]
+    }
+  ]
+}
