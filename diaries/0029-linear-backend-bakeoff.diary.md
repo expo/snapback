@@ -867,3 +867,36 @@ an arm-local lifecycle wrapper for readiness, credentials, and cleanup.
 The original 1,024-write ceiling, relational composition work, and the four
 search/offline/migration/hosted gaps remain unchanged. This pass improves
 confidence in distribution; it does not improve the arm's product score.
+
+## 2026-07-29 — Firebase current-major refresh
+
+The sealed arm and every original receipt remain unchanged. A fresh additive
+project upgraded `firebase-admin` from 13.5.0 to 14.2.0 and
+`firebase-functions` from 6.4.0 to 7.3.2. After the provider-order gate opened,
+the isolated emulator target completed the frozen Linear suite with **12 PASS,
+one explicit GAP, one unavailable remote dependency, zero FAIL, and no
+Stop-class defect**.
+
+The original arm already used Firebase's recommended modular entry points,
+including v2 callable functions, so its business-function source needed no
+migration. The client, UI, rules, indexes, and frozen assertions copied without
+semantic changes. Both callables loaded under the declared Node.js 22 runtime,
+and authority, conflict, push, offline queueing, migration, performance, and
+cleanup all reproduced.
+
+The upgrade still moved the Functions runtime declaration from Node 20 to 22,
+pulled a substantial transitive lockfile change, and retained thirteen
+`npm audit` findings, including seven high-severity paths whose advertised
+fixes include incompatible downgrades. Those are operational evidence rather
+than a reason to silently auto-fix.
+
+Isolation exposed another hidden edge. The Functions emulator opened Eventarc
+and Tasks listeners on default ports `9299` and `9499` even though they were
+not in the requested service set. Exact cleanup proved ownership and no
+collision, but I invalidated that run for the protocol and repeated the full
+suite with Eventarc `61121` and Tasks `62121` explicitly assigned. The final
+ten-port cleanup is exact.
+
+Native full-text search remains a GAP, and hosted deploy remains unavailable
+because hosted credentials were absent. The local major-version refresh is
+strongly confirmed; it does not manufacture either missing product fact.
