@@ -127,8 +127,9 @@ All seven Partiful arms have now been assigned in exact frozen order.
 | Frozen start order | Arm | Worker / machine | Isolation | Merge ownership |
 | ---: | --- | --- | --- | --- |
 | 1 | Research Room / Snapback | Worker 1 / control-plane Mac, exact frozen product worktree | Detached worktree `/private/tmp/llp0102-research-snapback-w1` at product/source commit `5f31cb6174daaefa04a1e05242acbbc22c725040`; arm-owned SQLite target/runtime/sessions/persona carriers; server `3340`, Vite `4340`, effect receiver `20440`, browser-debug `9340`; exact namespace `llp0102-research-snapback-w1`; no hosted claim without direct evidence | Worker returns only the arm commit/artifacts, diary draft, and guide-gap drafts; coordinator imports, audits, scores, files guide gaps, and serializes shared files |
+| 2 | Research Room / Supabase | Worker 2 / control-plane Mac after Partiful/Convex cleanup | Detached worktree `/private/tmp/llp0102-research-supabase-w2` at the current evidence-integration base with no Snapback product edits; official local Supabase stack with exact Docker project/volume namespace `llp0102-research-supabase-w2`; API/DB/Studio range rooted at `58431`, Vite `4341`; worktree-local CLI/XDG state and a fresh local project | Worker starts only after its Partiful/Convex target is sealed and cleaned, then returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
 
-Research Room/Supabase through InstantDB remain pending. They will be assigned
+Research Room/Firebase through InstantDB remain pending. They will be assigned
 in exact frozen order as isolated capacity opens.
 
 ## Research Room live progress
@@ -136,7 +137,7 @@ in exact frozen order as isolated capacity opens.
 | Arm | State | Coordinator integration |
 | --- | --- | --- |
 | Research Room / Snapback | Assigned | Worker 1 reserved on isolated frozen-commit local target after exact Partiful/Snapback cleanup |
-| Research Room / Supabase | Pending | Not yet assigned |
+| Research Room / Supabase | Assigned | Worker 2 queued on an isolated control-plane Supabase namespace after exact Partiful/Convex cleanup |
 | Research Room / Firebase | Pending | Not yet assigned |
 | Research Room / SpacetimeDB | Pending | Not yet assigned |
 | Research Room / Convex | Pending | Not yet assigned |
