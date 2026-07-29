@@ -1,0 +1,29 @@
+{
+  "capturedAt": "2026-07-29T06:32:56.448Z",
+  "startedMonotonicMs": 263334000,
+  "sourceCommit": "e7f22d65ba6c419b67557e88b4eab50f0fd44866",
+  "snapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "provider": "InstantDB",
+  "providerVersion": "1.0.52",
+  "targetMode": "fresh-hosted-temporary",
+  "intendedTitle": "llp0102-partiful-instantdb-w3-a3",
+  "intendedTargetAbsent": true,
+  "absenceBasis": "init-without-files --temp always creates a new opaque app identity; no shared target is selected",
+  "accountCapability": "anonymous temporary app creation; no account credential used",
+  "plan": "official temporary/free app",
+  "region": "provider-selected and not exposed",
+  "isolatedState": {
+    "worktree": "/private/tmp/llp0102-partiful-instantdb-w3",
+    "xdgRoot": ".arm-runtime/xdg",
+    "vitePort": 4337,
+    "browserDebugPort": 9337
+  },
+  "portPreflight": {
+    "4337": "unused",
+    "9337": "unused"
+  },
+  "processPreflight": "no arm-owned process",
+  "cleanupIntent": "delete exact app-owned entities/files/users, revoke local token material, rely on documented temporary-app expiry for app shell",
+  "containsCredentialValues": false
+}

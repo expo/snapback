@@ -1,0 +1,9 @@
+{
+  "id": "PARTY-08-ASSET",
+  "result": "FAIL",
+  "summary": "Authenticated event art upload, delivery, and deletion work.",
+  "startedAt": "2026-07-29T07:00:52.935Z",
+  "finishedAt": "2026-07-29T07:00:54.775Z",
+  "errorType": "Error",
+  "errorMessage": "fresh URL after file deletion unexpectedly succeeded"
+}

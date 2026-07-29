@@ -1,0 +1,9 @@
+{
+  "id": "PARTY-06-CAPACITY",
+  "result": "FAIL",
+  "summary": "Concurrent final-seat claims cannot overbook capacity.",
+  "startedAt": "2026-07-29T06:52:26.802Z",
+  "finishedAt": "2026-07-29T06:52:27.076Z",
+  "errorType": "Error",
+  "errorMessage": "final-seat claim did not settle"
+}

@@ -1,0 +1,14 @@
+{
+  "capturedAt": "2026-07-29T07:07:40.981Z",
+  "url": "http://127.0.0.1:4337/",
+  "viteBinding": "127.0.0.1:4337",
+  "browserDebugBinding": "127.0.0.1:9337",
+  "httpStatus": 200,
+  "screenshotPath": "evidence/screenshots/login.png",
+  "screenshotSha256": "355af1ae8fb15e6e417c8f59cbfd76c7eff4600c7598eab1b59054aa7fbbe937",
+  "screenshotBytes": 42687,
+  "postEvidencePorts": {
+    "4337": "stopped",
+    "9337": "stopped"
+  }
+}

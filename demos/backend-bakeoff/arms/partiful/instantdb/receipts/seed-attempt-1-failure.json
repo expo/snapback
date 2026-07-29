@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-07-29T06:42:00.000Z",
+  "command": "npm run seed",
+  "exitStatus": 1,
+  "classification": "builder-error",
+  "summary": "The authoritative fixture transaction committed, but the follow-up typed inventory query rejected $files because the special storage namespace was missing from instant.schema.ts.",
+  "remediation": "Declare the documented $files schema, push the additive schema update, clear only the fresh temporary app fixture, and retry.",
+  "secretValues": false
+}

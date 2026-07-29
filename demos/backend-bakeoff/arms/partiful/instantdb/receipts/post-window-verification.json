@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-29T07:26:28Z",
+  "checks": {
+    "gitDiffCheck": "pass",
+    "refCheckVerbose": {
+      "status": "pass",
+      "llpDocuments": 107,
+      "references": 2236,
+      "files": 4448,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "backendBakeoffProtocolTests": {
+      "status": "pass",
+      "tests": 29,
+      "failures": 0,
+      "stage0ProtocolValid": true,
+      "readyForTimedArms": true
+    },
+    "runCapsuleVerification": "pass",
+    "guideCheck": {
+      "status": "pass",
+      "pages": 41,
+      "snippets": 95,
+      "warnings": 23,
+      "note": "Warnings concern pre-existing authority freshness outside this provider arm."
+    },
+    "isolation": {
+      "runtimeOrEnvironmentFilesRetained": 0,
+      "vitePort4337": "closed",
+      "browserDebugPort9337": "closed",
+      "secretShapedAssignmentFiles": 0,
+      "workingTreeChangesOutsideArm": 0
+    }
+  }
+}

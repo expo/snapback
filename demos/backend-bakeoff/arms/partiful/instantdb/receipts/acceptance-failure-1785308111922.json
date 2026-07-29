@@ -1,0 +1,9 @@
+{
+  "id": "PARTY-07-LIVE-BURST",
+  "result": "FAIL",
+  "summary": "Wall posts and RSVP totals update live during the frozen burst.",
+  "startedAt": "2026-07-29T06:55:11.358Z",
+  "finishedAt": "2026-07-29T06:55:11.922Z",
+  "errorType": "permission-denied",
+  "errorMessage": "Permission denied: not perms-pass?"
+}

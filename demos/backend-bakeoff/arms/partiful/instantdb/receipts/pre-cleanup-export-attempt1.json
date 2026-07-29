@@ -1,0 +1,22 @@
+{
+  "capturedAt": "2026-07-29T07:09:11.775Z",
+  "attempt": 1,
+  "namespace": "llp0102-partiful-instantdb-w3",
+  "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+  "counts": {
+    "wallPosts": 0,
+    "reminderJobs": 0,
+    "$users": 3,
+    "profiles": 3,
+    "invitations": 49,
+    "events": 20,
+    "seatClaims": 49,
+    "notificationAttempts": 0,
+    "$files": 0,
+    "webhooks": 0
+  },
+  "canonicalDataSha256": "7fbe66f237f2820702c8994146efaf8935b6687b1eba456675d1317c7582638e",
+  "webhookConfigurationSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "containsRecordValues": false,
+  "note": "Authoritative admin query and webhook-manager inventory were hashed before deletion; Instant temporary apps expose no separate snapshot API to this app-scoped token."
+}

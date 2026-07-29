@@ -1,0 +1,9 @@
+{
+  "id": "PARTY-10-EFFECT-RETRY",
+  "result": "FAIL",
+  "summary": "Known-success external notification remains idempotent across retry.",
+  "startedAt": "2026-07-29T07:01:38.005Z",
+  "finishedAt": "2026-07-29T07:01:38.201Z",
+  "errorType": "validation-failed",
+  "errorMessage": "Validation failed for webhook: Could not resolve URL."
+}

@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-07-29T07:09:11.284Z",
+  "finishedAt": "2026-07-29T07:09:17.160Z",
+  "operation": "exact cleanup of three fresh hosted temporary Instant apps created by this arm",
+  "attempts": [
+    {
+      "attempt": 1,
+      "namespace": "llp0102-partiful-instantdb-w3",
+      "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+      "beforeCounts": {
+        "wallPosts": 0,
+        "reminderJobs": 0,
+        "$users": 3,
+        "profiles": 3,
+        "invitations": 49,
+        "events": 20,
+        "seatClaims": 49,
+        "notificationAttempts": 0,
+        "$files": 0,
+        "webhooks": 0
+      },
+      "afterCounts": {
+        "wallPosts": 0,
+        "reminderJobs": 0,
+        "$users": 0,
+        "profiles": 0,
+        "invitations": 0,
+        "events": 0,
+        "seatClaims": 0,
+        "notificationAttempts": 0,
+        "$files": 0,
+        "webhooks": 0
+      },
+      "actorTokensInvalidated": {
+        "alice": true,
+        "bob": true,
+        "mallory": true
+      },
+      "exactTargetOnly": true,
+      "appShellStatus": "empty; provider automatic expiry pending (>24 hours)",
+      "residualConfigurationUntilProviderExpiry": [
+        "schema attributes and links",
+        "permission rules",
+        "opaque temporary app shell"
+      ]
+    },
+    {
+      "attempt": 2,
+      "namespace": "llp0102-partiful-instantdb-w3-a2",
+      "targetIdSha256": "2deddab673473b6465d75a1111e135aa0599a228bf5df506d4f0b758572b2af5",
+      "beforeCounts": {
+        "wallPosts": 0,
+        "reminderJobs": 0,
+        "$users": 3,
+        "profiles": 3,
+        "invitations": 49,
+        "events": 20,
+        "seatClaims": 49,
+        "notificationAttempts": 0,
+        "$files": 0,
+        "webhooks": 0
+      },
+      "afterCounts": {
+        "wallPosts": 0,
+        "reminderJobs": 0,
+        "$users": 0,
+        "profiles": 0,
+        "invitations": 0,
+        "events": 0,
+        "seatClaims": 0,
+        "notificationAttempts": 0,
+        "$files": 0,
+        "webhooks": 0
+      },
+      "actorTokensInvalidated": {
+        "alice": true,
+        "bob": true,
+        "mallory": true
+      },
+      "exactTargetOnly": true,
+      "appShellStatus": "empty; provider automatic expiry pending (>24 hours)",
+      "residualConfigurationUntilProviderExpiry": [
+        "schema attributes and links",
+        "permission rules",
+        "opaque temporary app shell"
+      ]
+    },
+    {
+      "attempt": 3,
+      "namespace": "llp0102-partiful-instantdb-w3-a3",
+      "targetIdSha256": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+      "beforeCounts": {
+        "wallPosts": 0,
+        "reminderJobs": 0,
+        "$users": 3,
+        "profiles": 3,
+        "invitations": 49,
+        "events": 20,
+        "seatClaims": 50,
+        "notificationAttempts": 0,
+        "$files": 0,
+        "webhooks": 0
+      },
+      "afterCounts": {
+        "wallPosts": 0,
+        "reminderJobs": 0,
+        "$users": 0,
+        "profiles": 0,
+        "invitations": 0,
+        "events": 0,
+        "seatClaims": 0,
+        "notificationAttempts": 0,
+        "$files": 0,
+        "webhooks": 0
+      },
+      "actorTokensInvalidated": {
+        "alice": true,
+        "bob": true,
+        "mallory": true
+      },
+      "exactTargetOnly": true,
+      "appShellStatus": "empty; provider automatic expiry pending (>24 hours)",
+      "residualConfigurationUntilProviderExpiry": [
+        "schema attributes and links",
+        "permission rules",
+        "opaque temporary app shell"
+      ]
+    }
+  ],
+  "unrelatedBaselinePreserved": true,
+  "unrelatedBaselineProof": "fresh opaque targets only; no shared target/account resource selected or mutated",
+  "localRuntimeCredentialsRemoved": true,
+  "exactProcessPorts": {
+    "vite4337": "stopped before cleanup",
+    "browserDebug9337": "stopped before cleanup"
+  },
+  "temporaryAppLifecycle": "Each empty app shell is provider-scheduled for automatic deletion after more than 24 hours.",
+  "residualGap": "App-scoped admin tokens cannot immediately delete the temporary app shell or remove its schema/permission configuration.",
+  "secretScan": {
+    "retainedArtifactCount": 69,
+    "adminTokenMatches": 0
+  }
+}

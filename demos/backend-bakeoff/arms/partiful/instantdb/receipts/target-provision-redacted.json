@@ -1,0 +1,13 @@
+{
+  "capturedAt": "2026-07-29T06:54:14.445Z",
+  "targetMode": "fresh-hosted-temporary",
+  "title": "llp0102-partiful-instantdb-w3-a3",
+  "targetIdSha256": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+  "adminTokenSha256": "c56d5c9511fa33bed877f597b8f39511ab1f6f9272d529a7fde9ab3bd43e667c",
+  "providerReceipt": "instant-cli init-without-files --temp exited 0",
+  "lifecycle": "provider documents automatic deletion after more than 24 hours",
+  "placement": "provider-selected; exact region not exposed",
+  "credentialsPersistedOnlyAt": "work/.arm-runtime/target.json (0600, ignored)",
+  "isolatedXdgState": "work/.arm-runtime/xdg",
+  "containsCredentialValues": false
+}

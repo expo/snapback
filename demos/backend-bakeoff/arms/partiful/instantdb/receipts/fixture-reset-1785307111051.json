@@ -1,0 +1,28 @@
+{
+  "capturedAt": "2026-07-29T06:38:31.051Z",
+  "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+  "reason": "retained seed attempt 1 failed after its transaction committed",
+  "beforeCounts": {
+    "wallPosts": 0,
+    "reminderJobs": 0,
+    "$users": 3,
+    "profiles": 3,
+    "invitations": 49,
+    "events": 20,
+    "seatClaims": 49,
+    "notificationAttempts": 0,
+    "$files": 0
+  },
+  "afterCounts": {
+    "wallPosts": 0,
+    "reminderJobs": 0,
+    "$users": 0,
+    "profiles": 0,
+    "invitations": 0,
+    "events": 0,
+    "seatClaims": 0,
+    "notificationAttempts": 0,
+    "$files": 0
+  },
+  "exactFreshTargetOnly": true
+}
