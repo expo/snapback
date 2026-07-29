@@ -44,6 +44,7 @@ import {
   validateColdInstallBrowserEvidence,
   validateLatestRootResolution,
   validatePublicPublicationLedger,
+  validateRetainedComparatorReceipt,
   validateStagedPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
@@ -2210,7 +2211,11 @@ await build({
     '--timeout-ms', '30000',
     '--json',
   ], { cwd: appRoot, timeout: 120_000 });
-  const comparatorReceipt = JSON.parse(readFileSync(comparatorReceiptPath, 'utf8'));
+  const comparatorReceiptBytes = readFileSync(comparatorReceiptPath);
+  if (comparatorReceiptBytes.byteLength > 2 * 1024 * 1024) {
+    fail('packed comparator receipt exceeded its 2 MiB retention bound');
+  }
+  const comparatorReceipt = JSON.parse(comparatorReceiptBytes);
   if (
     comparatorReceipt.schemaVersion !== 'snapback.comparator-receipt.v1'
     || comparatorReceipt.status !== 'passed'
@@ -2474,6 +2479,8 @@ await build({
       sha256: entry.sha256,
       registrySha256: entry.registrySha256 ?? null,
     })),
+    comparatorReceipt,
+    comparatorReceiptSha256: sha256Hex(canonicalJcs(comparatorReceipt)),
     deployBuild: {
       releaseId: deployBuild.releaseId,
       targetProfileId: deployBuild.targetProfileId,
@@ -2528,6 +2535,12 @@ await build({
     ],
   };
   validateColdInstallBrowserEvidence(receipt);
+  validateRetainedComparatorReceipt(receipt, {
+    sourceRevision: ledger.revision,
+    version: ledger.version,
+    expectedRuntimeBinarySha256:
+      ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256,
+  });
   const rendered = `${JSON.stringify(receipt, null, 2)}\n`;
   if (receiptPath) writeFileSync(resolve(receiptPath), rendered);
   process.stdout.write(rendered);

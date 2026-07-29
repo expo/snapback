@@ -48,6 +48,14 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-cli',
 ]);
 
+const PACKAGED_COMPARATOR_CHECK_IDS = Object.freeze([
+  'native-live-delivery',
+  'atomic-declared-writes',
+  'rejected-mutation-rollback',
+  'presence-cleanup',
+  'ephemeral-durable-separation',
+]);
+
 const QUALIFIED_LEDGER_KEYS = [
   'mode',
   'packages',
@@ -711,6 +719,273 @@ export function validateCandidateLedger(ledger) {
   return ledger;
 }
 
+/**
+ * Retain the governed comparator receipt itself, rather than reducing an
+ * installed run to a boolean. The installed CLI verifies the full receipt
+ * against its own package graph before this outer proof reads it; this second
+ * validator binds the retained bytes to the release source/runtime and keeps
+ * the mandatory checks, timings, cleanup, and nonclaims auditable later.
+ *
+ * @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — package
+ * qualification retains the governed comparator receipt itself, not a
+ * passing boolean detached from target, binary, timing, cleanup, or nonclaims.
+ */
+export function validateRetainedComparatorReceipt(packageReceipt, {
+  sourceRevision,
+  version,
+  expectedRuntimeBinarySha256 = null,
+} = {}) {
+  const receipt = packageReceipt?.comparatorReceipt;
+  const exactKeys = (value, keys, label) => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      throw new TypeError(`${label} must be an object`);
+    }
+    const actual = Object.keys(value).sort();
+    const expected = [...keys].sort();
+    if (
+      actual.length !== expected.length
+      || actual.some((key, index) => key !== expected[index])
+    ) {
+      throw new TypeError(`${label} has unknown or missing members`);
+    }
+  };
+  const nonEmptyString = (value) => typeof value === 'string' && value.length > 0;
+  const sha256 = (value) => typeof value === 'string' && /^sha256:[0-9a-f]{64}$/u.test(value);
+  exactKeys(receipt, [
+    'capabilityGaps',
+    'checks',
+    'cleanup',
+    'diagnostic',
+    'durationMs',
+    'executorPackages',
+    'exitCode',
+    'expectedChecks',
+    'finishedAtMs',
+    'identity',
+    'nonclaims',
+    'profileId',
+    'schemaVersion',
+    'startedAtMs',
+    'status',
+    'title',
+  ], 'retained comparator receipt');
+  if (
+    receipt.schemaVersion !== 'snapback.comparator-receipt.v1'
+    || receipt.status !== 'passed'
+    || receipt.exitCode !== 0
+    || !nonEmptyString(receipt.profileId)
+    || !nonEmptyString(receipt.title)
+    || !Number.isSafeInteger(receipt.startedAtMs)
+    || !Number.isSafeInteger(receipt.finishedAtMs)
+    || !Number.isSafeInteger(receipt.durationMs)
+    || receipt.finishedAtMs < receipt.startedAtMs
+    || receipt.durationMs !== receipt.finishedAtMs - receipt.startedAtMs
+    || receipt.diagnostic !== null
+    || !Array.isArray(receipt.capabilityGaps)
+    || receipt.capabilityGaps.length !== 0
+  ) {
+    throw new TypeError('retained comparator receipt is not one complete passing run');
+  }
+  const canonicalDigest = sha256Hex(canonicalJcs(receipt));
+  if (
+    typeof packageReceipt.comparatorReceiptSha256 !== 'string'
+    || packageReceipt.comparatorReceiptSha256 !== canonicalDigest
+  ) {
+    throw new TypeError('retained comparator receipt digest drifted');
+  }
+
+  exactKeys(receipt.executorPackages, ['cli', 'client'], 'comparator executor packages');
+  for (const [key, expectedName] of [
+    ['cli', '@snapback/cli'],
+    ['client', '@snapback/client'],
+  ]) {
+    const identity = receipt.executorPackages[key];
+    exactKeys(
+      identity,
+      ['algorithm', 'files', 'name', 'sha256', 'version'],
+      `comparator executor package ${key}`,
+    );
+    if (
+      identity.name !== expectedName
+      || identity.version !== version
+      || identity.algorithm !== 'sha256-package-files-path-length-content.v1'
+      || !sha256(identity.sha256)
+      || !Array.isArray(identity.files)
+      || identity.files.length < 1
+      || identity.files.length > 2_000
+      || identity.files.some((file, index, files) => (
+        !nonEmptyString(file)
+        || file.startsWith('/')
+        || file.split('/').includes('..')
+        || (index > 0 && files[index - 1] >= file)
+      ))
+    ) {
+      throw new TypeError(`retained comparator executor package ${key} drifted`);
+    }
+  }
+
+  exactKeys(receipt.identity, ['artifact', 'binary', 'target'], 'comparator identity');
+  const target = receipt.identity.target;
+  exactKeys(
+    target,
+    ['available', 'databaseMode', 'kind', 'managed', 'profileId', 'serverUrl'],
+    'comparator target identity',
+  );
+  let targetUrl;
+  try {
+    targetUrl = new URL(target.serverUrl);
+  } catch {
+    throw new TypeError('retained comparator target URL is invalid');
+  }
+  if (
+    target.available !== true
+    || target.kind !== 'local-isolated'
+    || target.profileId !== 'local-dev-sqlite-ibex'
+    || target.databaseMode !== 'isolated-file'
+    || target.managed !== true
+    || targetUrl.protocol !== 'http:'
+    || !['127.0.0.1', '::1', 'localhost'].includes(targetUrl.hostname)
+    || targetUrl.username
+    || targetUrl.password
+    || targetUrl.pathname !== '/'
+    || targetUrl.search
+    || targetUrl.hash
+  ) {
+    throw new TypeError('retained comparator target identity drifted');
+  }
+  const artifact = receipt.identity.artifact;
+  exactKeys(
+    artifact,
+    ['appId', 'available', 'bundleHash', 'inputsHash', 'schemaHash'],
+    'comparator artifact identity',
+  );
+  if (
+    artifact.available !== true
+    || !nonEmptyString(artifact.appId)
+    || !nonEmptyString(artifact.bundleHash)
+    || !nonEmptyString(artifact.inputsHash)
+    || !nonEmptyString(artifact.schemaHash)
+  ) {
+    throw new TypeError('retained comparator artifact identity drifted');
+  }
+  const binary = receipt.identity.binary;
+  exactKeys(
+    binary,
+    [
+      'available',
+      'buildProfile',
+      'crateVersion',
+      'gitCommit',
+      'gitDirty',
+      'path',
+      'sha256',
+      'startupNonce',
+    ],
+    'comparator binary identity',
+  );
+  if (
+    binary.available !== true
+    || !nonEmptyString(binary.path)
+    || !sha256(binary.sha256)
+    || !nonEmptyString(binary.crateVersion)
+    || binary.gitCommit !== sourceRevision
+    || binary.gitDirty !== false
+    || binary.buildProfile !== 'release'
+    || !nonEmptyString(binary.startupNonce)
+    || (
+      expectedRuntimeBinarySha256 !== null
+      && binary.sha256 !== `sha256:${expectedRuntimeBinarySha256}`
+    )
+  ) {
+    throw new TypeError('retained comparator binary identity drifted');
+  }
+
+  if (
+    !Array.isArray(receipt.expectedChecks)
+    || !Array.isArray(receipt.checks)
+    || receipt.expectedChecks.length !== PACKAGED_COMPARATOR_CHECK_IDS.length
+    || receipt.checks.length !== PACKAGED_COMPARATOR_CHECK_IDS.length
+  ) {
+    throw new TypeError('retained comparator check set is incomplete');
+  }
+  for (const [index, expectedId] of PACKAGED_COMPARATOR_CHECK_IDS.entries()) {
+    const expected = receipt.expectedChecks[index];
+    exactKeys(expected, ['id', 'name'], `comparator expected check ${index}`);
+    const check = receipt.checks[index];
+    exactKeys(
+      check,
+      [
+        'details',
+        'diagnostic',
+        'durationMs',
+        'finishedAtMs',
+        'id',
+        'name',
+        'startedAtMs',
+        'status',
+      ],
+      `comparator check ${index}`,
+    );
+    if (
+      expected.id !== expectedId
+      || !nonEmptyString(expected.name)
+      || check.id !== expectedId
+      || check.name !== expected.name
+      || check.status !== 'passed'
+      || check.diagnostic !== null
+      || check.details === null
+      || typeof check.details !== 'object'
+      || Array.isArray(check.details)
+      || !Number.isSafeInteger(check.startedAtMs)
+      || !Number.isSafeInteger(check.finishedAtMs)
+      || !Number.isSafeInteger(check.durationMs)
+      || check.startedAtMs < receipt.startedAtMs
+      || check.finishedAtMs > receipt.finishedAtMs
+      || check.finishedAtMs < check.startedAtMs
+      || check.durationMs !== check.finishedAtMs - check.startedAtMs
+    ) {
+      throw new TypeError(`retained comparator check ${expectedId} drifted`);
+    }
+  }
+  exactKeys(
+    receipt.cleanup,
+    ['attempted', 'errors', 'leaderExited', 'managed', 'ok', 'temporaryStateRemoved'],
+    'comparator cleanup',
+  );
+  if (
+    receipt.cleanup.attempted !== true
+    || receipt.cleanup.ok !== true
+    || receipt.cleanup.managed !== true
+    || receipt.cleanup.leaderExited !== true
+    || receipt.cleanup.temporaryStateRemoved !== true
+    || !Array.isArray(receipt.cleanup.errors)
+    || receipt.cleanup.errors.length !== 0
+    || !Array.isArray(receipt.nonclaims)
+    || receipt.nonclaims.length < 1
+    || receipt.nonclaims.some((claim) => !nonEmptyString(claim))
+  ) {
+    throw new TypeError('retained comparator cleanup or nonclaims drifted');
+  }
+  return {
+    receiptSha256: canonicalDigest,
+    profileId: receipt.profileId,
+    binarySha256: binary.sha256,
+    executorPackages: {
+      cli: identityProjection(receipt.executorPackages.cli),
+      client: identityProjection(receipt.executorPackages.client),
+    },
+    checkIds: [...PACKAGED_COMPARATOR_CHECK_IDS],
+  };
+}
+
+function identityProjection(identity) {
+  return {
+    name: identity.name,
+    version: identity.version,
+    sha256: identity.sha256,
+  };
+}
+
 export function validateQualifiedPlatformReceipts({ ledger, records }) {
   validateQualifiedStagingLedger(ledger);
   if (!Array.isArray(records) || records.length !== 2) {
@@ -740,11 +1015,20 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
     ) {
       throw new TypeError('staged platform receipt is not a clean qualified proof');
     }
-    validateColdInstallBrowserEvidence(receipt);
     const platform = `${receipt.machine.platform}-${receipt.machine.architecture}`;
     if (!['darwin-arm64', 'linux-x64'].includes(platform) || byPlatform.has(platform)) {
       throw new TypeError(`duplicate or unsupported staged platform receipt: ${platform}`);
     }
+    const hostRuntime = platform === 'darwin-arm64'
+      ? '@snapback/runtime-darwin-arm64'
+      : '@snapback/runtime-linux-x64';
+    validateColdInstallBrowserEvidence(receipt);
+    validateRetainedComparatorReceipt(receipt, {
+      sourceRevision: ledger.revision,
+      version: ledger.version,
+      expectedRuntimeBinarySha256:
+        ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256,
+    });
     const receiptRows = new Map((receipt.packages ?? []).map((row) => [row.sourceName, row]));
     if (receiptRows.size !== PACKAGE_INVENTORY.length) {
       throw new TypeError(`${platform} staged receipt package closure drifted`);

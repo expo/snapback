@@ -33,6 +33,7 @@ import {
   validateFinalLatestReceipts,
   validateLatestRootResolution,
   validatePublicPublicationLedger,
+  validateRetainedComparatorReceipt,
 } from './snapback-package-cold-install-lib.mjs';
 import {
   canonicalJcs,
@@ -509,6 +510,149 @@ function browserReceiptEvidence(
     },
   };
 }
+
+function retainedComparatorReceiptFixture({
+  sourceRevision,
+  version,
+  runtimeBinarySha256 = '9'.repeat(64),
+}) {
+  const startedAtMs = 1_785_280_000_000;
+  const expectedChecks = [
+    ['native-live-delivery', 'cross-client native live delivery'],
+    ['atomic-declared-writes', 'atomic declared write set'],
+    ['rejected-mutation-rollback', 'rejected mutation rollback'],
+    ['presence-cleanup', 'TTL and disconnect presence cleanup'],
+    ['ephemeral-durable-separation', 'ephemeral publish does not advance durable version'],
+  ].map(([id, name]) => ({ id, name }));
+  const comparatorReceipt = {
+    schemaVersion: 'snapback.comparator-receipt.v1',
+    profileId: 'packaged-green',
+    title: 'Packaged comparator green fixture',
+    status: 'passed',
+    exitCode: 0,
+    startedAtMs,
+    finishedAtMs: startedAtMs + 50,
+    durationMs: 50,
+    executorPackages: {
+      cli: {
+        name: '@snapback/cli',
+        version,
+        algorithm: 'sha256-package-files-path-length-content.v1',
+        files: ['cli.mjs', 'comparator-profile.mjs'],
+        sha256: `sha256:${'a'.repeat(64)}`,
+      },
+      client: {
+        name: '@snapback/client',
+        version,
+        algorithm: 'sha256-package-files-path-length-content.v1',
+        files: ['index.mjs'],
+        sha256: `sha256:${'b'.repeat(64)}`,
+      },
+    },
+    identity: {
+      target: {
+        available: true,
+        kind: 'local-isolated',
+        profileId: 'local-dev-sqlite-ibex',
+        serverUrl: 'http://127.0.0.1:4289/',
+        databaseMode: 'isolated-file',
+        managed: true,
+      },
+      artifact: {
+        available: true,
+        appId: 'snapback-comparator-fixture',
+        bundleHash: 'snapback.v1:test:function:sha256:fixture',
+        inputsHash: 'snapback.v1:test:inputs:sha256:fixture',
+        schemaHash: 'snapback.v1:test:schema:sha256:fixture',
+      },
+      binary: {
+        available: true,
+        path: '/tmp/snapback-runtime/bin/snapback',
+        sha256: `sha256:${runtimeBinarySha256}`,
+        crateVersion: '0.1.0',
+        gitCommit: sourceRevision,
+        gitDirty: false,
+        buildProfile: 'release',
+        startupNonce: '019fab74-e246-7e72-ab8e-b9d81f8f4ecd',
+      },
+    },
+    expectedChecks,
+    checks: expectedChecks.map(({ id, name }, index) => ({
+      id,
+      name,
+      status: 'passed',
+      startedAtMs: startedAtMs + index * 10,
+      finishedAtMs: startedAtMs + (index + 1) * 10,
+      durationMs: 10,
+      details: { fixture: true },
+      diagnostic: null,
+    })),
+    capabilityGaps: [],
+    cleanup: {
+      attempted: true,
+      ok: true,
+      managed: true,
+      leaderExited: true,
+      temporaryStateRemoved: true,
+      errors: [],
+    },
+    nonclaims: ['hosted-target parity'],
+    diagnostic: null,
+  };
+  return {
+    comparatorReceipt,
+    comparatorReceiptSha256: sha256Hex(canonicalJcs(comparatorReceipt)),
+  };
+}
+
+test('retained comparator evidence preserves governed details and refuses digest or identity drift', () => {
+  const sourceRevision = '7'.repeat(40);
+  const version = '0.1.1';
+  const runtimeBinarySha256 = '8'.repeat(64);
+  const retained = retainedComparatorReceiptFixture({
+    sourceRevision,
+    version,
+    runtimeBinarySha256,
+  });
+  const projection = validateRetainedComparatorReceipt(retained, {
+    sourceRevision,
+    version,
+    expectedRuntimeBinarySha256: runtimeBinarySha256,
+  });
+  assert.equal(projection.receiptSha256, retained.comparatorReceiptSha256);
+  assert.deepEqual(projection.checkIds, [
+    'native-live-delivery',
+    'atomic-declared-writes',
+    'rejected-mutation-rollback',
+    'presence-cleanup',
+    'ephemeral-durable-separation',
+  ]);
+
+  const digestDrift = structuredClone(retained);
+  digestDrift.comparatorReceipt.cleanup.ok = false;
+  assert.throws(
+    () => validateRetainedComparatorReceipt(digestDrift, {
+      sourceRevision,
+      version,
+      expectedRuntimeBinarySha256: runtimeBinarySha256,
+    }),
+    /digest drifted/u,
+  );
+
+  const identityDrift = structuredClone(retained);
+  identityDrift.comparatorReceipt.identity.binary.gitCommit = '6'.repeat(40);
+  identityDrift.comparatorReceiptSha256 = sha256Hex(canonicalJcs(
+    identityDrift.comparatorReceipt,
+  ));
+  assert.throws(
+    () => validateRetainedComparatorReceipt(identityDrift, {
+      sourceRevision,
+      version,
+      expectedRuntimeBinarySha256: runtimeBinarySha256,
+    }),
+    /binary identity drifted/u,
+  );
+});
 
 function githubReceiptProvenance({
   revision,
@@ -1070,6 +1214,17 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
         version: row.version,
         sha256: row.sha256,
       })),
+      ...retainedComparatorReceiptFixture({
+        sourceRevision: qualified.revision,
+        version: qualified.version,
+        runtimeBinarySha256: qualified.packages.find((row) => (
+          row.sourceName === (
+            platform === 'darwin'
+              ? '@snapback/runtime-darwin-arm64'
+              : '@snapback/runtime-linux-x64'
+          )
+        )).runtimeBinarySha256,
+      }),
       checks: {
         stagedRegistryAliasResolution: true,
         noSiblingSourceCheckout: true,
@@ -1264,6 +1419,13 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
         sha256: row.sha256,
         registrySha256: row.registrySha256,
       })),
+      ...retainedComparatorReceiptFixture({
+        sourceRevision: candidate.revision,
+        version: candidate.version,
+        runtimeBinarySha256: candidate.packages.find(
+          (row) => row.sourceName === hostRuntime,
+        ).runtimeBinarySha256,
+      }),
       checks: {
         latestRootCandidateClosure: true,
         publicRegistryTarballDigestMatch: true,
@@ -1407,6 +1569,10 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
       version: entry.version,
       registrySha256: entry.registrySha256,
     })),
+    ...retainedComparatorReceiptFixture({
+      sourceRevision: ledger.revision,
+      version: ledger.version,
+    }),
     checks: {
       publicRegistryAliasResolution: true,
       publicRegistryTarballDigestMatch: true,

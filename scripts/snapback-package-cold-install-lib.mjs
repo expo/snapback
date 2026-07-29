@@ -14,12 +14,14 @@ import {
   validateCandidateLedger,
   validatePublicationReceiptProvenance,
   validateQualifiedStagingLedger,
+  validateRetainedComparatorReceipt,
 } from './snapback-publish-core.mjs';
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
 export {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   validateColdInstallBrowserEvidence,
+  validateRetainedComparatorReceipt,
 };
 
 const PLAYWRIGHT_HEADLESS_EXECUTABLE_NAMES = new Set([
@@ -1244,6 +1246,12 @@ export function validateFinalLatestReceipts({
       throw new TypeError(`invalid final latest-root receipt: ${platform}`);
     }
     validateColdInstallBrowserEvidence(receipt);
+    validateRetainedComparatorReceipt(receipt, {
+      sourceRevision: ledger.revision,
+      version: ledger.version,
+      expectedRuntimeBinarySha256:
+        ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256,
+    });
     if (!['darwin-arm64', 'linux-x64'].includes(platform) || byPlatform.has(platform)) {
       throw new TypeError(`duplicate or unsupported final latest-root receipt: ${platform}`);
     }
@@ -1418,6 +1426,13 @@ export function aggregatePublicPackageProofs({
       throw new TypeError(`platform receipt identity drift: ${platform}`);
     }
     validateColdInstallBrowserEvidence(receipt);
+    const hostRuntime = expectedPlatforms.get(platform);
+    const comparatorProof = validateRetainedComparatorReceipt(receipt, {
+      sourceRevision: ledger.revision,
+      version: ledger.version,
+      expectedRuntimeBinarySha256:
+        ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256 ?? null,
+    });
     if (
       receipt.checks?.publicRegistryAliasResolution !== true
       || receipt.checks?.publicRegistryTarballDigestMatch !== true
@@ -1470,6 +1485,7 @@ export function aggregatePublicPackageProofs({
         receipt.browserJourney.capture.browser.distributionSha256,
       browserExecutableSha256: receipt.browserJourney.capture.browser.executableSha256,
       browserPackageTreeSha256: receipt.browserJourney.capture.browser.packageTreeSha256,
+      comparatorProof,
     });
   }
   for (const platform of expectedPlatforms.keys()) {

@@ -314,6 +314,16 @@ Publication is a closed state machine:
    reversed, the release receipt is failed loudly and no target capability
    carrier may reference it.
 
+Every staged and public platform cold receipt retains the complete governed
+`snapback.comparator-receipt.v1` object plus its canonical JCS SHA-256. The
+outer validator binds the comparator's source commit and release binary digest
+to the selected runtime package, requires the exact five mandatory checks with
+consistent timings, and reopens its package identities, successful cleanup,
+and nonclaims. A `packagedComparatorProfile: true` boolean is only a summary;
+it is never sufficient evidence by itself. The public aggregate retains a
+small projection and the platform-receipt digest, while the full platform
+receipts remain the audit source.
+
 The two final receipts come from one correlated
 `.github/workflows/public-package-proof.yml` GitHub-hosted matrix execution.
 `scripts/snapback-github-latest-proof.mjs` dispatches that execution only after
