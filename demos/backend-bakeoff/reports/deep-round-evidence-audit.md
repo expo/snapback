@@ -139,3 +139,33 @@ synthesis remain coordinator-owned.
 - Adjudication: complete with cleanup-confidence correction. Hosted Maincloud
   is credential-unavailable and is not extrapolated from standalone local
   evidence.
+
+## Linear / Appwrite
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 1 GAP, 1 unavailable remote dependency.
+- Evidence confidence: 16/16. The offline dimension has direct negative
+  browser evidence plus authoritative reconnect, even though the capability
+  itself is a GAP.
+- Referenced evidence: every capsule path resolves.
+- Authority/conflict/search/transport: native Auth sessions and Team roles,
+  two independent native transactions yielding one commit plus one typed 409,
+  `Query.search` over a full-text index, and direct second-browser Realtime
+  payloads.
+- Offline: warm React memory, zero cold rows, rejected unqueued write, and
+  50-row unique authoritative reconnect are separated explicitly.
+- Migration: direct asynchronous attribute creation, 500-row backfill,
+  compound-index readiness, and indexed read proof; correctly not described as
+  one atomic migration.
+- Target/cleanup: empty baseline and exact target hash; ports
+  `4324/8091/8491/20081` closed; 29 exact containers, 12 volumes, two networks,
+  installer, and all worktree-local runtime/CLI/browser paths absent.
+- Secret audit: credentials were generated only into ignored arm runtime state
+  and were removed; committed source constructs random credentials but contains
+  no value.
+- Dependency/operations negative: the official stack's 29-container footprint,
+  installer-stream failure, and 16 npm audit findings remain retained evidence.
+- Adjudication: complete. TablesDB persistent offline/cache is a product GAP.
+  Hosted Appwrite Cloud is credential-unavailable and is not inferred from the
+  self-hosted target.

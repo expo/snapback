@@ -657,3 +657,107 @@ principals, target identity, logs, export/rollback, and exact cleanup as normal
 product surfaces. Snapback can surpass this result within its current
 architecture if those workflows become native; this arm does not suggest a
 fundamental architectural reset.
+
+## 2026-07-28 — Appwrite 1.9.6, deep round
+
+The arm used a fresh official self-host stack with Web SDK 26.2.0, Node SDK
+27.1.0, and CLI 23.2.0. The production-shaped seed contained two
+organizations, three teams, four projects, twenty labels, 500 issues, 1,000
+issue-label rows, 1,000 comments, and 500 activity rows. Alice was owner, Bob
+member, and Mallory outsider.
+
+### What felt good
+
+Appwrite's strongest result was native transaction conflict handling. Two
+independent actor sessions staged updates to one issue in Appwrite
+transactions. Exactly one committed and the loser received typed HTTP 409
+`transaction_conflict`; no application revision emulation was needed.
+
+Native full-text search was straightforward once the attribute and index were
+ready. `Query.search` found the deterministic fixture through a committed
+full-text index. Realtime also worked well: Bob's independent browser received
+the new comment and activity through Appwrite's WebSocket transport, governed
+by the same Team permissions as ordinary reads.
+
+Auth and Teams gave a coherent owner/member/outsider model, cursor pagination
+stayed stable under a newer insertion, and schema/index operations were
+directly inspectable through the SDK.
+
+### What felt bad or surprising
+
+The local footprint is enormous for this application: 29 containers, 12 named
+volumes, two networks, and about 2.9 GiB of Docker memory. An embedding
+container used roughly 856 MiB even though the arm did not need embeddings.
+
+The web installer's server-sent event stream ended with a socket error after
+the generated stack was already healthy. Health and Compose-label probes
+proved the target succeeded, but automation had to distinguish installer
+transport failure from target failure.
+
+Appwrite cannot index array attributes. The first label-index attempt failed
+with `index_invalid`, so label filtering required an `issue_labels` junction
+table and compound indexes. Issue detail similarly required several
+application-authored point/indexed reads rather than an ergonomic bounded
+composition.
+
+Permissions are capable but verbose because row permission arrays and Team-role
+strings must be repeated throughout provisioning. Attribute and index changes
+are asynchronous and polled; the successful `customer_impact` backfill and
+compound index were not one atomic migration.
+
+Browser use required an exact Web platform hostname. The useful `Invalid
+Origin` diagnostic appeared in server logs rather than at the application
+boundary. CLI login/project state also required a worktree-local `HOME`
+override, and the retained dependency tree reported 16 audit findings: three
+low, six moderate, and seven high.
+
+### Offline, hosted, and performance
+
+Offline is an explicit product GAP. The Web SDK retained Auth, but not a
+TablesDB cache or mutation queue. A warm mounted view kept 50 React-memory
+rows; a cold offline reload had zero; an offline write was rejected; reconnect
+refetched 50 unique authoritative rows.
+
+No arm-owned Appwrite Cloud credential existed, so hosted deployment is
+unavailable rather than inferred from self-hosting.
+
+Two warmups plus seven local samples produced medians of 7.220 ms for indexed
+list, 12.831 ms for composed detail, 6.436 ms for write, 18.975 ms for
+realtime, 16.093 ms for reconnect/refetch, and 763.979 ms for production
+build.
+
+### Failed attempts and cleanup
+
+Retained failures cover the installer stream, array-index limitation,
+TypeScript view shape, missing Web platform, browser disconnected-navigation
+handling, an optimistic-route harness error, and restored-session UI state.
+The first two plus origin configuration are provider-relevant; the rest are
+application/harness mistakes.
+
+Cleanup removed only the exact Compose stack, installer, Vite process, and
+worktree-local CLI/browser/runtime state. The coordinator verified the empty
+baseline, target hash, closed ports `4324/8091/8491/20081`, and absence of all
+exact-project containers, volumes, networks, and runtime paths.
+
+### Outcome
+
+The arm completed 12 PASS, one offline product GAP, and one hosted dependency
+unavailable result, with direct 16/16 evidence confidence and no Stop defect.
+
+### Would I choose it?
+
+Appwrite is credible for a connected, conventional, self-hosted application
+that values Auth, permissions, realtime, search, and transactions. It would
+not be my default for a local-first Linear-style product: the offline gap and
+operational weight outweigh its strong server-side feature set.
+
+### Lessons for Snapback
+
+Match native typed conflict results, full-text indexing, one role model across
+reads/writes/realtime, explicit schema/index lifecycle, and inspectable push
+settlement. Preserve Snapback's structural advantages: a lightweight local
+runtime, retained reads and queued writes, worktree-local state by default,
+indexed multi-value relationships without manual junction machinery, bounded
+detail composition, and guided migrations. Surface origin/configuration errors
+at the application boundary. This arm exposes meaningful authority and
+production-tooling gaps, but not a need to replace Snapback's architecture.
