@@ -1,0 +1,15 @@
+{
+  "id": "LINEAR-09-SEARCH",
+  "status": "gap",
+  "capturedAt": "2026-07-29T04:31:10.637Z",
+  "target": "llp0102-linear-firebase-w2",
+  "transport": "unsupported",
+  "evidence": {
+    "provider": "Cloud Firestore",
+    "attemptedNativePath": "Firestore query operators and documented solutions inventory",
+    "ordinarySupportedPath": null,
+    "authoritativeResults": null,
+    "officialDocumentation": "https://firebase.google.com/docs/firestore/solutions/search"
+  },
+  "note": "GAP: Cloud Firestore does not provide native full-text search; official Firebase guidance requires a dedicated third-party search service. No client filter is misreported as backend search."
+}

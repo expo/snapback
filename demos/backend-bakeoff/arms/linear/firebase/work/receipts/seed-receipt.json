@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "projectId": "llp0102-linear-firebase-w2",
+  "deterministicEpochMs": 1785196800000,
+  "counts": {
+    "organizations": 2,
+    "teams": 3,
+    "projects": 4,
+    "labels": 20,
+    "issues": 500,
+    "comments": 1000,
+    "activities": 500
+  },
+  "primaryOrg": {
+    "teams": 3,
+    "projects": 4,
+    "issues": 500,
+    "comments": 1000,
+    "labels": 20
+  },
+  "personas": {
+    "alice": {
+      "uidHash": "b705fc2ab9d7796794665894e777a0698d726fdee11f823ceb39a67b0b3639e6",
+      "emailDomain": "example.test"
+    },
+    "bob": {
+      "uidHash": "24786d7348f0b1aaafc8c7ad8bfb1b092a38fc130d4003508c5525d13b7eaef5",
+      "emailDomain": "example.test"
+    },
+    "mallory": {
+      "uidHash": "f1538578e2af53523e6b0f627b9c8f3415df9535e1a214446b606532f558772e",
+      "emailDomain": "example.test"
+    }
+  }
+}

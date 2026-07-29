@@ -1,0 +1,17 @@
+{
+  "id": "LINEAR-08-LIVE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:31:10.637Z",
+  "target": "llp0102-linear-firebase-w2",
+  "transport": "Firestore onSnapshot/WebChannel push",
+  "evidence": {
+    "secondClient": "bob",
+    "commentId": "9TxWcO2cwobsV2Q84Lzo",
+    "activityId": "CPRxsrphEdrOFxXuW85P",
+    "authorIdHash": "b705fc2ab9d7796794665894e777a0698d726fdee11f823ceb39a67b0b3639e6",
+    "latencyMs": 17.421,
+    "snapshotFromCache": false,
+    "polling": false
+  },
+  "note": "Bob received both server-authored records through native listen streams."
+}

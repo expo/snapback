@@ -1,0 +1,107 @@
+{
+  "claimScope": "Firebase local emulators on one isolated Mac; not production or hosted latency",
+  "dataset": {
+    "organizations": 2,
+    "teamsPerPrimaryOrg": 3,
+    "projectsPerPrimaryOrg": 4,
+    "issues": 500,
+    "comments": 1000,
+    "labels": 20,
+    "pageSize": 50,
+    "concurrentClients": 2
+  },
+  "warmupsPerPath": 2,
+  "recordedSamplesPerPath": 7,
+  "unit": "milliseconds",
+  "representativeRead": {
+    "samples": [
+      7.405,
+      9.014,
+      7.478,
+      8.078,
+      7.364,
+      5.991,
+      8.429
+    ],
+    "median": 7.478,
+    "nearestRankP95": 9.014
+  },
+  "representativeDetail": {
+    "samples": [
+      8.642,
+      7.388,
+      9.46,
+      9.454,
+      7.513,
+      6.665,
+      7.198
+    ],
+    "median": 7.513,
+    "nearestRankP95": 9.46
+  },
+  "representativeWrite": {
+    "samples": [
+      1.187,
+      1.201,
+      1.129,
+      1.037,
+      0.94,
+      1.091,
+      1.237
+    ],
+    "median": 1.129,
+    "nearestRankP95": 1.237
+  },
+  "realtimeDelivery": {
+    "samples": [
+      3.278,
+      3.012,
+      3.167,
+      2.929,
+      3.026,
+      4.272,
+      3.273
+    ],
+    "median": 3.167,
+    "nearestRankP95": 4.272
+  },
+  "reconnect": {
+    "samples": [
+      5.588,
+      7.323,
+      5.723,
+      6.22,
+      6.333,
+      7.287,
+      6.897
+    ],
+    "median": 6.333,
+    "nearestRankP95": 7.323
+  },
+  "buildOrDeploy": {
+    "samples": [
+      1236.431,
+      844.977,
+      577.868,
+      552.204,
+      506.584,
+      535.587,
+      547.505
+    ],
+    "median": 552.204,
+    "nearestRankP95": 1236.431
+  },
+  "machine": {
+    "model": "Mac17,3",
+    "architecture": "arm64",
+    "memory": "32 GiB",
+    "os": "macOS 26.5.2 (25F84)",
+    "node": "v24.14.0",
+    "java": "OpenJDK 21.0.10"
+  },
+  "costWindow": {
+    "measured": "$0 local emulator",
+    "hostedActualUsage": "unavailable",
+    "hostedListPriceEstimate": "not estimated without a deployed target workload"
+  }
+}

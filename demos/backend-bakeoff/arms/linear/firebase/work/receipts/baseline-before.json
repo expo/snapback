@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T04:16:04.788Z",
+  "mode": "fresh-local",
+  "projectId": "llp0102-linear-firebase-w2",
+  "namespace": "llp0102-linear-firebase-w2",
+  "projectAbsentBeforeProvision": true,
+  "portStates": {
+    "4321": "closed",
+    "4521": "closed",
+    "4522": "closed",
+    "5321": "closed",
+    "8321": "closed",
+    "9321": "closed",
+    "9421": "closed"
+  },
+  "unrelatedBaseline": "No shared or hosted target will be used."
+}

@@ -1,0 +1,18 @@
+{
+  "id": "LINEAR-04-PAGINATION",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:31:07.090Z",
+  "target": "llp0102-linear-firebase-w2",
+  "transport": "Firestore document cursor",
+  "evidence": {
+    "cursor": {
+      "id": "issue-451",
+      "sequence": 451
+    },
+    "pageOneCount": 50,
+    "pageTwoCount": 50,
+    "unionCount": 100,
+    "concurrentInsertExcluded": true
+  },
+  "note": "Stable startAfter document cursor produced 100 unique rows despite a newer concurrent insert."
+}

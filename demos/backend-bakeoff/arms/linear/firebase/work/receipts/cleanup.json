@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T04:34:45.653Z",
+  "target": {
+    "projectId": "llp0102-linear-firebase-w2",
+    "identityHash": "a7f785cbdd13864f6ce9eca0efe69a99e358baaa1030fa98d541249f09727f0c",
+    "mode": "fresh-local"
+  },
+  "processPlan": {
+    "roots": {
+      "emulatorPid": 25575,
+      "vitePid": 25663
+    },
+    "validatedProcesses": [
+      {
+        "pid": 25575,
+        "ppid": 1,
+        "pgid": 25575,
+        "commandHash": "ff0cddcc3697ae6bc9a904b7db5fb93122dbad1ae334efabff4b21a80b3546d4"
+      },
+      {
+        "pid": 25663,
+        "ppid": 1,
+        "pgid": 25663,
+        "commandHash": "49559e7e0f47ec22fc1eb199a9ea1d4955ea9e2db5369fd8142143750703df91"
+      },
+      {
+        "pid": 25677,
+        "ppid": 25575,
+        "pgid": 25677,
+        "commandHash": "314e2a0a5e0178ddcda45cb36c80f4a30d18fd58273d0994e9c14cb45fcdbe3d"
+      },
+      {
+        "pid": 26043,
+        "ppid": 25575,
+        "pgid": 25575,
+        "commandHash": "e3302e4095ff68db50b2cd766da3635514eed5c9f279188b4c8da1cba5d2cbd4"
+      },
+      {
+        "pid": 36928,
+        "ppid": 25575,
+        "pgid": 25575,
+        "commandHash": "42b242ff8cfe3b49d4f0ac08e1406b72688bc6f5a08c685f0bc38bad8b6fabd3"
+      },
+      {
+        "pid": 36929,
+        "ppid": 25575,
+        "pgid": 25575,
+        "commandHash": "42b242ff8cfe3b49d4f0ac08e1406b72688bc6f5a08c685f0bc38bad8b6fabd3"
+      },
+      {
+        "pid": 37019,
+        "ppid": 25575,
+        "pgid": 25575,
+        "commandHash": "42b242ff8cfe3b49d4f0ac08e1406b72688bc6f5a08c685f0bc38bad8b6fabd3"
+      },
+      {
+        "pid": 25681,
+        "ppid": 25663,
+        "pgid": 25663,
+        "commandHash": "21f1677c8f4f84241689e7c6c37d74002be01686fac03a710ca876993526fff7"
+      },
+      {
+        "pid": 25707,
+        "ppid": 25681,
+        "pgid": 25663,
+        "commandHash": "a4c3037bc38e921e8fc9f1aeed14e59004e18e13d8f000ec3b2917feb33fc456"
+      }
+    ],
+    "survivingPids": []
+  },
+  "assignedPorts": [
+    9321,
+    8321,
+    5321,
+    9421,
+    4321,
+    4521,
+    4522
+  ],
+  "providerIssuedPorts": [
+    9150,
+    9299,
+    9499
+  ],
+  "portsAfter": {
+    "4321": "closed",
+    "4521": "closed",
+    "4522": "closed",
+    "5321": "closed",
+    "8321": "closed",
+    "9150": "closed",
+    "9299": "closed",
+    "9321": "closed",
+    "9421": "closed",
+    "9499": "closed"
+  },
+  "projectEndpointProbe": "connection-refused",
+  "unrelatedBaseline": "No shared or hosted target was used or mutated.",
+  "removedDirectories": [
+    ".browser-profile",
+    ".firebase-export",
+    ".xdg-cache",
+    ".xdg-config"
+  ],
+  "exportEvidencePreserved": "receipts/export-manifest.json",
+  "status": "complete"
+}

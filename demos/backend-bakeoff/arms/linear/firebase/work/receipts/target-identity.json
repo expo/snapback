@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T04:16:44.459Z",
+  "mode": "fresh-local",
+  "projectId": "llp0102-linear-firebase-w2",
+  "namespace": "llp0102-linear-firebase-w2",
+  "identityHash": "a7f785cbdd13864f6ce9eca0efe69a99e358baaa1030fa98d541249f09727f0c",
+  "services": {
+    "hub": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 4521
+        }
+      ],
+      "name": "hub",
+      "host": "127.0.0.1",
+      "port": 4521
+    },
+    "logging": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 4522
+        }
+      ],
+      "name": "logging",
+      "host": "127.0.0.1",
+      "port": 4522
+    },
+    "auth": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 9321
+        }
+      ],
+      "name": "auth",
+      "host": "127.0.0.1",
+      "port": 9321
+    },
+    "functions": {
+      "name": "functions",
+      "host": "127.0.0.1",
+      "port": 5321
+    },
+    "firestore": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 8321
+        }
+      ],
+      "name": "firestore",
+      "host": "127.0.0.1",
+      "port": 8321,
+      "pid": 25677,
+      "reservedPorts": [
+        9150
+      ],
+      "webSocketHost": "127.0.0.1",
+      "webSocketPort": 9150
+    },
+    "storage": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 9421
+        }
+      ],
+      "name": "storage",
+      "host": "127.0.0.1",
+      "port": 9421
+    },
+    "eventarc": {
+      "name": "eventarc",
+      "host": "127.0.0.1",
+      "port": 9299
+    },
+    "tasks": {
+      "name": "tasks",
+      "host": "127.0.0.1",
+      "port": 9499
+    }
+  },
+  "ports": {
+    "auth": 9321,
+    "firestore": 8321,
+    "functions": 5321,
+    "storage": 9421,
+    "vite": 4321,
+    "hub": 4521,
+    "logging": 4522
+  },
+  "sourceBaseCommit": "2a4472a44568a87d2a0373904b42562b52e8730b",
+  "frozenSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "hosted": {
+    "status": "credential-unavailable",
+    "claim": "No hosted Firebase target was mutated."
+  },
+  "refreshedAt": "2026-07-29T04:31:00.635Z"
+}

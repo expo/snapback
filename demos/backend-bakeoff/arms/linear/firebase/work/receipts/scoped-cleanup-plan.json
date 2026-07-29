@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T04:16:04.788Z",
+  "exactWorkRoot": "/private/tmp/llp0102-linear-firebase-w2/demos/backend-bakeoff/arms/linear/firebase/work",
+  "exactProjectId": "llp0102-linear-firebase-w2",
+  "rootPidReceipts": [
+    "receipts/emulator.pid",
+    "receipts/vite.pid"
+  ],
+  "exactPorts": [
+    9321,
+    8321,
+    5321,
+    9421,
+    4321,
+    4521,
+    4522
+  ],
+  "removableRuntimeDirectories": [
+    ".browser-profile",
+    ".firebase-export",
+    ".xdg-cache",
+    ".xdg-config"
+  ],
+  "forbidden": [
+    "wildcards",
+    "account-wide deletion",
+    "shared-target deletion",
+    "unresolved target"
+  ]
+}
