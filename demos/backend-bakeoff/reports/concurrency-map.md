@@ -33,3 +33,42 @@ LLP 0102 Stop-class defect.
 | Chat / Snapback | Complete | Capsule, diary, coordinator audit, issue links, and cleanup proof integrated |
 | Chat / InstantDB | Complete | Capsule, diary, worker audit, failed attempts, exact data/user cleanup, token invalidation, and disclosed provider-managed shell expiry integrated |
 | Chat / SpacetimeDB | Complete | Capsule, diary, worker audit, preserved cleanup failure, and exact cleanup proof integrated |
+
+## Stage 2 remediation concurrency
+
+All remediation worktrees start at calibration commit `d4d8fc21`. Workers may
+edit only their assigned product/test/arm-local evidence scope and return a
+commit plus integration notes. The coordinator owns shared issues, Guide,
+diaries, reports, ledger status, rerun capsules, final merge, and full proof.
+
+| Ledger entry | Worker / machine | Isolation | Merge ownership |
+| --- | --- | --- | --- |
+| SB-001 protected live revocation | Worker 1 / control-plane Mac | Detached worktree `/private/tmp/llp0102-remed-revocation`; dedicated dynamic test ports and runtime dirs; no shared demo target | Coordinator reviews and cherry-picks |
+| SB-002 idempotent live disposal | Worker 2 / Hetzner `expo-build-1000` | Detached local worktree `/private/tmp/llp0102-remed-disposal` plus remote mirror `/home/ccheever/worktrees/llp0102-remed-disposal`; test-local client/server state | Coordinator reviews and cherry-picks |
+| SB-003 ephemeral readiness and generated typing | Worker 3 / Apartment Air | Detached local worktree `/private/tmp/llp0102-remed-ephemeral` plus remote mirror `/Users/ccheever/worktrees/llp0102-remed-ephemeral`; dedicated dynamic ports and runtime dirs | Coordinator reviews and cherry-picks |
+| SB-004 effect-free reservation retry | Coordinator / control-plane Mac | Primary checkout; exact closed-diagnostic retry tests and frozen-arm rerun remain isolated from worker worktrees | Implemented in `ca46e040`; coordinator owns Guide/diary/ledger integration and rerun proof |
+
+## Stage 3 deep-round concurrency
+
+The deep round freezes Snapback product source at
+`5f31cb6174daaefa04a1e05242acbbc22c725040`. Provider order governs
+assignment/start order. Independent arms may finish out of order. Workers edit
+only their arm directory and worktree-local runtime state; they return a commit,
+raw arm artifacts, and a diary-entry draft. The coordinator alone integrates
+shared diaries, reports, scoring, evidence audits, remediation ledgers, and the
+primary branch.
+
+### Linear first wave
+
+| Frozen start order | Arm | Worker / machine | Isolation | Merge ownership |
+| ---: | --- | --- | --- | --- |
+| 1 | Linear / SpacetimeDB | Worker 1 / Minisforum Ubuntu `100.126.225.7` | Remote detached worktree `/home/ccheever/worktrees/llp0102-linear-spacetimedb-w1`; worktree-local CLI/config/data roots; standalone server `3320`, Vite `4320`; exact database namespace `llp0102-linear-spacetimedb-w1`; hosted claim only if an arm-scoped target becomes directly available | Worker returns arm commit/artifacts and diary draft; coordinator imports and audits |
+| 2 | Linear / Firebase | Worker 2 / control-plane Mac, isolated worktree | Detached worktree `/private/tmp/llp0102-linear-firebase-w2`; emulator project `llp0102-linear-firebase-w2`; Auth `9321`, Firestore `8321`, Functions `5321`, Storage `9421`, UI `4321`, hub/log `4521/4522`; worktree-local Firebase/XDG state and browser profile | Worker returns arm commit/artifacts and diary draft; coordinator imports and audits |
+| 3 | Linear / Supabase | Worker 3 / control-plane Mac, isolated worktree | Detached worktree `/private/tmp/llp0102-linear-supabase-w3`; Docker project/volume namespace `llp0102-linear-supabase-w3`; API/DB/Studio port range rooted at `56431`; Vite `4322`; worktree-local CLI/XDG state and fresh local project | Worker returns arm commit/artifacts and diary draft; coordinator imports and audits |
+
+The coordinator retains the Linear/Snapback arm and does not begin it before
+the first three provider assignments. As workers free, the remaining frozen
+Linear order is Snapback, Convex, Appwrite, InstantDB; Partiful and Research
+Room then follow their own frozen orders. Every assignment must preserve failed
+attempts, exact target-bound cleanup, baseline state, and Stop-class pause
+behavior.

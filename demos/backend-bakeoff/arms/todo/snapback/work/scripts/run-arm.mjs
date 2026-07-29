@@ -840,24 +840,24 @@ try {
 
   const finalResults = [...scenarioResults.values()].sort((a, b) => a.id.localeCompare(b.id));
   assert.equal(finalResults.length, 14);
-  assert.equal(finalResults.filter(({ status }) => status === 'pass').length, 10);
+  assert.equal(finalResults.filter(({ status }) => status === 'pass').length, 11);
   assert.equal(finalResults.filter(({ status }) => status === 'gap').length, 3);
-  assert.equal(finalResults.filter(({ status }) => status === 'fail').length, 1);
+  assert.equal(finalResults.filter(({ status }) => status === 'fail').length, 0);
   await writeJson(join(receiptsRoot, 'correctness-smoke.v1.json'), {
     schemaVersion: 1,
     checkedAt: new Date().toISOString(),
     expectedCheckCount: 14,
-    passed: 10,
+    passed: 11,
     gaps: 3,
-    failed: 1,
+    failed: 0,
     results: finalResults,
     activeElapsedMs: Math.round(performance.now() - startedMonotonic),
   });
   process.stdout.write(`${JSON.stringify({
     ok: true,
-    passed: 10,
+    passed: 11,
     gaps: 3,
-    failed: 1,
+    failed: 0,
     targetIdentity,
     startedAt,
     finishedAt: new Date().toISOString(),

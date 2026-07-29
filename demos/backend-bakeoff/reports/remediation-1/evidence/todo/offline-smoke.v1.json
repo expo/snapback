@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T03:56:21.483Z",
+  "contractCapabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "queryLocalRunnable": false,
+  "queryRetainable": false,
+  "coldRows": 0,
+  "queuedMutations": 0,
+  "observedErrors": [
+    "network unavailable"
+  ],
+  "scenarioIds": [
+    "TODO-06-OFFLINE-BOOT",
+    "TODO-07-OFFLINE-WRITES",
+    "TODO-08-RECONNECT"
+  ]
+}

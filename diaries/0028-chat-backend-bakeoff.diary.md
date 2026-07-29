@@ -817,3 +817,57 @@ Its native realtime and ephemeral model materially raises the authoring-speed
 bar. Permission ergonomics and the weaker explicit server-invariant story keep
 it from being my automatic backend choice today; those are areas where
 Snapback's coherent, auditable authority can win.
+
+## 2026-07-28 — Snapback calibration remediation rerun
+
+**Result:** 14 PASS / 1 frozen product GAP / 0 FAIL at Snapback commit
+`5f31cb6174daaefa04a1e05242acbbc22c725040`.
+
+The original diary remains the honest record of the build. This isolated rerun
+removed only the application workarounds that the accepted product fixes made
+obsolete.
+
+### What improved
+
+- `CHAT-13-REVOKE` now passes. Bob's established private message handle blanks
+  before his membership-removal mutation returns, fresh reads are denied, and
+  later private messages never repopulate it.
+- Typing and presence now use `subscribeEphemeral(...)` directly on fresh
+  connection labels. The arm has no manual
+  `liveStreamManager(...).waitUntilReady()` prerequisite, yet native changes
+  arrive and expire normally.
+- Generated ephemeral results preserve the declared value shapes instead of
+  becoming `ReadonlyArray<unknown>`. Presence and typing rows are directly
+  inspectable in the generated declarations.
+- Concurrent send now calls the ordinary client mutation twice with one
+  barrier and no application retry loop. Both messages commit exactly once;
+  the client diagnostic ring records attempts `[1, 2]` and the effect-free
+  scheduled retry.
+- Terminal revocation followed by ordinary handle disposal is local and
+  idempotent rather than surfacing a stale-authority cleanup error.
+
+### What remained awkward
+
+The centralized real-server gate—not the branch-local lifecycle suite—found
+the last disposal edge: query-specific terminal deletion had already retired
+the server subscription but `dispose()` tried to retire it again under the
+stale query fence. Fixing that before the rerun reinforced the value of testing
+the combined remediation rather than accepting four independently green
+branches.
+
+Cold protected offline history remains the one frozen Chat GAP. The repaired
+ephemeral path is now competitively direct with InstantDB's room API while
+retaining Snapback's typed non-durable overlay and shared-lane design; the
+offline durable path is still not similarly complete.
+
+The independent retry audit also caught cross-user replay and Swift action
+replay hazards before freeze. The accepted result matches the competitor
+outcome—ordinary concurrent calls settle without app loops—while keeping
+Snapback's stricter rule that only exact, effect-free reservation refusals can
+replay.
+
+Evidence:
+
+- `demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json`
+- `demos/backend-bakeoff/reports/remediation-1/evidence/chat/ephemeral-typing-diagnostic.json`
+- `demos/backend-bakeoff/reports/remediation-1-report.md`

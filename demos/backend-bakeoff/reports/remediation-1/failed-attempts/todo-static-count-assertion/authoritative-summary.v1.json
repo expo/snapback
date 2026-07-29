@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T03:54:26.350Z",
+  "targetIdentity": "507905e49b27fcf94436f344ce10964d2703f21ee75be591d97e4e1d1517f6cf",
+  "taskCount": 100,
+  "actorHashes": {
+    "alice": "d714cea32980aafa80ea12b3265e84346196b579cb9f77302406fcbe7c153829",
+    "bob": "3ce8d61c6b70d638f44254c455fd9fcb72338f72519d13d9f60179b900cba771",
+    "mallory": "2ed51f32e9f1da69d10c3318f38ff3de4292b08f508eca51079d6a7544bd8a5b"
+  },
+  "scenarioResults": [
+    {
+      "id": "TODO-01-SEED",
+      "status": "pass",
+      "evidence": {
+        "targetIdentity": "507905e49b27fcf94436f344ce10964d2703f21ee75be591d97e4e1d1517f6cf",
+        "workspaces": 2,
+        "lists": 4,
+        "tasks": 100,
+        "bootstrapReceipts": [
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac01f9fa7a0392c423898da47b1f",
+            "mutation": "bootstrapWorkspace",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "workspaces",
+              "workspaceMembers",
+              "lists",
+              "tasks"
+            ],
+            "snapshotVersion": 1,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297238545
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac01fa177363895d375da4dbcdf9",
+            "mutation": "bootstrapWorkspace",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "workspaces",
+              "workspaceMembers",
+              "lists",
+              "tasks"
+            ],
+            "snapshotVersion": 2,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297238563
+          }
+        ],
+        "serverOwnedWorkspaceIdHashes": [
+          "5ab44e940e2781f2b833f91718c59b70e1b2e75c646eb0766c1693cd2894069a",
+          "d1c665fce5ee081d63ad933b9703d25c2415f0084611ba21486a8c6eba681e36"
+        ],
+        "principalIdHashes": {
+          "alice": "d714cea32980aafa80ea12b3265e84346196b579cb9f77302406fcbe7c153829",
+          "bob": "3ce8d61c6b70d638f44254c455fd9fcb72338f72519d13d9f60179b900cba771",
+          "mallory": "2ed51f32e9f1da69d10c3318f38ff3de4292b08f508eca51079d6a7544bd8a5b"
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "status": "pass",
+      "evidence": {
+        "aliceRows": 100,
+        "bobRows": 100,
+        "serverDerivedPrincipals": true
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "status": "pass",
+      "evidence": {
+        "queryDiagnostic": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "subscriptionDiagnostic": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "retainedRows": 0
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "status": "pass",
+      "evidence": {
+        "createReceipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fac01fab37dc18b692d2cdc3f7629",
+          "mutation": "createTask",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "tasks"
+          ],
+          "snapshotVersion": 5,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785297238719
+        },
+        "transitions": [
+          "create",
+          "edit",
+          "complete",
+          "reopen",
+          "reorder",
+          "delete"
+        ],
+        "authoritativeFinalCount": 100
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "status": "pass",
+      "evidence": {
+        "transport": "Snapback durable WebSocket stream",
+        "fallbackToPoll": false,
+        "secondClient": "bob",
+        "authoritativeTitle": "Push 1785297238921"
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "status": "gap",
+      "evidence": {
+        "contractCapabilities": {
+          "branchableFixtures": false,
+          "derivedOptimisticOverlays": false,
+          "forceStates": true,
+          "headlessBoot": true,
+          "initialSnapshot": true,
+          "localReplica": false,
+          "offlineReplay": false,
+          "optimisticMutations": false,
+          "rowSyncState": true,
+          "serverRunnableQueries": true,
+          "subscriptions": true
+        },
+        "queryLocalRunnable": false,
+        "queryRetainable": false,
+        "coldRows": 0,
+        "queuedMutations": 0,
+        "observedErrors": [
+          "network unavailable"
+        ]
+      },
+      "note": "The shipped shared-workspace query is membership-gated; v1 refuses retained role-gated results and the React surface is Online-class."
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "status": "gap",
+      "evidence": {
+        "contractCapabilities": {
+          "branchableFixtures": false,
+          "derivedOptimisticOverlays": false,
+          "forceStates": true,
+          "headlessBoot": true,
+          "initialSnapshot": true,
+          "localReplica": false,
+          "offlineReplay": false,
+          "optimisticMutations": false,
+          "rowSyncState": true,
+          "serverRunnableQueries": true,
+          "subscriptions": true
+        },
+        "queryLocalRunnable": false,
+        "queryRetainable": false,
+        "coldRows": 0,
+        "queuedMutations": 0,
+        "observedErrors": [
+          "network unavailable"
+        ]
+      },
+      "note": "The JS membership-protected mutations are not locally runnable; no durable outbox is exposed through the React Online surface."
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "status": "gap",
+      "evidence": {
+        "authoritativeRows": 100,
+        "queuedSettlements": 0,
+        "duplicateOfflineCreates": 0
+      },
+      "note": "Reconnect re-establishes an authoritative online view, but there was no native queued work to settle."
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "status": "pass",
+      "evidence": {
+        "policy": "optimistic concurrency control rejects one stale read-set; the authoritative winner is the sole committed title",
+        "fulfilled": 1,
+        "rejected": 1,
+        "rejectionCode": "SNAPBACK_MUTATION_CONFLICT",
+        "reservationRetryDiagnostics": [
+          {
+            "code": "SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED",
+            "mutation": "editTask",
+            "outcome": "effect-free-refusal",
+            "attempt": 1,
+            "nextAttempt": 2,
+            "maximumAttempts": 40,
+            "delayMilliseconds": 40,
+            "effectCommitted": false
+          }
+        ],
+        "authoritativeTitle": "Alice concurrent title"
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "status": "pass",
+      "evidence": {
+        "concurrentOutcomes": [
+          "fulfilled",
+          "rejected"
+        ],
+        "conflictPolicy": "one atomic full-list reorder wins; the stale concurrent reorder is rejected",
+        "rejectionCode": "SNAPBACK_MUTATION_CONFLICT",
+        "reservationRetryDiagnostics": [
+          {
+            "code": "SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED",
+            "mutation": "reorderTask",
+            "outcome": "effect-free-refusal",
+            "attempt": 1,
+            "nextAttempt": 2,
+            "maximumAttempts": 40,
+            "delayMilliseconds": 29,
+            "effectCommitted": false
+          }
+        ],
+        "stableUniquePositions": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ]
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "status": "pass",
+      "evidence": {
+        "barrier": "replaceBearerToken(null)",
+        "rowsBefore": 100,
+        "rowsAfter": 0,
+        "deliveryAfterLogout": false,
+        "retainedStore": "none (React Online surface)",
+        "lifecycleDiagnostics": []
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "status": "pass",
+      "evidence": {
+        "authorityChange": "Bob self-removes through declared membership transition",
+        "generatedAuthorizationDependence": [
+          "opaque"
+        ],
+        "clearedBeforeFutureWrite": true,
+        "rowsAfterRevocation": 0,
+        "futureWriteDelivered": false,
+        "postRevocationDiagnostic": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "note": ""
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "status": "pass",
+      "evidence": {
+        "schemaVersion": 1,
+        "checkedAt": "2026-07-29T03:54:25.413Z",
+        "profile": "small local Mac17,3 arm64 workload; two warmups and seven recorded samples",
+        "paths": {
+          "representativeRead": {
+            "rawMs": [
+              39.707,
+              33.838,
+              30.468,
+              30.292,
+              30.099,
+              33.729,
+              33.685
+            ],
+            "medianMs": 33.685,
+            "nearestRankP95Ms": 39.707
+          },
+          "representativeWrite": {
+            "rawMs": [
+              119.826,
+              104.543,
+              97.771,
+              92.459,
+              93.302,
+              92.578,
+              93.008
+            ],
+            "medianMs": 93.302,
+            "nearestRankP95Ms": 119.826
+          },
+          "realtimeDelivery": {
+            "rawMs": [
+              91.9,
+              90.506,
+              86.912,
+              87.107,
+              96.374,
+              93.071,
+              91.458
+            ],
+            "medianMs": 91.458,
+            "nearestRankP95Ms": 96.374
+          },
+          "reconnect": {
+            "rawMs": [
+              31.889,
+              32.329,
+              31.624,
+              32.52,
+              33.614,
+              32.423,
+              32.707
+            ],
+            "medianMs": 32.423,
+            "nearestRankP95Ms": 33.614
+          },
+          "build": {
+            "rawMs": [
+              1762.748,
+              1816.572,
+              1761.18,
+              1706.201,
+              1902.849,
+              1665.661,
+              1780.299
+            ],
+            "medianMs": 1762.748,
+            "nearestRankP95Ms": 1902.849
+          }
+        }
+      },
+      "note": ""
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "publish": {
+    "room": {
+      "collection": "typing",
+      "scope": {
+        "channelId": "019fac01-fa67-73f3-9a52-6adca697ef80"
+      },
+      "routing_key": "9:channelId=36:019fac01-fa67-73f3-9a52-6adca697ef80"
+    },
+    "key": "019fac01-fa12-7214-af5e-a3b0040a5a18",
+    "scope_epoch": 1,
+    "entry_version": 1,
+    "expires_at_ms": 1785297241078
+  },
+  "viewerEntriesWithoutPrune": [
+    {
+      "key": "019fac01-fa12-7214-af5e-a3b0040a5a18",
+      "value": {
+        "name": "Bob",
+        "active": true
+      },
+      "expiresAtMs": 1785297241078,
+      "receivedAtMs": 1785297239578,
+      "scopeEpoch": 1,
+      "entryVersion": 1
+    }
+  ],
+  "publisherEntriesWithoutPrune": [
+    {
+      "key": "019fac01-fa12-7214-af5e-a3b0040a5a18",
+      "value": {
+        "name": "Bob",
+        "active": true
+      },
+      "expiresAtMs": 1785297241078,
+      "receivedAtMs": 1785297239578,
+      "scopeEpoch": 1,
+      "entryVersion": 1
+    }
+  ],
+  "nativeChangeSignals": 1
+}

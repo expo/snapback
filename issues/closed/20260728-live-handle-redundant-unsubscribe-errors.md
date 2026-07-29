@@ -1,6 +1,6 @@
 # Live-handle lifecycle reports redundant unsubscribe as failure
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -43,3 +43,25 @@ Evidence:
   authorization denial is covered; and
 - the Todo logout and reconnect performance barriers run without exception
   suppression or fresh-handle substitution.
+
+## Resolution — 2026-07-28
+
+High-level live-handle retirement now owns a read-only subscription generation
+and translates only that generation's server-confirmed absence into the typed
+`SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED` result. Repeated disposal shares
+one cleanup task; logout, whole-session revocation, and query-specific terminal
+authorization deletion are local-only once authority already owns retirement.
+The low-level public unsubscribe remains strict, and ownership/session
+mismatches remain typed failures.
+
+The coordinator's real-server revocation gate found and fixed the
+query-specific terminal-delete edge after the branch-local lifecycle tests:
+`dispose()` had tried a second retirement under the intentionally stale query
+fence. Full client tests, lifecycle tests, and the frozen Todo/Chat reruns pass
+at Snapback commit `5f31cb6174daaefa04a1e05242acbbc22c725040`.
+
+Resolution evidence:
+
+- `packages/snapback-client/lifecycle-disposal.test.mjs`
+- `demos/backend-bakeoff/reports/remediation-1/evidence/todo/correctness-smoke.v1.json`
+- `demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json`

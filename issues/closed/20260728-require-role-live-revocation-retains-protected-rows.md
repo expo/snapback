@@ -1,6 +1,6 @@
 # `requireRole` live revocation retains protected rows
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 2
@@ -75,3 +75,25 @@ FAIL, not as a new issue or a Stop-class disclosure.
 - the Snapback Todo arm reruns TODO-12 as PASS without test-only invalidation.
 - the Snapback Chat arm reruns CHAT-13 as PASS without UI-only clearing or
   test-only invalidation.
+
+## Resolution — 2026-07-28
+
+The server already emitted the correct next-epoch quarantine, terminal delete,
+and exact acknowledgement obligation. The client authorization projection
+incorrectly required the subscription's original epoch and rejected a
+strictly newer epoch in the same issuer, scope, version stream, and
+authorization incarnation as stale.
+
+The repaired projection admits only that strictly newer same-incarnation
+epoch; lower epochs and other incarnations still fail closed. The real-server
+acceptance covers resource- and app-scoped delete and downgrade, blanking
+before the causing mutation returns, exact ACK, fresh denial, no future
+delivery, and an authority-independent live query that survives the churn.
+Frozen TODO-12 and CHAT-13 both pass in the Stage 2 isolated rerun at Snapback
+commit `5f31cb6174daaefa04a1e05242acbbc22c725040`.
+
+Resolution evidence:
+
+- `tests/acceptance/sb-001-revocation-evidence.md`
+- `demos/backend-bakeoff/reports/remediation-1/evidence/todo/correctness-smoke.v1.json`
+- `demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json`

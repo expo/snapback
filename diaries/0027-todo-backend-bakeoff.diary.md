@@ -1319,3 +1319,56 @@ Snapback should match the outcomes of Appwrite's best pieces:
    without requiring application choreography;
 6. deliver the offline cache/outbox/settlement layer that Appwrite explicitly
    leaves to another database.
+
+## 2026-07-28 — Snapback calibration remediation rerun
+
+**Result:** 11 PASS / 3 frozen product GAP / 0 FAIL at Snapback commit
+`5f31cb6174daaefa04a1e05242acbbc22c725040`.
+
+This entry preserves the original calibration experience above. The
+revocation and lifecycle failures were real at the starting commit; the rerun
+asks whether the accepted fixes removed them without changing the frozen app
+or acceptance facts.
+
+### What improved
+
+- `TODO-12-REVOKE` now passes. Bob's declaration-bound membership removal
+  blanks all 100 protected rows before the causing mutation returns, a fresh
+  query is denied, and Alice's later write is not delivered.
+- Concurrent edit and reorder no longer need application-authored
+  `SNAPBACK_AUTH_RESERVATION_STALE` retries. Direct `Promise.allSettled`
+  barriers each expose a client-owned effect-free retry and end with one
+  committed result plus one ordinary `SNAPBACK_MUTATION_CONFLICT`.
+- High-level live disposal is idempotent after logout, revocation, or an
+  already-retired exact subscription generation. Ownership mismatches and the
+  low-level unsubscribe path remain strict.
+
+### What still felt bad
+
+The first isolated rerun completed every scenario correctly and cleaned its
+target, then the harness failed on its calibration-era aggregate assertion of
+10 PASS / 1 FAIL. I preserved that partial receipt set and changed only the
+expected totals to 11 PASS / 0 FAIL; no acceptance scenario or product fact
+changed.
+
+The ordinary protected JavaScript path still has the same three frozen GAPs:
+no cold retained protected rows, no restart-safe offline mutation queue, and
+therefore no reconnect settlement for queued work. Those remain the largest
+reason Snapback is not yet the default for this Todo.
+
+### Audit lesson
+
+Independent review of the retry work caught two serious mistakes before the
+freeze: cross-user bearer replacement could have replayed predecessor
+arguments under a successor, and Swift `action` retry could have replayed
+external I/O performed before a nested stale mutation. The final
+implementation pins retries to one authority/carrier generation and limits
+Swift automatic replay to mutation calls. This review materially improved the
+remediation; green happy-path arm evidence alone would not have found either
+boundary.
+
+Evidence:
+
+- `demos/backend-bakeoff/reports/remediation-1/evidence/todo/correctness-smoke.v1.json`
+- `demos/backend-bakeoff/reports/remediation-1/failed-attempts/todo-static-count-assertion/`
+- `demos/backend-bakeoff/reports/remediation-1-report.md`

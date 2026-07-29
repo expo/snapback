@@ -1,6 +1,6 @@
 # Guide gap: ephemeral subscribe omits live-stream readiness prerequisite
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 4
 **Ease:** 4
@@ -44,3 +44,23 @@ in:
 - the capability index links the complete recipe; and
 - the guide's CI-verified snippet exercises a fresh connection label rather
   than inheriting a socket opened by an unrelated live query.
+
+## Resolution — 2026-07-28
+
+`subscribeEphemeral` now defaults to stream transport, acquires its own managed
+socket demand lease, proves readiness, subscribes the snapshot, and transfers
+the lease to the overlay. Disposal and failed setup release demand. Explicit
+`transport: "poll"` preserves the manual-drain path without weakening the
+ordinary one-call stream path.
+
+Code generation now retains the declared ephemeral scope and value types
+instead of degrading result rows to `unknown`. The frozen Chat app removed all
+manual `liveStreamManager(...).waitUntilReady()` calls, regenerated typed
+bindings, and passed typing and presence on fresh connection labels at Snapback
+commit `5f31cb6174daaefa04a1e05242acbbc22c725040`.
+
+Resolution evidence:
+
+- `demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json`
+- `demos/backend-bakeoff/reports/remediation-1/evidence/chat/ephemeral-typing-diagnostic.json`
+- `demos/backend-bakeoff/arms/chat/snapback/work/snapback/generated/provider-bindings.d.ts`
