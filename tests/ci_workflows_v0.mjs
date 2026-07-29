@@ -19,6 +19,26 @@ assert.deepEqual(workflowNames, [
   'required-surface-builds.yml',
 ]);
 
+const deploymentIdentityWorkflow = readFileSync(
+  join(workflowDir, 'deployment-identity.yml'),
+  'utf8',
+);
+const deploymentCodegenIndex = deploymentIdentityWorkflow.indexOf(
+  'node packages/snapback-codegen/index.mjs demos/all-aboard/snapback',
+);
+const deploymentReviewDriftIndex = deploymentIdentityWorkflow.indexOf(
+  'demos/all-aboard/snapback/generated/artifacts.json',
+);
+const deploymentIdentityCheckIndex = deploymentIdentityWorkflow.indexOf(
+  'node cloudflare/scripts/generate-deployment-identity.mjs --check',
+);
+assert(
+  deploymentCodegenIndex >= 0
+    && deploymentReviewDriftIndex > deploymentCodegenIndex
+    && deploymentIdentityCheckIndex > deploymentReviewDriftIndex,
+  'deployment-identity CI must materialize ignored All Aboard inputs and refuse review drift before checking identity',
+);
+
 const activeCheckoutUse = /^\s*-\s+uses:\s+actions\/checkout@[^\s#]+(?:\s+#.*)?$/;
 const activeCredentialCheck = /^\s*run:\s*scripts\/check-checkout-credentials\s*(?:#.*)?$/m;
 const activePersistCredentialsFalse = /^\s+persist-credentials:\s*false\s*(?:#.*)?$/m;

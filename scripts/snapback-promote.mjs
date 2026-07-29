@@ -26,6 +26,9 @@ import {
   validatePreClosePublicationState,
 } from './snapback-promotion-core.mjs';
 import {
+  parseBoundedJsonBytes,
+  readBoundedFileBytes,
+  readBoundedJsonFile,
   sha256File,
   validateCandidateLedger,
 } from './snapback-publish-core.mjs';
@@ -134,7 +137,7 @@ if (process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
   fail('real promotion requires SNAPBACK_PUBLISH_CONFIRM=yes-really');
 }
 
-const ledger = JSON.parse(readFileSync(options.ledger, 'utf8'));
+const ledger = readBoundedJsonFile(options.ledger, 'candidate publication ledger');
 try {
   validateCandidateLedger(ledger);
 } catch (error) {
@@ -151,7 +154,7 @@ if (authorityToken.length < 16) {
   fail('SNAPBACK_PUBLICATION_LEASE_TOKEN_FILE must contain at least 16 bytes');
 }
 
-const lease = JSON.parse(readFileSync(options.lease, 'utf8'));
+const lease = readBoundedJsonFile(options.lease, 'authorized publication lease');
 validatePublicationLease({
   lease,
   publicKey: authorityPublicKey,
@@ -327,7 +330,7 @@ async function transitionAuthority(path, transition) {
 }
 
 function loadLatestProofPlan() {
-  const plan = JSON.parse(readFileSync(options.latestProofPlan, 'utf8'));
+  const plan = readBoundedJsonFile(options.latestProofPlan, 'latest-root proof plan');
   const ledgerRelative = relative(repositoryRoot, options.ledger).replaceAll('\\', '/');
   if (
     plan.ledgerPath !== ledgerRelative
@@ -406,7 +409,10 @@ function executeLatestProofPlan() {
       );
     }
   }
-  const collection = JSON.parse(readFileSync(collectionPath, 'utf8'));
+  const collection = readBoundedJsonFile(
+    collectionPath,
+    'latest-root proof collection',
+  );
   const records = [];
   for (const [platform, path] of [
     ['darwin-arm64', darwinReceipt],
@@ -415,10 +421,11 @@ function executeLatestProofPlan() {
     if (!existsSync(path)) {
       throw new Error(`latest-root ${platform} proof omitted its receipt`);
     }
+    const bytes = readBoundedFileBytes(path, `latest-root ${platform} receipt`);
     records.push({
       path,
-      sha256: sha256File(path),
-      receipt: JSON.parse(readFileSync(path, 'utf8')),
+      sha256: sha256Hex(bytes),
+      receipt: parseBoundedJsonBytes(bytes, `latest-root ${platform} receipt`),
       githubArtifact: collection.artifacts?.find((row) => row.platform === platform),
     });
   }

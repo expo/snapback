@@ -26,6 +26,7 @@ import {
   findBrowserVisibleLeaks,
   measureGitCheckoutIdentity,
   parseArguments,
+  parseBoundedJsonBytes,
   PUBLIC_NPM_REGISTRY,
   resolveInstalledBrowserDistribution,
   resolveInstalledBrowserExecutable,
@@ -515,19 +516,26 @@ function retainedComparatorReceiptFixture({
   sourceRevision,
   version,
   runtimeBinarySha256 = '9'.repeat(64),
+  executorPackageNames = {
+    cli: '@snapback/cli',
+    client: '@snapback/client',
+  },
 }) {
   const startedAtMs = 1_785_280_000_000;
   const expectedChecks = [
     ['native-live-delivery', 'cross-client native live delivery'],
     ['atomic-declared-writes', 'atomic declared write set'],
-    ['rejected-mutation-rollback', 'rejected mutation rollback'],
+    [
+      'rejected-mutation-rollback',
+      'rejected mutation rollback without durable version change',
+    ],
     ['presence-cleanup', 'TTL and disconnect presence cleanup'],
     ['ephemeral-durable-separation', 'ephemeral publish does not advance durable version'],
   ].map(([id, name]) => ({ id, name }));
   const comparatorReceipt = {
     schemaVersion: 'snapback.comparator-receipt.v1',
-    profileId: 'packaged-green',
-    title: 'Packaged comparator green fixture',
+    profileId: 'package-green-fixture',
+    title: 'package comparator green fixture',
     status: 'passed',
     exitCode: 0,
     startedAtMs,
@@ -535,18 +543,23 @@ function retainedComparatorReceiptFixture({
     durationMs: 50,
     executorPackages: {
       cli: {
-        name: '@snapback/cli',
+        name: executorPackageNames.cli,
         version,
         algorithm: 'sha256-package-files-path-length-content.v1',
-        files: ['cli.mjs', 'comparator-profile.mjs'],
-        sha256: `sha256:${'a'.repeat(64)}`,
+        files: [
+          'cli.mjs',
+          'comparator-profile.mjs',
+          'fixtures/comparator/green.config.mjs',
+          'package.json',
+        ],
+        sha256: `sha256:${'ab'.repeat(32)}`,
       },
       client: {
-        name: '@snapback/client',
+        name: executorPackageNames.client,
         version,
         algorithm: 'sha256-package-files-path-length-content.v1',
-        files: ['index.mjs'],
-        sha256: `sha256:${'b'.repeat(64)}`,
+        files: ['index.mjs', 'package.json'],
+        sha256: `sha256:${'cd'.repeat(32)}`,
       },
     },
     identity: {
@@ -560,10 +573,10 @@ function retainedComparatorReceiptFixture({
       },
       artifact: {
         available: true,
-        appId: 'snapback-comparator-fixture',
-        bundleHash: 'snapback.v1:test:function:sha256:fixture',
-        inputsHash: 'snapback.v1:test:inputs:sha256:fixture',
-        schemaHash: 'snapback.v1:test:schema:sha256:fixture',
+        appId: 'app',
+        bundleHash: `sha256:${'c'.repeat(16)}`,
+        inputsHash: 'd'.repeat(64),
+        schemaHash: `sha256:${'e'.repeat(16)}`,
       },
       binary: {
         available: true,
@@ -584,7 +597,39 @@ function retainedComparatorReceiptFixture({
       startedAtMs: startedAtMs + index * 10,
       finishedAtMs: startedAtMs + (index + 1) * 10,
       durationMs: 10,
-      details: { fixture: true },
+      details: {
+        'native-live-delivery': {
+          observerIdentity: 'fixture_observer',
+          actorIdentity: 'fixture_actor',
+          identitySources: {
+            observer: 'dev-asserted',
+            actor: 'dev-asserted',
+          },
+          transport: 'push',
+          subscriptionId: 'sub_fixture_1',
+          deliveredVersion: 2,
+        },
+        'atomic-declared-writes': {
+          declaredWrites: ['primary', 'activity'],
+          changed: ['primary', 'activity'],
+          beforeVersion: 2,
+          afterVersion: 3,
+        },
+        'rejected-mutation-rollback': {
+          diagnosticCode: 'SNAPBACK_HANDLER_FAILED',
+          beforeVersion: 3,
+          afterVersion: 3,
+        },
+        'presence-cleanup': {
+          disconnectRemoved: true,
+          ttlRemoved: true,
+          ttlMs: 5,
+        },
+        'ephemeral-durable-separation': {
+          beforeVersion: 3,
+          afterVersion: 3,
+        },
+      }[id],
       diagnostic: null,
     })),
     capabilityGaps: [],
@@ -596,7 +641,12 @@ function retainedComparatorReceiptFixture({
       temporaryStateRemoved: true,
       errors: [],
     },
-    nonclaims: ['hosted-target parity'],
+    nonclaims: [
+      'browser rendering or framework-hook behavior',
+      'hosted-target parity',
+      'performance, scale, migration, backup, rollback, and cost properties',
+      'dev-asserted identity labels are behavioral witnesses, not authenticated-principal evidence',
+    ],
     diagnostic: null,
   };
   return {
@@ -651,6 +701,87 @@ test('retained comparator evidence preserves governed details and refuses digest
       expectedRuntimeBinarySha256: runtimeBinarySha256,
     }),
     /binary identity drifted/u,
+  );
+});
+
+test('retained comparator evidence refuses self-digested vacuous semantics', () => {
+  const sourceRevision = '7'.repeat(40);
+  const version = '0.1.1';
+  const validateMutation = (mutate, message) => {
+    const retained = retainedComparatorReceiptFixture({ sourceRevision, version });
+    mutate(retained.comparatorReceipt);
+    retained.comparatorReceiptSha256 = sha256Hex(canonicalJcs(retained.comparatorReceipt));
+    assert.throws(
+      () => validateRetainedComparatorReceipt(retained, { sourceRevision, version }),
+      message,
+    );
+  };
+
+  validateMutation(
+    (receipt) => { receipt.checks[0].details = {}; },
+    /native live-delivery details|native live-delivery witness/u,
+  );
+  validateMutation(
+    (receipt) => { receipt.nonclaims = ['none']; },
+    /cleanup or nonclaims/u,
+  );
+  validateMutation(
+    (receipt) => {
+      receipt.executorPackages.cli.sha256 = `sha256:${'0'.repeat(64)}`;
+    },
+    /package digests are vacuous/u,
+  );
+  validateMutation(
+    (receipt) => { receipt.profileId = 'x'; },
+    /not one complete passing run/u,
+  );
+  validateMutation(
+    (receipt) => { receipt.identity.artifact.bundleHash = 'x'; },
+    /artifact identity drifted/u,
+  );
+  validateMutation(
+    (receipt) => { receipt.identity.binary.startupNonce = 'x'; },
+    /binary identity drifted/u,
+  );
+});
+
+test('publication JSON envelopes bound bytes, depth, nodes, and strings', () => {
+  assert.throws(
+    () => parseBoundedJsonBytes(
+      Buffer.from(JSON.stringify({ value: '1234567890' })),
+      'oversized bytes',
+      { maxBytes: 8 },
+    ),
+    /byte bound/u,
+  );
+
+  let deep = 'leaf';
+  for (let index = 0; index < 18; index += 1) deep = { child: deep };
+  assert.throws(
+    () => parseBoundedJsonBytes(
+      Buffer.from(JSON.stringify(deep)),
+      'deep receipt',
+      { maxDepth: 16 },
+    ),
+    /depth-16/u,
+  );
+
+  assert.throws(
+    () => parseBoundedJsonBytes(
+      Buffer.from(JSON.stringify({ values: Array.from({ length: 30 }, () => 1) })),
+      'wide receipt',
+      { maxNodes: 20, maxArrayLength: 100 },
+    ),
+    /20-node/u,
+  );
+
+  assert.throws(
+    () => parseBoundedJsonBytes(
+      Buffer.from(JSON.stringify({ value: '123456789' })),
+      'long-string receipt',
+      { maxStringBytes: 8 },
+    ),
+    /string-byte/u,
   );
 });
 
@@ -1217,6 +1348,14 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       ...retainedComparatorReceiptFixture({
         sourceRevision: qualified.revision,
         version: qualified.version,
+        executorPackageNames: {
+          cli: qualified.packages.find(
+            (row) => row.sourceName === '@snapback/cli',
+          ).name,
+          client: qualified.packages.find(
+            (row) => row.sourceName === '@snapback/client',
+          ).name,
+        },
         runtimeBinarySha256: qualified.packages.find((row) => (
           row.sourceName === (
             platform === 'darwin'
@@ -1422,6 +1561,14 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
       ...retainedComparatorReceiptFixture({
         sourceRevision: candidate.revision,
         version: candidate.version,
+        executorPackageNames: {
+          cli: candidate.packages.find(
+            (row) => row.sourceName === '@snapback/cli',
+          ).name,
+          client: candidate.packages.find(
+            (row) => row.sourceName === '@snapback/client',
+          ).name,
+        },
         runtimeBinarySha256: candidate.packages.find(
           (row) => row.sourceName === hostRuntime,
         ).runtimeBinarySha256,
@@ -1516,6 +1663,8 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     '@snapback/runtime-darwin-arm64',
     '@snapback/runtime-linux-x64',
     '@snapback/contract',
+    '@snapback/client',
+    '@snapback/cli',
   ];
   const ledger = {
     schemaVersion: 'snapback.package-publication.v1',
@@ -1572,6 +1721,10 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     ...retainedComparatorReceiptFixture({
       sourceRevision: ledger.revision,
       version: ledger.version,
+      executorPackageNames: {
+        cli: '@ccheever/snapback-cli',
+        client: '@ccheever/snapback-client',
+      },
     }),
     checks: {
       publicRegistryAliasResolution: true,

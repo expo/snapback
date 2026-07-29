@@ -7,10 +7,14 @@
 // receipts agree on one immutable publication closure.
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { aggregatePublicPackageProofs } from './snapback-package-cold-install-lib.mjs';
+import {
+  aggregatePublicPackageProofs,
+  parseBoundedJsonBytes,
+  readBoundedFileBytes,
+} from './snapback-package-cold-install-lib.mjs';
 
 const usage = `Usage:
   node scripts/snapback-package-proof-aggregate.mjs
@@ -50,25 +54,23 @@ function parseArguments(args) {
   return parsed;
 }
 
-function readJson(path, label) {
-  if (!existsSync(path)) fail(`${label} is missing: ${path}`);
+function readJsonRecord(path, label) {
   try {
-    return JSON.parse(readFileSync(path, 'utf8'));
+    const bytes = readBoundedFileBytes(path, label);
+    return {
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      receipt: parseBoundedJsonBytes(bytes, label),
+    };
   } catch (error) {
-    fail(`${label} is not valid JSON: ${path}: ${error.message}`);
+    fail(`${label} is invalid: ${path}: ${error.message}`);
   }
 }
 
-function sha256(path) {
-  return createHash('sha256').update(readFileSync(path)).digest('hex');
-}
-
 const options = parseArguments(process.argv.slice(2));
-const ledger = readJson(options.ledger, 'publication ledger');
+const ledger = readJsonRecord(options.ledger, 'publication ledger').receipt;
 const platformReceiptRecords = options.platformReceipts.map((path) => ({
   path,
-  sha256: sha256(path),
-  receipt: readJson(path, 'platform receipt'),
+  ...readJsonRecord(path, 'platform receipt'),
 }));
 const expectedSourceNames = [
   '@snapback/runtime-darwin-arm64',

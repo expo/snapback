@@ -11,7 +11,6 @@ import {
   fsyncSync,
   mkdirSync,
   openSync,
-  readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -21,6 +20,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  parseBoundedJsonBytes,
+  readBoundedFileBytes,
+  readBoundedJsonFile,
   validatePublicationReceiptProvenance,
 } from './snapback-publish-core.mjs';
 
@@ -217,7 +219,10 @@ function sha256(bytes) {
 function readLedgerRevision(options) {
   let ledger;
   try {
-    ledger = JSON.parse(readFileSync(resolve(options.ledgerPath), 'utf8'));
+    ledger = readBoundedJsonFile(
+      resolve(options.ledgerPath),
+      'candidate publication ledger',
+    );
   } catch (error) {
     fail(`candidate ledger could not be read: ${error.message}`);
   }
@@ -400,12 +405,10 @@ function downloadArtifactReceipt(options, artifact, platform, context) {
     if (extracted.status !== 0 || extracted.stdout.byteLength === 0) {
       fail(`could not extract ${platform} receipt from artifact ${artifact.id}`);
     }
-    let receipt;
-    try {
-      receipt = JSON.parse(extracted.stdout.toString('utf8'));
-    } catch {
-      fail(`${platform} artifact receipt is not JSON`);
-    }
+    const receipt = parseBoundedJsonBytes(
+      extracted.stdout,
+      `${platform} artifact receipt`,
+    );
     validateExistingLatestReceipt(receipt, platform, context);
     return { bytes: extracted.stdout, archiveSha256 };
   } finally {
@@ -480,7 +483,7 @@ export function validateGithubLatestProofCollection({
     ) {
       fail(`latest-root ${platform} artifact evidence drifted`);
     }
-    const receipt = JSON.parse(bytes.toString('utf8'));
+    const receipt = parseBoundedJsonBytes(bytes, `${platform} retained receipt`);
     validateExistingLatestReceipt(receipt, platform, collection);
   }
   return collection;
@@ -488,8 +491,14 @@ export function validateGithubLatestProofCollection({
 
 function reopenCollection(options, collection, ledgerRevision) {
   const receiptBytesByPlatform = new Map([
-    ['darwin-arm64', readFileSync(options.darwinReceipt)],
-    ['linux-x64', readFileSync(options.linuxReceipt)],
+    [
+      'darwin-arm64',
+      readBoundedFileBytes(options.darwinReceipt, 'darwin-arm64 retained receipt'),
+    ],
+    [
+      'linux-x64',
+      readBoundedFileBytes(options.linuxReceipt, 'linux-x64 retained receipt'),
+    ],
   ]);
   validateGithubLatestProofCollection({
     collection,
@@ -630,7 +639,10 @@ async function main() {
   }
   if (options.mode === 'verify-collection') {
     const ledgerRevision = readLedgerRevision(options);
-    const collection = JSON.parse(readFileSync(options.collection, 'utf8'));
+    const collection = readBoundedJsonFile(
+      options.collection,
+      'latest-root proof collection',
+    );
     reopenCollection(options, collection, ledgerRevision);
     process.stdout.write(`${JSON.stringify({
       schemaVersion: 'snapback.github-latest-root-proof-verification.v2',

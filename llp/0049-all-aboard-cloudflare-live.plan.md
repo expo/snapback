@@ -5,7 +5,11 @@
 **Systems:** Demo apps, Cloudflare, Deployment, Runtime, Security, Cron, Data gateway, Realtime, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-25 (deployment-identity freshness is now commit/CI-gated:
+**Revised:** 2026-07-28 (the fast deployment-identity lane now regenerates
+All Aboard's intentionally ignored schema/functions manifests from the
+tracked source and refuses tracked `artifacts.json` drift before recomputing
+identity, making its clean-checkout claim reproducible); 2026-07-25
+(deployment-identity freshness is now commit/CI-gated:
 `verify-local-proof` and the fast `deployment-identity` CI lane recompute the
 committed manifests with `generate-deployment-identity.mjs --check`, so a
 landing that changes deploy inputs without regenerating fails at commit time
@@ -988,7 +992,13 @@ This happened twice on 2026-07-25 alone.
 Freshness is now commit/CI-gated: `scripts/verify-local-proof` runs
 `node cloudflare/scripts/generate-deployment-identity.mjs --check` with the
 generated-artifact drift gates, and the dedicated fast lane
-`.github/workflows/deployment-identity.yml` runs the same `--check` on every
-push/PR without submodules, Hermes, or credentials, so the offending commit
-fails within minutes instead of the next deploy. The deploy-time refusal in
-`cf-check-compat` remains as the last-line guard.
+`.github/workflows/deployment-identity.yml` first runs All Aboard codegen with
+its declared outbound-action generation flag, refuses any change to the
+tracked generated `artifacts.json`, and then runs the same `--check` on every
+push/PR without submodules, Hermes, or credentials. That materialization is
+required because the Worker imports the full schema/functions manifests while
+those derived files are intentionally ignored. The identity generator hashes
+the recreated bytes but excludes its own identity output, so the check is
+clean-checkout reproducible and not self-referential. The offending commit
+therefore fails within minutes instead of the next deploy. The deploy-time
+refusal in `cf-check-compat` remains as the last-line guard.

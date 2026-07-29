@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  closeSync,
+  constants as fsConstants,
+  existsSync,
+  fstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
@@ -48,13 +56,44 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-cli',
 ]);
 
-const PACKAGED_COMPARATOR_CHECK_IDS = Object.freeze([
-  'native-live-delivery',
-  'atomic-declared-writes',
-  'rejected-mutation-rollback',
-  'presence-cleanup',
-  'ephemeral-durable-separation',
+const PACKAGED_COMPARATOR_CHECKS = Object.freeze([
+  Object.freeze({
+    id: 'native-live-delivery',
+    name: 'cross-client native live delivery',
+  }),
+  Object.freeze({
+    id: 'atomic-declared-writes',
+    name: 'atomic declared write set',
+  }),
+  Object.freeze({
+    id: 'rejected-mutation-rollback',
+    name: 'rejected mutation rollback without durable version change',
+  }),
+  Object.freeze({
+    id: 'presence-cleanup',
+    name: 'TTL and disconnect presence cleanup',
+  }),
+  Object.freeze({
+    id: 'ephemeral-durable-separation',
+    name: 'ephemeral publish does not advance durable version',
+  }),
 ]);
+const PACKAGED_COMPARATOR_NONCLAIMS = Object.freeze([
+  'browser rendering or framework-hook behavior',
+  'hosted-target parity',
+  'performance, scale, migration, backup, rollback, and cost properties',
+  'dev-asserted identity labels are behavioral witnesses, not authenticated-principal evidence',
+]);
+const COMPARATOR_RECEIPT_MAX_BYTES = 2 * 1024 * 1024;
+export const PUBLICATION_RECEIPT_MAX_BYTES = 32 * 1024 * 1024;
+const JSON_STRUCTURE_DEFAULTS = Object.freeze({
+  maxDepth: 64,
+  maxNodes: 250_000,
+  maxProperties: 250_000,
+  maxArrayLength: 50_000,
+  maxStringBytes: 2 * 1024 * 1024,
+  maxTotalStringBytes: 16 * 1024 * 1024,
+});
 
 const QUALIFIED_LEDGER_KEYS = [
   'mode',
@@ -280,6 +319,184 @@ function assertSha256(value, field) {
   if (!/^[0-9a-f]{64}$/u.test(value ?? '')) {
     throw new TypeError(`${field} must be a lowercase SHA-256`);
   }
+}
+
+/**
+ * Bound untrusted JSON before any recursive canonicalization or semantic
+ * validation. Byte limits alone do not bound depth, node fan-out, or the cost
+ * of repeatedly encoding one very large string.
+ *
+ * @ref LLP 0041#retained-comparator-evidence-hardening — every release-proof
+ * consumer applies byte and structural envelopes before recursive JCS work.
+ */
+export function assertBoundedJsonValue(value, label = 'JSON value', limits = {}) {
+  const resolved = { ...JSON_STRUCTURE_DEFAULTS, ...limits };
+  for (const key of [
+    'maxDepth',
+    'maxNodes',
+    'maxProperties',
+    'maxArrayLength',
+    'maxStringBytes',
+    'maxTotalStringBytes',
+  ]) {
+    if (!Number.isSafeInteger(resolved[key]) || resolved[key] < 1) {
+      throw new TypeError(`${label} ${key} must be a positive safe integer`);
+    }
+  }
+  let nodes = 0;
+  let properties = 0;
+  let totalStringBytes = 0;
+  const pending = [{ value, depth: 0 }];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    nodes += 1;
+    if (nodes > resolved.maxNodes) {
+      throw new RangeError(`${label} exceeded its ${resolved.maxNodes}-node bound`);
+    }
+    if (current.depth > resolved.maxDepth) {
+      throw new RangeError(`${label} exceeded its depth-${resolved.maxDepth} bound`);
+    }
+    if (typeof current.value === 'string') {
+      if (current.value.length > resolved.maxStringBytes) {
+        throw new RangeError(`${label} exceeded its string-byte bound`);
+      }
+      const bytes = Buffer.byteLength(current.value);
+      if (bytes > resolved.maxStringBytes) {
+        throw new RangeError(`${label} exceeded its string-byte bound`);
+      }
+      totalStringBytes += bytes;
+      if (totalStringBytes > resolved.maxTotalStringBytes) {
+        throw new RangeError(`${label} exceeded its total-string-byte bound`);
+      }
+      continue;
+    }
+    if (
+      current.value === null
+      || typeof current.value === 'boolean'
+      || (
+        typeof current.value === 'number'
+        && Number.isFinite(current.value)
+      )
+    ) {
+      continue;
+    }
+    if (Array.isArray(current.value)) {
+      if (current.value.length > resolved.maxArrayLength) {
+        throw new RangeError(`${label} exceeded its array-length bound`);
+      }
+      for (let index = current.value.length - 1; index >= 0; index -= 1) {
+        pending.push({ value: current.value[index], depth: current.depth + 1 });
+      }
+      continue;
+    }
+    if (
+      typeof current.value !== 'object'
+      || (
+        Object.getPrototypeOf(current.value) !== Object.prototype
+        && Object.getPrototypeOf(current.value) !== null
+      )
+    ) {
+      throw new TypeError(`${label} contains a non-JSON value`);
+    }
+    const entries = Object.entries(current.value);
+    properties += entries.length;
+    if (properties > resolved.maxProperties) {
+      throw new RangeError(`${label} exceeded its ${resolved.maxProperties}-property bound`);
+    }
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const [key, child] = entries[index];
+      const keyBytes = Buffer.byteLength(key);
+      if (keyBytes > resolved.maxStringBytes) {
+        throw new RangeError(`${label} exceeded its key-byte bound`);
+      }
+      totalStringBytes += keyBytes;
+      if (totalStringBytes > resolved.maxTotalStringBytes) {
+        throw new RangeError(`${label} exceeded its total-string-byte bound`);
+      }
+      pending.push({ value: child, depth: current.depth + 1 });
+    }
+  }
+  return value;
+}
+
+export function parseBoundedJsonBytes(
+  bytes,
+  label = 'JSON input',
+  {
+    maxBytes = PUBLICATION_RECEIPT_MAX_BYTES,
+    ...structureLimits
+  } = {},
+) {
+  if (!Buffer.isBuffer(bytes) && !(bytes instanceof Uint8Array)) {
+    throw new TypeError(`${label} must be bytes`);
+  }
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new TypeError(`${label} maxBytes must be a positive safe integer`);
+  }
+  if (bytes.byteLength < 1 || bytes.byteLength > maxBytes) {
+    throw new RangeError(`${label} exceeded its ${maxBytes}-byte bound`);
+  }
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new TypeError(`${label} is not valid UTF-8`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    throw new TypeError(`${label} is not valid JSON: ${error.message}`);
+  }
+  return assertBoundedJsonValue(parsed, label, structureLimits);
+}
+
+export function readBoundedFileBytes(
+  path,
+  label = 'file',
+  maxBytes = PUBLICATION_RECEIPT_MAX_BYTES,
+) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new TypeError(`${label} maxBytes must be a positive safe integer`);
+  }
+  let descriptor;
+  try {
+    descriptor = openSync(
+      path,
+      fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0),
+    );
+    const metadata = fstatSync(descriptor);
+    if (!metadata.isFile()) throw new TypeError(`${label} must be a regular file`);
+    if (metadata.size < 1 || metadata.size > maxBytes) {
+      throw new RangeError(`${label} exceeded its ${maxBytes}-byte bound`);
+    }
+    const bytes = Buffer.alloc(metadata.size);
+    let offset = 0;
+    while (offset < bytes.byteLength) {
+      const count = readSync(descriptor, bytes, offset, bytes.byteLength - offset, null);
+      if (count === 0) break;
+      offset += count;
+    }
+    const growthProbe = Buffer.alloc(1);
+    if (offset !== bytes.byteLength || readSync(descriptor, growthProbe, 0, 1, null) !== 0) {
+      throw new TypeError(`${label} changed while it was being read`);
+    }
+    return bytes;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+export function readBoundedJsonFile(
+  path,
+  label = 'JSON file',
+  {
+    maxBytes = PUBLICATION_RECEIPT_MAX_BYTES,
+    ...structureLimits
+  } = {},
+) {
+  const bytes = readBoundedFileBytes(path, label, maxBytes);
+  return parseBoundedJsonBytes(bytes, label, { maxBytes, ...structureLimits });
 }
 
 export function validatePublicationReceiptProvenance(
@@ -734,8 +951,20 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   sourceRevision,
   version,
   expectedRuntimeBinarySha256 = null,
+  expectedExecutorPackageNames = {
+    cli: '@snapback/cli',
+    client: '@snapback/client',
+  },
 } = {}) {
   const receipt = packageReceipt?.comparatorReceipt;
+  assertBoundedJsonValue(receipt, 'retained comparator receipt', {
+    maxDepth: 16,
+    maxNodes: 20_000,
+    maxProperties: 20_000,
+    maxArrayLength: 2_000,
+    maxStringBytes: 256 * 1024,
+    maxTotalStringBytes: COMPARATOR_RECEIPT_MAX_BYTES,
+  });
   const exactKeys = (value, keys, label) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       throw new TypeError(`${label} must be an object`);
@@ -751,6 +980,12 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   };
   const nonEmptyString = (value) => typeof value === 'string' && value.length > 0;
   const sha256 = (value) => typeof value === 'string' && /^sha256:[0-9a-f]{64}$/u.test(value);
+  const safeVersion = (value) => Number.isSafeInteger(value) && value >= 0;
+  const sameArray = (left, right) => (
+    Array.isArray(left)
+    && left.length === right.length
+    && left.every((value, index) => value === right[index])
+  );
   exactKeys(receipt, [
     'capabilityGaps',
     'checks',
@@ -773,8 +1008,8 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
     receipt.schemaVersion !== 'snapback.comparator-receipt.v1'
     || receipt.status !== 'passed'
     || receipt.exitCode !== 0
-    || !nonEmptyString(receipt.profileId)
-    || !nonEmptyString(receipt.title)
+    || receipt.profileId !== 'package-green-fixture'
+    || receipt.title !== 'package comparator green fixture'
     || !Number.isSafeInteger(receipt.startedAtMs)
     || !Number.isSafeInteger(receipt.finishedAtMs)
     || !Number.isSafeInteger(receipt.durationMs)
@@ -786,7 +1021,11 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   ) {
     throw new TypeError('retained comparator receipt is not one complete passing run');
   }
-  const canonicalDigest = sha256Hex(canonicalJcs(receipt));
+  const canonicalReceipt = canonicalJcs(receipt);
+  if (Buffer.byteLength(canonicalReceipt) > COMPARATOR_RECEIPT_MAX_BYTES) {
+    throw new RangeError('retained comparator receipt exceeded its 2 MiB canonical bound');
+  }
+  const canonicalDigest = sha256Hex(canonicalReceipt);
   if (
     typeof packageReceipt.comparatorReceiptSha256 !== 'string'
     || packageReceipt.comparatorReceiptSha256 !== canonicalDigest
@@ -795,10 +1034,17 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   }
 
   exactKeys(receipt.executorPackages, ['cli', 'client'], 'comparator executor packages');
-  for (const [key, expectedName] of [
-    ['cli', '@snapback/cli'],
-    ['client', '@snapback/client'],
-  ]) {
+  const requiredExecutorFiles = {
+    cli: [
+      'cli.mjs',
+      'comparator-profile.mjs',
+      'fixtures/comparator/green.config.mjs',
+      'package.json',
+    ],
+    client: ['index.mjs', 'package.json'],
+  };
+  for (const key of ['cli', 'client']) {
+    const expectedName = expectedExecutorPackageNames?.[key];
     const identity = receipt.executorPackages[key];
     exactKeys(
       identity,
@@ -806,13 +1052,15 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
       `comparator executor package ${key}`,
     );
     if (
-      identity.name !== expectedName
+      !nonEmptyString(expectedName)
+      || identity.name !== expectedName
       || identity.version !== version
       || identity.algorithm !== 'sha256-package-files-path-length-content.v1'
       || !sha256(identity.sha256)
       || !Array.isArray(identity.files)
       || identity.files.length < 1
       || identity.files.length > 2_000
+      || !requiredExecutorFiles[key].every((file) => identity.files.includes(file))
       || identity.files.some((file, index, files) => (
         !nonEmptyString(file)
         || file.startsWith('/')
@@ -822,6 +1070,14 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
     ) {
       throw new TypeError(`retained comparator executor package ${key} drifted`);
     }
+  }
+  if (
+    receipt.executorPackages.cli.sha256 === receipt.executorPackages.client.sha256
+    || Object.values(receipt.executorPackages).some(
+      ({ sha256: digest }) => /^sha256:([0-9a-f])\1{63}$/u.test(digest),
+    )
+  ) {
+    throw new TypeError('retained comparator executor package digests are vacuous');
   }
 
   exactKeys(receipt.identity, ['artifact', 'binary', 'target'], 'comparator identity');
@@ -861,10 +1117,10 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   );
   if (
     artifact.available !== true
-    || !nonEmptyString(artifact.appId)
-    || !nonEmptyString(artifact.bundleHash)
-    || !nonEmptyString(artifact.inputsHash)
-    || !nonEmptyString(artifact.schemaHash)
+    || artifact.appId !== 'app'
+    || !/^sha256:[0-9a-f]{16,64}$/u.test(artifact.bundleHash ?? '')
+    || !/^[0-9a-f]{64}$/u.test(artifact.inputsHash ?? '')
+    || !/^sha256:[0-9a-f]{16,64}$/u.test(artifact.schemaHash ?? '')
   ) {
     throw new TypeError('retained comparator artifact identity drifted');
   }
@@ -885,13 +1141,16 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   );
   if (
     binary.available !== true
-    || !nonEmptyString(binary.path)
+    || typeof binary.path !== 'string'
+    || !binary.path.startsWith('/')
+    || !binary.path.endsWith('/snapback')
     || !sha256(binary.sha256)
-    || !nonEmptyString(binary.crateVersion)
+    || !/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/u.test(binary.crateVersion ?? '')
     || binary.gitCommit !== sourceRevision
     || binary.gitDirty !== false
     || binary.buildProfile !== 'release'
-    || !nonEmptyString(binary.startupNonce)
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
+      .test(binary.startupNonce ?? '')
     || (
       expectedRuntimeBinarySha256 !== null
       && binary.sha256 !== `sha256:${expectedRuntimeBinarySha256}`
@@ -903,12 +1162,13 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   if (
     !Array.isArray(receipt.expectedChecks)
     || !Array.isArray(receipt.checks)
-    || receipt.expectedChecks.length !== PACKAGED_COMPARATOR_CHECK_IDS.length
-    || receipt.checks.length !== PACKAGED_COMPARATOR_CHECK_IDS.length
+    || receipt.expectedChecks.length !== PACKAGED_COMPARATOR_CHECKS.length
+    || receipt.checks.length !== PACKAGED_COMPARATOR_CHECKS.length
   ) {
     throw new TypeError('retained comparator check set is incomplete');
   }
-  for (const [index, expectedId] of PACKAGED_COMPARATOR_CHECK_IDS.entries()) {
+  for (const [index, definition] of PACKAGED_COMPARATOR_CHECKS.entries()) {
+    const expectedId = definition.id;
     const expected = receipt.expectedChecks[index];
     exactKeys(expected, ['id', 'name'], `comparator expected check ${index}`);
     const check = receipt.checks[index];
@@ -928,9 +1188,9 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
     );
     if (
       expected.id !== expectedId
-      || !nonEmptyString(expected.name)
+      || expected.name !== definition.name
       || check.id !== expectedId
-      || check.name !== expected.name
+      || check.name !== definition.name
       || check.status !== 'passed'
       || check.diagnostic !== null
       || check.details === null
@@ -946,6 +1206,91 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
     ) {
       throw new TypeError(`retained comparator check ${expectedId} drifted`);
     }
+    const details = check.details;
+    if (expectedId === 'native-live-delivery') {
+      exactKeys(details, [
+        'actorIdentity',
+        'deliveredVersion',
+        'identitySources',
+        'observerIdentity',
+        'subscriptionId',
+        'transport',
+      ], 'native live-delivery details');
+      exactKeys(
+        details.identitySources,
+        ['actor', 'observer'],
+        'native live-delivery identity sources',
+      );
+      const validIdentitySource = (value) => (
+        ['sessions-authenticated', 'dev-asserted', 'fixture-asserted'].includes(value)
+      );
+      if (
+        !nonEmptyString(details.observerIdentity)
+        || !nonEmptyString(details.actorIdentity)
+        || details.observerIdentity === details.actorIdentity
+        || !validIdentitySource(details.identitySources.observer)
+        || !validIdentitySource(details.identitySources.actor)
+        || details.transport !== 'push'
+        || !nonEmptyString(details.subscriptionId)
+        || !safeVersion(details.deliveredVersion)
+      ) {
+        throw new TypeError('retained comparator native live-delivery witness is vacuous');
+      }
+    } else if (expectedId === 'atomic-declared-writes') {
+      exactKeys(details, [
+        'afterVersion',
+        'beforeVersion',
+        'changed',
+        'declaredWrites',
+      ], 'atomic declared-write details');
+      if (
+        !sameArray(details.declaredWrites, ['primary', 'activity'])
+        || !sameArray(details.changed, details.declaredWrites)
+        || !safeVersion(details.beforeVersion)
+        || details.afterVersion !== details.beforeVersion + 1
+      ) {
+        throw new TypeError('retained comparator atomic declared-write witness is vacuous');
+      }
+    } else if (expectedId === 'rejected-mutation-rollback') {
+      exactKeys(details, [
+        'afterVersion',
+        'beforeVersion',
+        'diagnosticCode',
+      ], 'rejected-mutation details');
+      if (
+        !safeVersion(details.beforeVersion)
+        || details.afterVersion !== details.beforeVersion
+        || !/^SNAPBACK_[A-Z0-9_]+$/u.test(details.diagnosticCode ?? '')
+      ) {
+        throw new TypeError('retained comparator rejected-mutation witness is vacuous');
+      }
+    } else if (expectedId === 'presence-cleanup') {
+      exactKeys(details, [
+        'disconnectRemoved',
+        'ttlMs',
+        'ttlRemoved',
+      ], 'presence cleanup details');
+      if (
+        details.disconnectRemoved !== true
+        || details.ttlRemoved !== true
+        || !Number.isSafeInteger(details.ttlMs)
+        || details.ttlMs < 1
+        || details.ttlMs > 60_000
+      ) {
+        throw new TypeError('retained comparator presence-cleanup witness is vacuous');
+      }
+    } else {
+      exactKeys(details, [
+        'afterVersion',
+        'beforeVersion',
+      ], 'ephemeral durable-separation details');
+      if (
+        !safeVersion(details.beforeVersion)
+        || details.afterVersion !== details.beforeVersion
+      ) {
+        throw new TypeError('retained comparator ephemeral durable-separation witness is vacuous');
+      }
+    }
   }
   exactKeys(
     receipt.cleanup,
@@ -960,9 +1305,7 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
     || receipt.cleanup.temporaryStateRemoved !== true
     || !Array.isArray(receipt.cleanup.errors)
     || receipt.cleanup.errors.length !== 0
-    || !Array.isArray(receipt.nonclaims)
-    || receipt.nonclaims.length < 1
-    || receipt.nonclaims.some((claim) => !nonEmptyString(claim))
+    || !sameArray(receipt.nonclaims, PACKAGED_COMPARATOR_NONCLAIMS)
   ) {
     throw new TypeError('retained comparator cleanup or nonclaims drifted');
   }
@@ -974,7 +1317,7 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
       cli: identityProjection(receipt.executorPackages.cli),
       client: identityProjection(receipt.executorPackages.client),
     },
-    checkIds: [...PACKAGED_COMPARATOR_CHECK_IDS],
+    checkIds: PACKAGED_COMPARATOR_CHECKS.map(({ id }) => id),
   };
 }
 
@@ -984,6 +1327,18 @@ function identityProjection(identity) {
     version: identity.version,
     sha256: identity.sha256,
   };
+}
+
+export function comparatorExecutorPackageNames(ledger) {
+  const rows = new Map((ledger?.packages ?? []).map((row) => [row.sourceName, row.name]));
+  const names = {
+    cli: rows.get('@snapback/cli'),
+    client: rows.get('@snapback/client'),
+  };
+  if (!names.cli || !names.client) {
+    throw new TypeError('publication ledger lacks comparator executor packages');
+  }
+  return names;
 }
 
 export function validateQualifiedPlatformReceipts({ ledger, records }) {
@@ -1026,6 +1381,7 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
     validateRetainedComparatorReceipt(receipt, {
       sourceRevision: ledger.revision,
       version: ledger.version,
+      expectedExecutorPackageNames: comparatorExecutorPackageNames(ledger),
       expectedRuntimeBinarySha256:
         ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256,
     });

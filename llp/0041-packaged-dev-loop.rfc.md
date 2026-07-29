@@ -106,6 +106,21 @@ acquired head before constructing the post ledger and close. These are
 corrective implementation details of this amendment, not a new release
 claim.)
 
+**Revised (retained comparator evidence hardening):** 2026-07-28 (the staged,
+exact-public, and final-`latest` consumers now read receipt files through a
+32 MiB regular-file envelope and reject excessive JSON depth, nodes,
+properties, arrays, individual strings, or aggregate string bytes before
+canonicalization. The nested comparator receipt has a narrower 2 MiB,
+depth-16, 20,000-node/property envelope. Its outer validator binds the exact
+package fixture profile/title, exact mandatory check names and semantic
+witness shapes, governed nonclaim vector, release binary, and non-vacuous
+executor-package shape. The executor package-file digests remain rooted in the
+installed CLI's same-process comparison against its executing package graph;
+the outer validator does not pretend that a self-digest independently
+reconstructs installed package bytes. GitHub-hosted provenance and the retained
+full-receipt digest carry that already-verified result into later release
+gates. This correction claims no publication.)
+
 **Revised (bounded browser-evidence closure):** 2026-07-28 (the packed React
 browser qualification now binds the measured checkout HEAD/dirty state, the
 complete selected Chromium headless-shell distribution, and the Playwright
@@ -314,15 +329,34 @@ Publication is a closed state machine:
    reversed, the release receipt is failed loudly and no target capability
    carrier may reference it.
 
+#### Retained comparator evidence hardening
+
 Every staged and public platform cold receipt retains the complete governed
 `snapback.comparator-receipt.v1` object plus its canonical JCS SHA-256. The
 outer validator binds the comparator's source commit and release binary digest
-to the selected runtime package, requires the exact five mandatory checks with
-consistent timings, and reopens its package identities, successful cleanup,
-and nonclaims. A `packagedComparatorProfile: true` boolean is only a summary;
-it is never sufficient evidence by itself. The public aggregate retains a
-small projection and the platform-receipt digest, while the full platform
-receipts remain the audit source.
+to the selected runtime package, requires the exact package-owned fixture
+profile/title, exact five mandatory check names with consistent timings,
+semantic live/atomic/rollback/presence/ephemeral witnesses, successful cleanup,
+and the exact governed nonclaim vector. Receipt files are read as bounded
+regular files; platform receipts have a 32 MiB envelope with finite structural
+limits, and the nested comparator has a 2 MiB canonical/byte envelope plus
+depth-16 and 20,000-node/property limits. Those limits are enforced before
+recursive JCS canonicalization in every staged, exact-public, and final
+`latest` consumer.
+
+The installed CLI is the authority for `executorPackages`: it recomputes the
+complete executing CLI and client package-file graph in the comparator process
+and refuses a receipt that differs. The outer release validator binds the
+resulting full receipt and requires exact package names/version/algorithm,
+closed normalized file lists with package-owned sentinel files, and
+non-vacuous distinct digest shapes. It does not describe the retained
+self-digest as an independent reconstruction of installed bytes. The trusted
+edge is instead `GitHub-hosted cold-proof process → installed CLI
+same-process verification → retained full receipt digest`. A
+`packagedComparatorProfile: true` boolean is only a summary; it is never
+sufficient evidence by itself. The public aggregate retains a small projection
+and the platform-receipt digest, while the full platform receipts remain the
+audit source.
 
 The two final receipts come from one correlated
 `.github/workflows/public-package-proof.yml` GitHub-hosted matrix execution.

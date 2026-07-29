@@ -31,12 +31,14 @@ import {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   boundedSerializeBrowserValue,
   browserAssetsContainSecretCanary,
+  comparatorExecutorPackageNames,
   createBoundedAsyncTaskPool,
   createBoundedByteAccumulator,
   createBoundedBrowserSurfaceCollector,
   digestBoundedBrowserFilesystem,
   measureGitCheckoutIdentity,
   parseArguments,
+  readBoundedJsonFile,
   PUBLIC_NPM_REGISTRY,
   resolveInstalledBrowserDistribution,
   runAsync,
@@ -2211,11 +2213,19 @@ await build({
     '--timeout-ms', '30000',
     '--json',
   ], { cwd: appRoot, timeout: 120_000 });
-  const comparatorReceiptBytes = readFileSync(comparatorReceiptPath);
-  if (comparatorReceiptBytes.byteLength > 2 * 1024 * 1024) {
-    fail('packed comparator receipt exceeded its 2 MiB retention bound');
-  }
-  const comparatorReceipt = JSON.parse(comparatorReceiptBytes);
+  const comparatorReceipt = readBoundedJsonFile(
+    comparatorReceiptPath,
+    'packed comparator receipt',
+    {
+      maxBytes: 2 * 1024 * 1024,
+      maxDepth: 16,
+      maxNodes: 20_000,
+      maxProperties: 20_000,
+      maxArrayLength: 2_000,
+      maxStringBytes: 256 * 1024,
+      maxTotalStringBytes: 2 * 1024 * 1024,
+    },
+  );
   if (
     comparatorReceipt.schemaVersion !== 'snapback.comparator-receipt.v1'
     || comparatorReceipt.status !== 'passed'
@@ -2538,6 +2548,7 @@ await build({
   validateRetainedComparatorReceipt(receipt, {
     sourceRevision: ledger.revision,
     version: ledger.version,
+    expectedExecutorPackageNames: comparatorExecutorPackageNames(ledger),
     expectedRuntimeBinarySha256:
       ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256,
   });

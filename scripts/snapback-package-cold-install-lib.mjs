@@ -10,6 +10,10 @@ import { open as openFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
+  comparatorExecutorPackageNames,
+  parseBoundedJsonBytes,
+  readBoundedFileBytes,
+  readBoundedJsonFile,
   validateColdInstallBrowserEvidence,
   validateCandidateLedger,
   validatePublicationReceiptProvenance,
@@ -20,6 +24,10 @@ import {
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
 export {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
+  comparatorExecutorPackageNames,
+  parseBoundedJsonBytes,
+  readBoundedFileBytes,
+  readBoundedJsonFile,
   validateColdInstallBrowserEvidence,
   validateRetainedComparatorReceipt,
 };
@@ -1249,6 +1257,7 @@ export function validateFinalLatestReceipts({
     validateRetainedComparatorReceipt(receipt, {
       sourceRevision: ledger.revision,
       version: ledger.version,
+      expectedExecutorPackageNames: comparatorExecutorPackageNames(ledger),
       expectedRuntimeBinarySha256:
         ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256,
     });
@@ -1430,6 +1439,7 @@ export function aggregatePublicPackageProofs({
     const comparatorProof = validateRetainedComparatorReceipt(receipt, {
       sourceRevision: ledger.revision,
       version: ledger.version,
+      expectedExecutorPackageNames: comparatorExecutorPackageNames(ledger),
       expectedRuntimeBinarySha256:
         ledger.packages.find((row) => row.sourceName === hostRuntime)?.runtimeBinarySha256 ?? null,
     });

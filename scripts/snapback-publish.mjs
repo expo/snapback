@@ -22,6 +22,9 @@ import { fileURLToPath } from 'node:url';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 import {
   PACKAGE_DEPENDENCY_SECTIONS,
+  parseBoundedJsonBytes,
+  readBoundedFileBytes,
+  readBoundedJsonFile,
   sha256File,
   validateCandidateLedger,
   validateQualifiedPlatformReceipts,
@@ -381,7 +384,7 @@ let qualifiedPlatformReceipts = null;
 let qualifiedRoot = null;
 let rows;
 if (options.publish) {
-  qualifiedLedger = JSON.parse(readFileSync(options.qualifiedLedger, 'utf8'));
+  qualifiedLedger = readBoundedJsonFile(options.qualifiedLedger, 'qualified publication ledger');
   try {
     validateQualifiedStagingLedger(qualifiedLedger);
   } catch (error) {
@@ -400,11 +403,14 @@ if (options.publish) {
   } catch (error) {
     fail(error.message);
   }
-  const records = options.platformReceipts.map((path) => ({
-    path,
-    sha256: sha256File(path),
-    receipt: JSON.parse(readFileSync(path, 'utf8')),
-  }));
+  const records = options.platformReceipts.map((path) => {
+    const bytes = readBoundedFileBytes(path, 'qualified platform receipt');
+    return {
+      path,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      receipt: parseBoundedJsonBytes(bytes, 'qualified platform receipt'),
+    };
+  });
   try {
     qualifiedPlatformReceipts = validateQualifiedPlatformReceipts({
       ledger: qualifiedLedger,
