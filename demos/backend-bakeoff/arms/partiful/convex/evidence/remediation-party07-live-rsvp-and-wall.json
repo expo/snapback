@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 1,
+  "remediationId": "PARTY-07-RSVP-WALL-NATIVE-PUSH-01",
+  "originalReceiptPreservedAt": "evidence/scenarios/PARTY-07-LIVE-BURST.json",
+  "timedPerformanceRewritten": false,
+  "targetIdentity": {
+    "profile": "fresh anonymous local remediation target",
+    "deploymentName": "anonymous-agent",
+    "backendVersion": "precompiled-2026-07-21-82d5e9f",
+    "namespace": "llp0102-partiful-convex-w2-party07-remediation",
+    "ports": {
+      "cloud": 3356,
+      "site": 3357
+    }
+  },
+  "targetIdentityHash": "a66bcdf46bc5528bdce371f951259ad191d029d49c9367249c54d0151278c714",
+  "startedAt": "2026-07-29T07:33:06.685Z",
+  "subscribedAt": "2026-07-29T07:33:06.734Z",
+  "establishedBeforeWritesAt": "2026-07-29T07:33:06.745Z",
+  "completedAt": "2026-07-29T07:33:06.810Z",
+  "fixture": {
+    "seed": {
+      "alreadySeeded": false,
+      "capacity": 50,
+      "events": 20,
+      "guests": 49
+    },
+    "baselineTotals": {
+      "maybe": 0,
+      "no": 1,
+      "seats": 0,
+      "wallPosts": 1,
+      "yes": 0
+    },
+    "requiredTransitions": {
+      "rsvpYes": [
+        0,
+        2
+      ],
+      "occupiedSeats": [
+        0,
+        2
+      ],
+      "addedWallPosts": 20,
+      "wallPosts": [
+        1,
+        21
+      ]
+    }
+  },
+  "transport": {
+    "provider": "Convex",
+    "attribution": "two established ConvexClient WebSocket reactive-query subscriptions",
+    "polling": false,
+    "clientA": "Alice",
+    "clientB": "Bob"
+  },
+  "writes": {
+    "count": 22,
+    "fulfilled": 22,
+    "rejected": 0
+  },
+  "clientAObservations": [
+    {
+      "receivedAt": "2026-07-29T07:33:06.738Z",
+      "elapsedFromSubscriptionMs": 3.441,
+      "yes": 0,
+      "seats": 0,
+      "wallPosts": 1
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.754Z",
+      "elapsedFromSubscriptionMs": 19.311,
+      "yes": 0,
+      "seats": 0,
+      "wallPosts": 2
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.756Z",
+      "elapsedFromSubscriptionMs": 21.92,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 3
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.760Z",
+      "elapsedFromSubscriptionMs": 25.43,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 4
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.763Z",
+      "elapsedFromSubscriptionMs": 28.895,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 5
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.766Z",
+      "elapsedFromSubscriptionMs": 31.249,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 6
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.768Z",
+      "elapsedFromSubscriptionMs": 34.145,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 8
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.771Z",
+      "elapsedFromSubscriptionMs": 36.846,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 9
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.775Z",
+      "elapsedFromSubscriptionMs": 40.287,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 10
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.777Z",
+      "elapsedFromSubscriptionMs": 43.175,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 11
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.781Z",
+      "elapsedFromSubscriptionMs": 46.646,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 13
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.785Z",
+      "elapsedFromSubscriptionMs": 50.297,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 15
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.787Z",
+      "elapsedFromSubscriptionMs": 52.941,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 17
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.791Z",
+      "elapsedFromSubscriptionMs": 56.243,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 18
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.794Z",
+      "elapsedFromSubscriptionMs": 59.604,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 19
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.797Z",
+      "elapsedFromSubscriptionMs": 62.787,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 21
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.799Z",
+      "elapsedFromSubscriptionMs": 64.985,
+      "yes": 2,
+      "seats": 2,
+      "wallPosts": 21
+    }
+  ],
+  "clientBObservations": [
+    {
+      "receivedAt": "2026-07-29T07:33:06.739Z",
+      "elapsedFromSubscriptionMs": 5.154,
+      "yes": 0,
+      "seats": 0,
+      "wallPosts": 1
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.752Z",
+      "elapsedFromSubscriptionMs": 17.509,
+      "yes": 0,
+      "seats": 0,
+      "wallPosts": 2
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.755Z",
+      "elapsedFromSubscriptionMs": 20.578,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 2
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.758Z",
+      "elapsedFromSubscriptionMs": 24.037,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 3
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.761Z",
+      "elapsedFromSubscriptionMs": 26.787,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 5
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.764Z",
+      "elapsedFromSubscriptionMs": 29.475,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 6
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.767Z",
+      "elapsedFromSubscriptionMs": 32.525,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 7
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.771Z",
+      "elapsedFromSubscriptionMs": 36.572,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 8
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.773Z",
+      "elapsedFromSubscriptionMs": 38.791,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 10
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.777Z",
+      "elapsedFromSubscriptionMs": 42.675,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 11
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.780Z",
+      "elapsedFromSubscriptionMs": 45.703,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 13
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.783Z",
+      "elapsedFromSubscriptionMs": 48.465,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 15
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.786Z",
+      "elapsedFromSubscriptionMs": 51.961,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 16
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.789Z",
+      "elapsedFromSubscriptionMs": 54.835,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 18
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.792Z",
+      "elapsedFromSubscriptionMs": 57.651,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 19
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.795Z",
+      "elapsedFromSubscriptionMs": 60.869,
+      "yes": 1,
+      "seats": 1,
+      "wallPosts": 20
+    },
+    {
+      "receivedAt": "2026-07-29T07:33:06.798Z",
+      "elapsedFromSubscriptionMs": 63.826,
+      "yes": 2,
+      "seats": 2,
+      "wallPosts": 21
+    }
+  ],
+  "authoritative": {
+    "totals": {
+      "maybe": 0,
+      "no": 1,
+      "seats": 2,
+      "wallPosts": 21,
+      "yes": 2
+    },
+    "rowCounts": {
+      "assets": 0,
+      "events": 20,
+      "memberships": 50,
+      "notificationAttempts": 0,
+      "personas": 4,
+      "reminders": 0,
+      "rsvps": 3,
+      "wallPosts": 21
+    },
+    "rsvps": [
+      {
+        "displayName": "Alice",
+        "status": "no",
+        "plusOne": 0,
+        "revision": 2
+      },
+      {
+        "displayName": "Casey",
+        "status": "yes",
+        "plusOne": 0,
+        "revision": 1
+      },
+      {
+        "displayName": "Bob",
+        "status": "yes",
+        "plusOne": 0,
+        "revision": 1
+      }
+    ]
+  },
+  "assertions": {
+    "bothClientsEstablishedBeforeWrites": true,
+    "bothClientsObservedBaseline": true,
+    "bothClientsObservedRsvpZeroToTwo": true,
+    "bothClientsObservedTwentyPostBurst": true,
+    "authoritativeTotalsAgree": true
+  }
+}

@@ -270,11 +270,14 @@
       "id": "PARTY-07-LIVE-BURST",
       "status": "pass",
       "evidencePaths": [
-        "evidence/scenarios/PARTY-07-LIVE-BURST.json"
+        "evidence/scenarios/PARTY-07-LIVE-BURST.json",
+        "evidence/remediation-party07-live-rsvp-and-wall.json",
+        "evidence/remediation-party07-cleanup.json",
+        "evidence/remediation-party07-target-retirement.json"
       ],
       "transport": "push",
       "authoritativeCheck": "Wall posts and RSVP totals update live during the frozen burst.",
-      "note": "Direct retained evidence satisfies the frozen scenario fact."
+      "note": "The original receipt directly proved the two-client 20-post push burst but did not retain an RSVP transition. A separately named fresh-target remediation preserves that receipt and proves both established clients observed RSVP yes/seats 0→2 and wall posts 1→21; independent authoritative totals agree. Original timed performance is unchanged."
     },
     {
       "id": "PARTY-08-ASSET",
@@ -393,10 +396,11 @@
     },
     "transport": {
       "score": 2,
-      "reason": "Two native WebSocket query subscribers retained direct observations of policy and burst transitions.",
+      "reason": "Two native WebSocket query subscribers retained direct observations of policy and wall transitions; a separately named fresh remediation target additionally proves both established clients observed RSVP yes/seats 0→2 together with the 20-post burst.",
       "evidencePaths": [
         "evidence/scenarios/PARTY-05-GUEST-LIST.json",
-        "evidence/scenarios/PARTY-07-LIVE-BURST.json"
+        "evidence/scenarios/PARTY-07-LIVE-BURST.json",
+        "evidence/remediation-party07-live-rsvp-and-wall.json"
       ]
     },
     "offline-reconnect": {
@@ -427,7 +431,9 @@
       "reason": "Namespace, process, port, target-state, browser-state, and credential negative probes all passed, but the baseline fields were serialized during cleanup rather than in a separately timestamped pre-write receipt.",
       "evidencePaths": [
         "evidence/cleanup-data-plane.json",
-        "evidence/cleanup-complete.json"
+        "evidence/cleanup-complete.json",
+        "evidence/remediation-party07-cleanup.json",
+        "evidence/remediation-party07-target-retirement.json"
       ]
     },
     "artifact-reproducibility": {
@@ -446,7 +452,9 @@
     "targetBoundPlanPath": "evidence/cleanup-complete.json",
     "receiptPaths": [
       "evidence/cleanup-data-plane.json",
-      "evidence/cleanup-complete.json"
+      "evidence/cleanup-complete.json",
+      "evidence/remediation-party07-cleanup.json",
+      "evidence/remediation-party07-target-retirement.json"
     ],
     "postCleanupProbe": "All eight namespace table counts are zero; assigned ports and exact runtime/config paths are absent.",
     "namespaceNegative": true,

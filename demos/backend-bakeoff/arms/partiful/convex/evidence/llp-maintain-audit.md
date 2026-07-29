@@ -17,3 +17,26 @@ Intent: `pre-pr` (proposal-only). Scope: the Partiful/Convex arm diff.
   integration; the worker did not edit the shared diary corpus.
 
 Proposed follow-up: none. No changes were applied by this audit.
+
+## 2026-07-29 PARTY-07 remediation addendum
+
+Intent: `pre-pr` (proposal-only). Scope: the separately named fresh-target
+PARTY-07 verifier and its new evidence/capsule/diary-draft references.
+
+- `work/remediate-party07.ts` carries an applicable reference to
+  `LLP 0102#cross-application-acceptance-kernel`; `ref-check --verbose`
+  resolves it.
+- The change strengthens direct evidence for the existing frozen fact without
+  changing an acceptance ID, product behavior, provider score, original
+  receipt, or timed sample.
+- The appended diary-draft erratum follows LLP 0102's immutable point-in-time
+  correction rule.
+- No LLP status/content change, guide change, shared issue, or new design
+  document is proposed.
+- The guide checker retains 23 pre-existing authority-freshness warnings; none
+  is caused by this provider-arm remediation.
+
+Proposed follow-up: coordinator should replace the central PARTY-07 `partial`
+audit finding with the new direct remediation receipt while retaining the
+original partial finding as historical evidence. No changes were applied by
+this audit beyond this proposal artifact.

@@ -87,3 +87,19 @@ transactions, subscriptions, storage, and scheduler all survived the frozen
 acceptance facts with unusually little product code. The main deductions are
 around CLI discoverability, test-auth ergonomics, hermetic isolation, and the
 fact that exactly-once external effects remain an application concern.
+
+### 2026-07-29 evidence erratum — PARTY-07
+
+The original timed PARTY-07 receipt proved that two established native
+WebSocket clients observed the exact 20-post wall burst, but it did not retain
+an RSVP-total transition on those same live handles. I did not rewrite that
+receipt or any timed performance evidence.
+
+A separately named fresh local remediation target set the authoritative RSVP
+baseline to zero, established Alice and Bob subscriptions before any burst
+writes, and then committed 20 wall posts plus Bob and Casey RSVP changes.
+Both established clients observed `yes/seats` move from `0/0` to `2/2` and
+wall posts move from `1` to `21`; a separate authoritative query agreed.
+The remediation namespace then probed zero across every table, the fresh target
+and runtime state were retired, and ports 3356/3357 were closed. This improves
+the evidence, not the original authoring-time or performance result.

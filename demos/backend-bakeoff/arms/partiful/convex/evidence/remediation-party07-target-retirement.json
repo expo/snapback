@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "remediationId": "PARTY-07-RSVP-WALL-NATIVE-PUSH-01",
+  "target": {
+    "profile": "fresh anonymous local remediation target",
+    "namespace": "llp0102-partiful-convex-w2-party07-remediation",
+    "cloudPort": 3356,
+    "sitePort": 3357
+  },
+  "preRetirement": {
+    "namespaceNegativeReceipt": "evidence/remediation-party07-cleanup.json",
+    "localTargetSize": "1.0 MiB",
+    "worktreeLocalRuntimeSize": "56 MiB"
+  },
+  "retiredExactPaths": [
+    "/private/tmp/llp0102-partiful-convex-w2-party07-remediation/demos/backend-bakeoff/arms/partiful/convex/.convex",
+    "/private/tmp/llp0102-partiful-convex-w2-party07-remediation/demos/backend-bakeoff/arms/partiful/convex/.env.local",
+    "/private/tmp/llp0102-partiful-convex-w2-party07-remediation/.arm-state"
+  ],
+  "postRetirement": {
+    "pathsAbsent": true,
+    "cloudPortClosed": true,
+    "sitePortClosed": true,
+    "unrelatedTargetMutated": false
+  },
+  "completedAt": "2026-07-29T07:34:00Z"
+}

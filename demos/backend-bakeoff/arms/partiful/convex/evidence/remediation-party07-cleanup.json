@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "remediationId": "PARTY-07-RSVP-WALL-NATIVE-PUSH-01",
+  "namespace": "llp0102-partiful-convex-w2-party07-remediation",
+  "targetIdentityHash": "a66bcdf46bc5528bdce371f951259ad191d029d49c9367249c54d0151278c714",
+  "cleanupPlan": "Delete only rows/storage indexed by the exact remediation namespace, then retire the exact fresh local target.",
+  "beforeCleanup": {
+    "assets": 0,
+    "events": 20,
+    "memberships": 50,
+    "notificationAttempts": 0,
+    "personas": 4,
+    "reminders": 0,
+    "rsvps": 3,
+    "wallPosts": 21
+  },
+  "removed": {
+    "assets": 0,
+    "events": 20,
+    "memberships": 50,
+    "notificationAttempts": 0,
+    "personas": 4,
+    "reminders": 0,
+    "rsvps": 3,
+    "wallPosts": 21
+  },
+  "namespaceNegativeProbe": {
+    "assets": 0,
+    "events": 0,
+    "memberships": 0,
+    "notificationAttempts": 0,
+    "personas": 0,
+    "reminders": 0,
+    "rsvps": 0,
+    "wallPosts": 0
+  },
+  "allZero": true,
+  "completedAt": "2026-07-29T07:33:06.819Z"
+}
