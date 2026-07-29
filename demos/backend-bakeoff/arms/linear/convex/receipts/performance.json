@@ -1,0 +1,79 @@
+{
+  "scope": "official anonymous local Convex deployment on one Mac; not hosted latency",
+  "warmups": 2,
+  "recordedSamples": 7,
+  "unit": "milliseconds",
+  "list": {
+    "samples": [
+      0.964,
+      0.802,
+      0.816,
+      0.757,
+      0.634,
+      0.604,
+      0.792
+    ],
+    "median": 0.792,
+    "nearestRankP95": 0.964
+  },
+  "detail": {
+    "samples": [
+      0.461,
+      0.56,
+      0.499,
+      0.419,
+      0.389,
+      0.386,
+      0.395
+    ],
+    "median": 0.419,
+    "nearestRankP95": 0.56
+  },
+  "write": {
+    "samples": [
+      4.132,
+      4.179,
+      3.948,
+      4.178,
+      4.249,
+      4.156,
+      4.296
+    ],
+    "median": 4.178,
+    "nearestRankP95": 4.296
+  },
+  "realtime": {
+    "samples": [
+      40.824,
+      42.954,
+      41.999,
+      45.578,
+      46.026,
+      45.736,
+      47.774
+    ],
+    "median": 45.578,
+    "nearestRankP95": 47.774
+  },
+  "build": {
+    "samples": [
+      1691.599,
+      2258.589,
+      1922.104,
+      1935.396,
+      1775.946,
+      1666.486,
+      1602.394
+    ],
+    "median": 1775.946,
+    "nearestRankP95": 2258.589
+  },
+  "deploy": {
+    "status": "unavailable-remote-dependency",
+    "localEquivalent": "convex dev watch deploy"
+  },
+  "costWindow": {
+    "localCostUsd": 0,
+    "hostedUsage": "unavailable"
+  }
+}

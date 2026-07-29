@@ -1,0 +1,22 @@
+{
+  "id": "LINEAR-12-DEPLOY",
+  "status": "unavailable-remote-dependency",
+  "capturedAt": "2026-07-29T04:51:40.597Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "not-applicable",
+  "evidence": {
+    "localTarget": {
+      "urlHash": "34f5c3345dcb5af4ab354947c34beac2571da7b2cf312e67e13179b9cc2a50d5",
+      "namespace": "llp0102-linear-convex-coord",
+      "profile": "official anonymous local deployment"
+    },
+    "hostedCredentials": "unavailable",
+    "nonClaim": true,
+    "localOperations": [
+      "convex dev deployment logs",
+      "generated schema/functions",
+      "namespace cleanup"
+    ]
+  },
+  "note": "No isolated hosted Convex credential was available; the anonymous local path has no hosted URL, region, usage, rollback, or export evidence."
+}

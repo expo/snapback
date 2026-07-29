@@ -1,0 +1,31 @@
+{
+  "id": "LINEAR-01-SEED",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:51:40.171Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "not-applicable",
+  "evidence": {
+    "targetIdentity": "04aa88471b8dcaa11a55900cafda6a8df408d21c52c6fb9b1a93c11483629487",
+    "authoritativeCounts": {
+      "activities": 500,
+      "comments": 1000,
+      "issueLabels": 500,
+      "issues": 500,
+      "labels": 20,
+      "memberships": 4,
+      "namespace": "llp0102-linear-convex-coord",
+      "organizations": 2,
+      "profiles": 3,
+      "projects": 4,
+      "teams": 3
+    },
+    "firstPageCount": 50,
+    "seedAndFirstReadMs": 200.61,
+    "actorHashes": {
+      "alice": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "bob": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "mallory": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac"
+    }
+  },
+  "note": "Anonymous secret-gated fixture setup and authenticated first read prove the exact fresh local dataset."
+}

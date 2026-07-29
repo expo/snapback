@@ -1,0 +1,22 @@
+{
+  "id": "LINEAR-02-AUTHORITY",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:51:40.186Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "not-applicable",
+  "evidence": {
+    "aliceRole": "owner",
+    "bobRole": "member",
+    "bobRows": 50,
+    "negativeRead": {
+      "rejected": true,
+      "marker": "UNAUTHORIZED_ORGANIZATION"
+    },
+    "negativeWrite": {
+      "rejected": true,
+      "marker": "UNAUTHORIZED_ORGANIZATION"
+    },
+    "identityPath": "worktree-local customJwt"
+  },
+  "note": "Three native Convex auth identities exercised distinct owner/member/outsider paths."
+}

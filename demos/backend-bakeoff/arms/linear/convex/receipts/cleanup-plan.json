@@ -1,0 +1,19 @@
+{
+  "target": {
+    "urlHash": "34f5c3345dcb5af4ab354947c34beac2571da7b2cf312e67e13179b9cc2a50d5",
+    "namespace": "llp0102-linear-convex-coord"
+  },
+  "exactScope": "llp0102-linear-convex-coord",
+  "operation": "secret-gated cleanup deletes only rows whose namespace exactly matches",
+  "runtimeTargets": [
+    ".arm-runtime",
+    ".convex",
+    ".env.local",
+    "public/personas.json"
+  ],
+  "processTargets": {
+    "command": "convex dev --local-cloud-port 3323 --local-site-port 3324",
+    "ports": [3323, 3324, 4323]
+  },
+  "unrelatedBaseline": "no shared or hosted target used"
+}

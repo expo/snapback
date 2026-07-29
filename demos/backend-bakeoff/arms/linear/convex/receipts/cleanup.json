@@ -1,0 +1,52 @@
+{
+  "before": {
+    "activities": 522,
+    "comments": 1001,
+    "issueLabels": 500,
+    "issues": 501,
+    "labels": 20,
+    "memberships": 4,
+    "namespace": "llp0102-linear-convex-coord",
+    "organizations": 2,
+    "profiles": 3,
+    "projects": 4,
+    "teams": 3
+  },
+  "deleted": {
+    "activities": 522,
+    "comments": 1001,
+    "issueLabels": 500,
+    "issues": 501,
+    "labels": 20,
+    "memberships": 4,
+    "organizations": 2,
+    "profiles": 3,
+    "projects": 4,
+    "teams": 3
+  },
+  "after": {
+    "activities": 0,
+    "comments": 0,
+    "issueLabels": 0,
+    "issues": 0,
+    "labels": 0,
+    "memberships": 0,
+    "namespace": "llp0102-linear-convex-coord",
+    "organizations": 0,
+    "profiles": 0,
+    "projects": 0,
+    "teams": 0
+  },
+  "privateJwkAbsent": true,
+  "publicPersonaCarrierAbsent": true,
+  "processCleanupPendingCoordinator": false,
+  "portsAfter": {
+    "3323": "closed",
+    "3324": "closed",
+    "4323": "closed"
+  },
+  "localTargetDatabaseSha256BeforeRemoval": "80da26e94fb57a18fbcb9bd7fd219e987c8bc471a532ae07187f1edb25718761",
+  "localTargetDatabaseBytesBeforeRemoval": 9949184,
+  "exactLocalTargetAbsent": true,
+  "secretBearingConfigAbsent": true
+}

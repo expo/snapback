@@ -9,245 +9,438 @@
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
     "providerVersions": {
-      "product": "Convex",
-      "client": "1.42.3",
-      "cli": "1.42.3"
+      "product": "Convex official anonymous local backend precompiled-2026-07-21-82d5e9f",
+      "client": "convex 1.42.3",
+      "cli": "convex 1.42.3"
     },
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "startedAt": "2026-07-29T04:51:39.943Z",
+    "finishedAt": "2026-07-29T04:51:58.951Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
+    "activeElapsedMs": 19008,
     "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "timedWindowFrozenAt": "2026-07-29T04:51:58.951Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "role": "owner"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "role": "member"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac",
       "role": "outsider"
     }
   },
   "targets": {
     "binding": {
-      "mode": "namespace-isolated-shared-hosted",
-      "namespace": "llp0102-linear-convex-deep-linear-convex-deep-01",
-      "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "mode": "fresh-local",
+      "namespace": "llp0102-linear-convex-coord",
+      "baselineReceiptPath": "receipts/baseline.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
-      "profile": "official anonymous local deployment",
+      "status": "cleaned",
+      "identityHash": "34f5c3345dcb5af4ab354947c34beac2571da7b2cf312e67e13179b9cc2a50d5",
+      "profile": "official anonymous local deployment (beta), backend 3323, site 3324",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "receipts/target-identity.json",
+        "receipts/acceptance-results.json",
+        "receipts/cleanup.json",
+        "receipts/backup-manifest.json"
+      ]
     },
     "hosted": {
-      "status": "pending",
+      "status": "explicit-gap",
       "identityHash": "",
-      "profile": "managed production deployment",
-      "plan": "Starter",
-      "region": "US region selected by Convex",
-      "gapReason": "",
+      "profile": "managed Convex cloud development deployment",
+      "plan": "Starter/Professional depending usage",
+      "region": "provider-selected",
+      "gapReason": "No isolated hosted deployment credential was available. No hosted target was mutated; this is an environment/profile limitation, not a product failure.",
       "receiptPaths": []
     }
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "firstLocalReadMs": 176,
+    "firstAuthoritativeMutationMs": 320,
+    "firstRealtimeTransitionMs": 470,
+    "localAcceptanceMs": 19008,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 19008
   },
-  "assistanceEvents": [],
-  "commands": [],
+  "assistanceEvents": [
+    {
+      "kind": "failed-attempt",
+      "at": "2026-07-29T04:51:39.943Z",
+      "note": "First harness invocation shadowed the Node performance API; no application rows were written.",
+      "evidencePath": "receipts/failed-attempts.json"
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm install",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 1
+    },
+    {
+      "command": "npm run auth:fixture",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1,
+      "finishedMonotonicMs": 2
+    },
+    {
+      "command": "convex dev --local-cloud-port 3323 --local-site-port 3324",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2,
+      "finishedMonotonicMs": 3
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0,
+      "startedMonotonicMs": 3,
+      "finishedMonotonicMs": 4
+    },
+    {
+      "command": "npm run acceptance",
+      "exitStatus": 0,
+      "startedMonotonicMs": 4,
+      "finishedMonotonicMs": 5
+    },
+    {
+      "command": "npm run inventory",
+      "exitStatus": 0,
+      "startedMonotonicMs": 5,
+      "finishedMonotonicMs": 6
+    }
+  ],
   "scenarioResults": [
     {
       "id": "LINEAR-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-01-SEED.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"targetIdentity\":\"04aa88471b8dcaa11a55900cafda6a8df408d21c52c6fb9b1a93c11483629487\",\"authoritativeCounts\":{\"activities\":500,\"comments\":1000,\"issueLabels\":500,\"issues\":500,\"labels\":20,\"memberships\":4,\"namespace\":\"llp0102-linear-convex-coord\",\"organizations\":2,\"profiles\":3,\"projects\":4,\"teams\":3},\"firstPageCount\":50,\"seedAndFirstReadMs\":200.61,\"actorHashes\":{\"alice\":\"2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90\",\"bob\":\"81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9\",\"mallory\":\"c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac\"}}",
+      "note": "Anonymous secret-gated fixture setup and authenticated first read prove the exact fresh local dataset."
     },
     {
       "id": "LINEAR-02-AUTHORITY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-02-AUTHORITY.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"aliceRole\":\"owner\",\"bobRole\":\"member\",\"bobRows\":50,\"negativeRead\":{\"rejected\":true,\"marker\":\"UNAUTHORIZED_ORGANIZATION\"},\"negativeWrite\":{\"rejected\":true,\"marker\":\"UNAUTHORIZED_ORGANIZATION\"},\"identityPath\":\"worktree-local customJwt\"}",
+      "note": "Three native Convex auth identities exercised distinct owner/member/outsider paths."
     },
     {
       "id": "LINEAR-03-FILTERS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-03-FILTERS.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"counts\":{\"status\":100,\"assignee\":250,\"project\":125,\"label\":25},\"indexes\":[\"by_org_status\",\"by_org_assignee\",\"by_org_project\",\"by_label_issue\"],\"expectedSequences\":{\"status\":[1,6,11,16,21,26,31,36,41,46,51,56,61,66,71,76,81,86,91,96,101,106,111,116,121,126,131,136,141,146,151,156,161,166,171,176,181,186,191,196,201,206,211,216,221,226,231,236,241,246,251,256,261,266,271,276,281,286,291,296,301,306,311,316,321,326,331,336,341,346,351,356,361,366,371,376,381,386,391,396,401,406,411,416,421,426,431,436,441,446,451,456,461,466,471,476,481,486,491,496],\"assignee\":[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111,113,115,117,119,121,123,125,127,129,131,133,135,137,139,141,143,145,147,149,151,153,155,157,159,161,163,165,167,169,171,173,175,177,179,181,183,185,187,189,191,193,195,197,199,201,203,205,207,209,211,213,215,217,219,221,223,225,227,229,231,233,235,237,239,241,243,245,247,249,251,253,255,257,259,261,263,265,267,269,271,273,275,277,279,281,283,285,287,289,291,293,295,297,299,301,303,305,307,309,311,313,315,317,319,321,323,325,327,329,331,333,335,337,339,341,343,345,347,349,351,353,355,357,359,361,363,365,367,369,371,373,375,377,379,381,383,385,387,389,391,393,395,397,399,401,403,405,407,409,411,413,415,417,419,421,423,425,427,429,431,433,435,437,439,441,443,445,447,449,451,453,455,457,459,461,463,465,467,469,471,473,475,477,479,481,483,485,487,489,491,493,495,497,499],\"project\":[1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61,65,69,73,77,81,85,89,93,97,101,105,109,113,117,121,125,129,133,137,141,145,149,153,157,161,165,169,173,177,181,185,189,193,197,201,205,209,213,217,221,225,229,233,237,241,245,249,253,257,261,265,269,273,277,281,285,289,293,297,301,305,309,313,317,321,325,329,333,337,341,345,349,353,357,361,365,369,373,377,381,385,389,393,397,401,405,409,413,417,421,425,429,433,437,441,445,449,453,457,461,465,469,473,477,481,485,489,493,497],\"label\":[0,20,40,60,80,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,420,440,460,480]}}",
+      "note": "Native Convex indexes produced the exact deterministic expected sets."
     },
     {
       "id": "LINEAR-04-PAGINATION",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-04-PAGINATION.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"pageSize\":50,\"cursorValues\":[49,99,149,199,249,299,349,399,449,499,500],\"unionCount\":501,\"duplicates\":0,\"insertedIdHash\":\"6beb1c2946f7a7cf889b11aa4352bfd024cda3f65497744bd8dc80fec38eb16e\",\"authoritativeOrder\":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335,336,337,338,339,340,341,342,343,344,345,346,347,348,349,350,351,352,353,354,355,356,357,358,359,360,361,362,363,364,365,366,367,368,369,370,371,372,373,374,375,376,377,378,379,380,381,382,383,384,385,386,387,388,389,390,391,392,393,394,395,396,397,398,399,400,401,402,403,404,405,406,407,408,409,410,411,412,413,414,415,416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436,437,438,439,440,441,442,443,444,445,446,447,448,449,450,451,452,453,454,455,456,457,458,459,460,461,462,463,464,465,466,467,468,469,470,471,472,473,474,475,476,477,478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493,494,495,496,497,498,499,500]}",
+      "note": "Stable sequence cursors covered the full authoritative union once under concurrent insert."
     },
     {
       "id": "LINEAR-05-DETAIL",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-05-DETAIL.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"relatedIds\":{\"issueId\":\"jh746c53j70h5aqwc7bg4qcfrh8bfwym\",\"projectId\":\"k57e2rrhbpvhhbz80b9ph6v96d8beyqe\",\"assignee\":\"alice\",\"labels\":[\"jn769670427hv2brnzy5gmq5bd8bea1q\"],\"comments\":[\"j9722e2q97cnbfrb4mkr0a332s8beh8k\",\"j97dkzxxbmg1m21977exf470xh8bf3d9\"],\"activity\":[\"j575rhqshkc34w4x1jgdftee7s8bf75z\"]},\"boundedQueryInventory\":[\"issueDetail (one transactional Convex query)\"]}",
+      "note": "One ordinary server query transaction composed the complete issue graph."
     },
     {
       "id": "LINEAR-06-OPTIMISTIC",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-06-OPTIMISTIC.json",
+        "receipts/acceptance-results.json",
+        "receipts/ui-smoke.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "{\"optimisticState\":{\"_creationTime\":1785300699976.938,\"_id\":\"jh746c53j70h5aqwc7bg4qcfrh8bfwym\",\"assigneeSubject\":\"bob\",\"boardPosition\":777,\"description\":\"Seeded issue 1 for the frozen Linear workload\",\"identifier\":\"ENG-1\",\"namespace\":\"llp0102-linear-convex-coord\",\"organizationId\":\"jx7emwssj5b8jtt46knsf9x2bn8bfzfh\",\"priority\":4,\"projectId\":\"k57e2rrhbpvhhbz80b9ph6v96d8beyqe\",\"revision\":0,\"sequence\":0,\"status\":\"in_progress\",\"teamId\":\"k97ax7h5x824r35m2nhxret16h8beqqf\",\"title\":\"Production issue 001\"},\"settlement\":{\"revision\":1},\"authoritativeState\":{\"_creationTime\":1785300699976.938,\"_id\":\"jh746c53j70h5aqwc7bg4qcfrh8bfwym\",\"assigneeSubject\":\"bob\",\"boardPosition\":777,\"description\":\"Seeded issue 1 for the frozen Linear workload\",\"identifier\":\"ENG-1\",\"namespace\":\"llp0102-linear-convex-coord\",\"organizationId\":\"jx7emwssj5b8jtt46knsf9x2bn8bfzfh\",\"priority\":4,\"projectId\":\"k57e2rrhbpvhhbz80b9ph6v96d8beyqe\",\"revision\":1,\"sequence\":0,\"status\":\"in_progress\",\"teamId\":\"k97ax7h5x824r35m2nhxret16h8beqqf\",\"title\":\"Production issue 001\"},\"attribution\":\"application optimistic object before Convex mutation resolution\"}",
+      "note": "All four optimistic fields reconciled to the authoritative Convex row."
     },
     {
       "id": "LINEAR-07-CONFLICT",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-07-CONFLICT.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"barrier\":{\"actors\":[\"alice\",\"bob\"],\"expectedRevision\":1},\"outcomes\":[\"fulfilled\",\"rejected\"],\"loser\":\"REVISION_CONFLICT\",\"authoritativeOutcome\":{\"_creationTime\":1785300699976.938,\"_id\":\"jh746c53j70h5aqwc7bg4qcfrh8bfwym\",\"assigneeSubject\":\"bob\",\"boardPosition\":100,\"description\":\"Seeded issue 1 for the frozen Linear workload\",\"identifier\":\"ENG-1\",\"namespace\":\"llp0102-linear-convex-coord\",\"organizationId\":\"jx7emwssj5b8jtt46knsf9x2bn8bfzfh\",\"priority\":4,\"projectId\":\"k57e2rrhbpvhhbz80b9ph6v96d8beyqe\",\"revision\":2,\"sequence\":0,\"status\":\"in_progress\",\"teamId\":\"k97ax7h5x824r35m2nhxret16h8beqqf\",\"title\":\"Alice board edit\"},\"policy\":\"transactional revision CAS admits exactly one matching writer\"}",
+      "note": "Serializable mutation transactions plus explicit revision CAS produced one winner and one typed refusal."
     },
     {
       "id": "LINEAR-08-LIVE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-08-LIVE.json",
+        "receipts/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "{\"secondClient\":\"bob\",\"commentIdHash\":\"ec667efc11c0ae53b3ed1c8d36bd0fbc70c86add35fce857b57da16384334823\",\"deliveryMs\":5.563,\"comments\":3,\"activity\":4,\"transport\":\"Convex reactive WebSocket subscription\"}",
+      "note": "Bob received comment and activity through a native reactive query, with no polling."
     },
     {
       "id": "LINEAR-09-SEARCH",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-09-SEARCH.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"searchIndex\":\"issues.search_title\",\"term\":\"Production issue 042\",\"resultIds\":[\"jh7c2tcg658843she22mv68v298bfvnp\",\"jh7cec23sb4pg5d9bdmd70xa618bfks9\",\"jh75gvefnfeshnxyc6fzfpqa4s8be4tg\",\"jh730x34m81ygtcfkt52hyqh6x8bft4s\",\"jh74rsb8yqjnb703kk19n68k1s8bf0mc\",\"jh7a1we133wz2a5bde200ym3th8bfm2a\",\"jh70cdcbs21g5rntk7cgxtykxx8bfhbx\",\"jh70fgc6w7achekdhkkbwckx6h8bfvnp\",\"jh70asbjmwt3z6pcw39225xk9x8becf4\",\"jh776bccdnyrmgb4jm925yxzhs8beft8\",\"jh77yj93pcyafbbbjw18t6j8v18bfrq5\",\"jh79g4ha5gzr65jf5an8z3epfh8bemgr\",\"jh78bntenkv85tryvh9096gy5h8bfnk4\",\"jh7c5dhy8xa8scj44svj97zp3s8bec4r\",\"jh7461zewq11q6wc72g4fmfh418be2v9\",\"jh70vk8anrmawhd6ygy0f5bkd18bfrtz\",\"jh79hhxd6c63myajwyrvrp44hd8bfx5d\",\"jh753xftkgz24qd03sw820py6s8bekzj\",\"jh7fk10pnpp4tnd9tf1d7p6m3d8bekw9\",\"jh7dxvkjd16tpvj4bqada5dvzd8be2q0\",\"jh7at7etwc0ysmswkg7tpczjn18bf3vq\",\"jh72vx1h75c2gd0wzsz1j7v7dx8bfkqm\",\"jh7ewdnj8jt2n3cey0bkja731h8bemym\",\"jh7ddb2v28zxc1qehe8krx1j418bfzs8\",\"jh78vz4y46ecdt1jszr3tv3vfn8be3bb\",\"jh7dtecp6kw49thx2h9ag72vcs8be5xs\",\"jh73qw62ytj5yx36dd44dg3bg58bekmd\",\"jh72e7adbg6q74e7ewm23xte498bfn9f\",\"jh74cmqzqwmtps36ysaq7hnkbh8bew7p\",\"jh7end9pxn06bvm5r0gwrmxgss8begfd\",\"jh76e6jqd26sjxsnk0vq94b7hh8bfgnd\",\"jh74tvw16s80w6syhwzp6zfaq98besba\",\"jh7540fyhve8wgnznb2n61fhjh8bezs9\",\"jh77yam7n04k2xx70h6amfgprs8bebas\",\"jh72tg08a0gja5cywr5ky6fk6n8be62z\",\"jh74ah1ct4sy3q2156x320pdfx8be0kd\",\"jh7cp1n5rqd7rtbn9kdvevkrw18bfz0e\",\"jh73rhksr93xrssa72q3vy90z18bf3nw\",\"jh725jk0cmpkva97fk6bxhwsnd8bfs98\",\"jh7699s4hy4k0nhwbnwn6w85n58beemj\",\"jh78fmzsw4eg4zk88292f9fwr98bezh2\",\"jh71g697p6sxp9td5z5se98g1n8bfhxt\",\"jh7a5e9bj1b18wgtr01m5hzj9s8be086\",\"jh77wfzsfbe91pszq9kthm68kd8bf6s5\",\"jh7fxqy470hp47eg7h9kkb60n18be449\",\"jh77k47n08wzw2rej6hjawjhr98be5we\",\"jh75ag5j9tp76j2ts8tjfnqj3h8bejd1\",\"jh7b8602x3k2m048grmqbwjh8s8bfs5m\",\"jh76r7wwnbwg12fsdrvbsv1j3h8bfkvs\",\"jh787q4xkghkd1aycf216d3h9h8bft4b\"],\"expectedSequencePresent\":true}",
+      "note": "Convex's native search index returned the authoritative expected issue."
     },
     {
       "id": "LINEAR-10-OFFLINE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-10-OFFLINE.json",
+        "receipts/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "{\"capability\":\"persistent cold retained query plus queued mutation\",\"testedClient\":\"Convex 1.42.3 browser client\",\"nonClaim\":true}",
+      "note": "The ordinary Convex browser client does not provide persistent cold query retention and an offline mutation queue."
     },
     {
       "id": "LINEAR-11-MIGRATION",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-11-MIGRATION.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"beforeCounts\":{\"activities\":504,\"comments\":1001,\"issueLabels\":500,\"issues\":501,\"labels\":20,\"memberships\":4,\"namespace\":\"llp0102-linear-convex-coord\",\"organizations\":2,\"profiles\":3,\"projects\":4,\"teams\":3},\"afterCounts\":{\"activities\":504,\"comments\":1001,\"issueLabels\":500,\"issues\":501,\"labels\":20,\"memberships\":4,\"namespace\":\"llp0102-linear-convex-coord\",\"organizations\":2,\"profiles\":3,\"projects\":4,\"teams\":3},\"migrationReceipt\":{\"before\":501,\"changed\":501},\"backfilledDocuments\":501,\"index\":\"issues.by_org_triage\",\"indexedResultCount\":201,\"mechanism\":\"optional field rollout, transactional application backfill, and deployed Convex index\"}",
+      "note": "The new indexed field was backfilled on every issue without count loss and read through its deployed index."
     },
     {
       "id": "LINEAR-12-DEPLOY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "unavailable-remote-dependency",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-12-DEPLOY.json",
+        "receipts/acceptance-results.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"localTarget\":{\"urlHash\":\"34f5c3345dcb5af4ab354947c34beac2571da7b2cf312e67e13179b9cc2a50d5\",\"namespace\":\"llp0102-linear-convex-coord\",\"profile\":\"official anonymous local deployment\"},\"hostedCredentials\":\"unavailable\",\"nonClaim\":true,\"localOperations\":[\"convex dev deployment logs\",\"generated schema/functions\",\"namespace cleanup\"]}",
+      "note": "No isolated hosted Convex credential was available; the anonymous local path has no hosted URL, region, usage, rollback, or export evidence."
     },
     {
       "id": "LINEAR-13-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-13-PERFORMANCE.json",
+        "receipts/acceptance-results.json",
+        "receipts/performance.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"scope\":\"official anonymous local Convex deployment on one Mac; not hosted latency\",\"warmups\":2,\"recordedSamples\":7,\"unit\":\"milliseconds\",\"list\":{\"samples\":[0.964,0.802,0.816,0.757,0.634,0.604,0.792],\"median\":0.792,\"nearestRankP95\":0.964},\"detail\":{\"samples\":[0.461,0.56,0.499,0.419,0.389,0.386,0.395],\"median\":0.419,\"nearestRankP95\":0.56},\"write\":{\"samples\":[4.132,4.179,3.948,4.178,4.249,4.156,4.296],\"median\":4.178,\"nearestRankP95\":4.296},\"realtime\":{\"samples\":[40.824,42.954,41.999,45.578,46.026,45.736,47.774],\"median\":45.578,\"nearestRankP95\":47.774},\"build\":{\"samples\":[1691.599,2258.589,1922.104,1935.396,1775.946,1666.486,1602.394],\"median\":1775.946,\"nearestRankP95\":2258.589},\"deploy\":{\"status\":\"unavailable-remote-dependency\",\"localEquivalent\":\"convex dev watch deploy\"},\"costWindow\":{\"localCostUsd\":0,\"hostedUsage\":\"unavailable\"}}",
+      "note": "Two warmups and seven raw local samples are retained for every supported frozen path."
     },
     {
       "id": "LINEAR-14-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-14-CLEANUP.json",
+        "receipts/acceptance-results.json",
+        "receipts/cleanup-plan.json",
+        "receipts/cleanup.json",
+        "receipts/backup-manifest.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"before\":{\"activities\":522,\"comments\":1001,\"issueLabels\":500,\"issues\":501,\"labels\":20,\"memberships\":4,\"namespace\":\"llp0102-linear-convex-coord\",\"organizations\":2,\"profiles\":3,\"projects\":4,\"teams\":3},\"deleted\":{\"activities\":522,\"comments\":1001,\"issueLabels\":500,\"issues\":501,\"labels\":20,\"memberships\":4,\"organizations\":2,\"profiles\":3,\"projects\":4,\"teams\":3},\"after\":{\"activities\":0,\"comments\":0,\"issueLabels\":0,\"issues\":0,\"labels\":0,\"memberships\":0,\"namespace\":\"llp0102-linear-convex-coord\",\"organizations\":0,\"profiles\":0,\"projects\":0,\"teams\":0},\"privateJwkAbsent\":true,\"publicPersonaCarrierAbsent\":true,\"processCleanupPendingCoordinator\":false,\"portsAfter\":{\"3323\":\"closed\",\"3324\":\"closed\",\"4323\":\"closed\"},\"localTargetDatabaseSha256BeforeRemoval\":\"80da26e94fb57a18fbcb9bd7fd219e987c8bc471a532ae07187f1edb25718761\",\"localTargetDatabaseBytesBeforeRemoval\":9949184,\"exactLocalTargetAbsent\":true,\"secretBearingConfigAbsent\":true}",
+      "note": "All exact namespace rows, credential/persona carriers, local deployment state, and secret-bearing config were removed; exact backend/site/Vite ports are closed."
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "receipts/inventory.json",
+    "authoredSource": {
+      "files": 21,
+      "lines": 3744
+    },
+    "generated": {
+      "files": 5
+    },
+    "tests": {
+      "frozenScenarios": 14
+    },
+    "configuration": {
+      "files": 5
+    },
+    "policy": {
+      "files": 1,
+      "note": "authorization helpers and membership checks in convex/linear.ts"
+    },
+    "dependencyManifests": 2,
+    "installedDependencyBytes": 148480000,
+    "glue": [
+      "worktree-local customJwt issuer for anonymous local auth",
+      "React runtime/persona adapter",
+      "acceptance, inventory, and capsule evidence harness"
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "direct three-principal customJwt and positive/negative function evidence",
+      "evidencePaths": [
+        "receipts/acceptance-results.json",
+        "receipts/inventory.json"
+      ]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "direct two-actor transactional revision CAS and authoritative readback",
+      "evidencePaths": [
+        "receipts/acceptance-results.json",
+        "receipts/inventory.json"
+      ]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "direct second-client reactive WebSocket evidence with no polling",
+      "evidencePaths": [
+        "receipts/acceptance-results.json",
+        "receipts/inventory.json"
+      ]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 0,
+      "reason": "explicit product GAP; no persistent cold cache or offline mutation queue claimed",
+      "evidencePaths": [
+        "receipts/scenarios/LINEAR-10-OFFLINE.json"
+      ]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "optimistic state attribution plus authoritative mutation resolution and readback",
+      "evidencePaths": [
+        "receipts/acceptance-results.json",
+        "receipts/inventory.json"
+      ]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "exact anonymous local deployment URL hash, version, ports, and namespace",
+      "evidencePaths": [
+        "receipts/acceptance-results.json",
+        "receipts/inventory.json"
+      ]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "secret-gated namespace deletion plus exact target/config/process/port negative proof",
+      "evidencePaths": [
+        "receipts/acceptance-results.json",
+        "receipts/inventory.json"
+      ]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "lockfile, generated bindings, inventory, deterministic seed, and failed attempt retained",
+      "evidencePaths": [
+        "receipts/acceptance-results.json",
+        "receipts/inventory.json"
+      ]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.json",
+    "receiptPaths": [
+      "receipts/cleanup.json",
+      "receipts/backup-manifest.json"
+    ],
+    "postCleanupProbe": "All namespace rows zero; exact .convex/.arm-runtime/.env.local/persona carriers absent; ports 3323/3324/4323 closed."
   },
-  "result": "pending"
+  "result": "complete",
+  "notes": {
+    "outcome": "12 PASS, 1 product GAP, 1 unavailable remote dependency",
+    "cleanup": {
+      "before": {
+        "activities": 522,
+        "comments": 1001,
+        "issueLabels": 500,
+        "issues": 501,
+        "labels": 20,
+        "memberships": 4,
+        "namespace": "llp0102-linear-convex-coord",
+        "organizations": 2,
+        "profiles": 3,
+        "projects": 4,
+        "teams": 3
+      },
+      "deleted": {
+        "activities": 522,
+        "comments": 1001,
+        "issueLabels": 500,
+        "issues": 501,
+        "labels": 20,
+        "memberships": 4,
+        "organizations": 2,
+        "profiles": 3,
+        "projects": 4,
+        "teams": 3
+      },
+      "after": {
+        "activities": 0,
+        "comments": 0,
+        "issueLabels": 0,
+        "issues": 0,
+        "labels": 0,
+        "memberships": 0,
+        "namespace": "llp0102-linear-convex-coord",
+        "organizations": 0,
+        "profiles": 0,
+        "projects": 0,
+        "teams": 0
+      },
+      "privateJwkAbsent": true,
+      "publicPersonaCarrierAbsent": true,
+      "processCleanupPendingCoordinator": false,
+      "portsAfter": {
+        "3323": "closed",
+        "3324": "closed",
+        "4323": "closed"
+      },
+      "localTargetDatabaseSha256BeforeRemoval": "80da26e94fb57a18fbcb9bd7fd219e987c8bc471a532ae07187f1edb25718761",
+      "localTargetDatabaseBytesBeforeRemoval": 9949184,
+      "exactLocalTargetAbsent": true,
+      "secretBearingConfigAbsent": true
+    }
+  }
 }

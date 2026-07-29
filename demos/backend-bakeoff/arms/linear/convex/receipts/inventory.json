@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "authored": {
+    "files": 21,
+    "lines": 3744,
+    "paths": [
+      ".gitignore",
+      "convex/auth.config.ts",
+      "convex/dev_jwks.ts",
+      "convex/linear.ts",
+      "convex/schema.ts",
+      "index.html",
+      "package-lock.json",
+      "package.json",
+      "scripts/acceptance.mjs",
+      "scripts/create-dev-auth.mjs",
+      "scripts/finalize-capsule.mjs",
+      "scripts/inventory.mjs",
+      "src/App.tsx",
+      "src/main.tsx",
+      "src/provider.ts",
+      "src/styles.css",
+      "src/vite-env.d.ts",
+      "tsconfig.app.json",
+      "tsconfig.json",
+      "tsconfig.node.json",
+      "vite.config.ts"
+    ]
+  },
+  "generated": {
+    "files": 5,
+    "paths": [
+      "convex/_generated/api.d.ts",
+      "convex/_generated/api.js",
+      "convex/_generated/dataModel.d.ts",
+      "convex/_generated/server.d.ts",
+      "convex/_generated/server.js"
+    ]
+  },
+  "installedDependencyBytes": 148480000,
+  "dependencyManifests": [
+    "package.json",
+    "package-lock.json"
+  ],
+  "providerGlue": [
+    "worktree-local customJwt issuer for anonymous local auth",
+    "React runtime/persona adapter",
+    "acceptance, inventory, and capsule evidence harness"
+  ],
+  "auditVulnerabilities": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 1,
+    "critical": 0,
+    "total": 1
+  }
+}

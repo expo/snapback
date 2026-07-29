@@ -1,0 +1,40 @@
+{
+  "id": "LINEAR-07-CONFLICT",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:51:40.407Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "not-applicable",
+  "evidence": {
+    "barrier": {
+      "actors": [
+        "alice",
+        "bob"
+      ],
+      "expectedRevision": 1
+    },
+    "outcomes": [
+      "fulfilled",
+      "rejected"
+    ],
+    "loser": "REVISION_CONFLICT",
+    "authoritativeOutcome": {
+      "_creationTime": 1785300699976.938,
+      "_id": "jh746c53j70h5aqwc7bg4qcfrh8bfwym",
+      "assigneeSubject": "bob",
+      "boardPosition": 100,
+      "description": "Seeded issue 1 for the frozen Linear workload",
+      "identifier": "ENG-1",
+      "namespace": "llp0102-linear-convex-coord",
+      "organizationId": "jx7emwssj5b8jtt46knsf9x2bn8bfzfh",
+      "priority": 4,
+      "projectId": "k57e2rrhbpvhhbz80b9ph6v96d8beyqe",
+      "revision": 2,
+      "sequence": 0,
+      "status": "in_progress",
+      "teamId": "k97ax7h5x824r35m2nhxret16h8beqqf",
+      "title": "Alice board edit"
+    },
+    "policy": "transactional revision CAS admits exactly one matching writer"
+  },
+  "note": "Serializable mutation transactions plus explicit revision CAS produced one winner and one typed refusal."
+}

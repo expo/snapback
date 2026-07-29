@@ -1,0 +1,29 @@
+{
+  "name": "llp0102-linear-convex",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "auth:fixture": "node scripts/create-dev-auth.mjs",
+    "dev:backend": "convex dev --local-cloud-port 3323 --local-site-port 3324",
+    "build": "tsc -b && vite build",
+    "dev": "vite --host 127.0.0.1 --port 4323",
+    "acceptance": "node scripts/acceptance.mjs",
+    "inventory": "node scripts/inventory.mjs"
+  },
+  "dependencies": {
+    "convex": "1.42.3",
+    "jose": "6.1.2",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.1.0",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "playwright-core": "1.62.0",
+    "typescript": "5.9.2",
+    "vite": "7.1.3"
+  }
+}

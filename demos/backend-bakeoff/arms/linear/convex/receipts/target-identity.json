@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "profile": "official anonymous local Convex deployment",
+  "namespace": "llp0102-linear-convex-coord",
+  "urlHash": "34f5c3345dcb5af4ab354947c34beac2571da7b2cf312e67e13179b9cc2a50d5",
+  "backendVersion": "precompiled-2026-07-21-82d5e9f",
+  "ports": {
+    "cloud": 3323,
+    "site": 3324,
+    "vite": 4323
+  },
+  "hosted": {
+    "status": "unavailable-remote-dependency",
+    "reason": "No isolated hosted deployment credential was available; no hosted target was mutated."
+  },
+  "secretValuesRetained": false
+}

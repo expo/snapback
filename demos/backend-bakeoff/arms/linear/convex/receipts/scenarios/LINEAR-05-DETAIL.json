@@ -1,0 +1,28 @@
+{
+  "id": "LINEAR-05-DETAIL",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:51:40.260Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "not-applicable",
+  "evidence": {
+    "relatedIds": {
+      "issueId": "jh746c53j70h5aqwc7bg4qcfrh8bfwym",
+      "projectId": "k57e2rrhbpvhhbz80b9ph6v96d8beyqe",
+      "assignee": "alice",
+      "labels": [
+        "jn769670427hv2brnzy5gmq5bd8bea1q"
+      ],
+      "comments": [
+        "j9722e2q97cnbfrb4mkr0a332s8beh8k",
+        "j97dkzxxbmg1m21977exf470xh8bf3d9"
+      ],
+      "activity": [
+        "j575rhqshkc34w4x1jgdftee7s8bf75z"
+      ]
+    },
+    "boundedQueryInventory": [
+      "issueDetail (one transactional Convex query)"
+    ]
+  },
+  "note": "One ordinary server query transaction composed the complete issue graph."
+}
