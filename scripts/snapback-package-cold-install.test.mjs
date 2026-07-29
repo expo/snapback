@@ -27,6 +27,7 @@ import {
   createBoundedByteAccumulator,
   createBoundedBrowserSurfaceCollector,
   digestBoundedBrowserFilesystem,
+  extractViteClientOrigin,
   findBrowserVisibleLeaks,
   measureGitCheckoutIdentity,
   parseArguments,
@@ -57,6 +58,95 @@ import { sha256TarEntry } from './snapback-tar-entry.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 const DEFAULT_BROWSER_SOURCE_REVISION = '0'.repeat(40);
+
+test('structured Vite readiness survives JSON-encoded ANSI presentation', () => {
+  const viteLine = [
+    '  \u001b[32m➜\u001b[39m  ',
+    '\u001b[1mLocal\u001b[22m:   ',
+    '\u001b[36mhttp://localhost:\u001b[1m5173\u001b[22m/\u001b[39m',
+  ].join('');
+  const output = [
+    '> snapback dev snapback --client . --client-command vite',
+    JSON.stringify({
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'client-output',
+      stream: 'stdout',
+      line: viteLine,
+    }),
+  ].join('\n');
+  assert.equal(extractViteClientOrigin(output), 'http://localhost:5173/');
+  for (const [host, expected] of [
+    ['127.0.0.1', 'http://127.0.0.1:4173/'],
+    ['[::1]', 'http://[::1]:6173/'],
+  ]) {
+    assert.equal(
+      extractViteClientOrigin(JSON.stringify({
+        schemaVersion: 'snapback.dev.v1',
+        ok: true,
+        state: 'client-output',
+        stream: 'stdout',
+        line: `  ➜  Local: http://${host}:${host === '127.0.0.1' ? '4173' : '6173'}/`,
+      })),
+      expected,
+    );
+  }
+  assert.equal(
+    extractViteClientOrigin('  ➜  Local: http://localhost:5173/'),
+    null,
+    'unstructured terminal text is not readiness authority',
+  );
+  assert.equal(
+    extractViteClientOrigin(JSON.stringify({
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'client-output',
+      stream: 'stdout',
+      line: 'Local: https://example.com:5173/',
+    })),
+    null,
+  );
+  for (const event of [
+    {
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'client-output',
+      stream: 'stdout',
+      line: 'warning: stale ➜ Local: http://localhost:5173/',
+    },
+    {
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'client-output',
+      stream: 'stdout',
+      line: '➜ Local: http://localhost:5173/not-the-ready-url',
+    },
+    {
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'control-ready',
+      stream: 'stdout',
+      line: '➜ Local: http://localhost:5173/',
+    },
+    {
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'client-output',
+      stream: 'stderr',
+      line: '➜ Local: http://localhost:5173/',
+    },
+  ]) {
+    assert.equal(
+      extractViteClientOrigin(JSON.stringify(event)),
+      null,
+      'only the complete structured Vite stdout readiness record is authority',
+    );
+  }
+  assert.throws(
+    () => extractViteClientOrigin('x'.repeat(8 * 1024 * 1024 + 1)),
+    /dev output exceeded its byte bound/u,
+  );
+});
 
 test('packed runtime entry hashing streams entries larger than the old child buffer', () => {
   const temporary = mkdtempSync(join(tmpdir(), 'snapback-large-tar-entry-'));

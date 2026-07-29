@@ -37,6 +37,80 @@ const PLAYWRIGHT_HEADLESS_EXECUTABLE_NAMES = new Set([
   'chrome-headless-shell.exe',
   'headless_shell',
 ]);
+const DEV_OUTPUT_MAX_BYTES = 8 * 1024 * 1024;
+const DEV_OUTPUT_MAX_LINES = 20_000;
+const DEV_OUTPUT_MAX_LINE_BYTES = 1024 * 1024;
+
+/**
+ * Read the browser origin only from the package-owned structured dev stream.
+ * Vite ANSI escapes are JSON-encoded inside `client-output.line`, so scanning
+ * the outer process text for a contiguous URL is not sound.
+ *
+ * @ref LLP 0041#acceptance — the staged/public cold proof consumes the
+ * one-command starter's structured client-arm readiness instead of scraping
+ * terminal presentation bytes.
+ */
+export function extractViteClientOrigin(text) {
+  if (typeof text !== 'string') throw new TypeError('dev output must be text');
+  if (
+    text.length > DEV_OUTPUT_MAX_BYTES
+    || Buffer.byteLength(text) > DEV_OUTPUT_MAX_BYTES
+  ) {
+    throw new RangeError('dev output exceeded its byte bound');
+  }
+  const lines = text.split(/\r?\n/u);
+  if (lines.length > DEV_OUTPUT_MAX_LINES) {
+    throw new RangeError('dev output exceeded its line bound');
+  }
+  for (const rawLine of lines) {
+    if (
+      rawLine.length > DEV_OUTPUT_MAX_LINE_BYTES
+      || Buffer.byteLength(rawLine) > DEV_OUTPUT_MAX_LINE_BYTES
+    ) {
+      throw new RangeError('dev output line exceeded its byte bound');
+    }
+    let event;
+    try {
+      event = JSON.parse(rawLine.trim());
+    } catch {
+      continue;
+    }
+    if (
+      event?.schemaVersion !== 'snapback.dev.v1'
+      || event.state !== 'client-output'
+      || event.stream !== 'stdout'
+      || typeof event.line !== 'string'
+    ) {
+      continue;
+    }
+    const presented = event.line.replaceAll(/\u001b\[[0-9;]*m/gu, '');
+    const match = /^[ \t]*➜[ \t]+Local:[ \t]+(http:\/\/(?:localhost|127\.0\.0\.1|\[::1\]):\d+\/)[ \t]*$/u
+      .exec(presented);
+    if (!match) continue;
+    let origin;
+    try {
+      origin = new URL(match[1]);
+    } catch {
+      continue;
+    }
+    if (
+      origin.protocol !== 'http:'
+      || !['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
+      || !/^\d+$/u.test(origin.port)
+      || Number(origin.port) < 1
+      || Number(origin.port) > 65_535
+      || origin.pathname !== '/'
+      || origin.username
+      || origin.password
+      || origin.search
+      || origin.hash
+    ) {
+      continue;
+    }
+    return origin.href;
+  }
+  return null;
+}
 
 export function resolveInstalledBrowserExecutable(localBrowserRoot) {
   if (typeof localBrowserRoot !== 'string' || localBrowserRoot.length === 0) {

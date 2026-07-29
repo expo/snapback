@@ -36,6 +36,7 @@ import {
   createBoundedByteAccumulator,
   createBoundedBrowserSurfaceCollector,
   digestBoundedBrowserFilesystem,
+  extractViteClientOrigin,
   measureGitCheckoutIdentity,
   parseArguments,
   readBoundedJsonFile,
@@ -1175,10 +1176,10 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       (text) => text.includes('"state":"client-started"'),
       'one-command starter client arm',
     );
-    const origin = await waitFor((text) => {
-      const match = /http:\/\/localhost:\d+\//u.exec(text);
-      return match?.[0] ?? null;
-    }, 'one-command starter Vite origin');
+    const origin = await waitFor(
+      extractViteClientOrigin,
+      'one-command starter Vite origin',
+    );
     const htmlResponse = await fetch(origin);
     const html = await htmlResponse.text();
     if (!htmlResponse.ok || !html.includes('/src/main.tsx')) {
