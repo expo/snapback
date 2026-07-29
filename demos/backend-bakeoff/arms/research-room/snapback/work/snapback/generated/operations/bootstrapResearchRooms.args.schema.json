@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/bootstrapResearchRooms.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bobId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "bobId"
+  ],
+  "title": "work:bootstrapResearchRooms arguments",
+  "type": "object"
+}

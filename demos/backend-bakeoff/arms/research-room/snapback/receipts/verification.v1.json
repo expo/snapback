@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "checks": [
+    {
+      "command": "node demos/backend-bakeoff/scripts/run-capsule.mjs verify demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json",
+      "status": "pass",
+      "detail": "capsule schema and frozen scenario vocabulary valid"
+    },
+    {
+      "command": "./ref-check --verbose",
+      "status": "pass",
+      "detail": "107 LLP docs, 2226 refs, 0 errors, 0 unchecked"
+    },
+    {
+      "command": "node scripts/check-guide.mjs",
+      "status": "pass-with-warnings",
+      "detail": "41 pages, 95 snippets, 69 routes plus 19 host-ops joined, 23 pre-existing freshness warnings"
+    },
+    {
+      "command": "npm run build",
+      "status": "pass",
+      "detail": "TypeScript and Vite production build completed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "detail": "no whitespace errors"
+    },
+    {
+      "command": "node demos/backend-bakeoff/scripts/verify-stage0.mjs",
+      "status": "pre-existing-protocol-failure",
+      "detail": "freeze digest and artifact inventory mismatch because demos/backend-bakeoff/.gitignore is present at the frozen source commit but absent from freeze.v2.json; the worker did not alter frozen protocol artifacts"
+    }
+  ],
+  "cleanupRecheck": {
+    "pathsAbsent": [
+      "work/.arm-runtime",
+      "work/public"
+    ],
+    "portsClosed": [
+      3340,
+      4340,
+      20440,
+      9340
+    ]
+  }
+}

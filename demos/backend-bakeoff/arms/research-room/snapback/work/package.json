@@ -1,0 +1,25 @@
+{
+  "name": "llp0102-research-room-snapback",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "generate": "node ../../../../../../packages/snapback-codegen/index.mjs snapback",
+    "build": "tsc -b && vite build",
+    "acceptance": "node scripts/run-arm.mjs",
+    "finalize": "node scripts/finalize-capsule.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "playwright-core": "1.62.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  }
+}

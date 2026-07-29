@@ -1,0 +1,165 @@
+{
+  "appId": "work",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/applyAnswerProgress.args.schema.json",
+    "operations/applyScheduledRefresh.args.schema.json",
+    "operations/bootstrapResearchRooms.args.schema.json",
+    "operations/cancelAnswer.args.schema.json",
+    "operations/completeAnswer.args.schema.json",
+    "operations/keywordSearch.args.schema.json",
+    "operations/listAnswers.args.schema.json",
+    "operations/listProgress.args.schema.json",
+    "operations/listQuestions.args.schema.json",
+    "operations/listRooms.args.schema.json",
+    "operations/listSources.args.schema.json",
+    "operations/refreshScheduledSource.args.schema.json",
+    "operations/settleAnswer.args.schema.json",
+    "operations/startQuestion.args.schema.json",
+    "operations/streamAnswer.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/applyAnswerProgress.mutation.ts",
+    "contract/applyAnswerProgress.mutation.contract-meta.ts",
+    "contract/applyScheduledRefresh.mutation.ts",
+    "contract/applyScheduledRefresh.mutation.contract-meta.ts",
+    "contract/bootstrapResearchRooms.mutation.ts",
+    "contract/bootstrapResearchRooms.mutation.contract-meta.ts",
+    "contract/cancelAnswer.mutation.ts",
+    "contract/cancelAnswer.mutation.contract-meta.ts",
+    "contract/completeAnswer.mutation.ts",
+    "contract/completeAnswer.mutation.contract-meta.ts",
+    "contract/keywordSearch.query.ts",
+    "contract/keywordSearch.query.contract-meta.ts",
+    "contract/listAnswers.query.ts",
+    "contract/listAnswers.query.contract-meta.ts",
+    "contract/listProgress.query.ts",
+    "contract/listProgress.query.contract-meta.ts",
+    "contract/listQuestions.query.ts",
+    "contract/listQuestions.query.contract-meta.ts",
+    "contract/listRooms.query.ts",
+    "contract/listRooms.query.contract-meta.ts",
+    "contract/listSources.query.ts",
+    "contract/listSources.query.contract-meta.ts",
+    "contract/settleAnswer.mutation.ts",
+    "contract/settleAnswer.mutation.contract-meta.ts",
+    "contract/startQuestion.mutation.ts",
+    "contract/startQuestion.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:d56da3ee0998e41da418b6e43efc12d663b135a5cdb62a6a827056d328149719",
+  "config": [
+    {
+      "name": "researchProviderToken",
+      "pool": false,
+      "required": true
+    }
+  ],
+  "cronJobs": [
+    {
+      "action": "refreshScheduledSource",
+      "enabled": true,
+      "name": "deterministicRefresh"
+    }
+  ],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "work:applyAnswerProgress",
+      "kind": "Mutation",
+      "name": "applyAnswerProgress"
+    },
+    {
+      "id": "work:applyScheduledRefresh",
+      "kind": "Mutation",
+      "name": "applyScheduledRefresh"
+    },
+    {
+      "id": "work:bootstrapResearchRooms",
+      "kind": "Mutation",
+      "name": "bootstrapResearchRooms"
+    },
+    {
+      "id": "work:cancelAnswer",
+      "kind": "Mutation",
+      "name": "cancelAnswer"
+    },
+    {
+      "id": "work:completeAnswer",
+      "kind": "Mutation",
+      "name": "completeAnswer"
+    },
+    {
+      "id": "work:keywordSearch",
+      "kind": "Query",
+      "name": "keywordSearch"
+    },
+    {
+      "id": "work:listAnswers",
+      "kind": "LiveQuery",
+      "name": "listAnswers"
+    },
+    {
+      "id": "work:listProgress",
+      "kind": "LiveQuery",
+      "name": "listProgress"
+    },
+    {
+      "id": "work:listQuestions",
+      "kind": "Query",
+      "name": "listQuestions"
+    },
+    {
+      "id": "work:listRooms",
+      "kind": "LiveQuery",
+      "name": "listRooms"
+    },
+    {
+      "id": "work:listSources",
+      "kind": "Query",
+      "name": "listSources"
+    },
+    {
+      "id": "work:refreshScheduledSource",
+      "kind": "Action",
+      "name": "refreshScheduledSource"
+    },
+    {
+      "id": "work:settleAnswer",
+      "kind": "Mutation",
+      "name": "settleAnswer"
+    },
+    {
+      "id": "work:startQuestion",
+      "kind": "Mutation",
+      "name": "startQuestion"
+    },
+    {
+      "id": "work:streamAnswer",
+      "kind": "Action",
+      "name": "streamAnswer"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:90937ae3194852043d0ec046d1a6ca17a208e9a2257d9065749e6306798d4a2c",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:f9e2a283e5e0195a9727b31369eb7015b0799afb15694f3c52ac3ff0038ac51b",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "rooms",
+    "roomMembers",
+    "roomViews",
+    "sources",
+    "questions",
+    "answers",
+    "progressEvents",
+    "refreshRuns"
+  ]
+}

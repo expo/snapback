@@ -1,0 +1,448 @@
+{
+  "appId": "work",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:90937ae3194852043d0ec046d1a6ca17a208e9a2257d9065749e6306798d4a2c",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:f9e2a283e5e0195a9727b31369eb7015b0799afb15694f3c52ac3ff0038ac51b",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slug"
+          ],
+          "name": "by_slug",
+          "unique": true
+        }
+      ],
+      "name": "rooms",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "owner",
+        "id": "roomMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "roomId",
+        "resourceTable": "rooms",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          }
+        ]
+      },
+      "name": "roomMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId",
+            "roomId"
+          ],
+          "name": "by_user_room",
+          "unique": true
+        }
+      ],
+      "name": "roomViews",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "mediaType",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "byteSize",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "sha256",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "keywordText",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "embeddingJson",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "refreshedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "roomId",
+            "slug"
+          ],
+          "name": "by_room_slug",
+          "unique": true
+        },
+        {
+          "fields": [
+            "roomId"
+          ],
+          "name": "by_room"
+        }
+      ],
+      "name": "sources",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "askedBy",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "prompt",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "idempotencyKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "attemptId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "roomId",
+            "idempotencyKey"
+          ],
+          "name": "by_room_idempotency",
+          "unique": true
+        },
+        {
+          "fields": [
+            "roomId"
+          ],
+          "name": "by_room"
+        }
+      ],
+      "name": "questions",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "questions"
+            }
+          },
+          "name": "questionId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "attemptId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "content",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "citationsJson",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "effectMayHaveExecuted",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "updatedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "questionId"
+          ],
+          "name": "by_question",
+          "unique": true
+        },
+        {
+          "fields": [
+            "attemptId"
+          ],
+          "name": "by_attempt",
+          "unique": true
+        },
+        {
+          "fields": [
+            "roomId"
+          ],
+          "name": "by_room"
+        }
+      ],
+      "name": "answers",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "answers"
+            }
+          },
+          "name": "answerId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "delta",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "recordedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "answerId",
+            "sequence"
+          ],
+          "name": "by_answer_sequence",
+          "unique": true
+        },
+        {
+          "fields": [
+            "roomId"
+          ],
+          "name": "by_room"
+        }
+      ],
+      "name": "progressEvents",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slotKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "sourceSlug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "fetchedRevision",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "recordedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slotKey"
+          ],
+          "name": "by_slot",
+          "unique": true
+        }
+      ],
+      "name": "refreshRuns",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

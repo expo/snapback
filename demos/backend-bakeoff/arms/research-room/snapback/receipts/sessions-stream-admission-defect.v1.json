@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "classification": "product-capability-composition-defect",
+  "stopClass": false,
+  "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "title": "Sessions cold-start preflight ignores process-live outbound streaming capability",
+  "observed": {
+    "command": "npm run acceptance",
+    "exitStatus": 1,
+    "code": "SNAPBACK_CAPABILITY_UNSUPPORTED",
+    "message": "target does not support required capability bounded_response_stream_v1",
+    "phase": "before verified listener readiness",
+    "appChecksRun": 0
+  },
+  "expected": "A local sessions artifact generated and served with SNAPBACK_OUTBOUND_ACTIONS=1 admits bounded_response_stream_v1, as the shipped sessions and streamed-actions guide pages jointly claim.",
+  "isolation": {
+    "generatedCapabilityManifest": {
+      "targetProfileId": "local-dev-sqlite-ibex",
+      "outboundActions": true,
+      "includes": "bounded_response_stream_v1"
+    },
+    "canonicalControl": {
+      "suite": "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs",
+      "sameBinaryResult": "8/8 pass",
+      "authMode": "dev"
+    },
+    "sourceInspection": {
+      "file": "src/local.rs",
+      "symbol": "preflight_auth_artifacts",
+      "finding": "The sessions preflight constructs CapabilityManifest::local_v0_declared(), while process inspection/callable loading uses the process-live outbound gate."
+    },
+    "workaroundProbe": {
+      "attempt": "start a narrow sessions carrier, then admin-load the full manifest",
+      "result": "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+      "acceptedAsProductPath": false
+    }
+  },
+  "impact": [
+    "A sessions-mode application cannot combine authenticated principals with bounded streamed actions on the local target.",
+    "Research Room cannot prove authenticated progress, collaborator observation, cancellation, or settlement at the frozen commit.",
+    "The failure occurs at deployment admission, before application data or secrets exist."
+  ],
+  "safety": {
+    "crossUserDisclosure": false,
+    "secretExposure": false,
+    "latePatch": false,
+    "destructiveCleanup": false
+  },
+  "proposedOutcome": "Capability admission for a sessions candidate must resolve against the same process-live target declaration used by /inspect and ordinary function loading, without weakening the closed startup pair or auth-mode transition fence."
+}

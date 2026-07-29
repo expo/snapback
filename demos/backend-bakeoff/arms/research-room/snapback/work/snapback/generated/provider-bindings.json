@@ -1,0 +1,295 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"attemptId\": string; \"delta\": string; \"sequence\": number }",
+        "effects": {
+          "invalidates": [
+            "answers",
+            "progressEvents"
+          ],
+          "writes": [
+            "answers",
+            "progressEvents"
+          ]
+        },
+        "name": "applyAnswerProgress",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"fetchedRevision\": string; \"slotKey\": string; \"sourceSlug\": string }",
+        "effects": {
+          "invalidates": [
+            "sources",
+            "refreshRuns"
+          ],
+          "writes": [
+            "sources",
+            "refreshRuns"
+          ]
+        },
+        "name": "applyScheduledRefresh",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"bobId\": string }",
+        "effects": {
+          "invalidates": [
+            "rooms",
+            "roomMembers",
+            "roomViews",
+            "sources"
+          ],
+          "writes": [
+            "rooms",
+            "roomMembers",
+            "roomViews",
+            "sources"
+          ]
+        },
+        "name": "bootstrapResearchRooms",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"attemptId\": string }",
+        "effects": {
+          "invalidates": [
+            "answers"
+          ],
+          "writes": [
+            "answers"
+          ]
+        },
+        "name": "cancelAnswer",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"attemptId\": string; \"sequence\": number; \"tail\": string }",
+        "effects": {
+          "invalidates": [
+            "answers"
+          ],
+          "writes": [
+            "answers"
+          ]
+        },
+        "name": "completeAnswer",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"attemptId\": string; \"effectMayHaveExecuted\"?: boolean; \"status\": string }",
+        "effects": {
+          "invalidates": [
+            "answers"
+          ],
+          "writes": [
+            "answers"
+          ]
+        },
+        "name": "settleAnswer",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"idempotencyKey\": string; \"prompt\": string; \"roomId\": string }",
+        "effects": {
+          "invalidates": [
+            "questions",
+            "answers"
+          ],
+          "writes": [
+            "questions",
+            "answers"
+          ]
+        },
+        "name": "startQuestion",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"keyword\": string; \"roomId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "sources"
+          ]
+        },
+        "name": "keywordSearch",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"byteSize\": number; \"embeddingJson\": string; \"keywordText\": string; \"mediaType\": string; \"ownerId\": string; \"refreshedAt\": number; \"roomId\": string; \"sha256\": string; \"slug\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"roomId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "answers"
+          ]
+        },
+        "name": "listAnswers",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attemptId\": string; \"citationsJson\": string; \"content\": string; \"effectMayHaveExecuted\"?: boolean; \"questionId\": string; \"roomId\": string; \"sequence\": number; \"status\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"roomId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "progressEvents"
+          ]
+        },
+        "name": "listProgress",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"answerId\": string; \"delta\": string; \"recordedAt\": number; \"roomId\": string; \"sequence\": number }>"
+      },
+      {
+        "argumentsType": "{ \"roomId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "questions"
+          ]
+        },
+        "name": "listQuestions",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"askedBy\": string; \"attemptId\": string; \"createdAt\": number; \"idempotencyKey\": string; \"prompt\": string; \"roomId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomViews"
+          ]
+        },
+        "name": "listRooms",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"createdBy\": string; \"name\": string; \"slug\": string }>"
+      },
+      {
+        "argumentsType": "{ \"roomId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "sources"
+          ]
+        },
+        "name": "listSources",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"byteSize\": number; \"embeddingJson\": string; \"keywordText\": string; \"mediaType\": string; \"ownerId\": string; \"refreshedAt\": number; \"roomId\": string; \"sha256\": string; \"slug\": string; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:90937ae3194852043d0ec046d1a6ca17a208e9a2257d9065749e6306798d4a2c",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

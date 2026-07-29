@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/completeAnswer.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    },
+    "tail": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "attemptId",
+    "sequence",
+    "tail"
+  ],
+  "title": "work:completeAnswer arguments",
+  "type": "object"
+}

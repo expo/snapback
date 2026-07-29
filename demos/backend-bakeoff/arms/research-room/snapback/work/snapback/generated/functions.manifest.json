@@ -1,0 +1,1020 @@
+{
+  "appId": "work",
+  "artifactKind": "functionManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:d56da3ee0998e41da418b6e43efc12d663b135a5cdb62a6a827056d328149719",
+  "config": [
+    {
+      "description": "Deterministic research-provider bearer used by server-side actions",
+      "howToGet": "Acceptance supplies an arm-scoped deterministic canary through the admin config API.",
+      "name": "researchProviderToken",
+      "pool": false,
+      "probe": null,
+      "purpose": "Authenticates streamed answer generation and scheduled source refresh",
+      "required": true,
+      "secret": true,
+      "sourceSpan": null
+    }
+  ],
+  "cronJobs": [
+    {
+      "action": "refreshScheduledSource",
+      "activation": {
+        "kind": "Always",
+        "whileLive": []
+      },
+      "enabled": true,
+      "jitterPolicy": {
+        "enabled": false,
+        "maxOffsetMs": 0
+      },
+      "name": "deterministicRefresh",
+      "overlapPolicy": "NoOverlap",
+      "requiredCapabilities": [
+        "cron",
+        "cron_action_run_mutation"
+      ],
+      "retryPolicy": {
+        "mode": "NextTick"
+      },
+      "schedule": {
+        "everyMs": 1000
+      },
+      "sourceSpan": null,
+      "targetWakeup": {
+        "kind": "DynamicAlarm",
+        "needsDurableRunner": true
+      }
+    }
+  ],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "applyAnswerProgress",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "answers"
+          },
+          {
+            "access": "query",
+            "table": "progressEvents"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "answers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "progressEvents"
+          }
+        ]
+      },
+      "exportedName": "applyAnswerProgress",
+      "id": "work:applyAnswerProgress",
+      "kind": "Mutation",
+      "name": "applyAnswerProgress",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers",
+          "roomMembers",
+          "progressEvents"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "applyAnswerProgress",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers",
+          "progressEvents"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "applyScheduledRefresh",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "refreshRuns"
+          },
+          {
+            "access": "query",
+            "table": "sources"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "refreshRuns"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "sources"
+          }
+        ]
+      },
+      "exportedName": "applyScheduledRefresh",
+      "id": "work:applyScheduledRefresh",
+      "kind": "Mutation",
+      "name": "applyScheduledRefresh",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "sources",
+        "tables": [
+          "sources",
+          "refreshRuns"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "applyScheduledRefresh",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "sources",
+        "tables": [
+          "sources",
+          "refreshRuns"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "bootstrapResearchRooms",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rooms"
+          },
+          {
+            "access": "query",
+            "table": "roomViews"
+          },
+          {
+            "access": "query",
+            "table": "sources"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rooms"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomViews"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "sources"
+          }
+        ]
+      },
+      "exportedName": "bootstrapResearchRooms",
+      "id": "work:bootstrapResearchRooms",
+      "kind": "Mutation",
+      "name": "bootstrapResearchRooms",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomViews",
+          "sources"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "bootstrapResearchRooms",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "roomViews",
+          "sources"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "cancelAnswer",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "answers"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "answers"
+          }
+        ]
+      },
+      "exportedName": "cancelAnswer",
+      "id": "work:cancelAnswer",
+      "kind": "Mutation",
+      "name": "cancelAnswer",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers",
+          "roomMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "cancelAnswer",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "completeAnswer",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "answers"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "sources"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "answers"
+          }
+        ]
+      },
+      "exportedName": "completeAnswer",
+      "id": "work:completeAnswer",
+      "kind": "Mutation",
+      "name": "completeAnswer",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers",
+          "roomMembers",
+          "sources"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "completeAnswer",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "keywordSearch",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "rooms"
+          },
+          {
+            "access": "query",
+            "table": "sources"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "keywordSearch",
+      "id": "work:keywordSearch",
+      "kind": "Query",
+      "name": "keywordSearch",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "sources"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "keywordSearch",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listAnswers",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "answers"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "rooms"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listAnswers",
+      "id": "work:listAnswers",
+      "kind": "LiveQuery",
+      "name": "listAnswers",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "answers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listAnswers",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listProgress",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "progressEvents"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "rooms"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listProgress",
+      "id": "work:listProgress",
+      "kind": "LiveQuery",
+      "name": "listProgress",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "progressEvents"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listProgress",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listQuestions",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "questions"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "rooms"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listQuestions",
+      "id": "work:listQuestions",
+      "kind": "Query",
+      "name": "listQuestions",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "questions"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listQuestions",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listRooms",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rooms"
+          },
+          {
+            "access": "query",
+            "table": "roomViews"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listRooms",
+      "id": "work:listRooms",
+      "kind": "LiveQuery",
+      "name": "listRooms",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomViews"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listRooms",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listSources",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "rooms"
+          },
+          {
+            "access": "query",
+            "table": "sources"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listSources",
+      "id": "work:listSources",
+      "kind": "Query",
+      "name": "listSources",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "sources"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listSources",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "refreshScheduledSource",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "refreshRuns"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "sources"
+          }
+        ]
+      },
+      "exportedName": "refreshScheduledSource",
+      "id": "work:refreshScheduledSource",
+      "kind": "Action",
+      "name": "refreshScheduledSource",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation",
+        "bounded_response_stream_v1"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "refreshScheduledSource",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamAnswer(ctx, args) {\n  let reader = null;\n  let sequence = 0;\n  let pending = '';\n  let reads = 0;\n  const attempt = await ctx.streamAttempt.start(`research:${args.attemptId}`);\n  if (attempt.terminal) {\n    const mirror = attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause;\n    await reconciled(ctx, 'settleAnswer', {\n      attemptId: args.attemptId,\n      status: mirror,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, replayedWinner: true, sequence: 0 };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch {\n      return null;\n    }\n  };\n  try {\n    const token = ctx.secrets.get('researchProviderToken').expose();\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      headers: { Authorization: `Bearer ${token}` },\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned failure');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      reads += 1;\n      if (reads >= 2) {\n        sequence += 1;\n        const progress = await reconciled(ctx, 'applyAnswerProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const host = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (host && host.cause !== 'complete') {\n            await reconciled(ctx, 'settleAnswer', {\n              attemptId: args.attemptId,\n              status: host.cause,\n              effectMayHaveExecuted: host.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        reads = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    const completed = await reconciled(ctx, 'completeAnswer', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    const host = await settleHost(completed.status === 'complete' ? 'complete' : completed.status);\n    return {\n      outcome: host?.cause ?? completed.status,\n      sequence: completed.sequence,\n    };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch {}\n    }\n    const code = safeCode(error);\n    const inferred = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    const host = await settleHost(inferred);\n    const status = host && host.cause !== 'complete' ? host.cause : inferred;\n    await reconciled(ctx, 'settleAnswer', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: host?.effectMayHaveExecuted,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nasync function refreshScheduledSource(ctx) {\n  const token = ctx.secrets.get('researchProviderToken').expose();\n  const response = await fetch('http://127.0.0.1:20440/refresh', {\n    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },\n  });\n  if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'refresh fetch failed');\n  const payload = await response.json();\n  return await ctx.runMutation('applyScheduledRefresh', payload);\n}\n\nglobalThis.__snapbackHandlers = {\n  streamAnswer,\n  refreshScheduledSource,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "uses": [
+        "researchProviderToken"
+      ],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "sources",
+        "tables": [
+          "sources",
+          "refreshRuns"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "settleAnswer",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "answers"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "answers"
+          }
+        ]
+      },
+      "exportedName": "settleAnswer",
+      "id": "work:settleAnswer",
+      "kind": "Mutation",
+      "name": "settleAnswer",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers",
+          "roomMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "settleAnswer",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "startQuestion",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "answers"
+          },
+          {
+            "access": "query",
+            "table": "questions"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "rooms"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "answers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "questions"
+          }
+        ]
+      },
+      "exportedName": "startQuestion",
+      "id": "work:startQuestion",
+      "kind": "Mutation",
+      "name": "startQuestion",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "questions",
+          "answers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "startQuestion",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nasync function requireRoom(ctx, roomId) {\n  const room = await ctx.db.get('rooms', roomId);\n  if (!room) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'room is unavailable');\n  await ctx.permissions.roomMembers.requireRole(roomId, 'owner', 'member');\n  return room;\n}\n\nasync function answerByAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('answers')\n    .withIndex('by_attempt')\n    .eq('attemptId', attemptId)\n    .collect();\n  const row = rows[0];\n  if (!row) fail('SNAPBACK_AUTH_PERMISSION_DENIED', 'answer is unavailable');\n  await ctx.permissions.roomMembers.requireRole(row.roomId, 'owner', 'member');\n  return row;\n}\n\nfunction embedding(index) {\n  return JSON.stringify(Array.from({ length: 32 }, (_, dimension) =>\n    Number((((index + 1) * (dimension + 3)) % 97 / 97).toFixed(6))));\n}\n\nfunction sourceHash(index) {\n  return `sha256-frozen-source-${String(index).padStart(2, '0')}-65536`;\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  async listRooms(ctx) {\n    const views = await ctx.db\n      .query('roomViews')\n      .withIndex('by_user_room')\n      .eq('userId', ctx.auth.userId)\n      .collect();\n    const rooms = [];\n    for (const view of views) {\n      const room = await ctx.db.get('rooms', view.roomId);\n      if (room) rooms.push(room);\n    }\n    return rooms.sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listSources(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async keywordSearch(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const keyword = String(args.keyword).trim().toLowerCase();\n    const rows = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n    return rows\n      .filter((row) => row.keywordText.toLowerCase().split(/\\s+/).includes(keyword))\n      .sort((a, b) => a.slug.localeCompare(b.slug));\n  },\n\n  async listQuestions(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('questions')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listAnswers(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('answers')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async listProgress(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    return await ctx.db\n      .query('progressEvents')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect();\n  },\n\n  async bootstrapResearchRooms(ctx, args) {\n    const existing = await ctx.db.query('rooms').withIndex('by_slug').collect();\n    if (existing.length > 0) {\n      return Object.fromEntries(existing.map((row) => [row.slug, row._id]));\n    }\n    const result = {};\n    for (const [slug, name] of [\n      ['primary-room', 'Primary Research Room'],\n      ['secondary-room', 'Secondary Research Room'],\n    ]) {\n      const roomId = await ctx.membership.roomMembers.bootstrap({\n        slug,\n        name,\n        createdBy: ctx.auth.userId,\n        createdAt: ctx.runtime.now(),\n      });\n      await ctx.membership.roomMembers.insert({\n        roomId,\n        userId: args.bobId,\n        role: 'member',\n      });\n      await ctx.db.insert('roomViews', { roomId, userId: ctx.auth.userId });\n      await ctx.db.insert('roomViews', { roomId, userId: args.bobId });\n      result[slug] = roomId;\n    }\n    for (let index = 1; index <= 20; index += 1) {\n      const slug = `source-${String(index).padStart(2, '0')}`;\n      const keywords = [\n        'research',\n        index % 2 === 0 ? 'aurora' : 'harbor',\n        index % 5 === 0 ? 'quartz' : 'paper',\n      ];\n      await ctx.db.insert('sources', {\n        roomId: result['primary-room'],\n        slug,\n        title: `Frozen source ${String(index).padStart(2, '0')}`,\n        ownerId: ctx.auth.userId,\n        mediaType: 'text/plain',\n        byteSize: 65_536,\n        sha256: sourceHash(index),\n        keywordText: keywords.join(' '),\n        embeddingJson: embedding(index),\n        refreshedAt: 0,\n      });\n    }\n    return result;\n  },\n\n  async startQuestion(ctx, args) {\n    await requireRoom(ctx, args.roomId);\n    const prior = await ctx.db\n      .query('questions')\n      .withIndex('by_room_idempotency')\n      .eq('roomId', args.roomId)\n      .eq('idempotencyKey', args.idempotencyKey)\n      .collect();\n    if (prior.length === 1) {\n      const answers = await ctx.db\n        .query('answers')\n        .withIndex('by_question')\n        .eq('questionId', prior[0]._id)\n        .collect();\n      return {\n        questionId: prior[0]._id,\n        answerId: answers[0]._id,\n        attemptId: prior[0].attemptId,\n        replayed: true,\n      };\n    }\n    const attemptId = ctx.runtime.id();\n    const questionId = await ctx.db.insert('questions', {\n      roomId: args.roomId,\n      askedBy: ctx.auth.userId,\n      prompt: String(args.prompt).trim(),\n      idempotencyKey: args.idempotencyKey,\n      attemptId,\n      createdAt: ctx.runtime.now(),\n    });\n    const answerId = await ctx.db.insert('answers', {\n      roomId: args.roomId,\n      questionId,\n      attemptId,\n      content: '',\n      status: 'running',\n      sequence: 0,\n      citationsJson: '[]',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { questionId, answerId, attemptId, replayed: false };\n  },\n\n  async applyAnswerProgress(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      return { applied: false, terminal: true, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence <= answer.sequence) {\n      return { applied: false, terminal: false, status: answer.status, sequence: answer.sequence };\n    }\n    if (args.sequence !== answer.sequence + 1) {\n      fail('SNAPBACK_ACTION_STREAM_INVALID', 'progress sequence is not contiguous');\n    }\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.delta,\n      sequence: args.sequence,\n      updatedAt: ctx.runtime.now(),\n    });\n    await ctx.db.insert('progressEvents', {\n      roomId: answer.roomId,\n      answerId: answer._id,\n      sequence: args.sequence,\n      delta: args.delta,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { applied: true, terminal: false, status: 'running', sequence: args.sequence };\n  },\n\n  async completeAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status === 'complete') return { status: answer.status, sequence: answer.sequence };\n    if (answer.status !== 'running') {\n      return { status: answer.status, sequence: answer.sequence, terminal: true };\n    }\n    const expected = answer.sequence + (args.tail.length > 0 ? 1 : 0);\n    if (args.sequence !== expected) fail('SNAPBACK_ACTION_STREAM_INVALID', 'terminal sequence is not contiguous');\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room')\n      .eq('roomId', answer.roomId)\n      .collect();\n    const citations = sources\n      .sort((a, b) => a.slug.localeCompare(b.slug))\n      .slice(0, 2)\n      .map((source) => source._id);\n    await ctx.db.patch('answers', answer._id, {\n      content: answer.content + args.tail,\n      sequence: args.sequence,\n      status: 'complete',\n      citationsJson: JSON.stringify(citations),\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'complete', sequence: args.sequence, citations };\n  },\n\n  async settleAnswer(ctx, args) {\n    const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n    if (!allowed.includes(args.status)) fail('SNAPBACK_ACTION_STREAM_INVALID', 'unknown settlement');\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') {\n      if (args.effectMayHaveExecuted != null && answer.effectMayHaveExecuted == null) {\n        await ctx.db.patch('answers', answer._id, {\n          effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n        });\n      }\n      return { status: answer.status, sequence: answer.sequence };\n    }\n    await ctx.db.patch('answers', answer._id, {\n      status: args.status,\n      effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: args.status, sequence: answer.sequence };\n  },\n\n  async cancelAnswer(ctx, args) {\n    const answer = await answerByAttempt(ctx, args.attemptId);\n    if (answer.status !== 'running') return { status: answer.status, sequence: answer.sequence };\n    await ctx.db.patch('answers', answer._id, {\n      status: 'cancelled',\n      updatedAt: ctx.runtime.now(),\n    });\n    return { status: 'cancelled', sequence: answer.sequence };\n  },\n\n  async applyScheduledRefresh(ctx, args) {\n    const prior = await ctx.db\n      .query('refreshRuns')\n      .withIndex('by_slot')\n      .eq('slotKey', args.slotKey)\n      .collect();\n    if (prior.length === 1) return { replayed: true, runId: prior[0]._id };\n    const sources = await ctx.db\n      .query('sources')\n      .withIndex('by_room_slug')\n      .collect();\n    const source = sources.find((row) => row.slug === args.sourceSlug);\n    if (!source) fail('SNAPBACK_ROW_NOT_FOUND', 'scheduled source unavailable');\n    await ctx.db.patch('sources', source._id, { refreshedAt: ctx.runtime.now() });\n    const runId = await ctx.db.insert('refreshRuns', {\n      slotKey: args.slotKey,\n      sourceSlug: args.sourceSlug,\n      status: 'complete',\n      fetchedRevision: args.fetchedRevision,\n      recordedAt: ctx.runtime.now(),\n    });\n    return { replayed: false, runId };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "questions",
+        "tables": [
+          "questions",
+          "answers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "streamAnswer",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "answers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "progressEvents"
+          }
+        ]
+      },
+      "exportedName": "streamAnswer",
+      "id": "work:streamAnswer",
+      "kind": "Action",
+      "name": "streamAnswer",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation",
+        "bounded_response_stream_v1"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "streamAnswer",
+          "source": "function fail(code, message) {\n  throw new Error(`${code}: ${message}`);\n}\n\nfunction safeCode(error) {\n  const match = String(error?.message ?? error).match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function reconciled(ctx, name, args) {\n  for (let remaining = 3; ; remaining -= 1) {\n    try {\n      return await ctx.runMutation(name, args);\n    } catch (error) {\n      if (remaining <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamAnswer(ctx, args) {\n  let reader = null;\n  let sequence = 0;\n  let pending = '';\n  let reads = 0;\n  const attempt = await ctx.streamAttempt.start(`research:${args.attemptId}`);\n  if (attempt.terminal) {\n    const mirror = attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause;\n    await reconciled(ctx, 'settleAnswer', {\n      attemptId: args.attemptId,\n      status: mirror,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, replayedWinner: true, sequence: 0 };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch {\n      return null;\n    }\n  };\n  try {\n    const token = ctx.secrets.get('researchProviderToken').expose();\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      headers: { Authorization: `Bearer ${token}` },\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned failure');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      reads += 1;\n      if (reads >= 2) {\n        sequence += 1;\n        const progress = await reconciled(ctx, 'applyAnswerProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const host = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (host && host.cause !== 'complete') {\n            await reconciled(ctx, 'settleAnswer', {\n              attemptId: args.attemptId,\n              status: host.cause,\n              effectMayHaveExecuted: host.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        reads = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    const completed = await reconciled(ctx, 'completeAnswer', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    const host = await settleHost(completed.status === 'complete' ? 'complete' : completed.status);\n    return {\n      outcome: host?.cause ?? completed.status,\n      sequence: completed.sequence,\n    };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch {}\n    }\n    const code = safeCode(error);\n    const inferred = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    const host = await settleHost(inferred);\n    const status = host && host.cause !== 'complete' ? host.cause : inferred;\n    await reconciled(ctx, 'settleAnswer', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: host?.effectMayHaveExecuted,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nasync function refreshScheduledSource(ctx) {\n  const token = ctx.secrets.get('researchProviderToken').expose();\n  const response = await fetch('http://127.0.0.1:20440/refresh', {\n    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },\n  });\n  if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'refresh fetch failed');\n  const payload = await response.json();\n  return await ctx.runMutation('applyScheduledRefresh', payload);\n}\n\nglobalThis.__snapbackHandlers = {\n  streamAnswer,\n  refreshScheduledSource,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "uses": [
+        "researchProviderToken"
+      ],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "answers",
+        "tables": [
+          "answers",
+          "progressEvents"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:90937ae3194852043d0ec046d1a6ca17a208e9a2257d9065749e6306798d4a2c",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": []
+}
