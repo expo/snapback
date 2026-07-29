@@ -157,6 +157,26 @@ All seven Research Room arms are assigned in exact frozen order. Appwrite and
 InstantDB retain explicit start barriers so faster earlier workers cannot
 violate that order.
 
+## Final-confirmation terminal state
+
+The final provider-order gate was honored: Research Room/Supabase started and
+cleaned before either Firebase refresh started. Independent Snapback package
+arms finished out of order but used disjoint host worktrees, external projects,
+state roots, and ports.
+
+| Lane | Terminal state | Coordinator integration |
+| --- | --- | --- |
+| Todo + Chat / Snapback, Linux | Complete | Staged seven-package closure, cold install, 11/3/0 Todo, 14/1/0 Chat, machine correction, diaries, and cleanup integrated |
+| Linear + Partiful / Snapback, Darwin | Complete | 10/4/0 Linear and 12/3/0 Partiful package confirmations, diaries, and cleanup integrated |
+| Research Room / Snapback, Darwin | Complete | 13/2/0 package confirmation, sessions/stream repair lineage, diary, and cleanup integrated |
+| Research Room / Supabase refresh | Complete after retained r1 Stop and safe r2 refusal | Fresh r3 15/15 local result, fail-closed wrapper, diary, and zero-resource cleanup integrated |
+| Chat / Firebase refresh | Complete after retained isolation discovery | Current majors, 15/15 local result, explicit auxiliary-port rerun, diary, and cleanup integrated |
+| Linear / Firebase refresh | Complete after retained isolation discovery | Current majors, 12/1/1/0 result, explicit auxiliary-port rerun, diary, and cleanup integrated |
+
+Workers edited no shared diary, report, score, or LLP file. The coordinator
+serialized every shared integration and retained the returned commit/bundle
+identity in the arm handoffs and final report.
+
 ## Research Room live progress
 
 | Arm | State | Coordinator integration |
