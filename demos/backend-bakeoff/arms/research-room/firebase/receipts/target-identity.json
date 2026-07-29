@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "mode": "fresh-local",
+  "profile": "Firebase Local Emulator Suite",
+  "projectIdSha256": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+  "emulatorHub": {
+    "hub": {
+      "host": "127.0.0.1",
+      "port": 4542
+    },
+    "ui": {
+      "host": "127.0.0.1",
+      "port": 4342
+    },
+    "logging": {
+      "host": "127.0.0.1",
+      "port": 4543
+    },
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9342
+    },
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 5342
+    },
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8342
+    },
+    "hosting": {
+      "host": "127.0.0.1",
+      "port": 5042
+    },
+    "pubsub": {
+      "host": "127.0.0.1",
+      "port": 8142
+    },
+    "storage": {
+      "host": "127.0.0.1",
+      "port": 9442
+    },
+    "eventarc": {
+      "host": "127.0.0.1",
+      "port": 9343
+    },
+    "tasks": {
+      "host": "127.0.0.1",
+      "port": 9542
+    }
+  },
+  "exactPorts": [
+    4342,
+    4542,
+    4543,
+    5042,
+    5342,
+    8142,
+    8342,
+    9342,
+    9343,
+    9442,
+    9542
+  ],
+  "credentialValuesRetained": false
+}

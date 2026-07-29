@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T07:29:12Z",
+  "provider": "firebase",
+  "profile": "official Firebase Local Emulator Suite",
+  "projectIdSha256": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+  "versions": {
+    "firebaseTools": "15.24.0",
+    "firebaseWebSdk": "12.16.0",
+    "firebaseAdmin": "14.2.0",
+    "firebaseFunctions": "7.3.2",
+    "nodeHost": "24.14.0",
+    "declaredFunctionsRuntime": "nodejs22",
+    "java": "OpenJDK 21.0.10"
+  },
+  "target": {
+    "mode": "fresh-local",
+    "namespace": "llp0102-research-firebase-w3",
+    "baselineAbsent": true,
+    "hostedStatus": "explicit-gap",
+    "hostedReason": "No authenticated Firebase hosted project was available; this is target-access evidence, not a product failure."
+  },
+  "environmentFriction": [
+    "The CLI warned that it was unauthenticated while successfully starting the local emulators.",
+    "The Functions emulator used the host Node 24 runtime while the project declares the supported nodejs22 deployment runtime.",
+    "The local Admin SDK configuration lookup was unavailable without a hosted project."
+  ],
+  "credentialValuesRetained": false
+}

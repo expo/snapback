@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "projectIdSha256": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+  "counts": {
+    "rooms": 2,
+    "primarySources": 20,
+    "actors": 3,
+    "bytesPerSource": 65536,
+    "embeddingDimensions": 32
+  },
+  "actorHashes": {
+    "alice": "668a014c86c7300c08c768c4820fcb57a813bdcb57ff3e0952728f23f73e8108",
+    "bob": "87969ed49a44c62ada35b418c047ee1054d06f327ebdc2e1646964536c1de2d2",
+    "mallory": "f11a6fe7f65ace05cb150fdcd3601635ce8f76566df42e4b5dd3c029f8128df1"
+  },
+  "contentIdentity": {
+    "firstSourceSha256": "b99eb60b7b77e893e75966e8e5beacfaf46a9b03b720567b0563197f0b8aeae1",
+    "twentiethSourceSha256": "4c0a4079e403507142838666d8944facd280f455e17a814d46bd41416c9b6398"
+  }
+}

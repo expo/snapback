@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-14-PERFORMANCE",
+  "status": "pending",
+  "observedAt": "2026-07-29T08:00:05.736Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "Performance samples run in a separate frozen 2-warmup/7-recorded pass.",
+    "expectedPathCount": 5,
+    "performanceReceipt": "evidence/performance.json"
+  },
+  "note": "Pending the frozen performance pass."
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "classification": "builder-error",
+  "phase": "dependency-install",
+  "command": "npm install --ignore-scripts",
+  "exitCode": 1,
+  "summary": "Vite 8.1.5 was outside @vitejs/plugin-react 5.1.4's declared peer range.",
+  "retainedOutput": "npm ERESOLVE: @vitejs/plugin-react accepts Vite through major 7.",
+  "remediation": "Pinned the newest Vite 7 release, 7.3.6, without relaxing peer resolution."
+}

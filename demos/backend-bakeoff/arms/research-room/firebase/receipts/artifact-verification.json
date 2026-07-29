@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-29T08:35:16.760Z",
+  "checks": {
+    "exactScenarioOrder": true,
+    "expectedScenarios": 15,
+    "pass": 15,
+    "gap": 0,
+    "pending": 0,
+    "fail": 0,
+    "stop": 0,
+    "referencedArtifactPaths": 30,
+    "missingArtifactPaths": 0,
+    "screenshotSha256Matched": true,
+    "targetIdentityHashesMatched": true,
+    "performancePaths": 5,
+    "warmupsPerPath": 2,
+    "successfulSamplesPerPath": 7,
+    "assignedPortsClosed": true,
+    "ownedProcessesRemaining": 0,
+    "runtimeAbsent": true,
+    "secretPatternHits": []
+  }
+}

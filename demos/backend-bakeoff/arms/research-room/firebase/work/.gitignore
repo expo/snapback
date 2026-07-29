@@ -1,0 +1,10 @@
+node_modules/
+functions/node_modules/
+dist/
+.firebase/
+.runtime/
+.env.local
+functions/.env.local
+receipts/*.pid
+receipts/*.log
+receipts/export/

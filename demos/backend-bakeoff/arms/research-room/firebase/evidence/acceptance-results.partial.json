@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "app": "research-room",
+  "provider": "firebase",
+  "expectedCheckCount": 15,
+  "resultCount": 15,
+  "passed": 13,
+  "gaps": 0,
+  "pending": 2,
+  "failed": 0,
+  "results": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-01-SEED.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Admin SDK independently counted two rooms, twenty primary-room sources, and three Auth principals.",
+      "note": "Exact fresh-local project, rooms, 32-dimensional vectors, 65,536-byte sources, and personas exist."
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-02-FILES.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Alice upload, Bob byte-for-byte delivery, owner metadata, and exact object/document deletion were independently verified.",
+      "note": "Storage Security Rules and Firestore Security Rules preserve room authority and source ownership."
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-03-OUTSIDER.json"
+      ],
+      "transport": "firebase-firestore-listener-denied",
+      "authoritativeCheck": "Mallory received permission-denied for source read, keyword query, and the questions subscription before any protected document delivery.",
+      "note": "Outsider access is denied by provider-native database and object rules."
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-04-KEYWORD.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "A client query evaluated by Firestore and its composite index returned the exact frozen climate source set.",
+      "note": "Keyword search uses Firestore's indexed array membership query."
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-05-SEMANTIC.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The ordinary Firebase Admin SDK findNearest path returned the deterministic nearest source.",
+      "note": "Provider-native semantic retrieval passed locally."
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-06-PROGRESS.json"
+      ],
+      "transport": "firebase-firestore-native-push",
+      "authoritativeCheck": "Admin SDK read four durable progress documents in ordinal order before the complete terminal question.",
+      "note": "Four authoritative progress patches precede completion."
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-07-CITATIONS.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The durable answer cites two existing room source records, and Bob can read it as a member.",
+      "note": "Citations retain source-record identity and room authority."
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-08-COLLABORATOR.json"
+      ],
+      "transport": "firebase-firestore-native-push",
+      "authoritativeCheck": "Bob's independent Web SDK listener received server-backed progress snapshots while Alice's callable remained active.",
+      "note": "The second member observes progress live through Firestore's native snapshot listener."
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-09-CANCEL.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "After cancellation confirmation, the in-flight worker settled cancelled, an injected late patch was transactionally blocked, progress count stayed fixed, and no answer exists.",
+      "note": "Confirmed cancellation prevents every late durable patch."
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-10-RETRY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two callable invocations with one deterministic identity retained one question, one answer, and one effect-attempt ledger.",
+      "note": "Retry is idempotent without duplicate questions or answers."
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-11-OUTCOMES.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Fault-injected question and effect-attempt records retain five distinct terminal/settlement states.",
+      "note": "Complete, failed, cancelled, timed-out, and ambiguous outcomes remain distinguishable."
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-12-SCHEDULE.json"
+      ],
+      "transport": "firebase-scheduled-function-emulator",
+      "authoritativeCheck": "The Functions emulator's generated background-trigger endpoint invoked the actual onSchedule handler, fetched the deterministic Hosting source, and wrote one deduplicated durable run.",
+      "note": "The native scheduled-function emulator path records durable refresh progress once."
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "PASS",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-13-SECRETS.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The exact runtime canary was absent from the client bundle, receipts, and emulator diagnostics; only its SHA-256 digest is durable.",
+      "note": "The local Functions boundary keeps the canary secret server-side; hosted secret configuration remains a target-access GAP."
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "pending",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-14-PERFORMANCE.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Performance samples run in a separate frozen 2-warmup/7-recorded pass.",
+      "note": "Pending the frozen performance pass."
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "status": "pending",
+      "evidencePaths": [
+        "receipts/scenarios/RESEARCH-15-CLEANUP.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Cleanup runs only after acceptance, performance, export, and target-bound plan freeze.",
+      "note": "Pending exact local-target cleanup."
+    }
+  ],
+  "stopDefects": [],
+  "milestones": {
+    "firstLocalReadMs": 1845849,
+    "firstAuthoritativeMutationMs": 1849325,
+    "firstRealtimeTransitionMs": 1850332,
+    "localAcceptanceMs": 1853641,
+    "acceptanceCompletionMs": 1853641
+  }
+}

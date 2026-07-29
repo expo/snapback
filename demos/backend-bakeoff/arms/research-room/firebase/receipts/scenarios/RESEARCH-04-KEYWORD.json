@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-04-KEYWORD",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:01.817Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "A client query evaluated by Firestore and its composite index returned the exact frozen climate source set.",
+    "queryShape": "keywords array-contains climate; title ascending",
+    "sourceIds": [
+      "source-001",
+      "source-005",
+      "source-009",
+      "source-013",
+      "source-017"
+    ]
+  },
+  "note": "Keyword search uses Firestore's indexed array membership query."
+}

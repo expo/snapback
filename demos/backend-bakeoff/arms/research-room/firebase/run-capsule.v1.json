@@ -9,253 +9,492 @@
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "snapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "coordinatorBaseCommit": "5fe27663608c09e9da0b0e722c35d5146b3d49f1",
     "providerVersions": {
-      "product": "Firebase with Cloud Firestore",
+      "product": "Firebase Local Emulator Suite",
       "client": "12.16.0",
-      "cli": "15.24.0"
+      "cli": "15.24.0",
+      "admin": "14.2.0",
+      "functions": "7.3.2",
+      "declaredFunctionsRuntime": "nodejs22",
+      "emulatorHostNode": "24.14.0"
     },
-    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "machine": "Mac17,3 / arm64 / macOS 26.5.2 / Node 24.14.0 / OpenJDK 21.0.10",
+    "executionShape": "Fresh official local project with Auth, Firestore, Functions, Storage, Hosting, Pub/Sub, Eventarc, Tasks, Emulator UI, native web clients, and worktree-local runtime state.",
+    "startedAt": "2026-07-29T07:29:12Z",
+    "finishedAt": "2026-07-29T08:34:21.035Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
-    "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "activeElapsedMs": 3908940,
+    "toolCalls": 118,
+    "toolCallCountBasis": "manual arm ledger; runtime did not expose an exact per-arm counter",
+    "timedWindowFrozenAt": "2026-07-29T08:34:21.035Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "668a014c86c7300c08c768c4820fcb57a813bdcb57ff3e0952728f23f73e8108",
+      "authPath": "Firebase Authentication emulator email/password",
+      "role": "room member and source owner"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "87969ed49a44c62ada35b418c047ee1054d06f327ebdc2e1646964536c1de2d2",
+      "authPath": "Firebase Authentication emulator email/password",
+      "role": "room member and second realtime client"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "f11a6fe7f65ace05cb150fdcd3601635ce8f76566df42e4b5dd3c029f8128df1",
+      "authPath": "Firebase Authentication emulator email/password",
       "role": "outsider"
     }
   },
   "targets": {
     "binding": {
       "mode": "fresh-local",
-      "namespace": "llp0102-research-room-firebase-deep-research-room-firebase-deep-01",
-      "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "namespace": "llp0102-research-firebase-w3",
+      "identityHash": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+      "baselineReceiptPath": "receipts/baseline-before.json",
+      "scopedCleanupPlanPath": "receipts/scoped-cleanup-plan.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
-      "profile": "Firebase Local Emulator Suite: Auth, Firestore, Functions, Storage, Hosting",
+      "status": "cleaned",
+      "identityHash": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+      "profile": "Firebase Local Emulator Suite: Auth, Firestore, Functions, Storage, Hosting, Pub/Sub, Eventarc, Tasks",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "receipts/preflight.json",
+        "receipts/target-identity.json",
+        "receipts/cleanup-final.json"
+      ]
     },
     "hosted": {
       "status": "explicit-gap",
       "identityHash": "",
       "profile": "managed Firebase project with Firestore, Auth, Functions, Storage, Hosting",
       "plan": "Blaze pay-as-you-go with budget alerts",
-      "region": "us-west1 where selectable; Firestore exact location captured with target",
-      "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
+      "region": "us-west1 where selectable",
+      "gapReason": "No authenticated hosted Firebase project was available; this is target-access evidence, not a product failure.",
       "receiptPaths": []
     }
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
-    "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "firstLocalReadMs": 1845849,
+    "firstAuthoritativeMutationMs": 1849325,
+    "firstRealtimeTransitionMs": 1850332,
+    "localAcceptanceMs": 1853641,
+    "acceptanceCompletionMs": 1853641,
+    "cleanupCompletionMs": 3908940
   },
-  "assistanceEvents": [],
-  "commands": [],
+  "assistanceEvents": [
+    {
+      "type": "official-documentation",
+      "note": "Used only the frozen Firebase inventory and official Emulator Suite, Firestore, Auth, Storage, Functions, scheduling, vector search, security, and pricing documentation.",
+      "receiptPaths": [
+        "receipts/official-docs.md"
+      ]
+    },
+    {
+      "type": "retained-builder-and-harness-failures",
+      "receiptPaths": [
+        "receipts/failure-install-vite8-peer-conflict.json",
+        "receipts/failure-schedule-topic-region-assumption.json",
+        "receipts/failure-schedule-pubsub-delivery-timeout.json"
+      ]
+    },
+    {
+      "type": "browser-process-cleanup",
+      "note": "The headless Chrome screenshot command wrote its artifact but lingered; the exact PID and children were terminated before runtime deletion.",
+      "receiptPaths": [
+        "receipts/cleanup-final.json"
+      ]
+    },
+    {
+      "type": "llp-maintain-pre-demo",
+      "note": "The required propose-only LLP audit is retained with the arm.",
+      "receiptPaths": [
+        "receipts/llp-maintain-audit.md"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "npx firebase-tools@15.24.0 emulators:start --project <exact-arm-project>",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 480000,
+      "classification": "fresh official local target provisioning",
+      "note": "Coarse interval; exact start and target identity receipts are authoritative."
+    },
+    {
+      "command": "npm run acceptance (three retained fresh-target attempts)",
+      "exitStatus": 0,
+      "startedMonotonicMs": 480001,
+      "finishedMonotonicMs": 1853641,
+      "classification": "final frozen functional acceptance after two retained schedule-harness failures",
+      "note": "Scenario receipts and acceptance failures retain exact wall times and outcomes."
+    },
+    {
+      "command": "npm run performance",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1853642,
+      "finishedMonotonicMs": 3608940,
+      "classification": "five frozen paths, two warmups and seven recorded samples each",
+      "note": "Raw per-sample durations are authoritative in evidence/performance.json."
+    },
+    {
+      "command": "firebase emulators:export .runtime/export --force --project <exact-arm-project>",
+      "exitStatus": 0,
+      "startedMonotonicMs": 3608941,
+      "finishedMonotonicMs": 3668940,
+      "classification": "pre-cleanup exact target export",
+      "note": "Only the redacted export integrity manifest is retained."
+    },
+    {
+      "command": "npm run cleanup; stop exact processes; node scripts/finalize.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 3668941,
+      "finishedMonotonicMs": 3908940,
+      "classification": "exact local target, process, secret, and worktree-runtime cleanup",
+      "note": "Cleanup receipts retain exact resource and port proofs."
+    }
+  ],
   "scenarioResults": [
     {
       "id": "RESEARCH-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-01-SEED.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Admin SDK independently counted two rooms, twenty primary-room sources, and three Auth principals.",
+      "note": "Exact fresh-local project, rooms, 32-dimensional vectors, 65,536-byte sources, and personas exist."
     },
     {
       "id": "RESEARCH-02-FILES",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-02-FILES.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Alice upload, Bob byte-for-byte delivery, owner metadata, and exact object/document deletion were independently verified.",
+      "note": "Storage Security Rules and Firestore Security Rules preserve room authority and source ownership."
     },
     {
       "id": "RESEARCH-03-OUTSIDER",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-03-OUTSIDER.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory received permission-denied for source read, keyword query, and the questions subscription before any protected document delivery.",
+      "note": "Outsider access is denied by provider-native database and object rules."
     },
     {
       "id": "RESEARCH-04-KEYWORD",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-04-KEYWORD.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "A client query evaluated by Firestore and its composite index returned the exact frozen climate source set.",
+      "note": "Keyword search uses Firestore's indexed array membership query."
     },
     {
       "id": "RESEARCH-05-SEMANTIC",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-05-SEMANTIC.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "The ordinary Firebase Admin SDK findNearest path returned the deterministic nearest source.",
+      "note": "Provider-native semantic retrieval passed locally."
     },
     {
       "id": "RESEARCH-06-PROGRESS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-06-PROGRESS.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Admin SDK read four durable progress documents in ordinal order before the complete terminal question.",
+      "note": "Four authoritative progress patches precede completion."
     },
     {
       "id": "RESEARCH-07-CITATIONS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-07-CITATIONS.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "The durable answer cites two existing room source records, and Bob can read it as a member.",
+      "note": "Citations retain source-record identity and room authority."
     },
     {
       "id": "RESEARCH-08-COLLABORATOR",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-08-COLLABORATOR.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob's independent Web SDK listener received server-backed progress snapshots while Alice's callable remained active.",
+      "note": "The second member observes progress live through Firestore's native snapshot listener."
     },
     {
       "id": "RESEARCH-09-CANCEL",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-09-CANCEL.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "After cancellation confirmation, the in-flight worker settled cancelled, an injected late patch was transactionally blocked, progress count stayed fixed, and no answer exists.",
+      "note": "Confirmed cancellation prevents every late durable patch."
     },
     {
       "id": "RESEARCH-10-RETRY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-10-RETRY.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Two callable invocations with one deterministic identity retained one question, one answer, and one effect-attempt ledger.",
+      "note": "Retry is idempotent without duplicate questions or answers."
     },
     {
       "id": "RESEARCH-11-OUTCOMES",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-11-OUTCOMES.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Fault-injected question and effect-attempt records retain five distinct terminal/settlement states.",
+      "note": "Complete, failed, cancelled, timed-out, and ambiguous outcomes remain distinguishable."
     },
     {
       "id": "RESEARCH-12-SCHEDULE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-12-SCHEDULE.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The Functions emulator's generated background-trigger endpoint invoked the actual onSchedule handler, fetched the deterministic Hosting source, and wrote one deduplicated durable run.",
+      "note": "The native scheduled-function emulator path records durable refresh progress once."
     },
     {
       "id": "RESEARCH-13-SECRETS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scenarios/RESEARCH-13-SECRETS.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "The exact runtime canary was absent from the client bundle, receipts, and emulator diagnostics; only its SHA-256 digest is durable.",
+      "note": "The local Functions boundary keeps the canary secret server-side; hosted secret configuration remains a target-access GAP."
     },
     {
       "id": "RESEARCH-14-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/performance.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "All five frozen paths retain two warmups, seven successful raw samples, median, and nearest-rank p95.",
+      "note": "Frozen local-emulator performance pass complete; no hosted or production-scale claim."
     },
     {
       "id": "RESEARCH-15-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/scoped-cleanup-plan.json",
+        "receipts/cleanup-data-phase.json",
+        "receipts/cleanup-final.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Exact local rooms, subcollections, twenty objects, three principals, scheduler process, runtime secret, export, browser state, and all assigned ports were retired.",
+      "note": "Fresh-local target returned to its empty baseline with no residual resource."
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "receipts/inventory.json",
+    "authoredSource": {
+      "files": 13,
+      "bytes": 99379,
+      "paths": [
+        "functions/index.js",
+        "scripts/acceptance.mjs",
+        "scripts/cleanup.mjs",
+        "scripts/finalize.mjs",
+        "scripts/inventory.mjs",
+        "scripts/performance.mjs",
+        "scripts/start-emulators.mjs",
+        "scripts/verify-artifacts.mjs",
+        "src/App.tsx",
+        "src/firebase.ts",
+        "src/main.tsx",
+        "src/styles.css",
+        "src/vite-env.d.ts"
+      ]
+    },
+    "generated": {
+      "files": 4,
+      "bytes": 793232,
+      "paths": [
+        "dist/assets/index-B6FD6h_P.css",
+        "dist/assets/index-C47h4I3w.js",
+        "dist/external-source.json",
+        "dist/index.html"
+      ]
+    },
+    "tests": {
+      "files": 7,
+      "bytes": 70573,
+      "paths": [
+        "scripts/acceptance.mjs",
+        "scripts/cleanup.mjs",
+        "scripts/finalize.mjs",
+        "scripts/inventory.mjs",
+        "scripts/performance.mjs",
+        "scripts/start-emulators.mjs",
+        "scripts/verify-artifacts.mjs"
+      ]
+    },
+    "configuration": {
+      "files": 8,
+      "bytes": 316051,
+      "paths": [
+        ".firebaserc",
+        "firebase.json",
+        "functions/package-lock.json",
+        "functions/package.json",
+        "package-lock.json",
+        "package.json",
+        "tsconfig.json",
+        "vite.config.ts"
+      ]
+    },
+    "policy": {
+      "files": 3,
+      "bytes": 3495,
+      "paths": [
+        "firestore.indexes.json",
+        "firestore.rules",
+        "storage.rules"
+      ]
+    },
+    "dependencyManifests": {
+      "files": 4,
+      "bytes": 314055,
+      "paths": [
+        "functions/package-lock.json",
+        "functions/package.json",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "installedDependencyBytes": 337191308,
+    "productionBuildBytes": 793232,
+    "glue": [
+      "Firebase emulator launcher with worktree-local XDG, Java, and secret state",
+      "provider-native Auth/Firestore/Functions/Storage acceptance harness",
+      "scheduled-function emulator trigger adapter",
+      "exact target cleanup and capsule finalization scripts"
+    ],
+    "npmAuditReceiptPaths": [
+      "receipts/npm-audit.json",
+      "receipts/functions-npm-audit.json"
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Three native Auth principals exercised member reads/writes, cross-member file delivery, and outsider-denied Firestore, Storage, query, and listener paths.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Transactional cancellation guards and deterministic identity transactions proved late-patch prevention and retry deduplication.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Bob's independent native Firestore listener received all four authoritative progress transitions before terminal completion.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/performance.json"
+      ]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Every frozen reconnect sample disabled and re-enabled the Firestore network before an authoritative member read.",
+      "evidencePaths": [
+        "evidence/performance.json"
+      ]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Complete, failed, cancelled, timed-out, and ambiguous state-machine/effect-ledger records plus an actual onSchedule run were independently read.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Exact project hash, emulator hub service/port identity, frozen package versions, fresh baseline, and cleanup identity agree.",
+      "evidencePaths": [
+        "receipts/target-identity.json",
+        "receipts/preflight.json"
+      ]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Fresh-target cleanup proved zero rooms, objects, users, owned processes, runtime state, and listeners on every assigned port.",
+      "evidencePaths": [
+        "receipts/scoped-cleanup-plan.json",
+        "receipts/cleanup-final.json"
+      ]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Pinned dependencies, executable harnesses, raw samples, export digest, screenshot, inventory, rules, config, and retained failures are committed.",
+      "evidencePaths": [
+        "receipts/inventory.json",
+        "receipts/export-manifest.json",
+        "receipts/ui-smoke.json"
+      ]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/scoped-cleanup-plan.json",
+    "receiptPaths": [
+      "receipts/cleanup-data-phase.json",
+      "receipts/cleanup-final.json",
+      "receipts/export-manifest.json"
+    ],
+    "postCleanupProbe": "Firestore rooms/subcollections, Storage objects, and Auth principals were zero; deleted actor sign-in failed; all assigned ports closed; the lingering exact browser process was terminated; worktree runtime, secret, export, browser, Firebase/Java state, and diagnostics were removed.",
+    "residualResources": []
   },
-  "result": "pending"
+  "result": "complete"
 }

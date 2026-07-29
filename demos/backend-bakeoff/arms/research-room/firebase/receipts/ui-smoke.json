@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "url": "http://127.0.0.1:4343/",
+  "httpStatus": 200,
+  "browser": "Google Chrome headless",
+  "profile": "worktree-local .runtime/browser",
+  "screenshot": "evidence/login.png",
+  "screenshotSha256": "270abe2d691a5d934c49d21d4c7229a88ab104231d817d9b69f8b025dcb47d12",
+  "visualInspection": "pass",
+  "note": "The sign-in shell rendered at 1440x1000 with the expected accessible entry action and no visible error."
+}

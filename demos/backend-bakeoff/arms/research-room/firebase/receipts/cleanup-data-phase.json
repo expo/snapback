@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "cleanedAt": "2026-07-29T08:07:51.017Z",
+  "projectIdSha256": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+  "planPath": "receipts/scoped-cleanup-plan.json",
+  "before": {
+    "rooms": 2,
+    "users": 3,
+    "objects": 20
+  },
+  "operations": {
+    "exactRecursiveFirestoreDeletes": [
+      "rooms/room-primary",
+      "rooms/room-secondary"
+    ],
+    "exactStoragePrefix": "rooms/",
+    "storageObjectsDeleted": 20,
+    "exactAuthPrincipalHashes": [
+      "668a014c86c7300c08c768c4820fcb57a813bdcb57ff3e0952728f23f73e8108",
+      "87969ed49a44c62ada35b418c047ee1054d06f327ebdc2e1646964536c1de2d2",
+      "f11a6fe7f65ace05cb150fdcd3601635ce8f76566df42e4b5dd3c029f8128df1"
+    ],
+    "serverSecretFileDeleted": true
+  },
+  "postCleanup": {
+    "rooms": 0,
+    "users": 0,
+    "objects": 0,
+    "deletedActorCannotSignIn": true,
+    "unrelatedBaselinePreserved": true
+  },
+  "commandExitCode": 0,
+  "residual": [
+    "The exact emulator and Vite processes remain alive only until post-cleanup process verification.",
+    "Ignored export/browser/XDG/Java state remains until those exact processes stop."
+  ],
+  "status": "data-clean-process-stop-pending",
+  "containsCredentialValues": false
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-08-COLLABORATOR",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:02.859Z",
+  "transport": "firebase-firestore-native-push",
+  "evidence": {
+    "authoritativeCheck": "Bob's independent Web SDK listener received server-backed progress snapshots while Alice's callable remained active.",
+    "actorHash": "87969ed49a44c62ada35b418c047ee1054d06f327ebdc2e1646964536c1de2d2",
+    "eventCount": 5,
+    "firstNonemptyEvent": {
+      "atEpochMs": 1785312002427,
+      "ordinals": [
+        1
+      ],
+      "fromCache": false
+    }
+  },
+  "note": "The second member observes progress live through Firestore's native snapshot listener."
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-01-SEED",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:01.459Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "Admin SDK independently counted two rooms, twenty primary-room sources, and three Auth principals.",
+    "targetIdentityHash": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+    "counts": {
+      "rooms": 2,
+      "primarySources": 20,
+      "actors": 3,
+      "bytesPerSource": 65536,
+      "embeddingDimensions": 32
+    },
+    "seedReceipt": "receipts/seed-receipt.json"
+  },
+  "note": "Exact fresh-local project, rooms, 32-dimensional vectors, 65,536-byte sources, and personas exist."
+}

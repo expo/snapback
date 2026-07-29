@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-06-PROGRESS",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:02.842Z",
+  "transport": "firebase-firestore-native-push",
+  "evidence": {
+    "authoritativeCheck": "Admin SDK read four durable progress documents in ordinal order before the complete terminal question.",
+    "ordinals": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "elapsedMs": 1017,
+    "bobListenerEvents": [
+      {
+        "atEpochMs": 1785312001838,
+        "ordinals": [],
+        "fromCache": false
+      },
+      {
+        "atEpochMs": 1785312002427,
+        "ordinals": [
+          1
+        ],
+        "fromCache": false
+      },
+      {
+        "atEpochMs": 1785312002552,
+        "ordinals": [
+          1,
+          2
+        ],
+        "fromCache": false
+      },
+      {
+        "atEpochMs": 1785312002689,
+        "ordinals": [
+          1,
+          2,
+          3
+        ],
+        "fromCache": false
+      },
+      {
+        "atEpochMs": 1785312002823,
+        "ordinals": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "fromCache": false
+      }
+    ],
+    "terminalStatus": "complete"
+  },
+  "note": "Four authoritative progress patches precede completion."
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "classification": "harness",
+  "phase": "RESEARCH-12-SCHEDULE",
+  "summary": "The first acceptance attempt assumed the hosted scheduler topic suffix included the region.",
+  "observed": {
+    "attemptedTopic": "firebase-schedule-scheduledRefresh-us-central1",
+    "status": 404,
+    "emulatorTopic": "firebase-schedule-scheduledRefresh"
+  },
+  "impact": "Scenarios RESEARCH-01 through RESEARCH-11 passed; no Stop-class defect occurred.",
+  "remediation": "Bind the acceptance publisher to the exact topic reported by the local Pub/Sub emulator, then rerun from a fresh local target."
+}

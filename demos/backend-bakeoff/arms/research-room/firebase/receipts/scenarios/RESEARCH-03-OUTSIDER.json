@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-03-OUTSIDER",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:01.803Z",
+  "transport": "firebase-firestore-listener-denied",
+  "evidence": {
+    "authoritativeCheck": "Mallory received permission-denied for source read, keyword query, and the questions subscription before any protected document delivery.",
+    "sourceDenied": true,
+    "searchDenied": true,
+    "subscription": {
+      "denied": true,
+      "deliveredDocs": 0
+    },
+    "negativeFileEvidence": "RESEARCH-02-FILES"
+  },
+  "note": "Outsider access is denied by provider-native database and object rules."
+}

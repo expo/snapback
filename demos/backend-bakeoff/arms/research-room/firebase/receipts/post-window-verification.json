@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-29T08:34:49Z",
+  "checks": {
+    "gitDiffCheck": "pass",
+    "refCheckVerbose": {
+      "status": "pass",
+      "llpDocuments": 107,
+      "references": 2286,
+      "files": 4731,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "backendBakeoffProtocolTests": {
+      "status": "pass",
+      "tests": 29,
+      "failures": 0,
+      "stage0ProtocolValid": true,
+      "readyForTimedArms": true
+    },
+    "runCapsuleVerification": {
+      "status": "pass",
+      "app": "research-room",
+      "provider": "firebase"
+    },
+    "guideCheck": {
+      "status": "pass",
+      "pages": 41,
+      "snippets": 95,
+      "warnings": 23,
+      "note": "Warnings concern pre-existing authority freshness outside this provider arm."
+    },
+    "artifactVerification": {
+      "status": "pass",
+      "scenarioPaths": 15,
+      "referencedArtifactPaths": 30,
+      "missingArtifactPaths": 0,
+      "performancePaths": 5,
+      "successfulSamplesPerPath": 7,
+      "secretPatternHits": 0
+    },
+    "cleanup": {
+      "status": "complete",
+      "assignedPortsClosed": true,
+      "ownedProcessesRemaining": 0,
+      "worktreeRuntimeAbsent": true,
+      "lingeringChromeTerminationSealed": true
+    }
+  }
+}
