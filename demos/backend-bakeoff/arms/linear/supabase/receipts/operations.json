@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T04:37:30.576Z",
+  "target": {
+    "provider": "Supabase",
+    "topology": "official Supabase CLI Docker stack on isolated Colima project",
+    "projectId": "llp0102-linear-supabase-w3",
+    "identityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+    "apiOrigin": "http://127.0.0.1:56431",
+    "databasePort": 56432,
+    "studioOrigin": "http://127.0.0.1:56433",
+    "mailOrigin": "http://127.0.0.1:56434",
+    "viteOrigin": "http://127.0.0.1:4322",
+    "runtimeMirror": "2b84a28a129abdacfbf65f312163ebf26beffa9963a1e09ab59719e0f343ee6f",
+    "hosted": "unavailable; not provisioned and not claimed",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a"
+  },
+  "configuration": "work/supabase/config.toml",
+  "exactContainers": [
+    {
+      "name": "supabase_db_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+      "status": "Up 34 seconds (healthy)"
+    },
+    {
+      "name": "supabase_studio_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/studio:2026.07.13-sha-b5ada96",
+      "status": "Up 3 minutes (healthy)"
+    },
+    {
+      "name": "supabase_pg_meta_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgres-meta:v0.96.6",
+      "status": "Up 3 minutes (healthy)"
+    },
+    {
+      "name": "supabase_rest_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgrest:v14.15",
+      "status": "Up 3 minutes"
+    },
+    {
+      "name": "supabase_realtime_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/realtime:v2.113.4",
+      "status": "Up 21 seconds (healthy)"
+    },
+    {
+      "name": "supabase_inbucket_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/mailpit:v1.30.2",
+      "status": "Up 3 minutes (healthy)"
+    },
+    {
+      "name": "supabase_auth_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/gotrue:v2.193.0",
+      "status": "Up 22 seconds (healthy)"
+    },
+    {
+      "name": "supabase_kong_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/kong:2.8.1",
+      "status": "Up 3 minutes (healthy)"
+    }
+  ],
+  "logs": {
+    "command": "docker logs --tail 20 supabase_rest_llp0102-linear-supabase-w3",
+    "lineCount": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "contentRetained": false,
+    "reason": "hash and count prove inspectability without retaining request details"
+  },
+  "export": {
+    "command": "docker exec supabase_db_llp0102-linear-supabase-w3 pg_dump --schema-only --schema public",
+    "path": "receipts/pre-cleanup-public-schema.sql",
+    "bytes": 28601,
+    "sha256": "f85db368e24429d04421e22866a0b17f641951697fb4b9f619be94503e3fabc2"
+  },
+  "rollback": "official CLI `supabase db reset` replays committed base migrations; the additive evolution has its own retained SQL artifact",
+  "hosted": {
+    "status": "unavailable",
+    "reason": "No fresh hosted Supabase project was assigned; the protocol permits a local-only arm when hosted access is unavailable."
+  }
+}

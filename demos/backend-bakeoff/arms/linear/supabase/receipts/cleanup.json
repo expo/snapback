@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T04:41:18.128Z",
+  "projectId": "llp0102-linear-supabase-w3",
+  "selectedBy": "exact project-id substring and explicit assigned port list",
+  "cliStopExitStatus": 0,
+  "containers": [],
+  "volumes": [],
+  "networks": [],
+  "portsListening": {
+    "4322": false,
+    "56431": false,
+    "56432": false,
+    "56433": false,
+    "56434": false,
+    "56435": false,
+    "56436": false,
+    "56437": false,
+    "56438": false,
+    "56439": false,
+    "56440": false
+  },
+  "runtimeMirrorPresent": false,
+  "xdgStatePresent": false,
+  "exactProjectAbsent": true,
+  "allPortsClosed": true,
+  "unrelatedResourcesSelected": 0
+}

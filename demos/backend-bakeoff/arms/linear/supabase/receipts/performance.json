@@ -1,0 +1,115 @@
+{
+  "claimScope": "small frozen local product workload; not production scale",
+  "warmups": 2,
+  "recordedSamples": 7,
+  "dataset": {
+    "organizations": 2,
+    "teams": 3,
+    "projects": 4,
+    "issues": 500,
+    "commentsAtMeasurement": 1002,
+    "labels": 20,
+    "pageSize": 50,
+    "clients": 2
+  },
+  "paths": {
+    "list-50": {
+      "samplesMs": [
+        2.4505,
+        2.461459,
+        2.397292,
+        2.287875,
+        2.230291,
+        2.359792,
+        2.223833
+      ],
+      "medianMs": 2.359792,
+      "nearestRankP95Ms": 2.461459
+    },
+    "detail": {
+      "samplesMs": [
+        1.494875,
+        1.369875,
+        1.400542,
+        1.152666,
+        1.418042,
+        1.6185,
+        1.509333
+      ],
+      "medianMs": 1.418042,
+      "nearestRankP95Ms": 1.6185
+    },
+    "write": {
+      "samplesMs": [
+        2.97,
+        2.798708,
+        1.512791,
+        1.564917,
+        1.494542,
+        1.490208,
+        1.399209
+      ],
+      "medianMs": 1.512791,
+      "nearestRankP95Ms": 2.97
+    },
+    "realtime-delivery": {
+      "samplesMs": [
+        524.623708,
+        527.124709,
+        513.29925,
+        530.427167,
+        511.916917,
+        531.14775,
+        511.69825
+      ],
+      "medianMs": 524.623708,
+      "nearestRankP95Ms": 531.14775
+    },
+    "reconnect": {
+      "samplesMs": [
+        5.384334,
+        5.323833,
+        5.594,
+        5.857708,
+        4.904542,
+        4.830875,
+        4.564791
+      ],
+      "medianMs": 5.323833,
+      "nearestRankP95Ms": 5.857708
+    },
+    "build-or-deploy": {
+      "samplesMs": [
+        923.849667,
+        936.416542,
+        1048.436834,
+        1307.411417,
+        1102.526417,
+        949.691458,
+        910.631375
+      ],
+      "medianMs": 949.691458,
+      "nearestRankP95Ms": 1307.411417
+    }
+  },
+  "machine": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "memoryBytes": 34359738368,
+    "loadAverageAtFinish": [
+      3.04833984375,
+      3.302734375,
+      3.990234375
+    ]
+  },
+  "costWindow": {
+    "start": "2026-07-29T04:07:05.778Z",
+    "end": "2026-07-29T04:37:44.116Z",
+    "actualProviderUsage": "$0 incremental provider charge for the local Docker target",
+    "hostedListPriceEstimate": "not applicable; hosted target not provisioned",
+    "extrapolatedAsMeasured": false
+  }
+}

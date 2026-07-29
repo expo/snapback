@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "classification": "untimed-post-window-verification",
+  "generatedAt": "2026-07-29",
+  "checks": [
+    {
+      "command": "./ref-check --verbose",
+      "exitStatus": 0,
+      "result": "107 LLP docs, 2210 refs in 3747 files, 0 errors, 0 unchecked"
+    },
+    {
+      "command": "git diff --check",
+      "exitStatus": 0,
+      "result": "clean"
+    },
+    {
+      "command": "node --check acceptance.mjs && node --check finalize-capsule.mjs",
+      "exitStatus": 0,
+      "result": "syntax valid"
+    },
+    {
+      "command": "./node_modules/.bin/tsc -b (incorrect repository-root working directory)",
+      "exitStatus": 127,
+      "result": "builder invocation error retained: repository root has no arm-local node_modules"
+    },
+    {
+      "command": "./node_modules/.bin/tsc -b (arm work directory)",
+      "exitStatus": 0,
+      "result": "typecheck passed"
+    },
+    {
+      "command": "node ../../../../scripts/run-capsule.mjs verify ../run-capsule.v1.json",
+      "exitStatus": 0,
+      "result": "capsule accepted for linear/supabase"
+    }
+  ]
+}

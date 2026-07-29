@@ -1,0 +1,32 @@
+{
+  "namespace": "llp0102-linear-supabase-w3",
+  "targetIdentityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+  "authoritativeCounts": {
+    "organizations": 2,
+    "teams": 3,
+    "projects": 4,
+    "labels": 20,
+    "issues": 500,
+    "issue_labels": 1000,
+    "comments": 1000,
+    "activities": 1000
+  },
+  "seedReceipt": {
+    "exactWorkload": true,
+    "deterministicIds": true
+  },
+  "personas": {
+    "alice": {
+      "idHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+      "role": "owner"
+    },
+    "bob": {
+      "idHash": "b1080fbd11b3c41c82c1fdcdd0cf2f1382e5763dc2b77de75525e3b4fde57d29",
+      "role": "member"
+    },
+    "mallory": {
+      "idHash": "163108afb001669512e8cf2c99ecb9bc9f1edea0bb8a2dbd77375a3a8ace187b",
+      "role": "outsider"
+    }
+  }
+}

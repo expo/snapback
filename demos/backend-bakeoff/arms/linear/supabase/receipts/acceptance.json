@@ -1,0 +1,956 @@
+{
+  "schemaVersion": 1,
+  "expectedCheckCount": 14,
+  "provider": "supabase",
+  "app": "linear",
+  "generatedAt": "2026-07-29T04:41:18.150Z",
+  "targetIdentityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+  "results": {
+    "LINEAR-01-SEED": {
+      "status": "pass",
+      "evidence": {
+        "namespace": "llp0102-linear-supabase-w3",
+        "targetIdentityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+        "authoritativeCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "issue_labels": 1000,
+          "comments": 1000,
+          "activities": 1000
+        },
+        "seedReceipt": {
+          "exactWorkload": true,
+          "deterministicIds": true
+        },
+        "personas": {
+          "alice": {
+            "idHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+            "role": "owner"
+          },
+          "bob": {
+            "idHash": "b1080fbd11b3c41c82c1fdcdd0cf2f1382e5763dc2b77de75525e3b4fde57d29",
+            "role": "member"
+          },
+          "mallory": {
+            "idHash": "163108afb001669512e8cf2c99ecb9bc9f1edea0bb8a2dbd77375a3a8ace187b",
+            "role": "outsider"
+          }
+        }
+      },
+      "note": ""
+    },
+    "LINEAR-02-AUTHORITY": {
+      "status": "pass",
+      "evidence": {
+        "positiveTransitions": {
+          "bob": {
+            "revision": 2,
+            "role": "team member"
+          },
+          "alice": {
+            "revision": 3,
+            "role": "organization owner"
+          }
+        },
+        "negativeRead": {
+          "malloryRows": 0
+        },
+        "negativeWrite": {
+          "rejected": true,
+          "errorCode": "P0001",
+          "authoritativeRevisionUnchanged": 3
+        }
+      },
+      "note": ""
+    },
+    "LINEAR-03-FILTERS": {
+      "status": "pass",
+      "evidence": {
+        "filters": {
+          "status": {
+            "count": 100,
+            "firstIdHash": "e5df46826f3ddb517378403c30f082542e84e8da605707e512d61e1c67b44f81",
+            "deterministicRepeat": true
+          },
+          "assignee": {
+            "count": 167,
+            "firstIdHash": "ee89cf256528b4af858ec5a1efec65d3ce3fbf705dda18d3f645a327cb1f46e9",
+            "deterministicRepeat": true
+          },
+          "project": {
+            "count": 125,
+            "firstIdHash": "e5df46826f3ddb517378403c30f082542e84e8da605707e512d61e1c67b44f81",
+            "deterministicRepeat": true
+          },
+          "label": {
+            "count": 50,
+            "firstIdHash": "9ff9e4d2c3b213a474d79603c0e5b2dc82b01b0ea4e51f9e63013e4d96320aef",
+            "deterministicRepeat": true
+          }
+        },
+        "queryPlanOrIndexProof": [
+          "issue_labels_label_issue_idx:CREATE INDEX issue_labels_label_issue_idx ON public.issue_labels USING btree (label_id, issue_id)",
+          "issue_labels_pkey:CREATE UNIQUE INDEX issue_labels_pkey ON public.issue_labels USING btree (issue_id, label_id)",
+          "issues_organization_assignee_order_idx:CREATE INDEX issues_organization_assignee_order_idx ON public.issues USING btree (organization_id, assignee_id, created_at DESC, id DESC)",
+          "issues_organization_cursor_idx:CREATE INDEX issues_organization_cursor_idx ON public.issues USING btree (organization_id, created_at DESC, id DESC)",
+          "issues_organization_id_issue_number_key:CREATE UNIQUE INDEX issues_organization_id_issue_number_key ON public.issues USING btree (organization_id, issue_number)",
+          "issues_organization_project_order_idx:CREATE INDEX issues_organization_project_order_idx ON public.issues USING btree (organization_id, project_id, created_at DESC, id DESC)",
+          "issues_organization_status_order_idx:CREATE INDEX issues_organization_status_order_idx ON public.issues USING btree (organization_id, status, created_at DESC, id DESC)",
+          "issues_pkey:CREATE UNIQUE INDEX issues_pkey ON public.issues USING btree (id)",
+          "issues_search_document_idx:CREATE INDEX issues_search_document_idx ON public.issues USING gin (search_document)"
+        ],
+        "serverSide": "PostgREST equality predicates and ordered SQL results; no client-side filtering"
+      },
+      "note": ""
+    },
+    "LINEAR-04-PAGINATION": {
+      "status": "pass",
+      "evidence": {
+        "cursorValues": {
+          "createdAt": "2026-01-01T07:30:00+00:00",
+          "idHash": "641ca47b8c2a166c901188acd2ba5a040b3d22691f6eff5b95019257779b9b64"
+        },
+        "pageUnion": {
+          "count": 100,
+          "unique": 100,
+          "concurrentInsertExcluded": true
+        },
+        "authoritativeOrder": "created_at DESC, id DESC tuple cursor matched the authoritative pre-insert top 100",
+        "harnessCleanup": "concurrent issue 501 removed after proof"
+      },
+      "note": ""
+    },
+    "LINEAR-05-DETAIL": {
+      "status": "pass",
+      "evidence": {
+        "authoritativeRelatedIds": {
+          "issueIdHash": "eb55864e13353813a5d0fa7bb4cf126acef13922da22a7c20c793b7c60567c8c",
+          "projectIdHash": "81bfd1f3c7765c3dc22be7fc745f41ba8189c10938299f3f65b56964acfe1554",
+          "assigneeIdHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+          "labelIdHashes": [
+            "7998dd78c3a6e86cfc8475800b2167d2036836d588c4404f5b6d6af5e1c0abde",
+            "cf7b9963b9dd2f08da52a0589f16f17e13a0185a8e40e1954a13924bc836d86a"
+          ],
+          "commentIdHashes": [
+            "c7967f517c34f0f55d7863dc5f5c532706f63a7fa485afb9410dfa52380c0680",
+            "90863b1f1fbd014b6d8a18277f24b95c83d2bb6d3bd501f6aec6f5a7ac163fef"
+          ],
+          "activityIdHashes": [
+            "8961d7c3cc90fc619f7623fe93679212145fdc014f021a17b9078cb3e244efbc",
+            "ae4059402e2f1d53729ab4f2632bbe604de594db211218edf8be3b4b7f7cd45e"
+          ]
+        },
+        "boundedQueryInventory": [
+          "issues equality / single",
+          "projects equality / single",
+          "profiles equality / maybeSingle",
+          "issue_labels with labels relation / limit 10",
+          "comments ordered sequence / limit 10",
+          "activities ordered sequence / limit 20"
+        ]
+      },
+      "note": ""
+    },
+    "LINEAR-06-OPTIMISTIC": {
+      "status": "pass",
+      "evidence": {
+        "optimisticStateAttribution": {
+          "origin": "React/application-local projection before network response",
+          "value": {
+            "status": "review",
+            "priority": 4,
+            "assigneeId": "62d4f335-c664-4904-80de-5ad6d3702fe0",
+            "boardPosition": 2020
+          },
+          "providerOwned": false
+        },
+        "settlement": {
+          "origin": "linear_update_issue PostgreSQL RPC response",
+          "revision": 2,
+          "activitySequence": 1003
+        },
+        "authoritativeState": {
+          "origin": "independent service-role read",
+          "status": "review",
+          "priority": 4,
+          "assigneeIdHash": "b1080fbd11b3c41c82c1fdcdd0cf2f1382e5763dc2b77de75525e3b4fde57d29",
+          "boardPosition": 2020,
+          "revision": 2
+        }
+      },
+      "note": ""
+    },
+    "LINEAR-07-CONFLICT": {
+      "status": "pass",
+      "evidence": {
+        "twoActorBarrier": "Promise.all launched Alice and Bob RPCs in the same event-loop turn",
+        "actorReceipts": {
+          "alice": {
+            "activitySequence": 1005,
+            "revision": 3,
+            "boardPosition": 30001
+          },
+          "bob": {
+            "activitySequence": 1004,
+            "revision": 2,
+            "boardPosition": 30002
+          }
+        },
+        "deterministicRule": "PostgreSQL row lock serializes writes; highest committed activity identity is last-writer-wins",
+        "authoritativeOutcome": {
+          "revision": 3,
+          "boardPosition": 30001
+        },
+        "clientReconciliation": {
+          "alice": true,
+          "bob": true
+        }
+      },
+      "note": ""
+    },
+    "LINEAR-08-LIVE": {
+      "status": "pass",
+      "evidence": {
+        "secondClient": "independent Bob supabase-js client and WebSocket channels",
+        "transportAttribution": "Supabase Realtime Postgres Changes over WebSocket; no product polling",
+        "received": {
+          "comments": 1,
+          "activities": 1
+        },
+        "coldStartDeliveryAttempts": [
+          {
+            "attempt": 1,
+            "commentIdHash": "699c1bc3204a81538ef2bb751d0bcb79b39d0c9ca79d57abcbf7b7d945bdd8b6",
+            "commentReceived": false,
+            "activityReceived": false
+          },
+          {
+            "attempt": 2,
+            "commentIdHash": "a8a6de98d9249f5dcc4b7ca75613e9bdecdd1da43e9caa35ff70383665668cbe",
+            "commentReceived": true,
+            "activityReceived": true
+          }
+        ],
+        "authority": {
+          "commentIdHash": "a8a6de98d9249f5dcc4b7ca75613e9bdecdd1da43e9caa35ff70383665668cbe",
+          "activityIdHash": "35c61990021bccc44f582ae5ee2a3dad4245ade51d43a5f945f63cfbfa0bed42",
+          "authorIdHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+          "activitySequence": 1007
+        }
+      },
+      "note": ""
+    },
+    "LINEAR-09-SEARCH": {
+      "status": "pass",
+      "evidence": {
+        "indexOrServiceIdentity": "issues_search_document_idx:CREATE INDEX issues_search_document_idx ON public.issues USING gin (search_document)",
+        "queryPath": "PostgreSQL websearch_to_tsquery + generated weighted tsvector through PostgREST RPC",
+        "authoritativeResults": [
+          10,
+          20,
+          30,
+          40,
+          50,
+          60,
+          70,
+          80,
+          90,
+          100,
+          110,
+          120,
+          130,
+          140,
+          150,
+          160,
+          170,
+          180,
+          190,
+          200,
+          210,
+          220,
+          230,
+          240,
+          250,
+          260,
+          270,
+          280,
+          290,
+          300,
+          310,
+          320,
+          330,
+          340,
+          350,
+          360,
+          370,
+          380,
+          390,
+          400,
+          410,
+          420,
+          430,
+          440,
+          450,
+          460,
+          470,
+          480,
+          490,
+          500
+        ],
+        "clientSideFiltering": false
+      },
+      "note": ""
+    },
+    "LINEAR-10-OFFLINE": {
+      "status": "gap",
+      "note": "Bare supabase-js has no provider-owned retained PostgREST query store or durable mutation queue. A cold client with transport disabled returned no rows, the attempted RPC errored, and authority stayed unchanged.",
+      "evidence": {
+        "coldClient": "fresh createClient instance with no application cache",
+        "transportDisabled": true,
+        "retainedRows": 0,
+        "readError": "TypeError: transport disabled by frozen offline harness",
+        "queuedEdit": "unsupported; request returned transport error and no SDK queue was created",
+        "editError": "TypeError: transport disabled by frozen offline harness",
+        "authoritativeRevisionUnchanged": 1,
+        "applicationGlueExcluded": "IndexedDB/SQLite retention and an outbox would be app-authored, so were not credited"
+      }
+    },
+    "LINEAR-11-MIGRATION": {
+      "status": "pass",
+      "evidence": {
+        "beforeCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "issue_labels": 1000,
+          "comments": 1002,
+          "activities": 1007
+        },
+        "migrationReceipt": "receipts/migration.json",
+        "afterCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "issue_labels": 1000,
+          "comments": 1002,
+          "activities": 1007
+        },
+        "indexProof": [
+          "issues_organization_estimate_idx:CREATE INDEX issues_organization_estimate_idx ON public.issues USING btree (organization_id, estimate_points, issue_number)"
+        ]
+      },
+      "note": ""
+    },
+    "LINEAR-12-DEPLOY": {
+      "status": "gap",
+      "note": "The official isolated local CLI deployment is directly inspectable, but no hosted deployment was provisioned; hosted identity, region, billing, and rollback were not claimed.",
+      "evidence": {
+        "targetIdentity": {
+          "provider": "Supabase",
+          "topology": "official Supabase CLI Docker stack on isolated Colima project",
+          "projectId": "llp0102-linear-supabase-w3",
+          "identityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+          "apiOrigin": "http://127.0.0.1:56431",
+          "databasePort": 56432,
+          "studioOrigin": "http://127.0.0.1:56433",
+          "mailOrigin": "http://127.0.0.1:56434",
+          "viteOrigin": "http://127.0.0.1:4322",
+          "runtimeMirror": "2b84a28a129abdacfbf65f312163ebf26beffa9963a1e09ab59719e0f343ee6f",
+          "hosted": "unavailable; not provisioned and not claimed",
+          "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+          "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a"
+        },
+        "deploymentReceipt": "receipts/operations.json",
+        "operationsReceipts": [
+          "receipts/operations.json",
+          "receipts/pre-cleanup-public-schema.sql"
+        ],
+        "localOperations": true,
+        "hostedGap": "No fresh hosted Supabase project was assigned; the protocol permits a local-only arm when hosted access is unavailable."
+      }
+    },
+    "LINEAR-13-PERFORMANCE": {
+      "status": "pass",
+      "evidence": {
+        "claimScope": "small frozen local product workload; not production scale",
+        "warmups": 2,
+        "recordedSamples": 7,
+        "dataset": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "issues": 500,
+          "commentsAtMeasurement": 1002,
+          "labels": 20,
+          "pageSize": 50,
+          "clients": 2
+        },
+        "paths": {
+          "list-50": {
+            "samplesMs": [
+              2.4505,
+              2.461459,
+              2.397292,
+              2.287875,
+              2.230291,
+              2.359792,
+              2.223833
+            ],
+            "medianMs": 2.359792,
+            "nearestRankP95Ms": 2.461459
+          },
+          "detail": {
+            "samplesMs": [
+              1.494875,
+              1.369875,
+              1.400542,
+              1.152666,
+              1.418042,
+              1.6185,
+              1.509333
+            ],
+            "medianMs": 1.418042,
+            "nearestRankP95Ms": 1.6185
+          },
+          "write": {
+            "samplesMs": [
+              2.97,
+              2.798708,
+              1.512791,
+              1.564917,
+              1.494542,
+              1.490208,
+              1.399209
+            ],
+            "medianMs": 1.512791,
+            "nearestRankP95Ms": 2.97
+          },
+          "realtime-delivery": {
+            "samplesMs": [
+              524.623708,
+              527.124709,
+              513.29925,
+              530.427167,
+              511.916917,
+              531.14775,
+              511.69825
+            ],
+            "medianMs": 524.623708,
+            "nearestRankP95Ms": 531.14775
+          },
+          "reconnect": {
+            "samplesMs": [
+              5.384334,
+              5.323833,
+              5.594,
+              5.857708,
+              4.904542,
+              4.830875,
+              4.564791
+            ],
+            "medianMs": 5.323833,
+            "nearestRankP95Ms": 5.857708
+          },
+          "build-or-deploy": {
+            "samplesMs": [
+              923.849667,
+              936.416542,
+              1048.436834,
+              1307.411417,
+              1102.526417,
+              949.691458,
+              910.631375
+            ],
+            "medianMs": 949.691458,
+            "nearestRankP95Ms": 1307.411417
+          }
+        },
+        "machine": {
+          "platform": "darwin",
+          "release": "25.5.0",
+          "architecture": "arm64",
+          "cpu": "Apple M5",
+          "cpuCount": 10,
+          "memoryBytes": 34359738368,
+          "loadAverageAtFinish": [
+            3.04833984375,
+            3.302734375,
+            3.990234375
+          ]
+        },
+        "costWindow": {
+          "start": "2026-07-29T04:07:05.778Z",
+          "end": "2026-07-29T04:37:44.116Z",
+          "actualProviderUsage": "$0 incremental provider charge for the local Docker target",
+          "hostedListPriceEstimate": "not applicable; hosted target not provisioned",
+          "extrapolatedAsMeasured": false
+        }
+      },
+      "note": ""
+    },
+    "LINEAR-14-CLEANUP": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "targetBoundPlan": "demos/backend-bakeoff/arms/linear/supabase/cleanup-plan.json",
+        "cliProjectFilter": "llp0102-linear-supabase-w3",
+        "exactProjectAbsent": true,
+        "allPortsClosed": true,
+        "unrelatedResourcesSelected": 0
+      }
+    }
+  },
+  "observations": {
+    "LINEAR-01-SEED": {
+      "namespace": "llp0102-linear-supabase-w3",
+      "targetIdentityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+      "authoritativeCounts": {
+        "organizations": 2,
+        "teams": 3,
+        "projects": 4,
+        "labels": 20,
+        "issues": 500,
+        "issue_labels": 1000,
+        "comments": 1000,
+        "activities": 1000
+      },
+      "seedReceipt": {
+        "exactWorkload": true,
+        "deterministicIds": true
+      },
+      "personas": {
+        "alice": {
+          "idHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+          "role": "owner"
+        },
+        "bob": {
+          "idHash": "b1080fbd11b3c41c82c1fdcdd0cf2f1382e5763dc2b77de75525e3b4fde57d29",
+          "role": "member"
+        },
+        "mallory": {
+          "idHash": "163108afb001669512e8cf2c99ecb9bc9f1edea0bb8a2dbd77375a3a8ace187b",
+          "role": "outsider"
+        }
+      }
+    },
+    "LINEAR-02-AUTHORITY": {
+      "positiveTransitions": {
+        "bob": {
+          "revision": 2,
+          "role": "team member"
+        },
+        "alice": {
+          "revision": 3,
+          "role": "organization owner"
+        }
+      },
+      "negativeRead": {
+        "malloryRows": 0
+      },
+      "negativeWrite": {
+        "rejected": true,
+        "errorCode": "P0001",
+        "authoritativeRevisionUnchanged": 3
+      }
+    },
+    "LINEAR-03-FILTERS": {
+      "filters": {
+        "status": {
+          "count": 100,
+          "firstIdHash": "e5df46826f3ddb517378403c30f082542e84e8da605707e512d61e1c67b44f81",
+          "deterministicRepeat": true
+        },
+        "assignee": {
+          "count": 167,
+          "firstIdHash": "ee89cf256528b4af858ec5a1efec65d3ce3fbf705dda18d3f645a327cb1f46e9",
+          "deterministicRepeat": true
+        },
+        "project": {
+          "count": 125,
+          "firstIdHash": "e5df46826f3ddb517378403c30f082542e84e8da605707e512d61e1c67b44f81",
+          "deterministicRepeat": true
+        },
+        "label": {
+          "count": 50,
+          "firstIdHash": "9ff9e4d2c3b213a474d79603c0e5b2dc82b01b0ea4e51f9e63013e4d96320aef",
+          "deterministicRepeat": true
+        }
+      },
+      "queryPlanOrIndexProof": [
+        "issue_labels_label_issue_idx:CREATE INDEX issue_labels_label_issue_idx ON public.issue_labels USING btree (label_id, issue_id)",
+        "issue_labels_pkey:CREATE UNIQUE INDEX issue_labels_pkey ON public.issue_labels USING btree (issue_id, label_id)",
+        "issues_organization_assignee_order_idx:CREATE INDEX issues_organization_assignee_order_idx ON public.issues USING btree (organization_id, assignee_id, created_at DESC, id DESC)",
+        "issues_organization_cursor_idx:CREATE INDEX issues_organization_cursor_idx ON public.issues USING btree (organization_id, created_at DESC, id DESC)",
+        "issues_organization_id_issue_number_key:CREATE UNIQUE INDEX issues_organization_id_issue_number_key ON public.issues USING btree (organization_id, issue_number)",
+        "issues_organization_project_order_idx:CREATE INDEX issues_organization_project_order_idx ON public.issues USING btree (organization_id, project_id, created_at DESC, id DESC)",
+        "issues_organization_status_order_idx:CREATE INDEX issues_organization_status_order_idx ON public.issues USING btree (organization_id, status, created_at DESC, id DESC)",
+        "issues_pkey:CREATE UNIQUE INDEX issues_pkey ON public.issues USING btree (id)",
+        "issues_search_document_idx:CREATE INDEX issues_search_document_idx ON public.issues USING gin (search_document)"
+      ],
+      "serverSide": "PostgREST equality predicates and ordered SQL results; no client-side filtering"
+    },
+    "LINEAR-04-PAGINATION": {
+      "cursorValues": {
+        "createdAt": "2026-01-01T07:30:00+00:00",
+        "idHash": "641ca47b8c2a166c901188acd2ba5a040b3d22691f6eff5b95019257779b9b64"
+      },
+      "pageUnion": {
+        "count": 100,
+        "unique": 100,
+        "concurrentInsertExcluded": true
+      },
+      "authoritativeOrder": "created_at DESC, id DESC tuple cursor matched the authoritative pre-insert top 100",
+      "harnessCleanup": "concurrent issue 501 removed after proof"
+    },
+    "LINEAR-05-DETAIL": {
+      "authoritativeRelatedIds": {
+        "issueIdHash": "eb55864e13353813a5d0fa7bb4cf126acef13922da22a7c20c793b7c60567c8c",
+        "projectIdHash": "81bfd1f3c7765c3dc22be7fc745f41ba8189c10938299f3f65b56964acfe1554",
+        "assigneeIdHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+        "labelIdHashes": [
+          "7998dd78c3a6e86cfc8475800b2167d2036836d588c4404f5b6d6af5e1c0abde",
+          "cf7b9963b9dd2f08da52a0589f16f17e13a0185a8e40e1954a13924bc836d86a"
+        ],
+        "commentIdHashes": [
+          "c7967f517c34f0f55d7863dc5f5c532706f63a7fa485afb9410dfa52380c0680",
+          "90863b1f1fbd014b6d8a18277f24b95c83d2bb6d3bd501f6aec6f5a7ac163fef"
+        ],
+        "activityIdHashes": [
+          "8961d7c3cc90fc619f7623fe93679212145fdc014f021a17b9078cb3e244efbc",
+          "ae4059402e2f1d53729ab4f2632bbe604de594db211218edf8be3b4b7f7cd45e"
+        ]
+      },
+      "boundedQueryInventory": [
+        "issues equality / single",
+        "projects equality / single",
+        "profiles equality / maybeSingle",
+        "issue_labels with labels relation / limit 10",
+        "comments ordered sequence / limit 10",
+        "activities ordered sequence / limit 20"
+      ]
+    },
+    "LINEAR-06-OPTIMISTIC": {
+      "optimisticStateAttribution": {
+        "origin": "React/application-local projection before network response",
+        "value": {
+          "status": "review",
+          "priority": 4,
+          "assigneeId": "62d4f335-c664-4904-80de-5ad6d3702fe0",
+          "boardPosition": 2020
+        },
+        "providerOwned": false
+      },
+      "settlement": {
+        "origin": "linear_update_issue PostgreSQL RPC response",
+        "revision": 2,
+        "activitySequence": 1003
+      },
+      "authoritativeState": {
+        "origin": "independent service-role read",
+        "status": "review",
+        "priority": 4,
+        "assigneeIdHash": "b1080fbd11b3c41c82c1fdcdd0cf2f1382e5763dc2b77de75525e3b4fde57d29",
+        "boardPosition": 2020,
+        "revision": 2
+      }
+    },
+    "LINEAR-07-CONFLICT": {
+      "twoActorBarrier": "Promise.all launched Alice and Bob RPCs in the same event-loop turn",
+      "actorReceipts": {
+        "alice": {
+          "activitySequence": 1005,
+          "revision": 3,
+          "boardPosition": 30001
+        },
+        "bob": {
+          "activitySequence": 1004,
+          "revision": 2,
+          "boardPosition": 30002
+        }
+      },
+      "deterministicRule": "PostgreSQL row lock serializes writes; highest committed activity identity is last-writer-wins",
+      "authoritativeOutcome": {
+        "revision": 3,
+        "boardPosition": 30001
+      },
+      "clientReconciliation": {
+        "alice": true,
+        "bob": true
+      }
+    },
+    "LINEAR-08-LIVE": {
+      "secondClient": "independent Bob supabase-js client and WebSocket channels",
+      "transportAttribution": "Supabase Realtime Postgres Changes over WebSocket; no product polling",
+      "received": {
+        "comments": 1,
+        "activities": 1
+      },
+      "coldStartDeliveryAttempts": [
+        {
+          "attempt": 1,
+          "commentIdHash": "699c1bc3204a81538ef2bb751d0bcb79b39d0c9ca79d57abcbf7b7d945bdd8b6",
+          "commentReceived": false,
+          "activityReceived": false
+        },
+        {
+          "attempt": 2,
+          "commentIdHash": "a8a6de98d9249f5dcc4b7ca75613e9bdecdd1da43e9caa35ff70383665668cbe",
+          "commentReceived": true,
+          "activityReceived": true
+        }
+      ],
+      "authority": {
+        "commentIdHash": "a8a6de98d9249f5dcc4b7ca75613e9bdecdd1da43e9caa35ff70383665668cbe",
+        "activityIdHash": "35c61990021bccc44f582ae5ee2a3dad4245ade51d43a5f945f63cfbfa0bed42",
+        "authorIdHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+        "activitySequence": 1007
+      }
+    },
+    "LINEAR-09-SEARCH": {
+      "indexOrServiceIdentity": "issues_search_document_idx:CREATE INDEX issues_search_document_idx ON public.issues USING gin (search_document)",
+      "queryPath": "PostgreSQL websearch_to_tsquery + generated weighted tsvector through PostgREST RPC",
+      "authoritativeResults": [
+        10,
+        20,
+        30,
+        40,
+        50,
+        60,
+        70,
+        80,
+        90,
+        100,
+        110,
+        120,
+        130,
+        140,
+        150,
+        160,
+        170,
+        180,
+        190,
+        200,
+        210,
+        220,
+        230,
+        240,
+        250,
+        260,
+        270,
+        280,
+        290,
+        300,
+        310,
+        320,
+        330,
+        340,
+        350,
+        360,
+        370,
+        380,
+        390,
+        400,
+        410,
+        420,
+        430,
+        440,
+        450,
+        460,
+        470,
+        480,
+        490,
+        500
+      ],
+      "clientSideFiltering": false
+    },
+    "LINEAR-10-OFFLINE": {
+      "coldClient": "fresh createClient instance with no application cache",
+      "transportDisabled": true,
+      "retainedRows": 0,
+      "readError": "TypeError: transport disabled by frozen offline harness",
+      "queuedEdit": "unsupported; request returned transport error and no SDK queue was created",
+      "editError": "TypeError: transport disabled by frozen offline harness",
+      "authoritativeRevisionUnchanged": 1,
+      "applicationGlueExcluded": "IndexedDB/SQLite retention and an outbox would be app-authored, so were not credited"
+    },
+    "LINEAR-11-MIGRATION": {
+      "beforeCounts": {
+        "organizations": 2,
+        "teams": 3,
+        "projects": 4,
+        "labels": 20,
+        "issues": 500,
+        "issue_labels": 1000,
+        "comments": 1002,
+        "activities": 1007
+      },
+      "migrationReceipt": "receipts/migration.json",
+      "afterCounts": {
+        "organizations": 2,
+        "teams": 3,
+        "projects": 4,
+        "labels": 20,
+        "issues": 500,
+        "issue_labels": 1000,
+        "comments": 1002,
+        "activities": 1007
+      },
+      "indexProof": [
+        "issues_organization_estimate_idx:CREATE INDEX issues_organization_estimate_idx ON public.issues USING btree (organization_id, estimate_points, issue_number)"
+      ]
+    },
+    "LINEAR-12-DEPLOY": {
+      "targetIdentity": {
+        "provider": "Supabase",
+        "topology": "official Supabase CLI Docker stack on isolated Colima project",
+        "projectId": "llp0102-linear-supabase-w3",
+        "identityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+        "apiOrigin": "http://127.0.0.1:56431",
+        "databasePort": 56432,
+        "studioOrigin": "http://127.0.0.1:56433",
+        "mailOrigin": "http://127.0.0.1:56434",
+        "viteOrigin": "http://127.0.0.1:4322",
+        "runtimeMirror": "2b84a28a129abdacfbf65f312163ebf26beffa9963a1e09ab59719e0f343ee6f",
+        "hosted": "unavailable; not provisioned and not claimed",
+        "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+        "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a"
+      },
+      "deploymentReceipt": "receipts/operations.json",
+      "operationsReceipts": [
+        "receipts/operations.json",
+        "receipts/pre-cleanup-public-schema.sql"
+      ],
+      "localOperations": true,
+      "hostedGap": "No fresh hosted Supabase project was assigned; the protocol permits a local-only arm when hosted access is unavailable."
+    },
+    "LINEAR-13-PERFORMANCE": {
+      "claimScope": "small frozen local product workload; not production scale",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "dataset": {
+        "organizations": 2,
+        "teams": 3,
+        "projects": 4,
+        "issues": 500,
+        "commentsAtMeasurement": 1002,
+        "labels": 20,
+        "pageSize": 50,
+        "clients": 2
+      },
+      "paths": {
+        "list-50": {
+          "samplesMs": [
+            2.4505,
+            2.461459,
+            2.397292,
+            2.287875,
+            2.230291,
+            2.359792,
+            2.223833
+          ],
+          "medianMs": 2.359792,
+          "nearestRankP95Ms": 2.461459
+        },
+        "detail": {
+          "samplesMs": [
+            1.494875,
+            1.369875,
+            1.400542,
+            1.152666,
+            1.418042,
+            1.6185,
+            1.509333
+          ],
+          "medianMs": 1.418042,
+          "nearestRankP95Ms": 1.6185
+        },
+        "write": {
+          "samplesMs": [
+            2.97,
+            2.798708,
+            1.512791,
+            1.564917,
+            1.494542,
+            1.490208,
+            1.399209
+          ],
+          "medianMs": 1.512791,
+          "nearestRankP95Ms": 2.97
+        },
+        "realtime-delivery": {
+          "samplesMs": [
+            524.623708,
+            527.124709,
+            513.29925,
+            530.427167,
+            511.916917,
+            531.14775,
+            511.69825
+          ],
+          "medianMs": 524.623708,
+          "nearestRankP95Ms": 531.14775
+        },
+        "reconnect": {
+          "samplesMs": [
+            5.384334,
+            5.323833,
+            5.594,
+            5.857708,
+            4.904542,
+            4.830875,
+            4.564791
+          ],
+          "medianMs": 5.323833,
+          "nearestRankP95Ms": 5.857708
+        },
+        "build-or-deploy": {
+          "samplesMs": [
+            923.849667,
+            936.416542,
+            1048.436834,
+            1307.411417,
+            1102.526417,
+            949.691458,
+            910.631375
+          ],
+          "medianMs": 949.691458,
+          "nearestRankP95Ms": 1307.411417
+        }
+      },
+      "machine": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "architecture": "arm64",
+        "cpu": "Apple M5",
+        "cpuCount": 10,
+        "memoryBytes": 34359738368,
+        "loadAverageAtFinish": [
+          3.04833984375,
+          3.302734375,
+          3.990234375
+        ]
+      },
+      "costWindow": {
+        "start": "2026-07-29T04:07:05.778Z",
+        "end": "2026-07-29T04:37:44.116Z",
+        "actualProviderUsage": "$0 incremental provider charge for the local Docker target",
+        "hostedListPriceEstimate": "not applicable; hosted target not provisioned",
+        "extrapolatedAsMeasured": false
+      }
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 1807008,
+    "firstAuthoritativeMutationMs": 1807026,
+    "firstRealtimeTransitionMs": 1817379,
+    "localAcceptanceMs": 1838332,
+    "acceptanceCompletionMs": 2052372
+  }
+}

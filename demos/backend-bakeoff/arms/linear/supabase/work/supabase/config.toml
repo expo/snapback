@@ -1,0 +1,63 @@
+project_id = "llp0102-linear-supabase-w3"
+
+[api]
+enabled = true
+port = 56431
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 56432
+shadow_port = 56439
+major_version = 17
+health_timeout = "2m"
+
+[db.pooler]
+enabled = false
+port = 56438
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+enabled = false
+sql_paths = []
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 56433
+api_url = "http://127.0.0.1"
+
+[local_smtp]
+enabled = true
+port = 56434
+smtp_port = 56435
+pop3_port = 56436
+
+[storage]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:4322"
+additional_redirect_urls = ["http://127.0.0.1:4322"]
+enable_signup = true
+minimum_password_length = 6
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+max_frequency = "1s"
+
+[edge_runtime]
+enabled = false
+inspector_port = 56440
+
+[analytics]
+enabled = false
+port = 56437

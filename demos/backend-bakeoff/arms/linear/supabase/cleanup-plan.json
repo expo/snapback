@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "provider": "Supabase",
+  "app": "linear",
+  "targetType": "fresh-local",
+  "projectId": "llp0102-linear-supabase-w3",
+  "dockerSelection": {
+    "containers": "exact project-id substring llp0102-linear-supabase-w3",
+    "volumes": "exact project-id substring llp0102-linear-supabase-w3",
+    "networks": "exact project-id substring llp0102-linear-supabase-w3"
+  },
+  "ports": [
+    4322,
+    56431,
+    56432,
+    56433,
+    56434,
+    56435,
+    56436,
+    56437,
+    56438,
+    56439,
+    56440
+  ],
+  "runtimeOnlyPaths": [
+    "/Users/ccheever/.cache/llp0102-linear-supabase-w3-runtime",
+    "work/.xdg"
+  ],
+  "commands": [
+    "supabase stop --no-backup --workdir /Users/ccheever/.cache/llp0102-linear-supabase-w3-runtime",
+    "node scripts/cleanup-probe.mjs"
+  ],
+  "guardrails": [
+    "Refuse cleanup unless runtime config project_id is exactly llp0102-linear-supabase-w3.",
+    "Do not select any resource by a provider-wide or Supabase-wide pattern.",
+    "Do not touch hosted projects.",
+    "Do not touch another worker's Docker project, ports, worktree, XDG state, or runtime mirror."
+  ],
+  "recovery": "The local target is reproducible from committed migrations and seed script. --no-backup intentionally removes only the fresh arm-owned local data."
+}

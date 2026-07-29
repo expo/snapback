@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "/private/tmp/llp0102-linear-supabase-w3/demos/backend-bakeoff/arms/linear/supabase",
+  "generatedAt": "2026-07-29T04:41:06.334Z",
+  "totals": {
+    "configuration": {
+      "files": 18,
+      "bytes": 33116,
+      "lines": 1195
+    },
+    "test": {
+      "files": 4,
+      "bytes": 137799,
+      "lines": 3834
+    },
+    "authored-source": {
+      "files": 22,
+      "bytes": 90746,
+      "lines": 2517
+    },
+    "dependency-manifest": {
+      "files": 1,
+      "bytes": 56032,
+      "lines": 1732
+    }
+  },
+  "installedDependencyBytes": 245120636,
+  "files": [
+    {
+      "path": "cleanup-plan.json",
+      "category": "configuration",
+      "bytes": 1295,
+      "lines": 41,
+      "sha256": "61185cb2b82d369d87338f74788158517d2875608ddcdc68bead91fddb1e38f7"
+    },
+    {
+      "path": "receipts/acceptance.attempt-01.json",
+      "category": "test",
+      "bytes": 29822,
+      "lines": 901,
+      "sha256": "32dd356a8f738dd8dab930fb7e39d8f8f15a05e3ce01bf72a8fc855125e0e8d1"
+    },
+    {
+      "path": "receipts/acceptance.attempt-02.json",
+      "category": "test",
+      "bytes": 31942,
+      "lines": 953,
+      "sha256": "b8235f961aa402a07bd2e321cd3ff728cb2b7fcc5a952d19634f850c4a4adf4c"
+    },
+    {
+      "path": "receipts/acceptance.json",
+      "category": "test",
+      "bytes": 31920,
+      "lines": 953,
+      "sha256": "e80116eae21f331cd858cdea6745d73a989d6b867cc8f10b8f5f9f58f6af2d6c"
+    },
+    {
+      "path": "receipts/deployment-gap.json",
+      "category": "configuration",
+      "bytes": 1383,
+      "lines": 29,
+      "sha256": "3d8bf892863f94fc337c81453a8785c82a704bcfae62321d300080246855eae5"
+    },
+    {
+      "path": "receipts/inventory.json",
+      "category": "configuration",
+      "bytes": 9651,
+      "lines": 325,
+      "sha256": "fe427e778910c34d9402714cfaa31164548e72b688d7e86b3c826633c6fb8249"
+    },
+    {
+      "path": "receipts/migration.json",
+      "category": "configuration",
+      "bytes": 1047,
+      "lines": 40,
+      "sha256": "31a183779218c253dae5398acf02cd390cda63c3ac3e67b2cbdb2736874a782f"
+    },
+    {
+      "path": "receipts/npm-audit.json",
+      "category": "configuration",
+      "bytes": 363,
+      "lines": 23,
+      "sha256": "96e977b75eb7295b45f3febc02a25a5cf17e80e918af1016eebabec68df8bd73"
+    },
+    {
+      "path": "receipts/offline-gap.json",
+      "category": "configuration",
+      "bytes": 804,
+      "lines": 15,
+      "sha256": "7877593e773f6938f95d5113794058a5c261d6f45d5c4381874dbc69287a73f1"
+    },
+    {
+      "path": "receipts/operations.json",
+      "category": "configuration",
+      "bytes": 3231,
+      "lines": 81,
+      "sha256": "471118f995b53bebdefb9a96f13a22dc6fb4aedd927cfb4af76c4485d8049fa7"
+    },
+    {
+      "path": "receipts/performance.json",
+      "category": "configuration",
+      "bytes": 2389,
+      "lines": 116,
+      "sha256": "1cc0301abde1a718e6a527d1cacf8037e57597def41ff4667a9b3985448e073c"
+    },
+    {
+      "path": "receipts/pre-cleanup-public-schema.sql",
+      "category": "authored-source",
+      "bytes": 28601,
+      "lines": 1006,
+      "sha256": "f85db368e24429d04421e22866a0b17f641951697fb4b9f619be94503e3fabc2"
+    },
+    {
+      "path": "receipts/pre-cleanup-resources.json",
+      "category": "configuration",
+      "bytes": 1907,
+      "lines": 62,
+      "sha256": "c60ba32370c66db0a4492d3834eac51718ae0762244651397dd7da8fa5fd048c"
+    },
+    {
+      "path": "receipts/seed.json",
+      "category": "configuration",
+      "bytes": 827,
+      "lines": 33,
+      "sha256": "29a75d7c68d34f589da857bb76efa92b6e74a3fddbdc453ec541f97eb0f5ab19"
+    },
+    {
+      "path": "receipts/target-identity.json",
+      "category": "configuration",
+      "bytes": 736,
+      "lines": 16,
+      "sha256": "ca5d15291c50bf04c08450b2ddbda3c02aaca750457a21b75535b9e35f52b358"
+    },
+    {
+      "path": "receipts/transport-attribution.json",
+      "category": "configuration",
+      "bytes": 544,
+      "lines": 10,
+      "sha256": "98a7b725602d35576ff36ba08453f853bd04d02e10141ba584b9e37d0e2d1081"
+    },
+    {
+      "path": "run-capsule.v1.json",
+      "category": "configuration",
+      "bytes": 5883,
+      "lines": 254,
+      "sha256": "5106573f16dcda431fe6da05d708b5356fbe4f6a37d196d1c230e2cb849493ee"
+    },
+    {
+      "path": "work/.gitignore",
+      "category": "authored-source",
+      "bytes": 77,
+      "lines": 8,
+      "sha256": "54c3de288d9396bbdde2cf55e66d4878ba9b44b7864746ecbf3712e9bb8b2ad0"
+    },
+    {
+      "path": "work/index.html",
+      "category": "authored-source",
+      "bytes": 390,
+      "lines": 14,
+      "sha256": "b29880250b2bc2e6dbc5c9398a830e856b8faaad32fad0a12660538200cfc363"
+    },
+    {
+      "path": "work/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 56032,
+      "lines": 1732,
+      "sha256": "e3298ae72b25ce62a2952f4aa236afb494a811ff1091e671c11234a84ecea19b"
+    },
+    {
+      "path": "work/package.json",
+      "category": "configuration",
+      "bytes": 677,
+      "lines": 27,
+      "sha256": "8b6e042318d17a34f930df48d0269ee2d7b52fea84786f7a40000c85c19f971c"
+    },
+    {
+      "path": "work/run-state.json",
+      "category": "configuration",
+      "bytes": 678,
+      "lines": 24,
+      "sha256": "558a235039f1f6275f9f65688b0686251b93dbbb307923d9d56d9e64e1e0671a"
+    },
+    {
+      "path": "work/scripts/acceptance.mjs",
+      "category": "test",
+      "bytes": 44115,
+      "lines": 1027,
+      "sha256": "8633231676828bff2f380f8454151de8df893e92026b55060e87175a75a66d2c"
+    },
+    {
+      "path": "work/scripts/apply-evolution.mjs",
+      "category": "authored-source",
+      "bytes": 1066,
+      "lines": 37,
+      "sha256": "c901ca733d6f4339a0ba0198ec2221d704e2985022ad353e171db705c0345360"
+    },
+    {
+      "path": "work/scripts/build.mjs",
+      "category": "authored-source",
+      "bytes": 557,
+      "lines": 19,
+      "sha256": "60357847e3a378afff6dcfb99108a9cb7a8ecb4ab4e4ac961272973da00a8f46"
+    },
+    {
+      "path": "work/scripts/cleanup-probe.mjs",
+      "category": "authored-source",
+      "bytes": 2842,
+      "lines": 65,
+      "sha256": "eedf793865d4aa2552a2ded44995b9cd5d219bb43e9b12e1671e78490e44cd15"
+    },
+    {
+      "path": "work/scripts/collect-evidence.mjs",
+      "category": "authored-source",
+      "bytes": 1001,
+      "lines": 30,
+      "sha256": "f1c41ffbc7d91e0704c3eeb09298e755ac77ef69af51512af3ffb78964b13d79"
+    },
+    {
+      "path": "work/scripts/dev.mjs",
+      "category": "authored-source",
+      "bytes": 739,
+      "lines": 27,
+      "sha256": "568c341555e8b58c03fe95ed4ed9a7a18a290ec4f5068f83c867a5e2dc1beca4"
+    },
+    {
+      "path": "work/scripts/finalize-capsule.mjs",
+      "category": "authored-source",
+      "bytes": 17089,
+      "lines": 350,
+      "sha256": "dd247c5311b6856f09e375facc227bddb9899a25fdf2cbfeac5e2c48f21e66ee"
+    },
+    {
+      "path": "work/scripts/local-config.mjs",
+      "category": "authored-source",
+      "bytes": 1239,
+      "lines": 42,
+      "sha256": "e4599eacfa3a6769907bb98abb12ada757a9d96c9cf87ef0a9577173b4f53595"
+    },
+    {
+      "path": "work/scripts/prepare-runtime.mjs",
+      "category": "authored-source",
+      "bytes": 778,
+      "lines": 21,
+      "sha256": "7d37883a59c9e508c35a37d88efbb6bd37ed14ae0d9694ff28a5284ec40338b5"
+    },
+    {
+      "path": "work/scripts/runtime-inventory.mjs",
+      "category": "authored-source",
+      "bytes": 1670,
+      "lines": 44,
+      "sha256": "a995b311679342e41e9c7c2fec67ebf4ff7baad0a6e985a23ea89e0177b04dc2"
+    },
+    {
+      "path": "work/scripts/seed.mjs",
+      "category": "authored-source",
+      "bytes": 7617,
+      "lines": 191,
+      "sha256": "4d5a68c1e2ff137184130bde756001e108b56b248c3edfdc1bb6c2b802df8f63"
+    },
+    {
+      "path": "work/src/LinearApp.tsx",
+      "category": "authored-source",
+      "bytes": 4527,
+      "lines": 127,
+      "sha256": "d5bbc456c3e64e3ea00db2915a7bd92df5cc86379524fc21c78d55bbe90fbbf5"
+    },
+    {
+      "path": "work/src/main.tsx",
+      "category": "authored-source",
+      "bytes": 253,
+      "lines": 11,
+      "sha256": "c22ac4649d7d759d7365184bca85bbb9b21f2edf5a1795120ecfc2cba44feab6"
+    },
+    {
+      "path": "work/src/styles.css",
+      "category": "authored-source",
+      "bytes": 3007,
+      "lines": 40,
+      "sha256": "c149a791eb9977ebecc3f6db9a8de8255cf4325dc41f9a766902098518c86cce"
+    },
+    {
+      "path": "work/src/supabase.ts",
+      "category": "authored-source",
+      "bytes": 409,
+      "lines": 17,
+      "sha256": "d95afa8407986de0c9655ea4c1951e92355a454b5504479f991f3b4ea8ac0a18"
+    },
+    {
+      "path": "work/src/vite-env.d.ts",
+      "category": "authored-source",
+      "bytes": 38,
+      "lines": 2,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "work/supabase/.gitignore",
+      "category": "authored-source",
+      "bytes": 16,
+      "lines": 3,
+      "sha256": "da307c57c9f97864374d924169fdeac9a57b16dbfe667438ad79748eeb7ebf7e"
+    },
+    {
+      "path": "work/supabase/config.toml",
+      "category": "configuration",
+      "bytes": 932,
+      "lines": 64,
+      "sha256": "1dec4511715110116dcc05acabbbcd588dd9cf65d6c6a367377c6caec42401cb"
+    },
+    {
+      "path": "work/supabase/evolution/20260729042000_add_estimate_points.sql",
+      "category": "authored-source",
+      "bytes": 243,
+      "lines": 7,
+      "sha256": "7b3db584286d029965c47d0de7c08c13fdb70da94dab7762aedd2fb325163ca2"
+    },
+    {
+      "path": "work/supabase/migrations/20260729041000_linear.sql",
+      "category": "authored-source",
+      "bytes": 15964,
+      "lines": 455,
+      "sha256": "64aebf6deb94ce673dec1c9e548ac007dbe7c6689d01f3827d7f9084d4ffd3f4"
+    },
+    {
+      "path": "work/tsconfig.json",
+      "category": "configuration",
+      "bytes": 557,
+      "lines": 23,
+      "sha256": "398ffb92e92a46b6ce911315515d87bb6b9861e500ba6a7653ab07e89921957b"
+    },
+    {
+      "path": "work/tsconfig.tsbuildinfo",
+      "category": "authored-source",
+      "bytes": 2623,
+      "lines": 1,
+      "sha256": "0663c6b7e3383b1abb1ec883be9b825bd2f514a544a2ff38b50b8a61fab32cc9"
+    },
+    {
+      "path": "work/vite.config.ts",
+      "category": "configuration",
+      "bytes": 212,
+      "lines": 12,
+      "sha256": "d1fb3ef8a385f629a61e5ede43eca3947b32345d848b6c6a2890c7da0ff54070"
+    }
+  ]
+}

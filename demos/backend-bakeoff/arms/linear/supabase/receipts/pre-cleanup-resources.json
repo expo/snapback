@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T04:39:16.293Z",
+  "projectId": "llp0102-linear-supabase-w3",
+  "identityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+  "selection": "exact arm project-id substring only",
+  "containers": [
+    {
+      "name": "supabase_db_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+      "status": "Up 2 minutes (healthy)"
+    },
+    {
+      "name": "supabase_studio_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/studio:2026.07.13-sha-b5ada96",
+      "status": "Up 5 minutes (healthy)"
+    },
+    {
+      "name": "supabase_pg_meta_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgres-meta:v0.96.6",
+      "status": "Up 5 minutes (healthy)"
+    },
+    {
+      "name": "supabase_rest_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgrest:v14.15",
+      "status": "Up 5 minutes"
+    },
+    {
+      "name": "supabase_realtime_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/realtime:v2.113.4",
+      "status": "Up 2 minutes (healthy)"
+    },
+    {
+      "name": "supabase_inbucket_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/mailpit:v1.30.2",
+      "status": "Up 5 minutes (healthy)"
+    },
+    {
+      "name": "supabase_auth_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/gotrue:v2.193.0",
+      "status": "Up 2 minutes (healthy)"
+    },
+    {
+      "name": "supabase_kong_llp0102-linear-supabase-w3",
+      "image": "public.ecr.aws/supabase/kong:2.8.1",
+      "status": "Up 5 minutes (healthy)"
+    }
+  ],
+  "volumes": [
+    "supabase_db_llp0102-linear-supabase-w3"
+  ],
+  "networks": [
+    "supabase_network_llp0102-linear-supabase-w3"
+  ],
+  "counts": {
+    "containers": 8,
+    "volumes": 1,
+    "networks": 1
+  },
+  "unrelatedResourcesSelected": 0
+}

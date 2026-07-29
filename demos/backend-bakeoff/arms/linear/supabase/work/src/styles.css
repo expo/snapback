@@ -1,0 +1,39 @@
+:root {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #18201d;
+  background: #eceee8;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1024px; min-height: 100vh; }
+button, input { font: inherit; }
+button { color: inherit; }
+.app-frame { display: grid; grid-template-columns: 150px 1fr; min-height: 100vh; }
+.rail { padding: 24px 14px; background: #17231f; color: #dfe8e2; display: flex; flex-direction: column; gap: 8px; }
+.mark { width: 42px; height: 42px; margin: 0 8px 24px; border-radius: 13px; display: grid; place-items: center; background: #d8ff70; color: #17231f; font-weight: 900; }
+.rail-button, .nav-row { border: 0; background: transparent; text-align: left; border-radius: 9px; padding: 10px 12px; cursor: pointer; }
+.rail-button { color: #aebbb4; }
+.rail-button.active { background: #293a34; color: white; }
+main { padding: 24px 28px 40px; min-width: 0; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: 30px; letter-spacing: -.04em; }
+h2 { margin-bottom: 0; letter-spacing: -.03em; }
+.eyebrow { margin-bottom: 5px; color: #69736e; font-size: 11px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.status { background: #dff6df; color: #24622e; padding: 7px 11px; border-radius: 999px; font-size: 13px; }
+.workspace { min-height: calc(100vh - 116px); display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 14px; }
+.panel { background: #f9faf6; border: 1px solid #dfe3db; border-radius: 16px; box-shadow: 0 12px 30px rgba(38, 48, 43, .05); }
+.list-nav { padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; }
+.primary { border: 0; border-radius: 9px; padding: 10px 14px; background: #22372f; color: white; font-weight: 750; margin-bottom: 10px; }
+.nav-row:hover, .nav-row.selected { background: #e9ede5; }
+.client-note { margin: auto 8px 4px; color: #6e7872; font-size: 12px; line-height: 1.5; }
+.content-panel { padding: 24px; overflow: hidden; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; padding-bottom: 18px; border-bottom: 1px solid #e1e5dd; }
+.section-heading input { width: 260px; padding: 9px 12px; border: 1px solid #ccd2c8; border-radius: 9px; background: white; }
+.board { display: grid; grid-template-columns: repeat(5, minmax(190px, 1fr)); gap: 12px; overflow-x: auto; padding-top: 18px; }
+.column { min-width: 190px; padding: 10px; border-radius: 12px; background: #eef1eb; }
+.column h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #67716c; }
+.issue-card { display: flex; flex-direction: column; gap: 7px; margin-bottom: 9px; padding: 12px; border: 1px solid #dfe3db; border-radius: 10px; background: white; }
+.issue-card span, .issue-card small { color: #78817c; font-size: 11px; }
+.issue-card strong { font-size: 13px; line-height: 1.35; }

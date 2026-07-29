@@ -9,245 +9,448 @@
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
     "providerVersions": {
       "product": "Supabase",
       "client": "2.111.0",
       "cli": "2.110.0"
     },
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "startedAt": "2026-07-29T04:07:05.778Z",
+    "finishedAt": "2026-07-29T04:41:18.150Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
-    "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "activeElapsedMs": 2052372,
+    "toolCalls": 52,
+    "timedWindowFrozenAt": "2026-07-29T04:41:18.150Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "896f4cb263d80263051c7447b0e3b9f49b35377d1c3552df4af65598503476d8",
+      "role": "organization owner and team lead"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "b1080fbd11b3c41c82c1fdcdd0cf2f1382e5763dc2b77de75525e3b4fde57d29",
+      "role": "organization and platform-team member"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "163108afb001669512e8cf2c99ecb9bc9f1edea0bb8a2dbd77375a3a8ace187b",
       "role": "outsider"
     }
   },
   "targets": {
     "binding": {
-      "mode": "namespace-isolated-shared-hosted",
-      "namespace": "llp0102-linear-supabase-deep-linear-supabase-deep-01",
+      "mode": "fresh-local",
+      "namespace": "llp0102-linear-supabase-w3",
       "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "scopedCleanupPlanPath": "demos/backend-bakeoff/arms/linear/supabase/cleanup-plan.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
+      "status": "cleaned",
+      "identityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
       "profile": "official Supabase CLI Docker stack",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/target-identity.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/operations.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/pre-cleanup-resources.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/cleanup.json"
+      ]
     },
     "hosted": {
-      "status": "pending",
+      "status": "explicit-gap",
       "identityHash": "",
       "profile": "managed Postgres, Auth, Realtime, Storage, Edge Functions",
       "plan": "Pro with Micro compute",
       "region": "West US (exact dashboard identifier captured with target)",
-      "gapReason": "",
+      "gapReason": "No fresh hosted project was assigned. The protocol permits a local-only arm when hosted access is unavailable; hosted deployment, region, billing, logs, and rollback are not claimed.",
       "receiptPaths": []
     }
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "firstLocalReadMs": 1807008,
+    "firstAuthoritativeMutationMs": 1807026,
+    "firstRealtimeTransitionMs": 1817379,
+    "localAcceptanceMs": 1838332,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 2052372
   },
-  "assistanceEvents": [],
-  "commands": [],
+  "assistanceEvents": [
+    {
+      "type": "frozen-provider-profile",
+      "source": "LLP 0102 provider inventory and completed Todo/Chat Supabase arms",
+      "effect": "Selected official CLI Docker, native Auth/RLS/PostgREST/RPC/Realtime, and explicit bare-client offline nonclaims."
+    },
+    {
+      "type": "environment-workaround",
+      "source": "Colima bind behavior already proved by the Chat Supabase arm",
+      "effect": "Mirrored only the exact CLI runtime project under a unique /Users cache path; canonical source/evidence stayed in the assigned detached worktree."
+    }
+  ],
+  "commands": [
+    {
+      "command": "exact Docker-name and assigned-port preflight",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 1000,
+      "exitStatus": 0,
+      "classification": "pre-provision-isolation",
+      "note": "No exact-project container or listener on 4322/56431-56440 was present."
+    },
+    {
+      "command": "npm install --no-audit --no-fund",
+      "startedMonotonicMs": 600000,
+      "finishedMonotonicMs": 603500,
+      "exitStatus": 0,
+      "classification": "arm-local-provider-dependencies",
+      "note": "41 packages installed from the frozen package manifest."
+    },
+    {
+      "command": "node scripts/prepare-runtime.mjs && supabase start",
+      "startedMonotonicMs": 620000,
+      "finishedMonotonicMs": 645504,
+      "exitStatus": 0,
+      "classification": "fresh-local-provision",
+      "note": "Official CLI stack used exact project llp0102-linear-supabase-w3. Colima required an exact runtime-only /Users mirror."
+    },
+    {
+      "command": "npm run seed",
+      "startedMonotonicMs": 646000,
+      "finishedMonotonicMs": 647136,
+      "exitStatus": 0,
+      "classification": "seed-smoke",
+      "note": "Exact 2/3/4/500/1000/20 production-shaped counts passed."
+    },
+    {
+      "command": "supabase db reset && npm run acceptance (attempt 1)",
+      "startedMonotonicMs": 1600000,
+      "finishedMonotonicMs": 1666746,
+      "exitStatus": 1,
+      "classification": "retained-harness-failure",
+      "note": "10 pass, 2 GAP, cleanup pending; cold comment Realtime proof timed out while later measured issue Realtime succeeded."
+    },
+    {
+      "command": "supabase db reset && npm run acceptance (attempt 2)",
+      "startedMonotonicMs": 1700000,
+      "finishedMonotonicMs": 1765205,
+      "exitStatus": 0,
+      "classification": "harness-correction",
+      "note": "11 pass, 2 explicit GAP, cleanup pending. Exact-ID cold-start retry retained one missed warm attempt before native delivery."
+    },
+    {
+      "command": "supabase db reset && npm run acceptance (final)",
+      "startedMonotonicMs": 1780000,
+      "finishedMonotonicMs": 1838332,
+      "exitStatus": 0,
+      "classification": "acceptance",
+      "note": "Final reproducibility run: 11 pass, 2 explicit GAP, cleanup pending."
+    },
+    {
+      "command": "npm run build",
+      "startedMonotonicMs": 1839332,
+      "finishedMonotonicMs": 1841338,
+      "exitStatus": 0,
+      "classification": "production-build",
+      "note": "TypeScript and Vite production build passed; performance receipt independently retains two warmups and seven build samples."
+    },
+    {
+      "command": "node scripts/runtime-inventory.mjs && node scripts/collect-evidence.mjs",
+      "startedMonotonicMs": 1841339,
+      "finishedMonotonicMs": 1843532,
+      "exitStatus": 0,
+      "classification": "inventory-and-dependency-audit",
+      "note": "Exact target inventory and zero-vulnerability npm audit retained."
+    },
+    {
+      "command": "supabase stop --no-backup --workdir exact-runtime-project && node scripts/cleanup-probe.mjs",
+      "startedMonotonicMs": 2032372,
+      "finishedMonotonicMs": 2052372,
+      "exitStatus": 0,
+      "classification": "target-bound-cleanup",
+      "note": "Exact project resources and assigned ports absent; no unrelated resource selected."
+    }
+  ],
   "scenarioResults": [
     {
       "id": "LINEAR-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/seed.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/target-identity.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Independent service-role counts proved exactly 2 organizations, 3 primary-org teams, 4 primary-org projects, 500 issues, 1,000 comments, and 20 labels, with hashed native Auth personas.",
       "note": ""
     },
     {
       "id": "LINEAR-02-AUTHORITY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Alice owner and Bob member each read and wrote; Mallory read zero rows, her RPC was rejected, and authoritative revision did not change.",
       "note": ""
     },
     {
       "id": "LINEAR-03-FILTERS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Server-side status, assignee, project, and label predicates repeated deterministically, matched service-role expected sets, and retained their PostgreSQL index definitions.",
       "note": ""
     },
     {
       "id": "LINEAR-04-PAGINATION",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Two tuple-cursor 50-row pages formed the exact authoritative pre-insert top 100, with no duplicates and no concurrent-newer insertion.",
       "note": ""
     },
     {
       "id": "LINEAR-05-DETAIL",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Bounded RLS queries composed the exact project, assignee, two labels, two comments, and two activity IDs verified by service-role reads.",
       "note": ""
     },
     {
       "id": "LINEAR-06-OPTIMISTIC",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "Application-local optimistic status/priority/assignee/position were separately attributed; the RPC receipt and independent authority converged at one revision.",
       "note": ""
     },
     {
       "id": "LINEAR-07-CONFLICT",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two barrier-launched actors both committed; row-lock serialization advanced revision twice and the highest database activity identity identified the authoritative last writer.",
       "note": ""
     },
     {
       "id": "LINEAR-08-LIVE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob's independent client received the exact Alice comment and trigger-created activity through native Postgres Changes, and service-role reads matched both committed IDs.",
       "note": ""
     },
     {
       "id": "LINEAR-09-SEARCH",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "PostgreSQL websearch_to_tsquery returned the exact 50 authoritative multiples-of-ten result set through RPC with the retained GIN index identity.",
       "note": ""
     },
     {
       "id": "LINEAR-10-OFFLINE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "gap",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/offline-gap.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "Cold transport-disabled read/edit returned errors and left authority unchanged; bare supabase-js supplied no retained query store or queued mutation.",
+      "note": "Bare supabase-js has no provider-owned retained PostgREST query store or durable mutation queue. A cold client with transport disabled returned no rows, the attempted RPC errored, and authority stayed unchanged."
     },
     {
       "id": "LINEAR-11-MIGRATION",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/migration.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "A separate SQL migration added a non-null defaulted estimate field and composite index while every pre/post table count stayed identical.",
       "note": ""
     },
     {
       "id": "LINEAR-12-DEPLOY",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "gap",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/deployment-gap.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/operations.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "Local CLI identity/config/log/export paths were inspected; hosted identity and operations are explicitly unclaimed.",
+      "note": "The official isolated local CLI deployment is directly inspectable, but no hosted deployment was provisioned; hosted identity, region, billing, and rollback were not claimed."
     },
     {
       "id": "LINEAR-13-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/performance.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "List, detail, write, native realtime, reconnect, and build each retain two warmups, seven raw samples, median, nearest-rank p95, dataset, machine, and cost window.",
       "note": ""
     },
     {
       "id": "LINEAR-14-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/pre-cleanup-resources.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/cleanup.json",
+        "demos/backend-bakeoff/arms/linear/supabase/cleanup-plan.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "The exact CLI project filter removed only llp0102-linear-supabase-w3; zero matching containers/volumes/networks and all 11 assigned closed ports were proved.",
       "note": ""
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "demos/backend-bakeoff/arms/linear/supabase/receipts/inventory.json",
+    "authoredSource": {
+      "files": 22,
+      "bytes": 90747,
+      "lines": 2518
+    },
+    "generated": {
+      "files": 0,
+      "bytes": 0,
+      "lines": 0
+    },
+    "tests": {
+      "files": 4,
+      "bytes": 137799,
+      "lines": 3834
+    },
+    "configuration": {
+      "files": 18,
+      "bytes": 33116,
+      "lines": 1195
+    },
+    "policy": {
+      "files": 2,
+      "bytes": 16207,
+      "paths": [
+        "demos/backend-bakeoff/arms/linear/supabase/work/supabase/migrations/20260729041000_linear.sql",
+        "demos/backend-bakeoff/arms/linear/supabase/work/supabase/evolution/20260729042000_add_estimate_points.sql"
+      ]
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 56032,
+      "lines": 1732
+    },
+    "installedDependencyBytes": 245120636,
+    "glue": [
+      "runtime-only /Users project mirror for Colima /private/tmp bind limitation (cleaned)",
+      "SQL RPC for atomic issue edits and deterministic activity receipts",
+      "application-local optimistic projection kept separate from provider settlement",
+      "fresh authoritative page after native Realtime resubscribe",
+      "cold-start exact-ID Realtime warmup/retry retained as harness evidence",
+      "no IndexedDB/SQLite cache or outbox added, preserving the provider offline GAP"
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Three native Auth users, direct positive owner/member transitions, Mallory zero-row read, rejected RPC, and independent unchanged authority are reproducible.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/seed.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Both barrier-launched actor RPCs committed, revision advanced twice, database activity identities order them, and both clients independently converged.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json"
+      ]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Exact comment/activity and repeated issue-update WebSocket deliveries are directly observed and separated from optimistic state; the cold missed attempt is retained.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/transport-attribution.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/performance.json"
+      ]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "Native reconnect/resubscribe plus fresh authority is reproducible, but retained cold views and queued edits are explicit bare-client GAPs.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/offline-gap.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/performance.json"
+      ]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Every claimed write, conflict, migration, and live event is paired with service-role or direct PostgreSQL authority.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/migration.json"
+      ]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Exact project ID, local topology, assigned ports, source freeze, runtime-mirror hash, container inventory, and identity hash are retained; hosted is separately unclaimed.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/target-identity.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/operations.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/pre-cleanup-resources.json"
+      ]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Exact project-bound plan, CLI filter, zero matching resources, explicit closed ports, removed runtime/XDG paths, and zero unrelated selections are retained.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/cleanup-plan.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/cleanup.json"
+      ]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "Pinned versions, source, migrations, seed, UI, attempts, build, audit, commands, inventory, and export are retained, but Colima needs a machine-specific mirror and hosted deployment was not reproduced.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/inventory.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/command-log.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/npm-audit.json",
+        "demos/backend-bakeoff/arms/linear/supabase/receipts/pre-cleanup-public-schema.sql"
+      ]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "demos/backend-bakeoff/arms/linear/supabase/cleanup-plan.json",
+    "receiptPaths": [
+      "demos/backend-bakeoff/arms/linear/supabase/receipts/pre-cleanup-resources.json",
+      "demos/backend-bakeoff/arms/linear/supabase/receipts/pre-cleanup-public-schema.sql",
+      "demos/backend-bakeoff/arms/linear/supabase/receipts/cleanup.json"
+    ],
+    "postCleanupProbe": "Zero exact-project containers, volumes, and networks; ports 4322 and 56431-56440 all closed; exact runtime mirror and worktree-local XDG state absent."
   },
-  "result": "pending"
+  "result": "complete"
 }
