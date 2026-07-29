@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildPostPromotionLedger,
   canonicalJcs,
+  leaseSha256,
   publicationAuthorityTransition,
   promoteDefaultVector,
   sha256Hex,

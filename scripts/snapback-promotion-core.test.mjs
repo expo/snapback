@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -39,6 +40,18 @@ const names = [
 ];
 const authorityInstallationId = 'snapback-publication-promotion';
 const authorityOrigin = 'https://publication-authority.example';
+
+test('promotion executable imports the lease digest used by plan preflight', () => {
+  const source = readFileSync(
+    new URL('./snapback-promote.mjs', import.meta.url),
+    'utf8',
+  );
+  const coreImport = source.match(
+    /import \{(?<bindings>[\s\S]*?)\} from '\.\/snapback-promotion-core\.mjs';/u,
+  );
+  assert.ok(coreImport?.groups?.bindings);
+  assert.match(coreImport.groups.bindings, /(?:^|[\s,])leaseSha256(?:[\s,]|$)/u);
+});
 
 function fixture() {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
