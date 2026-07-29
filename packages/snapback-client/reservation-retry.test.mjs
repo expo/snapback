@@ -201,6 +201,14 @@ try {
         effectCommitted: false,
       },
     }),
+    stale({
+      details: {
+        retryable: true,
+        retryStrategy: 'short-jitter',
+        effectCommitted: false,
+        effectMayHaveCommitted: true,
+      },
+    }),
   ]) {
     let requests = 0;
     globalThis.fetch = async () => {

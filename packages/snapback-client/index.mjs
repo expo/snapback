@@ -3124,8 +3124,16 @@ export class SnapbackClient {
 
   #isEffectFreeReservationStale(error) {
     const details = error?.diagnostic?.details;
+    const detailKeys = details && typeof details === 'object' && !Array.isArray(details)
+      ? Object.keys(details).sort()
+      : [];
     return error?.status === 409
       && error?.diagnostic?.code === 'SNAPBACK_AUTH_RESERVATION_STALE'
+      && JSON.stringify(detailKeys) === JSON.stringify([
+        'effectCommitted',
+        'retryStrategy',
+        'retryable',
+      ])
       && details?.retryable === true
       && details?.retryStrategy === 'short-jitter'
       && details?.effectCommitted === false
@@ -5081,10 +5089,14 @@ export class SnapbackClient {
     let handleAuthorityCapture = null;
     const freshSubscribeQueueGenerations = new WeakMap();
     let pauseReleasePromise = Promise.resolve();
+    let currentSubscriptionId = null;
     let knownRetiredSubscriptionId = null;
+    let disposalTask = null;
 
     const handle = {
-      subscriptionId: null,
+      get subscriptionId() {
+        return currentSubscriptionId;
+      },
       version: 0,
       rows: [],
       // Latest RQS resume object ({ token, meta }) for this subscription.
@@ -5117,7 +5129,7 @@ export class SnapbackClient {
       if (
         typeof subscriptionId === 'string'
         && subscriptionId.length > 0
-        && handle.subscriptionId === subscriptionId
+        && currentSubscriptionId === subscriptionId
       ) {
         knownRetiredSubscriptionId = subscriptionId;
       }
@@ -6431,7 +6443,7 @@ export class SnapbackClient {
       try {
         const installed = await client.commitAuthorityPublication(responseCapture, () => {
           assertSubscribeLifecycle(lifecycle);
-          handle.subscriptionId = sub.subscription_id;
+          currentSubscriptionId = sub.subscription_id;
           knownRetiredSubscriptionId = null;
           handleAuthorityCapture = responseCapture;
           if (!sub.authorizationScope) {
@@ -6851,7 +6863,7 @@ export class SnapbackClient {
       if (!registeredSubscription || queryNamespace !== null) return false;
       const { subscriptionId, rows, version, resume } = registeredSubscription;
       if (typeof subscriptionId !== 'string' || subscriptionId.length === 0) return false;
-      handle.subscriptionId = subscriptionId;
+      currentSubscriptionId = subscriptionId;
       knownRetiredSubscriptionId = null;
       handle.rows = Array.isArray(rows) ? rows : [];
       handle.version = typeof version === 'number' ? version : 0;
@@ -7056,7 +7068,7 @@ export class SnapbackClient {
       client.__registerExternalBearerHandle(handle);
 
     handle.dispose = () => {
-      if (disposed || disposing) return;
+      if (disposed || disposing) return disposalTask ?? Promise.resolve();
       disposing = true;
       const staleSubscriptionId = handle.subscriptionId;
       let firstCleanupError = null;
@@ -7102,13 +7114,20 @@ export class SnapbackClient {
         attempt(() => detachStream?.());
         detachStream = null;
         attempt(() => setConnection('disconnected'));
-        // Best-effort server-side disposal (ENG-22478 review fix F): without
+        // Unmount-safe server-side disposal (ENG-22478 review fix F): without
         // this, unmounting a handle while the connection lives leaves the
-        // §10.1 zombie fanning out until connection teardown.
-        bestEffortUnsubscribeLive(staleSubscriptionId);
+        // §10.1 zombie fanning out until connection teardown. Ignoring the
+        // returned task remains safe; awaiting it preserves typed failures.
+        disposalTask = unsubscribeLiveForLifecycle(staleSubscriptionId);
+        // UI unmount callbacks intentionally do not await cleanup. Attach an
+        // observation-only rejection handler so that use remains safe, while
+        // returning the original task lets explicit callers receive genuine
+        // ownership/session/network failures.
+        void disposalTask.catch(() => {});
         disposing = false;
       }
       if (firstCleanupError) throw firstCleanupError;
+      return disposalTask;
     };
 
     await establish();

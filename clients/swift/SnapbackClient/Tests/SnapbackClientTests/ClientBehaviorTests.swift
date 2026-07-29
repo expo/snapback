@@ -610,7 +610,10 @@ private final class UpdateCollector: @unchecked Sendable {
 }
 
 final class ClientBehaviorTests: XCTestCase {
-    private func client(maxAttempts: Int) -> SnapbackClient {
+    private func client(
+        maxAttempts: Int,
+        jitterMilliseconds: ClosedRange<UInt64> = 0...0
+    ) -> SnapbackClient {
         let sessionConfiguration = URLSessionConfiguration.ephemeral
         sessionConfiguration.protocolClasses = [ReservationStubProtocol.self]
         let session = URLSession(configuration: sessionConfiguration)
@@ -619,7 +622,7 @@ final class ClientBehaviorTests: XCTestCase {
         )
         configuration.sessionBearer = "sbs_native_test"
         configuration.reservationRetryMaxAttempts = maxAttempts
-        configuration.reservationRetryJitterMilliseconds = 0...0
+        configuration.reservationRetryJitterMilliseconds = jitterMilliseconds
         return SnapbackClient(configuration: configuration, session: session)
     }
 
@@ -1254,7 +1257,8 @@ final class ClientBehaviorTests: XCTestCase {
             method: "POST",
             path: "/mutation/write",
             body: .object(["args": .object([:])]),
-            connectionScoped: false
+            connectionScoped: false,
+            allowsReservationRetry: true
         )
         XCTAssertEqual(result["ok"]?.boolValue, true)
         XCTAssertEqual(ReservationStubProtocol.requestCount, 3)
@@ -1267,7 +1271,8 @@ final class ClientBehaviorTests: XCTestCase {
                 method: "POST",
                 path: "/mutation/write",
                 body: .object(["args": .object([:])]),
-                connectionScoped: false
+                connectionScoped: false,
+                allowsReservationRetry: true
             )
             XCTFail("expected the configured retry budget to exhaust")
         } catch let SnapbackClient.ClientError.refusal(error, status) {
@@ -1286,7 +1291,8 @@ final class ClientBehaviorTests: XCTestCase {
                 method: "POST",
                 path: "/mutation/write",
                 body: .object(["args": .object([:])]),
-                connectionScoped: false
+                connectionScoped: false,
+                allowsReservationRetry: true
             )
             XCTFail("expected HTTP 503 to surface")
         } catch {
@@ -1304,12 +1310,86 @@ final class ClientBehaviorTests: XCTestCase {
                 method: "POST",
                 path: "/mutation/write",
                 body: .object(["args": .object([:])]),
-                connectionScoped: false
+                connectionScoped: false,
+                allowsReservationRetry: true
             )
             XCTFail("expected incomplete reservation refusal to surface")
         } catch {
             XCTAssertEqual(ReservationStubProtocol.requestCount, 1)
         }
+    }
+
+    func testActionNeverRetriesEffectFreeNestedMutationRefusal() async {
+        ReservationStubProtocol.configure([409, 200])
+        do {
+            _ = try await client(maxAttempts: 40).action(
+                "externalEffectThenWrite",
+                args: .object(["recipient": .string("outside-snapback")])
+            )
+            XCTFail("expected action reservation refusal to surface")
+        } catch {
+            XCTAssertEqual(
+                ReservationStubProtocol.requestCount,
+                1,
+                "effect-free Snapback storage facts do not make prior action egress replay-safe"
+            )
+        }
+    }
+
+    func testReservationRetryRejectsContradictoryExtraFacts() {
+        let error = WireErrorResponse(
+            code: "SNAPBACK_AUTH_RESERVATION_STALE",
+            severity: "error",
+            subsystem: "auth",
+            message: "reservation stale",
+            details: .object([
+                "retryable": .bool(true),
+                "retryStrategy": .string("short-jitter"),
+                "effectCommitted": .bool(false),
+                "effectMayHaveCommitted": .bool(true),
+            ]),
+            receipt: nil
+        )
+        XCTAssertFalse(
+            SnapbackClient.shouldRetryReservation(
+                status: 409,
+                error: error,
+                attempt: 0,
+                maximumAttempts: 40
+            )
+        )
+    }
+
+    func testReservationRetryCancellationDoesNotDispatchAgain() async {
+        ReservationStubProtocol.configure([409, 200])
+        let task = Task {
+            try await client(
+                maxAttempts: 40,
+                jitterMilliseconds: 5_000...5_000
+            ).request(
+                method: "POST",
+                path: "/mutation/write",
+                body: .object(["args": .object([:])]),
+                connectionScoped: false,
+                allowsReservationRetry: true
+            )
+        }
+        while ReservationStubProtocol.requestCount == 0 {
+            await Task.yield()
+        }
+        // Let the synchronous URLProtocol refusal reach the retry backoff;
+        // cancellation before that point correctly belongs to URLSession.
+        try? await Task.sleep(for: .milliseconds(20))
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("expected cancellation to end retry backoff")
+        } catch is CancellationError {
+            // Expected: cancellation owns the backoff and no retry dispatch.
+        } catch {
+            XCTFail("unexpected cancellation error: \(error)")
+        }
+        XCTAssertEqual(ReservationStubProtocol.requestCount, 1)
     }
 
     func testSessionsModeOmitsLegacyBodyIdentity() async {

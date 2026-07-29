@@ -168,15 +168,18 @@ const settleBestEffortCleanup = async () => {
 
 await withHarness({}, async ({ client, harness }) => {
   const handle = await openHandle(client);
-  handle.dispose();
+  const outcome = await handle.dispose();
+  assert.equal(outcome.disposed, true);
   await settleBestEffortCleanup();
   assert.equal(harness.unsubscribeCalls, 1, 'normal dispose retires once');
 });
 
 await withHarness({}, async ({ client, harness }) => {
   const handle = await openHandle(client);
-  handle.dispose();
-  handle.dispose();
+  const first = handle.dispose();
+  const second = handle.dispose();
+  assert.equal(first, second, 'concurrent repeated disposal shares one retirement task');
+  await Promise.all([first, second]);
   await settleBestEffortCleanup();
   assert.equal(harness.unsubscribeCalls, 1, 'double dispose has no duplicate server effect');
 });
@@ -191,7 +194,12 @@ await withHarness({ unsubscribe: 'unknown' }, async ({ client, harness }) => {
     alreadyRetired: true,
     retirementCode: 'SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED',
   });
-  handle.dispose();
+  assert.deepEqual(await handle.dispose(), {
+    subscription_id: handle.subscriptionId,
+    disposed: false,
+    alreadyRetired: true,
+    retirementCode: 'SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED',
+  });
   await settleBestEffortCleanup();
   assert.equal(
     harness.unsubscribeCalls,
@@ -214,7 +222,12 @@ await withHarness({}, async ({ client, harness }) => {
   revocation.authorityDisposition = 'durableDelete';
   const terminal = client.handleTerminalAuthLoss(null, revocation);
   await terminal.settlement;
-  handle.dispose();
+  assert.deepEqual(await handle.dispose(), {
+    subscription_id: handle.subscriptionId,
+    disposed: false,
+    alreadyRetired: true,
+    retirementCode: 'SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED',
+  });
   await settleBestEffortCleanup();
   assert.equal(
     harness.unsubscribeCalls,
@@ -230,8 +243,26 @@ await withHarness({ unsubscribe: 'ownership-mismatch' }, async ({ client }) => {
     (error) => error?.diagnostic?.code === 'SNAPBACK_LIVE_RESUME_OWNERSHIP',
     'an ownership mismatch is never reclassified as already retired',
   );
-  handle.dispose();
+  await assert.rejects(
+    handle.dispose(),
+    (error) => error?.diagnostic?.code === 'SNAPBACK_LIVE_RESUME_OWNERSHIP',
+    'explicit disposal preserves a genuine ownership mismatch',
+  );
   await settleBestEffortCleanup();
+});
+
+await withHarness({ unsubscribe: 'unknown' }, async ({ client }) => {
+  const handle = await openHandle(client);
+  assert.throws(
+    () => {
+      handle.subscriptionId = 'sub-foreign-injected';
+    },
+    TypeError,
+    'the authoritative handle generation is read-only',
+  );
+  assert.match(handle.subscriptionId, /^sub-lifecycle-/u);
+  const outcome = await handle.dispose();
+  assert.equal(outcome.subscription_id, handle.subscriptionId);
 });
 
 await withHarness({ unsubscribe: 'ownership-mismatch' }, async ({ client }) => {
