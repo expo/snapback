@@ -1,0 +1,76 @@
+{
+  "list": {
+    "rawMs": [
+      15.904,
+      19.505,
+      15.706,
+      15.505,
+      15.305,
+      15.227,
+      14.956
+    ],
+    "medianMs": 15.505,
+    "nearestRankP95Ms": 19.505
+  },
+  "detail": {
+    "rawMs": [
+      12.797,
+      12.9,
+      12.594,
+      16.91,
+      11.567,
+      12.866,
+      12.947
+    ],
+    "medianMs": 12.866,
+    "nearestRankP95Ms": 16.91
+  },
+  "write": {
+    "rawMs": [
+      396.628,
+      257.544,
+      360.933,
+      374.691,
+      290.536,
+      387.874,
+      251.887
+    ],
+    "medianMs": 360.933,
+    "nearestRankP95Ms": 396.628
+  },
+  "realtime": {
+    "rawMs": [
+      312.924,
+      419.2,
+      315.278,
+      385.433,
+      316.887,
+      334.231,
+      337.401
+    ],
+    "medianMs": 334.231,
+    "nearestRankP95Ms": 419.2
+  },
+  "build": {
+    "rawMs": [
+      441.181,
+      439.17,
+      447.993,
+      442.291,
+      434.934,
+      444.115,
+      437.403
+    ],
+    "medianMs": 441.181,
+    "nearestRankP95Ms": 447.993
+  },
+  "deploy": {
+    "status": "gap",
+    "reason": "no hosted profile"
+  },
+  "costWindow": {
+    "mode": "fresh-local",
+    "billedCostUsd": 0,
+    "disclosure": "local machine; hosted cost unavailable"
+  }
+}

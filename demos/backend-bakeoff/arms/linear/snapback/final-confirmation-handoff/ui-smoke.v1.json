@@ -1,0 +1,8 @@
+{
+  "rendered": true,
+  "origin": "http://127.0.0.1:43103",
+  "issueCount": 501,
+  "connection": "live",
+  "screenshot": "linear-ui.png",
+  "providerAdapter": "src/provider.ts"
+}

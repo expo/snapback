@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "policy": "Only the clean external copy was adapted. Frozen work, capsules, product source, scenarios, and assertions were untouched.",
+  "copiedFrom": "demos/backend-bakeoff/arms/partiful/snapback/work at 4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "transformations": [
+    {
+      "path": "package.json",
+      "before": "afc6f01ba8316f169352e0d4ea31c77d52d72e6877cd322ac6ff903b546ccfa1",
+      "after": "ca421a70ba181f08258ab8ea2a2ae08ecdab6621e36935d462be5802ee32addd",
+      "change": "installed immutable tarballs; packaged generate/build/acceptance commands; fresh npm lock"
+    },
+    {
+      "path": "tests/acceptance.mjs",
+      "before": "ba8d10e473a2e7aa86dbcece99425c0a90f206111673d10edd30a6524f3f5a81",
+      "after": "262da8551fb9cc1fe9661326a9c19c9953d2799395bdc6d29823372efdf9e2a7",
+      "change": "installed @snapback imports; CLI-only lifecycle; ports 33104/43104; isolated namespace and live timing origin"
+    },
+    {
+      "path": "tests/build-performance.mjs",
+      "before": "0c1e7740c917dc0a0d7bcc4b7cb9232588757eb7f9bfe1ba2aa809682486356d",
+      "after": "d4ccc1eb14f15169cd6f998b73fbb1210ae017c542b1ec2edf2bce7deb20c4b4",
+      "change": "npm-installed Vite execution instead of Bun command resolution"
+    },
+    {
+      "path": "src/main.jsx",
+      "before": "e8330b8f8e2aebc72e75fcbea843e692f89c89089130d48bb5a43d83ef6b7d6f",
+      "after": "e9de5eae32d5af25b4a99559a891daeb76380500347cc2a47877d5f8ebc81f65",
+      "change": "isolated namespace and server origin"
+    },
+    {
+      "path": "snapback/cron-handlers.mjs",
+      "before": "8c2dd33ed2f89dc20e7379e3c3f4b9a3d4d398374a552474dc9a406674e18143",
+      "after": "6e28b631920de8a0070be92ae9d06d61fce2b667c640aeccd2d67ead3219fd78",
+      "change": "isolated namespace"
+    },
+    {
+      "path": "vite.config.mjs",
+      "before": "89876ac463da20f4ed57e9b466e1e5ba3f108437351526c0c4246ad9e8181172",
+      "after": "3bee13a966f398aed0eb58e72f490bc6226a9d737e33561196a4556497b14df1",
+      "change": "isolated Vite/effect-receiver port"
+    },
+    {
+      "path": "tests/installed-server.mjs",
+      "before": null,
+      "after": "c46784f9ffc15cef50bc95b475ed1db849b8e62804f787a037b74ec114a36968",
+      "change": "external harness around installed snapback start/stop and nonce-attested ready descriptor"
+    }
+  ],
+  "unchangedPackageImports": "schema.mjs and functions.mjs already used @snapback/codegen/define at the frozen source.",
+  "removalsFromCopy": [
+    "sealed bun.lock",
+    "stale generated/",
+    "dist/",
+    ".state/",
+    "node_modules/",
+    "tests/finalize-capsule.mjs"
+  ],
+  "regeneratedArtifactsSha256": "842573887589d97559559145820ce0b0d299e47496e3f63bd4bc352f7729b986",
+  "newPackageLockSha256": "3e98a55b2ccc613d419dfcaab99bd8aede487109dfeb8acc82ccd2746be68068"
+}

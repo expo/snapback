@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "policy": "Only the clean external copy was adapted. Frozen work, capsules, product source, scenarios, and assertions were untouched.",
+  "copiedFrom": "demos/backend-bakeoff/arms/linear/snapback/work at 4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "transformations": [
+    {
+      "path": "package.json",
+      "before": "eecad81d10919fde55400e596b5a28ad41fa64bf41a188f1b817c1de90508d96",
+      "after": "38af39283081f066bf6e82d3f479a40b535981298e1009d2cd46615c6464c3eb",
+      "change": "installed immutable tarballs; packaged generate command; fresh npm lock"
+    },
+    {
+      "path": "snapback/schema.mjs",
+      "before": "e5b80443f4baa21bdc64ecf229619a083cdfc16b86c4f88b50c037132f8f7da9",
+      "after": "cbe5adff6f2e7f8a6956eb196f0840aac9f8fd881c61b456f596544c00dd30be",
+      "change": "repository define shim → @snapback/codegen/define"
+    },
+    {
+      "path": "snapback/functions.mjs",
+      "before": "49ff4324468a73018bcd02381a231048dba7854d18f10d1998209019021f58ac",
+      "after": "e8251004dd97506464752a70aaaff07d2b5883c472b420b278c10bc56d467180",
+      "change": "repository define shim → @snapback/codegen/define"
+    },
+    {
+      "path": "src/provider.ts",
+      "before": "2e411f7f003c786bb246e02f4752e628a2a014666c95232574c670d33324e407",
+      "after": "3bf12b35972ea73a2d3cbcb341d3ff9c0eb7c329e86a0cdf50aa363eaa081e8e",
+      "change": "source import → @snapback/client/online; isolated namespace"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "before": "b8e481640ad1032dfbeb8d37d0f0e5cf52d6198c7477b0032da1313d369260d0",
+      "after": "6543cfc95f5ac3a478c84dea863e68f436e03ff25cf8a8a66f9d22b5146233ae",
+      "change": "installed @snapback imports; CLI-only start/stop lifecycle; ports 33103/43103; isolated namespace"
+    },
+    {
+      "path": "vite.config.ts",
+      "before": "6b2e586f3196259f527096cdb271a36cea4b5d3d6bd33c3730257940516cd2df",
+      "after": "0709465427668ae85ef999f63762d7a06fd92962363fe8cc142ad656d3548115",
+      "change": "removed repository filesystem allowlist"
+    },
+    {
+      "path": "scripts/installed-server.mjs",
+      "before": null,
+      "after": "c46784f9ffc15cef50bc95b475ed1db849b8e62804f787a037b74ec114a36968",
+      "change": "external harness around installed snapback start/stop and nonce-attested ready descriptor"
+    },
+    {
+      "path": "src/snapback-client-online.d.ts",
+      "before": null,
+      "after": "fa03c105cf492f932737cb10fefdd326a8bee96327ee3c21c14955c82ced1bd6",
+      "change": "external ambient declaration for exported package subpath missing TypeScript declarations"
+    }
+  ],
+  "removalsFromCopy": [
+    "sealed package-lock.json",
+    "stale generated/",
+    "dist/",
+    "public/",
+    "node_modules/",
+    "scripts/finalize-capsule.mjs"
+  ],
+  "regeneratedArtifactsSha256": "43e98f2d07cce642233c32fc9cca0bb03c993d446bb8f5c129fd8026e87d075a",
+  "newPackageLockSha256": "919cdb7a10f413896aaa49ba079cf3e23e275d0f6e8fc2c0766380b190422065"
+}

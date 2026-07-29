@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    "official staged cold-install proof",
+    "fresh external npm install of seven immutable Snapback tarballs",
+    "installed snapback generate",
+    "production UI build",
+    "frozen scenario acceptance using installed snapback start/stop",
+    "exact cleanup and negative listener/path probes"
+  ],
+  "finalResult": "10 PASS / 4 GAP / 0 FAIL",
+  "failuresRetainedIn": "original-friction-lineage.v1.json",
+  "forbiddenPathsUsed": false,
+  "cargoFallbackUsed": false
+}
