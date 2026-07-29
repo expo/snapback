@@ -101,6 +101,7 @@ All seven Linear arms have now been assigned in exact frozen order.
 | Frozen start order | Arm | Worker / machine | Isolation | Merge ownership |
 | ---: | --- | --- | --- | --- |
 | 1 | Partiful / Supabase | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-partiful-supabase-coord` at the current evidence-integration head without Snapback product edits; official local Supabase stack with exact project/volume namespace `llp0102-partiful-supabase-coord`; API/DB/Studio range rooted at `57431`, Vite `4330`; worktree-local CLI/XDG state and fresh local project | Coordinator writes and audits directly; shared diary/report edits only after arm evidence and exact cleanup are complete |
+| 2 | Partiful / Firebase | Worker 1 / control-plane Mac, isolated worktree | Detached worktree `/private/tmp/llp0102-partiful-firebase-w1`; emulator project `llp0102-partiful-firebase-w1`; Auth `9331`, Firestore `8331`, Functions `5331`, Storage `9431`, UI/Vite `4331/4332`, hub/log `4531/4532`; worktree-local Firebase/XDG/browser state and exact process ownership | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
 
-Partiful/Firebase, SpacetimeDB, Appwrite, Snapback, Convex, and InstantDB will
-be assigned in that exact order as isolated capacity opens.
+Partiful/SpacetimeDB, Appwrite, Snapback, Convex, and InstantDB will be assigned
+in that exact order as isolated capacity opens.
