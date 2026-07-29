@@ -1,0 +1,284 @@
+{
+  "schemaVersion": 1,
+  "app": "partiful",
+  "provider": "spacetimedb",
+  "expectedChecks": 15,
+  "target": "llp0102-partiful-spacetimedb-w2",
+  "scenarios": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "PASS",
+      "summary": "A fresh database contains one deterministic event, three invitations, four development personas, the capacity fixture, and initial RSVP/post state.",
+      "evidence": {
+        "authoritativeSql": {
+          "event": "row_count \n-----------\n 1",
+          "membership": "row_count \n-----------\n 3",
+          "persona": "row_count \n-----------\n 4",
+          "rsvp": "row_count \n-----------\n 1",
+          "wall_post": "row_count \n-----------\n 1"
+        },
+        "hostEventRows": 1,
+        "hostGuestRows": 3,
+        "actorCount": 4,
+        "target": "llp0102-partiful-spacetimedb-w2"
+      }
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "PASS",
+      "summary": "The outsider receives one anonymous public projection and no member view, private notes, guest list, RSVP, wall, asset, reminder, or attempt data.",
+      "evidence": {
+        "anonymousPublicRows": 1,
+        "publicFields": [
+          "id",
+          "publicDescription",
+          "slug",
+          "startsAt",
+          "title",
+          "venue"
+        ],
+        "privateNotesExposed": false,
+        "outsiderProtectedCounts": {
+          "events": 0,
+          "guests": 0,
+          "rsvps": 0,
+          "wallPosts": 0,
+          "assets": 0,
+          "reminders": 0,
+          "attempts": 0
+        }
+      }
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "PASS",
+      "summary": "Bob’s native invited identity settled maybe, yes/+1, no, and yes/+1 transitions in host and guest views.",
+      "evidence": {
+        "invitationAttribution": "d08b4bc98f89c45d41826c60e0f15cbcb387baa924e55565b1bc20a272beb492",
+        "transitions": [
+          {
+            "status": "maybe",
+            "plusOne": 0,
+            "revision": "1"
+          },
+          {
+            "status": "yes",
+            "plusOne": 1,
+            "revision": "2"
+          },
+          {
+            "status": "no",
+            "plusOne": 0,
+            "revision": "3"
+          },
+          {
+            "status": "yes",
+            "plusOne": 1,
+            "revision": "4"
+          }
+        ],
+        "finalAuthority": {
+          "status": "yes",
+          "plusOne": 1,
+          "revision": "4"
+        }
+      }
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "PASS",
+      "summary": "Alice host, Bob cohost/guest, and Mallory outsider exercised distinct positive and negative reducer authority.",
+      "evidence": {
+        "hostCanAssignRole": true,
+        "guestHostActionRejected": true,
+        "cohostCanChangePolicy": true,
+        "outsiderRsvpRejected": true,
+        "negativeDiagnostics": [
+          "The instance encountered a fatal error.",
+          "The instance encountered a fatal error."
+        ]
+      }
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "PASS",
+      "summary": "Guest-list policy removed and re-added rows on Bob’s already-connected subscription while the anonymous public preview stayed visible.",
+      "evidence": {
+        "hiddenBefore": 0,
+        "visibleAfterPolicyChange": 3,
+        "hiddenAfter": 0,
+        "publicPreviewBefore": 1,
+        "publicPreviewAfter": 1,
+        "transport": "native-view-push"
+      }
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "PASS",
+      "summary": "Two reducer calls contended for the final seat; ACID reducer serialization committed one and rejected one without overbooking.",
+      "evidence": {
+        "twoActorBarrier": [
+          "Bob",
+          "Casey"
+        ],
+        "fulfilled": 1,
+        "rejected": 1,
+        "authoritativeSeats": 3,
+        "authoritativeSql": "status | plus_one | display_name \n--------+----------+--------------\n \"yes\"  | 1        | \"Alice\"      \n \"yes\"  | 0        | \"Bob\""
+      }
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "PASS",
+      "summary": "Bob’s second client received twenty wall inserts and RSVP total transitions through generated-binding WebSocket subscriptions with no polling.",
+      "evidence": {
+        "wallPostsSent": 20,
+        "wallPostsReceived": 20,
+        "totalsUpdatesReceived": 22,
+        "burstLatencyMs": 24.096965999997337,
+        "productPolling": false,
+        "transport": "SpacetimeDB WebSocket subscription views",
+        "authoritativeWallCount": 21
+      }
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "PASS",
+      "summary": "Native inline binary storage preserved object identity and content hash for authorized members, exposed nothing to Mallory, and pushed deletion.",
+      "evidence": {
+        "objectIdentity": "asset-primary",
+        "declaredContentHash": "b2a8170614e23194ae2951423d601987f518ce2f11205d7b0b708080103b9f76",
+        "independentlyComputedContentHash": "b2a8170614e23194ae2951423d601987f518ce2f11205d7b0b708080103b9f76",
+        "hashesMatch": true,
+        "authorizedDelivery": true,
+        "outsiderRows": 0,
+        "deleteProof": true
+      }
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "PASS",
+      "summary": "A native scheduled procedure produced one inspectable reminder run and one succeeded idempotent notification attempt.",
+      "evidence": {
+        "scheduleIdentity": "reminder-fixture-001",
+        "runCount": 1,
+        "attemptCalls": 1,
+        "duplicateScheduleRejected": true,
+        "dedupeKey": "reminder-fixture-001",
+        "nativeScheduleTable": true
+      }
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "PASS",
+      "summary": "The procedure’s durable attempt ledger suppressed a retry after known success, so the deterministic external receiver saw one delivery.",
+      "evidence": {
+        "providerBoundary": "SpacetimeDB procedure ctx.http.fetch",
+        "ledgerState": "succeeded",
+        "ledgerAttempts": 1,
+        "receiverCalls": 1,
+        "terminalSettlement": "http-200"
+      }
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "PASS",
+      "summary": "The receiver accepted then dropped the first response; the ledger retained ambiguous separately, and retry reused the dedupe key and settled without a second unique delivery.",
+      "evidence": {
+        "faultInjection": "receiver destroyed first response after accepting body",
+        "firstState": "ambiguous",
+        "firstProviderStatus": "http-502",
+        "finalState": "succeeded",
+        "attempts": 2,
+        "receiverCalls": 2,
+        "receiverUniqueDeliveries": 1,
+        "dedupeKey": "notify-ambiguous-001"
+      }
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "PASS",
+      "summary": "Revocation removed all protected rows from Bob’s established subscription and blocked the subsequent post while private authoritative history remained inspectable.",
+      "evidence": {
+        "beforeRevocation": {
+          "events": 1,
+          "wallPosts": 21,
+          "rsvps": 2
+        },
+        "afterRevocation": {
+          "events": 0,
+          "wallPosts": 0,
+          "rsvps": 0
+        },
+        "futureProtectedDeliveries": 0,
+        "publicPreviewStillVisible": 1,
+        "retainedStoreInspection": {
+          "bobMemberships": "row_count \n-----------\n 1",
+          "bobRsvps": "row_count \n-----------\n 1",
+          "wallPosts": "row_count \n-----------\n 22"
+        },
+        "retainedDataClaim": "private membership, RSVP, and wall history retained until exact database cleanup"
+      }
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "UNAVAILABLE_REMOTE_DEPENDENCY",
+      "summary": "Official standalone target identity, schema, logs, scheduled procedure, and HTTP effect boundary are inspectable; Maincloud secret/config/deployment evidence is unavailable because no credential was provided.",
+      "evidence": {
+        "localTargetIdentity": "evidence/target-identity.json",
+        "localEffectBoundary": "evidence/effect-receiver.json",
+        "hostedUrl": null,
+        "hostedSecretProof": false,
+        "falseHostedClaim": false,
+        "reason": "credential-unavailable"
+      }
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "status": "PASS",
+      "summary": "Six frozen application paths and module build each retain two warmups, seven raw samples, median, and nearest-rank p95 on the assigned isolated host.",
+      "evidence": {
+        "applicationPaths": [
+          "rsvp-write",
+          "capacity-contention",
+          "realtime-delivery",
+          "wall-burst",
+          "asset-roundtrip",
+          "reconnect-read"
+        ],
+        "warmupsPerPath": 2,
+        "recordedSamplesPerPath": 7,
+        "moduleBuildMedianMs": 519.592,
+        "moduleBuildP95Ms": 531.8,
+        "productPolling": false
+      }
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "status": "PASS",
+      "summary": "The immutable database identity was deleted; a syntactically valid positional describe returned database absence, validated arm processes stopped, state was removed, and ports 3332/4333 closed.",
+      "evidence": {
+        "databaseIdentity": "c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261",
+        "deletionExitCode": 0,
+        "postDescribeExitCode": 1,
+        "postDescribeSyntaxValid": true,
+        "usageDiagnosticObserved": false,
+        "absenceDiagnostic": [
+          "WARNING: This command is UNSTABLE and subject to breaking changes.",
+          "",
+          "Error: No such database.",
+          "",
+          "Caused by:",
+          "    HTTP status client error (404 Not Found) for url (http://127.0.0.1:3332/v1/database/c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261/schema?version=9)"
+        ],
+        "portsClosed": [
+          3332,
+          4333
+        ],
+        "stateRemoved": true
+      }
+    }
+  ],
+  "stopDefects": [],
+  "finalizedAt": "2026-07-29T06:16:05.507Z"
+}

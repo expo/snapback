@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "server": {
+    "spacetimedb": "2.7.0",
+    "typescript": "5.6.3",
+    "auditHighExitCode": 0
+  },
+  "harness": {
+    "spacetimedb": "2.7.0",
+    "tsx": "4.20.3",
+    "typescript": "5.6.3",
+    "auditHighExitCode": 0
+  },
+  "client": {
+    "spacetimedb": "2.7.0",
+    "react": "19.2.8",
+    "vite": "8.1.5",
+    "auditHighExitCode": 0
+  },
+  "localTools": {
+    "spacetimeCli": "2.7.0",
+    "cloudflared": "2026.7.2",
+    "cloudflaredSha256": "ec905ea7b7e327ff8abdde8cb64697a2152de74dbcdbf6aec9db8364eb3886cd"
+  },
+  "containsSecretValues": false
+}

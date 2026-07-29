@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T06:16:05.508Z",
+  "deployment": "official SpacetimeDB standalone",
+  "exactDatabaseName": "llp0102-partiful-spacetimedb-w2",
+  "immutableDatabaseIdentity": "c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261",
+  "serverEndpointHash": "e3ac1ae6057f6586c4f84108ac7a6d9227e458d5a6e5c3a27c28db9b2ccbca2a",
+  "hostedDeployment": false,
+  "hostedGapPath": "evidence/hosted-gap.json",
+  "finalState": "cleaned"
+}

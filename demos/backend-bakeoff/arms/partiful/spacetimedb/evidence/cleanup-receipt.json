@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T06:14:40.244Z",
+  "exactTarget": {
+    "databaseName": "llp0102-partiful-spacetimedb-w2",
+    "databaseIdentity": "c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261",
+    "server": "http://127.0.0.1:3332"
+  },
+  "preCleanupDescribe": {
+    "command": "spacetime describe --json llp0102-partiful-spacetimedb-w2 --server http://127.0.0.1:3332 --yes --no-config",
+    "exitCode": 0,
+    "syntaxValid": true,
+    "usageDiagnosticObserved": false,
+    "schemaResponseSha256": "a217b9a8dd1b2b839e2c495d4b129061e2864284269f254d13ea2a6e40b74ca5"
+  },
+  "deletion": {
+    "command": "spacetime delete c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261 --server http://127.0.0.1:3332 --yes --no-config",
+    "exitCode": 0,
+    "diagnostic": [
+      "Skipping confirmation due to --yes"
+    ]
+  },
+  "postCleanupAbsence": {
+    "command": "spacetime describe --json llp0102-partiful-spacetimedb-w2 --server http://127.0.0.1:3332 --anonymous --yes --no-config",
+    "databaseArgumentGrammar": "positional",
+    "exitCode": 1,
+    "syntaxValid": true,
+    "usageDiagnosticObserved": false,
+    "diagnostic": [
+      "WARNING: This command is UNSTABLE and subject to breaking changes.",
+      "",
+      "Error: No such database.",
+      "",
+      "Caused by:",
+      "    HTTP status client error (404 Not Found) for url (http://127.0.0.1:3332/v1/database/c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261/schema?version=9)"
+    ],
+    "absenceRecognized": true
+  },
+  "cleanupScope": {
+    "runtimePathRemoved": "/home/ccheever/worktrees/llp0102-partiful-spacetimedb-w2/demos/backend-bakeoff/arms/partiful/spacetimedb/state",
+    "stateBytesBeforeRemoval": 492781274,
+    "serverProcess": {
+      "label": "SpacetimeDB standalone",
+      "pid": 342958,
+      "cwd": "/home/ccheever/worktrees/llp0102-partiful-spacetimedb-w2/demos/backend-bakeoff/arms/partiful/spacetimedb",
+      "commandSha256": "4addbcbe538618fc1e1bee9e2266a8d982ab39fc8c29af4404d8b44badebf48e"
+    },
+    "viteProcess": {
+      "label": "Vite",
+      "pid": 350538,
+      "cwd": "/home/ccheever/worktrees/llp0102-partiful-spacetimedb-w2/demos/backend-bakeoff/arms/partiful/spacetimedb/work/client",
+      "commandSha256": "75e6f746405527cdcc0ae2ca9d18038699c90ced98a9037611549976666a9b3b"
+    },
+    "unrelatedProcessesStopped": 0,
+    "serverClearUsed": false
+  },
+  "containsSecretValues": false
+}

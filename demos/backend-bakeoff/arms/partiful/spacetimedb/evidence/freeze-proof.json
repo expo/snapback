@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "armBaseCommit": "4847b7ac53d084e6beeb143723243a65872052d8",
+  "frozenSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "snapbackSourceEdited": false,
+  "sharedProtocolEdited": false,
+  "armOnlyPath": "backend-bakeoff/arms/partiful/spacetimedb"
+}

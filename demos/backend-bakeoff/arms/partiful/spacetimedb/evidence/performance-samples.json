@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:49:15.471Z",
+  "claimScope": "isolated SpacetimeDB 2.7.0 standalone on assigned Linux host",
+  "fixture": {
+    "events": 1,
+    "invitedMembers": 3,
+    "functionalBurstPosts": 20,
+    "performanceBurstPostsPerSample": 10,
+    "assetBytesPerSample": 4096,
+    "concurrentCapacityActors": 2
+  },
+  "warmupsPerPath": 2,
+  "recordedSamplesPerPath": 7,
+  "unit": "milliseconds",
+  "samples": {
+    "rsvp-write": {
+      "operation": "Bob toggles RSVP and waits for host authority",
+      "warmups": [
+        3.24,
+        23.151
+      ],
+      "recorded": [
+        4.658,
+        3.197,
+        3.686,
+        23.496,
+        7.209,
+        5.829,
+        5.265
+      ],
+      "median": 5.265,
+      "p95": 23.496,
+      "min": 3.197,
+      "max": 23.496
+    },
+    "capacity-contention": {
+      "operation": "Reset final seat then race Bob and Casey",
+      "warmups": [
+        11.814,
+        8.427
+      ],
+      "recorded": [
+        30.402,
+        15.431,
+        9.515,
+        9.541,
+        6.82,
+        26.414,
+        14.304
+      ],
+      "median": 14.304,
+      "p95": 30.402,
+      "min": 6.82,
+      "max": 30.402
+    },
+    "realtime-delivery": {
+      "operation": "Alice posts and Bob receives native push",
+      "warmups": [
+        6.011,
+        5.222
+      ],
+      "recorded": [
+        4.922,
+        4.358,
+        23.882,
+        6.661,
+        5.73,
+        4.761,
+        3.483
+      ],
+      "median": 4.922,
+      "p95": 23.882,
+      "min": 3.483,
+      "max": 23.882
+    },
+    "wall-burst": {
+      "operation": "Ten concurrent wall reducers settle in Bob cache",
+      "warmups": [
+        34.155,
+        15.928
+      ],
+      "recorded": [
+        34.582,
+        21.665,
+        15.498,
+        16.089,
+        40.386,
+        26.419,
+        19.538
+      ],
+      "median": 21.665,
+      "p95": 40.386,
+      "min": 15.498,
+      "max": 40.386
+    },
+    "asset-roundtrip": {
+      "operation": "Upload 4 KiB inline asset, push to Bob, delete",
+      "warmups": [
+        31.172,
+        8.792
+      ],
+      "recorded": [
+        7.377,
+        7.271,
+        6.242,
+        50.027,
+        9.125,
+        25.913,
+        10.004
+      ],
+      "median": 9.125,
+      "p95": 50.027,
+      "min": 6.242,
+      "max": 50.027
+    },
+    "reconnect-read": {
+      "operation": "Reconnect Bob identity and resubscribe all views",
+      "warmups": [
+        6.662,
+        4.345
+      ],
+      "recorded": [
+        3.959,
+        3.32,
+        3.544,
+        4.602,
+        4.217,
+        3.217,
+        3.261
+      ],
+      "median": 3.544,
+      "p95": 4.602,
+      "min": 3.217,
+      "max": 4.602
+    }
+  },
+  "productPolling": false,
+  "effectReceiver": {
+    "localDeterministic": true,
+    "dynamicLoopbackPort": 41537,
+    "totalCalls": 5,
+    "uniqueDedupeKeys": 4
+  },
+  "machine": {
+    "hostname": "ccheever-minisforum-AI-Series",
+    "architecture": "x86_64",
+    "logicalCpus": 24,
+    "memoryGiB": 59,
+    "node": "v24.15.0"
+  },
+  "finalizedAt": "2026-07-29T06:16:05.507Z",
+  "methodology": "Two unscored warmups followed by seven retained wall-clock samples per path; nearest-rank p95.",
+  "moduleBuild": {
+    "schemaVersion": 1,
+    "checkedAt": "2026-07-29T05:52:57.213Z",
+    "command": "spacetime build --module-path server/spacetimedb",
+    "productVersion": "2.7.0",
+    "unit": "milliseconds",
+    "warmups": [
+      653.644,
+      588.446
+    ],
+    "recorded": [
+      531.8,
+      514.941,
+      506.476,
+      519.592,
+      527.798,
+      530.675,
+      504.783
+    ],
+    "median": 519.592,
+    "p95": 531.8,
+    "successfulBuilds": 9
+  }
+}

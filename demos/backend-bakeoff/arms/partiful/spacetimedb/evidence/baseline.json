@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:18:05.695Z",
+  "activeWindowStartedAt": "2026-07-29T05:10:38.256Z",
+  "activeWindowStartUptimeMs": 410637910,
+  "mode": "fresh-local",
+  "sourceBaseCommit": "4847b7ac53d084e6beeb143723243a65872052d8",
+  "frozenSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "exactTarget": {
+    "machine": "ccheever-minisforum-AI-Series",
+    "server": "http://127.0.0.1:3332",
+    "database": "llp0102-partiful-spacetimedb-w2",
+    "serverPort": 3332,
+    "vitePort": 4333,
+    "dataRoot": "state/data",
+    "cliRoot": "state/cli",
+    "configPath": "state/config/cli.toml"
+  },
+  "preWriteProbes": {
+    "portsInitiallyClosed": [
+      3332,
+      4333
+    ],
+    "databaseDescribeCommand": "spacetime describe --json llp0102-partiful-spacetimedb-w2 --server http://127.0.0.1:3332 --anonymous --yes --no-config",
+    "databaseDescribeExitCode": 1,
+    "databaseAbsentDiagnostic": [
+      "WARNING: This command is UNSTABLE and subject to breaking changes.",
+      "",
+      "Error: failed to find database `llp0102-partiful-spacetimedb-w2`."
+    ],
+    "usageDiagnosticObserved": false,
+    "serverPid": 342958
+  },
+  "sharedTarget": false,
+  "unrelatedBaselineMutationPlanned": false,
+  "containsSecretValues": false
+}
