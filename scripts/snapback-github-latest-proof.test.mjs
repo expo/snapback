@@ -33,6 +33,10 @@ function receipt(platform = 'darwin', architecture = 'arm64') {
       headSha: CONTEXT.ledgerRevision,
       dirty: false,
     },
+    proofHarnessCheckout: {
+      headSha: CONTEXT.expectedHeadSha,
+      dirty: false,
+    },
     githubProof: {
       repository: CONTEXT.repository,
       workflowRef:
@@ -53,6 +57,7 @@ function receipt(platform = 'darwin', architecture = 'arm64') {
       githubRunAttempt: String(CONTEXT.runAttempt),
       githubRepository: CONTEXT.repository,
       githubWorkflowSha: CONTEXT.expectedHeadSha,
+      proofHarnessRevision: CONTEXT.expectedHeadSha,
     },
   };
 }
@@ -103,6 +108,9 @@ test('admits only the exact GitHub-hosted latest-root run correlation', () => {
     (candidate) => { candidate.rootSelector = 'exact'; },
     (candidate) => { candidate.sourceCheckout.dirty = true; },
     (candidate) => { candidate.sourceCheckout.headSha = 'c'.repeat(40); },
+    (candidate) => { delete candidate.proofHarnessCheckout; },
+    (candidate) => { candidate.proofHarnessCheckout.dirty = true; },
+    (candidate) => { candidate.proofHarnessCheckout.headSha = 'c'.repeat(40); },
     (candidate) => { candidate.githubProof.operationId = 'other-operation'; },
     (candidate) => { candidate.githubProof.runId = '999'; },
     (candidate) => { candidate.githubProof.runAttempt = '1'; },
@@ -114,7 +122,7 @@ test('admits only the exact GitHub-hosted latest-root run correlation', () => {
     mutate(candidate);
     assert.throws(
       () => validateExistingLatestReceipt(candidate, 'darwin-arm64', CONTEXT),
-      /GitHub|fresh|correlation|operation|source checkout/u,
+      /GitHub|fresh|correlation|operation|source checkout|proof harness/u,
     );
   }
 });

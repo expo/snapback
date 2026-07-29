@@ -1051,6 +1051,12 @@ Options:
                     Install all exact aliases (default), or first install only
                     @ccheever/snapback-cli@latest and verify its selected
                     closure/default-tag vector before expanding the proof
+  --source-checkout <path>
+                    Read fixtures from a separate clean checkout at the
+                    publication ledger revision
+  --proof-harness-revision <sha>
+                    Exact clean revision executing the proof when
+                    --source-checkout is separate
   --receipt <path>  Write the retained proof receipt to this path
   --keep            Keep the temporary external application directory
   -h, --help        Print this help without staging or installing packages
@@ -1066,6 +1072,8 @@ export function parseArguments(args) {
     receipt: null,
     keep: false,
     rootSelector: 'exact',
+    sourceCheckout: null,
+    proofHarnessRevision: null,
   };
   const seen = new Set();
   for (let index = 0; index < args.length; index += 1) {
@@ -1088,6 +1096,8 @@ export function parseArguments(args) {
       || argument === '--install-source'
       || argument === '--registry'
       || argument === '--root-selector'
+      || argument === '--source-checkout'
+      || argument === '--proof-harness-revision'
     ) {
       if (seen.has(argument)) throw new TypeError(`duplicate argument: ${argument}`);
       seen.add(argument);
@@ -1099,6 +1109,10 @@ export function parseArguments(args) {
         ? 'installSource'
         : argument === '--root-selector'
           ? 'rootSelector'
+          : argument === '--source-checkout'
+            ? 'sourceCheckout'
+            : argument === '--proof-harness-revision'
+              ? 'proofHarnessRevision'
           : argument.slice(2);
       parsed[key] = value;
       index += 1;
@@ -1114,6 +1128,20 @@ export function parseArguments(args) {
   }
   if (parsed.rootSelector === 'latest' && parsed.installSource !== 'public') {
     throw new TypeError('--root-selector latest requires --install-source public');
+  }
+  if ((parsed.sourceCheckout === null) !== (parsed.proofHarnessRevision === null)) {
+    throw new TypeError(
+      '--source-checkout and --proof-harness-revision must be provided together',
+    );
+  }
+  if (
+    parsed.proofHarnessRevision !== null
+    && !/^[0-9a-f]{40}$/u.test(parsed.proofHarnessRevision)
+  ) {
+    throw new TypeError('--proof-harness-revision must be a full Git revision');
+  }
+  if (parsed.sourceCheckout !== null && parsed.installSource !== 'public') {
+    throw new TypeError('--source-checkout is only valid for public proofs');
   }
   let registry;
   try {
@@ -1363,6 +1391,7 @@ export function validateFinalLatestReceipts({
       expectedRevision: ledger.revision,
       expectedWorkflow: 'public-package-proof.yml',
       expectedOperationId: githubCollection.operationId,
+      expectedWorkflowHead: githubCollection.expectedHeadSha,
     });
     if (
       receipt?.schemaVersion !== 'snapback.package-cold-install.v1'
@@ -1448,6 +1477,18 @@ export function validateFinalLatestReceipts({
       || omission.treePath[1] !== expectedOmittedRuntime
     ) {
       throw new TypeError(`final latest-root tag vector is incomplete: ${platform}`);
+    }
+    const proofHarnessCheckout = receipt.proofHarnessCheckout;
+    if (
+      proofHarnessCheckout === null
+      || typeof proofHarnessCheckout !== 'object'
+      || Array.isArray(proofHarnessCheckout)
+      || Object.keys(proofHarnessCheckout).sort().join(',') !== 'dirty,headSha'
+      || proofHarnessCheckout.dirty !== false
+      || proofHarnessCheckout.headSha !== githubCollection.expectedHeadSha
+      || proofHarnessCheckout.headSha !== receipt.githubProof.runHeadSha
+    ) {
+      throw new TypeError(`final latest-root proof harness drifted: ${platform}`);
     }
     for (const candidate of ledger.packages) {
       if (resolution.defaultTagVector[candidate.name] !== candidate.version) {

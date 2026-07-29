@@ -505,6 +505,7 @@ export function validatePublicationReceiptProvenance(
     expectedRevision,
     expectedWorkflow,
     expectedOperationId = undefined,
+    expectedWorkflowHead = undefined,
   },
 ) {
   requireExactKeys(receipt?.sourceCheckout, SOURCE_CHECKOUT_KEYS, 'receipt source checkout');
@@ -514,8 +515,14 @@ export function validatePublicationReceiptProvenance(
   ) {
     throw new TypeError('publication receipt source checkout is not the exact clean revision');
   }
+  requireExactKeys(
+    receipt?.proofHarnessCheckout,
+    SOURCE_CHECKOUT_KEYS,
+    'receipt proof harness checkout',
+  );
   requireExactKeys(receipt?.githubProof, GITHUB_PROOF_KEYS, 'receipt GitHub proof');
   const proof = receipt.githubProof;
+  const proofHarness = receipt.proofHarnessCheckout;
   if (
     proof.repository !== 'ccheever/snapback'
     || !/^[0-9]+$/u.test(proof.runId ?? '')
@@ -533,6 +540,17 @@ export function validatePublicationReceiptProvenance(
     || receipt.machine?.githubWorkflowSha !== proof.runHeadSha
   ) {
     throw new TypeError('publication receipt lacks exact GitHub-hosted provenance');
+  }
+  if (
+    proofHarness.dirty !== false
+    || proofHarness.headSha !== proof.runHeadSha
+    || receipt.machine?.proofHarnessRevision !== proofHarness.headSha
+    || (
+      expectedWorkflowHead !== undefined
+      && proofHarness.headSha !== expectedWorkflowHead
+    )
+  ) {
+    throw new TypeError('publication receipt proof harness is not the exact clean workflow head');
   }
   if (
     expectedOperationId !== undefined

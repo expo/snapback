@@ -49,6 +49,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Preserve and validate the publication ledger
         id: ledger
@@ -70,13 +71,21 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, "revision=" + ledger.revision + "\n");
           '
 
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ steps.ledger.outputs.revision }}
-          persist-credentials: false
+      - name: Materialize the immutable package-source checkout
+        env:
+          SOURCE_REVISION: ${{ steps.ledger.outputs.revision }}
+        run: |
+          git worktree add --detach \
+            "$RUNNER_TEMP/snapback-package-source" \
+            "$SOURCE_REVISION"
 
       - name: Verify checkout credential cleanup
-        run: scripts/check-checkout-credentials
+        run: |
+          scripts/check-checkout-credentials
+          (
+            cd "$RUNNER_TEMP/snapback-package-source"
+            "$GITHUB_WORKSPACE/scripts/check-checkout-credentials"
+          )
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -91,6 +100,8 @@ jobs:
             --ledger "$RUNNER_TEMP/snapback-publication-ledger.json" \
             --install-source public \
             --root-selector "${{ inputs.root_selector }}" \
+            --source-checkout "$RUNNER_TEMP/snapback-package-source" \
+            --proof-harness-revision "${{ github.sha }}" \
             --receipt "$RECEIPT_PATH"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

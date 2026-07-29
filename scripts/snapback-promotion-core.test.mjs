@@ -241,6 +241,45 @@ test('promotion tolerates bounded official-registry propagation lag', async () =
   );
 });
 
+test('promotion tolerates one preceding checkpoint after a proven write', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const prior = structuredClone(vector);
+  const head = acquiredHead(lease, privateKey);
+  let firstWriteDone = false;
+  let firstPostObserved = false;
+  let regressedOnce = false;
+  const result = await promoteDefaultVector({
+    lease,
+    authorityPublicKey: publicKey,
+    readVector: async () => {
+      if (firstWriteDone && !firstPostObserved) {
+        firstPostObserved = true;
+        return structuredClone(vector);
+      }
+      if (firstPostObserved && !regressedOnce) {
+        regressedOnce = true;
+        return structuredClone(prior);
+      }
+      return structuredClone(vector);
+    },
+    readLeaseHead: async () => structuredClone(head),
+    setTag: async (name, version) => {
+      vector[name] = version;
+      firstWriteDone = true;
+    },
+    removeTag: async (name) => { vector[name] = null; },
+    wait: async () => {},
+    registryConvergenceDelayMs: 0,
+    now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(
+    result.events[1].preMutationRegistryConvergenceAttempts,
+    2,
+  );
+});
+
 test('promotion fails closed on a refused convergence observation', async () => {
   const { lease, privateKey, publicKey } = fixture();
   const prior = vectorFromLease(lease, 'prior');
@@ -346,6 +385,103 @@ test('failure rolls back every changed tag in reverse order', async () => {
     },
   );
   assert.deepEqual(vector, prior);
+});
+
+test('rollback tolerates one preceding checkpoint after a proven reverse write', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const prior = structuredClone(vector);
+  const allNew = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let firstReverseWriteDone = false;
+  let firstReversePostObserved = false;
+  let regressedOnce = false;
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => {
+        if (firstReverseWriteDone && !firstReversePostObserved) {
+          firstReversePostObserved = true;
+          return structuredClone(vector);
+        }
+        if (firstReversePostObserved && !regressedOnce) {
+          regressedOnce = true;
+          return structuredClone(allNew);
+        }
+        return structuredClone(vector);
+      },
+      readLeaseHead: async () => structuredClone(head),
+      setTag: async (name, version) => {
+        vector[name] = version;
+        if (
+          name === names.at(-1)
+          && version === lease.packages.at(-1).expectedPriorVersion
+        ) {
+          firstReverseWriteDone = true;
+        }
+      },
+      removeTag: async (name) => { vector[name] = null; },
+      wait: async () => {},
+      registryConvergenceDelayMs: 0,
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      afterPromotion: async () => {
+        throw new Error('force rollback checkpoint regression');
+      },
+    }),
+    (error) => {
+      assert.match(error.message, /force rollback checkpoint regression/u);
+      assert.ok(error.result.rollback.every((event) => event.ok));
+      assert.equal(
+        error.result.rollback[1].preMutationRegistryConvergenceAttempts,
+        2,
+      );
+      return true;
+    },
+  );
+  assert.deepEqual(vector, prior);
+});
+
+test('a refused first rollback read retains direct and reconciliation counts', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const head = acquiredHead(lease, privateKey);
+  let refuseFirstRollbackRead = false;
+  let refused = false;
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => {
+        if (refuseFirstRollbackRead && !refused) {
+          refused = true;
+          throw new Error('simulated first rollback read refusal');
+        }
+        return structuredClone(vector);
+      },
+      readLeaseHead: async () => structuredClone(head),
+      setTag: async (name, version) => { vector[name] = version; },
+      removeTag: async (name) => { vector[name] = null; },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      afterPromotion: async () => {
+        refuseFirstRollbackRead = true;
+        throw new Error('force first rollback read refusal');
+      },
+    }),
+    (error) => {
+      assert.equal(
+        error.result.rollback[0].preMutationRegistryConvergenceAttempts,
+        1,
+      );
+      assert.equal(error.result.rollback[0].registryConvergenceAttempts, null);
+      assert.equal(
+        error.result.rollback[0].reconciliationRegistryObservations,
+        1,
+      );
+      assert.match(error.result.rollback[0].error, /first rollback read refusal/u);
+      return true;
+    },
+  );
 });
 
 test('post-mutation lease-head failure rolls the proven mutation back completely', async () => {
@@ -507,9 +643,12 @@ test('rollback advances after one bounded retry proves an apply-then-throw rever
   const vector = vectorFromLease(lease, 'prior');
   const prior = structuredClone(vector);
   const head = acquiredHead(lease, privateKey);
+  const allNew = vectorFromLease(lease, 'new');
   let failNextObservation = false;
   let rollbackWrites = 0;
   let firstRollbackWrite = true;
+  let reconciledFirstWrite = false;
+  let regressedAfterReconciliation = false;
   await assert.rejects(
     promoteDefaultVector({
       lease,
@@ -518,6 +657,14 @@ test('rollback advances after one bounded retry proves an apply-then-throw rever
         if (failNextObservation) {
           failNextObservation = false;
           throw new Error('simulated registry observation outage');
+        }
+        if (!firstRollbackWrite && rollbackWrites === 1 && !reconciledFirstWrite) {
+          reconciledFirstWrite = true;
+          return structuredClone(vector);
+        }
+        if (reconciledFirstWrite && !regressedAfterReconciliation) {
+          regressedAfterReconciliation = true;
+          return structuredClone(allNew);
         }
         return structuredClone(vector);
       },
@@ -539,7 +686,9 @@ test('rollback advances after one bounded retry proves an apply-then-throw rever
         rollbackWrites += 1;
         vector[name] = null;
       },
-      registryConvergenceAttempts: 1,
+      wait: async () => {},
+      registryConvergenceAttempts: 2,
+      registryConvergenceDelayMs: 0,
       now: () => Date.parse('2026-07-28T19:05:00.000Z'),
       afterPromotion: async () => {
         throw new Error('force complete-vector rollback');
@@ -556,8 +705,17 @@ test('rollback advances after one bounded retry proves an apply-then-throw rever
       );
       assert.equal(error.result.rollback[0].observationError, null);
       assert.equal(error.result.rollback[0].checkpointAdvanced, true);
+      assert.equal(error.result.rollback[0].registryConvergenceAttempts, 2);
+      assert.equal(
+        error.result.rollback[0].reconciliationRegistryObservations,
+        1,
+      );
       assert.equal(error.result.rollback.length, 9);
       assert.ok(error.result.rollback.slice(1).every((row) => row.ok === true));
+      assert.equal(
+        error.result.rollback[1].preMutationRegistryConvergenceAttempts,
+        2,
+      );
       return true;
     },
   );

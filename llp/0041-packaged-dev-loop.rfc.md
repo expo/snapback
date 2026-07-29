@@ -398,6 +398,13 @@ audit source.
 
 The two final receipts come from one correlated
 `.github/workflows/public-package-proof.yml` GitHub-hosted matrix execution.
+That execution keeps two independently measured clean checkouts: the workflow
+head supplies the current proof harness, while a detached worktree at the
+candidate ledger's immutable source revision supplies demo and package
+fixtures. The receipt binds both `proofHarnessCheckout` and `sourceCheckout`;
+the harness must equal the dispatched GitHub head and the source checkout must
+equal the candidate ledger. Running the historical candidate's older proof
+code merely because its fixtures are historical is not equivalent evidence.
 `scripts/snapback-github-latest-proof.mjs` dispatches that execution only after
 the tag vector reaches the intended value, waits for a successful terminal run
 within the publication-lease budget, downloads the exact run-id-named
@@ -499,6 +506,13 @@ while the complete vector is still exactly the preceding checkpoint, accepts
 only the exact intended next vector, and refuses immediately if any unrelated
 member differs. Forward promotion and reverse rollback use the same rule and
 retain the number of official-registry observations in their ordered events.
+The first pre-mutation read after a proven write uses the same two-vector
+boundary: a cache-regressed copy of the immediately preceding checkpoint may
+be retried, but no earlier or third vector may be crossed. This applies
+symmetrically while advancing and reversing the dependency-first sequence.
+Ordered events retain the pre-checkpoint, post-write convergence, and any
+catch-reconciliation observation counts separately; a refused read is still
+one attempted official-registry observation, never an uncounted gap.
 
 Every head request supplies a fresh 256-bit challenge. The authority includes
 that challenge in the v3 head signature while excluding it from the stable

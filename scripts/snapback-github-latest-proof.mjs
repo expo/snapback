@@ -260,6 +260,7 @@ export function validateExistingLatestReceipt(receipt, platform, context = null)
       expectedRevision: context.ledgerRevision,
       expectedWorkflow: context.workflow,
       expectedOperationId: context.operationId,
+      expectedWorkflowHead: context.expectedHeadSha,
     });
     if (
       receipt.githubProof.runId !== String(context.runId)
