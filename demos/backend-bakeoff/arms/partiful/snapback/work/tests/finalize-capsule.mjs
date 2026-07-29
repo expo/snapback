@@ -260,8 +260,8 @@ capsule.evidenceConfidence = {
     evidencePaths: ['evidence/acceptance-results.json', 'evidence/cleanup-receipt.json'],
   },
   'cleanup-isolation': {
-    score: 2,
-    reason: 'Fresh-local cleanup enumerated every arm-owned database, WAL, config, keyring, startup, reservation, and restore-lock carrier and proved absence.',
+    score: 1,
+    reason: 'Cleanup enumerated every arm-owned database, WAL, config, keyring, startup, reservation, and restore-lock carrier and proved final absence, but no separately timestamped pre-write baseline receipt was retained.',
     evidencePaths: ['evidence/cleanup-receipt.json'],
   },
   'artifact-reproducibility': {

@@ -25,7 +25,7 @@
     },
     "test": {
       "files": 3,
-      "bytes": 40911,
+      "bytes": 40976,
       "lines": 904
     }
   },
@@ -601,9 +601,9 @@
     {
       "path": "tests/finalize-capsule.mjs",
       "category": "test",
-      "bytes": 13172,
+      "bytes": 13237,
       "lines": 284,
-      "sha256": "029a75159dfa8f8f83fa448e611a906e4434917a3919629d80955adbcebe2278"
+      "sha256": "58978d84f3e78ba4c4cb45da1c4a5cce92db8aa58e32af261ee47ec95aa23b5e"
     },
     {
       "path": "vite.config.mjs",

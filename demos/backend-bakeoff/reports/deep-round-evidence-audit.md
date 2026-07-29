@@ -409,3 +409,59 @@ synthesis remain coordinator-owned.
   control-plane Compose lane is disclosed and is not product blame.
 - Adjudication: complete. Appwrite Cloud identity, logs, rollback, latency, and
   cost remain unavailable remote evidence. No Stop-class defect is present.
+
+## Partiful / Snapback
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator confidence and
+  generator/inventory corrections.
+- Frozen identities: exact repaired product/source commit, freeze aggregate,
+  and canonical attempt ID match.
+- Results: 12 PASS, 3 explicit product GAPs. PARTY-08 has no shipped
+  authenticated asset capability; PARTY-13 has no honestly complete hosted
+  profile; PARTY-14 cannot complete the frozen asset-dependent performance
+  scenario. None is represented as a credential-only failure or local pass.
+- Evidence confidence: coordinator-adjusted to 14/16. Actor authority,
+  contention, transport, settlement, target identity, and reproducibility are
+  direct. Reconnect is direct but persistent offline retention is unclaimed.
+  Exact cleanup is direct, but the missing separately timestamped pre-write
+  baseline limits cleanup-isolation to 1.
+- Referenced evidence: all 5 unique capsule paths resolve. All 83 inventory
+  records match the retained files after the finalizer's own corrected hash and
+  byte count were recorded. The public-preview screenshot hash matches and the
+  UI visibly labels event art as a product gap.
+- Authority: four distinct hashed native sessions exercised host, promoted
+  cohost, guest, outsider, and revoked behavior. The anonymous preview is a
+  closed projection; protected reads and writes derive identity from the
+  server session rather than caller arguments.
+- Contention: two session principals crossed one barrier for the final seat.
+  One mutation fulfilled, one rejected, and an independent protected audit
+  proved exactly 50 seats and 50 RSVP rows. The loser exposed only generic
+  `SNAPBACK_HANDLER_FAILED`, retained as an ergonomics defect.
+- Transport/revocation: established managed WebSocket handles directly
+  observed guest-list `3 → 0 → 3`, a 20-post burst, and revocation blanking
+  `20 → 0`; the later Bob write was refused. Protected JS-query writes also
+  caused a conservative quarantine-to-empty followed by a fresh authorized
+  snapshot, retained as safe but potentially flickery transport churn.
+- Scheduling/effects: a deterministic admin cron tick produced one ledger row
+  and deduped replay. The arm-local authenticated provider retained refusal,
+  known success, accepted-then-socket-drop ambiguity, same-key convergence, and
+  exactly one logical delivery. Reservation, certainty, retry, and settlement
+  remain application-authored rather than product primitives.
+- Assets/performance: the asset path is an honest GAP. Supported local
+  read/write/reconnect samples and two warmups plus seven production-build
+  samples are retained, but no synthetic asset timing or hosted performance is
+  inferred.
+- Target/cleanup: the exact SQLite/WAL, config, auth keyring, startup artifact,
+  reservation, restore-lock, persona, and listener carriers are absent; ports
+  `3335/4335` are closed. The missing independent baseline is disclosed rather
+  than upgraded through narrative.
+- Secret/dependency audit: the only secret-shaped values are deterministic
+  fixture text (`arm-local-notification-token`) and source-level access to
+  `server.adminToken`; neither is a real credential. No user bearer, mailbox
+  code, keyring, or generated local secret is retained.
+- Guide-gap audit: filesystem tickets cover assets/notifications capability
+  rows, codegen-time Action egress, anonymous public reads in sessions mode,
+  the incomplete mailbox fixture, and the missing runnable local config
+  automation shape.
+- Adjudication: complete. No Stop-class defect is present. Product gaps remain
+  scoring inputs and are not remediation inside the frozen deep-round arm.

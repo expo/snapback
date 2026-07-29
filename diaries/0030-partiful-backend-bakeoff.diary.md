@@ -474,3 +474,127 @@ authorization transitions difficult to misconfigure. One coherent live handle
 should expose readiness, authority cause, revocation, retained-state policy,
 and cleanup without requiring developers to coordinate table permission, row
 permission, session restoration, channel syntax, and registration order.
+
+## 2026-07-28 to 2026-07-29 — Snapback, deep round, complete with product gaps
+
+### Environment and outcome
+
+The arm used the exact repaired-and-frozen Snapback source commit
+`5f31cb6174daaefa04a1e05242acbbc22c725040`, the canonical local Ibex + SQLite
+target, and sessions auth. Twelve frozen scenarios passed. Authenticated
+assets, an honestly complete hosted profile, and the complete asset-dependent
+performance scenario are explicit product GAPs; none was replaced with an
+application-table imitation.
+
+Coordinator evidence confidence is 14/16. Actor authority, contention,
+transport, settlement, target identity, and artifact reproducibility are
+direct. Reconnect is direct but the app makes no persistent-offline claim.
+Cleanup proves every exact carrier absent, but a separately timestamped
+pre-write baseline was not retained, so cleanup isolation scores 1 rather than
+2.
+
+### What felt good
+
+Schema, functions, generated references, and manifests made the backend
+inspectable. Once the handlers were valid, codegen was fast and deterministic.
+Four real server-resolved sessions exercised host, cohost, guest, outsider, and
+revoked states; no mutation accepted a caller-supplied user id.
+
+Capacity enforcement fit naturally in one authoritative mutation. Two
+simultaneous final-seat claims produced one success and one rejection, while
+an independent audit proved exactly 50 seats and 50 RSVP rows.
+
+Managed live queries proved the difficult privacy transitions directly. An
+established Bob handle changed `3 → 0 → 3` when guest-list visibility changed.
+After invitation revocation, a 20-row wall handle blanked to zero before a
+later protected write was refused.
+
+Actions composed with mutations, deployment config stayed write-only, and a
+deterministic cron tick made reminder and effect ledgers inspectable without
+network I/O inside a transaction. Cleanup was unusually concrete: the receipt
+enumerates SQLite, WAL/SHM, config, auth keyring, startup artifact, reservation
+lock, and restore-lock carriers, then proves every exact path absent and both
+ports closed.
+
+### What felt bad or frustrating
+
+The absence of authenticated asset upload, delivery, and deletion blocks a
+Partiful-shaped product. The frozen source also has no honestly complete
+hosted path. A polished local event core cannot become a deployable service
+with equivalent auth and operational claims.
+
+Notification effects required an application-authored reservation, certainty,
+attempt ledger, fake provider, and retry policy. Snapback supplied safe
+primitives but not the ordinary end result. Known failure, success,
+ambiguous-after-accept, and keyed retry were provable only because the app
+built that machinery itself.
+
+An anonymous public query in a sessions app was not paved. A plain
+`SnapbackClient` was refused for lacking auth-client protocol v1, while a
+protocol-bearing client was refused for lacking a custody owner. The arm
+needed a raw HTTP helper carrying the protocol offer without caller auth.
+
+`SNAPBACK_OUTBOUND_ACTIONS=1` is documented as a runtime grant, but codegen
+also required it. Local config automation named the operations without a
+runnable request shape, and the sessions guide showed `mailbox.code` without
+the complete gated mailbox fixture. All three detours required source or
+example inspection and now have guide-gap tickets.
+
+Protected JS live queries were conservatively noisy. Each ordinary wall write
+produced a quarantine-to-empty delivery followed by a fresh authorized
+snapshot—safe, but potentially flickery and expensive for bursty surfaces.
+Host-managed promotion/removal also lacked an obvious product path, so roles
+were ordinary rows plus custom checks.
+
+Action failure settlement returned `{ok:false}` while mutation failure
+rejected. The capacity loser surfaced as generic `SNAPBACK_HANDLER_FAILED`
+rather than a domain code. Repeated acceptance attempts also fell through to
+`cargo run` after app work dirtied the worktree, even though the frozen product
+binary itself had not changed.
+
+### Modeling, realtime, and operations
+
+The model uses events, invitations/roles, RSVPs, wall posts, reminder
+attempts, and notification effects. Public preview is a closed projection.
+Protected queries read invitation authority and return no rows after policy
+loss. Mutations recheck the effective session principal inside the
+authoritative transaction.
+
+Native WebSocket evidence—not polling—covers the 20-post burst, guest-list
+policy transition, and revocation blanking. Reconnect pause/resume was sampled,
+but this arm does not claim durable offline retention. After revocation, the
+online protected handle was empty and a fresh protected write was denied.
+
+Local startup, health identity, config status, cron tick, function manifests,
+and cleanup are inspectable. Hosted deployment, hosted auth admission, hosted
+logs, hosted cost, and an asset performance path remain unmeasured gaps.
+
+The arm contains 750 authored-source lines, 904 test lines, and 68 generated
+files. Glue includes four-session fixture setup, an ordinary-table role model,
+the raw anonymous helper, application-level reminder/effect ledgers, a
+deterministic fake provider, and evidence/cleanup tooling.
+
+### Would I choose it?
+
+Conditional, not as my present default for this app. I would choose Snapback
+for a local or correctness-focused event core where capacity, authorization,
+and live revocation matter more than platform completeness. I would not choose
+it today for a real Partiful-shaped launch: assets and hosted operation are
+table stakes, and notification delivery takes too much application-owned
+infrastructure.
+
+### Lessons for Snapback
+
+Ship the complete authenticated asset outcome and one honestly end-to-end
+hosted profile. Provide a first-class idempotent effect-attempt result with
+explicit known-failure, ambiguity, retry, and terminal replay semantics. Make
+anonymous generated reads ordinary in sessions apps, add host-managed role
+ergonomics, preserve structured domain errors, and coalesce safe auth-backed
+refreshes without showing a transient empty snapshot for every normal write.
+
+The Guide needs explicit assets/notifications GAP rows, codegen-time egress
+instructions, a complete local session fixture, a runnable local config
+journey, and a paved anonymous-read path. Snapback's transactional authority,
+fail-closed live revocation, deterministic codegen, and exact cleanup remain
+real differentiators worth preserving while those product outcomes are filled
+in.
