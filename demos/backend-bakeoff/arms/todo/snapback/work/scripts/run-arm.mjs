@@ -32,8 +32,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const workRoot = resolve(here, '..');
 const armRoot = resolve(workRoot, '..');
 const repoRoot = resolve(workRoot, '../../../../../../');
-const receiptsRoot = join(armRoot, 'receipts');
-const runtimeRoot = join(workRoot, '.arm-runtime');
+const receiptsRoot = process.env.SNAPBACK_BAKEOFF_RECEIPTS_ROOT
+  ? resolve(process.env.SNAPBACK_BAKEOFF_RECEIPTS_ROOT)
+  : join(armRoot, 'receipts');
+const runtimeRoot = process.env.SNAPBACK_BAKEOFF_RUNTIME_ROOT
+  ? resolve(process.env.SNAPBACK_BAKEOFF_RUNTIME_ROOT)
+  : join(workRoot, '.arm-runtime');
 const publicPersonasPath = join(workRoot, 'public', 'personas.json');
 const builtPersonasPath = join(workRoot, 'dist', 'personas.json');
 const generatedRoot = join(workRoot, 'snapback', 'generated');
