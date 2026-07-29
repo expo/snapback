@@ -1,0 +1,15 @@
+{
+  "online": {
+    "auth": "bob@example.test",
+    "source": "server",
+    "count": 25
+  },
+  "offline": {
+    "newPageColdBoot": true,
+    "firestoreNetworkDisabledBeforeHistoryListener": true,
+    "auth": "bob@example.test",
+    "source": "cache",
+    "count": 25,
+    "retainedOrigin": "Firestore persistentLocalCache / browser IndexedDB"
+  }
+}

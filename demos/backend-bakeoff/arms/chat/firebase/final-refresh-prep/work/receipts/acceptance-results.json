@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 1,
+  "app": "chat",
+  "provider": "firebase",
+  "target": "llp0102-final-chat-firebase-w2",
+  "startedAt": "2026-07-29T13:27:36.425Z",
+  "finishedAt": "2026-07-29T13:28:19.012Z",
+  "expectedCheckCount": 15,
+  "completedInThisHarness": 14,
+  "pendingExternalChecks": [],
+  "scenarios": {
+    "CHAT-01-SEED": {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:40.171Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "channelCounts": {
+          "public-lobby": 125,
+          "public-random": 125,
+          "private-alpha": 125,
+          "private-beta": 125
+        },
+        "actorCount": 3,
+        "alicePrivatePage": 25,
+        "seedReceipt": "receipts/seed-receipt.json"
+      },
+      "note": "Fresh local emulator target; exact deterministic seed."
+    },
+    "CHAT-02-AUTHORITY": {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:40.212Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore rules",
+      "evidence": {
+        "alicePrivatePage": 25,
+        "bobPrivatePage": 25,
+        "malloryReadCode": "permission-denied",
+        "mallorySubscriptionCode": "permission-denied",
+        "rules": "firestore.rules"
+      },
+      "note": "Direct client reads/listens under three native Auth emulator principals."
+    },
+    "CHAT-03-SEND": {
+      "id": "CHAT-03-SEND",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:40.896Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firebase callable function + Firestore transaction",
+      "evidence": {
+        "callableResult": {
+          "id": "ufu4q1VMkvB88NwBpx9H",
+          "authorId": "Hfdd0b9nDmwG6HbSugJtMN3dDUax",
+          "sequence": 126
+        },
+        "authoritativeDocument": {
+          "id": "ufu4q1VMkvB88NwBpx9H",
+          "authorIdHash": "996c52dd36f43eae2a68c8551bfe2c2f2e0b8236d460c750ee1b385dc6e35407",
+          "sequence": 126,
+          "createdAt": "2026-07-29T13:27:40.885Z"
+        },
+        "implementation": "functions/index.js#sendMessage"
+      },
+      "note": "Function generates document identity, derives author from verified auth, and allocates sequence transactionally."
+    },
+    "CHAT-04-PUSH": {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:40.915Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore onSnapshot/WebChannel push",
+      "evidence": {
+        "messageId": "ZcO25uZNvKbMudgEe2gX",
+        "sequence": 127,
+        "latencyMs": 18.368,
+        "snapshotFromCache": false,
+        "polling": false
+      },
+      "note": "Second authenticated client observed a server snapshot; no product polling."
+    },
+    "CHAT-05-PAGINATION": {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:40.944Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore query cursor",
+      "evidence": {
+        "order": "sequence desc",
+        "cursor": {
+          "id": "seed-103",
+          "sequence": 103
+        },
+        "concurrentInsert": {
+          "id": "GkN1rbRBoCgCVW3XbHSm",
+          "authorId": "Y3vucQmxIkpPPN0pGlZpm5CweMyf",
+          "sequence": 128
+        },
+        "pageOneCount": 25,
+        "pageTwoCount": 25,
+        "unionCount": 50
+      },
+      "note": "Document-snapshot startAfter cursor remains stable under a newer insert."
+    },
+    "CHAT-06-TYPING": {
+      "id": "CHAT-06-TYPING",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:41.278Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firebase Realtime Database onValue push",
+      "evidence": {
+        "transitions": [
+          {
+            "changedAt": 1785331660976,
+            "expiresAtClientMs": 1785331661196,
+            "state": "typing"
+          },
+          null
+        ],
+        "durableAfterExpiry": false,
+        "expiryMs": 250,
+        "glue": "Application-authored expiry/removal policy"
+      },
+      "note": "Native Firebase realtime path; typing TTL policy is explicitly application glue, not a Firestore/native typing primitive."
+    },
+    "CHAT-07-PRESENCE": {
+      "id": "CHAT-07-PRESENCE",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:41.296Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Realtime Database .info connection/onDisconnect semantics",
+      "evidence": {
+        "transitions": [
+          null,
+          {
+            "changedAt": 1785331661287,
+            "state": "online"
+          },
+          {
+            "changedAt": 1785331661291,
+            "state": "offline"
+          }
+        ],
+        "authoritativeAfterDisconnect": {
+          "changedAt": 1785331661291,
+          "state": "offline"
+        },
+        "staleOnlineExpired": true
+      },
+      "note": "Official Firebase native presence building block; disconnect atomically expires the online state."
+    },
+    "CHAT-08-RECONNECT": {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:41.462Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore disableNetwork/enableNetwork + onSnapshot",
+      "evidence": {
+        "beforeCount": 100,
+        "afterCount": 100,
+        "messageId": "VfOu0afSkHYIlZunPPcB",
+        "occurrenceCount": 1
+      },
+      "note": "Authoritative server snapshot restored after deliberate client network disable."
+    },
+    "CHAT-09-OFFLINE-HISTORY": {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:28:39.601Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore IndexedDB persistent cache with Firestore network disabled",
+      "evidence": {
+        "online": {
+          "auth": "bob@example.test",
+          "source": "server",
+          "count": 25
+        },
+        "offline": {
+          "newPageColdBoot": true,
+          "firestoreNetworkDisabledBeforeHistoryListener": true,
+          "auth": "bob@example.test",
+          "source": "cache",
+          "count": 25,
+          "retainedOrigin": "Firestore persistentLocalCache / browser IndexedDB"
+        }
+      },
+      "note": "A new browser page in the same persistent profile cold-booted with Firestore transport disabled and rendered 25 previously loaded private messages from native persistent cache."
+    },
+    "CHAT-10-UNREAD": {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:41.501Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore document onSnapshot",
+      "evidence": {
+        "latestSequence": 129,
+        "markerBefore": 120,
+        "unreadBefore": 9,
+        "markerSeenOnSecondClient": 129,
+        "unreadAfterReconnect": 0
+      },
+      "note": "Unread marker is authoritative per-user data and converges to both signed-in clients."
+    },
+    "CHAT-11-CONCURRENT-SEND": {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:41.937Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore serializable transactions in callable function",
+      "evidence": {
+        "barrier": "concurrent-e38b9916-3f0e-400f-a7ba-391e6b906a97",
+        "results": [
+          {
+            "id": "gH1ilUKlVHQW7TFyh0lh",
+            "sequence": 130,
+            "authorIdHash": "4b20c76d054d08b43bf5ae021b8ff8651940abc1821542d73bf043838a105518"
+          },
+          {
+            "id": "Cz9jh6kYHAgopFRQET4V",
+            "sequence": 131,
+            "authorIdHash": "996c52dd36f43eae2a68c8551bfe2c2f2e0b8236d460c750ee1b385dc6e35407"
+          }
+        ]
+      },
+      "note": "Transactionally allocated integer sequence gives deterministic total order without loss."
+    },
+    "CHAT-12-LOGOUT": {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:42.369Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firebase Auth signOut + application listener teardown",
+      "evidence": {
+        "listenerEstablishedBeforeBarrier": true,
+        "appUnsubscribedAtAuthBarrier": true,
+        "futureMessageDelivered": false,
+        "freshReadCode": "permission-denied"
+      },
+      "note": "UI/auth-state barrier unsubscribes the established listener; direct fresh read is denied."
+    },
+    "CHAT-13-REVOKE": {
+      "id": "CHAT-13-REVOKE",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:27:42.737Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "Firestore rules dependency re-evaluation",
+      "evidence": {
+        "authorizedCachedBefore": 25,
+        "establishedListenerError": "permission-denied",
+        "futureMessageDelivered": false,
+        "freshReadCode": "permission-denied",
+        "retainedSdkCacheCount": 25,
+        "renderedProtectedStateClearedByAppOnError": true
+      },
+      "note": "Future delivery and reads fail closed. Previously authorized SDK cache remains locally readable; Firebase docs warn persistent cache is not automatically cleared, so the app must clear protected rendering/state."
+    },
+    "CHAT-14-PERFORMANCE": {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:28:19.011Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "mixed native paths",
+      "evidence": {
+        "claimScope": "Firebase local emulators; not production or hosted latency",
+        "dataset": {
+          "publicChannels": 2,
+          "privateChannels": 2,
+          "seededMessagesPerChannel": 125,
+          "pageSize": 25,
+          "burstMessages": 20,
+          "concurrentClients": 2
+        },
+        "warmupsPerPath": 2,
+        "recordedSamplesPerPath": 7,
+        "unit": "milliseconds",
+        "representativeRead": {
+          "samples": [
+            7.422,
+            6.777,
+            8.126,
+            6.2,
+            5.559,
+            5.365,
+            5.412
+          ],
+          "median": 6.2,
+          "nearestRankP95": 8.126
+        },
+        "representativeWrite": {
+          "samples": [
+            8.753,
+            7.557,
+            7.503,
+            7.224,
+            7.191,
+            8.166,
+            7.029
+          ],
+          "median": 7.503,
+          "nearestRankP95": 8.753
+        },
+        "realtimeDelivery": {
+          "samples": [
+            8.435,
+            11.63,
+            8.364,
+            11.98,
+            9.444,
+            10.673,
+            11.083
+          ],
+          "median": 10.673,
+          "nearestRankP95": 11.98
+        },
+        "reconnect": {
+          "samples": [
+            4.97,
+            4.728,
+            5.231,
+            5.508,
+            7.203,
+            5.26,
+            4.913
+          ],
+          "median": 5.231,
+          "nearestRankP95": 7.203
+        },
+        "build": {
+          "samples": [
+            1648.373,
+            1558.149,
+            1618.826,
+            1541.49,
+            1563.828,
+            1719.085,
+            1569.658
+          ],
+          "median": 1569.658,
+          "nearestRankP95": 1719.085
+        },
+        "burst": {
+          "durationMs": 21485.323,
+          "messageCount": 20,
+          "shape": "10 consecutive two-actor barriers (20 total messages, 2 concurrent clients)",
+          "minSequence": 126,
+          "maxSequence": 145
+        },
+        "machine": {
+          "hostname": "Mac.lightwellhotel.com",
+          "architecture": "arm64",
+          "os": "macOS 26.5.2",
+          "node": "v22.23.1",
+          "java": "OpenJDK 21 installed for emulator execution"
+        },
+        "cost": {
+          "measured": "$0 local emulator",
+          "hostedEstimate": "not measured; hosted credentials unavailable"
+        }
+      },
+      "note": "Two warmups plus seven retained samples per frozen path; emulator-only results are not production comparisons."
+    },
+    "CHAT-15-CLEANUP": {
+      "id": "CHAT-15-CLEANUP",
+      "status": "pass",
+      "capturedAt": "2026-07-29T13:30:05.418Z",
+      "target": "llp0102-final-chat-firebase-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "cleanupReceipt": "receipts/cleanup.json",
+        "targetBoundPlan": "receipts/scoped-cleanup-plan.json",
+        "portsAfter": {
+          "9299": "closed",
+          "9499": "closed",
+          "35201": "closed",
+          "35202": "closed",
+          "35203": "closed",
+          "35204": "closed",
+          "35250": "closed",
+          "35280": "closed",
+          "35281": "closed",
+          "35287": "closed",
+          "35288": "closed",
+          "35299": "closed"
+        },
+        "survivingPids": [],
+        "unrelatedBaseline": "No shared or hosted target was used or mutated."
+      },
+      "note": "Exact validated emulator/Vite process trees terminated; all assigned and auxiliary ports closed; only arm-local runtime/cache/export directories removed."
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 3745,
+    "firstAuthoritativeMutationMs": 4471,
+    "firstRealtimeTransitionMs": 4489,
+    "localAcceptanceMs": 42587,
+    "acceptanceCompletionMs": 42587
+  },
+  "commands": [
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1602.095
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1674.318
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1648.373
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1558.149
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1618.826
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1541.49
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1563.828
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1719.085
+    },
+    {
+      "command": "npm run build --silent",
+      "exitCode": 0,
+      "durationMs": 1569.658
+    }
+  ],
+  "completedCheckCount": 15,
+  "passCount": 15,
+  "gapCount": 0,
+  "failCount": 0,
+  "cleanupCompletedAt": "2026-07-29T13:30:05.418Z",
+  "result": "complete"
+}

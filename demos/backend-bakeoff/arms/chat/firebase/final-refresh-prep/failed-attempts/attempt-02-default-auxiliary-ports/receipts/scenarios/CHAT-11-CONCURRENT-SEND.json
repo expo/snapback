@@ -1,0 +1,23 @@
+{
+  "id": "CHAT-11-CONCURRENT-SEND",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:21:30.993Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firestore serializable transactions in callable function",
+  "evidence": {
+    "barrier": "concurrent-c1752210-2cd9-4b79-ab46-791ecea9955e",
+    "results": [
+      {
+        "id": "nSJeNsfATZqDlQ3d9BqQ",
+        "sequence": 130,
+        "authorIdHash": "a4edae01f6354ee7ad27a61357c0c5a2a01e7cd21e2be45967e47afb1f13295d"
+      },
+      {
+        "id": "u9dTef51RQNDAQdF0gFl",
+        "sequence": 131,
+        "authorIdHash": "047a8ad9a9506a086138fc90816c919fcfd179667a109a2fb080b7109defd4aa"
+      }
+    ]
+  },
+  "note": "Transactionally allocated integer sequence gives deterministic total order without loss."
+}

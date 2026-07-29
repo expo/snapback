@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T13:18:03.679Z",
+  "target": {
+    "projectId": "llp0102-final-chat-firebase-w2",
+    "identityHash": "70b5c4bf0089fe4aa6b71657711885092d2ec5bf8b434c03a8a9191bcc8382f5"
+  },
+  "exactProcessRoots": [
+    "receipts/emulator.pid",
+    "receipts/vite.pid"
+  ],
+  "exactRuntimeDirectories": [
+    ".browser-profile",
+    ".firebase-export",
+    ".xdg-config",
+    ".xdg-cache"
+  ],
+  "assignedPorts": {
+    "auth": 35299,
+    "firestore": 35280,
+    "firestoreWebsocket": 35250,
+    "realtimeDatabase": 35281,
+    "functions": 35287,
+    "vite": 35288,
+    "hub": 35201,
+    "logging": 35202
+  },
+  "broadGlobs": false,
+  "unrelatedBaseline": "No shared or hosted target will be mutated or deleted.",
+  "completionProof": "All exact process descendants absent, all assigned ports closed, and arm-local runtime directories absent."
+}

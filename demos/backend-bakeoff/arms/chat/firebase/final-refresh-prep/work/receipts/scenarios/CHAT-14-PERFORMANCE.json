@@ -1,0 +1,105 @@
+{
+  "id": "CHAT-14-PERFORMANCE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:28:19.011Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "mixed native paths",
+  "evidence": {
+    "claimScope": "Firebase local emulators; not production or hosted latency",
+    "dataset": {
+      "publicChannels": 2,
+      "privateChannels": 2,
+      "seededMessagesPerChannel": 125,
+      "pageSize": 25,
+      "burstMessages": 20,
+      "concurrentClients": 2
+    },
+    "warmupsPerPath": 2,
+    "recordedSamplesPerPath": 7,
+    "unit": "milliseconds",
+    "representativeRead": {
+      "samples": [
+        7.422,
+        6.777,
+        8.126,
+        6.2,
+        5.559,
+        5.365,
+        5.412
+      ],
+      "median": 6.2,
+      "nearestRankP95": 8.126
+    },
+    "representativeWrite": {
+      "samples": [
+        8.753,
+        7.557,
+        7.503,
+        7.224,
+        7.191,
+        8.166,
+        7.029
+      ],
+      "median": 7.503,
+      "nearestRankP95": 8.753
+    },
+    "realtimeDelivery": {
+      "samples": [
+        8.435,
+        11.63,
+        8.364,
+        11.98,
+        9.444,
+        10.673,
+        11.083
+      ],
+      "median": 10.673,
+      "nearestRankP95": 11.98
+    },
+    "reconnect": {
+      "samples": [
+        4.97,
+        4.728,
+        5.231,
+        5.508,
+        7.203,
+        5.26,
+        4.913
+      ],
+      "median": 5.231,
+      "nearestRankP95": 7.203
+    },
+    "build": {
+      "samples": [
+        1648.373,
+        1558.149,
+        1618.826,
+        1541.49,
+        1563.828,
+        1719.085,
+        1569.658
+      ],
+      "median": 1569.658,
+      "nearestRankP95": 1719.085
+    },
+    "burst": {
+      "durationMs": 21485.323,
+      "messageCount": 20,
+      "shape": "10 consecutive two-actor barriers (20 total messages, 2 concurrent clients)",
+      "minSequence": 126,
+      "maxSequence": 145
+    },
+    "machine": {
+      "hostname": "Mac.lightwellhotel.com",
+      "architecture": "arm64",
+      "os": "macOS 26.5.2",
+      "node": "v22.23.1",
+      "java": "OpenJDK 21 installed for emulator execution"
+    },
+    "cost": {
+      "measured": "$0 local emulator",
+      "hostedEstimate": "not measured; hosted credentials unavailable"
+    }
+  },
+  "note": "Two warmups plus seven retained samples per frozen path; emulator-only results are not production comparisons."
+}

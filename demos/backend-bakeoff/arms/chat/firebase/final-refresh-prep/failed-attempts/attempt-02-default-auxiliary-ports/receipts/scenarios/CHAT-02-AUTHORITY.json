@@ -1,0 +1,15 @@
+{
+  "id": "CHAT-02-AUTHORITY",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:21:29.255Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firestore rules",
+  "evidence": {
+    "alicePrivatePage": 25,
+    "bobPrivatePage": 25,
+    "malloryReadCode": "permission-denied",
+    "mallorySubscriptionCode": "permission-denied",
+    "rules": "firestore.rules"
+  },
+  "note": "Direct client reads/listens under three native Auth emulator principals."
+}

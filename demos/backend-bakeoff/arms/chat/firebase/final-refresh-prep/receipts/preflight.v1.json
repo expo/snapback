@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "llp0102.firebase-final-refresh-preflight.v1",
+  "capturedAt": "2026-07-29T13:35:27.043Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "node": "v22.23.1",
+  "dependencyDiff": {
+    "rootFirebaseAdmin": [
+      "13.5.0",
+      "14.2.0"
+    ],
+    "functionsFirebaseAdmin": [
+      "13.5.0",
+      "14.2.0"
+    ],
+    "firebaseFunctions": [
+      "6.4.0",
+      "7.3.2"
+    ]
+  },
+  "modularCompatibility": {
+    "adminSubpathImportsRetained": true,
+    "functionsV2CallableImportsRetained": true,
+    "staticSyntax": "pass",
+    "typescriptAndViteBuild": "pass"
+  },
+  "portsBefore": {
+    "9299": "closed",
+    "9499": "closed",
+    "35201": "closed",
+    "35202": "closed",
+    "35203": "closed",
+    "35204": "closed",
+    "35250": "closed",
+    "35280": "closed",
+    "35281": "closed",
+    "35287": "closed",
+    "35288": "closed",
+    "35299": "closed"
+  },
+  "matchingProcesses": [],
+  "sealedSourceAndCapsuleDiff": "clean",
+  "providerStarted": false,
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "ls",
+        "firebase",
+        "firebase-admin",
+        "--depth=0"
+      ],
+      "cwd": "/Users/ccheever/tmp/llp0102-chat-firebase-refresh-prep/demos/backend-bakeoff/arms/chat/firebase/final-refresh-prep/work",
+      "exitCode": 0,
+      "durationMs": 252.507,
+      "stdoutTail": "llp0102-final-chat-firebase-w2@0.0.0 /Users/ccheever/tmp/llp0102-chat-firebase-refresh-prep/demos/backend-bakeoff/arms/chat/firebase/final-refresh-prep/work\n├── firebase-admin@14.2.0\n└── firebase@12.16.0\n\n",
+      "stderrTail": ""
+    },
+    {
+      "command": [
+        "npm",
+        "ls",
+        "firebase-admin",
+        "firebase-functions",
+        "--depth=0"
+      ],
+      "cwd": "/Users/ccheever/tmp/llp0102-chat-firebase-refresh-prep/demos/backend-bakeoff/arms/chat/firebase/final-refresh-prep/work/functions",
+      "exitCode": 0,
+      "durationMs": 134.603,
+      "stdoutTail": "llp0102-final-chat-firebase-w2-functions@ /Users/ccheever/tmp/llp0102-chat-firebase-refresh-prep/demos/backend-bakeoff/arms/chat/firebase/final-refresh-prep/work/functions\n├── firebase-admin@14.2.0\n└── firebase-functions@7.3.2\n\n",
+      "stderrTail": ""
+    },
+    {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/22.23.1/bin/node",
+        "--check",
+        "functions/index.js"
+      ],
+      "cwd": "/Users/ccheever/tmp/llp0102-chat-firebase-refresh-prep/demos/backend-bakeoff/arms/chat/firebase/final-refresh-prep/work",
+      "exitCode": 0,
+      "durationMs": 17.446,
+      "stdoutTail": "",
+      "stderrTail": ""
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "cwd": "/Users/ccheever/tmp/llp0102-chat-firebase-refresh-prep/demos/backend-bakeoff/arms/chat/firebase/final-refresh-prep/work",
+      "exitCode": 0,
+      "durationMs": 1546.027,
+      "stdoutTail": "\n> llp0102-final-chat-firebase-w2@0.0.0 build\n> tsc -b && vite build\n\nvite v7.1.4 building for production...\ntransforming...\n✓ 51 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                     0.41 kB │ gzip:   0.27 kB\ndist/assets/index-B8hvfR7j.css      0.60 kB │ gzip:   0.38 kB\ndist/assets/index-NaQj-Te8.js   1,135.48 kB │ gzip: 292.57 kB │ map: 4,866.50 kB\n✓ built in 929ms\n",
+      "stderrTail": "\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--exit-code",
+        "--",
+        "demos/backend-bakeoff/arms/chat/firebase/work",
+        "demos/backend-bakeoff/arms/chat/firebase/run-capsule.v1.json"
+      ],
+      "cwd": "/Users/ccheever/tmp/llp0102-chat-firebase-refresh-prep",
+      "exitCode": 0,
+      "durationMs": 10.137,
+      "stdoutTail": "",
+      "stderrTail": ""
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-07-29T13:29:46.630Z",
+  "hostname": "Charlies-MacBook-Air.local",
+  "architecture": "arm64",
+  "platform": "darwin",
+  "release": "25.5.0",
+  "node": "v22.23.1",
+  "cpus": 10,
+  "totalMemoryBytes": 34359738368
+}

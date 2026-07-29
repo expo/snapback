@@ -1,0 +1,70 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #f7f2ff;
+  background: #17131e;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+main {
+  width: min(860px, calc(100% - 32px));
+  margin: 32px auto;
+}
+
+header,
+.status,
+li,
+form {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+header {
+  justify-content: space-between;
+}
+
+.eyebrow,
+small {
+  color: #b9a7d1;
+}
+
+.status,
+li,
+form {
+  background: #241d30;
+  border: 1px solid #3d3150;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+ol {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+li span {
+  flex: 1;
+}
+
+input {
+  flex: 1;
+}
+
+button,
+input {
+  border-radius: 8px;
+  border: 1px solid #604d7c;
+  padding: 10px 12px;
+}
+
+button {
+  cursor: pointer;
+  background: #8e65c7;
+  color: white;
+}

@@ -1,0 +1,16 @@
+{
+  "id": "CHAT-13-REVOKE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:27:42.737Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firestore rules dependency re-evaluation",
+  "evidence": {
+    "authorizedCachedBefore": 25,
+    "establishedListenerError": "permission-denied",
+    "futureMessageDelivered": false,
+    "freshReadCode": "permission-denied",
+    "retainedSdkCacheCount": 25,
+    "renderedProtectedStateClearedByAppOnError": true
+  },
+  "note": "Future delivery and reads fail closed. Previously authorized SDK cache remains locally readable; Firebase docs warn persistent cache is not automatically cleared, so the app must clear protected rendering/state."
+}

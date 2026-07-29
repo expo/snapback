@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "target": "llp0102-final-chat-firebase-w2",
+  "files": [
+    {
+      "path": "auth_export/accounts.json",
+      "bytes": 1761,
+      "sha256": "e1b5c75fdc7dace506d04b6c6d968266a9265b5e16d7db5ebb93602cb6ae3d26"
+    },
+    {
+      "path": "auth_export/config.json",
+      "bytes": 99,
+      "sha256": "a06ad971dd56d46b5975ab34f3308384ff3231d81c70b82b7099fb9b3d312ca8"
+    },
+    {
+      "path": "database_export/llp0102-final-chat-firebase-w2-default-rtdb.json",
+      "bytes": 572,
+      "sha256": "2753ef0a4e6c1897873bdfc136fdb72500f3181ab105b665f7c7dd1a9e2b6d93"
+    },
+    {
+      "path": "firebase-export-metadata.json",
+      "bytes": 331,
+      "sha256": "83594efb8dcc0dfd1f553883cb48a23df552e1bcd0ae6d552a49503a8b2bdbf4"
+    },
+    {
+      "path": "firestore_export/all_namespaces/all_kinds/all_namespaces_all_kinds.export_metadata",
+      "bytes": 52,
+      "sha256": "edd318ce881dc4ac549e3fa90299c51c4f9c959b40a83d5da903d8f4d7f5fb1d"
+    },
+    {
+      "path": "firestore_export/all_namespaces/all_kinds/output-0",
+      "bytes": 147091,
+      "sha256": "468a0431821b84aa539b7f92f396c6c44185e36d6f58609d4fbf1565af0f65a6"
+    },
+    {
+      "path": "firestore_export/firestore_export.overall_export_metadata",
+      "bytes": 97,
+      "sha256": "00aa62f0c7d60e4fc3cc8c45eddd8dff2ec73e6d8d292b6f4c30cdbdbd1e1e1c"
+    }
+  ],
+  "totalBytes": 150003,
+  "totalKiB": 146.487
+}

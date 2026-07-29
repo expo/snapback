@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T13:25:01.352Z",
+  "mode": "fresh-local",
+  "product": "Firebase Local Emulator Suite",
+  "projectId": "llp0102-final-chat-firebase-w2",
+  "identityHash": "db63441cac70c9edd8bda7d99c2353ca5ada4e7e246ba1ce587b26d1141ed9f5",
+  "identityMaterialSha256": "db63441cac70c9edd8bda7d99c2353ca5ada4e7e246ba1ce587b26d1141ed9f5",
+  "services": {
+    "auth": "127.0.0.1:35299",
+    "firestore": "127.0.0.1:35280",
+    "firestoreWebsocket": "127.0.0.1:35250",
+    "realtimeDatabase": "127.0.0.1:35281",
+    "functions": "127.0.0.1:35287",
+    "vite": "127.0.0.1:35288",
+    "hub": "127.0.0.1:35201",
+    "logging": "127.0.0.1:35202",
+    "eventarc": "127.0.0.1:35203",
+    "tasks": "127.0.0.1:35204"
+  },
+  "versions": {
+    "firebaseClient": "12.16.0",
+    "firebaseTools": "15.24.0",
+    "firebaseAdmin": "14.2.0",
+    "firebaseFunctions": "7.3.2",
+    "functionsFirebaseAdmin": "14.2.0"
+  },
+  "machine": {
+    "hostname": "Charlies-MacBook-Air.local",
+    "platform": "darwin",
+    "release": "25.5.0",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "logicalCpus": 10,
+    "node": "v22.23.1"
+  },
+  "hosted": {
+    "status": "explicit-gap",
+    "reason": "The refresh uses the provider's authorized official local emulator path; no hosted Firebase target was touched.",
+    "productFailure": false
+  }
+}

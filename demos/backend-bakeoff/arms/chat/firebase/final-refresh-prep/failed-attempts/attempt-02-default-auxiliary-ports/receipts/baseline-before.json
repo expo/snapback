@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T13:18:03.679Z",
+  "projectId": "llp0102-final-chat-firebase-w2",
+  "targetIdentityHash": "70b5c4bf0089fe4aa6b71657711885092d2ec5bf8b434c03a8a9191bcc8382f5",
+  "portsBefore": {
+    "auth": "absent",
+    "firestore": "absent",
+    "firestoreWebsocket": "absent",
+    "realtimeDatabase": "absent",
+    "functions": "absent",
+    "vite": "absent",
+    "hub": "absent",
+    "logging": "absent"
+  },
+  "namespaceState": "fresh; no emulator process or target data exists",
+  "unrelatedBaseline": "No shared or hosted target is in scope."
+}

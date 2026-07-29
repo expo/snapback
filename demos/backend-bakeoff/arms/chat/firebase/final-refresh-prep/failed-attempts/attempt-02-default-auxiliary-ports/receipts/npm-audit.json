@@ -1,0 +1,690 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@google-cloud/pubsub": {
+      "name": "@google-cloud/pubsub",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@opentelemetry/core"
+      ],
+      "effects": [
+        "firebase-tools"
+      ],
+      "range": ">=5.1.0",
+      "nodes": [
+        "node_modules/@google-cloud/pubsub"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "@google-cloud/storage": {
+      "name": "@google-cloud/storage",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "retry-request",
+        "teeny-request"
+      ],
+      "effects": [
+        "firebase-admin"
+      ],
+      "range": "2.2.0 - 2.5.0 || >=5.19.0",
+      "nodes": [
+        "node_modules/@google-cloud/storage"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "@opentelemetry/core": {
+      "name": "@opentelemetry/core",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1120821,
+          "name": "@opentelemetry/core",
+          "dependency": "@opentelemetry/core",
+          "title": "OpenTelemetry Core: Unbounded memory allocation in W3C Baggage propagation",
+          "url": "https://github.com/advisories/GHSA-8988-4f7v-96qf",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<2.8.0"
+        }
+      ],
+      "effects": [
+        "@google-cloud/pubsub"
+      ],
+      "range": "<2.8.0",
+      "nodes": [
+        "node_modules/@opentelemetry/core"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "archiver": {
+      "name": "archiver",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "archiver-utils",
+        "readdir-glob",
+        "zip-stream"
+      ],
+      "effects": [
+        "firebase-tools"
+      ],
+      "range": "0.20.0 - 7.0.1",
+      "nodes": [
+        "node_modules/archiver"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "archiver-utils": {
+      "name": "archiver-utils",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "archiver",
+        "zip-stream"
+      ],
+      "range": ">=0.2.0",
+      "nodes": [
+        "node_modules/archiver-utils"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "brace-expansion": {
+      "name": "brace-expansion",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1124334,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+          "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<=5.0.7"
+        }
+      ],
+      "effects": [
+        "minimatch"
+      ],
+      "range": "<=5.0.7",
+      "nodes": [
+        "node_modules/brace-expansion",
+        "node_modules/glob/node_modules/brace-expansion",
+        "node_modules/readdir-glob/node_modules/brace-expansion",
+        "node_modules/superstatic/node_modules/brace-expansion"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "exegesis": {
+      "name": "exegesis",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "exegesis-express",
+        "firebase-tools"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/exegesis"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "exegesis-express": {
+      "name": "exegesis-express",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "exegesis"
+      ],
+      "effects": [
+        "firebase-tools"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/exegesis-express"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "firebase-admin": {
+      "name": "firebase-admin",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@google-cloud/storage"
+      ],
+      "effects": [],
+      "range": "7.0.0 - 8.2.0 || >=11.0.0",
+      "nodes": [
+        "node_modules/firebase-admin"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "firebase-tools": {
+      "name": "firebase-tools",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@google-cloud/pubsub",
+        "archiver",
+        "exegesis",
+        "exegesis-express",
+        "gaxios",
+        "glob",
+        "minimatch",
+        "superstatic"
+      ],
+      "effects": [],
+      "range": ">=2.0.0",
+      "nodes": [
+        "node_modules/firebase-tools"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "gaxios": {
+      "name": "gaxios",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "rimraf",
+        "uuid"
+      ],
+      "effects": [
+        "firebase-tools",
+        "gcp-metadata",
+        "googleapis-common"
+      ],
+      "range": "6.4.0 - 6.7.1 || 7.1.3",
+      "nodes": [
+        "node_modules/gaxios",
+        "node_modules/google-gax/node_modules/gcp-metadata/node_modules/gaxios",
+        "node_modules/googleapis-common/node_modules/gaxios"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "gcp-metadata": {
+      "name": "gcp-metadata",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "gaxios"
+      ],
+      "effects": [],
+      "range": ">=8.1.3",
+      "nodes": [
+        "node_modules/google-gax/node_modules/gcp-metadata",
+        "node_modules/googleapis-common/node_modules/gcp-metadata"
+      ],
+      "fixAvailable": true
+    },
+    "glob": {
+      "name": "glob",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "archiver-utils",
+        "exegesis",
+        "firebase-tools",
+        "rimraf"
+      ],
+      "range": "4.3.0 - 10.5.0",
+      "nodes": [
+        "node_modules/glob"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "google-gax": {
+      "name": "google-gax",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "rimraf"
+      ],
+      "effects": [],
+      "range": "5.0.5 - 5.0.8",
+      "nodes": [
+        "node_modules/google-gax"
+      ],
+      "fixAvailable": true
+    },
+    "googleapis-common": {
+      "name": "googleapis-common",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "gaxios"
+      ],
+      "effects": [],
+      "range": ">=8.0.2-rc.0",
+      "nodes": [
+        "node_modules/googleapis-common"
+      ],
+      "fixAvailable": true
+    },
+    "minimatch": {
+      "name": "minimatch",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "brace-expansion"
+      ],
+      "effects": [
+        "firebase-tools",
+        "glob",
+        "readdir-glob",
+        "superstatic"
+      ],
+      "range": "2.0.0 - 10.0.2",
+      "nodes": [
+        "node_modules/glob/node_modules/minimatch",
+        "node_modules/minimatch",
+        "node_modules/readdir-glob/node_modules/minimatch",
+        "node_modules/superstatic/node_modules/minimatch"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "readdir-glob": {
+      "name": "readdir-glob",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "archiver"
+      ],
+      "range": "<=2.0.3",
+      "nodes": [
+        "node_modules/readdir-glob"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "retry-request": {
+      "name": "retry-request",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "teeny-request"
+      ],
+      "effects": [
+        "@google-cloud/storage"
+      ],
+      "range": "7.0.0 - 7.0.2",
+      "nodes": [
+        "node_modules/retry-request"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "rimraf": {
+      "name": "rimraf",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "gaxios",
+        "google-gax"
+      ],
+      "range": "2.3.0 - 3.0.2 || 4.2.0 - 5.0.10",
+      "nodes": [
+        "node_modules/rimraf"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "superstatic": {
+      "name": "superstatic",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "firebase-tools"
+      ],
+      "range": ">=2.0.0-rc1",
+      "nodes": [
+        "node_modules/superstatic"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "teeny-request": {
+      "name": "teeny-request",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "uuid"
+      ],
+      "effects": [
+        "@google-cloud/storage",
+        "retry-request"
+      ],
+      "range": "3.9.1 - 9.0.0",
+      "nodes": [
+        "node_modules/teeny-request"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "uuid": {
+      "name": "uuid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1119441,
+          "name": "uuid",
+          "dependency": "uuid",
+          "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-787",
+            "CWE-1285"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<11.1.1"
+        }
+      ],
+      "effects": [
+        "gaxios",
+        "teeny-request"
+      ],
+      "range": "<11.1.1",
+      "nodes": [
+        "node_modules/gaxios/node_modules/uuid",
+        "node_modules/teeny-request/node_modules/uuid"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "14.23.0",
+        "isSemVerMajor": true
+      }
+    },
+    "vite": {
+      "name": "vite",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1107326,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "Vite middleware may serve files starting with the same name with the public directory",
+          "url": "https://github.com/advisories/GHSA-g4jq-h2w9-997c",
+          "severity": "low",
+          "cwe": [
+            "CWE-22",
+            "CWE-200",
+            "CWE-284"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.1.0 <=7.1.4"
+        },
+        {
+          "source": 1107330,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "Vite's `server.fs` settings were not applied to HTML files",
+          "url": "https://github.com/advisories/GHSA-jqfw-vq24-v9c3",
+          "severity": "low",
+          "cwe": [
+            "CWE-23",
+            "CWE-200",
+            "CWE-284"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.1.0 <=7.1.4"
+        },
+        {
+          "source": 1109137,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "vite allows server.fs.deny bypass via backslash on Windows",
+          "url": "https://github.com/advisories/GHSA-93m4-6634-74q7",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.1.0 <=7.1.10"
+        },
+        {
+          "source": 1116230,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "Vite Vulnerable to Path Traversal in Optimized Deps `.map` Handling",
+          "url": "https://github.com/advisories/GHSA-4w7w-66w2-5vf9",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-22",
+            "CWE-200"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.0.0 <=7.3.1"
+        },
+        {
+          "source": 1116232,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "Vite: `server.fs.deny` bypassed with queries",
+          "url": "https://github.com/advisories/GHSA-v2wj-q39q-566r",
+          "severity": "high",
+          "cwe": [
+            "CWE-180",
+            "CWE-284"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.1.0 <=7.3.1"
+        },
+        {
+          "source": 1116235,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "Vite Vulnerable to Arbitrary File Read via Vite Dev Server WebSocket",
+          "url": "https://github.com/advisories/GHSA-p9ff-h696-f583",
+          "severity": "high",
+          "cwe": [
+            "CWE-200",
+            "CWE-306"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.0.0 <=7.3.1"
+        },
+        {
+          "source": 1120785,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "launch-editor: NTLMv2 hash disclosure via UNC path handling on Windows",
+          "url": "https://github.com/advisories/GHSA-v6wh-96g9-6wx3",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-73",
+            "CWE-522"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.0.0 <=7.3.4"
+        },
+        {
+          "source": 1123526,
+          "name": "vite",
+          "dependency": "vite",
+          "title": "vite: `server.fs.deny` bypass on Windows alternate paths",
+          "url": "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+          "severity": "high",
+          "cwe": [
+            "CWE-22",
+            "CWE-200"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+          },
+          "range": ">=7.0.0 <=7.3.4"
+        }
+      ],
+      "effects": [],
+      "range": "7.0.0 - 7.3.3",
+      "nodes": [
+        "node_modules/vite"
+      ],
+      "fixAvailable": {
+        "name": "vite",
+        "version": "7.3.6",
+        "isSemVerMajor": false
+      }
+    },
+    "zip-stream": {
+      "name": "zip-stream",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "archiver-utils"
+      ],
+      "effects": [],
+      "range": "0.8.0 - 6.0.1",
+      "nodes": [
+        "node_modules/zip-stream"
+      ],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 7,
+      "high": 17,
+      "critical": 0,
+      "total": 24
+    },
+    "dependencies": {
+      "prod": 93,
+      "dev": 788,
+      "optional": 99,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 880
+    }
+  }
+}

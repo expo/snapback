@@ -1,0 +1,51 @@
+{
+  "authoredSource": {
+    "files": 5,
+    "lines": 314,
+    "bytes": 7826
+  },
+  "tests": {
+    "files": 8,
+    "lines": 1400,
+    "bytes": 57336
+  },
+  "configuration": {
+    "files": 5,
+    "lines": 101,
+    "bytes": 1812
+  },
+  "policy": {
+    "files": 2,
+    "lines": 75,
+    "bytes": 2361
+  },
+  "dependencyManifests": {
+    "files": 4,
+    "lines": 15417,
+    "bytes": 548734
+  },
+  "generated": {
+    "files": 4,
+    "lines": 4861,
+    "bytes": 6002988
+  },
+  "installedDependencyBytes": 521594343,
+  "glue": [
+    {
+      "item": "Realtime Database typing lifecycle",
+      "classification": "application glue on native Firebase transport",
+      "files": [
+        "scripts/acceptance.mjs"
+      ],
+      "note": "Firebase supplies RTDB realtime and onDisconnect; the typing timeout/removal policy is app-authored."
+    },
+    {
+      "item": "Protected-cache clearing",
+      "classification": "application responsibility",
+      "files": [
+        "src/App.tsx"
+      ],
+      "note": "Firestore persistent cache retains previously authorized documents; the app clears rendered state on auth/revocation errors but SDK cache bytes remain."
+    }
+  ]
+}

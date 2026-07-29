@@ -1,0 +1,26 @@
+{
+  "id": "CHAT-07-PRESENCE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:27:41.296Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Realtime Database .info connection/onDisconnect semantics",
+  "evidence": {
+    "transitions": [
+      null,
+      {
+        "changedAt": 1785331661287,
+        "state": "online"
+      },
+      {
+        "changedAt": 1785331661291,
+        "state": "offline"
+      }
+    ],
+    "authoritativeAfterDisconnect": {
+      "changedAt": 1785331661291,
+      "state": "offline"
+    },
+    "staleOnlineExpired": true
+  },
+  "note": "Official Firebase native presence building block; disconnect atomically expires the online state."
+}

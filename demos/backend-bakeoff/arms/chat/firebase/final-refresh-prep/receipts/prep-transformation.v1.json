@@ -1,0 +1,216 @@
+{
+  "schemaVersion": "llp0102.firebase-final-refresh-prep.v1",
+  "coordinatorBase": "8cd9e46794038239279587702fb4728e4f2bc589",
+  "arm": "chat/firebase",
+  "sealed": {
+    "workPath": "work",
+    "workTrackedMutation": false,
+    "runCapsulePath": "run-capsule.v1.json",
+    "runCapsuleSha256": "0cf60275e7ffe684919614ba01b282e5e3f55b1c9b5436b4e1d08123e371e826",
+    "runCapsuleMutation": false
+  },
+  "target": {
+    "namespace": "llp0102-final-chat-firebase-w2",
+    "mode": "fresh-local-emulator",
+    "ports": {
+      "auth": 35299,
+      "firestore": 35280,
+      "firestoreWebsocket": 35250,
+      "realtimeDatabase": 35281,
+      "functions": 35287,
+      "vite": 35288,
+      "hub": 35201,
+      "logging": 35202,
+      "eventarc": 35203,
+      "tasks": 35204
+    }
+  },
+  "dependencies": {
+    "firebaseClient": "12.16.0",
+    "firebaseTools": "15.24.0",
+    "rootFirebaseAdmin": {
+      "declared": "14.2.0",
+      "locked": "14.2.0",
+      "previous": "13.5.0"
+    },
+    "functionsFirebaseAdmin": {
+      "declared": "14.2.0",
+      "locked": "14.2.0",
+      "previous": "13.5.0"
+    },
+    "firebaseFunctions": {
+      "declared": "7.3.2",
+      "locked": "7.3.2",
+      "previous": "6.4.0"
+    },
+    "importPathTreatment": "current modular firebase-admin subpaths and firebase-functions/v2/https retained"
+  },
+  "transformations": [
+    {
+      "path": ".firebaserc",
+      "operation": "refreshed",
+      "beforeSha256": "c838c99d218350ea4198aee4de8f45300b77af4da332c5310ddacb32377d1d6c",
+      "afterSha256": "6b617a2d05fac19bdc11fade9f4c3142fa180fec4cfe37c42eda8f340f68d31f"
+    },
+    {
+      "path": ".gitignore",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "2d5cc8f91c2568d5dc1589c4dab1b4bd91013bd531c8f04b016ff9b8c6df9c98",
+      "afterSha256": "2d5cc8f91c2568d5dc1589c4dab1b4bd91013bd531c8f04b016ff9b8c6df9c98"
+    },
+    {
+      "path": "database.rules.json",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "30637f928b5affcef0bbd1b532888233525e0f9a803e40c2eb9934bc90d76f1b",
+      "afterSha256": "30637f928b5affcef0bbd1b532888233525e0f9a803e40c2eb9934bc90d76f1b"
+    },
+    {
+      "path": "firebase.json",
+      "operation": "refreshed",
+      "beforeSha256": "1a173030c13a52fc2d70c8c6cf1089585c2e20ddccada75569dc32eaadc4f8a9",
+      "afterSha256": "505d09f050283c0c6ba88cc1484811ab553c4e7ea8e7d2db1ec83175b6955c45"
+    },
+    {
+      "path": "firestore.indexes.json",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "6742255415c36daf631b52f233039190af819205cc41fa58d07dd7d9e180c2b9",
+      "afterSha256": "6742255415c36daf631b52f233039190af819205cc41fa58d07dd7d9e180c2b9"
+    },
+    {
+      "path": "firestore.rules",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "220c2017762f69cc7327e9de779035ba5cd8c3a635ef29675543e6d01f49589c",
+      "afterSha256": "220c2017762f69cc7327e9de779035ba5cd8c3a635ef29675543e6d01f49589c"
+    },
+    {
+      "path": "functions/index.js",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "78f293fce6f3ca83ba0d37eba352c4a74badbe2791fe59c657bbc933f89cac8b",
+      "afterSha256": "78f293fce6f3ca83ba0d37eba352c4a74badbe2791fe59c657bbc933f89cac8b"
+    },
+    {
+      "path": "functions/package-lock.json",
+      "operation": "refreshed",
+      "beforeSha256": "dfb7322b2053d743b973dff87ff58f8538e582653aa059cdd8c5b536cfd957d7",
+      "afterSha256": "04d83f33278702ca36aa598f888a9c8748e86bd9c15b9c2099d547046fc31fd5"
+    },
+    {
+      "path": "functions/package.json",
+      "operation": "refreshed",
+      "beforeSha256": "630cfa6c6299e67f35ee61ec3eca797de0082a4d3e956ed59ae4ee01fe35dc2a",
+      "afterSha256": "de91a020278272e9bb37be44c486f53f2565bb29ea597ef565b7abbac4c0a6b4"
+    },
+    {
+      "path": "index.html",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "abdf6ac5d225a95e024afb9bbf41600e6d416d2e8f8c8a186d19db1972b2e8a9",
+      "afterSha256": "abdf6ac5d225a95e024afb9bbf41600e6d416d2e8f8c8a186d19db1972b2e8a9"
+    },
+    {
+      "path": "package-lock.json",
+      "operation": "refreshed",
+      "beforeSha256": "5470e591cc29ee9f63aed9b0e03c6a7f93252bf13accebeefc224abb0a272fc5",
+      "afterSha256": "fed7ddfb39a2451509c8a027147f54e23f097b42802ff5a94c62d50d9d045745"
+    },
+    {
+      "path": "package.json",
+      "operation": "refreshed",
+      "beforeSha256": "a52c1545536eb2fa14419f70489d871d42c2660e1848cf90e562a62db6767479",
+      "afterSha256": "52b54a6b3d4874dd460611aeb52e0e70cc4d22cbf0f209727adc6a22b7f33528"
+    },
+    {
+      "path": "scripts/acceptance.mjs",
+      "operation": "refreshed",
+      "beforeSha256": "e8852143bdfa6abadd96475f8919d8843630f85568c3ff7eb560257dc93d074b",
+      "afterSha256": "0f6f53297ebad376b7563e4847f99352af1612f73c0947ab3924e0dbbf96d23c"
+    },
+    {
+      "path": "scripts/build-capsule.mjs",
+      "operation": "refreshed",
+      "beforeSha256": "df352f6ac8e4da8fc60d8523d3b91c11c40853e945180e2b9b0661a7df76efa7",
+      "afterSha256": "59ef2b8fe5b7d36c16b8dffb64570a5c8d6a720fc6dbae89ec8377e124e94851"
+    },
+    {
+      "path": "scripts/cleanup.mjs",
+      "operation": "refreshed",
+      "beforeSha256": "904c36a1e35944a82d54629da8e4de429b5b1b554c797c56cbc2fcdf9c76872e",
+      "afterSha256": "bdb6d0abbdd166bc4f517c49e2adafb7d85f0287db8553326a572615cb835763"
+    },
+    {
+      "path": "scripts/finalize-receipts.mjs",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "025d6cef71ee449eb2ee821bb830178f8948d432b8e28654012bab8057f8f8ce",
+      "afterSha256": "025d6cef71ee449eb2ee821bb830178f8948d432b8e28654012bab8057f8f8ce"
+    },
+    {
+      "path": "scripts/inventory.mjs",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "19427533c1bc661b43077c6e224b2d3fc1b7f55d1e88da6dc120d0c8e5c433b5",
+      "afterSha256": "19427533c1bc661b43077c6e224b2d3fc1b7f55d1e88da6dc120d0c8e5c433b5"
+    },
+    {
+      "path": "scripts/lib.mjs",
+      "operation": "refreshed",
+      "beforeSha256": "e332a8c4ac496776436d3334fc2ee6965ee7ea1db8db5bdf90a61ee9d9c648e9",
+      "afterSha256": "19b699e2dd4b028d6bdd29d1d41193e0aabe4f636d94e0c62f652507fa5893d7"
+    },
+    {
+      "path": "scripts/offline-browser.mjs",
+      "operation": "refreshed",
+      "beforeSha256": "5a9e9db1bee2cc49eb9ea5201edc2f6265e0fa45fb08bc0b35f53aec57e61a28",
+      "afterSha256": "055fc6064b3c503d8e9f46a7892478c6b5008b83bfb7ba0495549800b1f91652"
+    },
+    {
+      "path": "scripts/verify-artifacts.mjs",
+      "operation": "refreshed",
+      "beforeSha256": "5dc6710a59999e7254315d4dd92a350c28e236a5fa819b5b697c39488571751b",
+      "afterSha256": "7ca5d91a8467540f13f40152596acd4d86d7e1753d3d52b0299083d0f22a65af"
+    },
+    {
+      "path": "src/App.tsx",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "639625a46cb85c0d8f1c5b512593ba33fb196a97068c7c67d7cba91329f6ee3e",
+      "afterSha256": "639625a46cb85c0d8f1c5b512593ba33fb196a97068c7c67d7cba91329f6ee3e"
+    },
+    {
+      "path": "src/firebase.ts",
+      "operation": "refreshed",
+      "beforeSha256": "20eb4fe2cd4b53e5c7e241ddde36ea8394124113fc345251f1055e2288298cf4",
+      "afterSha256": "0a2b95909c63595534c7c218b9fb13d4441f999e39c15c597d3a570b2026baa6"
+    },
+    {
+      "path": "src/main.tsx",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "b1de0de2281a4057c8e8144857d694713821680d95c91faaa36625c63e78cee3",
+      "afterSha256": "b1de0de2281a4057c8e8144857d694713821680d95c91faaa36625c63e78cee3"
+    },
+    {
+      "path": "src/styles.css",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "fea4f7c41ed2beeb999612811c2ae1c4e4eec61ef405ee7e8f9b24c4ad695e36",
+      "afterSha256": "fea4f7c41ed2beeb999612811c2ae1c4e4eec61ef405ee7e8f9b24c4ad695e36"
+    },
+    {
+      "path": "tsconfig.json",
+      "operation": "copied-byte-identical",
+      "beforeSha256": "83efc1798334967d5a907f26b8cba31fa213f16b5ac0ed5c02fd38e7cf0ceb66",
+      "afterSha256": "83efc1798334967d5a907f26b8cba31fa213f16b5ac0ed5c02fd38e7cf0ceb66"
+    },
+    {
+      "path": "vite.config.ts",
+      "operation": "refreshed",
+      "beforeSha256": "264e0a9a2e02c05d24b9ba06b01cfe49a28914dd6a038cbb7c99deb0acbe3146",
+      "afterSha256": "eff659104d739c39f1a5c6a461c3b9b73eceb04ec74ff460264fc8c1e238990f"
+    }
+  ],
+  "scans": {
+    "oldNamespaceAbsent": true,
+    "oldRuntimeBindingsAbsent": true,
+    "legacyDefaultPortsReferencedOnlyForCleanupProof": true,
+    "sourceAndConfigInventoryComplete": true
+  },
+  "gate": {
+    "releasedByCoordinator": true,
+    "providerStartedDuringPrep": false
+  }
+}
