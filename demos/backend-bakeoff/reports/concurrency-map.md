@@ -106,9 +106,9 @@ All seven Linear arms have now been assigned in exact frozen order.
 | 4 | Partiful / Appwrite | Worker 3 / control-plane Mac after failed Hetzner container-runtime preflight | Detached worktree `/private/tmp/llp0102-partiful-appwrite-w3`; official Compose project/volume namespace `llp0102-partiful-appwrite-w3`; API `8092`, secondary gateway `8492`, installer `20082`, Vite `4334`; worktree-local Appwrite CLI/config/session/browser state and fresh arm-owned project/database/team/users. The rejected Hetzner attempt is retained: no Docker/Podman/nerdctl, install authority, or viable rootless namespace path. | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
 | 5 | Partiful / Snapback | Worker 1 / control-plane Mac, exact frozen product worktree | Detached worktree `/private/tmp/llp0102-partiful-snapback-w1` at product/source commit `5f31cb6174daaefa04a1e05242acbbc22c725040`; arm-owned SQLite target/runtime/sessions/persona carriers; server `3335`, Vite `4335`; exact namespace `llp0102-partiful-snapback-w1`; no hosted claim without direct evidence | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, guide-gaps, and serialized shared files |
 | 6 | Partiful / Convex | Worker 2 / Minisforum Ubuntu `100.126.225.7` | Remote detached worktree `/home/ccheever/worktrees/llp0102-partiful-convex-w2`; worktree-local Convex CLI/config/data/browser state; local backend/site `3336/3337`, Vite `4336`; exact deployment namespace `llp0102-partiful-convex-w2`; fresh anonymous local target unless a directly authorized arm-scoped hosted target is available | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
+| 7 | Partiful / InstantDB | Worker 3 / control-plane Mac, isolated worktree | Detached worktree `/private/tmp/llp0102-partiful-instantdb-w3`; worktree-local CLI/XDG/browser/profile state; Vite `4337`, browser-debug `9337`; fresh disposable Instant app when available, otherwise exact namespace `llp0102-partiful-instantdb-w3` on the authorized shared/free target with a timestamped baseline and namespace-only cleanup | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
 
-Partiful/InstantDB remains pending and will be assigned only after the Convex
-assignment above has begun.
+All seven Partiful arms have now been assigned in exact frozen order.
 
 ## Partiful live progress
 
@@ -117,7 +117,7 @@ assignment above has begun.
 | Partiful / Supabase | Complete | 14 PASS, hosted unavailable; capsule, diary, central evidence audit, retained cold-Realtime/effect failures, and exact cleanup integrated |
 | Partiful / Firebase | Complete | 14 PASS, hosted unavailable; capsule, separate PARTY-07 remediation lineage, diary, central evidence audit, hashes, and exact two-target cleanup integrated |
 | Partiful / SpacetimeDB | Returned | Worker reports 14 PASS plus hosted unavailable, capsule/Stage-0 verification, LLP audit, exact negative cleanup proof, and closed ports; awaiting coordinator import/audit |
-| Partiful / Appwrite | Running | Redirected after Hetzner container-runtime preflight; isolated control-plane Compose lane |
+| Partiful / Appwrite | Returned | Worker reports 14 PASS plus hosted GAP, capsule/protocol/Stage-0/build/ref verification, and exact 29-container cleanup; awaiting coordinator import/audit |
 | Partiful / Snapback | Running | Exact repaired product/source commit and isolated runtime target |
 | Partiful / Convex | Assigned | Worker 2 reserved on isolated Minisforum worktree/ports after SpacetimeDB cleanup |
-| Partiful / InstantDB | Pending | Not yet assigned |
+| Partiful / InstantDB | Assigned | Worker 3 reserved on isolated control-plane target/browser lane after exact Appwrite cleanup |
