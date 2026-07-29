@@ -72,3 +72,23 @@ Linear order is Snapback, Convex, Appwrite, InstantDB; Partiful and Research
 Room then follow their own frozen orders. Every assignment must preserve failed
 attempts, exact target-bound cleanup, baseline state, and Stop-class pause
 behavior.
+
+### Linear second wave
+
+| Frozen start order | Arm | Worker / machine | Isolation | Merge ownership |
+| ---: | --- | --- | --- | --- |
+| 4 | Linear / Snapback | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-linear-snapback-coord`; frozen product commit `5f31cb6174daaefa04a1e05242acbbc22c725040`; fresh local SQLite target, dynamic exact server/Vite ports, arm-owned runtime/session/persona carriers | Coordinator implemented, audited, integrated, and cleaned the arm |
+| 5 | Linear / Convex | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-linear-convex-coord` at integration base `2a4472a4`; anonymous local Convex deployment with worktree-local CLI/config/data state; backend/site `3323/3324`, Vite `4323`; namespace `llp0102-linear-convex-coord` | Coordinator writes and audits directly; no shared report or scoring edit until arm evidence is complete |
+
+Linear/Appwrite and Linear/InstantDB remain undispatched until a worker becomes
+free. They are the next two assignments in that exact order.
+
+## Stage 3 live progress
+
+| Arm | State | Coordinator integration |
+| --- | --- | --- |
+| Linear / SpacetimeDB | Running | Worker compiling/debugging on Minisforum; no blocker |
+| Linear / Firebase | Running | Worker finalizing evidence and exact cleanup; no blocker |
+| Linear / Supabase | Running | Worker implementation/evidence lane active |
+| Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |
+| Linear / Convex | Starting | Coordinator isolated lane assigned after Snapback integration |
