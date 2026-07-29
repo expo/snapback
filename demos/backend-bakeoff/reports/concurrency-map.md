@@ -79,16 +79,18 @@ behavior.
 | ---: | --- | --- | --- | --- |
 | 4 | Linear / Snapback | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-linear-snapback-coord`; frozen product commit `5f31cb6174daaefa04a1e05242acbbc22c725040`; fresh local SQLite target, dynamic exact server/Vite ports, arm-owned runtime/session/persona carriers | Coordinator implemented, audited, integrated, and cleaned the arm |
 | 5 | Linear / Convex | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-linear-convex-coord` at integration base `2a4472a4`; anonymous local Convex deployment with worktree-local CLI/config/data state; backend/site `3323/3324`, Vite `4323`; namespace `llp0102-linear-convex-coord` | Coordinator writes and audits directly; no shared report or scoring edit until arm evidence is complete |
+| 6 | Linear / Appwrite | Worker 2 / control-plane Mac, isolated worktree | Detached worktree `/private/tmp/llp0102-linear-appwrite-w2` at integration base `2a4472a4`; official Compose project/volume namespace `llp0102-linear-appwrite-w2`; API `8091`, installer `20081`, Vite `4324`; worktree-local Appwrite CLI/config/session state and fresh arm-owned project/database/team/users | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
 
-Linear/Appwrite and Linear/InstantDB remain undispatched until a worker becomes
-free. They are the next two assignments in that exact order.
+Linear/InstantDB remains undispatched until the next worker becomes free. It is
+the next assignment in exact frozen order.
 
 ## Stage 3 live progress
 
 | Arm | State | Coordinator integration |
 | --- | --- | --- |
 | Linear / SpacetimeDB | Running | Worker compiling/debugging on Minisforum; no blocker |
-| Linear / Firebase | Running | Worker finalizing evidence and exact cleanup; no blocker |
+| Linear / Firebase | Complete | 12 PASS, one native-search GAP, one hosted credential-unavailable result; capsule and cleanup proof imported for coordinator audit |
 | Linear / Supabase | Running | Worker implementation/evidence lane active |
 | Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |
 | Linear / Convex | Starting | Coordinator isolated lane assigned after Snapback integration |
+| Linear / Appwrite | Starting | Worker 2 reassigned after Firebase completion; isolated official Compose lane |
