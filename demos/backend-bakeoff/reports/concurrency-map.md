@@ -80,9 +80,9 @@ behavior.
 | 4 | Linear / Snapback | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-linear-snapback-coord`; frozen product commit `5f31cb6174daaefa04a1e05242acbbc22c725040`; fresh local SQLite target, dynamic exact server/Vite ports, arm-owned runtime/session/persona carriers | Coordinator implemented, audited, integrated, and cleaned the arm |
 | 5 | Linear / Convex | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-linear-convex-coord` at integration base `2a4472a4`; anonymous local Convex deployment with worktree-local CLI/config/data state; backend/site `3323/3324`, Vite `4323`; namespace `llp0102-linear-convex-coord` | Coordinator writes and audits directly; no shared report or scoring edit until arm evidence is complete |
 | 6 | Linear / Appwrite | Worker 2 / control-plane Mac, isolated worktree | Detached worktree `/private/tmp/llp0102-linear-appwrite-w2` at integration base `2a4472a4`; official Compose project/volume namespace `llp0102-linear-appwrite-w2`; API `8091`, installer `20081`, Vite `4324`; worktree-local Appwrite CLI/config/session state and fresh arm-owned project/database/team/users | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
+| 7 | Linear / InstantDB | Worker 3 / control-plane Mac, isolated worktree | Detached worktree `/private/tmp/llp0102-linear-instantdb-w3` at integration base `2a4472a4`; worktree-local CLI/XDG/browser state; Vite `4325`; fresh disposable Instant app when available, otherwise exact arm-owned namespace `llp0102-linear-instantdb-w3` on the authorized shared/free target | Worker returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
 
-Linear/InstantDB remains undispatched until the next worker becomes free. It is
-the next assignment in exact frozen order.
+All seven Linear arms have now been assigned in exact frozen order.
 
 ## Stage 3 live progress
 
@@ -90,7 +90,8 @@ the next assignment in exact frozen order.
 | --- | --- | --- |
 | Linear / SpacetimeDB | Running | Worker compiling/debugging on Minisforum; no blocker |
 | Linear / Firebase | Complete | 12 PASS, one native-search GAP, one hosted credential-unavailable result; capsule, diary draft, evidence audit, and cleanup proof integrated |
-| Linear / Supabase | Running | Worker implementation/evidence lane active |
+| Linear / Supabase | Complete | 12 PASS, offline and hosted GAPs; arm commit received for coordinator import/audit |
 | Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |
 | Linear / Convex | Starting | Coordinator isolated lane assigned after Snapback integration |
 | Linear / Appwrite | Starting | Worker 2 reassigned after Firebase completion; isolated official Compose lane |
+| Linear / InstantDB | Starting | Worker 3 reassigned after Supabase completion; isolated disposable-app/namespace lane |
