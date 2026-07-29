@@ -149,3 +149,18 @@ violate that order.
 | Research Room / Convex | Complete | 14 PASS, one Stop-class secrets FAIL, 14/16 coordinator-calibrated confidence, diary, central audit, exact rotated-target cleanup, and retained provider/builder defect separation integrated |
 | Research Room / Appwrite | Complete | 14 PASS, one native-vector GAP, 13/16 coordinator-calibrated confidence, diary, central audit, browser evidence, and exact Compose cleanup integrated |
 | Research Room / InstantDB | Complete | 11 PASS, four product/cleanup GAPs, 13/16 calibrated confidence, diary, central audit, screenshot/path proof, and scoped hosted cleanup integrated |
+
+## Deep remediation wave
+
+All 35 deep arms were sealed before this wave was dispatched. The repaired
+Snapback freeze ended at that boundary; remediation starts from coordinator
+commit `c42feb250` and cannot rewrite any frozen arm evidence.
+
+| Start order | Lane | Worker / machine | Isolation | Merge ownership |
+| --- | --- | --- | --- | --- |
+| 1 | Sessions + streamed-actions capability-composition repair | Worker 1 / control-plane Mac | Detached worktree `/private/tmp/llp0102-remediation-sessions-w1` at `c42feb250`; product/test edits only; no diary, report, protocol, scoring, or evidence edits | Worker returns one scoped commit and verification transcript; coordinator reviews, imports, reruns the Snapback Research Room arm, and owns all shared integration |
+| 2 | Guide/diagnostic gap analysis | Worker 2 / Minisforum Ubuntu `100.126.225.7` | Detached remote checkout `/home/ccheever/worktrees/llp0102-remediation-guide-w2` at `c42feb250`; read-only analysis of frozen evidence, Guide, and governing LLPs; no shared-file edits | Worker returns a cited patch plan/draft text only; coordinator decides and serializes any Guide/issue/LLP changes |
+| 3 | Cross-arm evidence and remediation-priority audit | Worker 3 / Apartment MacBook Air `100.70.173.122` | Detached remote checkout `/Users/ccheever/worktrees/llp0102-remediation-audit-w3` at `c42feb250`; read-only capsule/schema/hash/status checks and comparative analysis; no product, diary, report, or score edits | Worker returns findings only; coordinator adjudicates evidence, remediation ledger, scoring inputs, and final synthesis |
+
+Workers may finish out of order. No worker may alter the shared diary, evidence
+audit, remediation ledger, deep report, ratings, scoring, or final report.
