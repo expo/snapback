@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T21:14:41.112Z",
+  "ok": true,
+  "principalIdHashes": {
+    "alice": "4a5b53145e3eaf068d297f40b3a5d18b8ead8f25584e0d40bb808fa9f8fcba2c",
+    "bob": "943dea208dd8199712d9d6647026232908729f440c5b956bad1c1c72996f6bcf",
+    "mallory": "09583f9cfcf71b5c85afc1e3c99b3d1511ed970ae63d4e115abf165f409eb1f1"
+  },
+  "identityHashesStable": true,
+  "authorizedTaskCounts": {
+    "alice": 100,
+    "bob": 100,
+    "mallory": 0
+  },
+  "authoritativeSeed": {
+    "workspaceCount": 1,
+    "membershipCount": 2,
+    "membershipPersonas": [
+      "alice",
+      "bob"
+    ],
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "uniqueSeedKeys": 100,
+    "orderValid": true,
+    "principalIdHashes": {
+      "alice": "4a5b53145e3eaf068d297f40b3a5d18b8ead8f25584e0d40bb808fa9f8fcba2c",
+      "bob": "943dea208dd8199712d9d6647026232908729f440c5b956bad1c1c72996f6bcf",
+      "mallory": "09583f9cfcf71b5c85afc1e3c99b3d1511ed970ae63d4e115abf165f409eb1f1"
+    }
+  },
+  "transport": "Cloud Firestore WebChannel listen stream",
+  "eachClientOpenedNativeListenChannel": true,
+  "outsider": {
+    "nativeAuthenticated": true,
+    "protectedRows": 0,
+    "protectedRowsRetained": false
+  },
+  "containsSecretValues": false
+}

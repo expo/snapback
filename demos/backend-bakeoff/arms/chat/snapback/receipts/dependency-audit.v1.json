@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T02:44:41.711Z",
+  "command": "npm audit --json",
+  "exitStatus": 0,
+  "packageCounts": {
+    "prod": 4,
+    "dev": 57,
+    "optional": 36,
+    "peer": 3,
+    "peerOptional": 0,
+    "total": 60
+  },
+  "vulnerabilities": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  }
+}

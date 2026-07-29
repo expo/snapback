@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:21:45.695Z",
+  "ok": true,
+  "targetIdentityHash": "8a52ecbc24132f5197aa953ec3caa84149ca50f8ba46067086778e8ab6c9ee79",
+  "removed": [
+    "exact arm-owned Convex local deployment",
+    "exact arm-owned disposable browser profiles",
+    "exact arm-local environment and proof files"
+  ],
+  "probes": {
+    "port3210Closed": true,
+    "port3211Closed": true,
+    "port4179Closed": true,
+    "convexStateAbsent": true,
+    "browserRuntimeAbsent": true,
+    "armSecretsAbsent": true,
+    "envLocalAbsent": true
+  },
+  "recovery": "Removed bytes are not recoverable; source and deterministic seed recreate them.",
+  "containsSecretValues": false
+}

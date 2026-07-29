@@ -1,0 +1,17 @@
+{
+  "assignedPorts": [
+    3312,
+    4291
+  ],
+  "stoppedVitePids": [
+    46763
+  ],
+  "stoppedFinalServerPids": [
+    52830
+  ],
+  "postCleanupListeningPids": {
+    "3312": [],
+    "4291": []
+  },
+  "pass": true
+}

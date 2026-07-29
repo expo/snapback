@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T23:21:04.435Z",
+  "ok": true,
+  "transportBarrier": {
+    "exactProjectHostMatchedWithoutRetention": true,
+    "blockedRequests": 8,
+    "blockedWebSockets": 0,
+    "ViteOriginRemainedAvailable": true
+  },
+  "warmClient": {
+    "retainedRowsDuringTransportLoss": 100,
+    "createAttemptRenderedOptimistically": false,
+    "taskCountAfterCreateAttempt": 100,
+    "updateInputRetainedVisualEdit": true,
+    "mutationErrorVisible": true,
+    "nativePendingQueueObserved": false,
+    "authoritativeTaskCountUnchanged": true,
+    "authoritativeTitleUnchanged": true
+  },
+  "coldBoot": {
+    "retainedRows": 0,
+    "queryCacheOrigin": "none in the Appwrite Web SDK",
+    "indexedDbDatabaseCount": 0,
+    "requestErrorVisible": false,
+    "loginFallbackVisible": true,
+    "supported": false
+  },
+  "reconnect": {
+    "onlineQueryResubscribed": true,
+    "authoritativeTaskCount": 100,
+    "queuedCreateCopies": 0,
+    "queuedUpdateSettled": false,
+    "supportedQueuedSettlement": false
+  },
+  "gaps": [
+    "TODO-06-OFFLINE-BOOT",
+    "TODO-07-OFFLINE-WRITES",
+    "TODO-08-RECONNECT"
+  ],
+  "finding": "The Appwrite Web SDK persists Auth session material but not TablesDB query results or mutations; official Appwrite offline-sync guidance requires adding a separate local database and custom push-pull conflict handling.",
+  "containsSecretValues": false
+}

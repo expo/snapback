@@ -1,0 +1,311 @@
+{
+  "appId": "work",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [
+    {
+      "burst": 8,
+      "defaultTtlMs": 1500,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "User",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 5000,
+      "maxValueBytes": 256,
+      "name": "typing",
+      "publish": "AllowAll",
+      "routingFields": [
+        "channelId"
+      ],
+      "scopeFields": [
+        "channelId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 4
+    },
+    {
+      "burst": 8,
+      "defaultTtlMs": 2000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 5000,
+      "maxValueBytes": 256,
+      "name": "presence",
+      "publish": "AllowAll",
+      "routingFields": [
+        "channelId"
+      ],
+      "scopeFields": [
+        "channelId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 4
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:62391f06bb79a4865684f6d5c0cfb326fd21cb3774a64c30e2058ed61dca8c25",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:d419d6622b541ba63bfaca6dc0f2bf203b35e389af6ce87118bbf83693b6fb8e",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "visibility",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "nextSequence",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slug"
+          ],
+          "name": "by_slug",
+          "unique": true
+        }
+      ],
+      "name": "channels",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "channels"
+            }
+          },
+          "name": "channelId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "owner",
+        "id": "channelMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "channelId",
+        "resourceTable": "channels",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "channelMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "channels"
+            }
+          },
+          "name": "channelId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId",
+            "channelId"
+          ],
+          "name": "by_user_channel",
+          "unique": true
+        }
+      ],
+      "name": "channelViews",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user",
+          "unique": true
+        }
+      ],
+      "name": "profiles",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "channels"
+            }
+          },
+          "name": "channelId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sentAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "channelId",
+            "sequence"
+          ],
+          "name": "by_channel_sequence",
+          "unique": true
+        }
+      ],
+      "name": "messages",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "channels"
+            }
+          },
+          "name": "channelId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "lastReadSequence",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId",
+            "channelId"
+          ],
+          "name": "by_user_channel",
+          "unique": true
+        }
+      ],
+      "name": "readMarkers",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

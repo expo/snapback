@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T23:21:51.751Z",
+  "ok": true,
+  "warmups": 2,
+  "recordedSamples": 7,
+  "measurements": {
+    "authoritativeReadAdmin": {
+      "rawMs": [
+        106.649,
+        123.631,
+        129.599,
+        136.642,
+        109.048,
+        104.424,
+        113.862
+      ],
+      "medianMs": 113.862,
+      "nearestRankP95Ms": 136.642
+    },
+    "mutationToOriginQuery": {
+      "rawMs": [
+        192.937,
+        196.091,
+        195.939,
+        201.044,
+        193.379,
+        191.157,
+        193.792
+      ],
+      "medianMs": 193.792,
+      "nearestRankP95Ms": 201.044
+    },
+    "mutationToSecondClientPush": {
+      "rawMs": [
+        194.51,
+        197.728,
+        197.523,
+        202.788,
+        194.793,
+        192.529,
+        195.083
+      ],
+      "medianMs": 195.083,
+      "nearestRankP95Ms": 202.788
+    },
+    "browserReconnectAndResubscribe": {
+      "rawMs": [
+        790.74,
+        805.627,
+        822.688,
+        823.619,
+        766.886,
+        716.422,
+        839.335
+      ],
+      "medianMs": 805.627,
+      "nearestRankP95Ms": 839.335
+    },
+    "productionClientBuild": {
+      "rawMs": [
+        240.752,
+        227.28,
+        237.879,
+        237.912,
+        230.463,
+        202.735,
+        234.403
+      ],
+      "medianMs": 234.403,
+      "nearestRankP95Ms": 240.752
+    }
+  },
+  "warmupSamplesMs": {
+    "authoritativeReadAdmin": [
+      262.127,
+      105.6
+    ],
+    "mutationToOriginQuery": [
+      826.805,
+      196.674
+    ],
+    "mutationToSecondClientPush": [
+      829.781,
+      198.096
+    ],
+    "browserReconnectAndResubscribe": [
+      1031.79,
+      636.439
+    ],
+    "productionClientBuild": [
+      256.79,
+      210.274
+    ]
+  },
+  "machineContext": {
+    "target": "fresh local official Appwrite 1.9.6 self-host stack",
+    "client": "Chrome headless from the same macOS machine",
+    "dataset": "four lists and 100 tasks",
+    "network": "loopback HTTP to Docker Desktop on the same macOS machine"
+  },
+  "scope": "fresh local self-host measurements; not a general Appwrite benchmark",
+  "containsSecretValues": false
+}

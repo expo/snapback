@@ -1,0 +1,9 @@
+{
+  "attempt": 2,
+  "result": "failed",
+  "phase": "CHAT-10-UNREAD",
+  "failureClass": "harness-assertion",
+  "summary": "The second Bob client received the marker, but the harness required lastReadAt to be a JavaScript Date even though the core client was initialized with useDateObjects false.",
+  "remediation": "Assert the authoritative marker row rather than a client representation type, reset only non-seed fixture rows, and rerun.",
+  "stopClass": false
+}

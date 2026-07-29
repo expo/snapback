@@ -1,0 +1,424 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "chat",
+    "provider": "snapback",
+    "round": "calibration",
+    "attemptId": "chat-snapback-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "0.1.0",
+      "client": "workspace at sourceCommit",
+      "cli": "workspace at sourceCommit"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-29T01:41:44.000Z",
+    "finishedAt": "2026-07-29T02:44:41.713Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 3777713,
+    "toolCalls": 74,
+    "timedWindowFrozenAt": "2026-07-29T02:44:41.713Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "0277529c6d7e5c455a56030fe0149c7981813a541fc6a8df8222badae8a9e0ad",
+      "role": "owner"
+    },
+    "bob": {
+      "principalIdHash": "1d1b9ce46d5df152f3e88886cbb54e2e8604e2c64892270b949650f293c91ebd",
+      "role": "member-then-self-removed"
+    },
+    "mallory": {
+      "principalIdHash": "106d2edf25e64f623f01f07b192c69f878de1e9536055bb86a2a24dc1ec75409",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-chat-snapback-calibration-chat-snapback-calibration-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "508d943eb1ba10171eb94bea6e4109a42837f0696fb3bfb6f88858c6ffd71883",
+      "profile": "packaged local SQLite + Ibex sessions deployment",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/inventory.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "no honestly complete hosted profile at starting commit",
+      "plan": "GAP",
+      "region": "GAP",
+      "gapReason": "Hosted evidence unavailable for this arm: product-gap. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 2580000,
+    "firstAuthoritativeMutationMs": 2575000,
+    "firstRealtimeTransitionMs": 2590000,
+    "localAcceptanceMs": 3767713,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 3777713
+  },
+  "assistanceEvents": [
+    {
+      "kind": "guide",
+      "scope": "Snapback Guide index, schema/functions, live queries, ephemeral state, sessions auth, React/headless clients, offline retention, and acceptance testing",
+      "outcome": "used-before-build"
+    },
+    {
+      "kind": "source-inspection",
+      "scope": "EphemeralOverlay and liveStreamManager lifecycle after two failed transient-state attempts",
+      "outcome": "revealed connection-label stream prerequisite"
+    }
+  ],
+  "commands": [
+    {
+      "command": "scripts/bootstrap-ibex-runtime",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 1850000,
+      "exitStatus": 0,
+      "classification": "first-run vendored-Ibex initialization, Hermes source build, cargo build, and launch smoke"
+    },
+    {
+      "command": "bun install --frozen-lockfile && npm ci --ignore-scripts",
+      "startedMonotonicMs": 1850001,
+      "finishedMonotonicMs": 1870000,
+      "exitStatus": 0,
+      "classification": "worktree and arm-local dependency installation"
+    },
+    {
+      "command": "npm run generate && npm run build",
+      "startedMonotonicMs": 1870001,
+      "finishedMonotonicMs": 1890000,
+      "exitStatus": 0,
+      "classification": "Snapback codegen and React production build"
+    },
+    {
+      "command": "npm run acceptance (ephemeral attempts)",
+      "startedMonotonicMs": 1890001,
+      "finishedMonotonicMs": 2560000,
+      "exitStatus": 1,
+      "classification": "missing live-stream-manager lifecycle diagnosis"
+    },
+    {
+      "command": "npm run acceptance (concurrency attempt)",
+      "startedMonotonicMs": 2560001,
+      "finishedMonotonicMs": 2660000,
+      "exitStatus": 1,
+      "classification": "reservation-stale retry discovery"
+    },
+    {
+      "command": "npm run acceptance (browser selector attempts)",
+      "startedMonotonicMs": 2660001,
+      "finishedMonotonicMs": 2920000,
+      "exitStatus": 1,
+      "classification": "rendered-row selector settlement correction"
+    },
+    {
+      "command": "npm run acceptance",
+      "startedMonotonicMs": 3677713,
+      "finishedMonotonicMs": 3772713,
+      "exitStatus": 0,
+      "classification": "fifteen-scenario local acceptance, performance, and exact cleanup"
+    },
+    {
+      "command": "node scripts/finalize-capsule.mjs",
+      "startedMonotonicMs": 3772713,
+      "finishedMonotonicMs": 3777713,
+      "exitStatus": 0,
+      "classification": "inventory, dependency audit, and capsule freeze"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Four server-owned channels and exactly 500 messages were created under three stable native principals.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/personas.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Alice and Bob saw four channels; Mallory saw two public channels and received exact denials for private read and subscribe.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Bob independently joined the confirmed mutation to a row with server id, principal, display profile, sequence, and runtime timestamp.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob received Alice’s committed private message over a durable WebSocket stream with polling disabled.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two server-sequence cursor pages were disjoint and stable under an intervening insert.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/ephemeral-typing-diagnostic.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A user-keyed native ephemeral typing entry crossed the shared live socket and expired without a durable table.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A connection-keyed native ephemeral presence lease crossed two clients and expired; no multi-instance claim is made.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A fresh stream restored the complete authoritative private channel with no duplicate ids.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "The protected membership-gated JS live query is not retainable; the React Online surface has no cold protected-history store."
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "One server-owned Bob marker synchronized across two clients and survived a fresh reconnect.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/failed-attempt-concurrent-reservation.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Both sends committed with distinct order after one effect-free reservation-stale retry.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bearer removal blanked predecessor rows and blocked a later private message on the already-connected client.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "status": "fail",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Self-removal denied fresh reads and stopped future delivery, but the established handle retained 125 predecessor rows instead of blanking.",
+      "note": "Fresh reads were denied and future delivery stopped, but retained protected rows did not blank at the authority-change barrier."
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two warmups and seven raw samples cover a 25-row read, twenty-message burst, push, reconnect, and production build.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/backup-manifest.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact cleanup removed the SQLite target plus source and built bearer carriers and proved all absent.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 14,
+      "bytes": 84445,
+      "lines": 2264
+    },
+    "generated": {
+      "files": 47,
+      "bytes": 159598,
+      "lines": 3635
+    },
+    "tests": null,
+    "configuration": {
+      "files": 3,
+      "bytes": 1415,
+      "lines": 61
+    },
+    "policy": null,
+    "dependencyManifests": {
+      "files": 2,
+      "bytes": 34746,
+      "lines": 1079
+    },
+    "installedDependencyBytes": 81576033,
+    "glue": [
+      "native session minting through the admin-gated capture mailbox",
+      "four authenticated membership-backed channel bootstraps",
+      "explicit liveStreamManager lifecycle before each ephemeral overlay",
+      "bounded complete-operation retry for effect-free authorization reservation staleness",
+      "React external-store adapter over generated durable and ephemeral references",
+      "two-client correctness, offline, lifecycle, performance, and exact-cleanup barriers"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three distinct native sessions were tested positively, negatively, after logout, and after membership removal.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "The two-client barrier retained the effect-free reservation diagnostic and both final confirmed settlements with distinct order.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/failed-attempt-concurrent-reservation.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Direct durable and ephemeral stream handles plus rendered React clients prove native push with no polling fallback.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/ephemeral-typing-diagnostic.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 1,
+      "reason": "Reconnect is direct, but cold protected history is an explicit product GAP.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Mutation receipts, authoritative joins, retry diagnostics, and lifecycle barriers are retained.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "App id, exact port, SQLite path, and generated inputs hash bind one target identity.",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/cleanup-plan.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "The target-bound plan and negative probes cover the exact runtime and both bearer-file copies.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Generated manifests, package lock, source inventory, dependency audit, failed attempts, and pre-cleanup database hash are retained.",
+      "evidencePaths": [
+        "receipts/inventory.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/backup-manifest.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "runtime absent=true; source bearer absent=true; built bearer absent=true"
+  },
+  "result": "complete"
+}

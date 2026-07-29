@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "namingTemplate": "llp0102-<app>-<provider>-<round>-<attemptId>",
+  "isolation": {
+    "freshLocalTargetPerArm": true,
+    "freshHostedTargetPreferred": true,
+    "sharedHostedTargetAllowed": true,
+    "uniqueNamespacePerArm": true,
+    "baselinePreservationRequiredForSharedTargets": true,
+    "reuseAcrossProviders": false,
+    "namespaceReuseAcrossApps": false
+  },
+  "beforeProvision": [
+    "bind provider, app, round, and attempt id",
+    "record exact account capability without account value",
+    "record exact plan and region or explicit provider-selected placement",
+    "record fresh-target or shared-namespace mode",
+    "record intended target or namespace and provider command",
+    "confirm a fresh target/namespace is absent",
+    "for shared targets capture a redacted baseline inventory and scoped-cleanup proof",
+    "start the arm monotonic clock"
+  ],
+  "afterProvision": [
+    "hash the provider-issued target identity",
+    "retain a redacted creation receipt",
+    "record local/hosted profile and immutable freeze aggregate",
+    "confirm commands resolve only the intended target"
+  ],
+  "beforeCleanup": [
+    "freeze acceptance and timed results",
+    "capture authoritative target identity",
+    "capture export or backup evidence where supported",
+    "build an exact target-bound or namespace-bound deletion plan",
+    "refuse unresolved variables, globs, broad directories, and account-wide cleanup"
+  ],
+  "afterCleanup": [
+    "retain command exit status and provider receipt",
+    "probe the exact fresh target or shared namespace and record its absence",
+    "for shared targets verify the unrelated baseline remains unchanged",
+    "record residual resources or explicit cleanup GAP"
+  ],
+  "forbidden": [
+    "account-wide delete",
+    "deleting a shared target",
+    "mutating outside the bound arm namespace",
+    "workspace-root recursive delete",
+    "cleanup inferred from current CLI default",
+    "unresolved target variables",
+    "wildcard target selection",
+    "deleting before receipts and export/backup evidence are captured"
+  ]
+}

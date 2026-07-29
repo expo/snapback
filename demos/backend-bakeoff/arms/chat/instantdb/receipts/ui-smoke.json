@@ -1,0 +1,10 @@
+{
+  "operation": "Vite development shell smoke",
+  "host": "127.0.0.1",
+  "port": 4290,
+  "readyMs": 113,
+  "httpStatus": "success",
+  "responseBodySha256": "96b3ba7cc1e74397252dc41c22d35576129a72772694277e5c6cb7d446136fe7",
+  "listenerOwnedByRun": true,
+  "listenerStoppedAfterProbe": true
+}

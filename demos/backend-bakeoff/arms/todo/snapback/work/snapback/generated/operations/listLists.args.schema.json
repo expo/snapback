@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/listLists.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "workspaceId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspaceId"
+  ],
+  "title": "work:listLists arguments",
+  "type": "object"
+}

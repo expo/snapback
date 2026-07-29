@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "targetBoundPlan": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/evidence/cleanup-remediation-plan.json",
+  "exactTarget": {
+    "databaseName": "llp0102-chat-spacetimedb-w1",
+    "databaseIdentity": "c2004eb2f79972743b2d2188d5169fabbe879a6453dd3d11653ef3530bcdb4c8",
+    "armOnlyDataDirectory": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/data"
+  },
+  "preservedFailedExactDelete": {
+    "exitCode": 1,
+    "reason": [
+      "Saving config to /Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/cli/cli.toml.",
+      "Error: HTTP status client error (403 Forbidden) for url (http://127.0.0.1:3312/v1/database/c2004eb2f79972743b2d2188d5169fabbe879a6453dd3d11653ef3530bcdb4c8)"
+    ]
+  },
+  "fallback": {
+    "stoppedServerPids": [
+      34264
+    ],
+    "command": "spacetime server clear --data-dir /Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/data --yes",
+    "exitCode": 0,
+    "stdout": [
+      "Database path: /Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/data",
+      "Skipping confirmation due to --yes",
+      "Deleted database: /Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/data"
+    ],
+    "stderr": [
+      "WARNING: This command is UNSTABLE and subject to breaking changes."
+    ]
+  },
+  "postCleanup": {
+    "serverRestarted": true,
+    "describeExitCode": 1,
+    "targetAbsent": true,
+    "diagnostic": [
+      "WARNING: This command is UNSTABLE and subject to breaking changes.",
+      "",
+      "Error: failed to find database `llp0102-chat-spacetimedb-w1`."
+    ]
+  },
+  "unrelatedBaselinePreserved": true,
+  "pass": true
+}

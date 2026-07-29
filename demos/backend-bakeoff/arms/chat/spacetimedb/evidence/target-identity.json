@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "mode": "fresh-local",
+  "machine": "Apartment Air",
+  "server": "http://127.0.0.1:3312",
+  "databaseName": "llp0102-chat-spacetimedb-w1",
+  "databaseIdentity": "c2004eb2f79972743b2d2188d5169fabbe879a6453dd3d11653ef3530bcdb4c8",
+  "cliVersion": "2.7.0",
+  "clientVersion": "2.7.0",
+  "isolatedPaths": {
+    "cli": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/cli",
+    "data": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/data",
+    "runtime": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/runtime"
+  },
+  "assignedPorts": {
+    "spacetimedb": 3312,
+    "vite": 4291
+  }
+}

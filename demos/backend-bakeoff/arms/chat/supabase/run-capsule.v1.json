@@ -1,0 +1,496 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "chat",
+    "provider": "supabase",
+    "round": "calibration",
+    "attemptId": "chat-supabase-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Supabase",
+      "client": "2.111.0",
+      "cli": "2.110.0"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-29T01:09:14.731Z",
+    "finishedAt": "2026-07-29T02:32:22.939Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 4988205,
+    "toolCalls": 79,
+    "timedWindowFrozenAt": "2026-07-29T02:32:22.939Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "808f96b1d6ef6ea46f535ee119522c9525074f3285815da0c07da4949177af32",
+      "role": "private-channel owner and public-channel member"
+    },
+    "bob": {
+      "principalIdHash": "85791764e50c5e90dc98317e53c3327e52ae0c9b81354af5616cee4a87a5c450",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "c03c2de4a2e63d2dd01c1c16f05250062771d6c36561f6557d9bfbd212ac118e",
+      "role": "outsider to private channels"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-chat-supabase-calibration-chat-supabase-calibration-01",
+      "baselineReceiptPath": "demos/backend-bakeoff/arms/chat/supabase/receipts/pre-provision.json",
+      "scopedCleanupPlanPath": "demos/backend-bakeoff/arms/chat/supabase/cleanup-plan.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "69a3aac300e781c4fdc26ea8b2813674792890ec938f1b3ef29bc36acbc6c919",
+      "profile": "official Supabase CLI Docker stack",
+      "gapReason": "",
+      "receiptPaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/pre-provision.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/target-identity.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/pre-cleanup-resources.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/cleanup.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed Postgres, Auth, Realtime, Storage, Edge Functions",
+      "plan": "Pro with Micro compute",
+      "region": "West US (exact dashboard identifier captured with target)",
+      "gapReason": "Hosted target was not provisioned in this isolated worker. The official local CLI path supplied product evidence; hosted deployment, region, operations, usage, and list-price evidence remain unavailable and are not scored as product failures.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 4500000,
+    "firstAuthoritativeMutationMs": 4767554,
+    "firstRealtimeTransitionMs": 4767663,
+    "localAcceptanceMs": 4785039,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 4988205
+  },
+  "assistanceEvents": [
+    {
+      "type": "official-documentation",
+      "source": "Supabase official Realtime Authorization, Postgres Changes, Broadcast, Presence, and CLI config documentation",
+      "effect": "Selected realtime.messages RLS, table RLS, private topics, Postgres Changes, Broadcast, Presence, and explicit local ports."
+    },
+    {
+      "type": "environment-workaround",
+      "source": "Local Colima bind-mount diagnosis",
+      "effect": "Mirrored only the exact CLI runtime project under a unique /Users cache path because Colima could not bind generated files from /private/tmp. Canonical source/evidence stayed in the detached worktree."
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm install --no-audit --no-fund",
+      "startedMonotonicMs": 243916713,
+      "finishedMonotonicMs": 243942713,
+      "exitStatus": 0,
+      "classification": "setup",
+      "note": "41 direct installed package entries reported in 26 seconds."
+    },
+    {
+      "command": "supabase init",
+      "startedMonotonicMs": 243943000,
+      "finishedMonotonicMs": 243944700,
+      "exitStatus": 0,
+      "classification": "setup"
+    },
+    {
+      "command": "supabase start (first official image acquisition)",
+      "startedMonotonicMs": 243945000,
+      "finishedMonotonicMs": 243974000,
+      "exitStatus": 1,
+      "classification": "environment",
+      "note": "public.ecr.aws returned HTTP 429 Rate exceeded for pinned Logflare image."
+    },
+    {
+      "command": "supabase start (wrapper-yield retry)",
+      "startedMonotonicMs": 243975000,
+      "finishedMonotonicMs": 244030000,
+      "exitStatus": 1,
+      "classification": "harness",
+      "note": "Interactive wrapper abandoned still-running pulls; switched to persistent terminal sessions."
+    },
+    {
+      "command": "docker pull exact pinned Supabase image set",
+      "startedMonotonicMs": 244031000,
+      "finishedMonotonicMs": 244310000,
+      "exitStatus": 0,
+      "classification": "setup",
+      "note": "Sequential recovery avoided the registry burst rate limit."
+    },
+    {
+      "command": "supabase start from assigned /private/tmp worktree",
+      "startedMonotonicMs": 244311000,
+      "finishedMonotonicMs": 244560000,
+      "exitStatus": 1,
+      "classification": "environment",
+      "note": "Colima VM could not see /private/tmp bind sources; generated pgsodium key and Kong certificate mounts appeared as directories or invalid files."
+    },
+    {
+      "command": "supabase start from exact runtime-only /Users mirror",
+      "startedMonotonicMs": 244561000,
+      "finishedMonotonicMs": 244600000,
+      "exitStatus": 0,
+      "classification": "workaround",
+      "note": "Canonical source and all evidence remained in the detached worktree."
+    },
+    {
+      "command": "npm run acceptance (attempt 1)",
+      "startedMonotonicMs": 244601000,
+      "finishedMonotonicMs": 244604000,
+      "exitStatus": 1,
+      "classification": "builder-error",
+      "note": "Supabase CLI's new auto-expose=false default required an explicit service_role grant."
+    },
+    {
+      "command": "supabase db reset",
+      "startedMonotonicMs": 244605000,
+      "finishedMonotonicMs": 244640000,
+      "exitStatus": 0,
+      "classification": "setup"
+    },
+    {
+      "command": "npm run acceptance (attempt 2)",
+      "startedMonotonicMs": 244641000,
+      "finishedMonotonicMs": 244671000,
+      "exitStatus": 0,
+      "classification": "harness",
+      "note": "10 pass, 3 fail, 1 GAP; failed private push control during cold Realtime initialization and Presence assertion."
+    },
+    {
+      "command": "npm run acceptance (attempt 3)",
+      "startedMonotonicMs": 244672000,
+      "finishedMonotonicMs": 244701000,
+      "exitStatus": 0,
+      "classification": "harness",
+      "note": "12 pass, 1 fail, 1 GAP; remaining failure was a callback registered after subscribe, prohibited by supabase-js."
+    },
+    {
+      "command": "npm run acceptance (final)",
+      "startedMonotonicMs": 248887000,
+      "finishedMonotonicMs": 248916000,
+      "exitStatus": 0,
+      "classification": "acceptance",
+      "note": "13 pass, 1 offline-history GAP, cleanup pending."
+    },
+    {
+      "command": "npm run build",
+      "startedMonotonicMs": 248917000,
+      "finishedMonotonicMs": 248919000,
+      "exitStatus": 0,
+      "classification": "build",
+      "note": "Production client compiled with runtime-derived public local endpoint configuration."
+    },
+    {
+      "command": "supabase stop --no-backup from exact project directory",
+      "startedMonotonicMs": 248880000,
+      "finishedMonotonicMs": 248892000,
+      "exitStatus": 0,
+      "classification": "cleanup",
+      "note": "CLI reported project_id_filter llp0102-chat-supabase-w3."
+    },
+    {
+      "command": "exact Docker/port cleanup probe",
+      "startedMonotonicMs": 248893000,
+      "finishedMonotonicMs": 248894000,
+      "exitStatus": 0,
+      "classification": "cleanup-proof"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/seed.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/target-identity.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Authoritative service-role counts were exactly 4 channels, 10 memberships, and 500 messages (125 per channel).",
+      "note": ""
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Alice and Bob read private history; Mallory read zero rows and her RLS-authorized private Realtime join returned CHANNEL_ERROR.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Independent service-role read matched the database-assigned UUID, Alice author, generated identity sequence, and timestamp; author spoof was rejected.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob's second authenticated client received Alice's committed public message through Realtime Postgres Changes without product polling.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two 25-row seq-cursor pages had a 50-row unique union and excluded the concurrent newer insert.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob received native Broadcast; authoritative message-table inspection found zero durable typing rows after the application display TTL.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Alice observed two Presence keys after track and one after Bob untracked.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Fresh authoritative history after Realtime resubscribe contained the disconnected insert and 25 unique IDs.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "gap",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/offline-history-gap.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "Cold retained history is unsupported by bare supabase-js; no provider-owned retained query store exists.",
+      "note": "supabase-js does not persist PostgREST query results for cold offline boot; the React client retains only warm in-memory rows. Adding IndexedDB/SQLite cache and sync would be application-authored glue."
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Bob's durable marker written by client one matched client two before and after reconnect; the later Alice seq counted unread.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Both barrier-launched actor writes existed authoritatively and generated identity sequence gave a strict deterministic order.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "After signOut resolved and application cleanup removed channels, the already-connected client observed zero future private events.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "After membership deletion, Bob's fresh private query returned zero and his established Postgres Changes subscription received zero future protected messages.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/performance.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Each frozen path retained two warmups and seven recorded samples plus raw, median, nearest-rank p95, dataset, and machine context.",
+      "note": "Two warmups and seven recorded samples per frozen path; local isolated stack only, not production-scale evidence."
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/pre-cleanup-resources.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/cleanup.json",
+        "demos/backend-bakeoff/arms/chat/supabase/cleanup-plan.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact CLI stop selected project llp0102-chat-supabase-w3; post-probe found zero matching containers/volumes/networks and every assigned port closed.",
+      "note": "Fresh local project resources and runtime-only state were cleaned exactly; host runtime directories were moved to macOS Trash and remain recoverable until it is emptied."
+    }
+  ],
+  "inventory": {
+    "receiptPath": "demos/backend-bakeoff/arms/chat/supabase/receipts/inventory.json",
+    "authoredSource": {
+      "files": 20,
+      "bytes": 72435,
+      "lines": 1599
+    },
+    "generated": {
+      "files": 0,
+      "bytes": 0,
+      "lines": 0
+    },
+    "tests": {
+      "files": 5,
+      "bytes": 77651,
+      "lines": 2235
+    },
+    "configuration": {
+      "files": 21,
+      "bytes": 52799,
+      "lines": 1802
+    },
+    "policy": {
+      "files": 1,
+      "bytes": 6002,
+      "path": "demos/backend-bakeoff/arms/chat/supabase/work/supabase/migrations/20260729011000_chat.sql"
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 56022,
+      "lines": 1732
+    },
+    "installedDependencyBytes": 249549605,
+    "glue": [
+      "runtime-only /Users project mirror for Colima /private/tmp bind limitation (cleaned)",
+      "realtime.messages RLS in addition to ordinary table RLS",
+      "explicit removeAllChannels logout lifecycle cleanup",
+      "application display TTL for ephemeral typing",
+      "fresh authoritative snapshot after Realtime resubscribe",
+      "durable read_markers table for cross-client unread state"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three native Auth users, direct private reads, author-spoof refusal, private topic denial, and post-revocation checks are reproducible.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/seed.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Both barrier-launched writes were read independently and strictly ordered by database-generated identity sequence.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Durable push, Broadcast, and Presence were observed directly and attributed separately; no product polling was used.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/transport-attribution.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/performance.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 1,
+      "reason": "Reconnect is direct and reproducible, but cold offline history is an explicit provider-client GAP.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/offline-history-gap.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Writes were followed by independent authoritative reads, exact counts, or independently observed committed push.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/acceptance.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "The exact local project, ports, image topology, source commit, and identity hash were retained; hosted evidence is separately marked unavailable.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/target-identity.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/pre-cleanup-resources.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "The exact project-bound plan, CLI project filter, resource absence, and closed-port probes are retained.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/cleanup-plan.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/cleanup.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 1,
+      "reason": "Versions, source, policies, scripts, failed attempts, build, and inventory are retained, but Colima required a machine-specific runtime mirror and hosted deployment was not reproduced.",
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/inventory.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/command-log.json",
+        "demos/backend-bakeoff/arms/chat/supabase/receipts/npm-audit.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "demos/backend-bakeoff/arms/chat/supabase/cleanup-plan.json",
+    "receiptPaths": [
+      "demos/backend-bakeoff/arms/chat/supabase/receipts/pre-cleanup-resources.json",
+      "demos/backend-bakeoff/arms/chat/supabase/receipts/pre-cleanup-public-schema.sql",
+      "demos/backend-bakeoff/arms/chat/supabase/receipts/cleanup.json"
+    ],
+    "postCleanupProbe": "Zero exact-project containers, volumes, and networks; ports 4289 and 55421-55430 all closed; runtime mirror/state absent."
+  },
+  "result": "complete"
+}

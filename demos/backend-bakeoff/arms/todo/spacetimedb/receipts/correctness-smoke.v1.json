@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T19:38:41.893Z",
+  "ok": true,
+  "crud": {
+    "editObservedBySecondClient": true,
+    "completeObservedBySecondClient": true,
+    "reopenObservedBySecondClient": true,
+    "moveDownAndRestorePreservedUniqueOrder": true,
+    "createAndDeleteObservedBySecondClient": true
+  },
+  "conflict": {
+    "policy": "transaction serialization with last committed reducer update winning",
+    "converged": true,
+    "winningActorClass": "bob"
+  },
+  "concurrentOrder": {
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "validUniquePermutation": true
+  },
+  "revocation": {
+    "connectedCacheCleared": true,
+    "futureWriteDelivered": false,
+    "regrantRestoredAuthorizedView": true
+  },
+  "logout": {
+    "disconnectedCacheCleared": true,
+    "reloadUsedFreshUnprivilegedIdentity": true
+  },
+  "containsSecretValues": false
+}

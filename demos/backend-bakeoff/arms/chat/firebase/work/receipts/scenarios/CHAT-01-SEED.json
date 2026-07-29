@@ -1,0 +1,19 @@
+{
+  "id": "CHAT-01-SEED",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:21:03.955Z",
+  "target": "llp0102-chat-firebase-w1",
+  "transport": "not-applicable",
+  "evidence": {
+    "channelCounts": {
+      "public-lobby": 125,
+      "public-random": 125,
+      "private-alpha": 125,
+      "private-beta": 125
+    },
+    "actorCount": 3,
+    "alicePrivatePage": 25,
+    "seedReceipt": "receipts/seed-receipt.json"
+  },
+  "note": "Fresh local emulator target; exact deterministic seed."
+}

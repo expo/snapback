@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T01:32:19.236Z",
+  "targetIdentityHash": "aa090bb8a6f1246641e437b6bf92f322e2ddacfccf1a98983c860de412774b62",
+  "authoritativeMessageCount": 500,
+  "retainedEvidence": [
+    "baseline.v1.json",
+    "authoritative-summary.v1.json",
+    "personas.v1.json",
+    "correctness-smoke.v1.json",
+    "offline-smoke.v1.json",
+    "performance.v1.json",
+    "dependency-audit.v1.json",
+    "inventory.v1.json"
+  ],
+  "dataExport": {
+    "status": "explicit-gap",
+    "reason": "No data export retained; deterministic provisioning recreates the disposable local target."
+  },
+  "containsSecretValues": false
+}

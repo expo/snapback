@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "app": "research-room",
+  "expectedCheckCount": 15,
+  "scenarios": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "fact": "Exact rooms, sources, embeddings, and personas exist.",
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "fact": "Authorized upload, metadata, delivery, and deletion preserve ownership.",
+      "evidence": ["object-identity", "content-hash", "authority", "delete-proof"]
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "fact": "Mallory cannot retrieve sources, search results, questions, answers, or progress.",
+      "evidence": ["negative-file", "negative-query", "negative-subscription"]
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "fact": "Keyword search returns the frozen expected source set.",
+      "evidence": ["index-or-query-proof", "authoritative-results"]
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "fact": "Semantic retrieval uses the provider's ordinary path or is explicit GAP.",
+      "evidence": ["vector-path-identity", "deterministic-results", "nonclaim-if-gap"]
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "fact": "A question produces four authoritative progress updates before completion.",
+      "evidence": ["durable-sequence", "transport-attribution", "terminal-order"]
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "fact": "The answer retains valid citations to authorized source records.",
+      "evidence": ["authoritative-answer", "source-id-validation", "authority"]
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "fact": "Bob observes Alice's progress live through the attributed path.",
+      "evidence": ["second-client", "transport-attribution", "authority"]
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "fact": "Confirmed cancellation prevents every late durable patch.",
+      "evidence": ["cancel-settlement", "late-attempt-injection", "authoritative-log"]
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "fact": "Retry is idempotent and does not duplicate question or answer.",
+      "evidence": ["dedupe-key", "attempt-ledger", "authoritative-counts"]
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "fact": "Complete, failed, cancelled, timed-out, and ambiguous effects remain distinct.",
+      "evidence": ["fault-injection", "state-machine-records", "settlement"]
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "fact": "Scheduled refresh fetches a deterministic external source and records progress once.",
+      "evidence": ["schedule-identity", "run-receipt", "dedupe-key"]
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "fact": "Secrets remain server-side and are absent from clients, logs, receipts, and diagnostics.",
+      "evidence": ["canary-secret-scan", "client-bundle-scan", "redacted-config-proof"]
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "fact": "Frozen search/write/progress/reconnect/deploy samples and cost window are retained.",
+      "evidence": ["two-warmups", "seven-samples", "raw-samples", "cost-window"]
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "fact": "Only exact fresh targets or arm-owned namespaced records, files, schedules, and secrets are retired; unrelated baseline state is preserved.",
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

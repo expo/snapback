@@ -1,0 +1,32 @@
+{
+  "operation": "production-build",
+  "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+  "warmupMs": [
+    3183.96725,
+    3114.6083230000004
+  ],
+  "rawMs": [
+    3095.7009959999996,
+    3158.9663680000012,
+    3070.207525,
+    3146.102312000001,
+    3116.624072999999,
+    3168.422300000002,
+    3135.1074750000007
+  ],
+  "medianMs": 3135.1074750000007,
+  "nearestRankP95Ms": 3168.422300000002,
+  "machine": {
+    "hostname": "expose-builder-pixel",
+    "cpus": 96,
+    "loadAverageAtCapture": [
+      1.19,
+      0.37,
+      0.26
+    ],
+    "node": "v24.13.1"
+  },
+  "output": "dist/",
+  "portReservation": 4290,
+  "capturedAt": "2026-07-29T02:58:29.762Z"
+}

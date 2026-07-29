@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-07-29T02:18:00Z",
+  "status": "pass",
+  "target": "fresh local Convex deployment on exact ports 3310 and 3311",
+  "dataReceipt": "receipts/cleanup-data.json",
+  "planReceipt": "receipts/cleanup-plan.json",
+  "processStop": {
+    "method": "SIGINT delivered to the exact retained `convex dev --local-cloud-port 3310 --local-site-port 3311` session",
+    "exitStatus": 130,
+    "portsAbsent": [3310, 3311, 4288]
+  },
+  "removedExactPaths": [
+    "/home/ccheever/worktrees/llp0102-chat-convex/work/.convex",
+    "/home/ccheever/worktrees/llp0102-chat-convex/work/.arm-runtime",
+    "/home/ccheever/worktrees/llp0102-chat-convex/home"
+  ],
+  "postCleanup": {
+    "allExactPathsAbsent": true,
+    "matchingProcessesAbsent": true,
+    "matchingListeningPortsAbsent": true
+  },
+  "probeErratum": "The first process probe used pgrep with a pattern present in the probe command itself and returned exit 1. A corrected ps/port/path probe returned no output, proving absence. No additional cleanup operation was needed."
+}

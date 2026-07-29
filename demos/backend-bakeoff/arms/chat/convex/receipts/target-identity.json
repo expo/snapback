@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-07-29T02:16:00Z",
+  "provider": "Convex",
+  "productVersion": "local backend build precompiled-2026-07-21-82d5e9f",
+  "clientVersion": "1.42.3",
+  "cliVersion": "1.42.3",
+  "targetMode": "fresh-local",
+  "profile": "official anonymous local deployment (beta)",
+  "endpoint": "http://127.0.0.1:3310",
+  "siteEndpoint": "http://127.0.0.1:3311",
+  "namespace": "llp0102-chat-convex-w2",
+  "identityHash": "a210de39af8d143702ca7c6c15c90acf0685516bec069dbdbf09354702005165",
+  "backendBinarySha256": "525d31533ed61e091c24f2e5e992c03e20712a8a9b99f0236543422429f1f950",
+  "backendBinaryBytes": 204760928,
+  "sqliteBytesBeforeFilesystemCleanup": 6414336,
+  "packageLockSha256": "8a60f6b8496253ed825704c7b00e26d33eb32612b36df3df994eaac3b796cfa3",
+  "topology": {
+    "machine": "Hetzner expo-build-1000 / expose-builder-pixel",
+    "os": "Linux 6.8.0-111-generic x86_64",
+    "node": "v24.13.1",
+    "npm": "11.8.0",
+    "localBackendPort": 3310,
+    "localSitePort": 3311,
+    "vitePortReservedButUnused": 4288,
+    "browserAvailable": false
+  },
+  "hosted": {
+    "status": "gap",
+    "reason": "No isolated hosted deployment credential was used; the authorized official anonymous local path supplied no hosted URL, plan, region, usage, or operations evidence."
+  },
+  "secretHandling": "The target receipt intentionally excludes the generated private development key, backend instance secret, and local deployment identifiers."
+}

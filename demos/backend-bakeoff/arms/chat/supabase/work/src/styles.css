@@ -1,0 +1,13 @@
+@import url("../../../../../neutral-ui/src/styles.css");
+
+.auth-card { max-width: 420px; margin: 80px auto; padding: 28px; }
+.auth-card form { display: grid; gap: 12px; }
+.auth-card label { display: grid; gap: 5px; }
+.auth-card input { padding: 10px; }
+.message-button { display: grid; grid-template-columns: 32px 1fr; gap: 8px; width: 100%; text-align: left; border: 0; background: transparent; }
+.message-button:hover { background: var(--surface-2, #f4f4f4); }
+.chat-panel .messages { overflow-y: auto; }
+.composer { display: flex; gap: 8px; align-items: center; }
+.composer input { flex: 1; }
+.composer button { min-width: 64px; }
+.error { color: #b42318; }

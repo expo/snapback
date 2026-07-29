@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T22:18:38.346Z",
+  "targetIdentityHash": "0823149e01fd3ed8d01405f27dc77756214957b660a251230c8f38e2bd8276ce",
+  "authoritativeTaskCount": 100,
+  "activeMemberCount": 2,
+  "retainedEvidence": [
+    "baseline.v1.json",
+    "authoritative-summary.v1.json",
+    "personas.v1.json",
+    "correctness-smoke.v1.json",
+    "offline-smoke.v1.json",
+    "performance.v1.json",
+    "dependency-audit.v1.json",
+    "inventory.v1.json"
+  ],
+  "dataExport": {
+    "status": "explicit-gap",
+    "reason": "No shared-target data export is retained because cleanup must erase the isolated namespace; migration and deterministic seed recreate it."
+  },
+  "containsSecretValues": false
+}

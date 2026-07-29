@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T22:07:37.292Z",
+  "ok": true,
+  "transportBarrier": {
+    "exactProjectHostMatchedWithoutRetention": true,
+    "blockedRequests": 18,
+    "blockedWebSockets": 3,
+    "ViteOriginRemainedAvailable": true
+  },
+  "warmClient": {
+    "retainedRowsDuringTransportLoss": 100,
+    "createAttemptRenderedOptimistically": false,
+    "taskCountAfterCreateAttempt": 100,
+    "updateInputRetainedVisualEdit": true,
+    "mutationErrorVisible": true,
+    "nativePendingQueueObserved": false,
+    "authoritativeTaskCountUnchanged": true,
+    "authoritativeTitleUnchanged": true
+  },
+  "coldBoot": {
+    "retainedRows": 0,
+    "queryCacheOrigin": "none in supabase-js",
+    "indexedDbDatabaseCount": 0,
+    "requestErrorVisible": true,
+    "supported": false
+  },
+  "reconnect": {
+    "onlineQueryResubscribed": true,
+    "authoritativeTaskCount": 100,
+    "queuedCreateCopies": 0,
+    "queuedUpdateSettled": false,
+    "supportedQueuedSettlement": false
+  },
+  "gaps": [
+    "TODO-06-OFFLINE-BOOT",
+    "TODO-07-OFFLINE-WRITES",
+    "TODO-08-RECONNECT"
+  ],
+  "finding": "supabase-js persists Auth but not PostgREST query results or mutations; official Supabase offline-first guidance points to separate sync integrations rather than a native queue",
+  "containsSecretValues": false
+}

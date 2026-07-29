@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T21:36:45.594Z",
+  "commandExitStatus": 1,
+  "vulnerabilityCounts": {
+    "info": 0,
+    "low": 0,
+    "moderate": 6,
+    "high": 5,
+    "critical": 0,
+    "total": 11
+  },
+  "affectedPackages": [
+    "@google-cloud/storage",
+    "brace-expansion",
+    "firebase-admin",
+    "gaxios",
+    "glob",
+    "google-gax",
+    "minimatch",
+    "retry-request",
+    "rimraf",
+    "teeny-request",
+    "uuid"
+  ],
+  "remediationApplied": false,
+  "classification": "Retained as dependency evidence; no automatic audit fix was applied because it could change the frozen provider/toolchain path.",
+  "containsSecretValues": false
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "policyId": "llp-0102-equal-assistance-v1",
+  "allowedWithoutEvent": [
+    "frozen neutral prompt and UI shell",
+    "frozen acceptance manifest",
+    "official provider documentation URLs in provider inventory",
+    "official provider starter templates",
+    "preflighted credentials for the fresh target or namespace-isolated shared target",
+    "ordinary shell, filesystem, browser, and test tools"
+  ],
+  "mustRecordAsAssistanceEvent": [
+    "provider source inspection",
+    "undocumented repository examples",
+    "community answers",
+    "human help",
+    "implementation knowledge imported from another provider arm",
+    "credential repair after the timed window starts",
+    "provider support intervention"
+  ],
+  "forbidden": [
+    "copying provider implementation code between arms",
+    "hiding a gateway or poller in the neutral shell",
+    "giving Snapback repository source knowledge unavailable to an external builder",
+    "rewriting an earlier diary entry",
+    "changing acceptance IDs after comparative outcome is visible"
+  ],
+  "humanIntervention": {
+    "expectedAfterPreflight": false,
+    "requiredFields": [
+      "elapsedMs",
+      "reason",
+      "informationSupplied",
+      "equivalentOpportunityOffered"
+    ]
+  },
+  "stage0PreflightBoundary": {
+    "excludedFromArmClock": [
+      "installing the exact frozen CLIs",
+      "starting and validating the shared Docker runtime with a provider-neutral hello-world image",
+      "validating Snapback's vendored runtime bootstrap",
+      "checking existing account sessions without creating a project"
+    ],
+    "forbiddenBeforeArmClock": [
+      "creating a provider project or application target",
+      "initializing provider-specific application files",
+      "pulling provider local-stack images",
+      "running a provider starter template",
+      "writing schema, auth, data, function, or client integration code"
+    ],
+    "cacheRule": "Provider-specific downloads and generated artifacts begin inside that arm's timed window; shared Stage 0 CLI packages and Docker VM state are disclosed but not charged to one provider."
+  },
+  "independentReview": {
+    "adjudicator": "Charlie Cheever",
+    "minimumExternalModelFamilyReviews": 1,
+    "scoresFrozenBeforeBuilderScoresRevealed": true,
+    "retainDisagreements": true,
+    "neverFabricateUnavailableReview": true
+  }
+}

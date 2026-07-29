@@ -1,0 +1,16 @@
+{
+  "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+  "targetMode": "fresh-hosted-temporary",
+  "scope": [
+    "all channels in the exact fresh target",
+    "all messages in the exact fresh target",
+    "all read markers in the exact fresh target",
+    "all native guest users in the exact fresh target",
+    "worktree-local raw target and actor runtime files"
+  ],
+  "mustPreserve": [
+    "all unrelated provider targets",
+    "source, evidence, receipts, dependencies, and build output"
+  ],
+  "targetDeletion": "Attempt immediate exact app deletion; if app-scoped temporary credentials cannot enumerate/delete apps, empty the target, invalidate users, remove local credentials, and retain the provider-managed automatic-expiry limitation."
+}

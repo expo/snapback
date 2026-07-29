@@ -1,0 +1,20 @@
+{
+  "operation": "clear-exact-disposable-target",
+  "targetIdSha256": "50f33ec1d5870cbdaabbebd1a86066d8c68d9f6915c61ec29083ea86d2df4c70",
+  "beforeCounts": {
+    "channels": 4,
+    "messages": 502,
+    "readMarkers": 0,
+    "$users": 3
+  },
+  "afterCounts": {
+    "channels": 0,
+    "messages": 0,
+    "readMarkers": 0,
+    "$users": 0
+  },
+  "exactTargetOnly": true,
+  "targetDeletionUnsupportedWithAppScopedAdminToken": true,
+  "providerManagedExpiryExpected": true,
+  "finishedAt": "2026-07-29T02:49:12.824Z"
+}

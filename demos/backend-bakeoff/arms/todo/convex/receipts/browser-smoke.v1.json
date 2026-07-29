@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:15:04.997Z",
+  "ok": true,
+  "authorizedTaskCounts": {
+    "alice": 100,
+    "bob": 100,
+    "mallory": 0
+  },
+  "identityHashesStable": true,
+  "bobSawInsert": true,
+  "bobSawDelete": true,
+  "transport": "Convex WebSocket reactive query",
+  "eachClientOpenedNativeWebSocket": true,
+  "containsSecretValues": false
+}

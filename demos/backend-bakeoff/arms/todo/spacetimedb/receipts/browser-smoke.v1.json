@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T19:38:37.792Z",
+  "ok": true,
+  "aliceBefore": {
+    "connected": true,
+    "visibleTasks": 25,
+    "cacheText": "100 authorized tasks in the live client cache"
+  },
+  "bobBefore": {
+    "connected": true,
+    "visibleTasks": 25,
+    "cacheText": "100 authorized tasks in the live client cache"
+  },
+  "mallory": {
+    "connected": true,
+    "visibleTasks": 0,
+    "cacheText": "0 authorized tasks in the live client cache"
+  },
+  "bobSawInsert": true,
+  "bobSawDelete": true,
+  "bobAfter": {
+    "connected": true,
+    "visibleTasks": 25,
+    "cacheText": "100 authorized tasks in the live client cache"
+  },
+  "transport": "SpacetimeDB WebSocket subscription",
+  "containsSecretValues": false
+}

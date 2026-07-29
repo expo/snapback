@@ -1,0 +1,28 @@
+{
+  "operation": "clear-exact-disposable-target",
+  "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+  "beforeCounts": {
+    "channels": 4,
+    "messages": 696,
+    "readMarkers": 1,
+    "$users": 3
+  },
+  "afterCounts": {
+    "channels": 0,
+    "messages": 0,
+    "readMarkers": 0,
+    "$users": 0
+  },
+  "exactTargetOnly": true,
+  "targetDeletionUnsupportedWithAppScopedAdminToken": true,
+  "providerManagedExpiryExpected": true,
+  "temporaryAppLifecycle": "instant-cli documents automatic deletion after >24 hours",
+  "residualConfigurationUntilProviderExpiry": [
+    "schema",
+    "permissions"
+  ],
+  "oldActorTokenInvalidated": true,
+  "localRuntimeCredentialsRemoved": true,
+  "finishedAt": "2026-07-29T03:00:14.757Z",
+  "ok": true
+}

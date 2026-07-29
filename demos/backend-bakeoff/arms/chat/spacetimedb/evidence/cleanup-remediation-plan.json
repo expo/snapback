@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "reason": "Exact database deletion was refused because anonymous publish did not retain the owning token.",
+  "failedAttemptReceipt": "cleanup-receipt.failed.json",
+  "scope": "arm-only-standalone-data-directory",
+  "preconditions": {
+    "serverWasFreshForThisArm": true,
+    "unrelatedDatabaseBaselineWasEmpty": true,
+    "onlyCreatedDatabase": "llp0102-chat-spacetimedb-w1",
+    "dataDirectoryIsInsideWorkerMirror": true
+  },
+  "allowedFallback": "stop port 3312, run spacetime server clear with the explicit arm data directory, restart port 3312, prove the exact database name no longer resolves",
+  "exactDataDirectory": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/data",
+  "forbidden": [
+    "use a default or inferred data directory",
+    "clear any shared server",
+    "touch another worker's process, port, CLI state, or directory"
+  ]
+}

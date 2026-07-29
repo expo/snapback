@@ -1,0 +1,8 @@
+{
+  "operation": "delete-exact-disposable-target",
+  "targetIdSha256": "bd9cb37a6ca3afcc35b536e3e453e30cc5dd83cf5eff009d980bd7d1cb9414f3",
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "[error] Error: Couldn't get apps.\n    at file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/instant-cli/dist/commands/app/delete.js:24:140\n    at file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/effect/dist/esm/internal/core.js:520:33\n    at file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/effect/dist/esm/internal/fiberRuntime.js:945:41\n    at <anonymous> (file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/instant-cli/dist/commands/app/delete.js:20:40)\n    at <anonymous> (file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/instant-cli/dist/index.js:97:29) {\n  [cause]: InstantHttpError: Record not found: instant-user\n      at file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/instant-cli/dist/lib/http.js:45:23\n      at <anonymous> (file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/instant-cli/dist/commands/app/delete.js:20:40)\n      at <anonymous> (file:///home/ccheever/worktrees/llp0102-chat-instantdb/work/node_modules/instant-cli/dist/index.js:97:29)\n}\n",
+  "finishedAt": "2026-07-29T02:44:59.534Z"
+}

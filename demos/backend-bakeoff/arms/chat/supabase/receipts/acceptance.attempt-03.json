@@ -1,0 +1,386 @@
+{
+  "schemaVersion": 1,
+  "expectedCheckCount": 15,
+  "provider": "supabase",
+  "app": "chat",
+  "generatedAt": "2026-07-29T02:27:36.481Z",
+  "results": {
+    "CHAT-01-SEED": {
+      "status": "pass",
+      "evidence": {
+        "namespace": "llp0102-chat-supabase-calibration-chat-supabase-calibration-01",
+        "channels": 4,
+        "memberships": 10,
+        "messages": 500,
+        "perChannelExpected": 125,
+        "actors": {
+          "alice": "a650a4cddc312bc761b4941553d8ae1dd9c63807fbb3c68993055b9dcb5f0073",
+          "bob": "69de3909ca4e9ccca324d9d05670e8538e85c854436af638b3ff95b4bce3173f",
+          "mallory": "76d98a6222635d970c3c52648de8132aba29030f7f60698bb8fa9acab0d41bbf"
+        }
+      }
+    },
+    "CHAT-02-AUTHORITY": {
+      "status": "pass",
+      "evidence": {
+        "bobPrivateJoin": "SUBSCRIBED",
+        "malloryPrivateJoin": "CHANNEL_ERROR",
+        "malloryPrivateRows": 0,
+        "bobPrivateRows": 25,
+        "transport": "realtime.messages RLS on a private Broadcast channel"
+      }
+    },
+    "CHAT-03-SEND": {
+      "status": "pass",
+      "evidence": {
+        "idHash": "38e1f1e12490b321eb9e47a54eefdf706fb90e558c381682b5e7f5166a1c0c13",
+        "authorHash": "a650a4cddc312bc761b4941553d8ae1dd9c63807fbb3c68993055b9dcb5f0073",
+        "seq": 1899,
+        "createdAtAssigned": true,
+        "spoofRejected": true,
+        "authoritativeMatch": true
+      }
+    },
+    "CHAT-04-PUSH": {
+      "status": "pass",
+      "evidence": {
+        "bobReceived": 1,
+        "transport": "Supabase Realtime Postgres Changes over WebSocket",
+        "productPolling": false,
+        "committedIdHash": "26fdcf67276c3ebfc444d6313ea193f240feb0b2906c917c4eec21ebaa2dd6a3"
+      }
+    },
+    "CHAT-05-PAGINATION": {
+      "status": "pass",
+      "evidence": {
+        "cursor": 1501,
+        "firstRange": [
+          1901,
+          1501
+        ],
+        "secondRange": [
+          1500,
+          1476
+        ],
+        "unionCount": 50,
+        "uniqueCount": 50,
+        "concurrentSeq": 1902,
+        "concurrentExcluded": true
+      }
+    },
+    "CHAT-06-TYPING": {
+      "status": "pass",
+      "evidence": {
+        "transport": "Supabase Realtime private Broadcast",
+        "received": 1,
+        "durableRows": 0,
+        "applicationDisplayTtlMs": 1500,
+        "expiryClassification": "client display TTL is application glue; transport event itself is ephemeral"
+      }
+    },
+    "CHAT-07-PRESENCE": {
+      "status": "pass",
+      "evidence": {
+        "transport": "Supabase Realtime Presence",
+        "connectedCount": 2,
+        "disconnectedCount": 1,
+        "aliceSyncEvents": 4,
+        "trackResults": [
+          "ok",
+          "ok"
+        ],
+        "expiry": "server leave diff observed after explicit untrack"
+      }
+    },
+    "CHAT-08-RECONNECT": {
+      "status": "pass",
+      "evidence": {
+        "beforeCount": 25,
+        "afterCount": 25,
+        "disconnectedInsertPresent": true,
+        "uniqueAfter": 25,
+        "strategy": "fresh authoritative PostgREST snapshot after Realtime resubscribe"
+      }
+    },
+    "CHAT-09-OFFLINE-HISTORY": {
+      "status": "gap",
+      "note": "supabase-js does not persist PostgREST query results for cold offline boot; the React client retains only warm in-memory rows. Adding IndexedDB/SQLite cache and sync would be application-authored glue.",
+      "evidence": {
+        "coldClient": "new supabase-js client has no retained query cache",
+        "transportDisabled": true,
+        "warmMemoryRows": 25,
+        "retainedOrigin": "none supplied by provider client"
+      }
+    },
+    "CHAT-10-UNREAD": {
+      "status": "pass",
+      "evidence": {
+        "authoritativeMarker": 1903,
+        "secondClientMarker": 1903,
+        "newMessageSeq": 1904,
+        "unreadCount": 1,
+        "reconnectMarker": 1903
+      }
+    },
+    "CHAT-11-CONCURRENT-SEND": {
+      "status": "pass",
+      "evidence": {
+        "barrier": "Promise.all initiated both actor writes in one event-loop turn",
+        "rowCount": 2,
+        "seqs": [
+          1905,
+          1906
+        ],
+        "authorHashes": [
+          "a650a4cddc312bc761b4941553d8ae1dd9c63807fbb3c68993055b9dcb5f0073",
+          "69de3909ca4e9ccca324d9d05670e8538e85c854436af638b3ff95b4bce3173f"
+        ],
+        "deterministicOrder": "database GENERATED ALWAYS identity sequence ascending"
+      }
+    },
+    "CHAT-12-LOGOUT": {
+      "status": "pass",
+      "evidence": {
+        "logoutBarrier": "signOut resolved, then application auth-state cleanup removed all Realtime channels",
+        "alreadyConnectedBeforeLogout": true,
+        "protectedEventsAfterBarrier": 0,
+        "glue": "removeAllChannels is explicit application lifecycle cleanup"
+      }
+    },
+    "CHAT-13-REVOKE": {
+      "status": "pass",
+      "evidence": {
+        "establishedSubscriptionProtectedEventsAfterRevocation": 0,
+        "freshRowsAfterRevocation": 0,
+        "retainedInApplicationMemory": 25,
+        "retainedHandling": "supabase-js does not own a retained store; the application must clear its existing in-memory array on membership invalidation",
+        "transport": "Postgres Changes re-applied SELECT RLS for the inserted row"
+      }
+    },
+    "CHAT-14-PERFORMANCE": {
+      "status": "pass",
+      "evidence": {
+        "claimScope": "small frozen local product workload; not production scale",
+        "warmups": 2,
+        "recordedSamples": 7,
+        "dataset": {
+          "channels": 4,
+          "seededMessagesPerChannel": 125,
+          "burstMessages": 20,
+          "pageSize": 25,
+          "clients": 2
+        },
+        "paths": {
+          "representative-read": {
+            "samplesMs": [
+              4.789167,
+              3.442333,
+              2.895167,
+              2.528916,
+              2.558583,
+              2.233666,
+              2.070708
+            ],
+            "medianMs": 2.558583,
+            "nearestRankP95Ms": 4.789167
+          },
+          "burst-write-20": {
+            "samplesMs": [
+              2.916333,
+              3.422459,
+              2.595667,
+              2.415833,
+              2.385167,
+              2.462875,
+              2.299
+            ],
+            "medianMs": 2.462875,
+            "nearestRankP95Ms": 3.422459
+          },
+          "realtime-delivery": {
+            "samplesMs": [
+              508.164125,
+              523.29175,
+              529.752375,
+              529.842625,
+              526.960417,
+              500.669,
+              526.412959
+            ],
+            "medianMs": 526.412959,
+            "nearestRankP95Ms": 529.842625
+          },
+          "reconnect": {
+            "samplesMs": [
+              4.746625,
+              3.866792,
+              3.182875,
+              3.000416,
+              3.036417,
+              2.931,
+              2.935333
+            ],
+            "medianMs": 3.036417,
+            "nearestRankP95Ms": 4.746625
+          },
+          "build": {
+            "samplesMs": [
+              133.69375,
+              137.733,
+              137.898834,
+              136.982291,
+              143.126209,
+              154.667292,
+              152.617292
+            ],
+            "medianMs": 137.898834,
+            "nearestRankP95Ms": 154.667292
+          }
+        },
+        "machine": {
+          "platform": "darwin",
+          "release": "25.5.0",
+          "architecture": "arm64",
+          "cpu": "Apple M5",
+          "cpuCount": 10,
+          "memoryBytes": 34359738368,
+          "loadAverageAtFinish": [
+            3.2509765625,
+            17.53857421875,
+            37.88037109375
+          ]
+        },
+        "cost": {
+          "localProviderUsage": "$0 incremental provider charge",
+          "hostedListPrice": "not measured; hosted target not provisioned",
+          "extrapolated": false
+        }
+      },
+      "note": "Two warmups and seven recorded samples per frozen path; local isolated stack only, not production-scale evidence."
+    },
+    "CHAT-15-CLEANUP": {
+      "status": "pending",
+      "note": "Acceptance frozen before exact project-bound cleanup."
+    }
+  },
+  "observations": {
+    "seed": {
+      "namespace": "llp0102-chat-supabase-calibration-chat-supabase-calibration-01",
+      "channels": 4,
+      "memberships": 10,
+      "messages": 500,
+      "perChannelExpected": 125,
+      "actors": {
+        "alice": "a650a4cddc312bc761b4941553d8ae1dd9c63807fbb3c68993055b9dcb5f0073",
+        "bob": "69de3909ca4e9ccca324d9d05670e8538e85c854436af638b3ff95b4bce3173f",
+        "mallory": "76d98a6222635d970c3c52648de8132aba29030f7f60698bb8fa9acab0d41bbf"
+      }
+    },
+    "CHAT-01-SEED": {
+      "namespace": "llp0102-chat-supabase-calibration-chat-supabase-calibration-01",
+      "channels": 4,
+      "memberships": 10,
+      "messages": 500,
+      "perChannelExpected": 125,
+      "actors": {
+        "alice": "a650a4cddc312bc761b4941553d8ae1dd9c63807fbb3c68993055b9dcb5f0073",
+        "bob": "69de3909ca4e9ccca324d9d05670e8538e85c854436af638b3ff95b4bce3173f",
+        "mallory": "76d98a6222635d970c3c52648de8132aba29030f7f60698bb8fa9acab0d41bbf"
+      }
+    },
+    "CHAT-02-AUTHORITY": {
+      "bobPrivateJoin": "SUBSCRIBED",
+      "malloryPrivateJoin": "CHANNEL_ERROR",
+      "malloryPrivateRows": 0,
+      "bobPrivateRows": 25,
+      "transport": "realtime.messages RLS on a private Broadcast channel"
+    },
+    "CHAT-03-SEND": {
+      "idHash": "38e1f1e12490b321eb9e47a54eefdf706fb90e558c381682b5e7f5166a1c0c13",
+      "authorHash": "a650a4cddc312bc761b4941553d8ae1dd9c63807fbb3c68993055b9dcb5f0073",
+      "seq": 1899,
+      "createdAtAssigned": true,
+      "spoofRejected": true,
+      "authoritativeMatch": true
+    },
+    "CHAT-04-PUSH": {
+      "bobReceived": 1,
+      "transport": "Supabase Realtime Postgres Changes over WebSocket",
+      "productPolling": false,
+      "committedIdHash": "26fdcf67276c3ebfc444d6313ea193f240feb0b2906c917c4eec21ebaa2dd6a3"
+    },
+    "CHAT-05-PAGINATION": {
+      "cursor": 1501,
+      "firstRange": [
+        1901,
+        1501
+      ],
+      "secondRange": [
+        1500,
+        1476
+      ],
+      "unionCount": 50,
+      "uniqueCount": 50,
+      "concurrentSeq": 1902,
+      "concurrentExcluded": true
+    },
+    "CHAT-06-TYPING": {
+      "transport": "Supabase Realtime private Broadcast",
+      "received": 1,
+      "durableRows": 0,
+      "applicationDisplayTtlMs": 1500,
+      "expiryClassification": "client display TTL is application glue; transport event itself is ephemeral"
+    },
+    "CHAT-07-PRESENCE": {
+      "transport": "Supabase Realtime Presence",
+      "connectedCount": 2,
+      "disconnectedCount": 1,
+      "aliceSyncEvents": 4,
+      "trackResults": [
+        "ok",
+        "ok"
+      ],
+      "expiry": "server leave diff observed after explicit untrack"
+    },
+    "CHAT-08-RECONNECT": {
+      "beforeCount": 25,
+      "afterCount": 25,
+      "disconnectedInsertPresent": true,
+      "uniqueAfter": 25,
+      "strategy": "fresh authoritative PostgREST snapshot after Realtime resubscribe"
+    },
+    "CHAT-10-UNREAD": {
+      "authoritativeMarker": 1903,
+      "secondClientMarker": 1903,
+      "newMessageSeq": 1904,
+      "unreadCount": 1,
+      "reconnectMarker": 1903
+    },
+    "CHAT-11-CONCURRENT-SEND": {
+      "barrier": "Promise.all initiated both actor writes in one event-loop turn",
+      "rowCount": 2,
+      "seqs": [
+        1905,
+        1906
+      ],
+      "authorHashes": [
+        "a650a4cddc312bc761b4941553d8ae1dd9c63807fbb3c68993055b9dcb5f0073",
+        "69de3909ca4e9ccca324d9d05670e8538e85c854436af638b3ff95b4bce3173f"
+      ],
+      "deterministicOrder": "database GENERATED ALWAYS identity sequence ascending"
+    },
+    "CHAT-12-LOGOUT": {
+      "logoutBarrier": "signOut resolved, then application auth-state cleanup removed all Realtime channels",
+      "alreadyConnectedBeforeLogout": true,
+      "protectedEventsAfterBarrier": 0,
+      "glue": "removeAllChannels is explicit application lifecycle cleanup"
+    },
+    "CHAT-13-REVOKE": {
+      "establishedSubscriptionProtectedEventsAfterRevocation": 0,
+      "freshRowsAfterRevocation": 0,
+      "retainedInApplicationMemory": 25,
+      "retainedHandling": "supabase-js does not own a retained store; the application must clear its existing in-memory array on membership invalidation",
+      "transport": "Postgres Changes re-applied SELECT RLS for the inserted row"
+    }
+  }
+}

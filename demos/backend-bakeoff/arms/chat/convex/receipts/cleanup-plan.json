@@ -1,0 +1,12 @@
+{
+  "target": "http://127.0.0.1:3310",
+  "targetMode": "fresh-local",
+  "namespace": "llp0102-chat-convex-w2",
+  "exactOperations": [
+    "chat:cleanup deletes only rows whose namespace equals llp0102-chat-convex-w2",
+    "coordinator stops the exact Convex dev process bound to ports 3310 and 3311",
+    "coordinator removes only /home/ccheever/worktrees/llp0102-chat-convex/work/.convex",
+    "coordinator removes only /home/ccheever/worktrees/llp0102-chat-convex/work/.arm-runtime",
+    "coordinator removes only /home/ccheever/worktrees/llp0102-chat-convex/home"
+  ]
+}

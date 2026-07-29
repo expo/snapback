@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T21:20:05.220Z",
+  "ok": true,
+  "crud": {
+    "editObservedBySecondClient": true,
+    "completeObservedBySecondClient": true,
+    "reopenObservedBySecondClient": true,
+    "reorderObservedBySecondClient": true,
+    "createAndDeleteObservedBySecondClient": true
+  },
+  "realtime": {
+    "transport": "Cloud Firestore WebChannel listen stream",
+    "nativeListenObserved": true,
+    "secondClientPush": true
+  },
+  "conflict": {
+    "policy": "last server commit wins for the title field; listeners reconcile optimistic state",
+    "converged": true,
+    "winningActorClass": "bob",
+    "authoritativeRevision": 23
+  },
+  "concurrentOrder": {
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "validUniquePermutation": true
+  },
+  "revocation": {
+    "cacheClearedImmediately": false,
+    "cacheClearedAfterNextWrite": true,
+    "futureWriteDelivered": false,
+    "regrantRestoredQueryAfterReload": true
+  },
+  "logout": {
+    "protectedUiRemoved": true,
+    "futureWriteDelivered": false,
+    "retainedStoreInventoryBefore": {
+      "indexedDbDatabaseCount": 3,
+      "indexedDbNameHashes": [
+        "59895da00a578f757b8447e85464d5a0ed743cef7e623fe1e990dd2829625476",
+        "8cc71b55f0505e1ed5354cdc3c6597c7c3aa49658b11d02f7471243ed86bfce8",
+        "c59046c232ed5e82f5fc8ebdfbbf34939bcacd60f396ed6f075b565e2627b128"
+      ]
+    },
+    "retainedStoreInventoryAfter": {
+      "indexedDbDatabaseCount": 3,
+      "indexedDbNameHashes": [
+        "59895da00a578f757b8447e85464d5a0ed743cef7e623fe1e990dd2829625476",
+        "8cc71b55f0505e1ed5354cdc3c6597c7c3aa49658b11d02f7471243ed86bfce8",
+        "c59046c232ed5e82f5fc8ebdfbbf34939bcacd60f396ed6f075b565e2627b128"
+      ]
+    },
+    "protectedValuesInspected": false,
+    "contract": "Firestore persistent cache is device-local and is not automatically erased by Firebase Auth sign-out."
+  },
+  "authoritativeFinal": {
+    "workspaceCount": 1,
+    "membershipCount": 2,
+    "membershipPersonas": [
+      "alice",
+      "bob"
+    ],
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "uniqueSeedKeys": 100,
+    "orderValid": true
+  },
+  "containsSecretValues": false
+}

@@ -1,0 +1,436 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "chat",
+    "provider": "appwrite",
+    "round": "calibration",
+    "attemptId": "chat-appwrite-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Appwrite",
+      "client": "26.2.0",
+      "cli": "23.2.0"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-28T23:30:56.972Z",
+    "finishedAt": "2026-07-29T01:33:09.116Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 7332144,
+    "toolCalls": 87,
+    "timedWindowFrozenAt": "2026-07-29T01:33:09.116Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "role": "member"
+    },
+    "bob": {
+      "principalIdHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-chat-appwrite-calibration-chat-appwrite-calibration-01",
+      "baselineReceiptPath": "receipts/baseline.v1.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "aa090bb8a6f1246641e437b6bf92f322e2ddacfccf1a98983c860de412774b62",
+      "profile": "official Appwrite 1.9.6 self-host Docker stack with MongoDB",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/baseline.v1.json",
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "Appwrite Cloud project",
+      "plan": "Pro",
+      "region": "nearest selectable US-West region; exact identifier captured with target",
+      "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 1520000,
+    "firstAuthoritativeMutationMs": 1420000,
+    "firstRealtimeTransitionMs": 2380000,
+    "localAcceptanceMs": 6900000,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 7332144
+  },
+  "assistanceEvents": [
+    {
+      "atMonotonicMs": 2100000,
+      "kind": "official-documentation-refresh",
+      "detail": "Refreshed Appwrite installation, TablesDB query/permission, Realtime, and Presences documentation before attributing native paths."
+    }
+  ],
+  "commands": [
+    {
+      "command": "official Appwrite 1.9.6 web installer; node scripts/install-local.mjs",
+      "startedMonotonicMs": 60000,
+      "finishedMonotonicMs": 490000,
+      "exitStatus": 1,
+      "classification": "installer stream terminated during account handoff after the generated stack reached ready"
+    },
+    {
+      "command": "npm install",
+      "startedMonotonicMs": 70000,
+      "finishedMonotonicMs": 73000,
+      "exitStatus": 0,
+      "classification": "pinned SDK, CLI, React, build, lint, and browser dependencies"
+    },
+    {
+      "command": "node scripts/bootstrap-project.mjs",
+      "startedMonotonicMs": 520000,
+      "finishedMonotonicMs": 750000,
+      "exitStatus": 0,
+      "classification": "console-session Teams compatibility bootstrap, CLI login, isolated project, and web platform"
+    },
+    {
+      "command": "node scripts/create-api-key.mjs; node scripts/provision.mjs",
+      "startedMonotonicMs": 780000,
+      "finishedMonotonicMs": 1520000,
+      "exitStatus": 0,
+      "classification": "two retained provisioning corrections preceded native Auth/Teams/inline TablesDB seed success"
+    },
+    {
+      "command": "npm run lint && npm run build",
+      "startedMonotonicMs": 1800000,
+      "finishedMonotonicMs": 1810000,
+      "exitStatus": 0,
+      "classification": "provider-specific React chat static and production build proof"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs",
+      "startedMonotonicMs": 2000000,
+      "finishedMonotonicMs": 4600000,
+      "exitStatus": 0,
+      "classification": "two-member/outside browsers, native push, pagination, unread, concurrent send, logout, revocation, and direct Presences refusal"
+    },
+    {
+      "command": "node scripts/offline-smoke.mjs",
+      "startedMonotonicMs": 4650000,
+      "finishedMonotonicMs": 4710000,
+      "exitStatus": 0,
+      "classification": "warm-memory/cold-reload/reconnect evidence and offline GAP"
+    },
+    {
+      "command": "node scripts/performance-smoke.mjs",
+      "startedMonotonicMs": 5000000,
+      "finishedMonotonicMs": 6800000,
+      "exitStatus": 0,
+      "classification": "two warmups plus seven read, 20-message burst, native push, reconnect, and build samples"
+    },
+    {
+      "command": "node scripts/dependency-audit.mjs; node scripts/inventory.mjs; node scripts/finalize-evidence.mjs",
+      "startedMonotonicMs": 6820000,
+      "finishedMonotonicMs": 7270000,
+      "exitStatus": 0,
+      "classification": "artifact inventory and retained npm audit (16 findings)"
+    },
+    {
+      "command": "node scripts/cleanup-arm.mjs",
+      "startedMonotonicMs": 7280000,
+      "finishedMonotonicMs": 7332144,
+      "exitStatus": 0,
+      "classification": "exact Compose, volume, installer, browser, port, CLI, and runtime cleanup"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Admin authority proved four channels, 125 messages per channel, 500 total messages, three native Auth principals, and the exact private Team.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Alice and Bob read and subscribed to both private channels; Mallory saw only the two public channels, read zero private rows, and received zero private subscription events.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The committed message carried a server-assigned $id/$createdAt and a server-validated per-user ACL binding the author actor; Admin authority matched body and actor.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob observed Alice's committed private message through a native Appwrite Realtime WebSocket with no product polling; seven delivery samples are retained.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "A 25-row cursorAfter boundary remained nonduplicating across a concurrent insert; both page ID sets and cursor are retained.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "The pinned SDK/server exposes Presences, but authenticated Presences.upsert returned user_unauthorized; no durable typing-row substitute was credited."
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "No authorized presence record could be created, so connect/disconnect/expiry could not be credited despite the documented native surface."
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A transport-disabled browser reconnected, resubscribed, refetched 25 authoritative rows, and contained 25 unique message IDs.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "Twenty-five loaded rows survived only in mounted React memory; offline reload exposed zero rows and no provider TablesDB cache."
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A private per-user TablesDB marker produced zero unread on Bob's first browser, second browser, and reconnect.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A two-actor barrier preserved both committed messages and authority supplied a deterministic $createdAt then $id ordering.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Native session deletion plus Realtime disconnect removed protected UI and prevented future private delivery.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Deleting Bob's Team membership blocked the next private event and denied fresh channel/query visibility.",
+      "note": "The established React view honestly retained 25 historical rows until reload."
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The receipt retains two warmups plus seven samples for read, 20-message burst, second-client push, reconnect/resubscribe, and production build.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/cleanup-plan.v1.json",
+        "receipts/backup-manifest.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Guarded cleanup removed the exact generated Compose stack, volumes, network, installer, Vite process, CLI session, and disposable runtime, then matched every negative baseline probe.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 8,
+      "bytes": 33537,
+      "lines": 730
+    },
+    "generated": null,
+    "tests": {
+      "files": 14,
+      "bytes": 70774,
+      "lines": 2023
+    },
+    "configuration": {
+      "files": 7,
+      "bytes": 2458,
+      "lines": 113
+    },
+    "policy": {
+      "files": 1,
+      "bytes": 132,
+      "lines": 5
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 203535,
+      "lines": 5898
+    },
+    "installedDependencyBytes": 285412643,
+    "glue": [
+      "official web-installer lifecycle and guarded generated-Compose cleanup",
+      "console Teams compatibility bootstrap and redacted API-key custody",
+      "native Auth/Teams permissions plus split public/private TablesDB message tables",
+      "browser acceptance, offline barrier, performance sampling, inventory, and cleanup harnesses"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Stable Auth principals, server-validated per-user ACLs, positive Team membership, outsider refusal, logout, and membership removal directly bind actors and authority.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "A direct two-actor barrier retained both messages and authoritative server fields supplied the deterministic total order required by this app.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Independent clients opened native Appwrite Realtime WebSockets; outsider filtering and seven second-client delivery samples were retained.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "An exact browser transport barrier directly proved warm-only memory, zero offline-reload rows, and nonduplicating authoritative reconnect.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Origin, second-client, Admin authority, cursor pages, unread markers, logout, and revocation were checked at their explicit barriers.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Hashed endpoint/project plus exact product, SDK, CLI, database, and official installer deployment bind the disposable local target.",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "Prior empty cleanup, pre-install negative guards, exact Compose/ports/CLI scope, and post-cleanup negative probes matched.",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Installer, bootstrap, schema, permissions, deterministic seed, app, acceptance, performance, dependency audit, inventory, and cleanup source are retained.",
+      "evidencePaths": [
+        "receipts/backup-manifest.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/inventory.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/baseline.v1.json",
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "Ports 4186, 8090, and 20080 closed; matching containers, volumes, networks, CLI preferences, and runtime paths were absent."
+  },
+  "result": "complete"
+}

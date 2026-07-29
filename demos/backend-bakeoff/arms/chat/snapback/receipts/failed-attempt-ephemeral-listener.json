@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-07-29T02:25:00Z",
+  "classification": "builder-harness-error",
+  "scenario": "CHAT-06-TYPING",
+  "error": "typing entry did not arrive before timeout",
+  "cause": "The first proof read currentEntries() without attaching the overlay's documented onChange consumer. A second attempt attached onChange but still omitted the required shared live-stream manager for that connection label.",
+  "targetCleaned": true,
+  "correction": "Establish and await the liveStreamManager for the exact overlay connection label before subscribe, attach onChange, then publish and retain the native change-signal count."
+}

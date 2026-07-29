@@ -1,0 +1,97 @@
+{
+  "claimScope": "small frozen local product workload; not production scale",
+  "warmups": 2,
+  "recordedSamples": 7,
+  "dataset": {
+    "channels": 4,
+    "seededMessagesPerChannel": 125,
+    "burstMessages": 20,
+    "pageSize": 25,
+    "clients": 2
+  },
+  "paths": {
+    "representative-read": {
+      "samplesMs": [
+        4.198459,
+        3.703959,
+        3.719625,
+        3.115292,
+        2.418167,
+        2.023958,
+        1.982042
+      ],
+      "medianMs": 3.115292,
+      "nearestRankP95Ms": 4.198459
+    },
+    "burst-write-20": {
+      "samplesMs": [
+        2.198875,
+        2.223583,
+        1.919167,
+        2.120333,
+        1.919833,
+        1.857583,
+        2.244542
+      ],
+      "medianMs": 2.120333,
+      "nearestRankP95Ms": 2.244542
+    },
+    "realtime-delivery": {
+      "samplesMs": [
+        529.800959,
+        529.608375,
+        526.5935,
+        505.783125,
+        523.193792,
+        502.477,
+        524.124417
+      ],
+      "medianMs": 524.124417,
+      "nearestRankP95Ms": 529.800959
+    },
+    "reconnect": {
+      "samplesMs": [
+        4.271708,
+        3.795208,
+        4.253625,
+        3.183084,
+        2.9655,
+        2.866291,
+        2.734333
+      ],
+      "medianMs": 3.183084,
+      "nearestRankP95Ms": 4.271708
+    },
+    "build": {
+      "samplesMs": [
+        137.262417,
+        136.141167,
+        142.632167,
+        144.621,
+        151.8265,
+        177.672917,
+        183.047875
+      ],
+      "medianMs": 144.621,
+      "nearestRankP95Ms": 183.047875
+    }
+  },
+  "machine": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "memoryBytes": 34359738368,
+    "loadAverageAtFinish": [
+      4.15771484375,
+      29.5615234375,
+      46.1123046875
+    ]
+  },
+  "cost": {
+    "localProviderUsage": "$0 incremental provider charge",
+    "hostedListPrice": "not measured; hosted target not provisioned",
+    "extrapolated": false
+  }
+}

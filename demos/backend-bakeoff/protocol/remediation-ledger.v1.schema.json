@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "snapback.backend-bakeoff.remediation-ledger.v1",
+  "type": "object",
+  "required": ["schemaVersion", "tranche", "startingSnapbackCommit", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "tranche": { "enum": ["calibration", "deep-round"] },
+    "startingSnapbackCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "sourceApps",
+          "backendComparisons",
+          "evidencePaths",
+          "frequency",
+          "classification",
+          "severity",
+          "reach",
+          "competitorOutcome",
+          "snapbackPropertyToPreserve",
+          "snapbackNativeOutcome",
+          "acceptanceWitness",
+          "destination",
+          "decision",
+          "status"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^SB-[0-9]{3}$" },
+          "title": { "type": "string", "minLength": 1 },
+          "sourceApps": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "enum": ["todo", "chat", "linear", "partiful", "research-room"] }
+          },
+          "backendComparisons": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "enum": ["convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"] }
+          },
+          "evidencePaths": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "frequency": { "type": "integer", "minimum": 1 },
+          "classification": {
+            "enum": ["defect", "capability", "experience", "docs-diagnostics", "operations", "benchmark-only"]
+          },
+          "severity": { "enum": ["stop", "high", "medium", "low"] },
+          "reach": { "enum": ["one-app", "multiple-apps", "general"] },
+          "competitorOutcome": { "type": "string", "minLength": 1 },
+          "snapbackPropertyToPreserve": { "type": "string", "minLength": 1 },
+          "snapbackNativeOutcome": { "type": "string", "minLength": 1 },
+          "acceptanceWitness": { "type": "string", "minLength": 1 },
+          "destination": {
+            "enum": ["immediate-fix", "filesystem-issue", "existing-llp", "new-llp", "deliberate-non-goal"]
+          },
+          "decision": { "enum": ["accept", "defer", "refuse", "investigate"] },
+          "status": { "enum": ["proposed", "in-progress", "landed", "verified", "deferred", "refused"] },
+          "beforeEvidencePaths": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "afterEvidencePaths": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "endingSnapbackCommit": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9a-f]{40}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

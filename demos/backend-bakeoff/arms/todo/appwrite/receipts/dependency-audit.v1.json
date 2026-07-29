@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T23:22:04.157Z",
+  "commandExitStatus": 1,
+  "vulnerabilityCounts": {
+    "info": 0,
+    "low": 3,
+    "moderate": 6,
+    "high": 7,
+    "critical": 0,
+    "total": 16
+  },
+  "affectedPackages": [
+    "@jimp/core",
+    "@jimp/custom",
+    "appwrite-cli",
+    "brace-expansion",
+    "ejs",
+    "external-editor",
+    "filelist",
+    "inquirer",
+    "inquirer-search-list",
+    "jake",
+    "jimp",
+    "minimatch",
+    "phin",
+    "render-gif",
+    "terminal-image",
+    "tmp"
+  ],
+  "remediationApplied": false,
+  "containsSecretValues": false
+}

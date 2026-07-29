@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T19:44:00.000Z",
+  "targetMode": "fresh-local",
+  "targetIdentityHash": "1d69c47ca499a7f5b31d656b6fb7bef31a0d528d91553e6c126fd1fe8fbebc9c",
+  "namespace": "llp0102-todo-spacetimedb-calibration-todo-spacetimedb-calibration-01",
+  "scope": {
+    "runtimeDirectory": "arms/todo/spacetimedb/runtime",
+    "databaseNames": [
+      "todo-spacetimedb-calibration-01",
+      "todo-spacetimedb-calibration-02"
+    ],
+    "listenerPorts": [
+      3102,
+      4178
+    ],
+    "credentialFiles": [
+      "arms/todo/spacetimedb/work/.arm-secrets.json",
+      "arms/todo/spacetimedb/work/.env.local"
+    ]
+  },
+  "steps": [
+    "Resolve each listener and verify its process command belongs to this exact arm.",
+    "Terminate only the exact arm-owned SpacetimeDB and Vite listeners.",
+    "Remove the exact arm runtime directory, including both local database attempts and disposable browser profiles.",
+    "Remove the two ignored arm-local credential files.",
+    "Probe both ports, all credential paths, and the runtime path for absence."
+  ],
+  "recovery": "The local database bytes and browser profiles are not recoverable after cleanup. The deterministic seed and all application source remain, so the target can be recreated.",
+  "containsSecretValues": false
+}

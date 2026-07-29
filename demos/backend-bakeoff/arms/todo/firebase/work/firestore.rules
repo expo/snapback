@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(workspaceId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
+    }
+
+    match /workspaces/{workspaceId} {
+      allow read: if isMember(workspaceId);
+      allow write: if false;
+
+      match /members/{memberId} {
+        allow read: if isMember(workspaceId);
+        allow write: if false;
+      }
+    }
+
+    match /lists/{listId} {
+      allow read: if isMember(resource.data.workspaceId);
+      allow create: if isMember(request.resource.data.workspaceId);
+      allow update: if isMember(resource.data.workspaceId)
+        && request.resource.data.workspaceId == resource.data.workspaceId;
+      allow delete: if isMember(resource.data.workspaceId);
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isMember(resource.data.workspaceId);
+      allow create: if isMember(request.resource.data.workspaceId);
+      allow update: if isMember(resource.data.workspaceId)
+        && request.resource.data.workspaceId == resource.data.workspaceId
+        && request.resource.data.listId == resource.data.listId;
+      allow delete: if isMember(resource.data.workspaceId);
+    }
+  }
+}

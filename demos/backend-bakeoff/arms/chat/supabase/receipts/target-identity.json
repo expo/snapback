@@ -1,0 +1,13 @@
+{
+  "provider": "Supabase",
+  "topology": "official Supabase CLI Docker stack on Colima",
+  "projectId": "llp0102-chat-supabase-w3",
+  "identityHash": "69a3aac300e781c4fdc26ea8b2813674792890ec938f1b3ef29bc36acbc6c919",
+  "apiOrigin": "http://127.0.0.1:55421",
+  "databasePort": 55422,
+  "studioOrigin": "http://127.0.0.1:55423",
+  "mailOrigin": "http://127.0.0.1:55424",
+  "viteOrigin": "http://127.0.0.1:4289",
+  "hosted": "unavailable: shared hosted write baseline not exercised; local target used",
+  "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a"
+}

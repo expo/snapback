@@ -1,0 +1,54 @@
+{
+  "capturedAt": "2026-07-29T02:07:43.682Z",
+  "sdk": "convex 1.42.3",
+  "target": "official anonymous local Convex deployment",
+  "endpoint": "http://127.0.0.1:3310",
+  "operationMode": "read-only diagnosis; no target mutation or cleanup",
+  "authoritativeLogoutRows": [
+    {
+      "id": "jd7dyk38vkrs98s7xqnj03hwr98bfamh",
+      "body": "after-logout-1785289540851",
+      "sequence": 134,
+      "authorSubject": "alice",
+      "sentAt": 1785289540852,
+      "creationTime": 1785289540852.4304
+    }
+  ],
+  "officialReactLogout": {
+    "method": "ConvexReactClient.clearAuth()",
+    "events": [
+      {
+        "event": "onAuthChange",
+        "authenticated": true,
+        "at": 1785290862402
+      },
+      {
+        "event": "watch-update",
+        "rowCount": 25,
+        "containsLogoutRow": true,
+        "at": 1785290862411
+      },
+      {
+        "event": "clearAuth-called",
+        "at": 1785290862659
+      },
+      {
+        "event": "watch-error",
+        "error": "ConvexError: [CONVEX Q(chat:latestMessages)] [Request ID: 56b30e4dbd745ee3] Server Error\nUncaught ConvexError: UNAUTHENTICATED\n    at subject (../convex/chat.ts:12:18)\n    at async handler (../convex/chat.ts:170:4)\n\n  Called by client",
+        "at": 1785290862667
+      }
+    ],
+    "watchHadInitialResult": true,
+    "watchErrorClass": "UNAUTHENTICATED",
+    "sameClientFreshQuery": {
+      "denied": true,
+      "unauthenticated": true,
+      "errorClass": "UNAUTHENTICATED"
+    },
+    "brandNewAnonymousQuery": {
+      "denied": true,
+      "unauthenticated": true,
+      "errorClass": "UNAUTHENTICATED"
+    }
+  }
+}

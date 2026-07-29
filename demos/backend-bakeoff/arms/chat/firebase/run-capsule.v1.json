@@ -1,0 +1,472 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "chat",
+    "provider": "firebase",
+    "round": "calibration",
+    "attemptId": "chat-firebase-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Firebase with Cloud Firestore",
+      "client": "12.16.0",
+      "cli": "15.24.0",
+      "admin": "13.5.0",
+      "functions": "6.4.0",
+      "firestoreEmulator": "1.21.0",
+      "realtimeDatabaseEmulator": "4.11.2"
+    },
+    "machine": "Apartment Air: Mac17,3/arm64/32GiB/macOS 26.5.2/25F84; Node 24.18.0; OpenJDK 21.0.12",
+    "startedAt": "2026-07-29T01:46:00.000Z",
+    "finishedAt": "2026-07-29T02:25:15.495Z",
+    "timingNote": "Arm start reconstructed from first recorded environment preflight. In-harness milestones are exact clean-run monotonic values but do not represent end-to-end authoring time."
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 2355495,
+    "toolCalls": 98,
+    "timedWindowFrozenAt": "2026-07-29T02:25:15.495Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "1ded56fec9c89a43c72cbaf0d5bdd3653f74b7e227bdd00ca94b3ef5c2d32ef9",
+      "role": "authorized private-channel member"
+    },
+    "bob": {
+      "principalIdHash": "c7644179ca71cceb677b05158a496390a69e3f47ca8a3084726c5479537e5021",
+      "role": "authorized member, then revoked in CHAT-13"
+    },
+    "mallory": {
+      "principalIdHash": "ad9442045215063513b5aad87b9c5303eeea42e54f783a46fa771727035538d4",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-chat-firebase-w1",
+      "baselineReceiptPath": "work/receipts/baseline-before.json",
+      "scopedCleanupPlanPath": "work/receipts/scoped-cleanup-plan.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "73f32a095a9b3bd04be47c25ab47b377066a3705f9ca0bde890e99b734cdaa5b",
+      "profile": "Firebase Local Emulator Suite: Auth, Firestore, Functions, Realtime Database",
+      "gapReason": "",
+      "receiptPaths": [
+        "work/receipts/target-identity.json",
+        "work/receipts/emulator-hub.json",
+        "work/receipts/acceptance-results.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed Firebase project with Firestore, Auth, Functions, Realtime Database, Hosting",
+      "plan": "Blaze pay-as-you-go",
+      "region": "us-west1 where selectable",
+      "gapReason": "Hosted credentials unavailable. This is environment/credential evidence, not a Firebase product failure.",
+      "receiptPaths": [
+        "work/receipts/target-identity.json"
+      ]
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 813,
+    "firstAuthoritativeMutationMs": 1383,
+    "firstRealtimeTransitionMs": 1406,
+    "localAcceptanceMs": 53415,
+    "acceptanceCompletionMs": 53415,
+    "hostedUrlMs": null,
+    "semantics": "Exact final-clean-harness elapsed milliseconds; end-to-end authoring clock is separately represented by budget.activeElapsedMs."
+  },
+  "assistanceEvents": [],
+  "commands": [
+    {
+      "command": "java -version",
+      "exitStatus": 1,
+      "classification": "environment",
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "brew install openjdk@21",
+      "exitStatus": 0,
+      "classification": "environment-remediation",
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm install (root and functions)",
+      "exitStatus": 0,
+      "classification": "setup",
+      "receipt": "work/package-lock.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0,
+      "classification": "build",
+      "receipt": "work/receipts/performance.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "firebase emulators:start (first isolated PATH)",
+      "exitStatus": 127,
+      "classification": "builder-error",
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "node scripts/acceptance.mjs (initial attempts)",
+      "exitStatus": 1,
+      "classification": "harness-and-performance-learning",
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "node scripts/acceptance.mjs (final clean run)",
+      "exitStatus": 0,
+      "classification": "acceptance",
+      "receipt": "work/receipts/acceptance.stdout.log",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "node scripts/offline-browser.mjs",
+      "exitStatus": 0,
+      "classification": "acceptance",
+      "receipt": "work/receipts/offline-browser.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "firebase emulators:export .firebase-export --force",
+      "exitStatus": 0,
+      "classification": "backup",
+      "receipt": "work/receipts/export-file-sha256.txt",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "node scripts/cleanup.mjs (ownership guard)",
+      "exitStatus": 1,
+      "classification": "safe-refusal",
+      "receipt": "work/receipts/cleanup.stderr.log",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "node scripts/cleanup.mjs (validated plan)",
+      "exitStatus": 0,
+      "classification": "cleanup",
+      "receipt": "work/receipts/cleanup.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic intervals were not retained; zero is an explicit missing-data sentinel, not a duration claim."
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-01-SEED.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Fresh local emulator target; exact deterministic seed.",
+      "note": "Fresh local emulator target; exact deterministic seed."
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-02-AUTHORITY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Direct client reads/listens under three native Auth emulator principals.",
+      "note": "Direct client reads/listens under three native Auth emulator principals."
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-03-SEND.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Function generates document identity, derives author from verified auth, and allocates sequence transactionally.",
+      "note": "Function generates document identity, derives author from verified auth, and allocates sequence transactionally."
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-04-PUSH.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Second authenticated client observed a server snapshot; no product polling.",
+      "note": "Second authenticated client observed a server snapshot; no product polling."
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-05-PAGINATION.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Document-snapshot startAfter cursor remains stable under a newer insert.",
+      "note": "Document-snapshot startAfter cursor remains stable under a newer insert."
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-06-TYPING.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Native Firebase realtime path; typing TTL policy is explicitly application glue, not a Firestore/native typing primitive.",
+      "note": "Native Firebase realtime path; typing TTL policy is explicitly application glue, not a Firestore/native typing primitive."
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-07-PRESENCE.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Official Firebase native presence building block; disconnect atomically expires the online state.",
+      "note": "Official Firebase native presence building block; disconnect atomically expires the online state."
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-08-RECONNECT.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Authoritative server snapshot restored after deliberate client network disable.",
+      "note": "Authoritative server snapshot restored after deliberate client network disable."
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-09-OFFLINE-HISTORY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "A new browser page in the same persistent profile cold-booted with Firestore transport disabled and rendered 25 previously loaded private messages from native persistent cache.",
+      "note": "A new browser page in the same persistent profile cold-booted with Firestore transport disabled and rendered 25 previously loaded private messages from native persistent cache."
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-10-UNREAD.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Unread marker is authoritative per-user data and converges to both signed-in clients.",
+      "note": "Unread marker is authoritative per-user data and converges to both signed-in clients."
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-11-CONCURRENT-SEND.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Transactionally allocated integer sequence gives deterministic total order without loss.",
+      "note": "Transactionally allocated integer sequence gives deterministic total order without loss."
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-12-LOGOUT.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "UI/auth-state barrier unsubscribes the established listener; direct fresh read is denied.",
+      "note": "UI/auth-state barrier unsubscribes the established listener; direct fresh read is denied."
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-13-REVOKE.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Future delivery and reads fail closed. Previously authorized SDK cache remains locally readable; Firebase docs warn persistent cache is not automatically cleared, so the app must clear protected rendering/state.",
+      "note": "Future delivery/read denied directly; previously authorized Firestore cache remained readable and is disclosed, not hidden."
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-14-PERFORMANCE.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two warmups plus seven retained samples per frozen path; emulator-only results are not production comparisons.",
+      "note": "Two warmups plus seven retained samples per frozen path; emulator-only results are not production comparisons."
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-15-CLEANUP.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact validated emulator/Vite process trees terminated; all assigned and auxiliary ports closed; only arm-local runtime/cache/export directories removed.",
+      "note": "Exact validated emulator/Vite process trees terminated; all assigned and auxiliary ports closed; only arm-local runtime/cache/export directories removed."
+    }
+  ],
+  "inventory": {
+    "receiptPath": "work/receipts/inventory.json",
+    "authoredSource": {
+      "files": 5,
+      "lines": 314,
+      "bytes": 7809
+    },
+    "generated": {
+      "files": 4,
+      "lines": 4861,
+      "bytes": 6002954
+    },
+    "tests": {
+      "files": 8,
+      "lines": 1396,
+      "bytes": 57141
+    },
+    "configuration": {
+      "files": 5,
+      "lines": 100,
+      "bytes": 1769
+    },
+    "policy": {
+      "files": 2,
+      "lines": 75,
+      "bytes": 2361
+    },
+    "dependencyManifests": {
+      "files": 4,
+      "lines": 14618,
+      "bytes": 521083
+    },
+    "installedDependencyBytes": 524041340,
+    "glue": [
+      {
+        "item": "Realtime Database typing lifecycle",
+        "classification": "application glue on native Firebase transport",
+        "files": [
+          "scripts/acceptance.mjs"
+        ],
+        "note": "Firebase supplies RTDB realtime and onDisconnect; the typing timeout/removal policy is app-authored."
+      },
+      {
+        "item": "Protected-cache clearing",
+        "classification": "application responsibility",
+        "files": [
+          "src/App.tsx"
+        ],
+        "note": "Firestore persistent cache retains previously authorized documents; the app clears rendered state on auth/revocation errors but SDK cache bytes remain."
+      }
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three native Auth-emulator principals exercised direct positive reads and direct rule-denied read/subscription.",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-02-AUTHORITY.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two-actor barrier preserved both messages with adjacent transactionally allocated server sequences; hot-counter timeout is retained.",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-11-CONCURRENT-SEND.json",
+        "work/receipts/failed-attempts.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Firestore onSnapshot/WebChannel and RTDB onValue/onDisconnect are directly attributed; no product polling.",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-04-PUSH.json",
+        "work/receipts/scenarios/CHAT-07-PRESENCE.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "Cold Chrome page rendered 25 private messages from IndexedDB with Firestore network disabled; reconnect independently reached server state.",
+      "evidencePaths": [
+        "work/receipts/offline-browser.json",
+        "work/receipts/scenarios/CHAT-08-RECONNECT.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Callable results were checked against Admin SDK authoritative documents; concurrent settlement and retry-related failure are retained.",
+      "evidencePaths": [
+        "work/receipts/scenarios/CHAT-03-SEND.json",
+        "work/receipts/scenarios/CHAT-11-CONCURRENT-SEND.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Fresh local project id, bound services/ports, versions, and identity hash are direct. Hosted target is separately an explicit credential GAP.",
+      "evidencePaths": [
+        "work/receipts/target-identity.json",
+        "work/receipts/emulator-hub.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "Validated exact process ancestry, zero surviving PIDs, and eight closed ports; no shared/hosted target existed.",
+      "evidencePaths": [
+        "work/receipts/scoped-cleanup-plan.json",
+        "work/receipts/cleanup.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Pinned root/functions locks, source, rules, scripts, raw samples, failed attempts, export hashes, and cleanup proof retained.",
+      "evidencePaths": [
+        "work/receipts/inventory.json",
+        "work/package-lock.json",
+        "work/functions/package-lock.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "work/receipts/scoped-cleanup-plan.json",
+    "receiptPaths": [
+      "work/receipts/cleanup.json",
+      "work/receipts/export-file-sha256.txt",
+      "work/receipts/export-size-kib.txt"
+    ],
+    "postCleanupProbe": "All assigned/auxiliary ports closed; exact process tree absent; fresh local emulator endpoint connection-refused."
+  },
+  "result": "complete"
+}

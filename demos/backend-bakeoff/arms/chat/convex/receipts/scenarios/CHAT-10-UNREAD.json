@@ -1,0 +1,22 @@
+{
+  "id": "CHAT-10-UNREAD",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:14.533Z",
+  "authoritativeMarkerSequence": 130,
+  "newMessageSequence": 131,
+  "beforeReconnect": {
+    "lastRead": 130,
+    "latest": 131,
+    "unread": 1
+  },
+  "afterReconnect": {
+    "lastRead": 130,
+    "latest": 131,
+    "unread": 1
+  },
+  "afterMark": {
+    "lastRead": 131,
+    "latest": 131,
+    "unread": 0
+  }
+}

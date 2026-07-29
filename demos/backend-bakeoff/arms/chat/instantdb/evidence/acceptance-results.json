@@ -1,0 +1,295 @@
+{
+  "schemaVersion": 1,
+  "app": "chat",
+  "provider": "instantdb",
+  "expectedCheckCount": 15,
+  "completedFunctionalCheckCount": 13,
+  "startedAt": "2026-07-29T02:54:31.258Z",
+  "capturedAt": "2026-07-29T02:54:59.804Z",
+  "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+  "actorHashes": {
+    "alice": {
+      "idSha256": "188545c4b7a08a13279e3dc0bcdd0e9a8cd41aa1161be693e9d7820ee4565499",
+      "authKind": "InstantDB native guest auth"
+    },
+    "bob": {
+      "idSha256": "3357a56a4aa5028cd55493b82eb8f384253cca60dad4773ee4036a7b4b4400d8",
+      "authKind": "InstantDB native guest auth"
+    },
+    "mallory": {
+      "idSha256": "3020c6e5422d1dc6108900d0473c4afcbe4e094822098f09284958a5229c521d",
+      "authKind": "InstantDB native guest auth"
+    }
+  },
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "result": "PASS",
+      "summary": "Exact isolated dataset exists.",
+      "evidence": {
+        "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+        "authoritativeCounts": {
+          "general": 125,
+          "deep-round": 125,
+          "calibration": 125,
+          "field-notes": 125
+        },
+        "seedReceipt": "../receipts/seed-receipt.json"
+      }
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "result": "PASS",
+      "summary": "Members see allowed channels; outsider sees only public.",
+      "evidence": {
+        "actorHashes": {
+          "alice": {
+            "idSha256": "188545c4b7a08a13279e3dc0bcdd0e9a8cd41aa1161be693e9d7820ee4565499",
+            "authKind": "InstantDB native guest auth"
+          },
+          "bob": {
+            "idSha256": "3357a56a4aa5028cd55493b82eb8f384253cca60dad4773ee4036a7b4b4400d8",
+            "authKind": "InstantDB native guest auth"
+          },
+          "mallory": {
+            "idSha256": "3020c6e5422d1dc6108900d0473c4afcbe4e094822098f09284958a5229c521d",
+            "authKind": "InstantDB native guest auth"
+          }
+        },
+        "memberChannelCounts": {
+          "alice": 4,
+          "bob": 4
+        },
+        "outsiderChannelCount": 2,
+        "negativeSubscription": {
+          "denied": false,
+          "empty": true,
+          "errorClass": null
+        }
+      }
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "result": "GAP",
+      "summary": "Author identity is permission-bound, but the authoritative read did not expose a server timestamp/order field.",
+      "evidence": {
+        "settlement": "native transact resolved synced",
+        "messageIdSha256": "3274cd9a01d2e734836dcc6b5964e20672a585fa320025f14e6c29386f9fb396",
+        "authorIdSha256": "188545c4b7a08a13279e3dc0bcdd0e9a8cd41aa1161be693e9d7820ee4565499",
+        "serverCreatedAtPresent": false,
+        "orderField": "serverCreatedAt"
+      }
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "result": "PASS",
+      "summary": "Bob observed Alice commit through native push.",
+      "evidence": {
+        "secondClient": true,
+        "transport": "InstantDB WebSocket query subscription",
+        "productPolling": false,
+        "messageIdSha256": "3f0e5f122cd1142243b0ae371bf342fe282e24e416dcfebff29a5a72de9c6abd"
+      }
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "result": "PASS",
+      "summary": "Cursor pages remained nonduplicating under an insert.",
+      "evidence": {
+        "cursorValues": {
+          "firstEndCursorSha256": "2662068b498dc6f7a184d473055e537038fc9d6278ee7886f145824f36999a25",
+          "secondEndCursorSha256": "c53d06bd1fdade8f2c3a1e7f889328394f2d8306012705b7d8bc52919b8be7aa"
+        },
+        "pageSizes": [
+          25,
+          25
+        ],
+        "overlapCount": 0,
+        "concurrentInsertIdSha256": "0e55f4bdd4e4fc9562ae300fda31ef8307d6a5081a35376a57cea660dc29d1a8",
+        "authoritativeOrder": "serverCreatedAt desc"
+      }
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "result": "PASS",
+      "summary": "Typing used native ephemeral room topics.",
+      "evidence": {
+        "transport": "InstantDB room topic over native realtime connection",
+        "recipient": "Bob second client",
+        "delivered": true,
+        "explicitClearPublished": true,
+        "durableTypingRows": 0
+      }
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "result": "PASS",
+      "summary": "Presence reflected two clients and removal after leave.",
+      "evidence": {
+        "transport": "InstantDB native room presence",
+        "snapshotCount": 1,
+        "bobPresentAfterLeave": false,
+        "expiryWaitMs": 5000
+      }
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "result": "PASS",
+      "summary": "Native reconnect restored the same authoritative view.",
+      "evidence": {
+        "disconnectProof": "first Bob core client shutdown",
+        "beforeCount": 127,
+        "afterCount": 127,
+        "duplicateCount": 0,
+        "actorIdSha256": "3357a56a4aa5028cd55493b82eb8f384253cca60dad4773ee4036a7b4b4400d8"
+      }
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "result": "GAP",
+      "summary": "The browser SDK uses IndexedDB, but this remote headless run had no controlled browser; a custom storage shim was not counted as proof.",
+      "evidence": {
+        "coldClient": false,
+        "transportDisabled": false,
+        "retainedOrigin": "not directly inspected",
+        "providerCapability": "client query cache is persisted via IndexedDB in browser runtime",
+        "evidenceLimitation": "Node headless core session only"
+      }
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "result": "PASS",
+      "summary": "Durable read marker synchronized across Bob clients and reconnect.",
+      "evidence": {
+        "twoClients": true,
+        "markerIdSha256": "53dd63ab7b20125879723a0a3d278b3c0180118bbaf27d6e999173bfd12be28d",
+        "authoritativeMarkerCount": 1,
+        "reconnectCount": 1
+      }
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "result": "PASS",
+      "summary": "Both barrier-released sends settled and have deterministic order.",
+      "evidence": {
+        "twoActorBarrier": "Promise.all dispatch",
+        "noLoss": true,
+        "ordering": "serverCreatedAt ascending, id tie-break",
+        "orderedMessageIdHashes": [
+          "06e87b4c1afe226621d557e9822c977396a1e0c25f1f063cd9f7267316523f04",
+          "2a7f468a32044eac48e647ad52d81e6170bf1615ae6abc3bcbc4358593626636"
+        ]
+      }
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "result": "PASS",
+      "summary": "Membership removal stopped future protected delivery.",
+      "evidence": {
+        "authorityChange": "Alice unlinked Bob from private channel allowedUsers",
+        "futureMessageIdSha256": "ceeb5098e27d79a9fac74318028e0d76adc6bfd62a05b9ff863c5b7219de8359",
+        "deliveredAfterRevoke": false,
+        "subscriptionErrorAfterRevoke": false,
+        "retainedStoreInspection": {
+          "denied": false,
+          "empty": true,
+          "errorClass": null
+        },
+        "note": "Current permission-filtered query returned empty/denied; physical client cache internals were not introspected."
+      }
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "result": "PASS",
+      "summary": "Native signOut stopped future private delivery.",
+      "evidence": {
+        "logoutBarrier": "getAuth returned null",
+        "alreadyConnectedClient": true,
+        "futureMessageIdSha256": "1f69c95d0c32c6a903763f44c072b3e95fc39836aa627b651e89d6118259ab40",
+        "deliveredAfterLogout": false,
+        "subscriptionErrorAfterLogout": false
+      }
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "result": "PASS",
+      "summary": "Frozen read, 20-message write burst, native realtime, reconnect, and production-build samples retained.",
+      "evidence": {
+        "warmupsPerPath": 2,
+        "recordedSamplesPerPath": 7,
+        "rawSamples": "../evidence/performance.json",
+        "machine": {
+          "hostname": "expose-builder-pixel",
+          "platform": "linux 6.8.0-111-generic x64",
+          "cpus": 96,
+          "memoryBytes": 269935517696,
+          "loadAverageAtCapture": [
+            0.06,
+            0.06,
+            0.18
+          ],
+          "node": "v24.13.1"
+        }
+      }
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "result": "PASS",
+      "summary": "All exact target data and native users were deleted, the old actor token was invalidated, and local raw credentials were removed.",
+      "evidence": {
+        "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+        "beforeCounts": {
+          "channels": 4,
+          "messages": 696,
+          "readMarkers": 1,
+          "$users": 3
+        },
+        "afterCounts": {
+          "channels": 0,
+          "messages": 0,
+          "readMarkers": 0,
+          "$users": 0
+        },
+        "oldActorTokenInvalidated": true,
+        "residualConfigurationUntilProviderExpiry": [
+          "schema",
+          "permissions"
+        ],
+        "automaticTargetExpiry": "instant-cli documents automatic deletion after >24 hours",
+        "receipt": "../receipts/cleanup-final.json"
+      }
+    }
+  ],
+  "stopDefects": [],
+  "completedCheckCountBeforeCleanup": 14,
+  "completedCheckCount": 15,
+  "result": "complete",
+  "cleanup": {
+    "operation": "clear-exact-disposable-target",
+    "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+    "beforeCounts": {
+      "channels": 4,
+      "messages": 696,
+      "readMarkers": 1,
+      "$users": 3
+    },
+    "afterCounts": {
+      "channels": 0,
+      "messages": 0,
+      "readMarkers": 0,
+      "$users": 0
+    },
+    "exactTargetOnly": true,
+    "targetDeletionUnsupportedWithAppScopedAdminToken": true,
+    "providerManagedExpiryExpected": true,
+    "temporaryAppLifecycle": "instant-cli documents automatic deletion after >24 hours",
+    "residualConfigurationUntilProviderExpiry": [
+      "schema",
+      "permissions"
+    ],
+    "oldActorTokenInvalidated": true,
+    "localRuntimeCredentialsRemoved": true,
+    "finishedAt": "2026-07-29T03:00:14.757Z",
+    "ok": true
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:52:24.008Z",
+  "ok": true,
+  "transportBarrier": {
+    "exactContainer": "llp0102_todo_instantdb-server-1",
+    "ownershipLabelVerified": true,
+    "serverStopped": true,
+    "browserConnectionState": "closed"
+  },
+  "warmRowsBeforeStop": 100,
+  "warmRowsWhileOffline": 100,
+  "coldBoot": {
+    "retainedRows": 100,
+    "retainedOrigin": "InstantDB IndexedDB query cache",
+    "indexedDbDatabaseCount": 1
+  },
+  "offlineWrites": {
+    "optimisticTaskCount": 101,
+    "queueUi": "Queued offline",
+    "oneCreateVisible": true,
+    "oneUpdateVisible": true,
+    "remoteCommitImpossibleWhileContainerStopped": true
+  },
+  "reconnect": {
+    "authoritativeTaskCount": 101,
+    "authoritativeUpdateVisible": true,
+    "markerCopies": 1,
+    "restoredBaselineCount": 100
+  },
+  "nonMatchingCleanupProbe": {
+    "prefix": "__non_matching_probe__",
+    "removed": 0
+  },
+  "containsSecretValues": false
+}

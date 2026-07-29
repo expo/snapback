@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T21:36:45.594Z",
+  "targetMode": "fresh-local",
+  "targetIdentityHash": "a11623cea8167aa089f595cd50c3ebdd060f8bbbdd0f3aeb74591f466ec9a7f4",
+  "namespace": "llp0102-todo-firebase-calibration-todo-firebase-calibration-01",
+  "scope": {
+    "projectId": "demo-llp0102-todo-firebase",
+    "runtimeDirectories": [
+      "arms/todo/firebase/runtime"
+    ],
+    "listenerPorts": [
+      4181,
+      8085,
+      9102,
+      4400,
+      4500,
+      9150
+    ],
+    "credentialFiles": [
+      "arms/todo/firebase/work/.arm-secrets"
+    ],
+    "logs": [
+      "arms/todo/firebase/work/firebase-debug.log",
+      "arms/todo/firebase/work/firestore-debug.log",
+      "arms/todo/firebase/work/ui-debug.log"
+    ]
+  },
+  "steps": [
+    "Resolve the Vite listener and verify its process command belongs to this exact arm.",
+    "Resolve the emulator hub and verify its command includes the exact demo project and emulators:start.",
+    "Stop only those two exact process owners and prove all six arm ports closed.",
+    "Remove only the arm runtime tree, arm-local credential file, and generated emulator logs/cache.",
+    "Probe all declared ports and paths for absence."
+  ],
+  "recovery": "Removed emulator/auth data and browser profiles are not recoverable; retained source, rules, deterministic seed, and shared emulator download recreate them.",
+  "containsSecretValues": false
+}

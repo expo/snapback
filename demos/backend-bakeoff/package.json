@@ -1,0 +1,30 @@
+{
+  "name": "snapback-backend-bakeoff-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test scripts/*.test.mjs && node scripts/verify-stage0.mjs",
+    "freeze": "node scripts/verify-stage0.mjs --write-freeze",
+    "preflight:versions": "convex --version && supabase --version && firebase --version && instant-cli --version && appwrite -v",
+    "preflight:credentials": "node scripts/preflight-credentials.mjs",
+    "preflight:shared-targets": "node scripts/preflight-credentials.mjs --probe-shared-targets",
+    "capsule:new": "node scripts/run-capsule.mjs new",
+    "capsule:verify": "node scripts/run-capsule.mjs verify",
+    "score": "node scripts/scoring.mjs",
+    "remediation:verify": "node scripts/remediation-ledger.mjs",
+    "arms:status": "node scripts/arm-matrix.mjs status",
+    "arms:scaffold": "node scripts/arm-matrix.mjs scaffold",
+    "program:status": "node scripts/program-status.mjs"
+  },
+  "devDependencies": {
+    "appwrite-cli": "23.2.0",
+    "convex": "1.42.3",
+    "firebase-tools": "15.24.0",
+    "instant-cli": "1.0.52",
+    "supabase": "2.110.0"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}

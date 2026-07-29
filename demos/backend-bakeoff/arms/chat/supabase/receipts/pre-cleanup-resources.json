@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T02:30:35.758Z",
+  "projectId": "llp0102-chat-supabase-w3",
+  "identityHash": "ebc75341fb4df7e9a3bc28b99b1c259e2acfe965cbe392d1ac88acc07998d4be",
+  "containers": [
+    {
+      "name": "supabase_db_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+      "status": "Up 6 minutes (healthy)"
+    },
+    {
+      "name": "supabase_studio_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/studio:2026.07.13-sha-b5ada96",
+      "status": "Up 12 minutes (healthy)"
+    },
+    {
+      "name": "supabase_pg_meta_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgres-meta:v0.96.6",
+      "status": "Up 12 minutes (healthy)"
+    },
+    {
+      "name": "supabase_edge_runtime_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/edge-runtime:v1.74.2",
+      "status": "Up 12 minutes"
+    },
+    {
+      "name": "supabase_storage_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/storage-api:v1.66.4",
+      "status": "Up 6 minutes (healthy)"
+    },
+    {
+      "name": "supabase_rest_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/postgrest:v14.15",
+      "status": "Up 12 minutes"
+    },
+    {
+      "name": "supabase_realtime_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/realtime:v2.113.4",
+      "status": "Up 6 minutes (healthy)"
+    },
+    {
+      "name": "supabase_inbucket_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/mailpit:v1.30.2",
+      "status": "Up 12 minutes (healthy)"
+    },
+    {
+      "name": "supabase_auth_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/gotrue:v2.193.0",
+      "status": "Up 6 minutes (healthy)"
+    },
+    {
+      "name": "supabase_kong_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/kong:2.8.1",
+      "status": "Up 12 minutes (healthy)"
+    },
+    {
+      "name": "supabase_vector_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/vector:0.53.0-alpine",
+      "status": "Up 12 minutes (healthy)"
+    },
+    {
+      "name": "supabase_analytics_llp0102-chat-supabase-w3",
+      "image": "public.ecr.aws/supabase/logflare:1.47.1",
+      "status": "Up 6 minutes (healthy)"
+    }
+  ],
+  "volumes": [
+    "supabase_db_llp0102-chat-supabase-w3",
+    "supabase_edge_runtime_llp0102-chat-supabase-w3",
+    "supabase_storage_llp0102-chat-supabase-w3"
+  ],
+  "networks": [
+    "supabase_network_llp0102-chat-supabase-w3"
+  ],
+  "counts": {
+    "containers": 12,
+    "volumes": 3,
+    "networks": 1
+  }
+}

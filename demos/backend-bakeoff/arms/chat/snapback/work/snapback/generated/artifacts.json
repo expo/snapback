@@ -1,0 +1,118 @@
+{
+  "appId": "work",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/addMember.args.schema.json",
+    "operations/bootstrapChannel.args.schema.json",
+    "operations/leaveChannel.args.schema.json",
+    "operations/listChannels.args.schema.json",
+    "operations/listMessages.args.schema.json",
+    "operations/listReadMarkers.args.schema.json",
+    "operations/markRead.args.schema.json",
+    "operations/pageMessages.args.schema.json",
+    "operations/sendMessage.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/typing.ephemeral.ts",
+    "contract/typing.ephemeral.contract-meta.ts",
+    "contract/typing.publish.ts",
+    "contract/typing.publish.contract-meta.ts",
+    "contract/presence.ephemeral.ts",
+    "contract/presence.ephemeral.contract-meta.ts",
+    "contract/presence.publish.ts",
+    "contract/presence.publish.contract-meta.ts",
+    "contract/addMember.mutation.ts",
+    "contract/addMember.mutation.contract-meta.ts",
+    "contract/bootstrapChannel.mutation.ts",
+    "contract/bootstrapChannel.mutation.contract-meta.ts",
+    "contract/leaveChannel.mutation.ts",
+    "contract/leaveChannel.mutation.contract-meta.ts",
+    "contract/listChannels.query.ts",
+    "contract/listChannels.query.contract-meta.ts",
+    "contract/listMessages.query.ts",
+    "contract/listMessages.query.contract-meta.ts",
+    "contract/listReadMarkers.query.ts",
+    "contract/listReadMarkers.query.contract-meta.ts",
+    "contract/markRead.mutation.ts",
+    "contract/markRead.mutation.contract-meta.ts",
+    "contract/pageMessages.query.ts",
+    "contract/pageMessages.query.contract-meta.ts",
+    "contract/sendMessage.mutation.ts",
+    "contract/sendMessage.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:74869c71e127013bd7ac7863b96307ff5f9d23351de56a263f2e7524815190d4",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [
+    "typing",
+    "presence"
+  ],
+  "functions": [
+    {
+      "id": "work:addMember",
+      "kind": "Mutation",
+      "name": "addMember"
+    },
+    {
+      "id": "work:bootstrapChannel",
+      "kind": "Mutation",
+      "name": "bootstrapChannel"
+    },
+    {
+      "id": "work:leaveChannel",
+      "kind": "Mutation",
+      "name": "leaveChannel"
+    },
+    {
+      "id": "work:listChannels",
+      "kind": "LiveQuery",
+      "name": "listChannels"
+    },
+    {
+      "id": "work:listMessages",
+      "kind": "LiveQuery",
+      "name": "listMessages"
+    },
+    {
+      "id": "work:listReadMarkers",
+      "kind": "LiveQuery",
+      "name": "listReadMarkers"
+    },
+    {
+      "id": "work:markRead",
+      "kind": "Mutation",
+      "name": "markRead"
+    },
+    {
+      "id": "work:pageMessages",
+      "kind": "Query",
+      "name": "pageMessages"
+    },
+    {
+      "id": "work:sendMessage",
+      "kind": "Mutation",
+      "name": "sendMessage"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:62391f06bb79a4865684f6d5c0cfb326fd21cb3774a64c30e2058ed61dca8c25",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:d419d6622b541ba63bfaca6dc0f2bf203b35e389af6ce87118bbf83693b6fb8e",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "channels",
+    "channelMembers",
+    "channelViews",
+    "profiles",
+    "messages",
+    "readMarkers"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "snapback.backend-bakeoff.completion-audit.v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "protocolAggregateSha256",
+    "armCount",
+    "requirements",
+    "allRequirementsVerified"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolAggregateSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "armCount": { "const": 35 },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "evidencePaths", "note"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["verified", "contradicted", "incomplete", "weak", "missing"] },
+          "evidencePaths": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "note": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "allRequirementsVerified": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T01:32:18.706Z",
+  "command": "npm audit --json",
+  "exitStatus": 1,
+  "vulnerabilityCounts": {
+    "info": 0,
+    "low": 3,
+    "moderate": 6,
+    "high": 7,
+    "critical": 0,
+    "total": 16
+  },
+  "dependencyCounts": {
+    "prod": 9,
+    "dev": 411,
+    "optional": 68,
+    "peer": 3,
+    "peerOptional": 0,
+    "total": 419
+  },
+  "attribution": "The retained Appwrite CLI and its transitive dependencies account for the audit findings; the React/Web SDK production dependency subset was zero-finding before the reproducibility CLI was retained.",
+  "containsSecretValues": false
+}

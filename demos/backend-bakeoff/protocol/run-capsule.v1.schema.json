@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "snapback.backend-bakeoff.run-capsule.v1",
+  "title": "Backend bakeoff run capsule",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "protocolId",
+    "arm",
+    "environment",
+    "budget",
+    "actors",
+    "targets",
+    "milestones",
+    "assistanceEvents",
+    "commands",
+    "scenarioResults",
+    "inventory",
+    "evidenceConfidence",
+    "stopDefects",
+    "cleanup",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolId": { "const": "llp-0102-backend-bakeoff-v1" },
+    "arm": {
+      "type": "object",
+      "required": ["app", "provider", "round", "attemptId"],
+      "properties": {
+        "app": { "enum": ["todo", "chat", "linear", "partiful", "research-room"] },
+        "provider": { "enum": ["snapback", "convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"] },
+        "round": { "enum": ["calibration", "deep", "final-confirmation", "untimed-extension"] },
+        "attemptId": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "environment": { "type": "object" },
+    "budget": { "type": "object" },
+    "actors": { "type": "object" },
+    "targets": { "type": "object" },
+    "milestones": { "type": "object" },
+    "assistanceEvents": { "type": "array" },
+    "commands": { "type": "array" },
+    "scenarioResults": { "type": "array" },
+    "inventory": { "type": "object" },
+    "evidenceConfidence": { "type": "object" },
+    "stopDefects": { "type": "array" },
+    "cleanup": { "type": "object" },
+    "result": { "enum": ["pending", "complete", "timeboxed", "stopped"] }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T21:56:39.483Z",
+  "ok": true,
+  "principalIdHashes": {
+    "alice": "4ecb8b99dbcb08ce3f6f0a791d4a54739a42a211a1f26de7593423fa0bd88a89",
+    "bob": "dbcfc665a02f23f392ade6195495320c850c89f9205591757a5c5dc5b15cdc57",
+    "mallory": "4a2015947b30204d19e32b5a0531e0118544c6d0ab970ce50dac595360921d89"
+  },
+  "identityHashesStable": {
+    "alice": true,
+    "bob": true,
+    "mallory": true
+  },
+  "authorizedTaskCounts": {
+    "alice": 100,
+    "bob": 100,
+    "mallory": 0
+  },
+  "authoritativeSeed": {
+    "workspaceCount": 1,
+    "membershipCount": 2,
+    "membershipPersonas": [
+      "alice",
+      "bob"
+    ],
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "uniqueSeedKeys": 100,
+    "orderValid": true
+  },
+  "transport": "Supabase Realtime Phoenix WebSocket with Postgres Changes",
+  "eachClientOpenedNativeRealtimeSocket": {
+    "alice": true,
+    "bob": true,
+    "mallory": true
+  },
+  "outsider": {
+    "nativeAuthenticated": true,
+    "protectedRows": 0,
+    "protectedRowsRetained": false
+  },
+  "containsSecretValues": false
+}

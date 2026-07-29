@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T20:55:43.447Z",
+  "armRoot": "arms/todo/instantdb/work",
+  "totals": {
+    "configuration": {
+      "files": 7,
+      "bytes": 2658,
+      "lines": 132
+    },
+    "authored-source": {
+      "files": 12,
+      "bytes": 56315,
+      "lines": 454
+    },
+    "policy": {
+      "files": 2,
+      "bytes": 3075,
+      "lines": 141
+    },
+    "dependency-manifest": {
+      "files": 1,
+      "bytes": 111749,
+      "lines": 3351
+    },
+    "test": {
+      "files": 9,
+      "bytes": 49643,
+      "lines": 1355
+    }
+  },
+  "installedDependencyBytes": 189312785,
+  "files": [
+    {
+      "path": ".gitignore",
+      "category": "configuration",
+      "bytes": 266,
+      "lines": 26,
+      "sha256": "32e4b9a3d08fc6aa40302d52d822791102a82c474ab5220e1f8b2fb715416975"
+    },
+    {
+      "path": ".oxlintrc.json",
+      "category": "configuration",
+      "bytes": 245,
+      "lines": 9,
+      "sha256": "b4d344818a1e1bf43997e4744a9153c8eef770c98b58229cd86363dabb85ded4"
+    },
+    {
+      "path": "index.html",
+      "category": "authored-source",
+      "bytes": 356,
+      "lines": 14,
+      "sha256": "4d701cf3b31a4d8b47bbabcffc29bbacc1b795938bf886ec18ffcaca69dbc11d"
+    },
+    {
+      "path": "instant.perms.ts",
+      "category": "policy",
+      "bytes": 1261,
+      "lines": 62,
+      "sha256": "73e52558d874d935872fc0947252ff49fed7dfaacbbdd3724dc75bdd092dbff7"
+    },
+    {
+      "path": "instant.schema.ts",
+      "category": "policy",
+      "bytes": 1814,
+      "lines": 79,
+      "sha256": "0f0e6ab9bd65cbaddd722eb0597b401e8bccb5427fbd65545c75d48ab7f46271"
+    },
+    {
+      "path": "package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 111749,
+      "lines": 3351,
+      "sha256": "8a1eea2124ddcd4075db20df1ca57fc5a092d50851748af0ac533fa48dd9a2a8"
+    },
+    {
+      "path": "package.json",
+      "category": "configuration",
+      "bytes": 654,
+      "lines": 30,
+      "sha256": "9e538dc35807eb92fd0a2d4d31612730d5dd52b1ca0ecc245816f252d3c3066c"
+    },
+    {
+      "path": "public/favicon.svg",
+      "category": "authored-source",
+      "bytes": 9522,
+      "lines": 1,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+    },
+    {
+      "path": "public/icons.svg",
+      "category": "authored-source",
+      "bytes": 5031,
+      "lines": 25,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+    },
+    {
+      "path": "README.md",
+      "category": "authored-source",
+      "bytes": 1278,
+      "lines": 33,
+      "sha256": "fa8aac78b8be1993010b57f41000a243ecba006f6731513fe4ec91e788bf2517"
+    },
+    {
+      "path": "scripts/admin-cli.mjs",
+      "category": "test",
+      "bytes": 6660,
+      "lines": 199,
+      "sha256": "56f48be536f33c861128071cf5f1257d4ec7f736d564d13ba97877a6a644768c"
+    },
+    {
+      "path": "scripts/cleanup-arm.mjs",
+      "category": "test",
+      "bytes": 4172,
+      "lines": 120,
+      "sha256": "1c612d64c8527d89a2ea52a9feb8a30fef9c4e7121eb936837b06a41e401f8cf"
+    },
+    {
+      "path": "scripts/correctness-smoke.mjs",
+      "category": "test",
+      "bytes": 11449,
+      "lines": 261,
+      "sha256": "8e289bb313809358363518630dfe57db117cc4170569a232cdd3d55169c80633"
+    },
+    {
+      "path": "scripts/create-local-app.mjs",
+      "category": "test",
+      "bytes": 1140,
+      "lines": 37,
+      "sha256": "dc471edda97a3647c515512b89051938e182df6b632375d5a0f8f06374bf6a30"
+    },
+    {
+      "path": "scripts/finalize-evidence.mjs",
+      "category": "test",
+      "bytes": 4844,
+      "lines": 147,
+      "sha256": "efaad01760f511ad671143fd4cf4f9f4058972f2305f8807edbd406c57fa10c8"
+    },
+    {
+      "path": "scripts/inventory.mjs",
+      "category": "test",
+      "bytes": 2966,
+      "lines": 87,
+      "sha256": "8033284704a434668ef30cbaa857a28f44f1c5f6544713b21c422e7300b6273b"
+    },
+    {
+      "path": "scripts/offline-smoke.mjs",
+      "category": "test",
+      "bytes": 7513,
+      "lines": 202,
+      "sha256": "219bfdd6deefe02dabdcf44d1631e6fd7b2b6198a6e6cdb25bb1478ad75f27b8"
+    },
+    {
+      "path": "scripts/performance-smoke.mjs",
+      "category": "test",
+      "bytes": 6118,
+      "lines": 172,
+      "sha256": "41af4c46e396656d3ddf3b40c2d318b538265307909d4298cf0fe1f4d295b369"
+    },
+    {
+      "path": "scripts/provision-personas.mjs",
+      "category": "test",
+      "bytes": 4781,
+      "lines": 130,
+      "sha256": "d37c2f310390995e63b6a144aa848a5adac63a700c1480163e1eb4e3a9aacb4c"
+    },
+    {
+      "path": "src/App.css",
+      "category": "authored-source",
+      "bytes": 3812,
+      "lines": 46,
+      "sha256": "2b5ecb0a8c539425e0d2df36b5c3656036d11322d71f732827bdf6908438ab02"
+    },
+    {
+      "path": "src/App.tsx",
+      "category": "authored-source",
+      "bytes": 9603,
+      "lines": 297,
+      "sha256": "78fd812a118089b626a540d725df8b1694827a1009ed75481fc344cdb8e4a2a5"
+    },
+    {
+      "path": "src/assets/hero.png",
+      "category": "authored-source",
+      "bytes": 13057,
+      "lines": null,
+      "sha256": "881ffbcaafc212e49addad08846a5b82761355fa20624253af3477ba33262c5c"
+    },
+    {
+      "path": "src/assets/react.svg",
+      "category": "authored-source",
+      "bytes": 4126,
+      "lines": 1,
+      "sha256": "35ef61ed53b323ae94a16a8ec659b3d0af3880698791133f23b084085ab1c2e5"
+    },
+    {
+      "path": "src/assets/vite.svg",
+      "category": "authored-source",
+      "bytes": 8709,
+      "lines": 2,
+      "sha256": "5be21acd42eb7b896e517f4e0f0f11eb5c5d9e54fbbcebe9453f033008fcca6f"
+    },
+    {
+      "path": "src/db.ts",
+      "category": "authored-source",
+      "bytes": 473,
+      "lines": 21,
+      "sha256": "a4edb369be33e4b18d81fc2671563b473166b6cbb6cd8af7d0a76dc019f66a32"
+    },
+    {
+      "path": "src/index.css",
+      "category": "authored-source",
+      "bytes": 118,
+      "lines": 3,
+      "sha256": "dcd7ddd3ff250f5564d77e29ca0f75447c90559edea6757e5b95448b6295c960"
+    },
+    {
+      "path": "src/main.tsx",
+      "category": "authored-source",
+      "bytes": 230,
+      "lines": 11,
+      "sha256": "6e9e5807fcbd48b75a96db5cbef36c996262196be42e6d4760dc86babbe61ad2"
+    },
+    {
+      "path": "tsconfig.app.json",
+      "category": "configuration",
+      "bytes": 655,
+      "lines": 27,
+      "sha256": "8e5d12ba330e7d86409edec74b95451e0db22ee09b9426c94b5bf817571eddb0"
+    },
+    {
+      "path": "tsconfig.json",
+      "category": "configuration",
+      "bytes": 119,
+      "lines": 8,
+      "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808"
+    },
+    {
+      "path": "tsconfig.node.json",
+      "category": "configuration",
+      "bytes": 558,
+      "lines": 24,
+      "sha256": "d366cc0827139db39c61815f22491bbfda56c654354a42ad7795143d314e45e8"
+    },
+    {
+      "path": "vite.config.ts",
+      "category": "configuration",
+      "bytes": 161,
+      "lines": 8,
+      "sha256": "4d36db3522a7b2dd10e0936e1004373c7ee65f10f7cd7920cd76410459c15a45"
+    }
+  ],
+  "ignoredRuntime": [
+    ".arm-secrets",
+    "dist",
+    "../runtime"
+  ],
+  "containsSecretValues": false
+}

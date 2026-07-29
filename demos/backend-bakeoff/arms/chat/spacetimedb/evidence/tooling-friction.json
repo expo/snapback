@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "checks": [
+    {
+      "surface": "generated bindings under standalone NodeNext tsc",
+      "command": "npx tsc --noEmit",
+      "exitCode": 2,
+      "observation": "Generated extensionless imports and package re-export resolution produced TypeScript diagnostics."
+    },
+    {
+      "surface": "same generated bindings through tsx",
+      "command": "npx tsx verify.ts",
+      "exitCode": 0,
+      "observation": "The full evidence harness ran successfully."
+    },
+    {
+      "surface": "same generated bindings through Vite bundler resolution",
+      "command": "npm run build",
+      "exitCode": 0,
+      "observation": "The React production build succeeded."
+    }
+  ],
+  "claim": "This is a portability/tooling papercut, not an acceptance failure."
+}

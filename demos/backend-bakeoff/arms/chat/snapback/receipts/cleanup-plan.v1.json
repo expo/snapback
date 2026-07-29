@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T02:33:10.040Z",
+  "targetIdentity": "508d943eb1ba10171eb94bea6e4109a42837f0696fb3bfb6f88858c6ffd71883",
+  "exactTargets": [
+    "/private/tmp/llp0102-chat-snapback/demos/backend-bakeoff/arms/chat/snapback/work/.arm-runtime",
+    "/private/tmp/llp0102-chat-snapback/demos/backend-bakeoff/arms/chat/snapback/work/public/personas.json",
+    "/private/tmp/llp0102-chat-snapback/demos/backend-bakeoff/arms/chat/snapback/work/dist/personas.json"
+  ],
+  "broadGlobs": false,
+  "unrelatedBaseline": "repository and every other bakeoff arm remain untouched"
+}

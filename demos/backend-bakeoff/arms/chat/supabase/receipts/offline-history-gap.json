@@ -1,0 +1,10 @@
+{
+  "status": "gap",
+  "note": "supabase-js does not persist PostgREST query results for cold offline boot; the React client retains only warm in-memory rows. Adding IndexedDB/SQLite cache and sync would be application-authored glue.",
+  "evidence": {
+    "coldClient": "new supabase-js client has no retained query cache",
+    "transportDisabled": true,
+    "warmMemoryRows": 25,
+    "retainedOrigin": "none supplied by provider client"
+  }
+}

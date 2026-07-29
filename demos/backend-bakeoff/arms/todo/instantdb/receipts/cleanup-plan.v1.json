@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T20:55:26.682Z",
+  "targetMode": "fresh-local",
+  "targetIdentityHash": "37d1a13f7a11f47a775fcc37c846f210ba8739d87a786956279402783b3044fa",
+  "namespace": "llp0102-todo-instantdb-calibration-todo-instantdb-calibration-01",
+  "scope": {
+    "dockerComposeProject": "llp0102_todo_instantdb",
+    "runtimeDirectories": [
+      "arms/todo/instantdb/runtime"
+    ],
+    "listenerPorts": [
+      4180,
+      8889,
+      8891,
+      9100,
+      9101
+    ],
+    "credentialFiles": [
+      "arms/todo/instantdb/work/.arm-secrets"
+    ]
+  },
+  "steps": [
+    "Resolve the Vite listener and verify its process command belongs to this exact arm.",
+    "Verify every Docker container carries the exact llp0102_todo_instantdb Compose project label.",
+    "Run Compose down with volumes only for that exact project.",
+    "Remove only the arm runtime tree and arm-local credential file.",
+    "Probe all five ports, the Compose project, and both paths for absence."
+  ],
+  "recovery": "Removed target/runtime bytes are not recoverable; retained source, schema, deterministic seed, and official images recreate them.",
+  "containsSecretValues": false
+}

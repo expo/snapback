@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-28",
+  "policy": {
+    "hostedPlan": "lowest-cost production-capable plan supporting claimed facts",
+    "region": "nearest selectable US-West region; provider-selected when no choice is exposed",
+    "auth": "native first-party path for alice, bob, and mallory",
+    "target": "fresh free/local target preferred; namespace-isolated shared hosted target allowed with baseline-preserving cleanup",
+    "refresh": "reverify versions, plans, limits, and recommended paths at each round freeze"
+  },
+  "providers": {
+    "snapback": {
+      "product": "Snapback",
+      "version": "0.1.0",
+      "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+      "client": {
+        "package": "@snapback/client",
+        "version": "workspace at sourceCommit"
+      },
+      "cli": {
+        "package": "@snapback/cli",
+        "version": "workspace at sourceCommit"
+      },
+      "local": {
+        "profile": "packaged local SQLite + Ibex sessions deployment",
+        "auth": "Snapback native local broker/session path",
+        "status": "available-with-warning"
+      },
+      "hosted": {
+        "profile": "no honestly complete hosted profile at starting commit",
+        "plan": "GAP",
+        "region": "GAP",
+        "auth": "GAP: no current adapter has positive hosted browser admission",
+        "status": "explicit-gap"
+      },
+      "officialDocs": [
+        "guide/index.md",
+        "guide/capabilities.md",
+        "guide/auth/targets.md",
+        "guide/deploying/releases.md",
+        "guide/deploying/cloudflare.md"
+      ]
+    },
+    "convex": {
+      "product": "Convex",
+      "client": {
+        "package": "convex",
+        "version": "1.42.3",
+        "integrity": "sha512-7Tz/lH6UlZdiqzLPF/zrlH6Rlo/DOp836dL+GZkUMEQ2jaGGNnBIiIDcOOiEqtfSehuQ65r/rdNMnb4LupowaA=="
+      },
+      "cli": {
+        "package": "convex",
+        "version": "1.42.3"
+      },
+      "local": {
+        "profile": "official anonymous local deployment",
+        "auth": "Convex Auth development path",
+        "status": "beta"
+      },
+      "hosted": {
+        "profile": "managed production deployment",
+        "plan": "Starter",
+        "region": "US region selected by Convex",
+        "auth": "Convex Auth native email path",
+        "status": "candidate"
+      },
+      "officialDocs": [
+        "https://docs.convex.dev/cli/local-deployments",
+        "https://docs.convex.dev/production/overview",
+        "https://docs.convex.dev/cli/reference/deploy",
+        "https://docs.convex.dev/auth/convex-auth",
+        "https://docs.convex.dev/cli/agent-mode",
+        "https://docs.convex.dev/production/state/limits"
+      ]
+    },
+    "supabase": {
+      "product": "Supabase",
+      "client": {
+        "package": "@supabase/supabase-js",
+        "version": "2.111.0",
+        "integrity": "sha512-9q0/AULthQnWeiDh1vGyjoJZbSY04bu6qHcWit70pqEYn5Kv/dkCPY62Ja1123jEnJbB9Vd2pjY7Kvk/lK3peA=="
+      },
+      "cli": {
+        "package": "supabase",
+        "version": "2.110.0",
+        "integrity": "sha512-63QKsdLSVOFKTqABIAeOpg12daBZb9WYqc1NeMNimDP+gFGY8YsIh7VOJawUENXhIWWRlWNprHCOmafCc3LD7Q=="
+      },
+      "local": {
+        "profile": "official Supabase CLI Docker stack",
+        "auth": "local Supabase Auth email/password",
+        "status": "candidate"
+      },
+      "hosted": {
+        "profile": "managed Postgres, Auth, Realtime, Storage, Edge Functions",
+        "plan": "Pro with Micro compute",
+        "region": "West US (exact dashboard identifier captured with target)",
+        "auth": "Supabase Auth email/password",
+        "status": "candidate"
+      },
+      "officialDocs": [
+        "https://supabase.com/docs/guides/local-development/cli/getting-started",
+        "https://supabase.com/docs/guides/local-development/overview",
+        "https://supabase.com/docs/guides/auth",
+        "https://supabase.com/pricing"
+      ]
+    },
+    "firebase": {
+      "product": "Firebase with Cloud Firestore",
+      "client": {
+        "package": "firebase",
+        "version": "12.16.0",
+        "integrity": "sha512-CNw6hFBdONkzF8UGLDx/RDRY9gVa5VmJNHd7qi4gdmA3ZuLkuOrhmWefB2l+FN+OxFpN77Itq7aO6zlTi780ag=="
+      },
+      "cli": {
+        "package": "firebase-tools",
+        "version": "15.24.0",
+        "integrity": "sha512-2P5qd3O3YD7a7AaA89lt/zgRIgR7FGS0Ye7fW9z/sNt9/b6cbmI1TtQtYDlmJDUOh9nMk+72ll/gu4MlN/qY7Q=="
+      },
+      "local": {
+        "profile": "Firebase Local Emulator Suite: Auth, Firestore, Functions, Storage, Hosting",
+        "auth": "Authentication emulator email/password",
+        "status": "candidate"
+      },
+      "hosted": {
+        "profile": "managed Firebase project with Firestore, Auth, Functions, Storage, Hosting",
+        "plan": "Blaze pay-as-you-go with budget alerts",
+        "region": "us-west1 where selectable; Firestore exact location captured with target",
+        "auth": "Firebase Authentication email/password",
+        "status": "candidate"
+      },
+      "officialDocs": [
+        "https://firebase.google.com/docs/emulator-suite",
+        "https://firebase.google.com/docs/firestore",
+        "https://firebase.google.com/docs/auth",
+        "https://firebase.google.com/docs/hosting",
+        "https://firebase.google.com/pricing"
+      ]
+    },
+    "instantdb": {
+      "product": "InstantDB",
+      "client": {
+        "package": "@instantdb/react",
+        "version": "1.0.52",
+        "integrity": "sha512-2rWOU+FdevvvGNiNeO8uFdPfCYwCrG6E/uGOhUiT+zGxIPWzKSTJk7/StX9dJk99HgDOU6N6TIUh+NMZA+ilrg=="
+      },
+      "cli": {
+        "package": "instant-cli",
+        "version": "1.0.52",
+        "integrity": "sha512-FQJdy5uJFZE8zs6dDPuDnrxF/3zqWpV7DSmdpCpUERC+gCKortAleDlO4/3vdjabkEYd895Nt/FGXhdk2o16uQ=="
+      },
+      "local": {
+        "profile": "official self-host Docker Compose stack with CLI API override",
+        "auth": "Instant native auth against self-host stack",
+        "status": "candidate"
+      },
+      "hosted": {
+        "profile": "managed Instant application",
+        "plan": "Pro",
+        "region": "provider-selected",
+        "auth": "Instant native magic-code email",
+        "status": "candidate"
+      },
+      "officialDocs": [
+        "https://www.instantdb.com/docs",
+        "https://www.instantdb.com/docs/self-hosting",
+        "https://www.instantdb.com/docs/cli",
+        "https://www.instantdb.com/docs/auth",
+        "https://www.instantdb.com/pricing"
+      ]
+    },
+    "spacetimedb": {
+      "product": "SpacetimeDB",
+      "client": {
+        "package": "spacetimedb",
+        "version": "2.7.0",
+        "integrity": "sha512-WY1bp8RfzdPilo4XbwHvjAMWZS4WeGT+QGEQyyEJSgylEurUOerYx1rxr0M6LWpuwA0dcM/FRL7sGpx8TV7nOA=="
+      },
+      "cli": {
+        "package": "spacetime",
+        "version": "2.7.0"
+      },
+      "local": {
+        "profile": "official standalone local server",
+        "auth": "SpacetimeAuth development identities",
+        "status": "candidate"
+      },
+      "hosted": {
+        "profile": "Maincloud managed database/module",
+        "plan": "Maincloud Pro",
+        "region": "provider-selected",
+        "auth": "built-in SpacetimeAuth",
+        "status": "candidate"
+      },
+      "officialDocs": [
+        "https://spacetimedb.com/docs/",
+        "https://spacetimedb.com/docs/cli-reference/",
+        "https://spacetimedb.com/docs/how-to/deploy/maincloud/",
+        "https://spacetimedb.com/pricing"
+      ]
+    },
+    "appwrite": {
+      "product": "Appwrite",
+      "client": {
+        "package": "appwrite",
+        "version": "26.2.0",
+        "integrity": "sha512-8TCd4mMKhhUxGF9sjZ6W2V1gesnj43v1SFZoeAue/0O0ikMXIU92p96PiRn0D4nAVvFM/92bluTTb/PoXH5mnQ=="
+      },
+      "cli": {
+        "package": "appwrite-cli",
+        "version": "23.2.0",
+        "integrity": "sha512-n1IjobcIwCJoxmfambSWUFxha3QfhPv5tECEZWudXAn/ThtjSua22tWZuMHyQYy9eBZR68MI5Fq+vmnAi148IA=="
+      },
+      "local": {
+        "profile": "official self-host Docker stack",
+        "auth": "Appwrite Account email/password",
+        "status": "candidate"
+      },
+      "hosted": {
+        "profile": "Appwrite Cloud project",
+        "plan": "Pro",
+        "region": "nearest selectable US-West region; exact identifier captured with target",
+        "auth": "Appwrite Account email/password",
+        "status": "candidate"
+      },
+      "officialDocs": [
+        "https://appwrite.io/docs",
+        "https://appwrite.io/docs/advanced/self-hosting",
+        "https://appwrite.io/docs/tooling/command-line/commands",
+        "https://appwrite.io/docs/products/auth",
+        "https://appwrite.io/pricing"
+      ]
+    }
+  }
+}

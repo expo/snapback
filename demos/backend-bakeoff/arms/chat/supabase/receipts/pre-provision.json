@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-07-29T01:09:14.731Z",
+  "projectId": "llp0102-chat-supabase-w3",
+  "targetMode": "fresh-local",
+  "containersMatchingExactProject": [],
+  "volumesMatchingExactProject": [],
+  "portsChecked": [4289, 55421, 55422, 55423, 55424, 55425, 55426, 55427, 55428, 55429, 55430],
+  "occupiedAssignedPorts": [],
+  "note": "Read-only Docker and listener preflight found the exact local target absent before provisioning."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "CHAT-09-OFFLINE-HISTORY",
+  "status": "gap",
+  "capturedAt": "2026-07-29T02:14:14.487Z",
+  "loadedHistoryCount": 130,
+  "retainedOrigin": "application JavaScript memory only",
+  "coldClientWithTransportDisabled": "no provider-owned persistent query cache available",
+  "reason": "Convex React retains active query state in memory but does not provide durable cold-boot offline history.",
+  "nonclaim": "A copied array was not counted as provider offline storage."
+}

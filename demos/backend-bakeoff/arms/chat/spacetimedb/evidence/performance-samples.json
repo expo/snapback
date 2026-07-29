@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "machine": {
+    "label": "Apartment Air",
+    "os": "Darwin",
+    "arch": "arm64"
+  },
+  "units": "milliseconds",
+  "samples": {
+    "representative-read": {
+      "warmups": [
+        9.191,
+        8.675
+      ],
+      "recorded": [
+        11.402,
+        11.781,
+        11.054,
+        9.666,
+        12.305,
+        9.63,
+        10.86
+      ],
+      "median": 11.054,
+      "nearestRankP95": 12.305
+    },
+    "representative-write": {
+      "warmups": [
+        103.843,
+        53.728
+      ],
+      "recorded": [
+        53.707,
+        54.868,
+        55.208,
+        59.076,
+        61.364,
+        63.609,
+        62.412
+      ],
+      "median": 59.076,
+      "nearestRankP95": 63.609
+    },
+    "realtime-delivery": {
+      "warmups": [
+        28.434,
+        28.938
+      ],
+      "recorded": [
+        28.908,
+        8.045,
+        8.211,
+        31.109,
+        10.462,
+        30.148,
+        9.986
+      ],
+      "median": 10.462,
+      "nearestRankP95": 31.109
+    },
+    "reconnect": {
+      "warmups": [
+        14.116,
+        12.634
+      ],
+      "recorded": [
+        13.802,
+        14.635,
+        17.582,
+        12.558,
+        12.825,
+        14.575,
+        15.789
+      ],
+      "median": 14.575,
+      "nearestRankP95": 17.582
+    },
+    "build-or-deploy": {
+      "warmups": [
+        356.106,
+        289.563
+      ],
+      "recorded": [
+        313.296,
+        419.53,
+        638.218,
+        743.556,
+        598.948,
+        554.928,
+        497.973
+      ],
+      "median": 554.928,
+      "nearestRankP95": 743.556
+    }
+  }
+}

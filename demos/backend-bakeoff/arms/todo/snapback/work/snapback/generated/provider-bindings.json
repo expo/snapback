@@ -1,0 +1,191 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"userId\": string; \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"bobId\": string; \"name\": string; \"seedPrimary\": boolean }",
+        "effects": {
+          "invalidates": [
+            "workspaces",
+            "workspaceMembers",
+            "lists",
+            "tasks"
+          ],
+          "writes": [
+            "workspaces",
+            "workspaceMembers",
+            "lists",
+            "tasks"
+          ]
+        },
+        "name": "bootstrapWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"assigneeId\": string; \"dueDate\": string; \"listId\": string; \"position\": number; \"title\": string; \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "name": "createTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"id\": string }",
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "name": "deleteTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"assigneeId\"?: string; \"completed\"?: boolean; \"dueDate\"?: string; \"id\": string; \"title\"?: string }",
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "name": "editTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "name": "leaveWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"id\": string; \"targetIndex\": number }",
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "name": "reorderTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"workspaceId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "workspaceMembers",
+            "lists"
+          ]
+        },
+        "name": "listLists",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"name\": string; \"position\": number; \"workspaceId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"workspaceId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "workspaceMembers",
+            "tasks"
+          ]
+        },
+        "name": "listTasks",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"assigneeId\": string; \"completed\": boolean; \"dueDate\": string; \"listId\": string; \"position\": number; \"title\": string; \"workspaceId\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:6802892f357948022e1b893b52f3ada912edca464742126a8c83500205a75dbb",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

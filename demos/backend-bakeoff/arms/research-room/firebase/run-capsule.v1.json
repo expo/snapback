@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "research-room",
+    "provider": "firebase",
+    "round": "deep",
+    "attemptId": "research-room-firebase-deep-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Firebase with Cloud Firestore",
+      "client": "12.16.0",
+      "cli": "15.24.0"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "",
+    "finishedAt": ""
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 0,
+    "toolCalls": 0,
+    "timedWindowFrozenAt": "",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "",
+      "role": ""
+    },
+    "bob": {
+      "principalIdHash": "",
+      "role": ""
+    },
+    "mallory": {
+      "principalIdHash": "",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-research-room-firebase-deep-research-room-firebase-deep-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": ""
+    },
+    "local": {
+      "status": "pending",
+      "identityHash": "",
+      "profile": "Firebase Local Emulator Suite: Auth, Firestore, Functions, Storage, Hosting",
+      "gapReason": "",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed Firebase project with Firestore, Auth, Functions, Storage, Hosting",
+      "plan": "Blaze pay-as-you-go with budget alerts",
+      "region": "us-west1 where selectable; Firestore exact location captured with target",
+      "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": null,
+    "firstAuthoritativeMutationMs": null,
+    "firstRealtimeTransitionMs": null,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": null
+  },
+  "assistanceEvents": [],
+  "commands": [],
+  "scenarioResults": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "",
+    "authoredSource": null,
+    "generated": null,
+    "tests": null,
+    "configuration": null,
+    "policy": null,
+    "dependencyManifests": null,
+    "installedDependencyBytes": null,
+    "glue": []
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "transaction-conflict": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "transport": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "offline-reconnect": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "settlement": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "target-identity": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "cleanup-isolation": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "artifact-reproducibility": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "pending",
+    "targetBoundPlanPath": "",
+    "receiptPaths": [],
+    "postCleanupProbe": ""
+  },
+  "result": "pending"
+}

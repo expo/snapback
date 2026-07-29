@@ -1,0 +1,252 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"channelId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "presence",
+        "resultType": "ReadonlyArray<unknown>"
+      },
+      {
+        "argumentsType": "{ \"channelId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "typing",
+        "resultType": "ReadonlyArray<unknown>"
+      }
+    ],
+    "mutations": [
+      {
+        "argumentsType": "{ \"channelId\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "channelMembers",
+            "channelViews"
+          ],
+          "writes": [
+            "channelMembers",
+            "channelViews"
+          ]
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"bobId\": string; \"name\": string; \"slug\": string; \"visibility\": string }",
+        "effects": {
+          "invalidates": [
+            "channels",
+            "channelMembers",
+            "channelViews",
+            "profiles",
+            "messages",
+            "readMarkers"
+          ],
+          "writes": [
+            "channels",
+            "channelMembers",
+            "channelViews",
+            "profiles",
+            "messages",
+            "readMarkers"
+          ]
+        },
+        "name": "bootstrapChannel",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"channelId\": string }",
+        "effects": {
+          "invalidates": [
+            "channelMembers",
+            "channelViews"
+          ],
+          "writes": [
+            "channelMembers",
+            "channelViews"
+          ]
+        },
+        "name": "leaveChannel",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"channelId\": string; \"sequence\": number }",
+        "effects": {
+          "invalidates": [
+            "readMarkers"
+          ],
+          "writes": [
+            "readMarkers"
+          ]
+        },
+        "name": "markRead",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"body\": string; \"channelId\": string }",
+        "effects": {
+          "invalidates": [
+            "channels",
+            "messages"
+          ],
+          "writes": [
+            "channels",
+            "messages"
+          ]
+        },
+        "name": "sendMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "channels",
+            "channelViews"
+          ]
+        },
+        "name": "listChannels",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"createdBy\": string; \"name\": string; \"nextSequence\": number; \"slug\": string; \"visibility\": string }>"
+      },
+      {
+        "argumentsType": "{ \"channelId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "channels",
+            "channelMembers",
+            "messages"
+          ]
+        },
+        "name": "listMessages",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"body\": string; \"channelId\": string; \"sentAt\": number; \"sequence\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "readMarkers"
+          ]
+        },
+        "name": "listReadMarkers",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"channelId\": string; \"lastReadSequence\": number; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"beforeSequence\"?: number; \"channelId\": string; \"limit\": number }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "channels",
+            "channelMembers",
+            "messages"
+          ]
+        },
+        "name": "pageMessages",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"body\": string; \"channelId\": string; \"sentAt\": number; \"sequence\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:62391f06bb79a4865684f6d5c0cfb326fd21cb3774a64c30e2058ed61dca8c25",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

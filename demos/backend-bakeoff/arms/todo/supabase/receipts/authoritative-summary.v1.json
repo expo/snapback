@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T22:18:38.346Z",
+  "ok": true,
+  "targetIdentityHash": "0823149e01fd3ed8d01405f27dc77756214957b660a251230c8f38e2bd8276ce",
+  "targetIdentity": {
+    "projectHostHash": "b408f86743cfd3ed93e6c40d7d33e2f62129b16692f42c47e9dc0d8839742d1f",
+    "directPoolerHostHash": "3932d873511760d032ae22405715fffca3058929af85ccc3a905be12e6edd0f0",
+    "poolerRegionHint": "us-east-1",
+    "serverVersion": "17.6",
+    "clientVersion": "2.111.0",
+    "namespacePrefix": "llp0102_todo_sb01_"
+  },
+  "authoritative": {
+    "workspaceCount": 1,
+    "membershipCount": 2,
+    "membershipPersonas": [
+      "alice",
+      "bob"
+    ],
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "uniqueSeedKeys": 100,
+    "orderValid": true
+  },
+  "namespaceObjects": {
+    "relations": 4,
+    "realtimePublicationRelations": 4,
+    "policies": 8,
+    "personaUsers": 3
+  },
+  "principalIdHashes": {
+    "alice": "4ecb8b99dbcb08ce3f6f0a791d4a54739a42a211a1f26de7593423fa0bd88a89",
+    "bob": "dbcfc665a02f23f392ade6195495320c850c89f9205591757a5c5dc5b15cdc57",
+    "mallory": "4a2015947b30204d19e32b5a0531e0118544c6d0ab970ce50dac595360921d89"
+  },
+  "containsSecretValues": false
+}

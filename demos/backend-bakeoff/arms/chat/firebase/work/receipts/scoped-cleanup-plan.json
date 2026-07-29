@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "projectId": "llp0102-chat-firebase-w1",
+    "identityHash": "73f32a095a9b3bd04be47c25ab47b377066a3705f9ca0bde890e99b734cdaa5b",
+    "mode": "fresh-local"
+  },
+  "allowedActions": [
+    "Terminate only the PID recorded in receipts/vite.pid when its command resolves to this arm's Vite working directory.",
+    "Terminate only the Firebase CLI root PID recorded in receipts/emulator.pid and its validated descendants.",
+    "Verify assigned ports 9299, 8280, 9280, 5287, 4287, 4501, 4502 and Firestore websocket port 9150 are closed.",
+    "Leave source, package locks, browser evidence, logs, and receipts intact.",
+    "Remove the arm-local browser profile and XDG cache/config only after evidence capture."
+  ],
+  "forbidden": [
+    "Account-wide or hosted-project deletion",
+    "Wildcard process selection",
+    "Deletion outside demos/backend-bakeoff/arms/chat/firebase/work",
+    "Deletion of evidence receipts or unrelated baseline state"
+  ],
+  "postCleanupProbe": "All arm-bound ports closed; project emulator endpoint unreachable; exact runtime PIDs absent."
+}

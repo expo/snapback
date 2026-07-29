@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T19:39:38.425Z",
+  "ok": true,
+  "warmClientRowsWhileOffline": 0,
+  "coldBootRowsWhileOffline": 0,
+  "warmReconnectRows": 100,
+  "coldReconnectRows": 100,
+  "finding": "native React subscription cache clears on disconnect and is not durable across cold offline boot",
+  "reconnect": "provider reconnect resubscribed successfully after server return",
+  "containsSecretValues": false
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-28",
+  "scope": "Stage 0 workspace-pinned provider CLIs",
+  "install": {
+    "packagesAdded": 1008,
+    "directPackages": {
+      "appwrite-cli": "23.2.0",
+      "convex": "1.42.3",
+      "firebase-tools": "15.24.0",
+      "instant-cli": "1.0.52",
+      "supabase": "2.110.0"
+    }
+  },
+  "npmAudit": {
+    "total": 33,
+    "critical": 0,
+    "high": 21,
+    "moderate": 9,
+    "low": 3,
+    "directPackagesFlagged": [
+      "appwrite-cli",
+      "firebase-tools"
+    ],
+    "interpretation": "This is dependency/tooling quality evidence, not proof that an application is exploitable. Do not run audit fix --force because it would break frozen versions and erase the prospective comparison.",
+    "notableTransitiveFindings": [
+      "glob/minimatch/brace-expansion denial-of-service advisories",
+      "tmp path traversal and symlink advisories",
+      "phin redirect header disclosure advisory",
+      "OpenTelemetry baggage unbounded-allocation advisory"
+    ]
+  },
+  "neutralUiAudit": {
+    "packages": 26,
+    "vulnerabilities": 0
+  }
+}

@@ -1,0 +1,5 @@
+.arm-runtime/
+.appwrite/
+dist/
+node_modules/
+public/personas.json

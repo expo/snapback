@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "linear",
+    "provider": "firebase",
+    "round": "deep",
+    "attemptId": "linear-firebase-deep-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Firebase with Cloud Firestore",
+      "client": "12.16.0",
+      "cli": "15.24.0"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "",
+    "finishedAt": ""
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 0,
+    "toolCalls": 0,
+    "timedWindowFrozenAt": "",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "",
+      "role": ""
+    },
+    "bob": {
+      "principalIdHash": "",
+      "role": ""
+    },
+    "mallory": {
+      "principalIdHash": "",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-linear-firebase-deep-linear-firebase-deep-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": ""
+    },
+    "local": {
+      "status": "pending",
+      "identityHash": "",
+      "profile": "Firebase Local Emulator Suite: Auth, Firestore, Functions, Storage, Hosting",
+      "gapReason": "",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed Firebase project with Firestore, Auth, Functions, Storage, Hosting",
+      "plan": "Blaze pay-as-you-go with budget alerts",
+      "region": "us-west1 where selectable; Firestore exact location captured with target",
+      "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": null,
+    "firstAuthoritativeMutationMs": null,
+    "firstRealtimeTransitionMs": null,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": null
+  },
+  "assistanceEvents": [],
+  "commands": [],
+  "scenarioResults": [
+    {
+      "id": "LINEAR-01-SEED",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-02-AUTHORITY",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-03-FILTERS",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-04-PAGINATION",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-05-DETAIL",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-06-OPTIMISTIC",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-07-CONFLICT",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-08-LIVE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-09-SEARCH",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-10-OFFLINE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-11-MIGRATION",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-12-DEPLOY",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-13-PERFORMANCE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-14-CLEANUP",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "",
+    "authoredSource": null,
+    "generated": null,
+    "tests": null,
+    "configuration": null,
+    "policy": null,
+    "dependencyManifests": null,
+    "installedDependencyBytes": null,
+    "glue": []
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "transaction-conflict": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "transport": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "offline-reconnect": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "settlement": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "target-identity": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "cleanup-isolation": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "artifact-reproducibility": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "pending",
+    "targetBoundPlanPath": "",
+    "receiptPaths": [],
+    "postCleanupProbe": ""
+  },
+  "result": "pending"
+}

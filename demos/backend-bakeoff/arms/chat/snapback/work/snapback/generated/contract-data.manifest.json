@@ -1,0 +1,565 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:74869c71e127013bd7ac7863b96307ff5f9d23351de56a263f2e7524815190d4",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {
+    "presence": {
+      "coalesce": true,
+      "defaultTtlMs": 2000,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "Connection",
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 5000,
+      "name": "presence",
+      "publishBudget": {
+        "burst": 8,
+        "maxValueBytes": 256,
+        "sustainedHz": 4
+      },
+      "routingFields": [
+        "channelId"
+      ],
+      "scopeFields": [
+        "channelId"
+      ]
+    },
+    "typing": {
+      "coalesce": true,
+      "defaultTtlMs": 1500,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "User",
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 5000,
+      "name": "typing",
+      "publishBudget": {
+        "burst": 8,
+        "maxValueBytes": 256,
+        "sustainedHz": 4
+      },
+      "routingFields": [
+        "channelId"
+      ],
+      "scopeFields": [
+        "channelId"
+      ]
+    }
+  },
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:62391f06bb79a4865684f6d5c0cfb326fd21cb3774a64c30e2058ed61dca8c25",
+  "manifestVersion": 2,
+  "mutations": {
+    "addMember": {
+      "argOrder": [
+        "channelId",
+        "userId"
+      ],
+      "args": {
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "channelMembers",
+        "channelViews"
+      ],
+      "name": "addMember",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "channelMembers",
+        "channelViews"
+      ]
+    },
+    "bootstrapChannel": {
+      "argOrder": [
+        "slug",
+        "name",
+        "visibility",
+        "bobId"
+      ],
+      "args": {
+        "bobId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "name": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "slug": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "visibility": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "channels",
+        "channelMembers",
+        "channelViews",
+        "profiles",
+        "messages",
+        "readMarkers"
+      ],
+      "name": "bootstrapChannel",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "channels",
+        "channelMembers",
+        "channelViews",
+        "profiles",
+        "messages",
+        "readMarkers"
+      ]
+    },
+    "leaveChannel": {
+      "argOrder": [
+        "channelId"
+      ],
+      "args": {
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "channelMembers",
+        "channelViews"
+      ],
+      "name": "leaveChannel",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "channelMembers",
+        "channelViews"
+      ]
+    },
+    "markRead": {
+      "argOrder": [
+        "channelId",
+        "sequence"
+      ],
+      "args": {
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "sequence": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "readMarkers"
+      ],
+      "name": "markRead",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "readMarkers"
+      ]
+    },
+    "sendMessage": {
+      "argOrder": [
+        "channelId",
+        "body"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "channels",
+        "messages"
+      ],
+      "name": "sendMessage",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "channels",
+        "messages"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listChannels": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listChannels",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "channels",
+        "channelViews"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdBy": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "nextSequence": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "visibility": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "listMessages": {
+      "argOrder": [
+        "channelId"
+      ],
+      "args": {
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listMessages",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "channels",
+        "channelMembers",
+        "messages"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "channelId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sentAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "listReadMarkers": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listReadMarkers",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "readMarkers"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "channelId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "lastReadSequence": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "pageMessages": {
+      "argOrder": [
+        "channelId",
+        "beforeSequence",
+        "limit"
+      ],
+      "args": {
+        "beforeSequence": {
+          "name": "number",
+          "optional": true,
+          "shape": "primitive"
+        },
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "limit": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": false,
+      "ephemeral": false,
+      "initialSnapshot": false,
+      "livePush": false,
+      "localRunnable": false,
+      "mode": "snapshot",
+      "name": "pageMessages",
+      "reads": [
+        "channels",
+        "channelMembers",
+        "messages"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "channelId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sentAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "none"
+    },
+    "presence": {
+      "argOrder": [
+        "channelId"
+      ],
+      "args": {
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 2000,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 5000,
+      "mode": "live",
+      "name": "presence",
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "scopeFields": [
+        "channelId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "typing": {
+      "argOrder": [
+        "channelId"
+      ],
+      "args": {
+        "channelId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 1500,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "User",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 5000,
+      "mode": "live",
+      "name": "typing",
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "scopeFields": [
+        "channelId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:d419d6622b541ba63bfaca6dc0f2bf203b35e389af6ce87118bbf83693b6fb8e",
+  "schemaVersion": "snapback.v1"
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T20:55:26.682Z",
+  "targetIdentityHash": "37d1a13f7a11f47a775fcc37c846f210ba8739d87a786956279402783b3044fa",
+  "authoritativeTaskCount": 100,
+  "activeMemberCount": 2,
+  "retainedEvidence": [
+    "authoritative-summary.v1.json",
+    "personas.v1.json",
+    "correctness-smoke.v1.json",
+    "offline-smoke.v1.json",
+    "performance.v1.json",
+    "inventory.v1.json"
+  ],
+  "dataExport": {
+    "status": "explicit-gap",
+    "reason": "No logical export is retained for the disposable local target; deterministic seed and source recreate the tested state."
+  },
+  "containsSecretValues": false
+}

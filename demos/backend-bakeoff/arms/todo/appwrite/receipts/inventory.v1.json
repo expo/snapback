@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T23:22:02.728Z",
+  "armRoot": "arms/todo/appwrite/work",
+  "totals": {
+    "configuration": {
+      "files": 7,
+      "bytes": 2458,
+      "lines": 113
+    },
+    "policy": {
+      "files": 1,
+      "bytes": 132,
+      "lines": 5
+    },
+    "authored-source": {
+      "files": 8,
+      "bytes": 34234,
+      "lines": 597
+    },
+    "dependency-manifest": {
+      "files": 1,
+      "bytes": 203535,
+      "lines": 5898
+    },
+    "test": {
+      "files": 8,
+      "bytes": 46206,
+      "lines": 1328
+    }
+  },
+  "installedDependencyBytes": 285412643,
+  "files": [
+    {
+      "path": ".gitignore",
+      "category": "configuration",
+      "bytes": 67,
+      "lines": 7,
+      "sha256": "bb34b1bec6d8547720cf2bfeacc4f2ece893a77b16f72ac8d4b7119089bcda0a"
+    },
+    {
+      "path": ".oxlintrc.json",
+      "category": "configuration",
+      "bytes": 245,
+      "lines": 9,
+      "sha256": "b4d344818a1e1bf43997e4744a9153c8eef770c98b58229cd86363dabb85ded4"
+    },
+    {
+      "path": "appwrite.config.json",
+      "category": "policy",
+      "bytes": 132,
+      "lines": 5,
+      "sha256": "9d2b0e1062b8790561fba02fd6e771021bb533ebd3c96508f0c9b71ae2750b83"
+    },
+    {
+      "path": "index.html",
+      "category": "authored-source",
+      "bytes": 356,
+      "lines": 14,
+      "sha256": "4d701cf3b31a4d8b47bbabcffc29bbacc1b795938bf886ec18ffcaca69dbc11d"
+    },
+    {
+      "path": "package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 203535,
+      "lines": 5898,
+      "sha256": "fdc6a51ae99d023c4d92550528a35f9d34c6c8a8680fa54e4b270f7c4526e6d2"
+    },
+    {
+      "path": "package.json",
+      "category": "configuration",
+      "bytes": 653,
+      "lines": 30,
+      "sha256": "23d64208cdefb3ff3cddc842cb10225f57be351bd1b6babcaa246c1b65a5097c"
+    },
+    {
+      "path": "public/favicon.svg",
+      "category": "authored-source",
+      "bytes": 9522,
+      "lines": 1,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+    },
+    {
+      "path": "public/icons.svg",
+      "category": "authored-source",
+      "bytes": 5031,
+      "lines": 25,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+    },
+    {
+      "path": "scripts/admin-cli.mjs",
+      "category": "test",
+      "bytes": 2665,
+      "lines": 116,
+      "sha256": "f76669479cd39f51f13d7f1d8210d3824cf62484a632a118edb070fd2835b13f"
+    },
+    {
+      "path": "scripts/admin-client.mjs",
+      "category": "test",
+      "bytes": 1399,
+      "lines": 52,
+      "sha256": "64361c4a4a79623bd389321cee77dadfbdb408a755a395510d0262da963152b2"
+    },
+    {
+      "path": "scripts/correctness-smoke.mjs",
+      "category": "test",
+      "bytes": 14347,
+      "lines": 344,
+      "sha256": "8b728dad30835c08988e1cd536cfa11b0c8cb70b7df096085cc647809cb93857"
+    },
+    {
+      "path": "scripts/install-local.mjs",
+      "category": "test",
+      "bytes": 3302,
+      "lines": 109,
+      "sha256": "ee6d93b604928fa326e7c545cddd109d3a9051e7935e5ac0eb5fe48ee9caca5f"
+    },
+    {
+      "path": "scripts/inventory.mjs",
+      "category": "test",
+      "bytes": 3103,
+      "lines": 97,
+      "sha256": "79634f14c21c1cc0a14fbba03f3f863a357fd55733e4403d63816e4f922ef83f"
+    },
+    {
+      "path": "scripts/offline-smoke.mjs",
+      "category": "test",
+      "bytes": 8299,
+      "lines": 206,
+      "sha256": "38ed4b5136f4e7b50edfa8416217be26f9cb160cd6a76d0d71931166b7f0dfca"
+    },
+    {
+      "path": "scripts/performance-smoke.mjs",
+      "category": "test",
+      "bytes": 6641,
+      "lines": 177,
+      "sha256": "66079c5ee5ef7181980e50ec05010abedede8b81542e5fe05d516021f8c415ff"
+    },
+    {
+      "path": "scripts/provision.mjs",
+      "category": "test",
+      "bytes": 6450,
+      "lines": 227,
+      "sha256": "e22457980bd4543e3ccaffadc016e9d8015b083ccc74376fd9bd7c7c20ee53c4"
+    },
+    {
+      "path": "src/App.css",
+      "category": "authored-source",
+      "bytes": 3626,
+      "lines": 52,
+      "sha256": "7328dbc1b84ce210f8d4c61e62977bb0ea9f60226204edd8782c94485e7a0931"
+    },
+    {
+      "path": "src/App.tsx",
+      "category": "authored-source",
+      "bytes": 12718,
+      "lines": 366,
+      "sha256": "6240e1ef753f1938320fb93cb5b28d0a561e0dec79d388fdb0cb5702fd3d6c3e"
+    },
+    {
+      "path": "src/appwrite.ts",
+      "category": "authored-source",
+      "bytes": 581,
+      "lines": 16,
+      "sha256": "df49e870851641d1f60eda5bc7d05022f250d1a8b4e26c8488dfaccd0d833073"
+    },
+    {
+      "path": "src/index.css",
+      "category": "authored-source",
+      "bytes": 2169,
+      "lines": 112,
+      "sha256": "535c25dd1f338486ab3678832fc698011c8b8d1fe4ffd3d0ef5e33181457cc9f"
+    },
+    {
+      "path": "src/main.tsx",
+      "category": "authored-source",
+      "bytes": 231,
+      "lines": 11,
+      "sha256": "3d31aed4164d4d47b45b8b7c824ab154420846b146875de51577e8b8d8e4a181"
+    },
+    {
+      "path": "tsconfig.app.json",
+      "category": "configuration",
+      "bytes": 655,
+      "lines": 27,
+      "sha256": "8e5d12ba330e7d86409edec74b95451e0db22ee09b9426c94b5bf817571eddb0"
+    },
+    {
+      "path": "tsconfig.json",
+      "category": "configuration",
+      "bytes": 119,
+      "lines": 8,
+      "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808"
+    },
+    {
+      "path": "tsconfig.node.json",
+      "category": "configuration",
+      "bytes": 558,
+      "lines": 24,
+      "sha256": "d366cc0827139db39c61815f22491bbfda56c654354a42ad7795143d314e45e8"
+    },
+    {
+      "path": "vite.config.ts",
+      "category": "configuration",
+      "bytes": 161,
+      "lines": 8,
+      "sha256": "4d36db3522a7b2dd10e0936e1004373c7ee65f10f7cd7920cd76410459c15a45"
+    }
+  ],
+  "ignoredRuntime": [
+    ".arm-runtime",
+    ".appwrite",
+    ".env.local",
+    "dist",
+    "../runtime"
+  ],
+  "containsSecretValues": false
+}

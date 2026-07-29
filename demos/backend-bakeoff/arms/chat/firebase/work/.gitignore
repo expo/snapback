@@ -1,0 +1,9 @@
+node_modules/
+functions/node_modules/
+dist/
+.firebase/
+.browser-profile/
+.xdg-config/
+.xdg-cache/
+*-debug.log
+*.tsbuildinfo

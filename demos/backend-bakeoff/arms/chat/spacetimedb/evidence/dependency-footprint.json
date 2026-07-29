@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "machine": "Apartment Air",
+  "measurement": "du -sk on each installed node_modules directory; allocated KiB converted to bytes",
+  "directories": {
+    "work/server/spacetimedb/node_modules": 48672768,
+    "work/harness/node_modules": 60084224,
+    "work/client/node_modules": 100237312
+  },
+  "installedDependencyBytes": 208994304
+}

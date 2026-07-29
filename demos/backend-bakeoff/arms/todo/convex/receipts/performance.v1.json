@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:18:59.530Z",
+  "ok": true,
+  "warmups": 2,
+  "recordedSamples": 7,
+  "measurements": {
+    "authoritativeReadCli": {
+      "rawMs": [
+        203.338,
+        202.852,
+        203.422,
+        203.402,
+        201.811,
+        203.152,
+        200.849
+      ],
+      "medianMs": 203.152,
+      "nearestRankP95Ms": 203.422
+    },
+    "mutationToOriginQuery": {
+      "rawMs": [
+        26.546,
+        25.98,
+        27.056,
+        26.67,
+        26.535,
+        26.752,
+        25.634
+      ],
+      "medianMs": 26.546,
+      "nearestRankP95Ms": 27.056
+    },
+    "mutationToSecondClientPush": {
+      "rawMs": [
+        27.798,
+        27.156,
+        28.13,
+        27.778,
+        27.614,
+        27.879,
+        26.704
+      ],
+      "medianMs": 27.778,
+      "nearestRankP95Ms": 28.13
+    },
+    "browserReconnectAndResubscribe": {
+      "rawMs": [
+        434.646,
+        440.436,
+        452.567,
+        441.445,
+        453.463,
+        452.92,
+        439.385
+      ],
+      "medianMs": 441.445,
+      "nearestRankP95Ms": 453.463
+    },
+    "productionClientBuild": {
+      "rawMs": [
+        125.572,
+        124.299,
+        125.247,
+        122.386,
+        125.248,
+        122.681,
+        123.335
+      ],
+      "medianMs": 124.299,
+      "nearestRankP95Ms": 125.572
+    }
+  },
+  "warmupSamplesMs": {
+    "authoritativeReadCli": [
+      211,
+      215.49
+    ],
+    "mutationToOriginQuery": [
+      36.444,
+      28.764
+    ],
+    "mutationToSecondClientPush": [
+      37.87,
+      30.078
+    ],
+    "browserReconnectAndResubscribe": [
+      458.365,
+      515.21
+    ],
+    "productionClientBuild": [
+      149.257,
+      168.956
+    ]
+  },
+  "scope": "official anonymous local deployment, one machine, frozen small Todo dataset; not production scale",
+  "containsSecretValues": false
+}

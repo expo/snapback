@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T23:22:54.035Z",
+  "ok": true,
+  "targetIdentityHash": "de76ea210ab0afc963172b53b1484769ecc8bd89d0c7dcdef825320788142e12",
+  "targetIdentity": {
+    "endpointHash": "49fef17327c4fea01df62cbc6226a1781de196f9b28f28b5c7fb9ae8132ebd95",
+    "projectIdHash": "6b9ae135056b47cc9432257db49567e36e76b94d10b946477dfab21d88d1dcca",
+    "productVersion": "1.9.6",
+    "clientVersion": "26.2.0",
+    "cliVersion": "23.2.0",
+    "database": "MongoDB 8.2.5",
+    "deployment": "official Appwrite web-installer Docker Compose"
+  },
+  "authoritative": {
+    "workspaceCount": 1,
+    "membershipCount": 2,
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "orderValid": true
+  },
+  "principalIdHashes": {
+    "alice": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+    "bob": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+    "mallory": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac"
+  },
+  "containsSecretValues": false
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:15:03.000Z",
+  "ok": true,
+  "principalIdHashes": {
+    "alice": "879b26bb8549a8203a8376fffdede0b7bce2ecd8a98e3ce1592b04a8c4377a48",
+    "bob": "1b38f95d1f505871b17e54b829ad9ee5ae03c2382befc823ad0b9484d670df5e",
+    "mallory": "e75ec833b77d321b185801dea8b8f18291889ea2ad146ea57ab5b83dc08fa589"
+  },
+  "authorizedTaskCounts": {
+    "alice": 100,
+    "bob": 100,
+    "mallory": 0
+  },
+  "identityClass": "Convex Auth anonymous provider users",
+  "containsSecretValues": false
+}

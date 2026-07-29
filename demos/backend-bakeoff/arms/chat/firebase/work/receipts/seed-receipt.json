@@ -1,0 +1,21 @@
+{
+  "projectId": "llp0102-chat-firebase-w1",
+  "personas": {
+    "alice": {
+      "uidHash": "1ded56fec9c89a43c72cbaf0d5bdd3653f74b7e227bdd00ca94b3ef5c2d32ef9",
+      "emailDomain": "example.test"
+    },
+    "bob": {
+      "uidHash": "c7644179ca71cceb677b05158a496390a69e3f47ca8a3084726c5479537e5021",
+      "emailDomain": "example.test"
+    },
+    "mallory": {
+      "uidHash": "ad9442045215063513b5aad87b9c5303eeea42e54f783a46fa771727035538d4",
+      "emailDomain": "example.test"
+    }
+  },
+  "channels": 4,
+  "messagesPerChannel": 125,
+  "totalMessages": 500,
+  "deterministicSeedEpochMs": 1785196800000
+}

@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "partiful",
+    "provider": "instantdb",
+    "round": "deep",
+    "attemptId": "partiful-instantdb-deep-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "InstantDB",
+      "client": "1.0.52",
+      "cli": "1.0.52"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "",
+    "finishedAt": ""
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 0,
+    "toolCalls": 0,
+    "timedWindowFrozenAt": "",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "",
+      "role": ""
+    },
+    "bob": {
+      "principalIdHash": "",
+      "role": ""
+    },
+    "mallory": {
+      "principalIdHash": "",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-partiful-instantdb-deep-partiful-instantdb-deep-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": ""
+    },
+    "local": {
+      "status": "pending",
+      "identityHash": "",
+      "profile": "official self-host Docker Compose stack with CLI API override",
+      "gapReason": "",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed Instant application",
+      "plan": "Pro",
+      "region": "provider-selected",
+      "gapReason": "Hosted evidence unavailable for this arm: shared credential probe failed. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": null,
+    "firstAuthoritativeMutationMs": null,
+    "firstRealtimeTransitionMs": null,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": null
+  },
+  "assistanceEvents": [],
+  "commands": [],
+  "scenarioResults": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "status": "pending",
+      "evidencePaths": [],
+      "transport": "not-applicable",
+      "authoritativeCheck": "",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "",
+    "authoredSource": null,
+    "generated": null,
+    "tests": null,
+    "configuration": null,
+    "policy": null,
+    "dependencyManifests": null,
+    "installedDependencyBytes": null,
+    "glue": []
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "transaction-conflict": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "transport": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "offline-reconnect": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "settlement": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "target-identity": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "cleanup-isolation": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    },
+    "artifact-reproducibility": {
+      "score": null,
+      "reason": "",
+      "evidencePaths": []
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "pending",
+    "targetBoundPlanPath": "",
+    "receiptPaths": [],
+    "postCleanupProbe": ""
+  },
+  "result": "pending"
+}

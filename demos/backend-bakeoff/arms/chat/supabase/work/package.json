@@ -1,0 +1,26 @@
+{
+  "name": "llp0102-chat-supabase",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc -b && node scripts/build.mjs",
+    "seed": "node scripts/seed.mjs",
+    "acceptance": "node scripts/acceptance.mjs",
+    "inventory": "node ../../../../scripts/inventory-arm.mjs .."
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.111.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "supabase": "2.110.0",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

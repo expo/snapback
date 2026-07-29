@@ -1,0 +1,17 @@
+{
+  "reason": "prior harness attempt failed before cleanup",
+  "before": {
+    "channels": 4,
+    "memberships": 4,
+    "messages": 699,
+    "namespace": "llp0102-chat-convex-w2",
+    "presence": 1,
+    "profiles": 3,
+    "readMarkers": 8,
+    "typing": 1
+  },
+  "cleanup": {
+    "deleted": 720,
+    "namespace": "llp0102-chat-convex-w2"
+  }
+}
