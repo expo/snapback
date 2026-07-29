@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4a671974c922b589847c8375a2ecbed814ba6d8e"
+    "commit": "d0c1c4b8546c6c525d95d7bf282b3d419190aed2"
   },
   "nav": {
     ".": [
@@ -364,6 +364,7 @@
         "packages/snapback-codegen/index.mjs",
         "src/manifest.rs",
         "src/membership_rules.rs",
+        "src/runtime.rs",
         "src/storage.rs",
         "demos/rbac/tests/acceptance/rbac.mjs"
       ],
@@ -371,9 +372,9 @@
         "demos/rbac",
         "packages/snapback-codegen/rbac-authoring.test.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "7d877da91b64d8b02e60109437317c57937219cc16a3443cfbdcf0866c6b83be",
+      "reviewed": "2026-07-29",
+      "reviewedCommit": "HEAD",
+      "sha256": "e6a53ce9ed790c0ecc72b2d977e3431cb992b7a8e382d8b560acc33f6916b5fb",
       "snippets": [
         {
           "lang": "js",
@@ -2031,5 +2032,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "cfa4bd86a46cd4cc960093a09781167d1fa993fb9b1b1bdadd111f27fb096757"
+  "contentHash": "c90062b39c6cc88e29b16252a6618c912ea2d8946172fad5abd96985e7bf32ae"
 }

@@ -4,13 +4,13 @@ id: auth.scoped-roles
 order: 3
 audience: agent-first
 capabilities: [auth.scoped-roles]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs]
 examples: [demos/rbac, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-29
+reviewed-commit: HEAD
 ---
 
 # Scoped roles and memberships
@@ -237,6 +237,22 @@ The generated TypeScript surface brands principals and resource ids, emits
 closed role unions and insert/patch values, exposes `GeneratedPermissions` to
 queries and mutations, and exposes `GeneratedMembership` only to mutations.
 
+### One generated membership command per mutation
+
+V1 admits exactly one generated membership command in a mutation. A single
+`bootstrap()` counts as that command even though the host atomically creates
+both the resource and its initial membership row. Calling another
+`bootstrap()`, `insert()`, `setRole()`, self-addressed transition, or other
+generated membership method in the same handler fails the whole mutation with
+`SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED`; none of its buffered writes commit.
+
+Ordinary `ctx.db` writes may accompany that one command. For a setup flow that
+creates several membership-backed resources or seats several principals, use
+separately authorized mutations and keep application-visible setup state or
+stable business keys so each step is idempotent. Each mutation remains atomic;
+the multi-call workflow is not one transaction. Do not catch the batch refusal
+and pretend the earlier commands committed.
+
 ## Keep the authorization composition seams aligned
 
 An authorized live effect is valid only while all of these captured facts
@@ -273,6 +289,9 @@ coordinator transition.
   the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
   mutation-only generated membership methods and declare every transition.
+- **Do not batch generated membership commands in one mutation.** V1 permits
+  one; decompose a multi-seat or multi-resource workflow into idempotent,
+  separately authorized mutations.
 - **Do not create a `lastHolder`-protected resource with `ctx.db.insert`.** Use
   the declaration's atomic `bootstrap()` method.
 - **Do not use `ctx.permissions` in an action or retain a role-gated result

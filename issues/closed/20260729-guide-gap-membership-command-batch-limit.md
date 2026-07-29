@@ -1,6 +1,6 @@
 # Guide gap: one generated membership write per mutation
 
-**Status:** Open  
+**Status:** Resolved  
 **Area:** Guide, scoped roles and memberships, mutations  
 **Found by:** LLP 0102 Research Room/Snapback remediation rerun  
 **Date:** 2026-07-29  
@@ -37,3 +37,11 @@ The earlier pre-bind defect masked this authoring failure during the frozen arm.
   (`bootstrapResearchRooms`)
 - `src/runtime.rs`
 - pending Stage 4 Research Room rerun handoff
+
+## Resolution
+
+Resolved 2026-07-29 in the Stage 4 Guide tranche. The scoped-membership page
+now states the exact one-command ceiling, atomic refusal behavior, the fact
+that one bootstrap expands to a resource plus initial seat, and an honest
+idempotent multi-mutation workflow without claiming cross-call atomicity. The
+Guide checker passes.
