@@ -59,13 +59,20 @@ jobs:
             --keep-target
           SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
-          packages/snapback-runtime-linux-x64/bin/snapback build-identity
           test -f packages/snapback-runtime-linux-x64/lib/libhermesvm.so
           test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Retain Linux inputs for the single assembly job
         run: |
           mkdir -p "$RUNNER_TEMP/snapback-linux-runtime"
+          packages/snapback-runtime-linux-x64/bin/snapback build-identity \
+            > "$RUNNER_TEMP/snapback-linux-build-identity.json"
+          node scripts/snapback-create-runtime-artifact-attestation.mjs \
+            --binary packages/snapback-runtime-linux-x64/bin/snapback \
+            --hermes packages/snapback-runtime-linux-x64/lib/libhermesvm.so \
+            --identity "$RUNNER_TEMP/snapback-linux-build-identity.json" \
+            --source-revision "$GITHUB_SHA" \
+            --out "$RUNNER_TEMP/snapback-linux-runtime/build-attestation.json"
           cp packages/snapback-runtime-linux-x64/bin/snapback \
             "$RUNNER_TEMP/snapback-linux-runtime/snapback"
           cp packages/snapback-runtime-linux-x64/lib/libhermesvm.so \
@@ -141,6 +148,8 @@ jobs:
           SNAPBACK_PACKAGE_OUT: ${{ runner.temp }}/snapback-qualified
           SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY: ${{ runner.temp }}/snapback-linux-runtime/snapback
           SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY: ${{ runner.temp }}/snapback-linux-runtime/libhermesvm.so
+          SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION: ${{ runner.temp }}/snapback-linux-runtime/build-attestation.json
+          SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION: ${{ github.sha }}
         run: |
           node scripts/snapback-publish.mjs \
             --scope-preset ccheever \

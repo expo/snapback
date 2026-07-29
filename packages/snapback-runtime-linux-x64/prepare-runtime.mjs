@@ -19,11 +19,19 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
+import {
+  readLinuxRuntimeArtifactAttestation,
+  validateLinuxRuntimeArtifactAttestation,
+} from './artifact-attestation.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(packageRoot, '..', '..');
 const explicitBinary = process.env.SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY;
 const explicitHermes = process.env.SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY;
+const explicitAttestation =
+  process.env.SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION;
+const explicitRevision =
+  process.env.SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION;
 const sourceBinary = resolve(
   explicitBinary ?? join(repositoryRoot, 'target', 'release', 'snapback'),
 );
@@ -54,11 +62,15 @@ function elfMachine(path) {
 // Native preparation is the default on Linux. A release job may assemble the
 // package on another host only when it supplies both explicit CI artifacts;
 // their ELF headers remain the authority, not the packaging host.
-if ((process.platform !== 'linux' || process.arch !== 'x64')
-    && !(explicitBinary && explicitHermes)) {
+const crossHost = process.platform !== 'linux' || process.arch !== 'x64';
+if (
+  crossHost
+  && !(explicitBinary && explicitHermes && explicitAttestation && explicitRevision)
+) {
   fail(
     'SNAPBACK_IBEX_HOST_UNSUPPORTED',
-    `runtime-linux-x64 requires a linux-x64 host or explicit Linux artifacts (observed ${process.platform}-${process.arch})`,
+    'runtime-linux-x64 requires a linux-x64 host or explicit Linux binary, '
+      + `Hermes, build-attestation, and source-revision artifacts (observed ${process.platform}-${process.arch})`,
   );
 }
 if (!existsSync(sourceBinary)) {
@@ -83,25 +95,45 @@ if (elfMachine(sourceBinary) !== 62 || elfMachine(sourceHermes) !== 62) {
 }
 
 const sourceTestStaging = process.argv.includes('--source-test-staging');
-const identityResult = spawnSync(sourceBinary, ['build-identity'], {
-  encoding: 'utf8',
-  env: {
-    ...process.env,
-    LD_LIBRARY_PATH: [
-      dirname(sourceHermes),
-      process.env.LD_LIBRARY_PATH,
-    ].filter(Boolean).join(':'),
-  },
-  timeout: 15_000,
-});
-if (identityResult.status !== 0) {
-  fail(
-    'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
-    `could not inspect the runtime build distribution: ${identityResult.stderr.trim()}`,
-  );
-}
+let identity;
 try {
-  const identity = JSON.parse(identityResult.stdout);
+  if (crossHost) {
+    const attestation = readLinuxRuntimeArtifactAttestation(
+      resolve(explicitAttestation),
+    );
+    validateLinuxRuntimeArtifactAttestation({
+      attestation,
+      binaryPath: sourceBinary,
+      hermesPath: sourceHermes,
+      sourceRevision: explicitRevision,
+    });
+    identity = attestation.buildIdentity;
+  } else {
+    const identityResult = spawnSync(sourceBinary, ['build-identity'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        LD_LIBRARY_PATH: [
+          dirname(sourceHermes),
+          process.env.LD_LIBRARY_PATH,
+        ].filter(Boolean).join(':'),
+      },
+      timeout: 15_000,
+    });
+    if (identityResult.status !== 0) {
+      throw new Error(
+        'could not inspect the runtime build distribution: '
+          + (
+            identityResult.error?.message
+            ?? identityResult.stderr?.trim()
+            ?? identityResult.signal
+            ?? identityResult.status
+            ?? 'unknown failure'
+          ),
+      );
+    }
+    identity = JSON.parse(identityResult.stdout);
+  }
   if (!sourceTestStaging) assertPublicPackageBuildIdentity(identity);
 } catch (error) {
   fail(

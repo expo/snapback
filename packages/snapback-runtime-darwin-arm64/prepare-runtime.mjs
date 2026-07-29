@@ -60,7 +60,14 @@ const identityResult = spawnSync(sourceBinary, ['build-identity'], {
 if (identityResult.status !== 0) {
   fail(
     'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
-    `could not inspect the runtime build distribution: ${identityResult.stderr.trim()}`,
+    'could not inspect the runtime build distribution: '
+      + (
+        identityResult.error?.message
+        ?? identityResult.stderr?.trim()
+        ?? identityResult.signal
+        ?? identityResult.status
+        ?? 'unknown failure'
+      ),
   );
 }
 try {

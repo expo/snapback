@@ -55,6 +55,15 @@ closure, prior-tag inventory, ledger lineage, and verified-versus-attested
 provenance edges. The amendment defines gates only; it does not claim
 publication.)
 
+**Revised (cross-host runtime attestation):** 2026-07-29 (qualification keeps
+one source-bound assembly job without asking macOS to execute the transported
+Linux binary: the native Linux builder retains a closed identity/digest
+sidecar, and the assembler re-hashes the x86-64 runtime and Hermes bytes,
+revalidates the exact source/public-package identity, and independently checks
+their ELF machine before staging. The first real qualification attempt found
+and fixed both a buffered 67 MB tar-entry hash and the foreign-execution
+assumption; this revision does not claim a successful publication.)
+
 **Revised (unreviewed post-round correction):** 2026-07-28 (default-tag
 promotion now requires an externally authorized publication lease and epoch,
 expected-value checks around every registry mutation, and reverse-order
@@ -328,6 +337,16 @@ Publication is a closed state machine:
    back to its recorded prior tag when npm permits; if the root move cannot be
    reversed, the release receipt is failed loudly and no target capability
    carrier may reference it.
+
+Cross-host assembly never executes a foreign native binary. The native Linux
+builder launches `build-identity` itself and retains one closed
+`snapback.runtime-artifact-attestation.v1` sidecar binding that exact clean
+source revision and public-package identity to SHA-256 digests of the x86-64
+ELF runtime and Hermes library. The macOS assembler re-hashes both transported
+artifacts, validates the closed sidecar and source revision, and only then
+stages the Linux package. ELF header checks remain independent. A sidecar
+without byte equality, exact source identity, or the public-package build
+distribution refuses qualification.
 
 #### Retained comparator evidence hardening
 
