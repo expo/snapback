@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "a77cde6469769ea9fe80b167065d065387243e1f"
+    "commit": "4a671974c922b589847c8375a2ecbed814ba6d8e"
   },
   "nav": {
     ".": [
@@ -510,8 +510,7 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "backend.actions",
-        "backend.action-streams"
+        "backend.actions"
       ],
       "authorities": [
         "llp/0004-application-data-api.rfc.md",
@@ -520,6 +519,7 @@
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0076-bounded-streamed-actions.rfc.md",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
         "packages/snapback-harness/ctx-bootstrap.js",
         "src/server.rs",
         "demos/all-aboard/snapback/functions.mjs",
@@ -531,9 +531,9 @@
         "demos/all-aboard",
         "demos/competitive-checkpoint"
       ],
-      "reviewed": "2026-07-24",
-      "reviewedCommit": "a5ed6ebd05766b10607937a1c010352d79eea4b0",
-      "sha256": "5d3cfa515731a64839901bef5b51ed7b62e810111844689a86b0ae2e7f1d560b",
+      "reviewed": "2026-07-29",
+      "reviewedCommit": "HEAD",
+      "sha256": "64c4ef3340a0901f1b5db28467f440f86b5389a4e2489b90a8fcc10adac2ec79",
       "snippets": [
         {
           "lang": "js",
@@ -544,6 +544,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/all-aboard/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/authoring-validation.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs"
         },
         {
           "lang": "js",
@@ -613,8 +623,10 @@
         "llp/0004-application-data-api.rfc.md",
         "llp/0007-storage-portability.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "src/runtime.rs",
         "src/server.rs",
         "schemas/mutation.output.schema.json",
+        "tests/local_v0.rs",
         "demos/todo/snapback/functions.mjs",
         "demos/todo/snapback/handlers.mjs",
         "demos/todo/tests/acceptance/headless.mjs"
@@ -625,7 +637,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "02592689ba8735688894b0fefbffafb73d49f9aa7248a3427eb40a5b242bf9f3",
+      "sha256": "655f2fba28fe403f87d2f9b43368d3b8c084bf40e9e187e7662fd2b102575a30",
       "snippets": [
         {
           "lang": "js",
@@ -883,7 +895,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "7dbb9a8da053d390f4f400630218c383c192ead105e1565f86bb3153255f7fdb",
+      "sha256": "205d5caa416625d7449912845526027058b913fa4f92956ed12e081e911504d8",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1963,7 +1975,6 @@
       "auth.sender-constrained-browser",
       "auth.sessions",
       "auth.target-honesty",
-      "backend.action-streams",
       "backend.actions",
       "backend.codegen",
       "backend.cron",
@@ -2009,6 +2020,9 @@
       "testing.acceptance"
     ],
     "gaps": [
+      "backend.assets",
+      "backend.notifications",
+      "backend.vector-search",
       "clients.non-js",
       "clients.poll-hosted"
     ]
@@ -2017,5 +2031,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "b83daec96d08bc129d66c6d98b5ef75c7437dc7baef9615a2b400a9d4c3ba147"
+  "contentHash": "cfa4bd86a46cd4cc960093a09781167d1fa993fb9b1b1bdadd111f27fb096757"
 }

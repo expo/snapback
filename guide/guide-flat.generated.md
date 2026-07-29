@@ -48,7 +48,9 @@ with the Snapback label and `guide-gap` in the title.
 | backend.codegen | Generate manifests, client api, Contract bindings | codegen, generate, artifacts | local | shipped | `runCodegenCli` in packages/snapback-codegen/index.mjs | llp/0037, llp/0021 | getting-started/your-first-backend.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
-| backend.action-streams | Pull-driven bounded response streams with durable progress and precise settlement | stream, ReadableStream, tokens, progress | local | shipped | `ctx.fetchStream` in packages/snapback-harness/ctx-bootstrap.js | llp/0076 | backend/actions-and-fetch.md |
+| backend.assets | Authenticated asset-byte upload, storage, delivery, deletion, and processing; no target ships this product surface yet | files, images, upload, object storage, media | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`assetUpload: false`; explicit `assets` gap) | llp/0044 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
+| backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
+| backend.vector-search | Portable vector storage, ANN indexing, and semantic retrieval; no ordinary vector path ships today | vector, embeddings, similarity, semantic search, RAG, ANN | none | design-only | llp/0019-agentic-readiness.research.md (unmade product decision; no shipped witness) | llp/0019, llp/0007 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260729-guide-gap-vector-semantic-search-capability-row.md) |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
@@ -1717,7 +1719,7 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/server.rs, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/runtime.rs, src/server.rs, schemas/mutation.output.schema.json, tests/local_v0.rs, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
@@ -1861,6 +1863,34 @@ larger mutation may still fail earlier at an authorization or stale-reservation
 boundary, also without committing. Snapback does not currently ship `upsert`;
 keep duplicate-as-error flows as inserts and handle the unique diagnostic.
 
+## Bound and resume bulk work
+
+One mutation may buffer at most **1,024 writes**. The ceiling includes ordinary
+`ctx.db` writes and other writes expanded into the same commit, such as
+membership commands and maintained-projection effects. Attempting a 1,025th
+write rejects the whole mutation with
+`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED`; none of its buffered writes commit.
+
+Snapback does not ship a separate bulk-mutation or resumable-mutation API.
+Build large jobs from the ordinary bounded primitives:
+
+1. Read a bounded page through a stable unique index and keyset cursor; see
+   [safe standard patterns](./standard-patterns.md#generate-keyset-pages).
+2. Send that page to one ordinary mutation, sized so its direct writes plus
+   generated projection effects remain at or below 1,024.
+3. In that same mutation, update an application-owned job row with the last
+   completed cursor or stable key.
+4. Read that checkpoint before the next page. After interruption, resume after
+   the committed checkpoint rather than replaying every earlier page.
+
+Each page is its own atomic commit; the whole multi-page job is not one
+transaction. Make each page idempotent under the application's business key or
+current status, and advance the checkpoint only in the commit that applied the
+page. Keep batches comfortably below the ceiling when one input can expand into
+multiple projection or membership writes. If the product invariant requires
+more than 1,024 changes to commit all-or-nothing, redesign that invariant rather
+than disguising several mutations as one transaction.
+
 ## One commit, one version
 
 All affected rows share the mutation's `version`; no-op writes do not advance
@@ -1884,6 +1914,9 @@ that needs its successor fails before writing with
   assert the rule's exact code.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
   They are server-owned.
+- **Do not send an unbounded collection to one mutation.** Page by a stable
+  key, commit a bounded batch with its application checkpoint, and resume from
+  the last committed checkpoint.
 - **Do not infer success from HTTP status alone.** Consume the result,
   diagnostic, and terminal receipt envelope.
 
@@ -1895,14 +1928,14 @@ title: Actions and outbound fetch
 id: backend.actions-and-fetch
 order: 3
 audience: agent-first
-capabilities: [backend.actions, backend.action-streams]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+capabilities: [backend.actions]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
 examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-24
-reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
+reviewed: 2026-07-29
+reviewed-commit: HEAD
 ---
 
 # Actions and outbound fetch
@@ -1971,9 +2004,56 @@ not accept a replacement identity.
 
 ## Enable egress deliberately
 
-The local runtime denies `fetch` by default. Enable it explicitly with
-`SNAPBACK_OUTBOUND_ACTIONS=1` for the deployment/process that should have
-egress. Queries and mutations remain denied even in that runtime:
+Outbound egress is off by default, and the same opt-in is evaluated at two
+separate boundaries:
+
+1. **Generation time.** The process running `snapback generate` (or the
+   repository codegen entry point) needs `SNAPBACK_OUTBOUND_ACTIONS=1` while it
+   validates a bundle containing `fetch` or timers. Without it, generation
+   fails early with `BUNDLE_UNSUPPORTED_FETCH` or
+   `BUNDLE_UNSUPPORTED_TIMER`.
+2. **Process runtime.** The Snapback server process also needs
+   `SNAPBACK_OUTBOUND_ACTIONS=1`. Generation does not grant the running
+   process network authority, and the runtime remains the security boundary.
+
+The codegen acceptance witness sets the generation-process environment before
+validating the action:
+
+```js source=packages/snapback-codegen/authoring-validation.test.mjs
+const previousOutboundActions = process.env.SNAPBACK_OUTBOUND_ACTIONS;
+process.env.SNAPBACK_OUTBOUND_ACTIONS = '1';
+```
+
+Prefix whichever authoring command you use. The managed `dev` command runs
+generation before starting or attaching to the server, so one prefixed command
+carries the opt-in through that managed loop:
+
+```sh
+# Generate artifacts without starting the managed server.
+SNAPBACK_OUTBOUND_ACTIONS=1 snapback generate snapback
+
+# Or run managed generation + server development under the same opt-in.
+SNAPBACK_OUTBOUND_ACTIONS=1 snapback dev snapback
+```
+
+A harness that starts the server directly passes the runtime environment
+explicitly:
+
+```js source=demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs
+const source = await startStreamSource();
+const server = await startServer({
+  port: 0,
+  db: ':memory:',
+  cwd: repoRoot,
+  env: { SNAPBACK_OUTBOUND_ACTIONS: '1' },
+  provenance: {
+    appId: 'competitive-checkpoint',
+    artifactsPath: join(backendDir, 'generated', 'artifacts.json'),
+  },
+});
+```
+
+Queries and mutations remain denied fetch even in an enabled runtime:
 
 ```js source=demos/all-aboard/tests/acceptance/egress.mjs
   await suite.check('a query in the same runtime is still denied fetch and has no ctx.secrets', async () => {

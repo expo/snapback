@@ -4,7 +4,7 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/server.rs, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/runtime.rs, src/server.rs, schemas/mutation.output.schema.json, tests/local_v0.rs, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
@@ -148,6 +148,34 @@ larger mutation may still fail earlier at an authorization or stale-reservation
 boundary, also without committing. Snapback does not currently ship `upsert`;
 keep duplicate-as-error flows as inserts and handle the unique diagnostic.
 
+## Bound and resume bulk work
+
+One mutation may buffer at most **1,024 writes**. The ceiling includes ordinary
+`ctx.db` writes and other writes expanded into the same commit, such as
+membership commands and maintained-projection effects. Attempting a 1,025th
+write rejects the whole mutation with
+`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED`; none of its buffered writes commit.
+
+Snapback does not ship a separate bulk-mutation or resumable-mutation API.
+Build large jobs from the ordinary bounded primitives:
+
+1. Read a bounded page through a stable unique index and keyset cursor; see
+   [safe standard patterns](./standard-patterns.md#generate-keyset-pages).
+2. Send that page to one ordinary mutation, sized so its direct writes plus
+   generated projection effects remain at or below 1,024.
+3. In that same mutation, update an application-owned job row with the last
+   completed cursor or stable key.
+4. Read that checkpoint before the next page. After interruption, resume after
+   the committed checkpoint rather than replaying every earlier page.
+
+Each page is its own atomic commit; the whole multi-page job is not one
+transaction. Make each page idempotent under the application's business key or
+current status, and advance the checkpoint only in the commit that applied the
+page. Keep batches comfortably below the ceiling when one input can expand into
+multiple projection or membership writes. If the product invariant requires
+more than 1,024 changes to commit all-or-nothing, redesign that invariant rather
+than disguising several mutations as one transaction.
+
 ## One commit, one version
 
 All affected rows share the mutation's `version`; no-op writes do not advance
@@ -171,5 +199,8 @@ that needs its successor fails before writing with
   assert the rule's exact code.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
   They are server-owned.
+- **Do not send an unbounded collection to one mutation.** Page by a stable
+  key, commit a bounded batch with its application checkpoint, and resume from
+  the last committed checkpoint.
 - **Do not infer success from HTTP status alone.** Consume the result,
   diagnostic, and terminal receipt envelope.
