@@ -1,0 +1,18 @@
+{
+  "id": "PARTY-04-ROLES",
+  "checkedAt": "2026-07-29T05:41:04.823Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "positiveRoleMatrix": {
+      "hostEdit": true,
+      "cohostEdit": true,
+      "guestRsvp": true
+    },
+    "negativeRoleMatrix": {
+      "guestHostControl": false,
+      "outsiderReadRows": 0,
+      "outsiderWriteRejected": true
+    }
+  }
+}

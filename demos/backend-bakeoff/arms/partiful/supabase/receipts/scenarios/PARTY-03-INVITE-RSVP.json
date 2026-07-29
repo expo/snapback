@@ -1,0 +1,39 @@
+{
+  "id": "PARTY-03-INVITE-RSVP",
+  "checkedAt": "2026-07-29T05:41:04.811Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "invitationAttribution": {
+      "idHash": "89698c25ed7f76d28ced845ee7d794b0af601a2f93287b17a2cde1587fbc230b",
+      "createdByHash": "a712036d34ae14daf70ecffb7ae6e344404fe47ac653ada5077f00355f52b2da"
+    },
+    "transitions": [
+      {
+        "response": "yes",
+        "plusOne": 1,
+        "revision": 1
+      },
+      {
+        "response": "maybe",
+        "plusOne": 0,
+        "revision": 2
+      },
+      {
+        "response": "no",
+        "plusOne": 0,
+        "revision": 3
+      },
+      {
+        "response": "yes",
+        "plusOne": 1,
+        "revision": 4
+      }
+    ],
+    "authoritativeState": {
+      "response": "yes",
+      "plusOne": 1,
+      "revision": 4
+    }
+  }
+}

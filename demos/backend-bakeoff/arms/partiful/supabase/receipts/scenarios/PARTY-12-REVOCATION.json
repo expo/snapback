@@ -1,0 +1,21 @@
+{
+  "id": "PARTY-12-REVOCATION",
+  "checkedAt": "2026-07-29T05:41:20.099Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "authorityChange": {
+      "actor": "bob",
+      "revokedAt": "2026-07-29T05:41:17.593+00:00"
+    },
+    "negativeDelivery": {
+      "exactPostDelivered": false,
+      "protectedReadRows": 0
+    },
+    "retainedStoreInspection": {
+      "wallPosts": 11,
+      "bobRsvps": 1,
+      "policy": "durable data retained for host; access revoked"
+    }
+  }
+}

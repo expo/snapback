@@ -9,253 +9,449 @@
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
     "providerVersions": {
-      "product": "Supabase",
-      "client": "2.111.0",
-      "cli": "2.110.0"
+      "product": "Supabase local stack / PostgreSQL 17",
+      "client": "supabase-js 2.111.0",
+      "cli": "Supabase CLI 2.110.0",
+      "edgeRuntime": "1.74.2 / Deno 2.1.4"
     },
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "startedAt": "2026-07-29T05:06:47.000Z",
+    "finishedAt": "2026-07-29T05:48:08.144Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
-    "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "activeElapsedMs": 2481144,
+    "toolCalls": 78,
+    "timedWindowFrozenAt": "2026-07-29T05:48:08.144Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "a712036d34ae14daf70ecffb7ae6e344404fe47ac653ada5077f00355f52b2da",
+      "role": "host"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "3c058b4be980bde7a72c55a5fed5a1299938a8c8440b87cbb24c5c09eaea9625",
+      "role": "guest"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "5abda7283e56d4cc25363ccd9a522d8c8627df088c71a989e4540c6216ffcf39",
       "role": "outsider"
     }
   },
   "targets": {
     "binding": {
-      "mode": "namespace-isolated-shared-hosted",
-      "namespace": "llp0102-partiful-supabase-deep-partiful-supabase-deep-01",
+      "mode": "fresh-local",
+      "namespace": "llp0102-partiful-supabase-coord",
       "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
+      "status": "cleaned",
+      "identityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
       "profile": "official Supabase CLI Docker stack",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "receipts/target-identity.json",
+        "receipts/operations.json",
+        "receipts/pre-cleanup-resources.json",
+        "receipts/cleanup.json"
+      ]
     },
     "hosted": {
-      "status": "pending",
+      "status": "explicit-gap",
       "identityHash": "",
       "profile": "managed Postgres, Auth, Realtime, Storage, Edge Functions",
       "plan": "Pro with Micro compute",
-      "region": "West US (exact dashboard identifier captured with target)",
-      "gapReason": "",
-      "receiptPaths": []
+      "region": "",
+      "gapReason": "No isolated hosted Supabase project credential was available.",
+      "receiptPaths": [
+        "receipts/operations.json"
+      ]
     }
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "firstLocalReadMs": 1517,
+    "firstAuthoritativeMutationMs": 1530,
+    "firstRealtimeTransitionMs": 6351,
+    "localAcceptanceMs": 33159,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 2481144
   },
-  "assistanceEvents": [],
-  "commands": [],
+  "assistanceEvents": [
+    {
+      "type": "environment-workaround",
+      "note": "Colima cannot bind the assigned /private/tmp worktree, so only the exact CLI runtime project was mirrored under /Users and later removed.",
+      "receiptPaths": [
+        "receipts/cleanup-plan.json",
+        "receipts/cleanup.json"
+      ]
+    },
+    {
+      "type": "retained-failed-attempts",
+      "note": "Cold Realtime readiness, Auth restart readiness, Edge function discovery/auth, provider-secret cache, and final socket-disposal corrections remain append-only.",
+      "receiptPaths": [
+        "receipts/failed-attempt-1-cold-realtime.json",
+        "receipts/failed-attempt-2-cold-realtime.json",
+        "receipts/failed-attempt-3-auth-readiness.json",
+        "receipts/failed-attempt-4-edge-effect.json",
+        "receipts/failed-attempt-5-edge-effect.json",
+        "receipts/failed-attempt-6-edge-auth-header.json",
+        "receipts/failed-attempt-7-edge-auth-validation.json",
+        "receipts/failed-attempt-8-provider-auth-header.json",
+        "receipts/failed-attempt-9-provider-secret-cache.json",
+        "receipts/failed-attempt-10-complete-process-exit.json"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm install --no-audit --no-fund",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 10000,
+      "classification": "dependencies",
+      "note": "Pinned arm-local install."
+    },
+    {
+      "command": "supabase start/reset exact runtime project",
+      "exitStatus": 0,
+      "startedMonotonicMs": 10001,
+      "finishedMonotonicMs": 60000,
+      "classification": "fresh-local-target",
+      "note": "Official CLI stack, storage, Edge Runtime, and pg_cron."
+    },
+    {
+      "command": "retained acceptance/debug attempts",
+      "exitStatus": 1,
+      "startedMonotonicMs": 60001,
+      "finishedMonotonicMs": 2381143,
+      "classification": "retained-corrections",
+      "note": "Raw failed attempts remain separately classified; no Stop defect."
+    },
+    {
+      "command": "npm run acceptance (final clean)",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2381144,
+      "finishedMonotonicMs": 2441143,
+      "classification": "acceptance",
+      "note": "Fourteen local scenarios passed; hosted scenario unavailable."
+    },
+    {
+      "command": "pre-cleanup inventory, schema/log hash, npm audit",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2441144,
+      "finishedMonotonicMs": 2461143,
+      "classification": "evidence",
+      "note": "Exact target/resources and zero-vulnerability audit retained."
+    },
+    {
+      "command": "supabase stop --no-backup exact workdir; cleanup probe",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2461144,
+      "finishedMonotonicMs": 2481144,
+      "classification": "target-bound-cleanup",
+      "note": "Exact resources/state absent and unrelated pre-existing containers preserved."
+    }
+  ],
   "scenarioResults": [
     {
       "id": "PARTY-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-01-SEED.json",
+        "receipts/seed.json",
+        "receipts/target-identity.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Service-role counts and hashed native Auth personas prove the exact three-event, six-profile, seven-membership, four-invitation fixture.",
       "note": ""
     },
     {
       "id": "PARTY-02-PUBLIC-PRIVATE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-02-PUBLIC-PRIVATE.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Anonymous preview exposes only the seven selected public columns; direct events-table access is denied and the private event returns no preview row.",
       "note": ""
     },
     {
       "id": "PARTY-03-INVITE-RSVP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-03-INVITE-RSVP.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Bob's attributed invitation and four yes/maybe/no/yes transitions settle to authoritative yes plus-one one with revision four.",
       "note": ""
     },
     {
       "id": "PARTY-04-ROLES",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-04-ROLES.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Host and cohost controls, guest RSVP authority, denied guest host-control, and outsider read/write negatives distinguish all roles.",
       "note": ""
     },
     {
       "id": "PARTY-05-GUEST-LIST",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-05-GUEST-LIST.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "An already-connected Bob receives the native policy transition after a retained cold miss; his list narrows to self while anonymous event preview stays public.",
       "note": ""
     },
     {
       "id": "PARTY-06-CAPACITY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-06-CAPACITY.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Two guest RPCs race under one locked event row; exactly one commits and authoritative occupied seats equal capacity one.",
       "note": ""
     },
     {
       "id": "PARTY-07-LIVE-BURST",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-07-LIVE-BURST.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob and Carol receive ten wall inserts and two RSVP transitions through native Postgres Changes; service-role counts match.",
       "note": ""
     },
     {
       "id": "PARTY-08-ASSET",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-08-ASSET.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Alice uploads private Storage art, Bob downloads matching bytes, Mallory is denied, and Alice deletes the exact object.",
       "note": ""
     },
     {
       "id": "PARTY-09-SCHEDULE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-09-SCHEDULE.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "A real five-second pg_cron job runs the due reminder and the unique dedupe ledger remains at exactly one attempt after a second interval.",
       "note": ""
     },
     {
       "id": "PARTY-10-EFFECT-RETRY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-10-EFFECT-RETRY.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "The notify Edge Function calls a separate HTTP provider function using server-only configuration; retry returns the known success without a second provider delivery.",
       "note": ""
     },
     {
       "id": "PARTY-11-EFFECT-AMBIGUOUS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-11-EFFECT-AMBIGUOUS.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "Provider acceptance followed by deliberate response uncertainty remains ambiguous, then provider-status reconciliation records success without redelivery.",
       "note": ""
     },
     {
       "id": "PARTY-12-REVOCATION",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-12-REVOCATION.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "After Bob's membership revocation, his existing subscription receives no exact protected post and a direct read returns zero while host-visible data remains durable.",
       "note": ""
     },
     {
       "id": "PARTY-13-DEPLOY",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "unavailable-remote-dependency",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-13-DEPLOY.json",
+        "receipts/operations.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "Local target/config/log/function/effect evidence is direct; hosted URL, region, logs, rollback, secret configuration, and delivery are unavailable and unclaimed.",
+      "note": "No isolated hosted Supabase project credential was available; local secret/config, Edge Function boundary, logs, and target identity were inspected without claiming hosted delivery."
     },
     {
       "id": "PARTY-14-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-14-PERFORMANCE.json",
+        "receipts/performance.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Contention, ten-row burst, asset roundtrip, native realtime, and build retain two warmups, seven raw samples, median, nearest-rank p95, and local cost scope.",
       "note": ""
     },
     {
       "id": "PARTY-15-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/scenarios/PARTY-15-CLEANUP.json",
+        "receipts/cleanup-plan.json",
+        "receipts/pre-cleanup-resources.json",
+        "receipts/cleanup.json",
+        "receipts/backup-manifest.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "The exact CLI project has zero containers/volumes/networks, all eleven ports are closed, runtime/XDG state is absent, and every pre-existing unrelated container remains.",
+      "note": "Exact project resources, credential-bearing runtime state, and assigned ports are absent; pre-existing unrelated containers are preserved. No separately timestamped empty baseline was captured before provisioning."
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "receipts/inventory.json",
+    "authoredSource": {
+      "files": 22,
+      "bytes": 66077,
+      "lines": 1436
+    },
+    "generated": {
+      "files": 0,
+      "bytes": 0,
+      "lines": 0
+    },
+    "tests": {
+      "files": 3,
+      "bytes": 55099,
+      "lines": 1437
+    },
+    "configuration": {
+      "files": 41,
+      "bytes": 126535,
+      "lines": 4326
+    },
+    "policy": {
+      "files": 1,
+      "bytes": 15304,
+      "paths": [
+        "work/supabase/migrations/20260729060000_partiful.sql"
+      ]
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 56042,
+      "lines": 1732
+    },
+    "installedDependencyBytes": 245120641,
+    "glue": [
+      "runtime-only /Users mirror for Colima worktree bind compatibility",
+      "SQL RLS helpers and RPCs for role/capacity/schedule settlement",
+      "two Edge Functions for an inspectable deterministic local HTTP effect boundary",
+      "native pg_cron five-second reminder driver",
+      "cold Realtime lifecycle retry retained rather than hidden",
+      "no hosted capability inferred from local evidence"
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Six native Auth users, direct host/cohost/guest/outsider role probes, RLS field/list boundaries, and revocation negatives.",
+      "evidencePaths": [
+        "receipts/seed.json",
+        "receipts/acceptance.json"
+      ]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Two authenticated RPCs raced at a barrier; row-lock capacity settlement admitted exactly one seat and authority matched.",
+      "evidencePaths": [
+        "receipts/scenarios/PARTY-06-CAPACITY.json"
+      ]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Direct already-connected policy, wall/RSVP burst, and protected-revocation Postgres Changes receipts; cold missed transitions remain retained.",
+      "evidencePaths": [
+        "receipts/acceptance.json",
+        "receipts/performance.json"
+      ]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "Protected already-connected invalidation/revocation is direct, but Partiful has no frozen persistent-offline scenario.",
+      "evidencePaths": [
+        "receipts/scenarios/PARTY-05-GUEST-LIST.json",
+        "receipts/scenarios/PARTY-12-REVOCATION.json"
+      ]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "RSVP revisions, capacity authority, cron dedupe, known-success retry, ambiguous reconciliation, and asset deletion have independent readback.",
+      "evidencePaths": [
+        "receipts/acceptance.json"
+      ]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Exact project/API/DB hashes, versions, containers, schema, operations, and cleanup bind one fresh local target.",
+      "evidencePaths": [
+        "receipts/target-identity.json",
+        "receipts/pre-cleanup-resources.json"
+      ]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "Exact project/state/port negatives and preservation of pre-existing unrelated containers are direct; no separately timestamped empty pre-provision baseline was captured.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.json",
+        "receipts/pre-cleanup-resources.json",
+        "receipts/cleanup.json"
+      ]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Pinned lockfile, schema/RLS, functions, deterministic seed, app, acceptance, raw timings, failures, hashes, inventory, and cleanup source are retained.",
+      "evidencePaths": [
+        "receipts/inventory.json",
+        "receipts/backup-manifest.json",
+        "receipts/npm-audit.json"
+      ]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.json",
+    "receiptPaths": [
+      "receipts/pre-cleanup-resources.json",
+      "receipts/cleanup.json",
+      "receipts/backup-manifest.json"
+    ],
+    "postCleanupProbe": "Exact project containers/volumes/network, credential-bearing runtime/XDG state, and ports 4330/57431-57440 are absent; all pre-existing unrelated containers remain."
   },
-  "result": "pending"
+  "result": "complete"
 }

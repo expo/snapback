@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T05:44:26.529Z",
+  "targetIdentityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+  "local": {
+    "profile": "official Supabase CLI Docker stack",
+    "exactProjectId": "llp0102-partiful-supabase-coord",
+    "apiUrlHash": "67a115ebdf116ef7a91e507a3697d92a2bc133dfb57cf208cd06e52cbe581c0c",
+    "dbUrlHash": "ef517433d12b750392aea38d3d5b10a31e6642e296001869687bb3731eedaa68",
+    "containerCount": 10,
+    "schemaSha256": "a545d44a29a7538f5f56471ccaba0ad9f608d171ef912ddb59786cf9bed9e011",
+    "cronJobs": [
+      {
+        "jobid": 1,
+        "jobname": "llp0102-partiful-supabase-reminders",
+        "schedule": "5 seconds",
+        "command": "select public.run_due_reminders()",
+        "active": true
+      }
+    ],
+    "edgeLogTailSha256": "bd349f0301ebd573292d160d1375c7f4bebc0badab4aa8e48c6eb32a84d8adde",
+    "sourceHashes": {
+      "migration": "eba523a76edf05d01f708d60abf7d556124b624486b207008420b2e41499ab0f",
+      "notifyFunction": "65d3d4c877d47f3ce760b1f1b7aa86aa890c29d14f45010234e1194af6e68e97",
+      "providerFakeFunction": "3193771536bd2bf063b64b438c34cd86367e25d6fcf3c2d63801036ac4c2342c"
+    },
+    "export": "schema hash plus deterministic rebuild inputs; no data-bearing export committed"
+  },
+  "hosted": {
+    "status": "unavailable-remote-dependency",
+    "reason": "No isolated hosted Supabase project credential was available.",
+    "url": null,
+    "region": null,
+    "logs": null,
+    "rollback": null,
+    "effectDeliveryClaimed": false
+  },
+  "secretBoundary": "UI receives only local anon key; Edge Runtime receives provider-owned server credentials and keeps them out of committed receipts.",
+  "containsSecretValues": false
+}

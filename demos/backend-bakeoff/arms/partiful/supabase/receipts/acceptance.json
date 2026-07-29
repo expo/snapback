@@ -1,0 +1,472 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T05:48:08.144Z",
+  "startedAt": "2026-07-29T05:41:03.280Z",
+  "expectedCheckCount": 15,
+  "completedCheckCount": 15,
+  "results": {
+    "PARTY-01-SEED": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "targetIdentity": {
+          "projectId": "llp0102-partiful-supabase-coord",
+          "namespace": "llp0102-partiful-supabase-coord",
+          "apiUrlHash": "67a115ebdf116ef7a91e507a3697d92a2bc133dfb57cf208cd06e52cbe581c0c",
+          "dbUrlHash": "ef517433d12b750392aea38d3d5b10a31e6642e296001869687bb3731eedaa68",
+          "identityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+          "profile": "official Supabase CLI Docker stack",
+          "versions": {
+            "client": "2.111.0",
+            "cli": "2.110.0",
+            "postgres": "17"
+          }
+        },
+        "counts": {
+          "profiles": 6,
+          "events": 3,
+          "event_members": 7,
+          "invitations": 4,
+          "rsvps": 0,
+          "wall_posts": 0,
+          "reminder_schedules": 0,
+          "notification_attempts": 0,
+          "provider_deliveries": 0
+        },
+        "eventIds": {
+          "primary": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c",
+          "capacity": "43c58731c2eca6dac1b28768c2c2c6962b610879d590237f9d95de28e51e414d",
+          "private": "968926bf2686579a8f099c7268e98f33f193b9b8fc176d9deae76c3cbcc7b738"
+        },
+        "personas": {
+          "alice": {
+            "idHash": "a712036d34ae14daf70ecffb7ae6e344404fe47ac653ada5077f00355f52b2da",
+            "role": "host"
+          },
+          "bob": {
+            "idHash": "3c058b4be980bde7a72c55a5fed5a1299938a8c8440b87cbb24c5c09eaea9625",
+            "role": "guest"
+          },
+          "mallory": {
+            "idHash": "5abda7283e56d4cc25363ccd9a522d8c8627df088c71a989e4540c6216ffcf39",
+            "role": "outsider"
+          },
+          "carol": {
+            "idHash": "ca1c8f3532c8a20182b22b4aa02add229ecfafc1a6cb750c755bd02a7b09b9bc",
+            "role": "cohost"
+          },
+          "dave": {
+            "idHash": "6b99f84f3a1f68f7b49c778e735c7b1b7b7a1307b6de1b3962986cbd74c0a071",
+            "role": "guest"
+          },
+          "erin": {
+            "idHash": "6084f53bb76ab6704d71268e953a160e9ee5fc2784f5a81a884ff2acf2df2b6d",
+            "role": "guest"
+          }
+        }
+      }
+    },
+    "PARTY-02-PUBLIC-PRIVATE": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "anonymousRead": {
+          "slug": "summer-rooftop",
+          "idHash": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c"
+        },
+        "fieldBoundary": [
+          "art_path",
+          "id",
+          "slug",
+          "starts_at",
+          "summary",
+          "title",
+          "venue_public"
+        ],
+        "negativePrivateRead": {
+          "directTableRejected": true,
+          "privatePreviewRows": 0
+        }
+      }
+    },
+    "PARTY-03-INVITE-RSVP": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "invitationAttribution": {
+          "idHash": "89698c25ed7f76d28ced845ee7d794b0af601a2f93287b17a2cde1587fbc230b",
+          "createdByHash": "a712036d34ae14daf70ecffb7ae6e344404fe47ac653ada5077f00355f52b2da"
+        },
+        "transitions": [
+          {
+            "response": "yes",
+            "plusOne": 1,
+            "revision": 1
+          },
+          {
+            "response": "maybe",
+            "plusOne": 0,
+            "revision": 2
+          },
+          {
+            "response": "no",
+            "plusOne": 0,
+            "revision": 3
+          },
+          {
+            "response": "yes",
+            "plusOne": 1,
+            "revision": 4
+          }
+        ],
+        "authoritativeState": {
+          "response": "yes",
+          "plusOne": 1,
+          "revision": 4
+        }
+      }
+    },
+    "PARTY-04-ROLES": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "positiveRoleMatrix": {
+          "hostEdit": true,
+          "cohostEdit": true,
+          "guestRsvp": true
+        },
+        "negativeRoleMatrix": {
+          "guestHostControl": false,
+          "outsiderReadRows": 0,
+          "outsiderWriteRejected": true
+        }
+      }
+    },
+    "PARTY-05-GUEST-LIST": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "policyTransition": {
+          "from": true,
+          "to": false,
+          "restoredAfterProof": true
+        },
+        "actorSpecificReads": {
+          "before": 3,
+          "after": 1,
+          "publicPreview": 1
+        },
+        "alreadyConnectedClient": {
+          "attempts": [
+            {
+              "attempt": 1,
+              "delivered": false
+            },
+            {
+              "attempt": 2,
+              "delivered": true
+            }
+          ],
+          "transport": "Supabase Realtime Postgres Changes"
+        }
+      }
+    },
+    "PARTY-06-CAPACITY": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "twoActorBarrier": {
+          "actors": [
+            "dave",
+            "erin"
+          ],
+          "outcomes": [
+            "rejected",
+            "committed"
+          ]
+        },
+        "settlement": {
+          "loserCode": "P0001",
+          "loserMessage": "CAPACITY_EXCEEDED"
+        },
+        "authoritativeCount": {
+          "capacity": 1,
+          "occupiedSeats": 1
+        }
+      }
+    },
+    "PARTY-07-LIVE-BURST": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "secondClient": {
+          "wallDeliveries": 10,
+          "rsvpDeliveries": 2
+        },
+        "transportAttribution": "native Supabase Realtime WebSocket Postgres Changes; no polling",
+        "authoritativeCount": {
+          "wallPosts": 10,
+          "yesSeats": 2
+        }
+      }
+    },
+    "PARTY-08-ASSET": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "objectIdentity": {
+          "bucket": "event-art",
+          "pathHash": "f3d8bd055dac790a25b8b3a4078a082db92e1e9ea680713b7c345413f11549e6"
+        },
+        "authorization": {
+          "uploader": "alice",
+          "downloader": "bob",
+          "outsiderDenied": true,
+          "deleter": "alice"
+        },
+        "contentHash": "f602f263a00afe6911318218b9aeb30ffd75ab6553ef97d90a56dc2daac5c830",
+        "deleteProof": {
+          "remainingExactObjects": 0
+        }
+      }
+    },
+    "PARTY-09-SCHEDULE": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "scheduleIdentity": {
+          "idHash": "e538cd7224227d53fe246e8ea79ea582749c70826e54771dc9a4d9d609a41bd5",
+          "cronJob": {
+            "jobid": 1,
+            "jobname": "llp0102-partiful-supabase-reminders",
+            "schedule": "5 seconds",
+            "command": "select public.run_due_reminders()"
+          }
+        },
+        "runReceipt": {
+          "state": "succeeded",
+          "providerReceipt": "local-scheduler"
+        },
+        "dedupeKeyHash": "594282609ff17b72f64c352623ecbde1708ffd4ddd564428b7f66c7c3ebe4729",
+        "idempotentAttemptCount": 1
+      }
+    },
+    "PARTY-10-EFFECT-RETRY": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "attemptLedger": [
+          {
+            "attemptNo": 1,
+            "state": "succeeded",
+            "responseCode": 200
+          }
+        ],
+        "providerBoundary": {
+          "edgeFunction": "notify -> provider-fake HTTP",
+          "receiptHash": "160e111a2dba2e57f9c2b04eb63cacc75144954cfe0ef565dfe0cdbfd18268bd",
+          "deliveryCount": 1
+        },
+        "terminalSettlement": {
+          "retryDeduplicated": true,
+          "state": "succeeded"
+        }
+      }
+    },
+    "PARTY-11-EFFECT-AMBIGUOUS": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "faultInjection": "provider accepted delivery; caller deliberately discarded response certainty",
+        "attemptLedger": [
+          {
+            "attemptNo": 1,
+            "state": "ambiguous",
+            "fault": "ambiguous-after-accept"
+          },
+          {
+            "attemptNo": 2,
+            "state": "succeeded",
+            "fault": "reconciled-ambiguous"
+          }
+        ],
+        "ambiguousState": {
+          "retained": true,
+          "reconciledByProviderStatus": true,
+          "providerDeliveryCount": 1
+        }
+      }
+    },
+    "PARTY-12-REVOCATION": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "authorityChange": {
+          "actor": "bob",
+          "revokedAt": "2026-07-29T05:41:17.593+00:00"
+        },
+        "negativeDelivery": {
+          "exactPostDelivered": false,
+          "protectedReadRows": 0
+        },
+        "retainedStoreInspection": {
+          "wallPosts": 11,
+          "bobRsvps": 1,
+          "policy": "durable data retained for host; access revoked"
+        }
+      }
+    },
+    "PARTY-13-DEPLOY": {
+      "status": "unavailable-remote-dependency",
+      "note": "No isolated hosted Supabase project credential was available; local secret/config, Edge Function boundary, logs, and target identity were inspected without claiming hosted delivery.",
+      "evidence": {
+        "localTargetIdentityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+        "localSecretBoundary": "Edge Runtime received automatic server-side service credential; UI received only anon key.",
+        "localEffectBoundary": "notify Edge Function -> provider-fake HTTP Edge Function -> Postgres attempt/provider ledgers",
+        "hostedUrl": null,
+        "hostedRegion": null,
+        "hostedLogs": null,
+        "hostedRollback": null
+      }
+    },
+    "PARTY-14-PERFORMANCE": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "scope": "official local Supabase stack on one Mac; not hosted latency",
+        "warmups": 2,
+        "recordedSamples": 7,
+        "unit": "milliseconds",
+        "dataset": {
+          "events": 3,
+          "primaryMembers": 3,
+          "burstPosts": 10,
+          "assetBytes": 1032
+        },
+        "paths": {
+          "contention": {
+            "samples": [
+              2.016,
+              2.266,
+              2.167,
+              2.178,
+              2.013,
+              1.665,
+              2.115
+            ],
+            "median": 2.115,
+            "nearestRankP95": 2.266
+          },
+          "burst": {
+            "samples": [
+              1.826,
+              2.131,
+              1.631,
+              1.647,
+              1.76,
+              1.592,
+              1.669
+            ],
+            "median": 1.669,
+            "nearestRankP95": 2.131
+          },
+          "asset": {
+            "samples": [
+              15.749,
+              16.124,
+              13.716,
+              13.311,
+              13.198,
+              13.79,
+              13.739
+            ],
+            "median": 13.739,
+            "nearestRankP95": 16.124
+          },
+          "realtime": {
+            "samples": [
+              490.597,
+              486.726,
+              491.018,
+              492.219,
+              489.143,
+              491.836,
+              495.821
+            ],
+            "median": 491.018,
+            "nearestRankP95": 495.821
+          },
+          "build": {
+            "samples": [
+              1586.907,
+              1744.315,
+              1044.968,
+              1041.159,
+              1052.437,
+              1067.679,
+              1192.494
+            ],
+            "median": 1067.679,
+            "nearestRankP95": 1744.315
+          }
+        },
+        "deploy": {
+          "status": "unavailable-remote-dependency",
+          "localEquivalent": "Supabase CLI start/reset plus Edge Runtime"
+        },
+        "costWindow": {
+          "actualProviderChargeUsd": 0,
+          "hostedUsage": "unavailable"
+        }
+      }
+    },
+    "PARTY-15-CLEANUP": {
+      "status": "pass",
+      "note": "Exact project resources, credential-bearing runtime state, and assigned ports are absent; pre-existing unrelated containers are preserved. No separately timestamped empty baseline was captured before provisioning.",
+      "evidence": {
+        "schemaVersion": 1,
+        "generatedAt": "2026-07-29T05:44:44.462Z",
+        "projectId": "llp0102-partiful-supabase-coord",
+        "targetIdentityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+        "cliStopExitStatus": 0,
+        "exactResourcesAfter": {
+          "containers": [],
+          "volumes": [],
+          "networks": []
+        },
+        "exactProjectAbsent": true,
+        "portsListeningAfter": {
+          "4330": false,
+          "57431": false,
+          "57432": false,
+          "57433": false,
+          "57434": false,
+          "57435": false,
+          "57436": false,
+          "57437": false,
+          "57438": false,
+          "57439": false,
+          "57440": false
+        },
+        "allPortsClosed": true,
+        "runtimeMirrorPresent": false,
+        "xdgStatePresent": false,
+        "unrelatedContainerSetSha256Before": "8aa26c226667e852588eb0aeedb35ce846dd1a02504a42b4f91c5d91136c0f74",
+        "unrelatedContainerSetSha256After": "8aa26c226667e852588eb0aeedb35ce846dd1a02504a42b4f91c5d91136c0f74",
+        "unrelatedPreexistingContainersPreserved": true,
+        "baselineLimitation": "No separately timestamped empty pre-provision baseline; exact namespace/resource/port negatives are direct.",
+        "containsSecretValues": false
+      }
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 1517,
+    "firstAuthoritativeMutationMs": 1530,
+    "firstRealtimeTransitionMs": 6351,
+    "localAcceptanceMs": 33159,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 2481144
+  },
+  "cleanupPending": false,
+  "result": "complete"
+}

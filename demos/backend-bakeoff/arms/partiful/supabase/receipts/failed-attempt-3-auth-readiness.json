@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "classification": "environment-readiness",
+  "stage": "seed-before-application-write",
+  "error": "AuthRetryableFetchError status 502 from listUsers immediately after supabase db reset restarted containers",
+  "dataWritten": false,
+  "correction": "Acceptance now waits for the local Auth health endpoint before invoking the deterministic seed.",
+  "stopClass": false
+}

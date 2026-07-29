@@ -1,0 +1,31 @@
+{
+  "id": "PARTY-05-GUEST-LIST",
+  "checkedAt": "2026-07-29T05:41:09.162Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "policyTransition": {
+      "from": true,
+      "to": false,
+      "restoredAfterProof": true
+    },
+    "actorSpecificReads": {
+      "before": 3,
+      "after": 1,
+      "publicPreview": 1
+    },
+    "alreadyConnectedClient": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "delivered": false
+        },
+        {
+          "attempt": 2,
+          "delivered": true
+        }
+      ],
+      "transport": "Supabase Realtime Postgres Changes"
+    }
+  }
+}

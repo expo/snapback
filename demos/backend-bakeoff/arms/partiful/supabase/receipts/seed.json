@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "namespace": "llp0102-partiful-supabase-coord",
+  "counts": {
+    "profiles": 6,
+    "events": 3,
+    "event_members": 7,
+    "invitations": 4,
+    "rsvps": 0,
+    "wall_posts": 0,
+    "reminder_schedules": 0,
+    "notification_attempts": 0
+  },
+  "events": {
+    "primary": "7592bb24-f03f-4f78-8c08-8ac7246b15b8",
+    "capacity": "4a62ff19-8641-4326-8824-4eacaabc53a7",
+    "private": "ac70fd3d-f0cd-4ca1-87f3-aef216d7d46b"
+  },
+  "personas": {
+    "alice": {
+      "idHash": "a712036d34ae14daf70ecffb7ae6e344404fe47ac653ada5077f00355f52b2da",
+      "role": "host"
+    },
+    "bob": {
+      "idHash": "3c058b4be980bde7a72c55a5fed5a1299938a8c8440b87cbb24c5c09eaea9625",
+      "role": "guest"
+    },
+    "mallory": {
+      "idHash": "5abda7283e56d4cc25363ccd9a522d8c8627df088c71a989e4540c6216ffcf39",
+      "role": "outsider"
+    },
+    "carol": {
+      "idHash": "ca1c8f3532c8a20182b22b4aa02add229ecfafc1a6cb750c755bd02a7b09b9bc",
+      "role": "cohost"
+    },
+    "dave": {
+      "idHash": "6b99f84f3a1f68f7b49c778e735c7b1b7b7a1307b6de1b3962986cbd74c0a071",
+      "role": "guest"
+    },
+    "erin": {
+      "idHash": "6084f53bb76ab6704d71268e953a160e9ee5fc2784f5a81a884ff2acf2df2b6d",
+      "role": "guest"
+    }
+  }
+}

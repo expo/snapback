@@ -1,0 +1,40 @@
+{
+  "id": "PARTY-15-CLEANUP",
+  "checkedAt": "2026-07-29T05:44:44.462Z",
+  "status": "pass",
+  "note": "Exact project resources, credential-bearing runtime state, and assigned ports are absent; pre-existing unrelated containers are preserved. No separately timestamped empty baseline was captured before provisioning.",
+  "evidence": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-07-29T05:44:44.462Z",
+    "projectId": "llp0102-partiful-supabase-coord",
+    "targetIdentityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+    "cliStopExitStatus": 0,
+    "exactResourcesAfter": {
+      "containers": [],
+      "volumes": [],
+      "networks": []
+    },
+    "exactProjectAbsent": true,
+    "portsListeningAfter": {
+      "4330": false,
+      "57431": false,
+      "57432": false,
+      "57433": false,
+      "57434": false,
+      "57435": false,
+      "57436": false,
+      "57437": false,
+      "57438": false,
+      "57439": false,
+      "57440": false
+    },
+    "allPortsClosed": true,
+    "runtimeMirrorPresent": false,
+    "xdgStatePresent": false,
+    "unrelatedContainerSetSha256Before": "8aa26c226667e852588eb0aeedb35ce846dd1a02504a42b4f91c5d91136c0f74",
+    "unrelatedContainerSetSha256After": "8aa26c226667e852588eb0aeedb35ce846dd1a02504a42b4f91c5d91136c0f74",
+    "unrelatedPreexistingContainersPreserved": true,
+    "baselineLimitation": "No separately timestamped empty pre-provision baseline; exact namespace/resource/port negatives are direct.",
+    "containsSecretValues": false
+  }
+}

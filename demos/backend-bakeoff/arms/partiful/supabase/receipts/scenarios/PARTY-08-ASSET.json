@@ -1,0 +1,22 @@
+{
+  "id": "PARTY-08-ASSET",
+  "checkedAt": "2026-07-29T05:41:09.675Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "objectIdentity": {
+      "bucket": "event-art",
+      "pathHash": "f3d8bd055dac790a25b8b3a4078a082db92e1e9ea680713b7c345413f11549e6"
+    },
+    "authorization": {
+      "uploader": "alice",
+      "downloader": "bob",
+      "outsiderDenied": true,
+      "deleter": "alice"
+    },
+    "contentHash": "f602f263a00afe6911318218b9aeb30ffd75ab6553ef97d90a56dc2daac5c830",
+    "deleteProof": {
+      "remainingExactObjects": 0
+    }
+  }
+}

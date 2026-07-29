@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "projectId": "llp0102-partiful-supabase-coord",
+  "namespace": "llp0102-partiful-supabase-coord",
+  "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "runtimeProjectDir": "/Users/ccheever/.cache/llp0102-partiful-supabase-coord-runtime",
+  "startedAt": "2026-07-29T05:06:47.000Z"
+}

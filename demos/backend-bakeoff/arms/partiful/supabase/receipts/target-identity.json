@@ -1,0 +1,13 @@
+{
+  "projectId": "llp0102-partiful-supabase-coord",
+  "namespace": "llp0102-partiful-supabase-coord",
+  "apiUrlHash": "67a115ebdf116ef7a91e507a3697d92a2bc133dfb57cf208cd06e52cbe581c0c",
+  "dbUrlHash": "ef517433d12b750392aea38d3d5b10a31e6642e296001869687bb3731eedaa68",
+  "identityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+  "profile": "official Supabase CLI Docker stack",
+  "versions": {
+    "client": "2.111.0",
+    "cli": "2.110.0",
+    "postgres": "17"
+  }
+}
