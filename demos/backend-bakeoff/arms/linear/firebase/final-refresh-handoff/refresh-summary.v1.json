@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "provider": "firebase",
+  "app": "linear",
+  "round": "final-confirmation",
+  "attemptId": "linear-firebase-final-refresh-w3",
+  "sourceBase": "afdabefbba7106d857c39d05f5cbb2e14babd6a7",
+  "namespace": "llp0102-final-linear-firebase-w3",
+  "versions": {
+    "firebaseClient": "12.16.0",
+    "firebaseAdmin": "14.2.0",
+    "firebaseFunctions": "7.3.2",
+    "firebaseTools": "15.24.0",
+    "functionsRuntime": "nodejs22"
+  },
+  "result": {
+    "expectedChecks": 14,
+    "recordedChecks": 14,
+    "pass": 12,
+    "gap": 1,
+    "unavailableRemoteDependency": 1,
+    "fail": 0,
+    "stopDefects": 0
+  },
+  "gaps": [
+    {
+      "id": "LINEAR-09-SEARCH",
+      "status": "gap",
+      "reason": "Cloud Firestore has no native full-text search; no external search service was added."
+    },
+    {
+      "id": "LINEAR-12-DEPLOY",
+      "status": "unavailable-remote-dependency",
+      "reason": "Hosted credentials were unavailable; no hosted target was mutated."
+    }
+  ],
+  "milestonesMs": {
+    "firstLocalRead": 6790,
+    "firstAuthoritativeMutation": 7021,
+    "firstRealtimeTransition": 11068,
+    "localAcceptance": 14340,
+    "acceptanceCompletion": 14340,
+    "hostedUrl": null
+  },
+  "performance": {
+    "warmupsPerPath": 2,
+    "recordedSamplesPerPath": 7,
+    "paths": [
+      "representativeRead",
+      "representativeDetail",
+      "representativeWrite",
+      "realtimeDelivery",
+      "reconnect",
+      "buildOrDeploy"
+    ],
+    "receipt": "work/receipts/performance.json"
+  },
+  "cleanup": {
+    "status": "complete",
+    "assignedPortsClosed": 10,
+    "providerIssuedPortsClosed": [],
+    "explicitAuxiliaryPortsClosed": {
+      "eventarc": 61121,
+      "tasks": 62121
+    },
+    "survivingProcesses": 0,
+    "receipt": "work/receipts/cleanup.json"
+  },
+  "isolationDiscoveryAttempt": {
+    "resultTreatment": "not final isolation proof",
+    "reason": "The first run discovered implicit Eventarc and Tasks listeners on unassigned default ports 9299 and 9499.",
+    "receipts": "work/receipts-isolation-discovery",
+    "capsule": "isolation-discovery-run-capsule.v1.json"
+  },
+  "sealedEvidenceTreatment": "Original deep-round evidence and failed attempts are immutable lineage; no timing or friction was rewritten."
+}

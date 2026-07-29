@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "linear",
+    "provider": "firebase",
+    "round": "final-confirmation",
+    "attemptId": "linear-firebase-final-refresh-w3"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "afdabefbba7106d857c39d05f5cbb2e14babd6a7",
+    "armBaseCommit": "afdabefbba7106d857c39d05f5cbb2e14babd6a7",
+    "sourceDirty": true,
+    "providerVersions": {
+      "product": "Firebase with Cloud Firestore",
+      "client": "12.16.0",
+      "cli": "15.24.0",
+      "admin": "14.2.0",
+      "functions": "7.3.2"
+    },
+    "machine": "Charlies-MacBook-Air.local/darwin/arm64/25.5.0; Node v24.14.0",
+    "startedAt": "2026-07-29T13:27:31.232Z",
+    "finishedAt": "2026-07-29T13:29:20.856Z",
+    "timingNote": "Active window begins at the retained provider preflight boundary and includes implementation, installation, debugging, acceptance, export, and cleanup."
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 109624,
+    "toolCalls": 0,
+    "toolCallNote": "The worker surface did not expose an exact per-arm tool-call count; zero is a missing-data sentinel, not a usage claim.",
+    "timedWindowFrozenAt": "2026-07-29T13:29:20.856Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "5d31ec2fe79f032850688d670fcc3718089057e5e45ef839d2b6ac1de9f018fc",
+      "role": "organization owner"
+    },
+    "bob": {
+      "principalIdHash": "f57f63350ea7afb16d7652681e8a44c84bd11f3a024006e069aaf1da3ff5b22b",
+      "role": "team member"
+    },
+    "mallory": {
+      "principalIdHash": "f156d1e3fd9f461db43683763d23503353b0021040cba978b81d8b32be2dc985",
+      "role": "outsider to primary organization"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-final-linear-firebase-w3",
+      "baselineReceiptPath": "work/receipts/baseline-before.json",
+      "scopedCleanupPlanPath": "work/receipts/scoped-cleanup-plan.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "320955a864bbf89fcc149465da22034e004a50aea5e81b4f6e2e4bff0e783fce",
+      "profile": "Firebase Local Emulator Suite: Auth, Firestore, Functions, Storage",
+      "gapReason": "",
+      "receiptPaths": [
+        "work/receipts/target-identity.json",
+        "work/receipts/emulator-hub.json",
+        "work/receipts/acceptance-results.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed Firebase project with Firestore, Auth, Functions, Storage, Hosting",
+      "plan": "Blaze pay-as-you-go with budget alerts",
+      "region": "us-west1 where selectable; Firestore exact location captured with target",
+      "gapReason": "Hosted Firebase credentials were unavailable. No hosted target was mutated; this is environment evidence, not a product failure.",
+      "receiptPaths": [
+        "work/receipts/target-identity.json"
+      ]
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 6790,
+    "firstAuthoritativeMutationMs": 7021,
+    "firstRealtimeTransitionMs": 11068,
+    "localAcceptanceMs": 14340,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 14340
+  },
+  "assistanceEvents": [
+    {
+      "kind": "cross-arm-reference",
+      "source": "completed Todo and Chat Firebase arms",
+      "reason": "Parent explicitly required inspection of existing Firebase arms; reused emulator isolation, native offline cache, receipt, and cleanup patterns.",
+      "outcome": "Recorded as allowed cross-arm knowledge under LLP 0102 assistance policy."
+    },
+    {
+      "kind": "isolation-remediation",
+      "source": "work/receipts-isolation-discovery",
+      "reason": "The first refresh run discovered Firebase Functions implicitly opened Eventarc and Tasks on default ports 9299 and 9499.",
+      "outcome": "The first run was retained as an isolation-discovery attempt; the final run preassigned and preflighted disjoint ports 61121 and 62121."
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm run preflight",
+      "exitStatus": 1,
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run preflight",
+      "exitStatus": 0,
+      "receipt": "work/receipts/baseline-before.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm install",
+      "exitStatus": 0,
+      "receipt": "work/package-lock.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm install --prefix functions",
+      "exitStatus": 0,
+      "receipt": "work/functions/package-lock.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run start:arm",
+      "exitStatus": 0,
+      "receipt": "work/receipts/target-identity.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 1,
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0,
+      "receipt": "work/receipts/performance.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run acceptance",
+      "exitStatus": 0,
+      "receipt": "work/receipts/acceptance-results.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run browser:offline",
+      "exitStatus": 0,
+      "receipt": "work/receipts/offline-browser.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run audit",
+      "exitStatus": 0,
+      "receipt": "work/receipts/npm-audit.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run inventory",
+      "exitStatus": 0,
+      "receipt": "work/receipts/inventory.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run export:arm",
+      "exitStatus": 0,
+      "receipt": "work/receipts/export-manifest.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run cleanup:arm",
+      "exitStatus": 1,
+      "receipt": "work/receipts/failed-attempts.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    },
+    {
+      "command": "npm run cleanup:arm",
+      "exitStatus": 0,
+      "receipt": "work/receipts/cleanup.json",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 0,
+      "timingNote": "Per-command monotonic boundaries unavailable; zero is a missing-data sentinel, not a duration claim."
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "LINEAR-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-01-SEED.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Admin SDK counts and signed-in client read prove the exact fresh-local seed.",
+      "note": "Admin SDK counts and signed-in client read prove the exact fresh-local seed."
+    },
+    {
+      "id": "LINEAR-02-AUTHORITY",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-02-AUTHORITY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Three native Auth-emulator principals exercised owner/member positive and outsider negative paths.",
+      "note": "Three native Auth-emulator principals exercised owner/member positive and outsider negative paths."
+    },
+    {
+      "id": "LINEAR-03-FILTERS",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-03-FILTERS.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Four client queries matched independent Admin SDK authoritative sets; compound index artifact retained.",
+      "note": "Four client queries matched independent Admin SDK authoritative sets; compound index artifact retained."
+    },
+    {
+      "id": "LINEAR-04-PAGINATION",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-04-PAGINATION.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Stable startAfter document cursor produced 100 unique rows despite a newer concurrent insert.",
+      "note": "Stable startAfter document cursor produced 100 unique rows despite a newer concurrent insert."
+    },
+    {
+      "id": "LINEAR-05-DETAIL",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-05-DETAIL.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Related IDs were composed from direct authorized reads without an unbounded scan.",
+      "note": "Related IDs were composed from direct authorized reads without an unbounded scan."
+    },
+    {
+      "id": "LINEAR-06-OPTIMISTIC",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-06-OPTIMISTIC.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Pending-write metadata distinguishes optimistic state; Bob observed the server-confirmed state.",
+      "note": "Pending-write metadata distinguishes optimistic state; Bob observed the server-confirmed state."
+    },
+    {
+      "id": "LINEAR-07-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-07-CONFLICT.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The winner may vary by scheduling, but the deterministic invariant is one commit, one typed refusal, and converged clients.",
+      "note": "The winner may vary by scheduling, but the deterministic invariant is one commit, one typed refusal, and converged clients."
+    },
+    {
+      "id": "LINEAR-08-LIVE",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-08-LIVE.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob received both server-authored records through native listen streams.",
+      "note": "Bob received both server-authored records through native listen streams."
+    },
+    {
+      "id": "LINEAR-09-SEARCH",
+      "status": "gap",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-09-SEARCH.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "GAP: Cloud Firestore does not provide native full-text search; official Firebase guidance requires a dedicated third-party search service. No client filter is misreported as backend search.",
+      "note": "GAP: Cloud Firestore does not provide native full-text search; official Firebase guidance requires a dedicated third-party search service. No client filter is misreported as backend search."
+    },
+    {
+      "id": "LINEAR-10-OFFLINE",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-10-OFFLINE.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "A new page in the same isolated persistent profile booted 50 issues from native cache with Firestore transport disabled, queued one update, and reconciled exactly once after reconnect.",
+      "note": "A new page in the same isolated persistent profile booted 50 issues from native cache with Firestore transport disabled, queued one update, and reconciled exactly once after reconnect."
+    },
+    {
+      "id": "LINEAR-11-MIGRATION",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-11-MIGRATION.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The new field was backfilled across all production-shaped rows without count loss and queried through its declared index.",
+      "note": "The new field was backfilled across all production-shaped rows without count loss and queried through its declared index."
+    },
+    {
+      "id": "LINEAR-12-DEPLOY",
+      "status": "unavailable-remote-dependency",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-12-DEPLOY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Hosted credentials are unavailable, so hosted identity/URL/logs are an environment GAP rather than a Firebase product failure. Local deploy/config/log/export evidence is retained.",
+      "note": "Hosted credentials are unavailable, so hosted identity/URL/logs are an environment GAP rather than a Firebase product failure. Local deploy/config/log/export evidence is retained."
+    },
+    {
+      "id": "LINEAR-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-13-PERFORMANCE.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two warmups and seven raw samples retained for every frozen local path.",
+      "note": "Two warmups and seven raw samples retained for every frozen local path."
+    },
+    {
+      "id": "LINEAR-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-14-CLEANUP.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact detached process groups were validated and stopped; all ten assigned ports, including explicitly isolated Eventarc and Tasks ports, closed; only worktree-local runtime directories were removed.",
+      "note": "Exact detached process groups were validated and stopped; all ten assigned ports, including explicitly isolated Eventarc and Tasks ports, closed; only worktree-local runtime directories were removed."
+    }
+  ],
+  "inventory": {
+    "receiptPath": "work/receipts/inventory.json",
+    "authoredSource": {
+      "files": 6,
+      "lines": 317,
+      "bytes": 11848
+    },
+    "generated": {
+      "files": 3,
+      "lines": 57,
+      "bytes": 838193
+    },
+    "tests": {
+      "files": 10,
+      "lines": 1722,
+      "bytes": 69536
+    },
+    "configuration": {
+      "files": 5,
+      "lines": 170,
+      "bytes": 3996
+    },
+    "policy": {
+      "files": 2,
+      "lines": 66,
+      "bytes": 1970
+    },
+    "dependencyManifests": {
+      "files": 4,
+      "lines": 15087,
+      "bytes": 536297
+    },
+    "installedDependencyBytes": 502613125,
+    "glue": [
+      {
+        "item": "Full-text issue search",
+        "classification": "explicit GAP",
+        "files": [],
+        "note": "Firestore has no native full-text search; no external service was added merely to manufacture a pass."
+      },
+      {
+        "item": "Relational detail composition",
+        "classification": "application-authored fan-out",
+        "files": [
+          "scripts/acceptance.mjs"
+        ],
+        "note": "Firestore supplies point/indexed queries but no server join; issue detail composes bounded reads in application code."
+      },
+      {
+        "item": "Migration backfill",
+        "classification": "application-authored operation",
+        "files": [
+          "scripts/acceptance.mjs",
+          "firestore.indexes.json"
+        ],
+        "note": "Firestore is schemaless; adding an indexed field required an Admin SDK BulkWriter backfill plus index declaration."
+      }
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three native Auth-emulator principals exercised direct owner/member success and direct outsider rule-denied read/write.",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-02-AUTHORITY.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two authenticated clients raced one revision-CAS callable; exactly one transaction committed and the loser received a typed aborted conflict.",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-07-CONFLICT.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Second-client Firestore onSnapshot delivery retained server metadata, latency, IDs, and polling=false.",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-08-LIVE.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "A cold page rendered 50 cached issues with transport disabled, queued an edit, proved remote state unchanged, then reconciled after reconnect.",
+      "evidencePaths": [
+        "work/receipts/offline-browser.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Client acknowledgements were independently checked through Admin SDK documents; optimistic metadata and conflict settlement are explicit.",
+      "evidencePaths": [
+        "work/receipts/scenarios/LINEAR-06-OPTIMISTIC.json",
+        "work/receipts/scenarios/LINEAR-07-CONFLICT.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Fresh project id, exact service ports, emulator hub, source/freeze commits, and identity hash are direct; hosted target is separately a GAP.",
+      "evidencePaths": [
+        "work/receipts/target-identity.json",
+        "work/receipts/emulator-hub.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "Exact worktree/project/PID-group ownership was validated; all ten assigned ports, including explicitly isolated Eventarc and Tasks ports, closed and no shared target existed.",
+      "evidencePaths": [
+        "work/receipts/scoped-cleanup-plan.json",
+        "work/receipts/cleanup.json",
+        "work/receipts-isolation-discovery/emulator-hub.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Pinned locks, source, rules, indexes, raw scenarios/samples, export hashes, inventory, and cleanup proof are retained.",
+      "evidencePaths": [
+        "work/receipts/inventory.json",
+        "work/receipts/export-manifest.json",
+        "work/package-lock.json",
+        "work/functions/package-lock.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "work/receipts/scoped-cleanup-plan.json",
+    "receiptPaths": [
+      "work/receipts/cleanup.json",
+      "work/receipts/export-manifest.json"
+    ],
+    "postCleanupProbe": "All ten assigned ports closed, exact process groups absent, and fresh local project endpoints returned connection-refused."
+  },
+  "result": "complete"
+}

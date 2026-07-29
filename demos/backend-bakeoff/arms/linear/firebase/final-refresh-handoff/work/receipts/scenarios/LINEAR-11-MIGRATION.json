@@ -1,0 +1,49 @@
+{
+  "id": "LINEAR-11-MIGRATION",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:28:51.254Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "Firestore schemaless evolution and composite index",
+  "evidence": {
+    "beforeCounts": {
+      "organizations": 2,
+      "teams": 3,
+      "projects": 4,
+      "labels": 20,
+      "issues": 500,
+      "comments": 1001,
+      "activities": 502
+    },
+    "afterCounts": {
+      "organizations": 2,
+      "teams": 3,
+      "projects": 4,
+      "labels": 20,
+      "issues": 500,
+      "comments": 1001,
+      "activities": 502
+    },
+    "backfilledDocuments": 500,
+    "queryResultCount": 10,
+    "indexProof": {
+      "collectionGroup": "issues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "orgId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "customerImpact",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sequence",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    "migrationMechanism": "Admin SDK BulkWriter backfill plus committed Firestore composite index"
+  },
+  "note": "The new field was backfilled across all production-shaped rows without count loss and queried through its declared index."
+}

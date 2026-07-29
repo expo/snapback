@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T13:28:27.508Z",
+  "mode": "fresh-local",
+  "projectId": "llp0102-final-linear-firebase-w3",
+  "namespace": "llp0102-final-linear-firebase-w3",
+  "identityHash": "320955a864bbf89fcc149465da22034e004a50aea5e81b4f6e2e4bff0e783fce",
+  "services": {
+    "hub": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 46121
+        }
+      ],
+      "name": "hub",
+      "host": "127.0.0.1",
+      "port": 46121
+    },
+    "logging": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 46122
+        }
+      ],
+      "name": "logging",
+      "host": "127.0.0.1",
+      "port": 46122
+    },
+    "auth": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 59121
+        }
+      ],
+      "name": "auth",
+      "host": "127.0.0.1",
+      "port": 59121
+    },
+    "functions": {
+      "name": "functions",
+      "host": "127.0.0.1",
+      "port": 56121
+    },
+    "firestore": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 58121
+        }
+      ],
+      "name": "firestore",
+      "host": "127.0.0.1",
+      "port": 58121,
+      "pid": 47931,
+      "reservedPorts": [
+        46123
+      ],
+      "webSocketHost": "127.0.0.1",
+      "webSocketPort": 46123
+    },
+    "storage": {
+      "listen": [
+        {
+          "address": "127.0.0.1",
+          "family": "IPv4",
+          "port": 60121
+        }
+      ],
+      "name": "storage",
+      "host": "127.0.0.1",
+      "port": 60121
+    },
+    "eventarc": {
+      "name": "eventarc",
+      "host": "127.0.0.1",
+      "port": 61121
+    },
+    "tasks": {
+      "name": "tasks",
+      "host": "127.0.0.1",
+      "port": 62121
+    }
+  },
+  "ports": {
+    "auth": 59121,
+    "firestore": 58121,
+    "firestoreWebSocket": 46123,
+    "functions": 56121,
+    "storage": 60121,
+    "eventarc": 61121,
+    "tasks": 62121,
+    "vite": 46124,
+    "hub": 46121,
+    "logging": 46122
+  },
+  "sourceBaseCommit": "afdabefbba7106d857c39d05f5cbb2e14babd6a7",
+  "sourceRevision": "afdabefbba7106d857c39d05f5cbb2e14babd6a7",
+  "sourceDirty": true,
+  "frozenSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "machine": "Charlies-MacBook-Air.local/darwin/arm64/25.5.0; Node v24.14.0",
+  "hosted": {
+    "status": "credential-unavailable",
+    "claim": "No hosted Firebase target was mutated."
+  },
+  "refreshedAt": "2026-07-29T13:28:40.133Z"
+}

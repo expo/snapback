@@ -1,0 +1,22 @@
+{
+  "id": "LINEAR-06-OPTIMISTIC",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:13:20.459Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "Firestore latency compensation plus onSnapshot",
+  "evidence": {
+    "optimisticStateAttribution": {
+      "fromCache": true,
+      "hasPendingWrites": true
+    },
+    "settlement": "updateDoc acknowledged",
+    "authoritativeState": {
+      "status": "review",
+      "priority": 4,
+      "assigneeIdHash": "53feb83bc64778893ea5aa32fc0abcf65655c6c557dccd687f2b7a696640f0cb",
+      "boardPosition": 777,
+      "revision": 2
+    }
+  },
+  "note": "Pending-write metadata distinguishes optimistic state; Bob observed the server-confirmed state."
+}

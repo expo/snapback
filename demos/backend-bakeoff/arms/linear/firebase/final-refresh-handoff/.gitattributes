@@ -1,0 +1,2 @@
+work/receipts/*.log -whitespace
+work/receipts-isolation-discovery/*.log -whitespace

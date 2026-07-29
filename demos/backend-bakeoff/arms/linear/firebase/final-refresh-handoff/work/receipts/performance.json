@@ -1,0 +1,107 @@
+{
+  "claimScope": "Firebase local emulators on one isolated Mac; not production or hosted latency",
+  "dataset": {
+    "organizations": 2,
+    "teamsPerPrimaryOrg": 3,
+    "projectsPerPrimaryOrg": 4,
+    "issues": 500,
+    "comments": 1000,
+    "labels": 20,
+    "pageSize": 50,
+    "concurrentClients": 2
+  },
+  "warmupsPerPath": 2,
+  "recordedSamplesPerPath": 7,
+  "unit": "milliseconds",
+  "representativeRead": {
+    "samples": [
+      5.933,
+      5.739,
+      5.765,
+      5.846,
+      5.699,
+      5.641,
+      6.128
+    ],
+    "median": 5.765,
+    "nearestRankP95": 6.128
+  },
+  "representativeDetail": {
+    "samples": [
+      6.771,
+      6.514,
+      6.941,
+      6.756,
+      6.63,
+      6.61,
+      4.94
+    ],
+    "median": 6.63,
+    "nearestRankP95": 6.941
+  },
+  "representativeWrite": {
+    "samples": [
+      1.711,
+      1.463,
+      1.471,
+      1.538,
+      1.497,
+      1.459,
+      1.386
+    ],
+    "median": 1.471,
+    "nearestRankP95": 1.711
+  },
+  "realtimeDelivery": {
+    "samples": [
+      4.873,
+      3.723,
+      3.667,
+      3.66,
+      2.332,
+      3.372,
+      3.569
+    ],
+    "median": 3.66,
+    "nearestRankP95": 4.873
+  },
+  "reconnect": {
+    "samples": [
+      5.603,
+      7.175,
+      7.039,
+      6.632,
+      5.271,
+      7.775,
+      5.616
+    ],
+    "median": 6.632,
+    "nearestRankP95": 7.775
+  },
+  "buildOrDeploy": {
+    "samples": [
+      316.101,
+      322.161,
+      317.217,
+      312.125,
+      315.12,
+      312.52,
+      318.141
+    ],
+    "median": 316.101,
+    "nearestRankP95": 322.161
+  },
+  "machine": {
+    "model": "Mac17,3",
+    "architecture": "arm64",
+    "memory": "32 GiB",
+    "os": "macOS 26.5.2 (25F84)",
+    "node": "v24.14.0",
+    "java": "OpenJDK 21.0.10"
+  },
+  "costWindow": {
+    "measured": "$0 local emulator",
+    "hostedActualUsage": "unavailable",
+    "hostedListPriceEstimate": "not estimated without a deployed target workload"
+  }
+}

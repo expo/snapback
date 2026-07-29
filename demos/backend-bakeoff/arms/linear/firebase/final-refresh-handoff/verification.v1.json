@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "result": "pass",
+  "sourceBase": "afdabefbba7106d857c39d05f5cbb2e14babd6a7",
+  "checks": [
+    {
+      "name": "sealed-lineage",
+      "status": "pass",
+      "detail": "Original capsule plus 35 original receipt files hashed; sealed paths are unchanged."
+    },
+    {
+      "name": "executed-source-reproducibility",
+      "status": "pass-with-caveat",
+      "detail": "Target identity honestly records sourceDirty=true because the additive handoff was uncommitted at start; exact executed files have source/prepared hashes and are retained in the final handoff inventory."
+    },
+    {
+      "name": "direct-dependency-scope",
+      "status": "pass",
+      "detail": "Only firebase-admin 13.5.0→14.2.0 and firebase-functions 6.4.0→7.3.2 changed as direct provider dependencies; other direct versions remain frozen."
+    },
+    {
+      "name": "official-modular-path",
+      "status": "pass",
+      "detail": "Business functions remain byte-identical on firebase-admin/app, firebase-admin/firestore, and firebase-functions/v2/https."
+    },
+    {
+      "name": "node-compatibility",
+      "status": "pass",
+      "detail": "Functions engine moved to Node.js 22; both exports loaded under isolated Node 22.23.1 and host Node 24.14.0."
+    },
+    {
+      "name": "client-build",
+      "status": "pass-with-warnings",
+      "detail": "TypeScript/Vite production build passed; existing ineffective dynamic import and >500 kB bundle warnings retained."
+    },
+    {
+      "name": "frozen-scenarios",
+      "status": "pass",
+      "detail": "14/14 recorded: 12 PASS, one explicit GAP, one unavailable remote dependency, zero FAIL."
+    },
+    {
+      "name": "performance-window",
+      "status": "pass",
+      "detail": "Two warmups plus seven recorded raw samples retained for read, detail, write, realtime, reconnect, and build."
+    },
+    {
+      "name": "offline-browser",
+      "status": "pass",
+      "detail": "Persistent-cache cold page, queued write, authoritative non-delivery before reconnect, and exact post-reconnect settlement proved."
+    },
+    {
+      "name": "target-cleanup",
+      "status": "pass",
+      "detail": "The final rerun preassigned all ten ports, including Eventarc 61121 and Tasks 62121; all closed, no owned PID survived, and exact runtime state was removed."
+    },
+    {
+      "name": "isolation-remediation",
+      "status": "pass",
+      "detail": "The default-port run is retained as a discovery attempt; the final full build, acceptance, 2+7 window, export, and cleanup reran with explicit disjoint auxiliary ports."
+    },
+    {
+      "name": "secret-scan",
+      "status": "pass",
+      "detail": "No JWT, Google API key, PEM private key, bearer value, or hosted credential retained; deterministic emulator fixtures are explicitly classified."
+    },
+    {
+      "name": "capsule-verifier",
+      "status": "pass",
+      "detail": "Official verifier accepted both the unchanged sealed capsule and the additive final-refresh capsule."
+    },
+    {
+      "name": "stage0",
+      "status": "pass",
+      "detail": "Seven providers, five apps, and 73 acceptance checks remain valid."
+    },
+    {
+      "name": "ref-check",
+      "status": "pass",
+      "detail": "107 LLP documents, 2310 refs in 5310 files, 0 errors, 0 unchecked."
+    },
+    {
+      "name": "guide-check",
+      "status": "pass-with-warnings",
+      "detail": "41 pages, 97 snippets, 69 routes plus 19 host-ops; 21 unrelated pre-existing freshness warnings."
+    },
+    {
+      "name": "bakeoff-script-tests",
+      "status": "pass",
+      "detail": "All 29 bakeoff protocol tests passed, followed by a passing Stage 0 verification."
+    },
+    {
+      "name": "llp-maintain",
+      "status": "pass",
+      "detail": "Propose-only pre-landing audit found no corpus drift or required LLP change."
+    }
+  ],
+  "nonclaims": [
+    "No native Firebase full-text search claim.",
+    "No hosted deployment, URL, cost, region, or production-latency claim.",
+    "No causal performance claim from comparing two local runs.",
+    "No rewrite of original timing, friction, failures, or score."
+  ]
+}

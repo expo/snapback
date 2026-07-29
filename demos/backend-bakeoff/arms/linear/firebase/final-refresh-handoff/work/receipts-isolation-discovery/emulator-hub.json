@@ -1,0 +1,83 @@
+{
+  "hub": {
+    "listen": [
+      {
+        "address": "127.0.0.1",
+        "family": "IPv4",
+        "port": 46121
+      }
+    ],
+    "name": "hub",
+    "host": "127.0.0.1",
+    "port": 46121
+  },
+  "logging": {
+    "listen": [
+      {
+        "address": "127.0.0.1",
+        "family": "IPv4",
+        "port": 46122
+      }
+    ],
+    "name": "logging",
+    "host": "127.0.0.1",
+    "port": 46122
+  },
+  "auth": {
+    "listen": [
+      {
+        "address": "127.0.0.1",
+        "family": "IPv4",
+        "port": 59121
+      }
+    ],
+    "name": "auth",
+    "host": "127.0.0.1",
+    "port": 59121
+  },
+  "functions": {
+    "name": "functions",
+    "host": "127.0.0.1",
+    "port": 56121
+  },
+  "firestore": {
+    "listen": [
+      {
+        "address": "127.0.0.1",
+        "family": "IPv4",
+        "port": 58121
+      }
+    ],
+    "name": "firestore",
+    "host": "127.0.0.1",
+    "port": 58121,
+    "pid": 20163,
+    "reservedPorts": [
+      46123
+    ],
+    "webSocketHost": "127.0.0.1",
+    "webSocketPort": 46123
+  },
+  "storage": {
+    "listen": [
+      {
+        "address": "127.0.0.1",
+        "family": "IPv4",
+        "port": 60121
+      }
+    ],
+    "name": "storage",
+    "host": "127.0.0.1",
+    "port": 60121
+  },
+  "eventarc": {
+    "name": "eventarc",
+    "host": "127.0.0.1",
+    "port": 9299
+  },
+  "tasks": {
+    "name": "tasks",
+    "host": "127.0.0.1",
+    "port": 9499
+  }
+}

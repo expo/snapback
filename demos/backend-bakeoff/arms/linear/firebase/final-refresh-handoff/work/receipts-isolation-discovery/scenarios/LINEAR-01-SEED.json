@@ -1,0 +1,35 @@
+{
+  "id": "LINEAR-01-SEED",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:13:20.228Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCounts": {
+      "organizations": 2,
+      "teams": 3,
+      "projects": 4,
+      "labels": 20,
+      "issues": 500,
+      "comments": 1000,
+      "activities": 500
+    },
+    "firstPageCount": 50,
+    "personas": {
+      "alice": {
+        "uidHash": "2565c06ac407c5fab60a9471776df0d4e38a9e64d61fb638222db43df0c7eae8",
+        "emailDomain": "example.test"
+      },
+      "bob": {
+        "uidHash": "53feb83bc64778893ea5aa32fc0abcf65655c6c557dccd687f2b7a696640f0cb",
+        "emailDomain": "example.test"
+      },
+      "mallory": {
+        "uidHash": "882cf9a99f6cc3a38aa69cd91e96ba8017cf6fa512b989f5fc0b4e734bae1d56",
+        "emailDomain": "example.test"
+      }
+    },
+    "seedReceipt": "receipts/seed-receipt.json"
+  },
+  "note": "Admin SDK counts and signed-in client read prove the exact fresh-local seed."
+}

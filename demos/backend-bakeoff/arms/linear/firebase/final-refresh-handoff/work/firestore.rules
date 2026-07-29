@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isMember(orgId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+    function isOwner(orgId) {
+      return isMember(orgId) &&
+        get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == "owner";
+    }
+
+    match /organizations/{orgId} {
+      allow read: if isMember(orgId);
+      allow write: if false;
+      match /members/{memberId} {
+        allow read: if isMember(orgId);
+        allow write: if isOwner(orgId);
+      }
+    }
+
+    match /teams/{id} {
+      allow read: if isMember(resource.data.orgId);
+      allow write: if false;
+    }
+    match /projects/{id} {
+      allow read: if isMember(resource.data.orgId);
+      allow write: if false;
+    }
+    match /labels/{id} {
+      allow read: if isMember(resource.data.orgId);
+      allow write: if false;
+    }
+    match /issues/{id} {
+      allow read: if isMember(resource.data.orgId);
+      allow create: if isMember(request.resource.data.orgId);
+      allow update: if isMember(resource.data.orgId) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.teamId == resource.data.teamId;
+      allow delete: if isOwner(resource.data.orgId);
+    }
+    match /comments/{id} {
+      allow read: if isMember(resource.data.orgId);
+      allow create: if isMember(request.resource.data.orgId) &&
+        request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if false;
+    }
+    match /activities/{id} {
+      allow read: if isMember(resource.data.orgId);
+      allow write: if false;
+    }
+  }
+}

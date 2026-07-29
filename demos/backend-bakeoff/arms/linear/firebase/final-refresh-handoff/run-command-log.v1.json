@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "providerOrderGateReleased": true,
+  "providerCommands": [
+    {
+      "command": "npm run preflight",
+      "exitStatus": 0,
+      "evidence": "work/receipts/baseline-before.json"
+    },
+    {
+      "command": "npm run start:arm",
+      "exitStatus": 0,
+      "evidence": "work/receipts/target-identity.json",
+      "note": "First run downloaded the official Firestore and Storage emulator artifacts into isolated state."
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0,
+      "evidence": "work/dist",
+      "note": "Existing dynamic-import and bundle-size warnings retained."
+    },
+    {
+      "command": "npm run acceptance",
+      "exitStatus": 0,
+      "evidence": "work/receipts/acceptance-results.json",
+      "note": "Expected outsider permission-denied log and local metadata warning retained; harness completed."
+    },
+    {
+      "command": "npm run browser:offline",
+      "exitStatus": 0,
+      "evidence": "work/receipts/offline-browser.json"
+    },
+    {
+      "command": "npm run audit",
+      "exitStatus": 0,
+      "evidence": [
+        "work/receipts/npm-audit.json",
+        "work/receipts/functions-npm-audit.json"
+      ],
+      "note": "The wrapper retains npm audit's nonzero vulnerability statuses without treating them as command transport failures."
+    },
+    {
+      "command": "npm run inventory",
+      "exitStatus": 0,
+      "evidence": "work/receipts/inventory.json"
+    },
+    {
+      "command": "npm run export:arm",
+      "exitStatus": 0,
+      "evidence": "work/receipts/export-manifest.json"
+    },
+    {
+      "command": "npm run cleanup:arm",
+      "exitStatus": 0,
+      "evidence": "work/receipts/cleanup.json"
+    },
+    {
+      "command": "npm run capsule",
+      "exitStatus": 0,
+      "evidence": "run-capsule.v1.json"
+    }
+  ],
+  "isolationDiscoveryAttempts": [
+    {
+      "resultTreatment": "not final isolation proof",
+      "reason": "The first complete run revealed implicit Eventarc and Tasks listeners on unassigned defaults 9299 and 9499.",
+      "collisionObserved": false,
+      "exactOwnedAndCleaned": true,
+      "evidence": [
+        "work/receipts-isolation-discovery/emulator-hub.json",
+        "work/receipts-isolation-discovery/cleanup.json",
+        "isolation-discovery-run-capsule.v1.json"
+      ],
+      "remediation": "Full final rerun with Eventarc 61121 and Tasks 62121 explicitly assigned, preflighted, hub-verified, sampled, exported, and cleaned."
+    }
+  ],
+  "providerRunFailures": [],
+  "builderPrepFailures": "prep-command-log.v1.json",
+  "stopDefects": []
+}

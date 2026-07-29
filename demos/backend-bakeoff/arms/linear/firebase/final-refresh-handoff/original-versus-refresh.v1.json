@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "original": {
+    "admin": "13.5.0",
+    "functions": "6.4.0",
+    "result": {
+      "pass": 12,
+      "gap": 1,
+      "unavailableRemoteDependency": 1,
+      "fail": 0
+    },
+    "milestonesMs": {
+      "firstLocalRead": 6333,
+      "firstAuthoritativeMutation": 6485,
+      "firstRealtimeTransition": 10011,
+      "localAcceptance": 16244
+    },
+    "capsule": "../run-capsule.v1.json",
+    "performance": "../work/receipts/performance.json"
+  },
+  "refresh": {
+    "admin": "14.2.0",
+    "functions": "7.3.2",
+    "result": {
+      "pass": 12,
+      "gap": 1,
+      "unavailableRemoteDependency": 1,
+      "fail": 0
+    },
+    "milestonesMs": {
+      "firstLocalRead": 6790,
+      "firstAuthoritativeMutation": 7021,
+      "firstRealtimeTransition": 11068,
+      "localAcceptance": 14340
+    },
+    "capsule": "run-capsule.v1.json",
+    "performance": "work/receipts/performance.json"
+  },
+  "scenarioParity": "exact status parity across all 14 frozen IDs",
+  "performanceTreatment": "Both original and final-remediated raw 2+7 windows are retained. The intervening isolation-discovery run is also preserved separately. Differences are descriptive local-run evidence, not causal upgrade claims."
+}

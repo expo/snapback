@@ -1,0 +1,35 @@
+{
+  "id": "LINEAR-10-OFFLINE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:13:57.477Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "Firestore IndexedDB persistent cache and offline mutation queue",
+  "evidence": {
+    "online": {
+      "auth": "bob@example.test",
+      "source": "server",
+      "issueCount": 50,
+      "targetId": "issue-500"
+    },
+    "offline": {
+      "coldPage": true,
+      "transportDisabledBeforeQuery": true,
+      "retainedIssueCount": 50,
+      "snapshotSourceBeforeReconnect": "cache",
+      "queuedEditRenderedOptimistically": true,
+      "pendingWritesBeforeReconnect": true,
+      "authoritativeBeforeReconnectUnchanged": true,
+      "authoritativeAfterReconnectMatched": true,
+      "pendingWritesAfterReconnect": false,
+      "indexedDbDatabaseCount": 3,
+      "indexedDbNameHashes": [
+        "3f017de73e8d73865507547503e19570d2abf0318505b30c37229cf77a0a73cc",
+        "8cc71b55f0505e1ed5354cdc3c6597c7c3aa49658b11d02f7471243ed86bfce8",
+        "c59046c232ed5e82f5fc8ebdfbbf34939bcacd60f396ed6f075b565e2627b128"
+      ],
+      "targetId": "issue-500",
+      "markerHash": "b1d6390556885ff8868f79dbff327c898f52aae507785fcb4e5f3fcabe809214"
+    }
+  },
+  "note": "A new page in the same isolated persistent profile booted 50 issues from native cache with Firestore transport disabled, queued one update, and reconciled exactly once after reconnect."
+}
