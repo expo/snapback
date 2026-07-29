@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scope": "fresh-target",
+  "server": "http://127.0.0.1:3320",
+  "databaseName": "llp0102-linear-spacetimedb-w1",
+  "databaseIdentity": "c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e",
+  "assignedPorts": [3320, 4320],
+  "runtimeStateRoot": "/home/ccheever/worktrees/llp0102-linear-spacetimedb-w1/demos/backend-bakeoff/arms/linear/spacetimedb/state",
+  "allowedDestructiveActions": [
+    "delete only the exact database identity above using its retained owner credential",
+    "stop only processes whose command and cwd prove ownership by this exact arm",
+    "remove only the exact ignored runtime state root above"
+  ],
+  "baseline": {
+    "databaseAbsentBeforeFirstWrite": true,
+    "standaloneWasStartedFreshForArm": true,
+    "assignedPortsWereFreeBeforeStart": [3320, 4320],
+    "sharedTarget": false,
+    "unrelatedDatabaseTargets": []
+  },
+  "forbidden": [
+    "wildcard database deletion",
+    "global server clear",
+    "recursive deletion above the exact state root",
+    "touch another worker's ports, CLI state, data root, or namespace"
+  ]
+}

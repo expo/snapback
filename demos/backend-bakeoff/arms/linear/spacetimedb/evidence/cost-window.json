@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "window": "fresh isolated local target provisioning through exact target and runtime-state cleanup",
+  "actualProviderChargeUsd": 0,
+  "measurement": "Official standalone server used arm-assigned Minisforum compute; no hosted provider resources were provisioned.",
+  "hostedListPriceEstimateUsd": null,
+  "reasonEstimateUnavailable": "Hosted deployment was unavailable because no credential was supplied.",
+  "extrapolationCountedAsMeasured": false
+}

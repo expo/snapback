@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "url": "http://127.0.0.1:4320/",
+  "httpStatus": 200,
+  "htmlBytes": 620,
+  "screenshotPath": "evidence/linear-ui.png",
+  "screenshotBytes": 53932,
+  "renderedState": "authentication-required",
+  "reason": "No development identity token is embedded in source, build output, URL, or screenshot; runtime identity injection uses sessionStorage.",
+  "visibleGapDisclosure": "Full-text search is an explicit provider GAP.",
+  "productionBuildPassed": true
+}

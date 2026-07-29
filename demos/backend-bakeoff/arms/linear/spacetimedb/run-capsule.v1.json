@@ -5,55 +5,61 @@
     "app": "linear",
     "provider": "spacetimedb",
     "round": "deep",
-    "attemptId": "linear-spacetimedb-deep-01"
+    "attemptId": "linear-spacetimedb-w1"
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "snapbackFrozen": true,
     "providerVersions": {
-      "product": "SpacetimeDB",
+      "product": "SpacetimeDB 2.7.0",
       "client": "2.7.0",
-      "cli": "2.7.0"
+      "cli": "2.7.0",
+      "cliLauncherSha256": "74aca112ead0b20e64e01c4d4cbc2fdf022821f2f870b473a0be5e1da179c246"
     },
-    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "machine": "Minisforum AI Series/x86_64/Linux 6.17.0-40-generic",
+    "startedAt": "2026-07-29T04:09:07.046Z",
+    "finishedAt": "2026-07-29T04:58:53.248Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
-    "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "activeElapsedMs": 2986202,
+    "toolCalls": 92,
+    "timedWindowFrozenAt": "2026-07-29T04:58:53.248Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "891807e2fda7aa14fb30b9ba858778e661278ea9021e66a82c34241af5d1229f",
+      "role": "organization owner / team member"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "02d23fe1d09fb830a9e5139bfbffda4032555c79f8c04020a36edea1773a9580",
+      "role": "organization and team member"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "e6df39ae8c44a1aab5c44b4ef6cc796763026c0f63ab9d5e56f75f78069c2824",
       "role": "outsider"
     }
   },
   "targets": {
     "binding": {
       "mode": "fresh-local",
-      "namespace": "llp0102-linear-spacetimedb-deep-linear-spacetimedb-deep-01",
-      "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "namespace": "llp0102-linear-spacetimedb-w1",
+      "baselineReceiptPath": "evidence/baseline.json",
+      "scopedCleanupPlanPath": "evidence/cleanup-plan.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
+      "status": "cleaned",
+      "identityHash": "e714792b31b4bb901abeaff67a826647200f121a88690c7c37d06d4dcadaefae",
       "profile": "official standalone local server",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "evidence/target-identity.json",
+        "evidence/cleanup-receipt.json",
+        "evidence/environment-cleanup.json"
+      ]
     },
     "hosted": {
       "status": "explicit-gap",
@@ -61,193 +67,330 @@
       "profile": "Maincloud managed database/module",
       "plan": "Maincloud Pro",
       "region": "provider-selected",
-      "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
-      "receiptPaths": []
+      "gapReason": "Hosted evidence unavailable: no SpacetimeDB credential was present in authorized sources. This is an environment GAP, not a product failure.",
+      "receiptPaths": [
+        "evidence/hosted-gap.json"
+      ]
     }
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "firstLocalReadMs": 2097250,
+    "firstAuthoritativeMutationMs": 2097250,
+    "firstRealtimeTransitionMs": 2097360,
+    "localAcceptanceMs": 2125137,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 2125137
   },
   "assistanceEvents": [],
-  "commands": [],
+  "commands": [
+    {
+      "label": "worktree-local CLI 2.7.0 and standalone start",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 180000
+    },
+    {
+      "label": "V1 publish, exact seed, V2 data-preserving migration",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2000000,
+      "finishedMonotonicMs": 2097250
+    },
+    {
+      "label": "generated-bindings acceptance harness",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2097250,
+      "finishedMonotonicMs": 2125137
+    },
+    {
+      "label": "React production build and rendered UI smoke",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2140000,
+      "finishedMonotonicMs": 2260788
+    },
+    {
+      "label": "two-warmup seven-sample module build series",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2201000,
+      "finishedMonotonicMs": 2208780
+    },
+    {
+      "label": "exact database/process/runtime-state cleanup",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2956202,
+      "finishedMonotonicMs": 2986202
+    }
+  ],
   "scenarioResults": [
     {
       "id": "LINEAR-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/migration-before.json",
+        "evidence/target-identity.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Caller-scoped subscribed views returned the exact frozen counts for three server-issued identities.",
+      "note": "The fresh target contains the exact frozen production-shaped seed and three server-issued development identities."
     },
     {
       "id": "LINEAR-02-AUTHORITY",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/actor-identity-receipt.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory received zero protected rows, private subscription was rejected, and two negative writes failed.",
+      "note": "Alice owner and Bob team member receive authorized views; Mallory receives no issues, cannot subscribe to the private source table, and cannot mutate."
     },
     {
       "id": "LINEAR-03-FILTERS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/schema-after-migration.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Server-materialized pages matched authoritative expected IDs for status, assignee, project, and label.",
+      "note": "Reducer-side pages select indexed status, assignee, project, or organization candidates and prove label membership by primary-key join."
     },
     {
       "id": "LINEAR-04-PAGINATION",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two exclusive-cursor 50-row pages retained a 100-row unique union across an earlier-sort insert.",
+      "note": "Two server-materialized 50-row cursor pages remain nonduplicating across an insert ordered before the exclusive cursor."
     },
     {
       "id": "LINEAR-05-DETAIL",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Subscribed related rows supplied exact project, assignee, label, comment, and activity identities.",
+      "note": "The subscribed issue detail composes project, assignee, labels, comments, and activity from bounded caller-scoped views."
     },
     {
       "id": "LINEAR-06-OPTIMISTIC",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "implementation-notes.md"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Application-owned pending state preceded settlement and reconciled to the authoritative revision.",
+      "note": "Application-owned optimistic issue state appears before reducer settlement and reconciles to the subscribed authoritative row."
     },
     {
       "id": "LINEAR-07-CONFLICT",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two actor clients crossed one barrier; one CAS committed, one rejected, and both converged.",
+      "note": "A two-actor barrier uses expected-revision compare-and-set: the first serialized reducer commits and the stale contender is rejected."
     },
     {
       "id": "LINEAR-08-LIVE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob’s second SDK client observed Alice’s comment and activity via native WebSocket row callbacks.",
+      "note": "Bob’s second SDK client receives Alice’s committed comment and activity through native WebSocket view callbacks."
     },
     {
       "id": "LINEAR-09-SEARCH",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/official-docs.md"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "No native full-text index or service identity exists; no substitute result is claimed.",
+      "note": "SpacetimeDB 2.7.0 exposes B-tree/direct indexes and SQL predicates but no ordinary native full-text issue-search index; no client filter is misrepresented as backend search."
     },
     {
       "id": "LINEAR-10-OFFLINE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "implementation-notes.md"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "Warm memory, empty cold client, disconnected transport, and nonaccepted mutation outcome are retained separately.",
+      "note": "The SDK retains an in-memory cache on one disconnected object but supplies neither provider-backed cold persistence nor an offline mutation queue."
     },
     {
       "id": "LINEAR-11-MIGRATION",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/migration-receipt.json",
+        "evidence/schema-v1.json",
+        "evidence/schema-after-migration.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Authoritative counts remained 500 before/after while schema proof shows the new defaulted B-tree field.",
+      "note": "Republishing added an indexed trailing customerImpact field with a default, retained all 500 seeded issues, and accepted an authoritative post-migration update."
     },
     {
       "id": "LINEAR-12-DEPLOY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "unavailable-remote-dependency",
+      "evidencePaths": [
+        "evidence/deployment-receipt.json",
+        "evidence/hosted-gap.json",
+        "evidence/backup-manifest.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Local identity/config/log/rebuild evidence exists; hosted URL and operations remain unavailable without credentials.",
+      "note": "The local deployment identity, schema, configuration, logs, and deterministic rebuild inputs are inspectable; hosted Maincloud deployment is an environment GAP because no credential was available."
     },
     {
       "id": "LINEAR-13-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/performance-samples.json",
+        "evidence/performance-build-samples.json",
+        "evidence/cost-window.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Every frozen path retains two warmups, seven raw samples, median, nearest-rank p95, and cost scope.",
+      "note": "Two warmups and seven retained samples cover server-materialized lists, composed detail, writes, native realtime, and reconnect; build/deploy samples are added by finalization."
     },
     {
       "id": "LINEAR-14-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/cleanup-plan.json",
+        "evidence/cleanup-receipt.json",
+        "evidence/environment-cleanup.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Exact database lookup failed after delete, both assigned ports closed, and only arm state was removed.",
+      "note": "Deleted only the exact fresh arm database, stopped only validated arm processes, proved both assigned ports closed, and removed the worktree-local runtime/credential state."
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "evidence/inventory.json",
+    "authoredSource": {
+      "files": 27,
+      "bytes": 183893,
+      "lines": 3437
+    },
+    "generated": {
+      "files": 42,
+      "bytes": 45222,
+      "lines": 1454
+    },
+    "tests": {
+      "files": 1,
+      "bytes": 27937,
+      "lines": 761
+    },
+    "configuration": {
+      "files": 41,
+      "bytes": 177857,
+      "lines": 7645
+    },
+    "policy": {
+      "files": 0,
+      "bytes": 0,
+      "lines": 0
+    },
+    "dependencyManifests": {
+      "files": 3,
+      "bytes": 77321,
+      "lines": 2425
+    },
+    "installedDependencyBytes": 217435436,
+    "glue": [
+      "identity-scoped durable page_result materialization for parameterized cursor pages",
+      "application persona registration over server-issued development identities",
+      "application-owned optimistic pending projection",
+      "expected-revision compare-and-set conflict policy"
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Three hashed principals, distinct views, a denied private read, and two denied writes are retained.",
+      "evidencePaths": [
+        "evidence/actor-identity-receipt.json",
+        "evidence/acceptance-results.json"
+      ]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "A two-client barrier produced exactly one CAS commit and one rejection followed by convergence.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Native SDK WebSocket row callbacks delivered second-client comment and activity transitions.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "Reconnect is sampled directly; persistent cold offline state and queueing are explicitly GAP.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "implementation-notes.md"
+      ]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Reducer promises, confirmed reads, revisions, and authoritative subscribed rows bind assertions.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Fresh database identity, server, versions, paths, machine, and assigned ports are retained.",
+      "evidencePaths": [
+        "evidence/target-identity.json",
+        "evidence/baseline.json"
+      ]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "Deletion used the exact identity; process commands/cwds were validated; database and ports have negative proofs.",
+      "evidencePaths": [
+        "evidence/cleanup-plan.json",
+        "evidence/cleanup-receipt.json",
+        "evidence/environment-cleanup.json"
+      ]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "V1/V2 modules, exact seed, generated bindings, client, harness, locks, raw timings, schema, and inventory are retained.",
+      "evidencePaths": [
+        "evidence/inventory.json",
+        "evidence/backup-manifest.json",
+        "evidence/performance-samples.json"
+      ]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "evidence/cleanup-plan.json",
+    "receiptPaths": [
+      "evidence/cleanup-receipt.json",
+      "evidence/environment-cleanup.json"
+    ],
+    "postCleanupProbe": "Exact database describe failed after delete; ss reported no listeners on 3320 or 4320; state/ is absent."
   },
-  "result": "pending"
+  "result": "complete"
 }

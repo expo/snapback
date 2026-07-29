@@ -1,0 +1,9 @@
+{
+  "attempt": 8,
+  "stage": "artifact commit",
+  "classification": "worker environment",
+  "symptom": "The first commit attempt was refused because the remote bare/worktree clone had no author identity configured.",
+  "remediation": "Reuse the coordinator repository's known author name and email through one-command git -c overrides without mutating global remote configuration.",
+  "armResultAffected": false,
+  "stopClass": false
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-07-29T04:34:22Z",
+  "command": "npm install",
+  "exitCode": 1,
+  "classification": "builder-error",
+  "summary": "The harness used npm's reserved prepare lifecycle name for the fixture command, so npm install ran it before generated bindings existed.",
+  "diagnostic": "ERR_MODULE_NOT_FOUND: work/harness/module_bindings/index.ts",
+  "remediation": "Renamed the command to npm run seed and repeated dependency installation with scripts disabled.",
+  "timeRetained": true,
+  "secretValuesPresent": false
+}

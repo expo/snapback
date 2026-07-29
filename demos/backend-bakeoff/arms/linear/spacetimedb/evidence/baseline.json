@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T04:35:25Z",
+  "mode": "fresh-local",
+  "exactTarget": {
+    "server": "http://127.0.0.1:3320",
+    "database": "llp0102-linear-spacetimedb-w1",
+    "vitePort": 4320,
+    "dataRoot": "state/data",
+    "cliRoot": "state/cli",
+    "configPath": "state/config/cli.toml"
+  },
+  "preWriteProbes": {
+    "databaseDescribeExitCode": 1,
+    "databaseAbsentDiagnostic": "failed to find database",
+    "port3320Owner": "exact arm-owned SpacetimeDB 2.7.0 standalone process",
+    "port4320Free": true
+  },
+  "sharedTarget": false,
+  "unrelatedBaselineMutationPlanned": false,
+  "secretValuesPresent": false
+}

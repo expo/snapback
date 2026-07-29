@@ -1,0 +1,29 @@
+{
+  "provider": "SpacetimeDB",
+  "providerVersion": "2.7.0",
+  "database": "llp0102-linear-spacetimedb-w1",
+  "databaseIdentity": "c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e",
+  "migration": {
+    "operation": "publish V2 module over V1 with --delete-data=never",
+    "createdColumn": "issue.customer_impact",
+    "columnType": "String",
+    "default": "normal",
+    "createdIndex": "issue_customer_impact_idx_btree",
+    "clientImpact": "schema change disconnected clients",
+    "seededRowsBefore": 500,
+    "seededRowsAfter": 500,
+    "defaultedRowsAfter": 500
+  },
+  "claims": {
+    "destructiveResetUsed": false,
+    "migrationWasInPlace": true,
+    "hostedDeployment": false
+  },
+  "supportingEvidence": [
+    "evidence/schema-v1.json",
+    "evidence/v1-issue-count.txt",
+    "evidence/schema-after-migration.json",
+    "evidence/migration-after-count.txt",
+    "evidence/migration-after-default-count.txt"
+  ]
+}

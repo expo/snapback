@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "database": "llp0102-linear-spacetimedb-w1",
+  "databaseIdentity": "c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e",
+  "schemaSha256": "49baa3157927d5a4a25502f2295a140bea85194abc96464332fc975639dc68a4",
+  "finalAuthoritativeCountOutputSha256": "ca11cf07da4acb90edf6285dbd6d77259952e398496538b46f756eb37012200f",
+  "providerExportProduced": false,
+  "exportGap": "SpacetimeDB 2.7.0 CLI exposes no ordinary database export command for this standalone target.",
+  "deterministicRebuildInputs": [
+    "work/server/migrations/v1/index.ts",
+    "work/server/spacetimedb/src/index.ts",
+    "work/harness/prepare.ts",
+    "work/server/spacetimedb/package-lock.json"
+  ],
+  "rollbackInspection": "V1 and V2 module sources plus the migration publish log are retained; this is reproducibility evidence, not a claimed provider backup."
+}

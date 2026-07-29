@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "database": "llp0102-linear-spacetimedb-w1",
+  "schemaPhase": "v1-before-customer-impact",
+  "counts": {
+    "organizations": 2,
+    "primaryTeams": 3,
+    "primaryProjects": 4,
+    "issues": 500,
+    "comments": 1000,
+    "labels": 20,
+    "activities": 500,
+    "issueLabels": 1000
+  },
+  "actors": {
+    "alice": "891807e2fda7aa14fb30b9ba858778e661278ea9021e66a82c34241af5d1229f",
+    "bob": "02d23fe1d09fb830a9e5139bfbffda4032555c79f8c04020a36edea1773a9580",
+    "mallory": "e6df39ae8c44a1aab5c44b4ef6cc796763026c0f63ab9d5e56f75f78069c2824"
+  },
+  "rawCredentialsPersistedInEvidence": false
+}

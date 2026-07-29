@@ -1,0 +1,56 @@
+Using configuration from /home/ccheever/worktrees/llp0102-linear-spacetimedb-w1/demos/backend-bakeoff/arms/linear/spacetimedb/work/server/spacetime.json
+Publishing module spacetimedb to database 'llp0102-linear-spacetimedb-w1'
+Build finished successfully.
+Uploading to http://127.0.0.1:3320 => http://127.0.0.1:3320
+Checking for breaking changes...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0m[1m[34mDatabase Migration Plan[0m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▸ ▸ [0m[1m[31mRemoved[0m view: [0m[1m[36mmy_issues[0m
+    [0m[1m[34mColumns:[0m
+        • id: [0m[35mString[0m
+        • identifier: [0m[35mString[0m
+        • organization_id: [0m[35mString[0m
+        • team_id: [0m[35mString[0m
+        • project_id: [0m[35mString[0m
+        • title: [0m[35mString[0m
+        • description: [0m[35mString[0m
+        • status: [0m[35mString[0m
+        • priority: [0m[35mString[0m
+        • assignee_name: [0m[35mString[0m
+        • board_position: [0m[35mU32[0m
+        • sort_key: [0m[35mString[0m
+        • revision: [0m[35mU64[0m
+        • created_at: [0m[35m(__timestamp_micros_since_unix_epoch__: I64)[0m
+        • updated_at: [0m[35m(__timestamp_micros_since_unix_epoch__: I64)[0m
+
+▸ [0m[1m[32mCreated[0m column in table [0m[1m[36missue[0m
+    + customer_impact: [0m[35mString[0m (default: String(
+    "normal",
+))
+▸ [0m[1m[32mCreated[0m index issue_customer_impact_idx_btree on [customer_impact] of table [0m[1m[36missue[0m
+▸ ▸ [0m[1m[32mCreated[0m view: [0m[1m[36mmy_issues[0m
+    [0m[1m[34mColumns:[0m
+        • id: [0m[35mString[0m
+        • identifier: [0m[35mString[0m
+        • organization_id: [0m[35mString[0m
+        • team_id: [0m[35mString[0m
+        • project_id: [0m[35mString[0m
+        • title: [0m[35mString[0m
+        • description: [0m[35mString[0m
+        • status: [0m[35mString[0m
+        • priority: [0m[35mString[0m
+        • assignee_name: [0m[35mString[0m
+        • board_position: [0m[35mU32[0m
+        • sort_key: [0m[35mString[0m
+        • revision: [0m[35mU64[0m
+        • created_at: [0m[35m(__timestamp_micros_since_unix_epoch__: I64)[0m
+        • updated_at: [0m[35m(__timestamp_micros_since_unix_epoch__: I64)[0m
+        • customer_impact: [0m[35mString[0m
+
+[0m[1m[41m!!! Warning: All clients will be disconnected due to breaking schema changes[0m
+
+Skipping confirmation due to --yes
+Publishing module...
+Updated database with name: llp0102-linear-spacetimedb-w1, identity: c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e

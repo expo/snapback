@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "removedExactPath": "state/",
+  "credentialFilesRemoved": true,
+  "cliRootRemoved": true,
+  "dataRootRemoved": true,
+  "logRootRemoved": true,
+  "assignedPorts": [
+    3320,
+    4320
+  ],
+  "postCleanupListeningPids": {
+    "3320": [],
+    "4320": []
+  },
+  "pass": true
+}
