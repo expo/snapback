@@ -1814,9 +1814,19 @@ conflict.
 Authorization-protected writes have one additional pre-transaction conflict:
 `SNAPBACK_AUTH_RESERVATION_STALE`. It is HTTP 409 with
 `details.retryable: true`, `details.effectCommitted: false`, and
-`details.retryStrategy: "short-jitter"`. The attempt committed nothing, so
-retry the complete write after a short jitter and re-evaluate its result. Do
-not treat it as backend downtime or use service-style exponential backoff.
+`details.retryStrategy: "short-jitter"`. The standard JavaScript and Swift
+clients recognize only that exact closed refusal and retry the complete write
+within a bounded short-jitter budget. They do not retry a missing fact, a
+different status, an ambiguous outcome, or anything that may have committed.
+Do not add an application retry loop, treat it as backend downtime, or use
+service-style exponential backoff.
+
+The JavaScript client defaults to 40 total attempts with 20–80 ms jitter.
+Configure `reservationRetryMaxAttempts` (use `1` to disable retries) and
+`reservationRetryJitterMilliseconds: [minimum, maximum]` at construction.
+Inspect `reservationRetryDiagnostics()` or provide
+`onReservationRetryDiagnostic` to retain scheduled, settled, and exhausted
+attempt evidence without changing mutation settlement.
 
 Tests for an authorization rule must assert the intended denial code
 (`SNAPBACK_AUTH_PERMISSION_DENIED`, for example), not merely that the write
@@ -1861,7 +1871,8 @@ that needs its successor fails before writing with
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
 - **Do not count `SNAPBACK_AUTH_RESERVATION_STALE` as an authorization-rule
-  denial.** Retry the whole attempt, then assert the rule's exact code.
+  denial.** Let the standard client retry the exact effect-free refusal, then
+  assert the rule's exact code.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
   They are server-owned.
 - **Do not infer success from HTTP status alone.** Consume the result,
@@ -3515,6 +3526,17 @@ Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.
 
+For the exact HTTP 409 `SNAPBACK_AUTH_RESERVATION_STALE` refusal whose closed
+details say `retryable: true`, `retryStrategy: "short-jitter"`, and
+`effectCommitted: false`, `mutate()` retries the unchanged complete operation
+within its bounded client budget. Construction options
+`reservationRetryMaxAttempts` and
+`reservationRetryJitterMilliseconds: [minimum, maximum]` configure that
+budget. `reservationRetryDiagnostics()` and
+`onReservationRetryDiagnostic` expose structured scheduled, settled, and
+exhausted attempt evidence. No other status or ambiguous/committed outcome is
+automatically retried.
+
 ## Subscribe to durable state
 
 `liveQuery(ref, options)` is the author-facing composite. It performs the
@@ -3643,7 +3665,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Durable live | `liveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
 | Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
-| Receipts | `recordReceipt`, `receipts`, `onReceipt` |
+| Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
 The overlay returned by `subscribeEphemeral` and the live handle returned by
