@@ -112,38 +112,63 @@
       "receiptPaths": [
         "receipts/llp-maintain-audit.md"
       ]
+    },
+    {
+      "type": "coordinator-capsule-correction",
+      "note": "The current verifier required a frozen transport enum and monotonic command bounds; coarse bounds are labeled and raw receipts remain authoritative.",
+      "receiptPaths": [
+        "receipts/coordinator-capsule-adjudication.md"
+      ]
     }
   ],
   "commands": [
     {
       "command": "instant-cli init-without-files --title llp0102-linear-instantdb-w3 --temp",
       "exitStatus": 0,
-      "classification": "fresh official hosted temporary target"
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 451488,
+      "classification": "fresh official hosted temporary target",
+      "note": "Coarse interval bounded by the retained first-target milestone."
     },
     {
       "command": "instant-cli push all --app [REDACTED] --yes",
       "exitStatus": 0,
-      "classification": "base schema/permissions and indexed-field evolution"
+      "startedMonotonicMs": 451489,
+      "finishedMonotonicMs": 470000,
+      "classification": "base schema/permissions and indexed-field evolution",
+      "note": "Coarse protocol interval; individual push receipts retain wall-clock timestamps."
     },
     {
       "command": "node scripts/acceptance.mjs",
       "exitStatus": 0,
-      "classification": "final clean functional run and runtime 2+7 samples"
+      "startedMonotonicMs": 470001,
+      "finishedMonotonicMs": 700000,
+      "classification": "final clean functional run and runtime 2+7 samples",
+      "note": "Coarse protocol interval bounded within retained acceptance milestones."
     },
     {
       "command": "node scripts/offline-smoke.mjs with Vite 127.0.0.1:4325",
       "exitStatus": 0,
-      "classification": "controlled Chrome cold-cache, offline queue, reconnect"
+      "startedMonotonicMs": 700001,
+      "finishedMonotonicMs": 830000,
+      "classification": "controlled Chrome cold-cache, offline queue, reconnect",
+      "note": "Coarse protocol interval; browser receipt retains direct network and state observations."
     },
     {
       "command": "node scripts/build-samples.mjs",
       "exitStatus": 0,
-      "classification": "two warmups plus seven production builds"
+      "startedMonotonicMs": 830001,
+      "finishedMonotonicMs": 900000,
+      "classification": "two warmups plus seven production builds",
+      "note": "Coarse protocol interval ending at acceptance-completion milestone."
     },
     {
       "command": "node scripts/clear-target.mjs",
       "exitStatus": 0,
-      "classification": "exact target entity/user cleanup and local credential removal"
+      "startedMonotonicMs": 900001,
+      "finishedMonotonicMs": 975254,
+      "classification": "exact target entity/user cleanup and local credential removal",
+      "note": "Coarse protocol interval ending at retained cleanup-completion milestone."
     }
   ],
   "scenarioResults": [
@@ -245,7 +270,7 @@
         "evidence/acceptance-results.json",
         "evidence/offline-smoke.json"
       ],
-      "transport": "offline-reconnect",
+      "transport": "local-optimistic",
       "authoritativeCheck": "Cold browser retained 50 rows and queued one edit while provider transport was disabled, then reconciled.",
       "note": ""
     },

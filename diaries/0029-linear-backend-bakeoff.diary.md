@@ -761,3 +761,90 @@ indexed multi-value relationships without manual junction machinery, bounded
 detail composition, and guided migrations. Surface origin/configuration errors
 at the application boundary. This arm exposes meaningful authority and
 production-tooling gaps, but not a need to replace Snapback's architecture.
+
+## 2026-07-28 — InstantDB 1.0.52, deep round
+
+The arm used `instant-cli init-without-files --temp` to create a real hosted,
+disposable app without account setup. It built the full frozen tracker:
+two organizations, three teams, four projects, 20 labels, 500 issues, 1,000
+seed comments, activity, three native guest identities, indexed
+filters/cursors, composed detail, optimistic edits, concurrent moves, live
+comment/activity, browser offline retention and queueing, and indexed schema
+evolution.
+
+### What felt good
+
+The disposable hosted-target flow was exceptional dogfood ergonomics: one
+command produced an app-scoped admin credential and a documented expiry.
+Schema-as-code and links kept the graph compact. Native guest auth, direct
+client transactions, live InstaQL subscriptions, optimistic materialization,
+and browser IndexedDB/offline queueing fit together with little application
+glue.
+
+The cold-browser result was particularly strong. A newly launched Chrome
+process served 50 retained issues while three provider requests and one
+WebSocket were blocked, accepted an optimistic queued edit, and settled it
+after reconnect. Native realtime required no channel or publication setup.
+Compared with Supabase, this took far less SQL/RLS/realtime/offline machinery.
+
+### What felt bad or frustrating
+
+Link permissions were the sharpest edge. A link mutation also changes reverse
+link fields on the related entity, so assignee changes and comment/activity
+creation required permissions on `$users.assignedIssues` and
+`issues.comments/activities`. The diagnostic was only `Permission denied: not
+perms-pass?` plus an entity, not the failing rule, direction, field, or binding.
+Three safe over-restrictive iterations were retained.
+
+There is no ordinary native full-text path in the pinned surface. Concurrent
+whole-record writes converged cleanly under last-write-wins, but there is no
+semantic revision/CAS policy; the application identifies the winner and
+accepts service serialization.
+
+The app-scoped temporary credential cannot inspect deployment logs, roll back,
+or immediately delete the app. Cleanup zeroed all data and users, but schema
+and permissions remain until the provider's documented automatic expiry after
+more than 24 hours. CLI output and target credentials also required explicit
+redaction wrappers.
+
+The first offline harness closed the browser after queueing; that did not flush
+the queued edit across a brand-new process. Keeping the cold-started client
+alive through reconnect worked, which is an important boundary rather than a
+reason to overclaim cross-process queue durability.
+
+### Performance and evidence correction
+
+With two warmups and seven retained samples, local-client/hosted medians were
+107.9 ms list, 110.6 ms detail, 114.2 ms write, 168.5 ms realtime, 462.0 ms
+reconnect, and 1,513.2 ms build.
+
+The coordinator found that the delivered capsule used a non-frozen
+`offline-reconnect` transport label and omitted required command intervals.
+The generator now uses `local-optimistic` and clearly labeled coarse intervals
+bounded by retained milestones. Raw browser, configuration, performance, and
+cleanup receipts remain authoritative; no scenario or score changed.
+
+### Outcome
+
+The arm completed 12 PASS and two GAPs: no ordinary native full-text search,
+and incomplete hosted operations for logs/rollback/immediate deletion. The
+fresh target's data and users are all zero, Bob's token is invalid, local raw
+credentials are removed, and provider-managed expiry remains disclosed.
+Evidence confidence is 16/16 after the capsule-format correction.
+
+### Would I choose it?
+
+InstantDB sets a high bar for collaborative client ergonomics and is a strong
+choice when live relational queries, optimism, and real offline behavior are
+central. I would hesitate when semantic conflict policy, full-text search,
+explainable permissions, and mature deployment operations dominate.
+
+### Lessons for Snapback
+
+Match the zero-account disposable hosted target, compact typed links/indexes
+and schema diffs, and the unified live-query/optimistic/cache/outbox result.
+Beat InstantDB with permission diagnostics that name the rule, link direction,
+modified fields, and evaluated bindings; first-class revision/CAS and
+board-rank primitives; ordinary full-text search; and one operational surface
+for identity, config diff, logs, export/restore, rollback, and immediate
+deletion.

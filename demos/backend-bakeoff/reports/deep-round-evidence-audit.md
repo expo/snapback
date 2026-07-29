@@ -169,3 +169,37 @@ synthesis remain coordinator-owned.
 - Adjudication: complete. TablesDB persistent offline/cache is a product GAP.
   Hosted Appwrite Cloud is credential-unavailable and is not inferred from the
   self-hosted target.
+
+## Linear / InstantDB
+
+- Capsule verifier: PASS after coordinator format correction.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 2 GAP, 0 FAIL.
+- Evidence confidence: 16/16.
+- Referenced evidence: every capsule path resolves.
+- Capsule correction: the worker-delivered file used a non-frozen
+  `offline-reconnect` transport label and omitted six command intervals. The
+  generator now uses `local-optimistic` and explicitly labeled coarse bounds
+  from retained milestones. Raw receipts, outcomes, and confidence scores are
+  unchanged.
+- Authority/conflict/transport: three native guest principals with direct
+  positive/negative permissions, barrier-dispatched LWW transactions with one
+  converged whole-record winner, and direct second-client WebSocket query
+  delivery.
+- Offline: a newly launched Chrome process loaded 50 InstantDB IndexedDB rows
+  with provider HTTP/WebSocket disabled, showed a queued optimistic edit, then
+  reconciled and restored it against independent authority. The receipt does
+  not overclaim queue survival after terminating that browser process.
+- Search: explicit product GAP; `$like`/`$ilike` are not relabeled as
+  full-text search.
+- Migration: base/evolved schema pushes, indexed optional field, backfill, and
+  preserved counts are directly retained.
+- Target/cleanup: one fresh hosted temporary target identity; all product
+  entities and `$users` reduced to zero, Bob's old token invalidated, and raw
+  local credentials removed. The app itself cannot be deleted with its scoped
+  token; schema/permissions persist only until documented provider-managed
+  expiry after more than 24 hours.
+- Secret audit: committed source reads ignored runtime credentials but retains
+  no value; provision and push receipts are redacted.
+- Adjudication: complete. Native search and hosted logs/rollback/immediate
+  target deletion remain explicit gaps rather than inferred capabilities.

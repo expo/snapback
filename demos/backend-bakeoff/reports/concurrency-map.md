@@ -94,7 +94,7 @@ All seven Linear arms have now been assigned in exact frozen order.
 | Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |
 | Linear / Convex | Complete | 12 PASS, offline GAP, hosted credential-unavailable; capsule, diary, coordinator evidence audit, corrected performance attempt, and exact cleanup integrated |
 | Linear / Appwrite | Complete | 12 PASS, offline GAP, hosted unavailable; capsule, diary, central audit, native transaction/search evidence, and exact 29-container cleanup integrated |
-| Linear / InstantDB | Running | Worker 3 retained a policy-shape failed attempt, corrected it, and is rerunning from a fresh scoped fixture |
+| Linear / InstantDB | Complete | 12 PASS, search/operations GAPs; capsule, diary, central audit, cold-browser offline proof, format correction, and exact data/user cleanup integrated |
 
 ### Partiful first wave
 
