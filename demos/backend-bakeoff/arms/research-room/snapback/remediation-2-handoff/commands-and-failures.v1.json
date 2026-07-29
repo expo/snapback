@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    {
+      "command": "bun install --frozen-lockfile (repository root)",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm ci (external copied work app)",
+      "exitStatus": 0
+    },
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 npm run generate",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0
+    },
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 npm run acceptance",
+      "exitStatus": 0
+    }
+  ],
+  "failedAttempts": [
+    {
+      "stage": "repaired-target-first-admission",
+      "exitStatus": 1,
+      "diagnosticCode": "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED",
+      "classification": "copied-app-runtime-compatibility",
+      "completedChecks": 0,
+      "detail": "The frozen bootstrap attempted four generated membership writes (two owner bootstraps plus two Bob inserts) in one mutation invocation. The copied setup was decomposed into four idempotent mutations, each guarded by its unique room slug or Bob room-view identity. Frozen seed facts and scenario assertions were unchanged."
+    },
+    {
+      "stage": "isolated-scheduled-receiver",
+      "exitStatus": 1,
+      "diagnosticCode": "SCHEDULED_REFRESH_NOT_OBSERVED",
+      "classification": "copied-app-runtime-path",
+      "completedChecks": 14,
+      "detail": "The copied action still addressed the sealed receiver port. Only the copied deterministic receiver URL was changed to isolated port 20451."
+    },
+    {
+      "stage": "session-client-inspect",
+      "exitStatus": 1,
+      "diagnosticCode": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+      "classification": "copied-runner-client-protocol",
+      "completedChecks": 14,
+      "detail": "The session client's inspect() method omitted the exact sessions auth-client offer. Product cron tick, scheduled refresh, and durable replay had already completed."
+    },
+    {
+      "stage": "public-inspect-missing-offer",
+      "exitStatus": 1,
+      "diagnosticCode": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+      "classification": "copied-runner-client-protocol",
+      "completedChecks": 14,
+      "detail": "A direct public /inspect request without x-snapback-auth-client-protocol: 1 failed closed with HTTP 400, as designed."
+    },
+    {
+      "stage": "sensitive-operator-inspect-without-lease",
+      "exitStatus": 1,
+      "diagnosticCode": "HTTP_401",
+      "classification": "copied-runner-operator-auth",
+      "completedChecks": 14,
+      "detail": "The sensitive /_snapback/api/inspect route is not public and requires a separately minted secret-read lease in sessions mode. The final copied runner instead used public /inspect with the exact auth-client protocol offer."
+    }
+  ],
+  "finalAcceptance": {
+    "checksRun": 15,
+    "pass": 13,
+    "gaps": 2,
+    "failures": 0,
+    "stopClass": null
+  },
+  "assistanceEvents": [
+    {
+      "kind": "source-inspection",
+      "reason": "Stage 4 confirmation required checking the frozen runner against the sessions and streamed-action authorities without changing its scenarios.",
+      "sources": [
+        "guide/auth/sessions-and-principals.md",
+        "guide/backend/streamed-actions.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
+        "llp/0076-bounded-streamed-actions.rfc.md"
+      ]
+    },
+    {
+      "kind": "remediation-confirmation",
+      "reason": "Replayed the sealed Research Room application against the imported exact-instance capability-composition repair.",
+      "sources": [
+        "src/local.rs",
+        "demos/backend-bakeoff/arms/research-room/snapback/work/scripts/run-arm.mjs"
+      ]
+    }
+  ]
+}

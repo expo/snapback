@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "mode": "fresh-local",
+  "namespace": "llp0102-research-snapback-remediation2-w1",
+  "sourceCommit": "894ddaf99d4b7681499eec12ecbb3fc7a1a492e5",
+  "appId": "work",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:112ddaaf22745cfea51a3ff70e5795bb3b73ee89cc96bd99f787ceb8728f4ea4",
+  "identityHash": "536a3f0d90ed2a9ce9fe8face95d64f1643ff57b985cfce98200576e2bf801c4",
+  "ports": {
+    "server": 3351,
+    "vite": 4351,
+    "effect": 20451,
+    "browserDebug": 9351
+  }
+}

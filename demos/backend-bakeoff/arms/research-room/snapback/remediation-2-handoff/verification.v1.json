@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "894ddaf99d4b7681499eec12ecbb3fc7a1a492e5",
+  "checks": [
+    {
+      "name": "production-build",
+      "status": "pass",
+      "detail": "TypeScript and Vite production build completed after the final copied-source adaptations."
+    },
+    {
+      "name": "full-acceptance",
+      "status": "pass",
+      "detail": "15/15 frozen checks recorded: 13 PASS, 2 explicit GAP, 0 FAIL, no Stop-class defect."
+    },
+    {
+      "name": "capsule-equivalent",
+      "status": "pass",
+      "detail": "Official run-capsule verifier accepted confirmation-capsule.v1.json and its exact frozen scenario vocabulary."
+    },
+    {
+      "name": "evidence-paths",
+      "status": "pass",
+      "detail": "All 10 unique capsule evidence paths and the RESEARCH-15 cleanup-plan path resolve inside this handoff."
+    },
+    {
+      "name": "secret-scan",
+      "status": "pass",
+      "detail": "All 17 handoff files scanned; canary and bearer values absent; no non-empty string credential fields."
+    },
+    {
+      "name": "filesystem-paths",
+      "status": "pass",
+      "detail": "The only five absolute filesystem paths are the exact external-copy cleanup targets in cleanup-plan.v1.json; no unexpected host paths."
+    },
+    {
+      "name": "ref-check",
+      "status": "pass",
+      "detail": "107 LLP docs, 2309 refs in 5122 files, 0 errors, 0 unchecked."
+    },
+    {
+      "name": "guide-check",
+      "status": "pass-with-warnings",
+      "detail": "41 pages, 95 snippets, 69 routes plus 19 host-ops joined; 23 pre-existing freshness warnings."
+    },
+    {
+      "name": "git-diff-check",
+      "status": "pass",
+      "detail": "No whitespace errors."
+    },
+    {
+      "name": "llp-maintain-pre-pr",
+      "status": "pass-propose-only",
+      "detail": "No LLP status/doc edit proposed; follow-up product/guide proposals are recorded in llp-maintain-audit.md."
+    }
+  ],
+  "cleanup": {
+    "runtimeRootAbsent": true,
+    "publicRootAbsent": true,
+    "portsClosed": [
+      3351,
+      4351,
+      9351,
+      20451
+    ],
+    "cleanupErrors": [],
+    "unrelatedBaselinePreserved": true
+  }
+}

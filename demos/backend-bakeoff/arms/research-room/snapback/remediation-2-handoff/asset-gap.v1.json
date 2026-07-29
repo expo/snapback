@@ -1,0 +1,6 @@
+{
+  "capability": "asset upload/delivery/delete",
+  "status": "explicit-gap",
+  "reason": "The frozen Snapback capability manifest has no shipped asset byte-store/upload-session path; LLP 0044 remains Draft.",
+  "nonclaim": "The 20 source rows are deterministic metadata/content fixtures, not uploaded file objects."
+}

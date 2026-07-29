@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "arm": "research-room/snapback",
+  "frozenProtocol": "llp-0102-backend-bakeoff-v1",
+  "before": {
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "attemptId": "research-room-snapback-deep-01",
+    "checksRun": 15,
+    "pass": 1,
+    "gaps": 2,
+    "failures": 12,
+    "stopClass": null,
+    "targetAdmission": "refused-before-bind"
+  },
+  "after": {
+    "sourceCommit": "894ddaf99d4b7681499eec12ecbb3fc7a1a492e5",
+    "attemptId": "research-room-snapback-remediation-2-w1",
+    "checksRun": 15,
+    "pass": 13,
+    "gaps": 2,
+    "failures": 0,
+    "stopClass": null,
+    "targetAdmission": "admitted",
+    "cleanup": "complete"
+  },
+  "unchangedGaps": [
+    "RESEARCH-02-FILES",
+    "RESEARCH-05-SEMANTIC"
+  ],
+  "interpretation": "The imported exact-instance capability-composition repair removed the pre-bind sessions/stream refusal. External-copy compatibility adaptations were required to reach and faithfully exercise all frozen scenarios; they are disclosed separately and are not product changes in this commit."
+}
+

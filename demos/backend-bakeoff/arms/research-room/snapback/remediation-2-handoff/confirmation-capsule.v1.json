@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "research-room",
+    "provider": "snapback",
+    "round": "deep",
+    "attemptId": "research-room-snapback-remediation-2-w1"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "894ddaf99d4b7681499eec12ecbb3fc7a1a492e5",
+    "providerVersions": {
+      "product": "0.1.0",
+      "client": "workspace at sourceCommit",
+      "cli": "workspace at sourceCommit"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-29T11:57:55.485Z",
+    "finishedAt": "2026-07-29T11:58:10.929Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 15444,
+    "toolCalls": 1,
+    "timedWindowFrozenAt": "2026-07-29T11:58:10.929Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "322e37ae91a3a4b4e45bbe443a593277b456ad5bd07c7c3b6b361fbec9f42f4f",
+      "role": "owner"
+    },
+    "bob": {
+      "principalIdHash": "4e1bb32a42f7cdab083ef7ce6961654355335cd27e5907467521f4819a504769",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "2a74046794024c677749cfa277592f5fe6010e045ea564647f9548eecd62fd13",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-research-snapback-remediation2-w1",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "536a3f0d90ed2a9ce9fe8face95d64f1643ff57b985cfce98200576e2bf801c4",
+      "profile": "fresh local packaged SQLite + Ibex sessions deployment",
+      "gapReason": "",
+      "receiptPaths": [
+        "target-identity.v1.json",
+        "acceptance.v1.json",
+        "cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "no honestly complete hosted profile at the frozen source commit",
+      "plan": "GAP",
+      "region": "GAP",
+      "gapReason": "No honestly complete hosted profile exists at the frozen source commit; this remains a scoring input from the sealed arm.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 18.14995799999997,
+    "firstAuthoritativeMutationMs": 78.05141700000001,
+    "firstRealtimeTransitionMs": 1132.840667,
+    "localAcceptanceMs": 15372.743541,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 15372.743541
+  },
+  "assistanceEvents": [
+    {
+      "kind": "external-copy-runtime-isolation",
+      "reason": "The sealed capsule and work app remained untouched; the confirmation used an external copy with unique ports, namespace, runtime paths, and generated output.",
+      "sources": [
+        "README.md",
+        "inventory.v1.json"
+      ]
+    },
+    {
+      "kind": "external-copy-compatibility",
+      "reason": "The copied setup was decomposed to obey the v1 one-generated-membership-write-per-mutation rule, without changing frozen seed facts.",
+      "sources": [
+        "README.md",
+        "inventory.v1.json"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 npm run acceptance (external copied work app)",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 15444
+    }
+  ],
+  "scenarioResults": [
+    {"id":"RESEARCH-01-SEED","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"two rooms, Alice/Bob membership, 20 primary-room sources, and three session principals read from the admitted target","note":""},
+    {"id":"RESEARCH-02-FILES","status":"gap","evidencePaths":["acceptance.v1.json","asset-gap.v1.json"],"transport":"unsupported","authoritativeCheck":"capability nonclaim","note":"No shipped asset upload/delivery/delete byte-store path; metadata fixtures were not misrepresented as files."},
+    {"id":"RESEARCH-03-OUTSIDER","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"Mallory was denied sources, keyword search, questions, answers, progress, and answer subscription","note":""},
+    {"id":"RESEARCH-04-KEYWORD","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"authoritative bounded query returned exactly the ten frozen aurora sources","note":""},
+    {"id":"RESEARCH-05-SEMANTIC","status":"gap","evidencePaths":["acceptance.v1.json","semantic-gap.v1.json"],"transport":"unsupported","authoritativeCheck":"capability nonclaim","note":"No ordinary provider-native vector index or semantic-search path; no application scan was substituted."},
+    {"id":"RESEARCH-06-PROGRESS","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"durable sequences 1-4 and terminal completion arrived through native WebSocket push with fallback disabled","note":""},
+    {"id":"RESEARCH-07-CITATIONS","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"all durable citation identities resolved within the authorized room","note":""},
+    {"id":"RESEARCH-08-COLLABORATOR","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"Bob observed Alice's authoritative progress and answer transitions through a distinct session","note":""},
+    {"id":"RESEARCH-09-CANCEL","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"confirmed cancellation remained terminal and an injected post-cancel mutation produced zero late durable patches","note":""},
+    {"id":"RESEARCH-10-RETRY","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"retry replayed one stable question and answer identity for the hashed idempotency key","note":""},
+    {"id":"RESEARCH-11-OUTCOMES","status":"pass","evidencePaths":["acceptance.v1.json"],"transport":"push","authoritativeCheck":"complete, failed, cancelled, timed-out, and ambiguous host outcomes were directly exercised and retained","note":""},
+    {"id":"RESEARCH-12-SCHEDULE","status":"pass","evidencePaths":["acceptance.v1.json","schedule-steps.v1.json"],"transport":"push","authoritativeCheck":"manual cron tick refreshed the source, repeat action replayed the durable slot, and runtime cron state was inspected","note":""},
+    {"id":"RESEARCH-13-SECRETS","status":"pass","evidencePaths":["acceptance.v1.json","secret-redaction.v1.json"],"transport":"not-applicable","authoritativeCheck":"config, client bundle, diagnostics, and retained receiver evidence contained no canary value","note":""},
+    {"id":"RESEARCH-14-PERFORMANCE","status":"pass","evidencePaths":["acceptance.v1.json","performance.v1.json"],"transport":"push","authoritativeCheck":"all five frozen paths retained 2 warmups and 7 recorded samples on the isolated target","note":""},
+    {"id":"RESEARCH-15-CLEANUP","status":"pass","evidencePaths":["cleanup-plan.v1.json","cleanup.v1.json"],"transport":"not-applicable","authoritativeCheck":"exact owned runtime/public paths were absent and ports 3351, 4351, 9351, and 20451 were closed","note":""}
+  ],
+  "inventory": {
+    "receiptPath": "inventory.v1.json",
+    "authoredSource": {
+      "files": 8,
+      "lines": 1015
+    },
+    "generated": {
+      "files": 53,
+      "lines": 4751
+    },
+    "tests": {
+      "files": 1,
+      "lines": 1061
+    },
+    "configuration": {
+      "files": 3
+    },
+    "policy": {
+      "files": 0,
+      "note": "Snapback sessions and schema membership declaration"
+    },
+    "dependencyManifests": 1,
+    "installedDependencyBytes": 83591168,
+    "glue": [
+      "deterministic HTTP effect receiver",
+      "session persona and exact cleanup harness",
+      "application-authored progress, citation, idempotency, and refresh ledgers"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {"score":2,"reason":"three real sessions and both allowed/denied authority paths were directly exercised","evidencePaths":["acceptance.v1.json"]},
+    "transaction-conflict": {"score":1,"reason":"retry and terminal-state guards were directly exercised, but no separate conflict-injection receipt was required by this app manifest","evidencePaths":["acceptance.v1.json"]},
+    "transport": {"score":2,"reason":"distinct clients observed durable progress and answers through native WebSocket push with fallback disabled","evidencePaths":["acceptance.v1.json"]},
+    "offline-reconnect": {"score":1,"reason":"reconnect-with-stream performance was sampled, but the arm did not claim a separately fault-injected offline authority proof","evidencePaths":["performance.v1.json"]},
+    "settlement": {"score":2,"reason":"all five frozen host outcomes plus retry and cancellation/no-late-patch were directly exercised","evidencePaths":["acceptance.v1.json"]},
+    "target-identity": {"score":2,"reason":"exact commit, generated-input hash, app, namespace, and isolated ports were retained","evidencePaths":["target-identity.v1.json"]},
+    "cleanup-isolation": {"score":2,"reason":"fresh local ownership was exact, runtime/public targets are absent, and every assigned port is closed","evidencePaths":["cleanup-plan.v1.json","cleanup.v1.json"]},
+    "artifact-reproducibility": {"score":2,"reason":"exact commit, lock, adapted-source, generated-artifact, and production-build hashes are retained","evidencePaths":["inventory.v1.json","commands-and-failures.v1.json"]}
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "cleanup-plan.v1.json",
+    "receiptPaths": [
+      "cleanup.v1.json"
+    ],
+    "postCleanupProbe": "external-copy runtime/public paths absent; ports 3351, 4351, 9351, and 20451 closed"
+  },
+  "result": "complete"
+}

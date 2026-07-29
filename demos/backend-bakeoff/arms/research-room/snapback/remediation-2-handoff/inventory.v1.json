@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "894ddaf99d4b7681499eec12ecbb3fc7a1a492e5",
+  "externalCopy": {
+    "authoredAppFiles": 8,
+    "authoredAppLines": 1015,
+    "acceptanceHarnessFiles": 1,
+    "acceptanceHarnessLines": 1061,
+    "generatedFiles": 53,
+    "generatedLines": 4751,
+    "installedDependencyBytes": 83591168,
+    "productionBuildBytes": 199331
+  },
+  "reproducibility": {
+    "lockSha256": "1fae6bfae0a089a6a8cab14db69a876b387024d0c05b38d4bf566e996b46d6c7",
+    "generatedArtifactsSha256": "318905412e09a9987f44257cc4236b5cf567c8774c66f54b7cc9b1b5bd45496b",
+    "productionJsSha256": "b6873ddc207c4939972817d7c2c6239eae526a74c2a262dd8baacd44685bdd13",
+    "productionCssSha256": "321e9c3d63d65ded4ea73d49bfec810f6838ac768df3921e1b0b39fd38679731"
+  },
+  "externalCopyAdaptations": [
+    {
+      "path": "scripts/run-arm.mjs",
+      "sealedSha256": "155dc9a29d3304d3a38f1268ec0e00d9b6a2c194d3ce9177a192b8f739c0512a",
+      "adaptedSha256": "6f2ead80aaf60a7081419cf83a2ee2c85a964a94a71dc3d192d3a88e827eb376",
+      "scope": "external repository root, isolated namespace and ports, decomposed setup calls, session-aware cron diagnostic access, honest command trace"
+    },
+    {
+      "path": "snapback/actions.mjs",
+      "sealedSha256": "51292e6a5be6f15be05ff3866c0d68b04f5e262884786bd2f9752a746b5cdd1e",
+      "adaptedSha256": "c7ab7c7c0fd863ade68a145ea939f735966ddf4714bec690d73608c6ff1573e7",
+      "scope": "isolated deterministic effect receiver port only"
+    },
+    {
+      "path": "snapback/functions.mjs",
+      "sealedSha256": "4571565400d4931e6ef60b99cce7f2f3f782a7e0ce7f98b49380b881ba6c3cc9",
+      "adaptedSha256": "b098612690ff2676b43a77c69ec793071fd8508b92c2f7e78f7f3f391bb46f70",
+      "scope": "bootstrap operation selector and optional room ID for one-membership-write-per-mutation compatibility"
+    },
+    {
+      "path": "snapback/handlers.mjs",
+      "sealedSha256": "6a18a686ec01a16097ae38478e2df3be5afcc8473af7288b34a96734ecc074f4",
+      "adaptedSha256": "808c1c1729ca01fba49a808602bb7bbb436f2b1f381ec03845b2db468b85d648",
+      "scope": "same setup facts decomposed across idempotent create-primary, create-secondary, and add-bob invocations"
+    }
+  ],
+  "sealedSourceModified": false,
+  "productSourceModified": false
+}

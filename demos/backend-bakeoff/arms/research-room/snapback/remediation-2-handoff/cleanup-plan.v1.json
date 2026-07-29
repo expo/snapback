@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "targetIdentity": "536a3f0d90ed2a9ce9fe8face95d64f1643ff57b985cfce98200576e2bf801c4",
+  "namespace": "llp0102-research-snapback-remediation2-w1",
+  "freshTarget": true,
+  "targets": [
+    "/private/tmp/llp0102-research-rerun-project-w1.pthT02/demos/backend-bakeoff/arms/research-room/snapback/work/.arm-runtime/research-room.sqlite",
+    "/private/tmp/llp0102-research-rerun-project-w1.pthT02/demos/backend-bakeoff/arms/research-room/snapback/work/.arm-runtime/research-room.sqlite.lock",
+    "/private/tmp/llp0102-research-rerun-project-w1.pthT02/demos/backend-bakeoff/arms/research-room/snapback/work/.arm-runtime/research-room.sqlite.config.json",
+    "/private/tmp/llp0102-research-rerun-project-w1.pthT02/demos/backend-bakeoff/arms/research-room/snapback/work/.arm-runtime/startup-artifacts.json",
+    "/private/tmp/llp0102-research-rerun-project-w1.pthT02/demos/backend-bakeoff/arms/research-room/snapback/work/public"
+  ],
+  "ownedPorts": [
+    3351,
+    4351,
+    20451,
+    9351
+  ],
+  "unrelatedTargets": "none; fresh local target",
+  "order": [
+    "dispose clients/browser",
+    "stop Vite/effect/Snapback",
+    "remove exact runtime/public paths",
+    "probe ports and paths"
+  ]
+}
