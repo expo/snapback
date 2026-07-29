@@ -553,3 +553,107 @@ reviewed migration/rollback workflow. It should also make authoritative versus
 client-cache performance explicit in its tooling, keep local credentials
 scoped and automatically disposable, and add native indexed search without
 expanding the operational footprint.
+
+## 2026-07-28 — SpacetimeDB 2.7.0, deep round
+
+The arm ran on an isolated standalone target on the Minisforum Linux worker.
+It passed seed, authority, indexed filters, stable cursor pagination under an
+intervening insert, composed issue detail, optimistic reconciliation,
+two-actor conflict settlement, native realtime comments/activity, an in-place
+indexed-field migration, and every supported performance path. Full-text
+search and persistent offline/queue behavior are honest product GAPs. Hosted
+Maincloud evidence was unavailable because no authorized SpacetimeDB
+credential existed.
+
+### What felt good
+
+The reducer and subscription model is unusually coherent. Writes serialize on
+the server, actor identity is available inside the reducer, and committed rows
+flow back through generated bindings. Expected-revision conflict handling was
+easy to reason about and produced exactly one winner.
+
+Generated TypeScript bindings were excellent. Reducer/view names, row types,
+bigint revisions, and timestamps arrived in both client and harness without a
+hand-maintained API layer. Native WebSocket callbacks also made the
+second-client comment/activity proof direct and attributable.
+
+The additive migration was a high point. The CLI printed a concrete plan,
+added a defaulted indexed column in place, retained all 500 issues, and made
+the client-disconnect consequence explicit. Warm module builds were
+consistently around half a second.
+
+### What felt bad or surprising
+
+Parameterized views are unavailable. Stable filtered pagination required an
+identity-scoped durable `page_result` table and a reducer that materializes
+each page. That works, but turns a routine query into application state with
+its own lifecycle and cleanup.
+
+Caller-dependent views made authority legible, but the straightforward
+implementation scans memberships and issue collections in JavaScript. It is
+easy to write a secure but expensive view without a query planner explaining
+the cost.
+
+There is no ordinary native full-text path in 2.7.0. Offline behavior is also
+well behind an offline-first backend: a disconnected object retains warm
+in-memory rows, a cold object has none, and the first disconnected reducer call
+remained pending. No persistent cache or mutation queue was claimed.
+
+Development identity required persona-registration glue and careful token
+custody. CLI papercuts included version selection, global-versus-command flag
+placement, unstable SQL syntax, a codegen stale-file prompt, a migration
+default still required by generated insert types, and an npm `prepare`
+lifecycle collision.
+
+### Correctness, migration, and operations
+
+Private tables, caller-dependent views, reducer authorization, and generated
+subscriptions gave Alice and Bob protected access while Mallory saw no rows
+and could not subscribe directly. The two-client barrier produced exactly one
+CAS commit and one refusal, followed by authoritative convergence.
+
+V2 added `customerImpact` with a default and B-tree index. Publishing with
+data deletion disabled retained and defaulted all 500 issues, then accepted an
+authoritative post-migration update.
+
+Exact database deletion, validated arm-process shutdown, closed ports, and
+removal of worktree-local data/CLI/log/credential roots succeeded. The
+coordinator found that the worker's final `describe` negative probe used
+invalid CLI argument ordering and therefore proved only a usage error, not a
+database-not-found response. The raw receipt is preserved; cleanup remains
+PASS but cleanup-isolation confidence is reduced to indirect.
+
+### Glue and failed attempts
+
+- Durable identity-scoped page materialization for parameterized pagination.
+- Persona registration for deterministic development identities.
+- Application-owned optimistic projection.
+- Explicit revision CAS for conflict settlement.
+- A disconnected reducer attempt that never settled within the bounded probe.
+- Several retained module-build, codegen, CLI SQL, migration-type, and npm
+  lifecycle corrections.
+
+### Outcome
+
+The arm completed 11 PASS, two product GAPs, and one hosted dependency
+unavailable result, with no Stop-class defect. Coordinator-adjusted evidence
+confidence is 14/16 after the cleanup-probe downgrade.
+
+### Would I choose it?
+
+SpacetimeDB is compelling when authoritative realtime state, typed reducers,
+and server serialization dominate. Missing full-text/offline paths,
+parameterized-query glue, auth scaffolding, and incomplete hosted evidence
+keep it from being my default general backend for this workload.
+
+### Lessons for Snapback
+
+Match the schema/functions-to-generated-types-to-live-reconciliation loop and
+make conflict settlement equally observable. Beat the durable-page workaround
+with a first-class parameterized query and stable cursor API. Add an
+inspectable migration preflight that names fields, indexes, data preservation,
+and client impact. Treat full-text search, deterministic development
+principals, target identity, logs, export/rollback, and exact cleanup as normal
+product surfaces. Snapback can surpass this result within its current
+architecture if those workflows become native; this arm does not suggest a
+fundamental architectural reset.

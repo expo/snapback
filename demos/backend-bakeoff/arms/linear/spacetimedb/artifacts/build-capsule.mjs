@@ -42,7 +42,7 @@ const evidencePaths = {
   'LINEAR-11-MIGRATION': ['evidence/migration-receipt.json', 'evidence/schema-v1.json', 'evidence/schema-after-migration.json'],
   'LINEAR-12-DEPLOY': ['evidence/deployment-receipt.json', 'evidence/hosted-gap.json', 'evidence/backup-manifest.json'],
   'LINEAR-13-PERFORMANCE': ['evidence/performance-samples.json', 'evidence/performance-build-samples.json', 'evidence/cost-window.json'],
-  'LINEAR-14-CLEANUP': ['evidence/cleanup-plan.json', 'evidence/cleanup-receipt.json', 'evidence/environment-cleanup.json'],
+  'LINEAR-14-CLEANUP': ['evidence/cleanup-plan.json', 'evidence/cleanup-receipt.json', 'evidence/environment-cleanup.json', 'evidence/coordinator-adjudication.md'],
 };
 
 const transport = {
@@ -76,7 +76,7 @@ const authoritativeChecks = {
   'LINEAR-11-MIGRATION': 'Authoritative counts remained 500 before/after while schema proof shows the new defaulted B-tree field.',
   'LINEAR-12-DEPLOY': 'Local identity/config/log/rebuild evidence exists; hosted URL and operations remain unavailable without credentials.',
   'LINEAR-13-PERFORMANCE': 'Every frozen path retains two warmups, seven raw samples, median, nearest-rank p95, and cost scope.',
-  'LINEAR-14-CLEANUP': 'Exact database lookup failed after delete, both assigned ports closed, and only arm state was removed.',
+  'LINEAR-14-CLEANUP': 'The exact-identity delete exited successfully, both assigned ports closed, and only arm state was removed; the malformed post-delete describe is retained and not credited as direct absence proof.',
 };
 
 function total(category) {
@@ -223,9 +223,9 @@ const capsule = {
       evidencePaths: ['evidence/target-identity.json', 'evidence/baseline.json'],
     },
     'cleanup-isolation': {
-      score: 2,
-      reason: 'Deletion used the exact identity; process commands/cwds were validated; database and ports have negative proofs.',
-      evidencePaths: ['evidence/cleanup-plan.json', 'evidence/cleanup-receipt.json', 'evidence/environment-cleanup.json'],
+      score: 1,
+      reason: 'Exact-identity deletion, validated process scope, closed ports, and removed state are direct; the post-delete database probe failed on CLI syntax and is not direct absence evidence.',
+      evidencePaths: ['evidence/cleanup-plan.json', 'evidence/cleanup-receipt.json', 'evidence/environment-cleanup.json', 'evidence/coordinator-adjudication.md'],
     },
     'artifact-reproducibility': {
       score: 2,
@@ -237,8 +237,8 @@ const capsule = {
   cleanup: {
     status: 'complete',
     targetBoundPlanPath: 'evidence/cleanup-plan.json',
-    receiptPaths: ['evidence/cleanup-receipt.json', 'evidence/environment-cleanup.json'],
-    postCleanupProbe: 'Exact database describe failed after delete; ss reported no listeners on 3320 or 4320; state/ is absent.',
+    receiptPaths: ['evidence/cleanup-receipt.json', 'evidence/environment-cleanup.json', 'evidence/coordinator-adjudication.md'],
+    postCleanupProbe: 'Exact-identity delete exited successfully; ports 3320/4320 and state/ are absent. The retained describe probe failed on CLI syntax and is not credited as database-absence proof.',
   },
   result: 'complete',
 };

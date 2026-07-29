@@ -88,7 +88,7 @@ All seven Linear arms have now been assigned in exact frozen order.
 
 | Arm | State | Coordinator integration |
 | --- | --- | --- |
-| Linear / SpacetimeDB | Running | Worker compiling/debugging on Minisforum; no blocker |
+| Linear / SpacetimeDB | Complete | 11 PASS, search/offline GAPs, hosted unavailable; capsule, diary, central evidence audit, migration proof, and cleanup-confidence correction integrated |
 | Linear / Firebase | Complete | 12 PASS, one native-search GAP, one hosted credential-unavailable result; capsule, diary draft, evidence audit, and cleanup proof integrated |
 | Linear / Supabase | Complete | 12 PASS, offline and hosted GAPs; capsule, diary, evidence audit, retained cold-Realtime failure, and cleanup proof integrated |
 | Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |

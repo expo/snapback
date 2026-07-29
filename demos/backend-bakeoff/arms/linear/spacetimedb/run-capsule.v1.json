@@ -270,11 +270,12 @@
       "evidencePaths": [
         "evidence/cleanup-plan.json",
         "evidence/cleanup-receipt.json",
-        "evidence/environment-cleanup.json"
+        "evidence/environment-cleanup.json",
+        "evidence/coordinator-adjudication.md"
       ],
       "transport": "not-applicable",
-      "authoritativeCheck": "Exact database lookup failed after delete, both assigned ports closed, and only arm state was removed.",
-      "note": "Deleted only the exact fresh arm database, stopped only validated arm processes, proved both assigned ports closed, and removed the worktree-local runtime/credential state."
+      "authoritativeCheck": "The exact-identity delete exited successfully, both assigned ports closed, and only arm state was removed; the malformed post-delete describe is retained and not credited as direct absence proof.",
+      "note": "Deleted only the exact fresh arm database, stopped only validated arm processes, proved both assigned ports closed, and removed the worktree-local runtime/credential state. Coordinator adjudication reduces cleanup confidence because the database negative probe used invalid CLI syntax."
     }
   ],
   "inventory": {
@@ -364,12 +365,13 @@
       ]
     },
     "cleanup-isolation": {
-      "score": 2,
-      "reason": "Deletion used the exact identity; process commands/cwds were validated; database and ports have negative proofs.",
+      "score": 1,
+      "reason": "Exact-identity deletion, validated process scope, closed ports, and removed state are direct; the post-delete database probe failed on CLI syntax and is not direct absence evidence.",
       "evidencePaths": [
         "evidence/cleanup-plan.json",
         "evidence/cleanup-receipt.json",
-        "evidence/environment-cleanup.json"
+        "evidence/environment-cleanup.json",
+        "evidence/coordinator-adjudication.md"
       ]
     },
     "artifact-reproducibility": {
@@ -388,9 +390,10 @@
     "targetBoundPlanPath": "evidence/cleanup-plan.json",
     "receiptPaths": [
       "evidence/cleanup-receipt.json",
-      "evidence/environment-cleanup.json"
+      "evidence/environment-cleanup.json",
+      "evidence/coordinator-adjudication.md"
     ],
-    "postCleanupProbe": "Exact database describe failed after delete; ss reported no listeners on 3320 or 4320; state/ is absent."
+    "postCleanupProbe": "Exact-identity delete exited successfully; ports 3320/4320 and state/ are absent. The retained describe probe failed on CLI syntax and is not credited as database-absence proof."
   },
   "result": "complete"
 }

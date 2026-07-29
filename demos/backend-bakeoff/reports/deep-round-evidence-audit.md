@@ -108,3 +108,34 @@ synthesis remain coordinator-owned.
 - Adjudication: complete. Persistent offline capability is a product GAP.
   Hosted deployment is credential-unavailable and is not scored as a Convex
   product failure.
+
+## Linear / SpacetimeDB
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 11 PASS, 2 GAP, 1 unavailable remote dependency.
+- Evidence confidence: coordinator-adjusted to 14/16. Offline/reconnect is
+  partial, and cleanup isolation is indirect because the final database
+  negative probe failed on CLI syntax.
+- Referenced evidence: every capsule path resolves.
+- Authority/conflict/transport: direct hashed principals, caller-dependent
+  views and negative private access, two-client revision CAS, authoritative
+  convergence, and native second-client WebSocket row callbacks.
+- Pagination: deterministic but requires an identity-scoped durable
+  `page_result` table and reducer because parameterized views are unavailable.
+- Search/offline: explicit product GAPs. Warm disconnected memory is not
+  credited as persistent cold state, and a pending disconnected reducer call
+  is not credited as queued mutation.
+- Migration: direct V1→V2 plan and schema/count receipts prove a defaulted
+  indexed field added to all 500 issues without data deletion.
+- Target/cleanup: the exact-identity delete exited successfully, validated
+  processes stopped, ports `3320/4320` closed, runtime/credential state was
+  removed, and unrelated baseline state was preserved. The raw post-delete
+  `describe` exited on invalid argument ordering, so its claimed direct
+  database-absence proof is rejected and retained in a coordinator
+  adjudication.
+- Secret audit: committed evidence contains hashes rather than raw actor
+  identities or runtime JWTs; the exact ignored credential root was removed.
+- Adjudication: complete with cleanup-confidence correction. Hosted Maincloud
+  is credential-unavailable and is not extrapolated from standalone local
+  evidence.
