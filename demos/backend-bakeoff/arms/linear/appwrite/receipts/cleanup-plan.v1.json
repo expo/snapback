@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T04:43:07.683Z",
+  "exactWorkRoot": "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work",
+  "namespace": "llp0102-linear-appwrite-w2",
+  "baselineReceipt": "receipts/baseline.v1.json",
+  "exactComposeFile": "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.arm-runtime/appwrite/docker-compose.yml",
+  "exactEnvFile": "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.arm-runtime/appwrite/.env",
+  "exactPorts": [
+    8091,
+    20081,
+    4324,
+    8491
+  ],
+  "exactRuntimePaths": [
+    "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.arm-runtime",
+    "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.cli-home",
+    "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.browser-runtime"
+  ],
+  "guard": "Only resources carrying the exact Compose project label or exact installer name may be removed.",
+  "unrelatedSupabaseAction": "preserve",
+  "targetIdentityHash": "a7d0605cfcf640d522163a87e832bb7133ea386e5a52caf4b845e1550bca06d5",
+  "targetMode": "fresh-local",
+  "baselineWasEmpty": true,
+  "steps": [
+    "Stop only the listener on port 4324 after exact Vite PID and command validation.",
+    "Remove only the exact installer container after llp0102.arm label validation.",
+    "Run Docker Compose down -v for the exact generated files and exact Compose project.",
+    "Remove only the three ignored arm-local runtime directories.",
+    "Probe all assigned ports and exact Compose-label resources against the empty baseline."
+  ],
+  "recovery": "Removed local data is not recoverable; retained bootstrap, schema, and deterministic provisioning source recreate it.",
+  "containsSecretValues": false
+}

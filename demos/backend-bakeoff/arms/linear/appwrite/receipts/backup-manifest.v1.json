@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T05:02:16.208Z",
+  "targetIdentityHash": "a7d0605cfcf640d522163a87e832bb7133ea386e5a52caf4b845e1550bca06d5",
+  "runtimeBornAt": "2026-07-29T04:43:23.708Z",
+  "retainedEvidence": [
+    "baseline.v1.json",
+    "authoritative-summary.v1.json",
+    "seed.v1.json",
+    "acceptance-results.v1.json",
+    "performance.v1.json",
+    "dependency-audit.v1.json",
+    "inventory.v1.json"
+  ],
+  "dataExport": {
+    "status": "explicit-gap",
+    "reason": "No data export retained; the local target is disposable and the committed provisioning source deterministically recreates the frozen dataset."
+  },
+  "containsSecretValues": false
+}

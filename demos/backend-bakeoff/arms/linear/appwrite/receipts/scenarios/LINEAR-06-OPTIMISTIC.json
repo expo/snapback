@@ -1,0 +1,18 @@
+{
+  "id": "LINEAR-06-OPTIMISTIC",
+  "status": "pass",
+  "checkedAt": "2026-07-29T04:55:48.585Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "local-optimistic",
+  "evidence": {
+    "issueId": "issue-500",
+    "beforeTitle": "Issue 500 deterministic search fixture",
+    "optimisticVisible": "Optimistic Appwrite edit 1785300947716",
+    "authorityDuringOptimism": "Issue 500 deterministic search fixture",
+    "settledAuthority": "Optimistic Appwrite edit 1785300947716",
+    "revisionBefore": 1,
+    "revisionAfter": 2,
+    "implementation": "application-authored React optimistic state over Appwrite TablesDB update"
+  },
+  "note": "The UI exposed an optimistic title before Appwrite authority changed, then reconciled to independently inspected authority."
+}

@@ -1,0 +1,25 @@
+{
+  "id": "LINEAR-05-DETAIL",
+  "status": "pass",
+  "checkedAt": "2026-07-29T04:55:46.148Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "issueId": "issue-500",
+    "projectId": "project-4",
+    "assigneeId": "bob",
+    "labelIds": [
+      "label-20",
+      "label-01"
+    ],
+    "commentIds": [
+      "comment-0500",
+      "comment-1000"
+    ],
+    "activityIds": [
+      "activity-500"
+    ],
+    "composition": "application-authored bounded TablesDB point reads and indexed queries"
+  },
+  "note": "Issue detail composed project, assignee, labels, comments, and activity through bounded provider reads."
+}

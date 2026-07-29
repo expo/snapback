@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "attempts": [
+    {
+      "sequence": 1,
+      "command": "npm run install:stack",
+      "exitStatus": 1,
+      "classification": "installer-stream-error",
+      "diagnostic": "Official installer SSE transport terminated after the 1.9.6 Compose stack reached healthy.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Direct health and exact Compose labels proved the official stack ready; continued without replaying installation."
+    },
+    {
+      "sequence": 2,
+      "command": "npm run provision",
+      "exitStatus": 1,
+      "classification": "provider-learning",
+      "diagnostic": "index_invalid: Creating indexes on array attributes is not currently supported.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Replaced the label-array index with an indexed issue_labels junction table and reset only the fresh arm project."
+    },
+    {
+      "sequence": 3,
+      "command": "npm run build",
+      "exitStatus": 1,
+      "classification": "builder-error",
+      "diagnostic": "The local Issue view type did not include Appwrite's Row system fields required by the SDK generic constraint.",
+      "targetMutation": false,
+      "stopClass": false,
+      "resolution": "Kept the provider response unnormalized and narrowed the rows at the React view boundary."
+    },
+    {
+      "sequence": 4,
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "classification": "builder-error-and-provider-diagnostic",
+      "diagnostic": "Browser readiness timed out; Appwrite logs directly reported Invalid Origin for 127.0.0.1.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Registered the exact local hostname through Appwrite's native Web platform command before rerunning."
+    },
+    {
+      "sequence": 5,
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "classification": "harness-error",
+      "diagnostic": "The expected Chrome ERR_INTERNET_DISCONNECTED rejection from a cold offline reload was not caught.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Treat the navigation rejection as observed offline evidence, then inspect the resulting zero-row page and authoritative reconnect."
+    },
+    {
+      "sequence": 6,
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "classification": "harness-error",
+      "diagnostic": "The optimistic-write route was unregistered while its delayed request handler was still pending, causing a duplicate route continuation.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Wait for authoritative settlement before unregistering the exact delayed TablesDB route."
+    },
+    {
+      "sequence": 7,
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "classification": "harness-error",
+      "diagnostic": "A restored Auth session replaced the transient login form between Email and Password fills.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Wait for Appwrite's persisted session restoration before deciding whether native email/password login is needed."
+    }
+  ],
+  "scopedReset": {
+    "projectId": "llp0102-linear-appwrite-w2",
+    "before": {
+      "users": [
+        "alice",
+        "bob",
+        "mallory"
+      ],
+      "teams": [
+        "org-primary",
+        "org-secondary"
+      ],
+      "databases": [
+        "linear"
+      ]
+    },
+    "after": {
+      "users": 0,
+      "teams": 0,
+      "databases": 0
+    }
+  }
+}

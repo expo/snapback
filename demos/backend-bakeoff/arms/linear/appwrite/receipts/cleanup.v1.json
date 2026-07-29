@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:02:35.357Z",
+  "ok": true,
+  "targetIdentityHash": "a7d0605cfcf640d522163a87e832bb7133ea386e5a52caf4b845e1550bca06d5",
+  "baselineReceiptPath": "receipts/baseline.v1.json",
+  "removed": [
+    "exact Compose project llp0102-linear-appwrite-w2, its labeled containers, twelve named volumes, and two networks",
+    "exact arm-labeled installer llp0102-linear-appwrite-w2-installer",
+    "exact recorded Vite process and three ignored arm-local runtime directories"
+  ],
+  "retained": [
+    "Docker images, npm dependencies, source, and receipts",
+    "all resources without the exact arm identity"
+  ],
+  "probes": {
+    "port8091Closed": true,
+    "port20081Closed": true,
+    "port4324Closed": true,
+    "port8491Closed": true,
+    "matchingContainersRestored": true,
+    "matchingVolumesRestored": true,
+    "matchingNetworksRestored": true,
+    "absent:.arm-runtime": true,
+    "absent:.cli-home": true,
+    "absent:.browser-runtime": true
+  },
+  "recovery": "Removed local Appwrite data is not recoverable; retained installer/bootstrap/provisioning source recreates it.",
+  "containsSecretValues": false
+}

@@ -1,0 +1,26 @@
+{
+  "id": "LINEAR-07-CONFLICT",
+  "status": "pass",
+  "checkedAt": "2026-07-29T04:55:48.652Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "issueId": "issue-500",
+    "transactionIds": [
+      "dc86b0af5b63266906747e2d9680ac1ca0d569fd4726ab09064ea36b51999f25",
+      "3987c7e1e8bef082918df677e2b20fec75fea6a49eca554de28f5cd2d94f3417"
+    ],
+    "committed": 1,
+    "rejected": [
+      {
+        "code": 409,
+        "type": "transaction_conflict",
+        "message": "The transaction has a conflict. Please resolve the conflict and try again."
+      }
+    ],
+    "authoritativeWinnerTitle": "Alice transaction 1785300948601",
+    "authoritativeWinnerRevision": 3,
+    "restored": true
+  },
+  "note": "Two actor-scoped Appwrite transactions staged updates to one row; exactly one committed and the other received a native 409 conflict."
+}
