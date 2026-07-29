@@ -1,7 +1,7 @@
 {
   "schemaVersion": "snapback.react-presence-receipt.v1",
-  "generatedAt": "2026-07-29T00:58:29.635Z",
-  "sourceRevision": "e8570c2f304db2ff330916d2e4b4da0bd931d173",
+  "generatedAt": "2026-07-29T01:19:53.988Z",
+  "sourceRevision": "f789a143ef6adc01e8d228e29c936d4493513e01",
   "target": {
     "targetProfileId": "local-dev-sqlite-ibex",
     "target": "local-dev-sqlite-ibex",
@@ -263,7 +263,7 @@
       "ok": true,
       "details": {
         "ttlMs": 500,
-        "expiresAtMs": 1785286710799,
+        "expiresAtMs": 1785287995003,
         "serverExpiredCounterAdvanced": true
       }
     },
@@ -273,7 +273,7 @@
       "details": {
         "ttlMs": 4000,
         "halfTtlMs": 2000,
-        "peerRemovedAfterMs": 14,
+        "peerRemovedAfterMs": 4,
         "removalReason": "Disconnected"
       }
     },
@@ -339,7 +339,7 @@
         "deadlineMs": 5000,
         "providers": [
           {
-            "providerInstanceId": "provider-1-d0629a29-1dc9-491b-98c9-c5bf9eaf9ee2",
+            "providerInstanceId": "provider-1-5ef25c75-8131-47d7-bba8-3f85a290cb73",
             "terminal": true,
             "custodyPaused": true,
             "stores": 0,
@@ -363,7 +363,7 @@
             "preparedGroupBoot": null
           },
           {
-            "providerInstanceId": "provider-2-d542d910-546c-4c5c-8465-6b3592a92a55",
+            "providerInstanceId": "provider-2-1d6229df-a065-41b8-9664-758bd6698af9",
             "terminal": true,
             "custodyPaused": true,
             "stores": 0,

@@ -1,0 +1,298 @@
+{
+  "schemaVersion": "snapback.comparator-receipt.v1",
+  "profileId": "signal-desk-snapback",
+  "title": "Signal Desk / Snapback comparator",
+  "status": "passed",
+  "exitCode": 0,
+  "startedAtMs": 1785287991350,
+  "finishedAtMs": 1785287992958,
+  "durationMs": 1608,
+  "executorPackages": {
+    "cli": {
+      "name": "@snapback/cli",
+      "version": "0.1.0",
+      "algorithm": "sha256-package-files-path-length-content.v1",
+      "files": [
+        "adapters/fly-machines-vm-driver.mjs",
+        "cli.mjs",
+        "comparator-profile.mjs",
+        "comparator-receipt.schema.json",
+        "deployment-control.mjs",
+        "fixtures/comparator/app/snapback/functions.mjs",
+        "fixtures/comparator/app/snapback/generated/api.d.ts",
+        "fixtures/comparator/app/snapback/generated/api.mjs",
+        "fixtures/comparator/app/snapback/generated/artifacts.json",
+        "fixtures/comparator/app/snapback/generated/capability.manifest.json",
+        "fixtures/comparator/app/snapback/generated/contract-data.manifest.json",
+        "fixtures/comparator/app/snapback/generated/contract/activityRows.query.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/activityRows.query.ts",
+        "fixtures/comparator/app/snapback/generated/contract/fixturePresence.ephemeral.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/fixturePresence.ephemeral.ts",
+        "fixtures/comparator/app/snapback/generated/contract/fixturePresence.publish.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/fixturePresence.publish.ts",
+        "fixtures/comparator/app/snapback/generated/contract/liveRows.query.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/liveRows.query.ts",
+        "fixtures/comparator/app/snapback/generated/contract/primaryRows.query.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/primaryRows.query.ts",
+        "fixtures/comparator/app/snapback/generated/contract/publishLiveRow.mutation.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/publishLiveRow.mutation.ts",
+        "fixtures/comparator/app/snapback/generated/contract/rejectInvalidWrite.mutation.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/rejectInvalidWrite.mutation.ts",
+        "fixtures/comparator/app/snapback/generated/contract/rejectionRows.query.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/rejectionRows.query.ts",
+        "fixtures/comparator/app/snapback/generated/contract/runtime-links.ts",
+        "fixtures/comparator/app/snapback/generated/contract/writePrimaryAndActivity.mutation.contract-meta.ts",
+        "fixtures/comparator/app/snapback/generated/contract/writePrimaryAndActivity.mutation.ts",
+        "fixtures/comparator/app/snapback/generated/functions.manifest.json",
+        "fixtures/comparator/app/snapback/generated/operations/activityRows.args.schema.json",
+        "fixtures/comparator/app/snapback/generated/operations/liveRows.args.schema.json",
+        "fixtures/comparator/app/snapback/generated/operations/primaryRows.args.schema.json",
+        "fixtures/comparator/app/snapback/generated/operations/publishLiveRow.args.schema.json",
+        "fixtures/comparator/app/snapback/generated/operations/rejectInvalidWrite.args.schema.json",
+        "fixtures/comparator/app/snapback/generated/operations/rejectionRows.args.schema.json",
+        "fixtures/comparator/app/snapback/generated/operations/writePrimaryAndActivity.args.schema.json",
+        "fixtures/comparator/app/snapback/generated/package.json",
+        "fixtures/comparator/app/snapback/generated/provider-bindings.d.ts",
+        "fixtures/comparator/app/snapback/generated/provider-bindings.json",
+        "fixtures/comparator/app/snapback/generated/provider-introspection.json",
+        "fixtures/comparator/app/snapback/generated/schema.manifest.json",
+        "fixtures/comparator/app/snapback/handlers.mjs",
+        "fixtures/comparator/app/snapback/schema.mjs",
+        "fixtures/comparator/app/snapback/seed.json",
+        "fixtures/comparator/green.config.mjs",
+        "hosted-admission-producer.mjs",
+        "hosted-control.mjs",
+        "hosted-schemas/fly-target.binding-v2.schema.json",
+        "hosted-schemas/hosted-control-head-v2.schema.json",
+        "hosted-schemas/vm-adapter.lifecycle-request-v2.schema.json",
+        "hosted-schemas/vm-adapter.lifecycle-response-v2.schema.json",
+        "index.mjs",
+        "mcp-control.mjs",
+        "package.json",
+        "runtime-recovery.mjs",
+        "templates/react/.gitignore",
+        "templates/react/acceptance.live.mjs",
+        "templates/react/acceptance.mjs",
+        "templates/react/index.html",
+        "templates/react/package.json",
+        "templates/react/snapback/functions.mjs",
+        "templates/react/snapback/schema.mjs",
+        "templates/react/snapback/seed.json",
+        "templates/react/src/App.tsx",
+        "templates/react/src/main.tsx",
+        "templates/react/src/snapback-dev.d.ts",
+        "templates/react/tsconfig.json",
+        "templates/react/vite.config.ts",
+        "templates/todo-contract/.gitignore",
+        "templates/todo-contract/acceptance.mjs",
+        "templates/todo-contract/package.json",
+        "templates/todo-contract/snapback/functions.mjs",
+        "templates/todo-contract/snapback/schema.mjs",
+        "templates/todo-contract/snapback/seed.json"
+      ],
+      "sha256": "sha256:804f57ad5573c50c2b5562ec9d0c7542cc961a319d07c94fdb1d05f9f3a51856"
+    },
+    "client": {
+      "name": "@snapback/client",
+      "version": "0.1.0",
+      "algorithm": "sha256-package-files-path-length-content.v1",
+      "files": [
+        "README.md",
+        "agent-authority-brand.mjs",
+        "agent-authority.mjs",
+        "canonical-client-value.d.mts",
+        "canonical-client-value.mjs",
+        "external-store.d.mts",
+        "external-store.mjs",
+        "hosted-browser.mjs",
+        "index.d.mts",
+        "index.mjs",
+        "online.mjs",
+        "package.json",
+        "react-binding.mjs",
+        "rqs-preload.mjs",
+        "rqs-store-file.mjs",
+        "rqs-store.mjs",
+        "rqs.mjs",
+        "search.d.mts",
+        "search.mjs",
+        "sender-proof.mjs"
+      ],
+      "sha256": "sha256:464b5d3404b90221757d63aa7ea435f7d6e9d3e7845cd7df57c1e55c1b8f7120"
+    }
+  },
+  "identity": {
+    "target": {
+      "available": true,
+      "kind": "local-isolated",
+      "profileId": "local-dev-sqlite-ibex",
+      "serverUrl": "http://127.0.0.1:4289",
+      "databaseMode": "isolated-file",
+      "managed": true
+    },
+    "artifact": {
+      "available": true,
+      "appId": "backend-bakeoff",
+      "bundleHash": "snapback.v1:sessions:function:sha256:3bec67ba59ecd7d6935ef09696c80bbcb52e3956f9c8f95c640248fd9707846e",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:65f63d782e6f15dbd5ceeecef68a58a6336f289673f93eb45e5ce06bf94e5fef",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:b3d57528826d2e8065da1ac9083a1c6211bd37b4dd56775ae568ac9cd1563c49"
+    },
+    "binary": {
+      "available": true,
+      "path": "<workspace>/packages/snapback-runtime-darwin-arm64/bin/snapback",
+      "sha256": "sha256:7995f81abd237e85ac98337d558623fa42cdba3a81f15e5a35e9aa0e858ec35e",
+      "crateVersion": "0.1.0",
+      "gitCommit": "f789a143ef6adc01e8d228e29c936d4493513e01",
+      "gitDirty": false,
+      "buildProfile": "debug",
+      "startupNonce": "019fab74-e246-7e72-ab8e-b9d81f8f4ecd"
+    }
+  },
+  "expectedChecks": [
+    {
+      "id": "native-live-delivery",
+      "name": "cross-client native live delivery"
+    },
+    {
+      "id": "atomic-declared-writes",
+      "name": "atomic declared write set"
+    },
+    {
+      "id": "rejected-mutation-rollback",
+      "name": "rejected mutation rollback without durable version change"
+    },
+    {
+      "id": "presence-cleanup",
+      "name": "TTL and disconnect presence cleanup"
+    },
+    {
+      "id": "ephemeral-durable-separation",
+      "name": "ephemeral publish does not advance durable version"
+    },
+    {
+      "id": "session-owner-principal",
+      "name": "authenticated session principal owns visibility"
+    }
+  ],
+  "checks": [
+    {
+      "id": "native-live-delivery",
+      "name": "cross-client native live delivery",
+      "status": "passed",
+      "startedAtMs": 1785287992552,
+      "finishedAtMs": 1785287992608,
+      "durationMs": 56,
+      "details": {
+        "observerIdentity": "019fab74-e4bf-7d87-b480-ce94dfe5a823",
+        "actorIdentity": "019fab74-e4da-7904-a0a2-2a1e18aaaa60",
+        "identitySources": {
+          "observer": "sessions-authenticated",
+          "actor": "sessions-authenticated"
+        },
+        "transport": "push",
+        "subscriptionId": "sub_019fab74e4fc7e82a55c15b06487baab",
+        "deliveredVersion": 2
+      },
+      "diagnostic": null
+    },
+    {
+      "id": "atomic-declared-writes",
+      "name": "atomic declared write set",
+      "status": "passed",
+      "startedAtMs": 1785287992608,
+      "finishedAtMs": 1785287992675,
+      "durationMs": 67,
+      "details": {
+        "declaredWrites": [
+          "incidents",
+          "tasks",
+          "activity"
+        ],
+        "changed": [
+          "incidents",
+          "tasks",
+          "activity"
+        ],
+        "beforeVersion": 2,
+        "afterVersion": 3
+      },
+      "diagnostic": null
+    },
+    {
+      "id": "rejected-mutation-rollback",
+      "name": "rejected mutation rollback without durable version change",
+      "status": "passed",
+      "startedAtMs": 1785287992675,
+      "finishedAtMs": 1785287992718,
+      "durationMs": 43,
+      "details": {
+        "diagnosticCode": "SNAPBACK_HANDLER_FAILED",
+        "beforeVersion": 3,
+        "afterVersion": 3
+      },
+      "diagnostic": null
+    },
+    {
+      "id": "presence-cleanup",
+      "name": "TTL and disconnect presence cleanup",
+      "status": "passed",
+      "startedAtMs": 1785287992718,
+      "finishedAtMs": 1785287992851,
+      "durationMs": 133,
+      "details": {
+        "disconnectRemoved": true,
+        "ttlRemoved": true,
+        "ttlMs": 25
+      },
+      "diagnostic": null
+    },
+    {
+      "id": "ephemeral-durable-separation",
+      "name": "ephemeral publish does not advance durable version",
+      "status": "passed",
+      "startedAtMs": 1785287992851,
+      "finishedAtMs": 1785287992892,
+      "durationMs": 41,
+      "details": {
+        "beforeVersion": 3,
+        "afterVersion": 3
+      },
+      "diagnostic": null
+    },
+    {
+      "id": "session-owner-principal",
+      "name": "authenticated session principal owns visibility",
+      "status": "passed",
+      "startedAtMs": 1785287992892,
+      "finishedAtMs": 1785287992936,
+      "durationMs": 44,
+      "details": {
+        "actorIdentity": "019fab74-e4da-7904-a0a2-2a1e18aaaa60",
+        "observerIdentity": "019fab74-e4bf-7d87-b480-ce94dfe5a823",
+        "identitySources": {
+          "actor": "sessions-authenticated",
+          "observer": "sessions-authenticated"
+        },
+        "actorVisibility": "visible",
+        "observerVisibility": "absent"
+      },
+      "diagnostic": null
+    }
+  ],
+  "capabilityGaps": [],
+  "cleanup": {
+    "attempted": true,
+    "ok": true,
+    "managed": true,
+    "leaderExited": true,
+    "temporaryStateRemoved": true,
+    "errors": []
+  },
+  "nonclaims": [
+    "browser rendering or framework-hook behavior",
+    "hosted-target parity",
+    "performance, scale, migration, backup, rollback, and cost properties",
+    "dev-asserted identity labels are behavioral witnesses, not authenticated-principal evidence"
+  ],
+  "diagnostic": null
+}
