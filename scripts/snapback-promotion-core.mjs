@@ -773,10 +773,6 @@ export async function promoteDefaultVector({
   try {
     let precedingForwardCheckpoint = null;
     for (const row of lease.packages) {
-      const beforeLeaseHead = await readLeaseHead();
-      const beforeAuthorityTime = now();
-      requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
-      requireCurrentLease(lease, beforeAuthorityTime);
       const beforeConvergence = precedingForwardCheckpoint === null
         ? { vector: await readVector(names), attempts: 1 }
         : await readConvergedVector({
@@ -788,6 +784,13 @@ export async function promoteDefaultVector({
       if (!vectorsEqual(before, expected, names)) {
         throw new Error(`default-tag vector drift before ${row.name}`);
       }
+      // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
+      // — registry truth is read first; the challenge-bound authority head is
+      // the last fallible observation before a mutation.
+      const beforeLeaseHead = await readLeaseHead();
+      const beforeAuthorityTime = now();
+      requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
+      requireCurrentLease(lease, beforeAuthorityTime);
       if (row.expectedPriorVersion === row.newVersion) {
         const noOpConvergence = precedingForwardCheckpoint === null
           ? { vector: await readVector(names), attempts: 1 }
@@ -915,10 +918,6 @@ export async function promoteDefaultVector({
       let preMutationRegistryAttempts = null;
       let registryAttempts = null;
       try {
-        beforeLeaseHead = await readLeaseHead();
-        const beforeAuthorityTime = now();
-        requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
-        requireCurrentLease(lease, beforeAuthorityTime);
         let beforeConvergence;
         try {
           if (precedingRollbackCheckpoint === null) {
@@ -948,6 +947,13 @@ export async function promoteDefaultVector({
             || (before[row.name] ?? null) !== row.newVersion) {
           throw new Error(`rollback expected-value drift for ${row.name}`);
         }
+        // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
+        // — make the nonce-bound authority head the final observation before
+        // a rollback mutation too.
+        beforeLeaseHead = await readLeaseHead();
+        const beforeAuthorityTime = now();
+        requireLeaseHead(beforeLeaseHead, lease, authorityPublicKey, beforeAuthorityTime);
+        requireCurrentLease(lease, beforeAuthorityTime);
         requireCurrentLease(lease, now());
         mutationAttempted = true;
         try {

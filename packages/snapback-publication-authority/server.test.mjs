@@ -23,7 +23,7 @@ let testSigningKeyId;
 
 function issueRequest() {
   return {
-    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    schemaVersion: 'snapback.publication-lease-issue-request.v3',
     authorityInstallationId: AUTHORITY_INSTALLATION_ID,
     authorityOrigin: AUTHORITY_ORIGIN,
     signingKeyId: testSigningKeyId,
@@ -34,6 +34,7 @@ function issueRequest() {
     candidateLedgerSha256: 'a'.repeat(64),
     candidateTag: 'bakeoff-0-1-1-deadbeefcafe',
     defaultTag: 'latest',
+    priorDefaultClosureReceiptSha256: 'b'.repeat(64),
     lifetimeSeconds: 600,
     packages: PROMOTION_PACKAGE_NAMES.map((name) => ({
       name,

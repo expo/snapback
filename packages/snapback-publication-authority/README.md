@@ -78,6 +78,7 @@ node scripts/snapback-request-publication-lease.mjs \
   --publisher-instance publisher-host-01 \
   --operation-id release-0.1.1-20260728 \
   --public-key publication-authority-public-key.pem \
+  --prior-closure-out prior-default-closure.json \
   --out authorized-publication-lease.json
 ```
 
@@ -92,6 +93,7 @@ node scripts/snapback-promote.mjs \
   --public-key publication-authority-public-key.pem \
   --authority-url https://publication-authority.internal \
   --publisher-instance publisher-host-01 \
+  --prior-closure prior-default-closure.json \
   --latest-proof-plan latest-proof-plan.json \
   --post-ledger post-promotion-ledger.json \
   --out promotion-receipt.json
@@ -115,6 +117,22 @@ signed-prior root under one package-owned wall bound before running the full
 proof once. Receipts retain the closed retry policy and lease-bound attempt
 witness. The helper reopens the run, workflow, and artifact inventory through
 the GitHub API before accepting the two platform receipts.
+
+Before requesting the signed lease, the request client uses a distinct empty
+npm cache to bracket the download with two identical complete official
+`latest` vectors. It retains every prior tarball and writes a closed receipt
+binding candidate/operation/producer identity, timing, rollback actions,
+tarball SHA-256/npm integrity/shasum, manifest digests, complete dependency
+maps, and internal aliases. The v3 issue request and signed v3 lease bind that
+receipt's canonical digest. The promoter recomputes the digest, enforces the
+two-minute completion-to-issue freshness bound, rehashes and re-extracts every
+tarball, and reopens the complete official vector before acquisition. Its first
+mutation still reads a fresh complete vector and then makes a
+challenge-bound acquired head the final observation. Moving this expensive
+read-only proof before issue preserves the fixed 15-minute lease for mutation,
+cross-host proof, and rollback without making a stale vector
+mutation-authoritative. The service dual-reads retained v2 history but accepts
+and emits only v3 issue/lease records.
 
 The authority assigns `publicationEpoch`; callers can only present the
 expected epoch and head they just observed. Exact issue replay returns the

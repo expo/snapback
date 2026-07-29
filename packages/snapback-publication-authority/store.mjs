@@ -198,6 +198,8 @@ export function validatePublicationAuthorityState(state, rawContext) {
       || issueRequest.candidateLedgerSha256 !== lease.candidateLedgerSha256
       || issueRequest.candidateTag !== lease.candidateTag
       || issueRequest.defaultTag !== lease.defaultTag
+      || (issueRequest.priorDefaultClosureReceiptSha256 ?? null)
+        !== (lease.priorDefaultClosureReceiptSha256 ?? null)
       || issueRequest.lifetimeSeconds * 1_000
         !== Date.parse(lease.expiresAt) - Date.parse(lease.issuedAt)
       || canonicalJcs(issueRequest.packages) !== canonicalJcs(lease.packages)

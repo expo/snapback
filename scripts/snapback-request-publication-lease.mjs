@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 import {
   canonicalJcs,
@@ -24,6 +25,9 @@ import {
   validateObservedPriorVector,
 } from '../packages/snapback-publication-authority/request.mjs';
 import { validateCandidateLedger } from './snapback-publish-core.mjs';
+import {
+  materializePriorDefaultClosure,
+} from './snapback-prior-default-closure.mjs';
 
 const usage = `usage: node scripts/snapback-request-publication-lease.mjs
   --ledger <candidate-ledger.json>
@@ -32,6 +36,7 @@ const usage = `usage: node scripts/snapback-request-publication-lease.mjs
   --publisher-instance <id>
   --operation-id <id>
   --public-key <ed25519-public-key.pem>
+  --prior-closure-out <prior-default-closure.json>
   --out <authorized-lease.json>
   [--lifetime-seconds <1..900>] [--allow-loopback-http]
 
@@ -63,6 +68,7 @@ function parseArgs(argv) {
     else if (argument === '--publisher-instance') options.publisherInstanceId = value;
     else if (argument === '--operation-id') options.operationId = value;
     else if (argument === '--public-key') options.publicKey = resolve(value);
+    else if (argument === '--prior-closure-out') options.priorClosureOut = resolve(value);
     else if (argument === '--out') options.out = resolve(value);
     else if (argument === '--lifetime-seconds') options.lifetimeSeconds = Number(value);
     else fail(`unknown argument ${argument}\n${usage}`, 2);
@@ -74,6 +80,7 @@ function parseArgs(argv) {
     'publisherInstanceId',
     'operationId',
     'publicKey',
+    'priorClosureOut',
     'out',
   ]) {
     if (!options[field]) fail(`missing required option ${field}\n${usage}`, 2);
@@ -187,6 +194,26 @@ try {
 } catch (error) {
   fail(`prior vector refused: ${error.message}`, 2);
 }
+let priorDefaultClosure;
+try {
+  // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
+  // — materialize the expensive official-registry closure before issue so
+  // the signed lease keeps its proof and rollback reserve.
+  priorDefaultClosure = materializePriorDefaultClosure({
+    ledger,
+    priorVector,
+    receiptPath: options.priorClosureOut,
+    operationId: options.operationId,
+    publisherInstanceId: options.publisherInstanceId,
+    producerRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      timeout: 10_000,
+    }).trim(),
+  });
+  writePrivateAtomic(options.priorClosureOut, priorDefaultClosure);
+} catch (error) {
+  fail(`prior default closure refused before lease issue: ${error.message}`, 2);
+}
 let lease;
 try {
   const headChallenge = randomBytes(32).toString('hex');
@@ -206,7 +233,8 @@ try {
   });
   const request = createPublicationLeaseIssueRequest({
     ledger,
-    priorVector,
+    priorVector: priorDefaultClosure.finalVector,
+    priorDefaultClosureReceiptSha256: priorDefaultClosure.receiptSha256,
     head,
     publicKey,
     authorityOrigin: options.authorityUrl,
@@ -227,6 +255,7 @@ try {
     candidateLedgerSha256: ledger.candidateLedgerSha256,
     candidateTag: ledger.tag,
     publisherInstanceId: options.publisherInstanceId,
+    priorDefaultClosureReceiptSha256: priorDefaultClosure.receiptSha256,
   });
 } catch (error) {
   fail(error.message);
@@ -238,4 +267,6 @@ process.stdout.write(JSON.stringify({
   publicationEpoch: lease.publicationEpoch,
   expiresAt: lease.expiresAt,
   leasePath: options.out,
+  priorClosurePath: options.priorClosureOut,
+  priorClosureSha256: priorDefaultClosure.receiptSha256,
 }) + '\n');

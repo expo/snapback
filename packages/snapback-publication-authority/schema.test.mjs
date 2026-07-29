@@ -90,7 +90,7 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     now: () => Date.parse('2026-07-28T20:00:00.000Z'),
   });
   const request = {
-    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    schemaVersion: 'snapback.publication-lease-issue-request.v3',
     authorityInstallationId,
     authorityOrigin,
     signingKeyId: publicationAuthoritySigningKeyId(publicKey),
@@ -101,6 +101,7 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     candidateLedgerSha256: 'a'.repeat(64),
     candidateTag: 'bakeoff-0-1-1-deadbeefcafe',
     defaultTag: 'latest',
+    priorDefaultClosureReceiptSha256: 'b'.repeat(64),
     lifetimeSeconds: 600,
     packages: PROMOTION_PACKAGE_NAMES.map((name) => ({
       name,

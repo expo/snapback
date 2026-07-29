@@ -9,7 +9,8 @@ import {
 // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
 // — this module is the one package-owned wire/signature authority shared by
 // the standing service and the registry publisher.
-export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v2\0');
+const LEASE_DOMAIN_V2 = Buffer.from('snapback-authorized-publication-lease-v2\0');
+export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v3\0');
 export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v3\0');
 export const RECEIPT_DOMAIN = Buffer.from(
   'snapback-publication-authority-transition-receipt-v2\0',
@@ -37,6 +38,7 @@ export const LEASE_KEYS = Object.freeze([
   'issuedAt',
   'operationId',
   'packages',
+  'priorDefaultClosureReceiptSha256',
   'publicationEpoch',
   'publisherInstanceId',
   'schemaVersion',
@@ -59,10 +61,17 @@ export const ISSUE_REQUEST_KEYS = Object.freeze([
   'lifetimeSeconds',
   'operationId',
   'packages',
+  'priorDefaultClosureReceiptSha256',
   'publisherInstanceId',
   'schemaVersion',
   'signingKeyId',
 ]);
+const LEASE_V2_KEYS = Object.freeze(
+  LEASE_KEYS.filter((key) => key !== 'priorDefaultClosureReceiptSha256'),
+);
+const ISSUE_REQUEST_V2_KEYS = Object.freeze(
+  ISSUE_REQUEST_KEYS.filter((key) => key !== 'priorDefaultClosureReceiptSha256'),
+);
 export const AUTHORITY_TRANSITION_KEYS = Object.freeze([
   'authorityInstallationId',
   'authorityOrigin',
@@ -340,10 +349,17 @@ export function validatePublicationLease({
   candidateLedgerSha256,
   candidateTag,
   publisherInstanceId,
+  priorDefaultClosureReceiptSha256,
   now = Date.now(),
 }) {
-  requireExactKeys(lease, LEASE_KEYS, 'publication lease');
-  if (lease?.schemaVersion !== 'snapback.authorized-publication-lease.v2') {
+  const isV3 = lease?.schemaVersion === 'snapback.authorized-publication-lease.v3';
+  const isV2 = lease?.schemaVersion === 'snapback.authorized-publication-lease.v2';
+  requireExactKeys(
+    lease,
+    isV3 ? LEASE_KEYS : LEASE_V2_KEYS,
+    'publication lease',
+  );
+  if (!isV2 && !isV3) {
     throw new Error('unsupported publication lease schema');
   }
   validateAuthorityBinding(lease, { authorityInstallationId, authorityOrigin });
@@ -355,6 +371,21 @@ export function validatePublicationLease({
   assertHexSha256(lease.candidateLedgerSha256, 'candidateLedgerSha256');
   if (lease.candidateLedgerSha256 !== candidateLedgerSha256) {
     throw new Error('publication lease candidate ledger mismatch');
+  }
+  if (isV3) {
+    assertHexSha256(
+      lease.priorDefaultClosureReceiptSha256,
+      'priorDefaultClosureReceiptSha256',
+    );
+    if (
+      priorDefaultClosureReceiptSha256 !== undefined
+      && lease.priorDefaultClosureReceiptSha256
+        !== priorDefaultClosureReceiptSha256
+    ) {
+      throw new Error('publication lease prior closure mismatch');
+    }
+  } else if (priorDefaultClosureReceiptSha256 !== undefined) {
+    throw new Error('legacy publication lease does not bind a prior closure');
   }
   if (lease.candidateTag !== candidateTag || lease.defaultTag !== 'latest') {
     throw new Error('publication lease tag binding mismatch');
@@ -368,14 +399,24 @@ export function validatePublicationLease({
     throw new Error('publication lease is not current');
   }
   validateLeasePackages(lease.packages);
-  verifyEnvelope(LEASE_DOMAIN, lease, publicKey, 'publication lease');
+  verifyEnvelope(
+    isV3 ? LEASE_DOMAIN : LEASE_DOMAIN_V2,
+    lease,
+    publicKey,
+    'publication lease',
+  );
   return lease;
 }
 
 export function signPublicationLease({ unsigned, privateKey }) {
+  const isV3 = unsigned?.schemaVersion === 'snapback.authorized-publication-lease.v3';
+  const isV2 = unsigned?.schemaVersion === 'snapback.authorized-publication-lease.v2';
+  if (!isV2 && !isV3) {
+    throw new Error('unsupported unsigned publication lease schema');
+  }
   requireExactKeys(
     { ...unsigned, signature: '' },
-    LEASE_KEYS,
+    isV3 ? LEASE_KEYS : LEASE_V2_KEYS,
     'unsigned publication lease',
   );
   validateAuthorityBinding(unsigned);
@@ -385,13 +426,25 @@ export function signPublicationLease({ unsigned, privateKey }) {
   }
   return {
     ...unsigned,
-    signature: signEnvelope(LEASE_DOMAIN, unsigned, privateKey),
+    signature: signEnvelope(
+      isV3 ? LEASE_DOMAIN : LEASE_DOMAIN_V2,
+      unsigned,
+      privateKey,
+    ),
   };
 }
 
 export function validatePublicationLeaseIssueRequest(request, expectedBinding = {}) {
-  requireExactKeys(request, ISSUE_REQUEST_KEYS, 'publication lease issue request');
-  if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v2') {
+  const isV3 =
+    request?.schemaVersion === 'snapback.publication-lease-issue-request.v3';
+  const isV2 =
+    request?.schemaVersion === 'snapback.publication-lease-issue-request.v2';
+  requireExactKeys(
+    request,
+    isV3 ? ISSUE_REQUEST_KEYS : ISSUE_REQUEST_V2_KEYS,
+    'publication lease issue request',
+  );
+  if (!isV2 && !isV3) {
     throw new Error('unsupported publication lease issue request schema');
   }
   validateAuthorityBinding(request, expectedBinding);
@@ -404,6 +457,12 @@ export function validatePublicationLeaseIssueRequest(request, expectedBinding = 
     assertHexSha256(request.expectedHeadSha256, 'expectedHeadSha256');
   }
   assertHexSha256(request.candidateLedgerSha256, 'candidateLedgerSha256');
+  if (isV3) {
+    assertHexSha256(
+      request.priorDefaultClosureReceiptSha256,
+      'priorDefaultClosureReceiptSha256',
+    );
+  }
   if (
     !/^[a-z0-9][a-z0-9-]{7,159}$/u.test(request.candidateTag ?? '')
     || request.defaultTag !== 'latest'

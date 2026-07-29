@@ -158,6 +158,20 @@ test('lease is signature, candidate, time, and nine-package bound', () => {
     }),
     /authority origin mismatch/u,
   );
+  assert.throws(
+    () => validatePublicationLease({
+      lease,
+      publicKey,
+      authorityInstallationId,
+      authorityOrigin,
+      candidateLedgerSha256: 'a'.repeat(64),
+      candidateTag: lease.candidateTag,
+      publisherInstanceId: lease.publisherInstanceId,
+      priorDefaultClosureReceiptSha256: 'b'.repeat(64),
+      now: Date.parse('2026-07-28T19:05:00.000Z'),
+    }),
+    /legacy publication lease does not bind a prior closure/u,
+  );
 });
 
 test('promotion checks the complete vector around each tag mutation', async () => {
@@ -182,6 +196,54 @@ test('promotion checks the complete vector around each tag mutation', async () =
     Array(9).fill('0.1.1'),
   );
   assert.equal(result.events.length, 9);
+});
+
+test('forward and rollback mutations are preceded by vector then fresh head', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const prior = structuredClone(vector);
+  const head = acquiredHead(lease, privateKey);
+  const trace = [];
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => {
+        trace.push('vector');
+        return structuredClone(vector);
+      },
+      readLeaseHead: async () => {
+        trace.push('head');
+        return structuredClone(head);
+      },
+      setTag: async (name, version) => {
+        trace.push(`set:${name}`);
+        vector[name] = version;
+      },
+      removeTag: async (name) => {
+        trace.push(`remove:${name}`);
+        vector[name] = null;
+      },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      afterPromotion: async () => {
+        throw new Error('force ordering rollback');
+      },
+    }),
+    /force ordering rollback/u,
+  );
+  const mutationIndexes = trace
+    .map((event, index) => (/^(?:set|remove):/u.test(event) ? index : null))
+    .filter((index) => index !== null);
+  assert.ok(mutationIndexes.length > lease.packages.length);
+  for (const index of mutationIndexes) {
+    assert.deepEqual(
+      trace.slice(index - 2, index),
+      ['vector', 'head'],
+      `mutation ${trace[index]} must follow vector then head`,
+    );
+  }
+  assert.ok(trace.some((event) => event.startsWith('remove:')));
+  assert.deepEqual(vector, prior);
 });
 
 test('a first-publication package already on the new version is a verified no-op', async () => {

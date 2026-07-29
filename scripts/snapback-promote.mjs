@@ -25,7 +25,6 @@ import {
   validatePublicationAuthorityReceipt,
   validateClosedLatestProofPlan,
   validatePreClosePublicationState,
-  validatePriorDependencyAlias,
   waitForPromotedInstallability,
 } from './snapback-promotion-core.mjs';
 import {
@@ -40,6 +39,9 @@ import {
   validateFinalLatestReceipts,
 } from './snapback-package-cold-install-lib.mjs';
 import {
+  validatePriorDefaultClosureReceipt,
+} from './snapback-prior-default-closure.mjs';
+import {
   fetchPublicationAuthorityJson,
 } from '../packages/snapback-publication-authority/request.mjs';
 
@@ -48,6 +50,7 @@ const LATEST_ROOT_PROBE_ATTEMPTS = 6;
 const LATEST_ROOT_PROBE_DELAY_MS = 10_000;
 const LATEST_ROOT_PROBE_TIMEOUT_MS = 45_000;
 const PROMOTION_ROLLBACK_RESERVE_MS = 120_000;
+let promotionRegistryCacheRoot = null;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const latestProofHelper = join(
   repositoryRoot,
@@ -58,6 +61,7 @@ const usage = `usage: node scripts/snapback-promote.mjs
   --ledger <candidate-ledger.json> --lease <authorized-lease.json>
   --public-key <ed25519-public-key.pem>
   --authority-url <https-origin> --publisher-instance <id>
+  --prior-closure <prior-default-closure.json>
   --latest-proof-plan <plan.json> --post-ledger <ledger.json>
   --out <promotion-receipt.json> [--otp <code>]
 
@@ -90,6 +94,7 @@ function parseArgs(argv) {
     else if (arg === '--public-key') options.publicKey = resolve(value);
     else if (arg === '--authority-url') options.authorityUrl = value;
     else if (arg === '--publisher-instance') options.publisherInstanceId = value;
+    else if (arg === '--prior-closure') options.priorClosure = resolve(value);
     else if (arg === '--latest-proof-plan') options.latestProofPlan = resolve(value);
     else if (arg === '--post-ledger') options.postLedger = resolve(value);
     else if (arg === '--out') options.out = resolve(value);
@@ -102,6 +107,7 @@ function parseArgs(argv) {
     'publicKey',
     'authorityUrl',
     'publisherInstanceId',
+    'priorClosure',
     'latestProofPlan',
     'postLedger',
     'out',
@@ -129,7 +135,19 @@ function parseArgs(argv) {
 }
 
 function runNpm(args) {
-  const result = spawnSync('npm', [...args, '--registry', registry], {
+  const observationArgs = args[0] === 'view'
+    ? [
+      '--cache',
+      promotionRegistryCacheRoot,
+      '--prefer-online',
+    ]
+    : [];
+  const result = spawnSync('npm', [
+    ...args,
+    '--registry',
+    registry,
+    ...observationArgs,
+  ], {
     encoding: 'utf8',
     maxBuffer: 8 * 1024 * 1024,
     timeout: 120_000,
@@ -141,6 +159,18 @@ function runNpm(args) {
 }
 
 const options = parseArgs(process.argv.slice(2));
+const producerRevision = execFileSync('git', ['rev-parse', 'HEAD'], {
+  cwd: repositoryRoot,
+  encoding: 'utf8',
+  timeout: 10_000,
+}).trim();
+mkdirSync(dirname(options.out), { recursive: true, mode: 0o700 });
+promotionRegistryCacheRoot = mkdtempSync(
+  join(dirname(options.out), '.snapback-registry-cache-'),
+);
+process.on('exit', () => {
+  rmSync(promotionRegistryCacheRoot, { recursive: true, force: true });
+});
 if (process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
   fail('real promotion requires SNAPBACK_PUBLISH_CONFIRM=yes-really');
 }
@@ -171,6 +201,9 @@ validatePublicationLease({
   candidateTag: ledger.tag,
   publisherInstanceId: options.publisherInstanceId,
 });
+if (lease.schemaVersion !== 'snapback.authorized-publication-lease.v3') {
+  fail('promotion requires a v3 lease bound to prior default closure evidence');
+}
 const candidatesByName = new Map(ledger.packages.map((row) => [row.name, row]));
 for (const row of lease.packages) {
   const candidate = candidatesByName.get(row.name);
@@ -179,6 +212,42 @@ for (const row of lease.packages) {
       || candidate.registrySha256 !== candidate.sha256) {
     fail(`lease package ${row.name} is not identically bound to candidate ledger order`);
   }
+}
+const expectedPriorVector = Object.fromEntries(lease.packages.map((row) => [
+  row.name,
+  row.expectedPriorVersion,
+]));
+
+function loadPriorDefaultClosure() {
+  return validatePriorDefaultClosureReceipt({
+    receipt: readBoundedJsonFile(
+      options.priorClosure,
+      'prior default closure receipt',
+    ),
+    receiptPath: options.priorClosure,
+    ledger,
+    expectedPriorVector,
+    operationId: lease.operationId,
+    publisherInstanceId: lease.publisherInstanceId,
+    expectedProducerRevision: producerRevision,
+    issuedAt: lease.issuedAt,
+  });
+}
+
+let priorDefaultClosure;
+try {
+  priorDefaultClosure = loadPriorDefaultClosure();
+  validatePublicationLease({
+    lease,
+    publicKey: authorityPublicKey,
+    authorityOrigin: options.authorityUrl,
+    candidateLedgerSha256,
+    candidateTag: ledger.tag,
+    publisherInstanceId: options.publisherInstanceId,
+    priorDefaultClosureReceiptSha256: priorDefaultClosure.receiptSha256,
+  });
+} catch (error) {
+  fail(`prior default closure refused: ${error.message}`);
 }
 
 async function readVector(names) {
@@ -333,105 +402,6 @@ async function observePublicLatestRootInstallability({ expectedVector }) {
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true });
   }
-}
-
-async function preflightPriorDefaultClosure() {
-  const names = lease.packages.map((row) => row.name);
-  const expected = Object.fromEntries(lease.packages.map((row) => [
-    row.name,
-    row.expectedPriorVersion,
-  ]));
-  const observed = await readVector(names);
-  if (names.some((name) => (observed[name] ?? null) !== expected[name])) {
-    throw new Error('prior default-tag vector does not match the authorized lease');
-  }
-
-  const selected = new Set(lease.packages.map((row) => row.name));
-  const temporaryRoot = mkdtempSync(join(dirname(options.out), '.snapback-prior-'));
-  const packages = [];
-  try {
-    for (const row of lease.packages) {
-      if (row.expectedPriorVersion === null) {
-        packages.push({ name: row.name, version: null, status: 'absent' });
-        continue;
-      }
-      const packed = JSON.parse(runNpm([
-        'pack',
-        `${row.name}@${row.expectedPriorVersion}`,
-        '--pack-destination',
-        temporaryRoot,
-        '--json',
-        '--ignore-scripts',
-      ]))[0];
-      const tarball = join(temporaryRoot, packed.filename);
-      const manifest = JSON.parse(execFileSync(
-        'tar',
-        ['-xzOf', tarball, 'package/package.json'],
-        { encoding: 'utf8' },
-      ));
-      if (manifest.name !== row.name || manifest.version !== row.expectedPriorVersion) {
-        throw new Error(`prior registry identity drift for ${row.name}`);
-      }
-      const dependencyAliases = [];
-      for (const section of [
-        'dependencies',
-        'optionalDependencies',
-        'peerDependencies',
-        'devDependencies',
-      ]) {
-        for (const [dependency, value] of Object.entries(manifest[section] ?? {})) {
-          if (/^(?:workspace:|file:|link:)/.test(String(value))) {
-            throw new Error(`prior ${row.name} contains non-registry ${section}.${dependency}`);
-          }
-          if (
-            selected.has(dependency)
-            || dependency.startsWith('@ccheever/snapback-')
-          ) {
-            throw new Error(
-              `prior ${row.name} contains direct public internal key ${section}.${dependency}`,
-            );
-          }
-          const match = String(value).match(
-            /^npm:(@ccheever\/snapback-[a-z0-9-]+)@(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/,
-          );
-          if (String(value).includes('@ccheever/snapback-') && !match) {
-            throw new Error(`prior ${row.name} contains non-exact Snapback alias ${section}.${dependency}`);
-          }
-          if (dependency.startsWith('@snapback/') && !match) {
-            throw new Error(
-              `prior ${row.name} contains non-exact Snapback alias ${section}.${dependency}`,
-            );
-          }
-          if (!match) continue;
-          const [, target, version] = match;
-          const binding = validatePriorDependencyAlias({
-            lease,
-            ownerName: row.name,
-            dependency,
-            target,
-            version,
-          });
-          dependencyAliases.push({
-            section,
-            dependency,
-            target,
-            version,
-            sectionVector: binding.sectionVector,
-          });
-        }
-      }
-      packages.push({
-        name: row.name,
-        version: row.expectedPriorVersion,
-        tarballSha256: sha256Hex(readFileSync(tarball)),
-        dependencyAliases,
-        status: 'verified',
-      });
-    }
-  } finally {
-    rmSync(temporaryRoot, { recursive: true, force: true });
-  }
-  return { observedVector: observed, packages };
 }
 
 async function readLeaseHead() {
@@ -641,6 +611,7 @@ const receipt = {
   defaultTag: lease.defaultTag,
   startedAt: new Date().toISOString(),
   status: 'running',
+  priorDefaultClosurePreflight: priorDefaultClosure,
   events: [],
 };
 mkdirSync(dirname(options.out), { recursive: true });
@@ -648,22 +619,29 @@ writeFileSync(options.out, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o60
 
 let authorityAcquired = false;
 try {
-  const priorVector = Object.fromEntries(lease.packages.map((row) => [
-    row.name,
-    row.expectedPriorVersion,
-  ]));
+  const reopenedPriorDefaultClosure = loadPriorDefaultClosure();
+  if (
+    canonicalJcs(reopenedPriorDefaultClosure)
+    !== canonicalJcs(priorDefaultClosure)
+  ) {
+    throw new Error('prior default closure changed after promotion preflight');
+  }
+  const preAcquireVector = await readVector(
+    lease.packages.map((row) => row.name),
+  );
+  if (canonicalJcs(preAcquireVector) !== canonicalJcs(expectedPriorVector)) {
+    throw new Error('default-tag vector drifted before authority acquisition');
+  }
   const acquisition = publicationAuthorityTransition({
     lease,
     outcome: 'acquired',
-    vector: priorVector,
+    vector: expectedPriorVector,
   });
   receipt.authorityAcquisition = await transitionAuthority(
     '/v1/leases/acquire',
     acquisition,
   );
   authorityAcquired = true;
-  writeFileSync(options.out, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
-  receipt.priorDefaultClosurePreflight = await preflightPriorDefaultClosure();
   writeFileSync(options.out, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
   const result = await promoteDefaultVector({
     lease,
@@ -722,6 +700,7 @@ try {
         candidateLedgerSha256,
         candidateTag: ledger.tag,
         publisherInstanceId: options.publisherInstanceId,
+        priorDefaultClosureReceiptSha256: priorDefaultClosure.receiptSha256,
       });
       const postLedger = buildPostPromotionLedger({
         candidateLedger: ledger,
@@ -765,10 +744,6 @@ try {
   receipt.finalVector = error.result?.vector ?? null;
   receipt.rollback = error.result?.rollback ?? [];
   if (authorityAcquired) {
-    const priorVector = Object.fromEntries(lease.packages.map((row) => [
-      row.name,
-      row.expectedPriorVersion,
-    ]));
     if (receipt.finalVector === null) {
       try {
         receipt.finalVector = await readVector(
@@ -778,12 +753,15 @@ try {
         receipt.finalVectorObservationError = observationError.message;
       }
     }
-    if (canonicalJcs(receipt.finalVector) === canonicalJcs(priorVector)) {
+    if (
+      canonicalJcs(receipt.finalVector)
+      === canonicalJcs(expectedPriorVector)
+    ) {
       try {
         const rollbackClosure = publicationAuthorityTransition({
           lease,
           outcome: 'rolled-back',
-          vector: priorVector,
+          vector: expectedPriorVector,
         });
         receipt.authorityRollbackClosure = await transitionAuthority(
           '/v1/leases/close',

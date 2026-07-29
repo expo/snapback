@@ -13,6 +13,7 @@ import {
   publicationAuthoritySigningKeyId,
   publicationAuthorityTransition,
   sha256Hex,
+  signPublicationLease,
   validatePublicationLease,
   vectorFromLease,
 } from './protocol.mjs';
@@ -42,7 +43,7 @@ function fixture() {
     now: () => NOW,
   });
   const request = {
-    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    schemaVersion: 'snapback.publication-lease-issue-request.v3',
     authorityInstallationId: AUTHORITY_INSTALLATION_ID,
     authorityOrigin: AUTHORITY_ORIGIN,
     signingKeyId: publicationAuthoritySigningKeyId(publicKey),
@@ -53,6 +54,7 @@ function fixture() {
     candidateLedgerSha256: 'a'.repeat(64),
     candidateTag: 'bakeoff-0-1-1-deadbeefcafe',
     defaultTag: 'latest',
+    priorDefaultClosureReceiptSha256: 'b'.repeat(64),
     lifetimeSeconds: 900,
     packages: PROMOTION_PACKAGE_NAMES.map((name, index) => ({
       name,
@@ -76,10 +78,117 @@ test('issue allocates and signs one exact short-lived nine-package epoch', () =>
     candidateLedgerSha256: request.candidateLedgerSha256,
     candidateTag: request.candidateTag,
     publisherInstanceId: request.publisherInstanceId,
+    priorDefaultClosureReceiptSha256:
+      request.priorDefaultClosureReceiptSha256,
     now: NOW,
   });
+  assert.throws(
+    () => validatePublicationLease({
+      lease,
+      publicKey,
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+      candidateLedgerSha256: request.candidateLedgerSha256,
+      candidateTag: request.candidateTag,
+      publisherInstanceId: request.publisherInstanceId,
+      priorDefaultClosureReceiptSha256: 'c'.repeat(64),
+      now: NOW,
+    }),
+    /prior closure mismatch/u,
+  );
   assert.equal(authority.head().status, 'issued');
   assert.equal(authority.head().publicationEpoch, 1);
+});
+
+test('authority dual-reads historical v2 state but single-writes v3 leases', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  const signingKeyId = publicationAuthoritySigningKeyId(publicKey);
+  const packages = PROMOTION_PACKAGE_NAMES.map((name) => ({
+    name,
+    expectedPriorVersion: '0.1.0',
+    newVersion: '0.1.1',
+  }));
+  const issueRequest = {
+    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    signingKeyId,
+    operationId: 'release-historical-v2-test',
+    publisherInstanceId: 'publisher-historical-v2',
+    expectedPublicationEpoch: 0,
+    expectedHeadSha256: null,
+    candidateLedgerSha256: '1'.repeat(64),
+    candidateTag: 'bakeoff-historical-v2',
+    defaultTag: 'latest',
+    lifetimeSeconds: 900,
+    packages,
+  };
+  const lease = signPublicationLease({
+    privateKey,
+    unsigned: {
+      schemaVersion: 'snapback.authorized-publication-lease.v2',
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+      signingKeyId,
+      operationId: issueRequest.operationId,
+      publisherInstanceId: issueRequest.publisherInstanceId,
+      publicationEpoch: 1,
+      candidateLedgerSha256: issueRequest.candidateLedgerSha256,
+      candidateTag: issueRequest.candidateTag,
+      defaultTag: 'latest',
+      issuedAt: new Date(NOW - 20 * 60_000).toISOString(),
+      expiresAt: new Date(NOW - 5 * 60_000).toISOString(),
+      packages,
+    },
+  });
+  const context = {
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    publicKey,
+  };
+  const store = new InMemoryPublicationAuthorityStore(context, {
+    schemaVersion: 'snapback.publication-authority-state.v2',
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    signingKeyId,
+    generation: 1,
+    publicationEpoch: 1,
+    records: [{
+      issueRequest,
+      issueRequestSha256: sha256Hex(canonicalJcs(issueRequest)),
+      lease,
+      status: 'issued',
+      acquisition: null,
+      closure: null,
+    }],
+  });
+  const authority = new PublicationLeaseAuthority({
+    store,
+    privateKey,
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    now: () => NOW,
+  });
+  const head = authority.head();
+  const next = authority.issue({
+    ...issueRequest,
+    schemaVersion: 'snapback.publication-lease-issue-request.v3',
+    operationId: 'release-after-v2-test',
+    expectedPublicationEpoch: head.publicationEpoch,
+    expectedHeadSha256: head.headSha256,
+    priorDefaultClosureReceiptSha256: '2'.repeat(64),
+  });
+  assert.equal(next.schemaVersion, 'snapback.authorized-publication-lease.v3');
+  assert.equal(next.publicationEpoch, 2);
+  assert.throws(
+    () => authority.issue({
+      ...issueRequest,
+      operationId: 'release-new-v2-refused',
+      expectedPublicationEpoch: 2,
+      expectedHeadSha256: authority.head().headSha256,
+    }),
+    /only issues v3/u,
+  );
 });
 
 test('issue is exact-replay idempotent and stale or altered requests refuse', () => {
@@ -88,6 +197,13 @@ test('issue is exact-replay idempotent and stale or altered requests refuse', ()
   assert.deepEqual(authority.issue(structuredClone(request)), lease);
   assert.throws(
     () => authority.issue({ ...request, lifetimeSeconds: 899 }),
+    /already used with different issue bytes/u,
+  );
+  assert.throws(
+    () => authority.issue({
+      ...request,
+      priorDefaultClosureReceiptSha256: 'c'.repeat(64),
+    }),
     /already used with different issue bytes/u,
   );
   const head = authority.head();
@@ -350,6 +466,8 @@ test('request builder closes candidate-ledger and observed-prior-vector inventor
   const built = createPublicationLeaseIssueRequest({
     ledger,
     priorVector,
+    priorDefaultClosureReceiptSha256:
+      request.priorDefaultClosureReceiptSha256,
     head,
     publicKey,
     authorityOrigin: AUTHORITY_ORIGIN,
@@ -365,6 +483,8 @@ test('request builder closes candidate-ledger and observed-prior-vector inventor
     () => createPublicationLeaseIssueRequest({
       ledger,
       priorVector: { ...priorVector, extra: '0.1.0' },
+      priorDefaultClosureReceiptSha256:
+        request.priorDefaultClosureReceiptSha256,
       head,
       operationId: request.operationId,
       publisherInstanceId: request.publisherInstanceId,

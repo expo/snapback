@@ -183,6 +183,9 @@ export class PublicationLeaseAuthority {
         authorityInstallationId: this.authorityInstallationId,
         authorityOrigin: this.authorityOrigin,
       });
+      if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v3') {
+        throw new Error('standing authority only issues v3 publication leases');
+      }
       if (request.signingKeyId !== this.signingKeyId) {
         throw new Error('publication authority signing key id mismatch');
       }
@@ -234,7 +237,7 @@ export class PublicationLeaseAuthority {
       const issuedAt = new Date(now).toISOString();
       const expiresAt = new Date(now + request.lifetimeSeconds * 1_000).toISOString();
       const unsigned = {
-        schemaVersion: 'snapback.authorized-publication-lease.v2',
+        schemaVersion: 'snapback.authorized-publication-lease.v3',
         authorityInstallationId: this.authorityInstallationId,
         authorityOrigin: this.authorityOrigin,
         signingKeyId: this.signingKeyId,
@@ -244,6 +247,8 @@ export class PublicationLeaseAuthority {
         candidateLedgerSha256: request.candidateLedgerSha256,
         candidateTag: request.candidateTag,
         defaultTag: request.defaultTag,
+        priorDefaultClosureReceiptSha256:
+          request.priorDefaultClosureReceiptSha256,
         issuedAt,
         expiresAt,
         packages: structuredClone(request.packages),
@@ -257,6 +262,8 @@ export class PublicationLeaseAuthority {
         candidateLedgerSha256: request.candidateLedgerSha256,
         candidateTag: request.candidateTag,
         publisherInstanceId: request.publisherInstanceId,
+        priorDefaultClosureReceiptSha256:
+          request.priorDefaultClosureReceiptSha256,
         now,
       });
       state.publicationEpoch = lease.publicationEpoch;

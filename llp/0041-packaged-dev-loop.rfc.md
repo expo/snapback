@@ -77,6 +77,17 @@ plus rollback lease budget refuses and enters the existing full rollback.
 This is a corrective instrument and does not itself claim a completed
 promotion.)
 
+**Revised (pre-issue prior-closure qualification):** 2026-07-29 (epoch 11
+proved that prior-tarball qualification inside a fixed 15-minute lease could
+consume the proof and rollback reserve even after the candidate vector moved.
+The requester now brackets and retains the complete official-registry prior
+closure before issue. Its canonical receipt digest is signed into the v3
+lease; promotion independently rehashes and re-extracts every retained
+tarball, checks freshness and current checkout identity, and reopens the
+official vector before acquisition. Mutation gates read vector then a fresh
+challenge-bound head. The authority dual-reads retained v2 history but issues
+only v3 leases.)
+
 **Revised (nine-package candidate promotion):** 2026-07-28 (the next public
 closure uses immutable exact-version candidate publication, exact-registry
 cold proof, dependency-safe default-tag promotion with the CLI root last, and
@@ -516,6 +527,27 @@ normative `@snapback/*` source key with an exact
 `@ccheever/snapback-*` key, range, tag, non-normative alias key, or unknown
 internal package refuses even when npm would otherwise resolve it.
 
+The official-registry download and alias walk occur **before lease issue**.
+The requester uses a distinct empty npm cache, requires the separately
+observed complete prior vector to match its fresh official-registry read, and
+writes one closed receipt binding the candidate-ledger digest/tag/revision,
+official registry and default tag, operation/publisher/source/helper identity,
+start/completion time, identical bracketing prior vectors, ordered package
+versions and rollback actions, retained tarball SHA-256/npm integrity/shasum,
+manifest digest, complete normalized dependency maps, and internal aliases.
+Only after that receipt validates does it read the standing-authority head and
+request the fixed 15-minute v3 lease. The canonical receipt digest is a closed
+member of the issue request and signed lease; the promoter recomputes it and
+independently rehashes and re-extracts every retained tarball before
+acquisition. The receipt must have completed no more than two minutes before
+lease issue. The promoter then reopens the official complete vector before
+acquisition. The receipt is not mutation authority: after acquisition, the
+transition engine still reopens the complete registry vector and then a fresh
+challenge-bound acquired head as its final observation before every mutation,
+so drift between preflight, issue, acquisition, and mutation refuses without a
+write. This ordering keeps read-only registry qualification from spending the
+lease budget reserved for hosted proof and rollback.
+
 When npm has already assigned the candidate version to a first-ever package's
 default tag, preflight validates that package's exact aliases against the
 authorized **new** vector while every other prior package remains bound to the
@@ -540,13 +572,14 @@ reproducible unless a separate reproducible-build row passes.
 
 ### Unreviewed post-round correction: publication lease and rollback
 
-Default-tag mutation requires an `AuthorizedPublicationLeaseV2` stored outside
+Default-tag mutation requires an `AuthorizedPublicationLeaseV3` stored outside
 npm in the standing release authority. The signed lease binds the publisher
 instance, authority installation id, canonical HTTPS origin, pinned Ed25519 key
 id, monotonically increasing `publicationEpoch`, candidate-ledger digest,
 complete nine-package vector, candidate tag, default tag, exact expected prior
 value or absence and intended new value for every package, issue/expiry times,
-and single release operation id. The publisher must acquire this lease by an
+and single release operation id, plus the exact prior-default closure receipt
+digest. The publisher must acquire this lease by an
 expected-value transition from the release authority's prior head. An expired,
 superseded, closed, differently bound, or unreachable lease refuses every
 further npm mutation; a local lock or possession of npm credentials is not
@@ -554,7 +587,9 @@ publication authority.
 
 Immediately before **and** immediately after each `npm dist-tag` add or remove,
 the publisher reads the complete nine-package default-tag vector from the
-official registry and the current external lease head. The pre-mutation vector
+official registry and the current external lease head. Before a mutation it
+reads the vector first and makes a fresh challenge-bound head its final
+fallible observation. The pre-mutation vector
 must equal the last journaled expected vector exactly, including absence for a
 first-publish package, and the lease epoch and operation id must still equal
 the authorized values. The head is independently domain-separated
@@ -591,8 +626,8 @@ and error bodies.
 
 Rollback covers the full vector of successfully changed packages, including a
 root move, and visits them in the reverse of their actual mutation order. For
-each package it first re-reads the complete registry vector and external lease
-head. It restores the recorded prior exact version, or removes a default tag
+each package it first re-reads the complete registry vector and then the
+external lease head. It restores the recorded prior exact version, or removes a default tag
 that was absent before first publication, only when the package still equals
 this operation's intended new value and all other entries equal the preceding
 rollback checkpoint. A package that contains a newer, absent, or otherwise
@@ -605,7 +640,7 @@ full vector equals the recorded prior vector and the external authority closes
 the exact lease epoch as rolled back.
 
 A failure between authority acquisition and entry into the tag-transition
-engine—including prior-closure preflight—must still re-read the complete
+engine must still re-read the complete
 official vector. If that observation equals the signed prior vector, the
 publisher closes the epoch as rolled back even though no tag event exists; an
 unreadable or different vector leaves the authority acquired and requires
@@ -671,6 +706,12 @@ POST bodies are canonical JCS bytes, so duplicate, non-canonical, unknown, or
 missing members cannot be silently normalized. TLS is terminated by the
 private service ingress; request and promotion clients refuse cleartext except
 explicit loopback test use.
+
+The protocol is dual-read/single-write across this correction: validation and
+durable reopen retain the v2 key set and v2 signature domain for historical
+epochs, while the live issue endpoint accepts only v3 requests and emits only
+v3 leases. A retained v2 history therefore cannot wedge authority startup, and
+a new release cannot omit the signed prior-closure digest.
 
 `scripts/snapback-request-publication-lease.mjs` validates the successful
 candidate ledger, a separately retained complete official-registry prior

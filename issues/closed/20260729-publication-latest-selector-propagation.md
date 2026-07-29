@@ -54,6 +54,17 @@ signal, not an adequate global stability window.
 - Retain each host's exact policy, ordered attempt classifications, cache
   identity digests, timing, lease identity, and final closure digest in the
   v2 cold receipt, v3 GitHub collection, and v2 post-promotion ledger.
+- Materialize the expensive prior-default tarball/dependency closure before
+  lease issue in a closed, time-bounded candidate/vector/operation receipt.
+  Sign its canonical digest into the v3 lease, retain and independently
+  revalidate every tarball and complete dependency map, and reopen the official
+  vector before acquisition. Retain the vector-then-fresh-acquired-head fence
+  before every mutation. The authority dual-reads historical v2 state while
+  accepting and emitting only v3 leases.
+  Epoch 11 established why the ordering matters: qualification plus registry
+  convergence consumed 193 seconds, leaving less than the fixed proof/probe/
+  rollback reserve; the promoter reversed all eight changed tags, restored the
+  exact prior vector, and closed the epoch as rolled back.
 
 Promotion-core, cold-install, latest-proof, authority, syntax, and diff checks
 cover the correction. The next real promotion is the end-to-end acceptance

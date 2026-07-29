@@ -133,6 +133,7 @@ export function validateObservedPriorVector(vector) {
 export function createPublicationLeaseIssueRequest({
   ledger,
   priorVector,
+  priorDefaultClosureReceiptSha256,
   head,
   publicKey,
   authorityOrigin,
@@ -164,7 +165,7 @@ export function createPublicationLeaseIssueRequest({
     };
   });
   return validatePublicationLeaseIssueRequest({
-    schemaVersion: 'snapback.publication-lease-issue-request.v2',
+    schemaVersion: 'snapback.publication-lease-issue-request.v3',
     authorityInstallationId: head.authorityInstallationId,
     authorityOrigin: head.authorityOrigin,
     signingKeyId: head.signingKeyId,
@@ -175,6 +176,7 @@ export function createPublicationLeaseIssueRequest({
     candidateLedgerSha256: ledger.candidateLedgerSha256,
     candidateTag: ledger.tag,
     defaultTag: 'latest',
+    priorDefaultClosureReceiptSha256,
     lifetimeSeconds,
     packages,
   });
