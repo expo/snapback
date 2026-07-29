@@ -92,6 +92,15 @@ All seven Linear arms have now been assigned in exact frozen order.
 | Linear / Firebase | Complete | 12 PASS, one native-search GAP, one hosted credential-unavailable result; capsule, diary draft, evidence audit, and cleanup proof integrated |
 | Linear / Supabase | Complete | 12 PASS, offline and hosted GAPs; capsule, diary, evidence audit, retained cold-Realtime failure, and cleanup proof integrated |
 | Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |
-| Linear / Convex | Starting | Coordinator isolated lane assigned after Snapback integration |
-| Linear / Appwrite | Starting | Worker 2 reassigned after Firebase completion; isolated official Compose lane |
-| Linear / InstantDB | Starting | Worker 3 reassigned after Supabase completion; isolated disposable-app/namespace lane |
+| Linear / Convex | Complete | 12 PASS, offline GAP, hosted credential-unavailable; capsule, diary, coordinator evidence audit, corrected performance attempt, and exact cleanup integrated |
+| Linear / Appwrite | Running | Worker 2 has direct authority/conflict/search/realtime evidence; performance and exact cleanup remain |
+| Linear / InstantDB | Running | Worker 3 retained a policy-shape failed attempt, corrected it, and is rerunning from a fresh scoped fixture |
+
+### Partiful first wave
+
+| Frozen start order | Arm | Worker / machine | Isolation | Merge ownership |
+| ---: | --- | --- | --- | --- |
+| 1 | Partiful / Supabase | Coordinator / control-plane Mac | Detached worktree `/private/tmp/llp0102-partiful-supabase-coord` at the current evidence-integration head without Snapback product edits; official local Supabase stack with exact project/volume namespace `llp0102-partiful-supabase-coord`; API/DB/Studio range rooted at `57431`, Vite `4330`; worktree-local CLI/XDG state and fresh local project | Coordinator writes and audits directly; shared diary/report edits only after arm evidence and exact cleanup are complete |
+
+Partiful/Firebase, SpacetimeDB, Appwrite, Snapback, Convex, and InstantDB will
+be assigned in that exact order as isolated capacity opens.
