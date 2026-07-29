@@ -1,0 +1,1613 @@
+{
+  "schemaVersion": 1,
+  "scale": "0-100",
+  "providers": [
+    {
+      "provider": "snapback",
+      "eligibleForTotalOrdering": true,
+      "missingApps": [],
+      "categoryMeans": {
+        "authoring": 2.4,
+        "modeling": 3.8,
+        "correctness": 5,
+        "realtimeOffline": 3.4,
+        "auth": 4.6,
+        "completeness": 3,
+        "deploymentOperations": 1.4,
+        "testingDocsAgent": 3.6,
+        "performanceCost": 3,
+        "maturityControl": 2
+      },
+      "composite": 62.84,
+      "stopDefects": []
+    },
+    {
+      "provider": "convex",
+      "eligibleForTotalOrdering": true,
+      "missingApps": [],
+      "categoryMeans": {
+        "authoring": 4.4,
+        "modeling": 4.4,
+        "correctness": 4.4,
+        "realtimeOffline": 3.6,
+        "auth": 3.6,
+        "completeness": 4.4,
+        "deploymentOperations": 2.8,
+        "testingDocsAgent": 3.8,
+        "performanceCost": 4.4,
+        "maturityControl": 3.6
+      },
+      "composite": 78.72,
+      "stopDefects": [
+        {
+          "app": "research-room",
+          "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+        }
+      ]
+    },
+    {
+      "provider": "supabase",
+      "eligibleForTotalOrdering": true,
+      "missingApps": [],
+      "categoryMeans": {
+        "authoring": 2.8,
+        "modeling": 5,
+        "correctness": 5,
+        "realtimeOffline": 3.4,
+        "auth": 5,
+        "completeness": 4.8,
+        "deploymentOperations": 3,
+        "testingDocsAgent": 3.8,
+        "performanceCost": 4,
+        "maturityControl": 5
+      },
+      "composite": 81.04,
+      "stopDefects": []
+    },
+    {
+      "provider": "firebase",
+      "eligibleForTotalOrdering": true,
+      "missingApps": [],
+      "categoryMeans": {
+        "authoring": 3,
+        "modeling": 3.6,
+        "correctness": 4.8,
+        "realtimeOffline": 5,
+        "auth": 4.8,
+        "completeness": 4.8,
+        "deploymentOperations": 3,
+        "testingDocsAgent": 4,
+        "performanceCost": 2.8,
+        "maturityControl": 5
+      },
+      "composite": 80.6,
+      "stopDefects": []
+    },
+    {
+      "provider": "instantdb",
+      "eligibleForTotalOrdering": true,
+      "missingApps": [],
+      "categoryMeans": {
+        "authoring": 3.6,
+        "modeling": 3,
+        "correctness": 3.8,
+        "realtimeOffline": 4.4,
+        "auth": 3,
+        "completeness": 2.6,
+        "deploymentOperations": 2.8,
+        "testingDocsAgent": 3,
+        "performanceCost": 4,
+        "maturityControl": 3
+      },
+      "composite": 66.88,
+      "stopDefects": []
+    },
+    {
+      "provider": "spacetimedb",
+      "eligibleForTotalOrdering": true,
+      "missingApps": [],
+      "categoryMeans": {
+        "authoring": 3.2,
+        "modeling": 3.8,
+        "correctness": 5,
+        "realtimeOffline": 3.2,
+        "auth": 3,
+        "completeness": 3.2,
+        "deploymentOperations": 3,
+        "testingDocsAgent": 3.2,
+        "performanceCost": 5,
+        "maturityControl": 3
+      },
+      "composite": 70.2,
+      "stopDefects": []
+    },
+    {
+      "provider": "appwrite",
+      "eligibleForTotalOrdering": true,
+      "missingApps": [],
+      "categoryMeans": {
+        "authoring": 2,
+        "modeling": 3.6,
+        "correctness": 4,
+        "realtimeOffline": 3,
+        "auth": 4.2,
+        "completeness": 4.2,
+        "deploymentOperations": 2,
+        "testingDocsAgent": 3,
+        "performanceCost": 2.6,
+        "maturityControl": 4
+      },
+      "composite": 63.16,
+      "stopDefects": []
+    }
+  ],
+  "ranking": [
+    {
+      "rank": 1,
+      "provider": "supabase",
+      "composite": 81.04,
+      "stopDefects": []
+    },
+    {
+      "rank": 2,
+      "provider": "firebase",
+      "composite": 80.6,
+      "stopDefects": []
+    },
+    {
+      "rank": 3,
+      "provider": "convex",
+      "composite": 78.72,
+      "stopDefects": [
+        {
+          "app": "research-room",
+          "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+        }
+      ]
+    },
+    {
+      "rank": 4,
+      "provider": "spacetimedb",
+      "composite": 70.2,
+      "stopDefects": []
+    },
+    {
+      "rank": 5,
+      "provider": "instantdb",
+      "composite": 66.88,
+      "stopDefects": []
+    },
+    {
+      "rank": 6,
+      "provider": "appwrite",
+      "composite": 63.16,
+      "stopDefects": []
+    },
+    {
+      "rank": 7,
+      "provider": "snapback",
+      "composite": 62.84,
+      "stopDefects": []
+    }
+  ],
+  "practicalTies": [
+    {
+      "providers": [
+        "supabase",
+        "firebase"
+      ],
+      "difference": 0.44
+    },
+    {
+      "providers": [
+        "supabase",
+        "convex"
+      ],
+      "difference": 2.32
+    },
+    {
+      "providers": [
+        "firebase",
+        "convex"
+      ],
+      "difference": 1.88
+    },
+    {
+      "providers": [
+        "appwrite",
+        "snapback"
+      ],
+      "difference": 0.32
+    }
+  ],
+  "sensitivity": [
+    {
+      "category": "authoring",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 11.6883,
+        "modeling": 10.3896,
+        "correctness": 10.3896,
+        "realtimeOffline": 12.4675,
+        "auth": 8.3117,
+        "completeness": 10.3896,
+        "deploymentOperations": 12.4675,
+        "testingDocsAgent": 8.3117,
+        "performanceCost": 7.2727,
+        "maturityControl": 8.3117
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 82.0156,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 81.4026,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.3584,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.4416,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.6805,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 64.0623,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 63.4182,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "authoring",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 18.0723,
+        "modeling": 9.6386,
+        "correctness": 9.6386,
+        "realtimeOffline": 11.5663,
+        "auth": 7.7108,
+        "completeness": 9.6386,
+        "deploymentOperations": 11.5663,
+        "testingDocsAgent": 7.7108,
+        "performanceCost": 6.747,
+        "maturityControl": 7.7108
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 80.1349,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 79.8554,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 79.0554,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 69.9759,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.0651,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 62.3229,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.3036,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "modeling",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.3846,
+        "modeling": 7.6923,
+        "correctness": 10.2564,
+        "realtimeOffline": 12.3077,
+        "auth": 8.2051,
+        "completeness": 10.2564,
+        "deploymentOperations": 12.3077,
+        "testingDocsAgent": 8.2051,
+        "performanceCost": 7.1795,
+        "maturityControl": 8.2051
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "firebase",
+          "composite": 80.8205,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "supabase",
+          "composite": 80.5538,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.4821,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.0513,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.0564,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 62.9333,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.5026,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": [
+        {
+          "provider": "firebase",
+          "from": 2,
+          "to": 1
+        },
+        {
+          "provider": "supabase",
+          "from": 1,
+          "to": 2
+        }
+      ]
+    },
+    {
+      "category": "modeling",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.6341,
+        "modeling": 12.1951,
+        "correctness": 9.7561,
+        "realtimeOffline": 11.7073,
+        "auth": 7.8049,
+        "completeness": 9.7561,
+        "deploymentOperations": 11.7073,
+        "testingDocsAgent": 7.8049,
+        "performanceCost": 6.8293,
+        "maturityControl": 7.8049
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.5024,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.3902,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.9463,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.3415,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.7122,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.3756,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 63.161,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "correctness",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.3846,
+        "modeling": 10.2564,
+        "correctness": 7.6923,
+        "realtimeOffline": 12.3077,
+        "auth": 8.2051,
+        "completeness": 10.2564,
+        "deploymentOperations": 12.3077,
+        "testingDocsAgent": 8.2051,
+        "performanceCost": 7.1795,
+        "maturityControl": 8.2051
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 80.5538,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.2051,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.4821,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 69.4359,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.6462,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 62.7282,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 61.8872,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "correctness",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.6341,
+        "modeling": 9.7561,
+        "correctness": 12.1951,
+        "realtimeOffline": 11.7073,
+        "auth": 7.8049,
+        "completeness": 9.7561,
+        "deploymentOperations": 11.7073,
+        "testingDocsAgent": 7.8049,
+        "performanceCost": 6.8293,
+        "maturityControl": 7.8049
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.5024,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.9756,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.9463,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.9268,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.1024,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "snapback",
+          "composite": 63.7463,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "appwrite",
+          "composite": 63.5707,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": [
+        {
+          "provider": "snapback",
+          "from": 7,
+          "to": 6
+        },
+        {
+          "provider": "appwrite",
+          "from": 6,
+          "to": 7
+        }
+      ]
+    },
+    {
+      "category": "realtimeOffline",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.4639,
+        "modeling": 10.3093,
+        "correctness": 10.3093,
+        "realtimeOffline": 9.2784,
+        "auth": 8.2474,
+        "completeness": 10.3093,
+        "deploymentOperations": 12.3711,
+        "testingDocsAgent": 8.2474,
+        "performanceCost": 7.2165,
+        "maturityControl": 8.2474
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.4433,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.9278,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.3918,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.2268,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.2577,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.6804,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "realtimeOffline",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.5631,
+        "modeling": 9.7087,
+        "correctness": 9.7087,
+        "realtimeOffline": 14.5631,
+        "auth": 7.767,
+        "completeness": 9.7087,
+        "deploymentOperations": 11.6505,
+        "testingDocsAgent": 7.767,
+        "performanceCost": 6.7961,
+        "maturityControl": 7.767
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "firebase",
+          "composite": 81.165,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "supabase",
+          "composite": 80.6602,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.5243,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.0194,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.4951,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.068,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.9903,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": [
+        {
+          "provider": "firebase",
+          "from": 2,
+          "to": 1
+        },
+        {
+          "provider": "supabase",
+          "from": 1,
+          "to": 2
+        }
+      ]
+    },
+    {
+      "category": "auth",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.3061,
+        "modeling": 10.2041,
+        "correctness": 10.2041,
+        "realtimeOffline": 12.2449,
+        "auth": 6.1224,
+        "completeness": 10.2041,
+        "deploymentOperations": 12.2449,
+        "testingDocsAgent": 8.1633,
+        "performanceCost": 7.1429,
+        "maturityControl": 8.1633
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 80.6531,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.2857,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.8571,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.4082,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.0204,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 62.7347,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.2449,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "auth",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.7059,
+        "modeling": 9.8039,
+        "correctness": 9.8039,
+        "realtimeOffline": 11.7647,
+        "auth": 9.8039,
+        "completeness": 9.8039,
+        "deploymentOperations": 11.7647,
+        "testingDocsAgent": 7.8431,
+        "performanceCost": 6.8627,
+        "maturityControl": 7.8431
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.4118,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.902,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.5882,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.7451,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.5686,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 63.4118,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "completeness",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.3846,
+        "modeling": 10.2564,
+        "correctness": 10.2564,
+        "realtimeOffline": 12.3077,
+        "auth": 8.2051,
+        "completeness": 7.6923,
+        "deploymentOperations": 12.3077,
+        "testingDocsAgent": 8.2051,
+        "performanceCost": 7.1795,
+        "maturityControl": 8.2051
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 80.6564,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.2051,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.4821,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.359,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.2615,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "snapback",
+          "composite": 62.9128,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "appwrite",
+          "composite": 62.6256,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": [
+        {
+          "provider": "snapback",
+          "from": 7,
+          "to": 6
+        },
+        {
+          "provider": "appwrite",
+          "from": 6,
+          "to": 7
+        }
+      ]
+    },
+    {
+      "category": "completeness",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.6341,
+        "modeling": 9.7561,
+        "correctness": 9.7561,
+        "realtimeOffline": 11.7073,
+        "auth": 7.8049,
+        "completeness": 12.1951,
+        "deploymentOperations": 11.7073,
+        "testingDocsAgent": 7.8049,
+        "performanceCost": 6.8293,
+        "maturityControl": 7.8049
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.4049,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.9756,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.9463,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.0488,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.5171,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.6683,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.7707,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "deploymentOperations",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.4639,
+        "modeling": 10.3093,
+        "correctness": 10.3093,
+        "realtimeOffline": 12.3711,
+        "auth": 8.2474,
+        "completeness": 10.3093,
+        "deploymentOperations": 9.2784,
+        "testingDocsAgent": 8.2474,
+        "performanceCost": 7.2165,
+        "maturityControl": 8.2474
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.6907,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 81.2371,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 79.4227,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.5155,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.2165,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "snapback",
+          "composite": 63.9175,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "appwrite",
+          "composite": 63.8763,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": [
+        {
+          "provider": "snapback",
+          "from": 7,
+          "to": 6
+        },
+        {
+          "provider": "appwrite",
+          "from": 6,
+          "to": 7
+        }
+      ]
+    },
+    {
+      "category": "deploymentOperations",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.5631,
+        "modeling": 9.7087,
+        "correctness": 9.7087,
+        "realtimeOffline": 11.6505,
+        "auth": 7.767,
+        "completeness": 9.7087,
+        "deploymentOperations": 14.5631,
+        "testingDocsAgent": 7.767,
+        "performanceCost": 6.7961,
+        "maturityControl": 7.767
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 80.4272,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.0583,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 69.9029,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.5631,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 62.4854,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 61.8252,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "testingDocsAgent",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.3061,
+        "modeling": 10.2041,
+        "correctness": 10.2041,
+        "realtimeOffline": 12.2449,
+        "auth": 8.1633,
+        "completeness": 10.2041,
+        "deploymentOperations": 12.2449,
+        "testingDocsAgent": 6.1224,
+        "performanceCost": 7.1429,
+        "maturityControl": 8.1633
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.1429,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.6122,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.7755,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.3265,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.0204,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.2245,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.6531,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "testingDocsAgent",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.7059,
+        "modeling": 9.8039,
+        "correctness": 9.8039,
+        "realtimeOffline": 11.7647,
+        "auth": 7.8431,
+        "completeness": 9.8039,
+        "deploymentOperations": 11.7647,
+        "testingDocsAgent": 9.8039,
+        "performanceCost": 6.8627,
+        "maturityControl": 7.8431
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 80.9412,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.5882,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.6667,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.0784,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.7451,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.098,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 63.0196,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "performanceCost",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.2672,
+        "modeling": 10.1781,
+        "correctness": 10.1781,
+        "realtimeOffline": 12.2137,
+        "auth": 8.1425,
+        "completeness": 10.1781,
+        "deploymentOperations": 12.2137,
+        "testingDocsAgent": 8.1425,
+        "performanceCost": 5.3435,
+        "maturityControl": 8.1425
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.0585,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 81.0382,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.5547,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 69.6692,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.6463,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.3588,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.8906,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "performanceCost",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.742,
+        "modeling": 9.828,
+        "correctness": 9.828,
+        "realtimeOffline": 11.7936,
+        "auth": 7.8624,
+        "completeness": 9.828,
+        "deploymentOperations": 11.7936,
+        "testingDocsAgent": 7.8624,
+        "performanceCost": 8.5995,
+        "maturityControl": 7.8624
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.0221,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.1769,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.8796,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.7125,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.1057,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 62.9681,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.7912,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    },
+    {
+      "category": "maturityControl",
+      "variationPercent": -25,
+      "weights": {
+        "authoring": 15.3061,
+        "modeling": 10.2041,
+        "correctness": 10.2041,
+        "realtimeOffline": 12.2449,
+        "auth": 8.1633,
+        "completeness": 10.2041,
+        "deploymentOperations": 12.2449,
+        "testingDocsAgent": 8.1633,
+        "performanceCost": 7.1429,
+        "maturityControl": 6.1224
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 80.6531,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.2041,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.8571,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70.4082,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 67.0204,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "snapback",
+          "composite": 63.3061,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "appwrite",
+          "composite": 62.8163,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": [
+        {
+          "provider": "snapback",
+          "from": 7,
+          "to": 6
+        },
+        {
+          "provider": "appwrite",
+          "from": 6,
+          "to": 7
+        }
+      ]
+    },
+    {
+      "category": "maturityControl",
+      "variationPercent": 25,
+      "weights": {
+        "authoring": 14.7059,
+        "modeling": 9.8039,
+        "correctness": 9.8039,
+        "realtimeOffline": 11.7647,
+        "auth": 7.8431,
+        "completeness": 9.8039,
+        "deploymentOperations": 11.7647,
+        "testingDocsAgent": 7.8431,
+        "performanceCost": 6.8627,
+        "maturityControl": 9.8039
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "provider": "supabase",
+          "composite": 81.4118,
+          "stopDefects": []
+        },
+        {
+          "rank": 2,
+          "provider": "firebase",
+          "composite": 80.9804,
+          "stopDefects": []
+        },
+        {
+          "rank": 3,
+          "provider": "convex",
+          "composite": 78.5882,
+          "stopDefects": [
+            {
+              "app": "research-room",
+              "defect": "Local backend exposed a control credential in process argv and bound wildcard interfaces."
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "provider": "spacetimedb",
+          "composite": 70,
+          "stopDefects": []
+        },
+        {
+          "rank": 5,
+          "provider": "instantdb",
+          "composite": 66.7451,
+          "stopDefects": []
+        },
+        {
+          "rank": 6,
+          "provider": "appwrite",
+          "composite": 63.4902,
+          "stopDefects": []
+        },
+        {
+          "rank": 7,
+          "provider": "snapback",
+          "composite": 62.3922,
+          "stopDefects": []
+        }
+      ],
+      "rankChanges": []
+    }
+  ],
+  "weightSensitive": true,
+  "architecturalPotentialIncluded": false
+}

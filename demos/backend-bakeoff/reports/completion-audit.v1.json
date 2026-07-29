@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "protocolAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "armCount": 35,
+  "requirements": [
+    {
+      "id": "protocol-freeze-and-readiness",
+      "status": "verified",
+      "evidencePaths": [
+        "protocol/freeze.v2.json",
+        "protocol/protocol.v1.json",
+        "protocol/credentials-health.v1.json",
+        "protocol/provider-inventory.v1.json"
+      ],
+      "note": "Stage 0 froze the exact protocol, seven-provider inventory, environment, target lifecycle, scoring, and ready credential classes before timed arms."
+    },
+    {
+      "id": "provider-order-and-concurrency-isolation",
+      "status": "verified",
+      "evidencePaths": [
+        "protocol/order.v1.json",
+        "reports/concurrency-map.md"
+      ],
+      "note": "Provider order governed assignment/start order; worktrees, machines, ports, Docker projects, CLI state, namespaces, and coordinator-owned merges were isolated."
+    },
+    {
+      "id": "five-neutral-app-contracts",
+      "status": "verified",
+      "evidencePaths": [
+        "protocol/prompts/todo.md",
+        "protocol/prompts/chat.md",
+        "protocol/prompts/linear.md",
+        "protocol/prompts/partiful.md",
+        "protocol/prompts/research-room.md",
+        "protocol/acceptance/todo.v1.json",
+        "protocol/acceptance/chat.v1.json",
+        "protocol/acceptance/linear.v1.json",
+        "protocol/acceptance/partiful.v1.json",
+        "protocol/acceptance/research-room.v1.json",
+        "neutral-ui/src/App.tsx"
+      ],
+      "note": "All five app prompts, acceptance manifests, and the neutral UI were frozen before comparative execution."
+    },
+    {
+      "id": "all-35-arms-attempted",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/calibration-report.md",
+        "reports/deep-round-report.md",
+        "reports/deep-round-independent-audit.md"
+      ],
+      "note": "Fourteen calibration and twenty-one deep arms were attempted; 34 completed and Research Room/Convex stopped on a provider Stop."
+    },
+    {
+      "id": "strict-capsules-and-evidence-audit",
+      "status": "verified",
+      "evidencePaths": [
+        "protocol/run-capsule.v1.schema.json",
+        "reports/deep-round-evidence-audit.md",
+        "reports/deep-round-independent-audit.md"
+      ],
+      "note": "All 35 original capsules passed the repository verifier and strict Draft 2020 validation; central and independent evidence audits were retained."
+    },
+    {
+      "id": "five-serialized-diaries",
+      "status": "verified",
+      "evidencePaths": [
+        "../../diaries/0027-todo-backend-bakeoff.diary.md",
+        "../../diaries/0028-chat-backend-bakeoff.diary.md",
+        "../../diaries/0029-linear-backend-bakeoff.diary.md",
+        "../../diaries/0030-partiful-backend-bakeoff.diary.md",
+        "../../diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "note": "The coordinator serialized provider-arm, remediation, package-confirmation, and current-refresh experience into one diary per app."
+    },
+    {
+      "id": "calibration-round-and-remediation-1",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/calibration-report.md",
+        "reports/calibration-remediation.v1.json",
+        "reports/remediation-1-report.md",
+        "reports/remediation-1/llp-maintain-audit.md"
+      ],
+      "note": "Calibration was frozen before the first Snapback remediation; before/after results and the propose-only LLP audit are retained."
+    },
+    {
+      "id": "deep-round-and-remediation-2",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/deep-round-report.md",
+        "reports/deep-remediation.v1.json",
+        "reports/remediation-2-report.md",
+        "reports/remediation-2/llp-maintain-audit.md"
+      ],
+      "note": "The deep round, all 14 remediation ledger entries, final Research Room repair, and the second propose-only audit are retained."
+    },
+    {
+      "id": "final-snapback-package-confirmation",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/final-confirmation-report.md",
+        "reports/final-confirmation/package/darwin-publish-ledger.json",
+        "reports/final-confirmation/package/darwin-cold-install-receipt.json",
+        "arms/todo/snapback/final-confirmation-handoff/linux-x64/",
+        "arms/chat/snapback/final-confirmation-handoff/linux-x64/",
+        "arms/linear/snapback/final-confirmation-handoff/",
+        "arms/partiful/snapback/final-confirmation-handoff/",
+        "arms/research-room/snapback/final-confirmation-handoff/"
+      ],
+      "note": "All five apps were rerun from staged installed packages at source 4e5da63, producing 60 PASS, 13 explicit GAP, zero FAIL, and zero Stop."
+    },
+    {
+      "id": "snapback-source-freeze",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/final-confirmation-report.md",
+        "reports/final-confirmation/package/darwin-publish-ledger.json"
+      ],
+      "note": "No product source, package manifest, Cargo manifest, build script, or product script changed after final source 4e5da63; the package closure was staged/dry-run only."
+    },
+    {
+      "id": "current-provider-refreshes",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/provider-refresh-audit.md",
+        "arms/research-room/supabase/final-refresh-second-attempt-handoff/",
+        "arms/chat/firebase/final-refresh-prep/",
+        "arms/linear/firebase/final-refresh-handoff/"
+      ],
+      "note": "Research Room/Supabase and Chat/Linear Firebase current-version runs completed on fresh explicit targets; invalidated and contained attempts remain in lineage."
+    },
+    {
+      "id": "cleanup-and-secret-containment",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/deep-round-evidence-audit.md",
+        "reports/final-confirmation-report.md",
+        "arms/research-room/supabase/final-refresh-second-attempt-handoff/",
+        "arms/research-room/convex/run-capsule.v1.json"
+      ],
+      "note": "Each arm retains exact cleanup evidence. Supabase builder credential incidents were contained and the safe wrapper passed adversarial tests; Convex's provider Stop remains disclosed and controlling."
+    },
+    {
+      "id": "independent-rating-audit",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/independent-rating-audit-prompt.md",
+        "reports/independent-rating-output.schema.json",
+        "reports/independent-ratings.v1.json",
+        "reports/independent-rating-audit.md"
+      ],
+      "note": "A distinct Anthropic reviewer rated all 350 cells before the final builder matrix existed; normalization, partial anchoring, 102 disagreements, and exact identity/session hashes are retained."
+    },
+    {
+      "id": "frozen-builder-ratings-and-sensitivity",
+      "status": "verified",
+      "evidencePaths": [
+        "protocol/scoring.v1.json",
+        "protocol/scoring-input.v1.schema.json",
+        "reports/final-ratings.v1.json",
+        "reports/final-scoring.v1.json"
+      ],
+      "note": "All 35 builder ratings have exact category sets and evidence; the generated composite retains practical ties, every ±25% sensitivity case, Stops, and zero architectural-potential points."
+    },
+    {
+      "id": "final-ranking-synthesis-and-trajectory",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/final-report.md",
+        "reports/deep-remediation.v1.json",
+        "../../issues/20260729-external-package-lifecycle-gaps.md",
+        "../../issues/20260729-centralize-served-capability-manifest-composition.md",
+        "../../issues/20260729-bakeoff-performance-machine-profile.md"
+      ],
+      "note": "The final report separates completeness, authoring, evidence, current go-to, sensitivity, architectural potential, prioritized Snapback outcomes, differentiators, and rethink triggers."
+    },
+    {
+      "id": "final-llp-maintenance-audit",
+      "status": "verified",
+      "evidencePaths": [
+        "reports/final/llp-maintain-audit.md"
+      ],
+      "note": "The final propose-only pre-land audit found no blocking drift, ref repair, provenance repair, or LLP status change."
+    },
+    {
+      "id": "final-verification-contract",
+      "status": "verified",
+      "evidencePaths": [
+        "protocol/completion-audit.v1.schema.json",
+        "reports/completion-audit.v1.json",
+        "reports/final-report.md"
+      ],
+      "note": "The completion audit is strict Draft 2020 JSON, covers every LLP 0102 deliverable, and is consumed by the program-status verifier."
+    }
+  ],
+  "allRequirementsVerified": true
+}
