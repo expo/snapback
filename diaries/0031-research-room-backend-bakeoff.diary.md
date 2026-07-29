@@ -796,3 +796,89 @@ Keep secrets out of argv by construction, bind local services to loopback by
 default, and make fixed-port isolation controls documented. Preserve
 Snapback's stronger settlement vocabulary while making the common
 action/query composition as compact as Convex's best paths.
+
+## 2026-07-29 — Snapback, second remediation confirmation
+
+### Environment and outcome
+
+The isolated rerun imported the exact-instance capability-composition repair
+at `894ddaf99d4b7681499eec12ecbb3fc7a1a492e5`. The sealed Research Room
+source and original evidence remained untouched; a copy ran under its own
+namespace, runtime roots, and ports.
+
+The change was decisive. The frozen arm moved from 1 pass, 2 gaps, and 12
+failures before bind to **13 passes, 2 unchanged capability gaps, and zero
+failures**. No Stop-class defect occurred. The two honest gaps remain
+authenticated asset storage and provider-native semantic/vector retrieval.
+Cleanup removed the exact runtime and public roots, closed ports 3351, 4351,
+9351, and 20451, and reported no errors.
+
+### What felt good
+
+The repaired target admitted sessions and bounded streamed actions from one
+process-live capability truth. Alice, Bob, and Mallory then exercised ordinary
+session authority across queries, mutations, actions, and subscriptions.
+Mallory was denied every protected path.
+
+Snapback was strongest on the hard workflow semantics. Alice started a bounded
+streamed action; Bob's distinct session observed four durable progress
+transitions and the answer through native WebSocket push; cancellation
+prevented a deliberately injected late patch; retry preserved one question
+and answer identity; and complete, failed, cancelled, timed-out, and ambiguous
+outcomes remained distinct. Host-derived effect certainty made the failure
+states more legible than the application-authored state machines required by
+most competitors.
+
+Cron could be advanced deterministically, its receiver effect observed, its
+durable slot replayed, and its runtime state inspected. Config status proved a
+required server-side value was set while the value remained absent from the
+client bundle, diagnostics, status, and retained receiver evidence.
+
+### What felt bad or surprising
+
+The repaired pre-bind path exposed the next authoring limit. The sealed setup
+mutation attempted four generated membership commands: two owner bootstraps
+and two Bob inserts. Runtime correctly refused this with
+`SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED`, because v1 allows one generated
+membership command per mutation. Only the external copy was changed: it
+performed four idempotent setup mutations with slug/view guards and produced
+the same frozen seed. The rule is defensible and fail-closed, but discovering
+it only at runtime was frustrating. The Guide now states the limit; generation
+should eventually diagnose it when statically visible.
+
+`SnapbackClient.inspect()` did not automatically offer the sessions auth-client
+protocol. The copied harness had to request public `/inspect` with
+`x-snapback-auth-client-protocol: 1`. A probe of sensitive
+`/_snapback/api/inspect` correctly returned 401 without a separately minted
+secret-read lease; that route is not a public fallback. This is SDK ergonomics
+friction: an official diagnostic method should negotiate the same active
+session profile as the client's ordinary calls.
+
+The scheduled receiver URL was authored with a literal port. Isolated parallel
+execution therefore required adapting only the copied action source. A normal
+runtime configuration path should let effect destinations vary without source
+edits.
+
+### Comparison and choice
+
+After the repair, Snapback provides the most coherent cancellation, retry, and
+effect-certainty story in this arm, and it does so in one light local process.
+Convex, Supabase, Firebase, Appwrite, and SpacetimeDB still cover more of the
+product envelope because they provide some combination of files, indexed
+search, semantic retrieval, mature hosted deployment, and broader operations.
+
+I would choose repaired Snapback for a local-first collaborative workflow where
+authority and exact settlement dominate and the missing product surfaces are
+acceptable. I would not yet choose it as the default backend for this complete
+AI research product. The remaining limitation is no longer evidence that the
+sessions/streaming architecture is fundamentally incompatible; it is now
+product breadth, packaging, and ordinary-path ergonomics.
+
+### Lessons for Snapback
+
+Preserve the one process-live capability manifest across every admission and
+inspection seam. Make membership cardinality visible before runtime. Make
+`inspect()` session-aware, pave a typed test/operator path for cron plus
+redacted inspection, and make effect destinations configurable. Then prioritize
+real asset lifecycle and authorized indexed semantic retrieval rather than
+substituting metadata rows or application scans.

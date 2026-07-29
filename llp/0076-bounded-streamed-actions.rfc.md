@@ -5,7 +5,18 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-25 (ACCEPTED — author ratification, Charlie Cheever,
+**Revised:** 2026-07-29 (implementation-drift repair — LLP 0102's frozen
+Research Room/Snapback arm found that sessions complete-pair preflight still
+constructed `local_v0_declared()` while ordinary loading and served inspection
+used the process-live instance manifest. The mismatch refused a valid
+sessions-plus-stream composition before bind. `894ddaf99` restores the
+ratified exact-instance contract by composing preflight with the same live
+egress predicate; an isolated two-child test proves enabled admission,
+disabled effectless refusal, and no candidate publication. The full frozen
+Research Room confirmation moves from 1 PASS / 2 GAP / 12 FAIL to 13 PASS / 2
+unchanged GAP / 0 FAIL. This corrects implementation drift and the overly broad
+2026-07-24 ledger claim; it does not change the accepted contract). 2026-07-25
+(ACCEPTED — author ratification, Charlie Cheever,
 session-directed 2026-07-25, with the gate-2 evidence complete: the
 `single-instance-container-vm.v1` hosted receipt exists (protocol amendment
 v0.7 — Fly.io drill, remote instrument 7/7, durable-row scan PASS, Tigris
@@ -740,16 +751,23 @@ a fix before gate 2:
   carry-over is accounted invocation-wide with a 64 KiB refusal path;
   residue: that refusal path is structural, not a witnessed high-water
   counter (stated in the manifest's runtime fact).
-- **Capability admission (local arm landed 2026-07-24).** Every local
-  loader path — raw dev, complete-pair provisioning, direct embedding —
-  funnels through one preflight that resolves every declared
-  `requiredCapabilities` id (functions and cron jobs) against the SAME
-  served instance manifest `/inspect` reports for the exact process, before
-  any handler or nested-mutation code runs. Witnessed in both directions: an
+- **Capability admission (local arm landed 2026-07-24; sessions drift repaired
+  2026-07-29).** Raw dev and direct embedding resolved declared
+  `requiredCapabilities` ids (functions and cron jobs) against the served
+  instance manifest `/inspect` reports for the exact process. The original
+  ledger incorrectly generalized that claim to sessions complete-pair
+  provisioning: that preflight still used the static declared manifest and
+  refused a stream requirement even when the exact process enabled egress.
+  `894ddaf99` makes sessions preflight construct the same process-live
+  instance manifest before any handler or nested-mutation code runs.
+  Witnessed in both directions: an
   egress-disabled instance refuses a stream-requiring artifact with
   `SNAPBACK_CAPABILITY_UNSUPPORTED` and installs nothing (the
   outbound-disabled negative), and an egress-enabled instance admits the
-  same requirement (positive twin in the envelope integration suite).
+  same requirement (positive twins in the envelope integration suite and the
+  process-isolated sessions regression). The frozen Research Room confirmation
+  additionally proves real multi-session progress, cancellation, settlement,
+  cron, redaction, and exact cleanup through the repaired composition.
   Codegen inference is now AST-derived via the bundle parser: member access,
   computed string access, and destructuring aliases of `fetchStream` mark
   the module while comments and unrelated strings do not (an unparseable

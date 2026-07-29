@@ -11,7 +11,7 @@
       "evidencePaths": [
         "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
         "demos/backend-bakeoff/arms/research-room/snapback/receipts/acceptance-failure.v1.json",
-        "issues/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
+        "issues/closed/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
       ],
       "frequency": 1,
       "classification": "defect",
@@ -27,6 +27,11 @@
       "beforeEvidencePaths": [
         "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
         "demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json"
+      ],
+      "afterEvidencePaths": [
+        "src/local.rs",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/before-after.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json"
       ]
     },
     {
@@ -151,7 +156,7 @@
       "backendComparisons": ["convex", "supabase", "firebase", "appwrite"],
       "evidencePaths": [
         "issues/closed/20260728-guide-gap-codegen-action-egress-gate.md",
-        "issues/20260729-guide-gap-sessions-streamed-action-capability-composition.md",
+        "issues/closed/20260729-guide-gap-sessions-streamed-action-capability-composition.md",
         "demos/backend-bakeoff/arms/partiful/snapback/evidence/failed-attempts.md"
       ],
       "frequency": 2,
@@ -167,7 +172,12 @@
       "status": "in-progress",
       "beforeEvidencePaths": [
         "issues/closed/20260728-guide-gap-codegen-action-egress-gate.md",
-        "issues/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
+        "issues/closed/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/backend/actions-and-fetch.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json",
+        "src/local.rs"
       ]
     },
     {
@@ -192,6 +202,10 @@
       "status": "in-progress",
       "beforeEvidencePaths": [
         "issues/closed/20260728-guide-gap-mutation-buffered-write-ceiling.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/backend/mutations.md",
+        "guide/guide-manifest.generated.json"
       ]
     },
     {
@@ -239,6 +253,10 @@
       "status": "in-progress",
       "beforeEvidencePaths": [
         "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/capabilities.md",
+        "guide/guide-manifest.generated.json"
       ]
     },
     {
@@ -248,7 +266,8 @@
       "backendComparisons": ["convex", "supabase", "firebase", "appwrite"],
       "evidencePaths": [
         "issues/20260728-guide-gap-local-config-automation-request-shape.md",
-        "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json"
+        "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/commands-and-failures.v1.json"
       ],
       "frequency": 2,
       "classification": "experience",
@@ -270,6 +289,7 @@
       "evidencePaths": [
         "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
         "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json",
         "diaries/0030-partiful-backend-bakeoff.diary.md",
         "diaries/0031-research-room-backend-bakeoff.diary.md"
       ],
@@ -284,6 +304,58 @@
       "destination": "deliberate-non-goal",
       "decision": "refuse",
       "status": "refused"
+    },
+    {
+      "id": "SB-022",
+      "title": "Put membership-command cardinality beside the generated authoring path",
+      "sourceApps": ["research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "issues/closed/20260729-guide-gap-membership-command-batch-limit.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/commands-and-failures.v1.json",
+        "diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "frequency": 1,
+      "classification": "docs-diagnostics",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Competitor membership setup APIs either accepted the frozen multi-member seed or exposed their transaction/resource boundary before the application ran.",
+      "snapbackPropertyToPreserve": "Each generated membership command remains an explicit fail-closed authority transition; several commands never become accidentally atomic or partially applied inside one mutation.",
+      "snapbackNativeOutcome": "The Guide and, where statically visible, codegen state the one-command v1 ceiling, bootstrap expansion, exact refusal, and an idempotent multi-mutation setup pattern.",
+      "acceptanceWitness": "A documented Research Room setup creates two resources and two member grants through four idempotent calls; a one-mutation four-command twin refuses atomically with SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "in-progress",
+      "beforeEvidencePaths": [
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/commands-and-failures.v1.json",
+        "issues/closed/20260729-guide-gap-membership-command-batch-limit.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/auth/scoped-roles.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json"
+      ]
+    },
+    {
+      "id": "SB-023",
+      "title": "Make public client inspection negotiate the active sessions profile",
+      "sourceApps": ["research-room"],
+      "backendComparisons": ["firebase", "supabase", "convex", "appwrite"],
+      "evidencePaths": [
+        "issues/20260729-sessions-client-inspect-omits-protocol-offer.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/schedule-steps.v1.json",
+        "diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "frequency": 1,
+      "classification": "experience",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Competitor client diagnostics and emulator inspection paths remain usable under the same ordinary authentication profile as application calls.",
+      "snapbackPropertyToPreserve": "Public served facts and sensitive operator facts remain separate; the secret-read lease is never inferred from an application session.",
+      "snapbackNativeOutcome": "SnapbackClient.inspect negotiates the active public auth-client protocol automatically while sensitive operator inspection retains its distinct typed authorization.",
+      "acceptanceWitness": "A sessions client reads public /inspect through the official method without hand-authored headers, receives a typed refusal for operator inspection without a secret-read lease, and succeeds only after minting that lease.",
+      "destination": "filesystem-issue",
+      "decision": "investigate",
+      "status": "proposed"
     }
   ]
 }

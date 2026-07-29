@@ -1,6 +1,6 @@
 # Guide gap: sessions cannot compose with bounded streamed actions
 
-**Status:** Open
+**Status:** Resolved
 **Area:** Local target, Sessions auth, Streamed actions, Capability admission
 **Found by:** LLP 0102 Research Room/Snapback deep-round arm
 **Date:** 2026-07-29
@@ -57,3 +57,18 @@ performance could run.
 - the same artifact/capability pair is reported by generated output,
   cold-start preflight, publication, and `/_snapback/api/inspect`; and
 - the opposite egress-disabled case still fails closed before bind.
+
+## Resolution
+
+Resolved 2026-07-29 by `894ddaf99`. Sessions complete-pair preflight now
+constructs the same exact process-live target manifest as ordinary loading and
+served inspection, including the runtime egress predicate. A two-child
+regression proves that the enabled process admits the streamed artifact while
+the disabled twin refuses it before bind without installing effects.
+
+The isolated Research Room confirmation then exercised the frozen application
+end to end: 13 PASS, the same two files/semantic-search GAPs, zero FAIL, and no
+Stop-class defect. Two genuine sessions observed authoritative progress;
+cancellation fenced a late write; all five settlement outcomes remained
+distinct; cron/config and cleanup passed. The external copy disclosed its
+separate membership-cardinality and inspection-client adaptations.
