@@ -882,3 +882,69 @@ inspection seam. Make membership cardinality visible before runtime. Make
 redacted inspection, and make effect destinations configurable. Then prioritize
 real asset lifecycle and authorized indexed semantic retrieval rather than
 substituting metadata rows or application scans.
+
+## 2026-07-29 — Snapback, final package confirmation
+
+The repaired result survives the package boundary. A clean external project
+installed seven immutable `0.1.1-llp0102.1` staged tarballs from exact source
+`4e5da63c33064082c73359f0ee02efcd11e360ff`, used only package exports,
+generated and built without the repository, and launched/stopped the release
+binary through the installed CLI. The frozen outcome remained 13 PASS, the
+same files/vector GAPs, zero FAIL, and no Stop.
+
+Package identity was unusually strong: the receipts bind the ready descriptor,
+database, binary commit, package version, generated-input hash, external lock,
+and four assigned ports. Installed `snapback stop` retired the exact process;
+runtime/public roots were absent and ports 33105, 43105, 53105, and 63105 were
+closed.
+
+The hard correctness paths remained coherent across the seam: three sessions,
+outsider refusal, native collaborator push, streamed settlement, cancellation
+with no late patch, retry identity, cron/config, secret redaction, and cleanup.
+This materially raises confidence that the sessions fix is a product repair,
+not a repository-harness artifact.
+
+The clean-project path is still not boring. The consumer must invoke the
+installed codegen module because the CLI has no `generate` subcommand. The
+external copy replaced repository define/client/contract/harness imports,
+decomposed membership setup, supplied the sessions protocol for public
+inspection, and changed the literal effect receiver port. All transformations
+are hashed and retained, but each is product friction. The packages are staged,
+not publicly released, so this proof closes neither the public-registry nor
+separately provisioned clean-machine portions of SB-015.
+
+The desired outcome is one supported package-only loop—scaffold, generate,
+build, start, inspect, and stop—with no source-tree knowledge. It should retain
+the exact binary/package identity proven here while eliminating the import and
+lifecycle rewrites. Original deep-round and remediation timing remain intact;
+this confirmation adds package-bound confidence rather than erasing earlier
+cost.
+
+## 2026-07-29 — Supabase 2.111.0 refresh, stopped before scenarios
+
+The required current-client refresh began correctly. A clean external project
+installed `@supabase/supabase-js` 2.111.0 and CLI 2.110.0, then started the
+official local Docker stack under a unique project identity. All twelve
+project-labeled containers ran and the core services were healthy.
+
+The attempt then repeated the original arm's most serious builder lesson. The
+CLI start receipt rendered generated local credentials in an ANSI table. The
+worker's redactor covered assignment/JWT shapes but not table cells, and fresh
+values entered tool output. This is a builder evidence-handling failure, not a
+Supabase product disclosure, but LLP 0102 correctly classifies any secret
+exposure as Stop. No acceptance scenario or performance sample ran.
+
+Containment was exact. The project stopped without backup; its containers,
+volumes, network, credential carriers, and ports 58104–58111 plus 43115 are
+absent. The retained handoff contains no matching secret-shaped values. That
+does not retract already-emitted output, so the current-client refresh remains
+stopped and makes no 2.111.0 acceptance or performance claim.
+
+The important operational lesson is sharper after recurrence: post-capture
+redaction is not a reliable automation boundary for a CLI that prints
+credentials in human-formatted output. A safe harness must prevent those bytes
+from entering transcript-visible stdout/stderr at all, place them directly in
+an owner-only carrier, and emit only allowlisted typed facts. The final
+adjudication must preserve both truths: the current Supabase stack reached
+healthy startup, and the prior 2.57.4 product result cannot be called refreshed
+by this stopped attempt.
