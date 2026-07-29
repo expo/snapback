@@ -145,7 +145,7 @@ violate that order.
 | Research Room / Snapback | Complete | Product-blocked: 1 PASS, two capability GAPs, 12 FAIL; sessions-plus-streaming admission defect, 8/16 calibrated confidence, diary, guide-gap issue, central audit, and exact cleanup integrated |
 | Research Room / Supabase | Assigned | Worker 2 queued on an isolated control-plane Supabase namespace after exact Partiful/Convex cleanup |
 | Research Room / Firebase | Assigned | Worker 3 queued on an isolated emulator project/port set after exact Partiful/InstantDB cleanup |
-| Research Room / SpacetimeDB | Assigned | Worker 1 queued on an isolated Apartment Air standalone database after exact Research/Snapback cleanup |
+| Research Room / SpacetimeDB | Complete | 13 PASS, two product GAPs, 15/16 calibrated confidence, diary, central audit, and exact database/process/port cleanup integrated |
 | Research Room / Convex | Assigned | Worker 2 queued on a fresh Minisforum anonymous deployment after Research/Supabase cleanup |
 | Research Room / Appwrite | Assigned / start-gated | Worker 1 queued on an isolated control-plane Compose project; provisioning waits for coordinator confirmation that Convex started |
 | Research Room / InstantDB | Assigned / start-gated | Worker 3 queued on a fresh hosted temporary app; provisioning waits for coordinator confirmation that Appwrite started |

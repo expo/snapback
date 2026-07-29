@@ -625,3 +625,62 @@ synthesis remain coordinator-owned.
   discoverability/hermeticity deductions.
 - Adjudication: complete. No Stop-class defect is present; hosted behavior is
   unavailable and no local evidence is used to infer it.
+
+## Research Room / SpacetimeDB
+
+- Capsule verifier and Stage-0 verifier: PASS.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical attempt ID, SpacetimeDB product/client/CLI versions, fresh database
+  namespace, and hashed immutable target identity match.
+- Results: 13 PASS, 2 explicit product GAPs. RESEARCH-05 has no ordinary
+  vector index or semantic-nearest-neighbor query path in SpacetimeDB 2.7.
+  RESEARCH-13 has no native module secret injection or management surface.
+  Neither stores an application fallback and calls it a provider capability.
+- Evidence confidence: 15/16. Actor authority, transaction/conflict,
+  transport, settlement, target identity, cleanup isolation, and artifact
+  reproducibility are direct. Disconnect/reconnect has seven direct samples,
+  but the arm does not exercise a durable offline mutation queue, so
+  offline/reconnect is 1.
+- Referenced evidence: all seven unique capsule paths resolve. The retained
+  module, client, harness, lockfiles, generated client bindings, raw receipts,
+  command failures, and final inventory reproduce the committed artifact. The
+  count-and-size inventory is not represented as a per-file content-hash
+  manifest.
+- Authority: three independent native development identities exercise positive
+  member paths, five empty outsider views, and rejection of a direct private
+  source-table subscription. Private tables do not appear in generated client
+  bindings; caller-dependent views are the only readable product surface.
+- Files/search: transactional inline bytes preserve the exact 65,536-byte
+  payload hash, owner-only deletion, member delivery, and post-delete absence.
+  Keyword search is an application-authored authoritative reducer scan.
+  Deterministic embeddings are stored but explicitly do not count as native
+  semantic retrieval.
+- Streaming/cancellation: schedule-table jobs produce four separate durable
+  progress commits, and Bob's established generated-SDK WebSocket subscription
+  observes all four before terminal completion. Cancellation deletes future
+  jobs and fences an injected late patch; progress remains fixed and no late
+  answer appears.
+- Retry/outcomes: a unique idempotency key retains one question and one answer.
+  Complete, failed, cancelled, timed-out, and ambiguous rows keep distinct
+  effect states.
+- Scheduled effect: a native scheduled procedure crosses a real public HTTP
+  boundary and records one durable run. The first localhost fixture is
+  correctly refused by provider SSRF protection; a later non-200 public
+  fixture is also refused. Both failures remain authoring/security evidence,
+  while the successful public RFC 2606 response establishes only the tested
+  deterministic path.
+- Performance: read, write, realtime, reconnect, and module-build paths each
+  retain two warmups, seven raw samples, median, nearest-rank p95, local machine
+  context, and non-hosted cost scope.
+- Cleanup: exact immutable database deletion succeeds; independent SQL and HTTP
+  probes return `No such database`/404. Validated arm-owned standalone, Vite,
+  and failed-attempt effect processes are terminated, ports
+  `3344/4344/20444/9344` are closed, and isolated runtime/tool/dependency/build
+  state is moved to a recoverable arm-specific Trash path on Apartment Air.
+- Secret/dependency audit: raw identity tokens and credential values are not
+  retained. The secret scenario is an honest GAP rather than an environment
+  variable substitute. Hosted Maincloud evidence is credential-unavailable
+  and is not inferred from the standalone target.
+- Adjudication: complete. The SSRF refusal is a secure product behavior. No
+  Stop-class disclosure, secret leak, late durable patch, destructive cleanup,
+  or false capability pass occurred.

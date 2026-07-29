@@ -119,3 +119,113 @@ Prove that outcome with a CI-verified sessions-plus-streamed-actions fixture:
 mint two genuine sessions, stream authoritative progress, cancel, and prove no
 late durable patch while preserving the full outcome distinction. Assets and
 semantic retrieval remain separate table-stakes capability gaps.
+
+## 2026-07-29 — SpacetimeDB, deep round, complete with two gaps
+
+### Environment and outcome
+
+The arm used the official SpacetimeDB 2.7.0 standalone and TypeScript client on
+Apartment Air against the fresh database
+`llp0102-research-spacetimedb-w1`. The 31m 32.6s timed run ended with 13 passes,
+two explicit GAPs, and no failure or Stop-class defect. The gaps are ordinary
+semantic/vector retrieval and native module secret management.
+
+Coordinator evidence confidence is 15/16. Actor authority,
+transaction/conflict, transport, settlement, target identity, cleanup, and
+artifact reproducibility are direct. Reconnect has seven direct measurements,
+but the application does not exercise a durable offline mutation queue.
+
+### What felt good
+
+Private tables plus caller-dependent public views are an unusually crisp way
+to build authorization. Alice and Bob subscribe to the same named views, but
+each view is evaluated with the caller identity. Mallory's caches remained
+empty, and a direct subscription to the private source table was rejected.
+Generated bindings omitted every private table and exposed only views and
+reducers.
+
+Inline byte arrays made the file scenario direct: the 64 KiB payload,
+metadata, hash, delivery, and deletion all participated in database
+transactions and subscriptions. Schedule tables were the standout feature.
+They turned each answer step into a separate authoritative commit, so Bob
+received four native WebSocket inserts before the answer's terminal update.
+Cancellation could delete the remaining jobs, and a scheduled procedure could
+perform the external refresh before opening its database transaction.
+
+The local standalone was fast to start, module builds were consistently around
+350–400 ms, and the generated SDK's confirmed-read and subscription barriers
+made the acceptance harness reliable.
+
+### What felt bad or frustrating
+
+The CLI has several sharp edges. `--root-dir` worked reliably only in attached
+form through the installed updater. `server add` rejected `-y`, and
+optional-value flags could consume the positional database unless values were
+attached. The installer put the updater at the CLI-root path rather than
+`bin/spacetime`, while the generated TypeScript template chose no package
+manager. Each issue was recoverable, but together they cost several failed
+commands before the ordinary loop became smooth.
+
+Procedure HTTP correctly rejected localhost and other private addresses. That
+is a good security default, though it prevents a deterministic loopback fixture
+from exercising scheduled effects. A first public fixed-response endpoint then
+returned non-200 and was correctly refused. The successful run used stable
+public RFC 2606 text; both preceding failures remain evidence.
+
+Expected reducer authorization errors appear as `PANIC` in security logs,
+which is much more alarming than an ordinary sender error. There is also no
+native secret injection surface even though procedures are designed for API
+calls.
+
+### Modeling and correctness
+
+The module used private rooms, memberships, sources, questions, answers,
+progress events, search results, refresh runs, and schedule tables. Every
+client-visible surface was a caller-dependent view backed by indexed identity
+and room lookups. Reducers derived actor identity from the connection.
+
+Question retry used a unique idempotency key. Progress used four scheduled
+commits plus a terminal commit. Cancellation updated the terminal fence and
+deleted outstanding jobs; a late-patch probe could not add progress. Complete,
+failed, cancelled, timed-out, and ambiguous states remained distinct.
+
+Keyword search is application-authored reducer glue over authoritative rows.
+Embeddings were stored at the frozen 32 dimensions, but no vector search was
+claimed because SpacetimeDB 2.7 has no ordinary vector index/query path.
+
+### Realtime, auth, and operations
+
+Realtime evidence came from generated-SDK WebSocket view subscriptions and row
+callbacks, never a product poller. Three independently minted development
+identities were hashed in receipts, and raw tokens were not persisted.
+
+Closing the controlling SSH sessions did not terminate three orphaned,
+arm-owned listeners. Exact command-line inspection identified the standalone,
+Vite, and failed-first-run effect process before termination. The exact
+database was deleted, SQL and HTTP returned `No such database`/404, four ports
+were closed, and isolated runtime/tool/dependency/build state was moved to an
+arm-specific recoverable Trash directory.
+
+### Would I choose it?
+
+Yes for a realtime, transaction-heavy collaboration backend when the team is
+comfortable putting application logic in the database module. Reducers,
+generated bindings, per-caller views, subscriptions, and schedules form a
+coherent and powerful loop. I would hesitate for AI-heavy production work
+until ordinary vector retrieval and a first-class secret store exist.
+
+### Lessons for Snapback
+
+Match the authorization outcome: private source tables that generated clients
+cannot name, plus one caller-dependent live view that filters initial state and
+keeps the cache correct as authority changes.
+
+Schedule tables also set a useful bar. Durable jobs are ordinary typed rows,
+progress steps are separate transactions, and cancellation can retire
+remaining schedule entries. Snapback's streamed actions are stronger for
+effect settlement, but SpacetimeDB's job observability and composability are
+excellent.
+
+Finally, generated SDK subscription barriers make the authoritative client
+cache easy to inspect in acceptance tests. Snapback should keep transport
+attribution and settled-cache inspection equally direct.
