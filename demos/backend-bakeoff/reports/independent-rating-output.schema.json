@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "ratings",
+    "warnings",
+    "provisionalGoTo",
+    "architecturalPotentialExcluded"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "ratings": {
+      "type": "object",
+      "required": [
+        "snapback",
+        "convex",
+        "supabase",
+        "firebase",
+        "instantdb",
+        "spacetimedb",
+        "appwrite"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "snapback": { "$ref": "#/$defs/provider" },
+        "convex": { "$ref": "#/$defs/provider" },
+        "supabase": { "$ref": "#/$defs/provider" },
+        "firebase": { "$ref": "#/$defs/provider" },
+        "instantdb": { "$ref": "#/$defs/provider" },
+        "spacetimedb": { "$ref": "#/$defs/provider" },
+        "appwrite": { "$ref": "#/$defs/provider" }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "provisionalGoTo": {
+      "type": "object",
+      "required": ["overall", "byApp", "reason"],
+      "properties": {
+        "overall": { "type": "string", "minLength": 1 },
+        "byApp": {
+          "type": "object",
+          "required": ["todo", "chat", "linear", "partiful", "research-room"],
+          "additionalProperties": false,
+          "properties": {
+            "todo": { "type": "string", "minLength": 1 },
+            "chat": { "type": "string", "minLength": 1 },
+            "linear": { "type": "string", "minLength": 1 },
+            "partiful": { "type": "string", "minLength": 1 },
+            "research-room": { "type": "string", "minLength": 1 }
+          }
+        },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "architecturalPotentialExcluded": { "const": true }
+  },
+  "$defs": {
+    "provider": {
+      "type": "object",
+      "required": ["todo", "chat", "linear", "partiful", "research-room"],
+      "additionalProperties": false,
+      "properties": {
+        "todo": { "$ref": "#/$defs/arm" },
+        "chat": { "$ref": "#/$defs/arm" },
+        "linear": { "$ref": "#/$defs/arm" },
+        "partiful": { "$ref": "#/$defs/arm" },
+        "research-room": { "$ref": "#/$defs/arm" }
+      }
+    },
+    "arm": {
+      "type": "object",
+      "required": ["categories", "evidence", "stopDefects", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "categories": {
+          "type": "object",
+          "required": [
+            "authoring",
+            "modeling",
+            "correctness",
+            "realtimeOffline",
+            "auth",
+            "completeness",
+            "deploymentOperations",
+            "testingDocsAgent",
+            "performanceCost",
+            "maturityControl"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "authoring": { "$ref": "#/$defs/rating" },
+            "modeling": { "$ref": "#/$defs/rating" },
+            "correctness": { "$ref": "#/$defs/rating" },
+            "realtimeOffline": { "$ref": "#/$defs/rating" },
+            "auth": { "$ref": "#/$defs/rating" },
+            "completeness": { "$ref": "#/$defs/rating" },
+            "deploymentOperations": { "$ref": "#/$defs/rating" },
+            "testingDocsAgent": { "$ref": "#/$defs/rating" },
+            "performanceCost": { "$ref": "#/$defs/rating" },
+            "maturityControl": { "$ref": "#/$defs/rating" }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "stopDefects": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "rating": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5
+    }
+  },
+  "additionalProperties": false
+}
