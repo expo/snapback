@@ -52,3 +52,28 @@ synthesis remain coordinator-owned.
 - Adjudication: complete. Native full-text search is a product GAP. Hosted
   deployment is credential-unavailable and is not scored as a Firebase product
   failure.
+
+## Linear / Supabase
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 2 GAP, 0 FAIL.
+- Evidence confidence: 14/16 under the arm's disclosed indirect
+  offline/reproducibility boundaries.
+- Referenced evidence: every repo-relative path resolves.
+- Authority/conflict/search/migration: direct Supabase Auth + PostgreSQL RLS,
+  row-locked RPC/activity ordering, generated weighted `tsvector` + GIN, and
+  separate additive SQL evolution evidence.
+- Transport: direct second-client Postgres Changes evidence retained together
+  with the first cold `SUBSCRIBED`-then-missed-write attempt. Seven measured
+  issue-update deliveries passed; coordinator accepts the pass and preserves
+  the readiness reliability negative.
+- Offline: direct negative proof that bare `supabase-js` retained no cold rows
+  and queued no edit. This remains a product GAP.
+- Target/cleanup: exact Compose/CLI project has zero matching containers,
+  volumes, or networks; Vite `4322` and target ports `56431–56440` were
+  independently observed closed.
+- Secret audit: no generated local key, hosted token, password, or other
+  credential appears in the committed capsule/receipts.
+- Adjudication: complete. Hosted operations remain an environment/profile GAP
+  and are not extrapolated from the local target.

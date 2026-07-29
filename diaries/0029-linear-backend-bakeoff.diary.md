@@ -288,3 +288,141 @@ indexes, fan-out, and auxiliary services increasingly expensive.
   one coherent migration workflow.
 - Automatically inventory and clean provider/runtime auxiliary resources
   rather than requiring harness-specific discovery.
+
+## 2026-07-28 — Supabase, deep round, complete with two gaps
+
+### Environment
+
+The arm used Supabase's official local CLI stack with native Postgres tables,
+foreign keys, RLS, Auth users, PostgREST/RPC, Realtime Postgres Changes,
+PostgreSQL full-text search, and SQL migrations. Source and evidence stayed in
+the isolated worktree; Colima required an exact runtime-only mirror under
+`/Users` because it could not bind the assigned `/private/tmp` path.
+
+### Milestones
+
+Once the target was running, the exact 500-issue/1,000-comment seed completed in
+about 1.1 seconds. Two complete reproducibility attempts were retained because
+the first cold Realtime subscription missed the first immediate post-ready
+write; the corrected attempt required an exact-ID second write and retained the
+first failure rather than hiding it.
+
+### What felt good
+
+The relational fit was excellent. Organizations, memberships, teams, projects,
+assignees, labels, issue-label joins, comments, and activity remained legible
+in ordinary SQL, and direct index definitions made filter/search evidence
+unusually crisp. A generated weighted `tsvector` plus GIN index gave real
+server-side search without a separate service.
+
+The best part was making an issue edit and its activity receipt one row-locked
+database operation. Concurrent Alice/Bob board moves both committed, revision
+advanced twice, the highest activity identity defined the last writer, and both
+clients converged after a fresh read. The separate `ALTER TABLE` evolution
+added a non-null indexed estimate field while all before/after counts stayed
+identical.
+
+### What felt bad or frustrating
+
+The authority model was powerful but verbose. The arm needed helper functions
+to avoid recursive RLS, policies across eleven public tables, explicit grants
+because the current CLI no longer auto-exposes new tables, RPC privilege
+revocation, Realtime publication setup, and careful invoker-versus-definer
+choices. Supabase made the primitives available; it did not make the whole
+authorization design coherent for the builder.
+
+Realtime was the biggest surprise. A channel could report `SUBSCRIBED` and
+still miss the first comment inserted immediately afterward on a cold stack.
+The exact second attempt delivered both the comment and its trigger-created
+activity, and all seven warm issue-update samples delivered, but local delivery
+clustered around 525 ms. A ready state that does not fence the first post-ready
+write forces application and harness logic to distrust the lifecycle signal.
+
+### Modeling and correctness
+
+Native SQL covered the composed detail graph, indexed filters, tuple-cursor
+pagination, full-text search, and schema evolution without denormalizing the
+whole domain. PostgreSQL constraints and transaction boundaries made the
+authority and conflict outcomes independently inspectable.
+
+The policy surface was the corresponding cost: its flexibility creates many
+places for an agent to make a subtle security, recursion, grant, or definer
+mistake.
+
+### Realtime, offline, and auth
+
+Supabase Auth and PostgreSQL RLS directly represented Alice, Bob, and Mallory.
+Realtime Postgres Changes worked after the cold readiness seam described above.
+
+Offline was an honest product gap. A fresh `supabase-js` client with transport
+disabled had no retained query rows; a blocked edit returned a fetch error and
+was not queued; authority stayed unchanged. Adding IndexedDB or SQLite plus an
+outbox would be application architecture, so the arm did not credit it.
+
+### Deployment and operations
+
+The frozen client/CLI installation occupied about 245 MB and the target ran
+eight containers plus a volume and network. The CLI's normal start output
+includes local generated keys, so automation must deliberately suppress or
+redact it even though the target is ephemeral.
+
+Studio, status, logs, and schema export were useful once running, and exact
+project cleanup was reliable. Hosted evidence remained unavailable, so the arm
+says nothing about managed deployment quality, region, billing, or rollback.
+
+### Documentation and diagnostics
+
+Supabase's underlying PostgreSQL makes query plans, policy definitions, schema
+diffs, and migration invariants inspectable using familiar tools. The burden is
+orchestration: the builder still has to assemble those proofs and connect them
+to the client/realtime surface.
+
+The cold Realtime missed-write evidence is an important diagnostic gap. A
+transport-ready state should be a real barrier or explain which additional
+condition establishes one.
+
+### Glue and workaround inventory
+
+- Eleven-table SQL/RLS policy surface with helper functions and explicit
+  grants.
+- Row-locked RPC for atomic board edits plus activity records.
+- Generated `tsvector` and GIN index for native search.
+- Separate additive SQL migration for the estimate field.
+- Cold Realtime exact-ID retry after the first post-`SUBSCRIBED` write was
+  missed.
+- Runtime-only `/Users` mirror for Colima bind compatibility.
+- Explicit offline and hosted GAP records.
+
+### Outcome
+
+The arm completed 12 PASS and 2 GAP with no failure or Stop-class defect.
+Coordinator verification confirmed the capsule, every referenced evidence
+path, frozen identities, zero exact-project containers/volumes/networks, and
+closed Vite plus `56431–56440` target ports.
+
+### Would I choose it?
+
+Supabase is a strong go-to for a relational web issue tracker when SQL control,
+RLS, full-text search, and migrations matter more than offline-first behavior
+or minimal local operations. Its strongest advantage is not magical
+abstraction; it is giving ordinary PostgreSQL a coherent
+hosted/client/realtime envelope.
+
+Its weakest points in this build were cold Realtime readiness, no native
+offline data/outbox, policy verbosity, and local stack weight.
+
+### Lessons for Snapback
+
+Match Supabase's end result for relational composition, indexed server-side
+filters, first-class full-text search, atomic database-side workflows,
+independently inspectable authority, and additive migration receipts. Make the
+equivalent authorization path much smaller and harder to get subtly wrong,
+ideally through generated analyzable policy plus an exact access explainer.
+
+A Realtime ready barrier should genuinely fence the first post-ready write,
+with lower local delivery latency and first-class transport diagnostics.
+Built-in retained reads and an outbox would be a major advantage over bare
+Supabase. Preserve Snapback's lightweight single-target ambition: this arm's
+eight-container/245 MB footprint and runtime-mirror workaround are real
+agent-DX costs. Finally, make index/query-plan inspection and before/after
+migration invariants one command.

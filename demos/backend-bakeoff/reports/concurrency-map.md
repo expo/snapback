@@ -90,7 +90,7 @@ All seven Linear arms have now been assigned in exact frozen order.
 | --- | --- | --- |
 | Linear / SpacetimeDB | Running | Worker compiling/debugging on Minisforum; no blocker |
 | Linear / Firebase | Complete | 12 PASS, one native-search GAP, one hosted credential-unavailable result; capsule, diary draft, evidence audit, and cleanup proof integrated |
-| Linear / Supabase | Complete | 12 PASS, offline and hosted GAPs; arm commit received for coordinator import/audit |
+| Linear / Supabase | Complete | 12 PASS, offline and hosted GAPs; capsule, diary, evidence audit, retained cold-Realtime failure, and cleanup proof integrated |
 | Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |
 | Linear / Convex | Starting | Coordinator isolated lane assigned after Snapback integration |
 | Linear / Appwrite | Starting | Worker 2 reassigned after Firebase completion; isolated official Compose lane |
