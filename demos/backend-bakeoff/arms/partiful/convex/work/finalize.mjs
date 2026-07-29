@@ -192,7 +192,10 @@ const transportById = {
 };
 const capsuleScenarios = acceptance.results.map((result) => ({
   id: result.id,
-  status: result.status.toLowerCase(),
+  status: result.id === 'PARTY-13-DEPLOY'
+    && result.evidence.reasonCode === 'UNAVAILABLE_REMOTE_DEPENDENCY'
+    ? 'unavailable-remote-dependency'
+    : result.status.toLowerCase(),
   evidencePaths: [
     evidencePathFor(result.id),
     ...(result.id === 'PARTY-14-PERFORMANCE' ? ['evidence/performance.json'] : []),
@@ -316,8 +319,8 @@ const capsule = {
       evidencePaths: ['evidence/scenarios/PARTY-05-GUEST-LIST.json', 'evidence/scenarios/PARTY-07-LIVE-BURST.json'],
     },
     'offline-reconnect': {
-      score: 2,
-      reason: 'Seven recorded fresh-client reconnect samples reach the first native reactive value.',
+      score: 1,
+      reason: 'Seven recorded fresh-client reconnect samples reach the first native reactive value, but the frozen Partiful app has no persistent offline-write or retained-offline scenario.',
       evidencePaths: ['evidence/performance.json'],
     },
     settlement: {
@@ -331,8 +334,8 @@ const capsule = {
       evidencePaths: ['evidence/scenarios/PARTY-01-SEED.json', 'evidence/inventory.json'],
     },
     'cleanup-isolation': {
-      score: 2,
-      reason: 'Namespace, process, port, target-state, browser-state, and credential negative probes all passed.',
+      score: 1,
+      reason: 'Namespace, process, port, target-state, browser-state, and credential negative probes all passed, but the baseline fields were serialized during cleanup rather than in a separately timestamped pre-write receipt.',
       evidencePaths: ['evidence/cleanup-data-plane.json', 'evidence/cleanup-complete.json'],
     },
     'artifact-reproducibility': {

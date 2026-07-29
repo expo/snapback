@@ -298,8 +298,8 @@
     },
     {
       "path": "work/finalize.mjs",
-      "bytes": 16851,
-      "sha256": "bec062271ca7e1ea2aa42b198eb6c156ff30b1b33f1bb33660925c0649f3deeb"
+      "bytes": 17201,
+      "sha256": "49f1485f197c2a0eaef443c971e16fcf8ee923d0d75ec91a5a42b132cf3c7beb"
     },
     {
       "path": "work/performance.ts",
