@@ -137,3 +137,119 @@ retain a real advantage through a lightweight runtime and built-in
 offline/outbox behavior. This arm does not suggest that Snapback needs a
 fundamental architectural change; it shows that production scheduling,
 assets, effects, and authority must become much more complete and observable.
+
+## 2026-07-28 to 2026-07-29 — Firebase, deep round, complete with hosted unavailable
+
+### Environment and outcome
+
+The arm used Firebase 12.16.0, Firebase CLI 15.24.0, Admin SDK 14.2.0,
+Functions 7.3.2, and the Local Emulator Suite on a fresh project namespace.
+Fourteen local frozen scenarios passed. Hosted deployment was unavailable
+because the isolated CLI state had no account, so no managed target was
+mutated and no hosted result is inferred. Coordinator evidence confidence is
+15/16; only the frozen app's lack of a browser offline-write scenario is
+indirect.
+
+The first evidence pass proved the 20-post native listener burst but omitted
+the simultaneous RSVP-total transition. I did not turn that omission into a
+narrative pass. A second fresh remediation project, with its own empty
+baseline and exact cleanup, reran only the missing fact and directly observed
+both 20 posts and attendance `0 → 2`. The capsule discloses both target
+lineages.
+
+### What felt good
+
+Firestore transactions were a strong fit for the final-seat race. The callable
+transaction read the invitation, prior RSVP, and attendance; rejected
+over-capacity writes; and updated the RSVP plus derived count in one place.
+Exactly one of two authenticated clients won the last seat and the
+authoritative count stayed at 50.
+
+Native `onSnapshot` listeners were simple and convincing. A second client
+received the wall burst without polling. More surprisingly, Firestore Rules
+dependencies were re-evaluated for already-connected clients: changing
+guest-list visibility or role membership terminated protected listeners with
+`permission-denied`. Clearing retained client state in the listener error path
+made revocation honest.
+
+The Local Emulator Suite made destructive concurrency, authorization, Storage,
+Functions, and ambiguous-effect tests cheap. Callable Functions automatically
+carried the authenticated actor into privileged handlers, and a `demo-*`
+project identity supplied a useful production-access guardrail.
+
+Separating anonymous preview, member event state, and host controls made the
+public/private boundary legible. Private Storage also passed byte-for-byte
+download, outsider denial, and post-delete absence checks.
+
+### What felt bad or surprising
+
+The operational surface was much larger than the app surface. In addition to
+Auth, Firestore, Functions, Storage, and UI, the CLI opened hub, logging,
+Eventarc, Tasks, Pub/Sub, and a Firestore UI WebSocket listener. The worker had
+to inspect installed CLI source to discover and pin all twelve ports safely.
+
+Scheduled-function emulation was not self-evident. `onSchedule` was skipped
+until Pub/Sub joined the emulator set. Deterministic acceptance then needed an
+authenticated callable that invoked the same reminder core; there was no
+obvious “run this schedule now at this logical date” workflow.
+
+Firestore Rules cannot redact fields, so a natural single event document was
+unsafe for anonymous reads. The three-document split works, but introduces
+denormalization and atomicity obligations. Storage Rules also cannot consult
+Firestore, so the object had to bind host ownership in immutable metadata
+instead of consulting event membership.
+
+Effect idempotency and ambiguous settlement were entirely application-authored.
+Transactions made the ledgers reliable, but stable effect keys, attempt states,
+provider dedupe, known success, and ambiguous-after-accept reconciliation were
+all custom code.
+
+The Functions emulator emitted noisy Admin SDK metadata/config warnings for a
+valid local demo project. The frozen dependency audits retained 22 findings in
+the UI tree and 12 in the Functions tree, including high-severity entries, and
+the minified Firebase UI bundle was roughly 763 KiB before gzip. These are
+ecosystem-weight observations, not frozen-arm fixes.
+
+### Performance and operations
+
+Two warmups plus seven retained samples produced local medians of 3.941 ms for
+representative reads, 2.790 ms for writes, 1.427 ms for realtime delivery,
+13.686 ms for reconnect, 3,432.132 ms for capacity contention, 30.836 ms for
+the 20-post burst, 40.270 ms for the 256 KiB asset round trip, and 161.835 ms
+for the production UI build. These are emulator timings, not hosted latency or
+scale claims. Local provider charge was zero.
+
+Cleanup reduced both the primary and remediation data planes to zero, closed
+all twelve assigned and auxiliary ports, removed exact runtime state, and left
+no arm process. The cache quarantine was moved to macOS Trash and remains
+recoverable until Trash is emptied.
+
+### Would I choose it?
+
+Firebase is a strong choice when mature first-party auth, adversarial local
+testing, transactions, native listeners, Functions, and object storage matter
+more than conceptual economy. It is a particularly useful correctness
+benchmark.
+
+I would hesitate for this app when I wanted one coherent policy model, a small
+operational footprint, first-class effect settlement, or relational querying.
+Document projection, two rule languages, scheduling plumbing, and hidden
+emulator topology added substantial glue.
+
+### Lessons for Snapback
+
+Match Firebase's end result for safe transaction retries, typed contention
+failures, and authoritative settlement. Match its active invalidation of
+already-connected clients, but provide a standard retained-state purge hook.
+
+Snapback can materially improve on the local workflow by exposing every
+process and port in one target receipt, with no hidden auxiliaries. It should
+also offer first-class public/private projections, a scheduled-job test API
+with a frozen logical clock, one coherent data-and-blob authority model, and
+an effect primitive that records idempotency, attempts, known success, and
+ambiguity.
+
+The Firebase arm strengthens the view that Snapback's architecture can compete:
+its coherent authority/settlement model and smaller runtime are meaningful
+advantages. The gap is completeness and operational proof, not an obvious need
+to abandon the approach.

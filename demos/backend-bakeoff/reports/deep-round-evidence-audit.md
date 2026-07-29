@@ -238,3 +238,59 @@ synthesis remain coordinator-owned.
 - Adjudication: complete. Hosted deployment/config/logs/rollback/effect
   delivery are credential-unavailable and are not inferred from local
   evidence.
+
+## Partiful / Firebase
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 14 PASS, 1 unavailable remote dependency.
+- Evidence confidence: 15/16. Seven dimensions are direct and reproducible;
+  offline/reconnect is indirect because nine cold reconnect samples exist but
+  the frozen Partiful app has no browser offline-write scenario.
+- Referenced evidence: all 26 unique capsule paths resolve. All 28 inventory
+  hashes and the retained screenshot hash match.
+- Evidence remediation: the primary target directly proved the 20-post native
+  push but its first PARTY-07 receipt omitted the simultaneous RSVP-total
+  transition. That receipt remains partial evidence. A separately named fresh
+  remediation project, with its own timestamped empty baseline and exact
+  cleanup, reran only the missing fact and observed both 20 posts and
+  attendance `0 → 2`. The two targets are not represented as one run.
+- Authority: three native Auth-emulator principals plus anonymous access
+  exercised positive and negative Firestore, Functions, and Storage paths.
+  Anonymous preview, protected event state, and host controls are separate
+  documents because Firestore Rules cannot redact fields.
+- Contention: two authenticated clients raced the last seat through one
+  callable Firestore transaction. One settled, one returned the typed capacity
+  refusal, and Admin reads retained the authoritative count of 50.
+- Transport/revocation: independent `onSnapshot` clients directly observed
+  native push. Already-connected protected listeners terminated on
+  rules-dependency changes, retained rows were cleared, and subsequent writes
+  were denied.
+- Assets/scheduling: Storage rules, byte-identical download, outsider denial,
+  and post-delete absence are direct. The real `onSchedule` export initialized
+  under Functions plus Pub/Sub; deterministic acceptance invoked its shared
+  reminder core through an authenticated test trigger.
+- Effects: Firestore transactions make effect and attempt ledgers durable, but
+  stable keys, provider dedupe, known-success retry, and
+  ambiguous-after-accept reconciliation are application-authored.
+- Performance: two warmups plus seven samples are retained for read, write,
+  realtime, reconnect, contention, burst, asset, and build paths. Measurements
+  are explicitly local-emulator-only; hosted latency and scale are not
+  inferred.
+- Target/cleanup: both the primary and remediation projects began empty and
+  ended with zero Firestore, Auth, and Storage state. All twelve exact
+  assigned/auxiliary ports are closed, no arm process survives, and runtime
+  state is absent.
+- Secret/dependency audit: secret-shaped regex hits are npm integrity strings,
+  not credentials; no private key, API key, refresh token, bearer token, or
+  JWT is retained. Frozen npm audit receipts report 22 findings for the UI
+  tree and 12 for Functions; these remain ecosystem evidence.
+- Reproducibility caveat: exact per-command monotonic intervals and tool-call
+  count were unavailable from the worker surface and use disclosed
+  missing-data sentinels. Retained source, lockfiles, raw receipts, hashes,
+  performance samples, and failed attempts otherwise reproduce the artifact.
+  A coordinator post-cleanup build replay was not used as evidence because
+  exact dependencies had already been removed; the in-window build samples
+  remain authoritative.
+- Adjudication: complete. Hosted deployment/config/logs/rollback and managed
+  effect delivery are credential-unavailable. No Stop-class defect is present.

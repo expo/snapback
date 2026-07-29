@@ -114,7 +114,7 @@ capacity opens.
 | Arm | State | Coordinator integration |
 | --- | --- | --- |
 | Partiful / Supabase | Complete | 14 PASS, hosted unavailable; capsule, diary, central evidence audit, retained cold-Realtime/effect failures, and exact cleanup integrated |
-| Partiful / Firebase | Returned | Worker arm complete; awaiting coordinator capsule/path/cleanup audit and serialized diary integration |
+| Partiful / Firebase | Complete | 14 PASS, hosted unavailable; capsule, separate PARTY-07 remediation lineage, diary, central evidence audit, hashes, and exact two-target cleanup integrated |
 | Partiful / SpacetimeDB | Running | Isolated Minisforum target; no Stop-class concern reported |
 | Partiful / Appwrite | Running | Redirected after Hetzner container-runtime preflight; isolated control-plane Compose lane |
 | Partiful / Snapback | Running | Exact repaired product/source commit and isolated runtime target |
