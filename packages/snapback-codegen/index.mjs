@@ -5958,9 +5958,12 @@ function renderApiTypes(
     'export interface GeneratedDataModel {',
   ];
   for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
-    const properties = Object.entries(table.fields ?? {}).map(([fieldName, validator]) => (
-      `${fieldName}${validator.optional ? '?' : ''}: ${typeForGeneratedValidator(validator).replace(/ \| undefined$/, '')}`
-    ));
+    const properties = Object.entries(table.fields ?? {}).map(([fieldName, validator]) => {
+      const type = typeForGeneratedValidator(validator).replace(/ \| undefined$/, '');
+      // @ref LLP 0108#adversarial-implementation-closure--2026-07-28 —
+      // persisted optionals materialize as present nulls, never omitted keys.
+      return `${fieldName}: ${validator.optional ? `null | ${type}` : type}`;
+    });
     lines.push(`  ${tableName}: { _id: Id<'${tableName}'>; _version: number; _createdAt: number; _updatedAt: number${properties.length ? `; ${properties.join('; ')}` : ''} };`);
   }
   lines.push(
@@ -6416,11 +6419,33 @@ function contractShapeFields(row) {
 }
 
 function contractShapeField(descriptor) {
-  let type = 'unknown';
-  if (descriptor?.shape === 'primitive') {
-    type = descriptor.name ?? 'unknown';
-  }
+  const type = contractShapeType(descriptor);
   return descriptor?.optional ? { type, optional: true } : type;
+}
+
+// Contract's descriptor stores a source type string. Its current analyzer
+// understands only a subset of these recursively precise spellings, but an
+// opaque exact spelling is safe while "unknown" would discard the generated
+// result-contract fact entirely.
+// @ref LLP 0108#generated-references-and-consumers — every generated consumer
+// carries the same result shape without re-inferring handler behavior.
+function contractShapeType(descriptor) {
+  if (!descriptor || descriptor.shape === 'unknown') return 'unknown';
+  if (descriptor.shape === 'primitive') return descriptor.name ?? 'unknown';
+  if (descriptor.shape === 'literal') return JSON.stringify(descriptor.value);
+  if (descriptor.shape === 'array') {
+    const item = contractShapeType(descriptor.items);
+    return descriptor.items?.shape === 'union' ? `(${item})[]` : `${item}[]`;
+  }
+  if (descriptor.shape === 'union') {
+    return descriptor.variants.map(contractShapeType).join(' | ');
+  }
+  if (descriptor.shape === 'object') {
+    return `{ ${Object.entries(descriptor.fields ?? {}).map(([name, field]) => (
+      `${JSON.stringify(name)}${field?.optional ? '?' : ''}: ${contractShapeType(field)}`
+    )).join('; ')} }`;
+  }
+  return 'unknown';
 }
 
 function typeForArgs(args) {

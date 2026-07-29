@@ -39,7 +39,7 @@ export default defineSchema({
 `;
 
 try {
-  await suite.check('optional args and row fields survive every generated surface', async () => {
+  await suite.check('optional args and stored nullable row fields survive every generated surface', async () => {
     const { backend } = fixture('optional');
     writeBackend(backend, {
       schema: baseSchema,
@@ -57,11 +57,18 @@ export const listThings = defineLiveQuery({
     const binding = result.contractManifest.queries.listThings;
     assertEqual(binding.args.title, { shape: 'primitive', name: 'string', optional: true }, 'optional arg descriptor');
     assertEqual(binding.args.nested.fields.maybe, { shape: 'primitive', name: 'number', optional: true }, 'nested arg descriptor');
-    assertEqual(binding.result.row.fields.note, { shape: 'primitive', name: 'string', optional: true }, 'optional row descriptor');
+    assertEqual(binding.result.row.fields.note, {
+      shape: 'union',
+      variants: [
+        { shape: 'literal', value: null },
+        { shape: 'primitive', name: 'string' },
+      ],
+    }, 'stored optional row descriptor is a required nullable scalar');
     const apiTypes = readFileSync(join(backend, 'generated', 'api.d.ts'), 'utf8');
     assert(/title\?: string/.test(apiTypes), 'top-level optional arg is omittable in api.d.ts');
+    assert(/note: null \| string/.test(apiTypes), 'stored optional row field is required and nullable in api.d.ts');
     const meta = readFileSync(join(backend, 'generated', 'contract', 'listThings.query.contract-meta.ts'), 'utf8');
-    assert(/"note":\{"type":"string","optional":true\}/.test(meta), 'Contract shape carries optional row field');
+    assert(/"note":"null \| string"/.test(meta), 'Contract shape carries the stored nullable row field');
     return { inputsHash: result.inputsHash };
   });
 
