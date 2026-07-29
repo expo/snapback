@@ -203,3 +203,38 @@ synthesis remain coordinator-owned.
   no value; provision and push receipts are redacted.
 - Adjudication: complete. Native search and hosted logs/rollback/immediate
   target deletion remain explicit gaps rather than inferred capabilities.
+
+## Partiful / Supabase
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 14 PASS, 1 unavailable remote dependency.
+- Evidence confidence: 14/16. Protected connected-client invalidation is
+  direct but the frozen app has no persistent-offline scenario; cleanup lacks
+  a separately timestamped empty pre-provision baseline.
+- Referenced evidence: every capsule, receipt, and confidence path resolves.
+- Public/private authority: direct anonymous preview field boundary, denied
+  table/private-event access, six native Auth personas, RLS host/cohost/guest
+  distinctions, and outsider negatives.
+- Contention: two authenticated RSVP RPCs raced against one locked event row;
+  exactly one committed and authoritative seats remained one.
+- Transport/revocation: cold `SUBSCRIBED` misses are retained. The corrected
+  policy transition, ten wall posts, two RSVP transitions, and post-revocation
+  negative delivery are direct Postgres Changes evidence.
+- Assets/scheduling: private Storage upload/download hash/outsider
+  denial/deletion are direct. A real five-second `pg_cron` job ran one due
+  reminder and remained deduplicated through a second interval.
+- Effects: one Edge Function called a separate deterministic provider Edge
+  Function over HTTP using server-only configuration. Known-success retry and
+  ambiguous-after-accept reconciliation each retained one provider delivery
+  and explicit attempt states.
+- Target/cleanup: exact project containers/volumes/network and
+  `4330/57431–57440` are absent; runtime/XDG state is removed; every
+  pre-existing unrelated container is preserved. The missing timestamped empty
+  baseline is disclosed and scored indirectly.
+- Secret/dependency audit: no generated local key or user token appears in
+  committed evidence; automatic Edge credentials remain server-side. npm audit
+  reports zero findings.
+- Adjudication: complete. Hosted deployment/config/logs/rollback/effect
+  delivery are credential-unavailable and are not inferred from local
+  evidence.
