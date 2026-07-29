@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "sourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "provider": "supabase",
+  "app": "research-room",
+  "attemptId": "research-room-supabase-final-refresh-w1",
+  "result": "stopped",
+  "versions": {
+    "supabaseJs": "2.111.0",
+    "supabaseCli": "2.110.0",
+    "goTrue": "v2.193.0"
+  },
+  "target": {
+    "mode": "fresh-local",
+    "projectId": "llp0102-final-research-supabase-w1",
+    "identityHash": "ba60fed0bc6ae3b40840ce1c9ec4d50db65fcbbdcf49ed9abb5cc1fd7f828507",
+    "started": true,
+    "healthyProjectContainers": 12,
+    "acceptanceWritesBegan": false,
+    "cleaned": true
+  },
+  "stopDefects": [
+    {
+      "classification": "builder-secret-exposure",
+      "stage": "credential-output inspection after healthy target start",
+      "providerDefect": false,
+      "detail": "A redaction expression did not cover the Supabase CLI ANSI table shape and emitted fresh local Publishable, Secret, S3 access, and S3 secret values into tool output.",
+      "lineage": "Same builder evidence-handling class as prior-builder-stop-lineage.v1.json.",
+      "adjudication": "Stopped before any frozen scenario or performance work."
+    }
+  ],
+  "frozenScenariosRun": 0,
+  "performanceSamplesRun": 0,
+  "nonclaims": [
+    "No 2.111.0 acceptance result.",
+    "No 2.111.0 performance result.",
+    "No provider failure attribution.",
+    "No claim that containment retracts already-emitted tool output."
+  ]
+}
+

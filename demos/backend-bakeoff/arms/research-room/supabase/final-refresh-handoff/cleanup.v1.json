@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "projectId": "llp0102-final-research-supabase-w1",
+  "commandClass": "supabase stop --project-id <exact-id> --no-backup",
+  "exitCode": 0,
+  "containersRemaining": 0,
+  "volumesRemaining": 0,
+  "networksRemaining": 0,
+  "credentialCarrierFilesRemaining": 0,
+  "ports": {
+    "58104": "closed",
+    "58105": "closed",
+    "58106": "closed",
+    "58107": "closed",
+    "58108": "closed",
+    "58109": "closed",
+    "58110": "closed",
+    "58111": "closed",
+    "43115": "closed"
+  },
+  "unrelatedStateMutation": false,
+  "completedAt": "2026-07-29T12:29:52Z"
+}
+

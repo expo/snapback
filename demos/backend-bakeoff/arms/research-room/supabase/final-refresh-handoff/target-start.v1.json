@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "projectId": "llp0102-final-research-supabase-w1",
+  "identityHash": "ba60fed0bc6ae3b40840ce1c9ec4d50db65fcbbdcf49ed9abb5cc1fd7f828507",
+  "versions": {
+    "supabaseJs": "2.111.0",
+    "supabaseCli": "2.110.0",
+    "goTrue": "v2.193.0"
+  },
+  "ports": {
+    "shadowDatabase": 58104,
+    "api": 58105,
+    "database": 58106,
+    "studio": 58107,
+    "mailpit": 58108,
+    "edgeInspector": 58109,
+    "analytics": 58110,
+    "pooler": 58111,
+    "vite": 43115
+  },
+  "health": {
+    "projectLabeledContainersRunning": 12,
+    "coreServicesHealthy": true,
+    "authHealthResponded": true
+  },
+  "credentialValuesRetained": false
+}
+

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "externalProject": "fresh-copy",
+  "sealedFilesModified": false,
+  "files": [
+    {
+      "path": "package.json",
+      "externalSha256": "fe011f20af9694346425de461e32fd716a218d44a5f222eb8d5dd7058d14a2f4",
+      "changes": [
+        "@supabase/supabase-js 2.57.4 -> 2.111.0",
+        "supabase CLI 2.110.0 added",
+        "Vite port 43115"
+      ]
+    },
+    {
+      "path": "package-lock.json",
+      "externalSha256": "df9e50e7ffbebaefc6f56fded198c70554675ab8379df2eb5f03823225cb8090",
+      "changes": [
+        "clean external npm install for refreshed client and pinned CLI"
+      ]
+    },
+    {
+      "path": "supabase/config.toml",
+      "externalSha256": "7fbc037deff7e2c77eb4e25e6e46a5bf3a927e9a50b9fff2ca99a535ae2b7d61",
+      "changes": [
+        "unique project id",
+        "isolated ports 58104-58111 and 43115"
+      ]
+    },
+    {
+      "path": "work/start-target.mjs",
+      "externalSha256": "676ad988de3e94890d951a2a5916d9a972560685b36e5c90e6630d4e8eef1b85",
+      "changes": [
+        "owner-only capture of provider start output"
+      ]
+    }
+  ],
+  "stateIsolation": [
+    "HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "npm cache",
+    "Bun root",
+    "browser root",
+    "Docker project",
+    "credential carriers"
+  ]
+}
+

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "warmupsRun": 0,
+  "recordedSamplesRun": 0,
+  "status": "stopped-before-performance",
+  "reason": "Metric work is forbidden after an LLP 0102 Stop-class defect.",
+  "priorEvidence": {
+    "version": "2.57.4",
+    "path": "prior-2.57.4-performance.v1.json",
+    "treatment": "lineage-only; not refreshed evidence"
+  }
+}
+
