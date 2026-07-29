@@ -1,0 +1,24 @@
+{
+  "id": "PARTY-12-REVOCATION",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:32.736Z",
+  "finishedAt": "2026-07-29T06:45:32.775Z",
+  "durationMs": 39.736,
+  "evidence": {
+    "authorityChange": {
+      "revoked": true
+    },
+    "protectedRead": null,
+    "negativeDelivery": {
+      "rejected": true,
+      "code": "PARTY_HOST_OR_COHOST_REQUIRED"
+    },
+    "retainedStoreInspection": {
+      "activeMemberships": 0,
+      "memberships": 1,
+      "rsvps": 1,
+      "wallPosts": 22
+    },
+    "retentionPolicy": "membership and RSVP retained until namespace cleanup; protected delivery denied immediately"
+  }
+}

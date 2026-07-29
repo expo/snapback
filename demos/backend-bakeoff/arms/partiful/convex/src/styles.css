@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,600&display=swap');
+
+:root {
+  color: #27211d;
+  background: #f2ede6;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+main { min-height: 100vh; padding: 28px; display: grid; place-items: center; }
+.hero {
+  width: min(1120px, 100%);
+  min-height: 690px;
+  background: #fffaf4;
+  border-radius: 32px;
+  box-shadow: 0 30px 90px rgb(84 55 31 / 15%);
+  padding: 24px;
+  display: grid;
+  grid-template: auto 1fr / 1.05fr 1fr;
+  gap: 24px 54px;
+  overflow: hidden;
+}
+nav { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 8px; }
+.brand { font-family: 'Fraunces', serif; font-size: 25px; letter-spacing: -.04em; }
+.badge { background: #ece6ff; color: #5d3fa4; border-radius: 99px; padding: 8px 13px; font-size: 12px; font-weight: 600; }
+.art { position: relative; min-height: 570px; border-radius: 24px; overflow: hidden; background: linear-gradient(165deg,#ffbd87 0%,#ed7d73 48%,#75508d 100%); }
+.art::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 25% 25%,rgb(255 255 255 / 45%),transparent 25%), linear-gradient(transparent 66%,rgb(39 25 48 / 20%)); }
+.sun { position: absolute; width: 190px; height: 190px; border-radius: 50%; background: #ffeab3; left: 50%; top: 31%; transform: translate(-50%,-50%); box-shadow: 0 0 80px rgb(255 231 165 / 75%); }
+.skyline { position: absolute; inset: auto 0 0; height: 34%; background: linear-gradient(130deg,transparent 10%,#392c46 10% 22%,transparent 22% 25%,#30273d 25% 43%,transparent 43% 46%,#3b2e47 46% 62%,transparent 62% 67%,#2b2435 67%); opacity: .72; }
+.art p { position: absolute; left: 30px; bottom: 20px; color: white; font-size: 13px; letter-spacing: .28em; font-weight: 600; }
+.copy { align-self: center; padding: 20px 34px 42px 0; }
+.eyebrow { color: #b1493f; text-transform: uppercase; letter-spacing: .18em; font-size: 12px; font-weight: 600; }
+h1 { margin: 14px 0 18px; font: 600 clamp(48px,6vw,78px)/.98 'Fraunces',serif; letter-spacing: -.045em; }
+.lede { color: #6f645c; font-size: 18px; line-height: 1.6; max-width: 460px; }
+.facts { margin: 34px 0; display: grid; gap: 18px; }
+article { border-left: 2px solid #e7d9cc; padding-left: 16px; display: grid; gap: 4px; }
+article span { color: #a06157; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; font-weight: 600; }
+article strong { font: 600 18px 'Fraunces',serif; }
+article small { color: #8a7e75; }
+button { border: 0; border-radius: 14px; background: #27211d; color: white; padding: 15px 22px; font: 600 15px 'DM Sans'; cursor: pointer; }
+.privacy { margin-top: 14px; color: #958a82; font-size: 12px; }
+.loading { color: #70645c; font-size: 18px; }
+@media (max-width: 760px) {
+  main { padding: 0; }
+  .hero { border-radius: 0; min-height: 100vh; grid-template: auto 330px auto / 1fr; gap: 14px; }
+  .art { min-height: 330px; }
+  .copy { padding: 20px 12px 36px; }
+  h1 { font-size: 50px; }
+}

@@ -1,0 +1,52 @@
+{
+  "id": "PARTY-14-PERFORMANCE",
+  "status": "PASS",
+  "startedAt": "2026-07-29T07:01:20.769Z",
+  "finishedAt": "2026-07-29T06:48:36.426Z",
+  "durationMs": null,
+  "evidence": {
+    "twoWarmups": 2,
+    "sevenRecordedSamples": 7,
+    "pathCount": 7,
+    "rawSampleCount": 63,
+    "summaries": {
+      "representative-read": {
+        "medianMs": 1.328,
+        "nearestRankP95Ms": 1.38
+      },
+      "representative-write": {
+        "medianMs": 8.561,
+        "nearestRankP95Ms": 13.105
+      },
+      "contention-final-seat": {
+        "medianMs": 123.43,
+        "nearestRankP95Ms": 148.654
+      },
+      "asset-upload-deliver-delete-262144b": {
+        "medianMs": 40.168,
+        "nearestRankP95Ms": 48.388
+      },
+      "realtime-delivery": {
+        "medianMs": 42.552,
+        "nearestRankP95Ms": 44.738
+      },
+      "reconnect-first-reactive-value": {
+        "medianMs": 11.194,
+        "nearestRankP95Ms": 11.548
+      },
+      "build-or-deploy": {
+        "medianMs": 1105.517,
+        "nearestRankP95Ms": 1140.636
+      }
+    },
+    "costWindow": {
+      "boundary": "fresh anonymous target provisioning through exact target cleanup",
+      "actualProviderUsage": "No billed provider usage surfaced for anonymous local deployment.",
+      "actualProviderCostUsd": 0,
+      "hostComputeExcluded": true,
+      "listPriceEstimateUsd": null,
+      "reason": "Hosted credentials were unavailable; a hosted list-price estimate would not describe the measured local target.",
+      "extrapolationCountsAsMeasured": false
+    }
+  }
+}

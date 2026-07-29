@@ -1,0 +1,27 @@
+{
+  "id": "PARTY-04-ROLES",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:31.898Z",
+  "finishedAt": "2026-07-29T06:45:31.929Z",
+  "durationMs": 30.285,
+  "evidence": {
+    "positiveRoleMatrix": {
+      "host": "seed/role",
+      "cohost": {
+        "visible": false
+      },
+      "guest": "rsvp/wall allowed"
+    },
+    "negativeRoleMatrix": {
+      "guestWrite": {
+        "rejected": true,
+        "code": "PARTY_HOST_OR_COHOST_REQUIRED"
+      },
+      "outsiderWrite": {
+        "rejected": true,
+        "code": "PARTY_MEMBER_REQUIRED"
+      },
+      "outsiderRead": null
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "namespace": "llp0102-partiful-convex-w2",
+  "eventKey": "event-summer-rooftop",
+  "capturedAt": "2026-07-29T06:53:07.192Z",
+  "beforeCleanup": {
+    "assets": 0,
+    "events": 20,
+    "memberships": 50,
+    "notificationAttempts": 3,
+    "personas": 4,
+    "reminders": 1,
+    "rsvps": 49,
+    "wallPosts": 31
+  }
+}

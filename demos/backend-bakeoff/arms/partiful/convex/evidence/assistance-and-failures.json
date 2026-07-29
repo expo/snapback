@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "assistanceEvents": [
+    {
+      "kind": "provider-source-inspection",
+      "when": "preflight",
+      "scope": "Installed Convex 1.42.3 CLI bundle",
+      "reason": "The public CLI help omitted collision-safe local backend and site port flags required by the frozen parallel isolation map.",
+      "result": "Discovered and used --local-cloud-port 3336 and --local-site-port 3337."
+    },
+    {
+      "kind": "provider-source-inspection",
+      "when": "verification-harness",
+      "scope": "Installed Convex 1.42.3 JavaScript client source",
+      "reason": "Anonymous local multi-actor acceptance required deterministic acting identities; the runtime method exists but is omitted from public TypeScript declarations.",
+      "result": "Centralized a development-only setAdminAuth cast in the harness. Application authorization remained native ctx.auth checks."
+    },
+    {
+      "kind": "cross-arm-context",
+      "when": "design",
+      "scope": "Immediately preceding Partiful/SpacetimeDB arm built by the same worker",
+      "reason": "Frozen fixture dimensions, scenario interpretation, and evidence-shape lessons remained in context.",
+      "result": "No provider implementation code was copied; only protocol and harness-shape lessons transferred."
+    }
+  ],
+  "failedAttempts": [
+    {
+      "ordinal": 1,
+      "commandClass": "local-target-configuration",
+      "symptom": "convex dev --once --configure new requested an interactive device name and failed in a non-interactive shell.",
+      "classification": "provider-cli-discovery-friction",
+      "resolution": "Used the documented CONVEX_AGENT_MODE=anonymous path and omitted --configure new."
+    },
+    {
+      "ordinal": 2,
+      "commandClass": "acceptance-harness-typecheck",
+      "symptom": "The first typecheck rejected the runtime-only setAdminAuth method, nullable protected-query results, one typo, and unknown action results.",
+      "classification": "harness-implementation-error-plus-hidden-development-api",
+      "resolution": "Localized the development API cast, added explicit assertions/result types, and corrected the typo."
+    },
+    {
+      "ordinal": 3,
+      "commandClass": "representative-ui-typecheck",
+      "symptom": "ImportMeta.env was missing because the Vite client reference file had not been created.",
+      "classification": "harness-implementation-error",
+      "resolution": "Added src/vite-env.d.ts and reran typecheck/build successfully."
+    },
+    {
+      "ordinal": 4,
+      "commandClass": "remote-file-transfer",
+      "symptom": "The initial rsync transfer produced no progress and was interrupted.",
+      "classification": "machine-transport-friction-not-provider",
+      "resolution": "Used exact-file scp into the isolated arm path."
+    }
+  ]
+}

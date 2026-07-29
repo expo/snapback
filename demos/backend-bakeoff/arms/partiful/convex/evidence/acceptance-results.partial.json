@@ -1,0 +1,505 @@
+{
+  "schemaVersion": 1,
+  "namespace": "llp0102-partiful-convex-w2",
+  "expectedCheckCount": 15,
+  "completedCheckCount": 13,
+  "results": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:31.805Z",
+      "finishedAt": "2026-07-29T06:45:31.837Z",
+      "durationMs": 31.806,
+      "evidence": {
+        "targetIdentity": {
+          "kind": "fresh-anonymous-local",
+          "namespace": "llp0102-partiful-convex-w2",
+          "deploymentName": "anonymous-agent",
+          "cloudPort": 3336,
+          "sitePort": 3337,
+          "backendVersion": "precompiled-2026-07-21-82d5e9f"
+        },
+        "seedReceipt": {
+          "alreadySeeded": false,
+          "capacity": 50,
+          "events": 20,
+          "guests": 49
+        },
+        "authoritativeCounts": {
+          "assets": 0,
+          "events": 20,
+          "memberships": 50,
+          "notificationAttempts": 0,
+          "personas": 4,
+          "reminders": 0,
+          "rsvps": 1,
+          "wallPosts": 1
+        }
+      }
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:31.838Z",
+      "finishedAt": "2026-07-29T06:45:31.856Z",
+      "durationMs": 18.162,
+      "evidence": {
+        "anonymousRead": {
+          "eventKey": "event-summer-rooftop",
+          "publicDescription": "Dinner, music, and sunset above the city.",
+          "slug": "summer-rooftop",
+          "startsAt": "2026-08-15T19:00:00-07:00",
+          "title": "Summer Rooftop Supper",
+          "venue": "Mission Rooftop"
+        },
+        "publicFields": [
+          "eventKey",
+          "publicDescription",
+          "slug",
+          "startsAt",
+          "title",
+          "venue"
+        ],
+        "privateAnonymous": null,
+        "hostPrivateFieldPresent": true
+      }
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:31.857Z",
+      "finishedAt": "2026-07-29T06:45:31.896Z",
+      "durationMs": 39.535,
+      "evidence": {
+        "invitationAttribution": {
+          "displayName": "Bob",
+          "identity": "https://llp0102-partiful.local|bob",
+          "role": "guest",
+          "rsvp": {
+            "_creationTime": 1785307531858.8506,
+            "_id": "jx79mnc24yzys3bbm65gcx0bb18bec53",
+            "displayName": "Bob",
+            "eventKey": "event-summer-rooftop",
+            "identity": "https://llp0102-partiful.local|bob",
+            "namespace": "llp0102-partiful-convex-w2",
+            "plusOne": 1,
+            "revision": 3,
+            "status": "yes"
+          }
+        },
+        "transitions": [
+          {
+            "displayName": "Bob",
+            "eventKey": "event-summer-rooftop",
+            "identity": "https://llp0102-partiful.local|bob",
+            "namespace": "llp0102-partiful-convex-w2",
+            "plusOne": 1,
+            "revision": 1,
+            "status": "maybe"
+          },
+          {
+            "displayName": "Bob",
+            "eventKey": "event-summer-rooftop",
+            "identity": "https://llp0102-partiful.local|bob",
+            "namespace": "llp0102-partiful-convex-w2",
+            "plusOne": 0,
+            "revision": 2,
+            "status": "no"
+          },
+          {
+            "displayName": "Bob",
+            "eventKey": "event-summer-rooftop",
+            "identity": "https://llp0102-partiful.local|bob",
+            "namespace": "llp0102-partiful-convex-w2",
+            "plusOne": 1,
+            "revision": 3,
+            "status": "yes"
+          }
+        ],
+        "authoritativeState": {
+          "_creationTime": 1785307531858.8506,
+          "_id": "jx79mnc24yzys3bbm65gcx0bb18bec53",
+          "displayName": "Bob",
+          "eventKey": "event-summer-rooftop",
+          "identity": "https://llp0102-partiful.local|bob",
+          "namespace": "llp0102-partiful-convex-w2",
+          "plusOne": 1,
+          "revision": 3,
+          "status": "yes"
+        }
+      }
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:31.898Z",
+      "finishedAt": "2026-07-29T06:45:31.929Z",
+      "durationMs": 30.285,
+      "evidence": {
+        "positiveRoleMatrix": {
+          "host": "seed/role",
+          "cohost": {
+            "visible": false
+          },
+          "guest": "rsvp/wall allowed"
+        },
+        "negativeRoleMatrix": {
+          "guestWrite": {
+            "rejected": true,
+            "code": "PARTY_HOST_OR_COHOST_REQUIRED"
+          },
+          "outsiderWrite": {
+            "rejected": true,
+            "code": "PARTY_MEMBER_REQUIRED"
+          },
+          "outsiderRead": null
+        }
+      }
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:31.929Z",
+      "finishedAt": "2026-07-29T06:45:32.066Z",
+      "durationMs": 136.476,
+      "evidence": {
+        "policyTransition": [
+          false,
+          true
+        ],
+        "actorSpecificReads": {
+          "guestCountAfterEnable": 50,
+          "publicStillVisible": true
+        },
+        "alreadyConnectedClient": [
+          {
+            "visible": false,
+            "guestCount": 0
+          },
+          {
+            "visible": true,
+            "guestCount": 50
+          }
+        ],
+        "transport": "Convex WebSocket reactive query"
+      }
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:32.067Z",
+      "finishedAt": "2026-07-29T06:45:32.186Z",
+      "durationMs": 118.658,
+      "evidence": {
+        "twoActorBarrier": {
+          "barrierStartedAt": "2026-07-29T06:45:32.084Z",
+          "actors": [
+            "Bob",
+            "Casey"
+          ],
+          "simultaneousAttempts": 2
+        },
+        "fixture": {
+          "capacity": 50,
+          "occupiedSeats": 49
+        },
+        "settlement": [
+          {
+            "status": "fulfilled",
+            "response": {
+              "displayName": "Bob",
+              "eventKey": "event-summer-rooftop",
+              "identity": "https://llp0102-partiful.local|bob",
+              "namespace": "llp0102-partiful-convex-w2",
+              "plusOne": 0,
+              "revision": 1,
+              "status": "yes"
+            }
+          },
+          {
+            "status": "rejected",
+            "errorCode": "PARTY_CAPACITY_EXCEEDED"
+          }
+        ],
+        "authoritativeCount": {
+          "occupiedSeats": 50,
+          "capacity": 50
+        }
+      }
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:32.188Z",
+      "finishedAt": "2026-07-29T06:45:32.471Z",
+      "durationMs": 283.548,
+      "evidence": {
+        "secondClient": true,
+        "transportAttribution": "two ConvexClient WebSocket subscriptions to the native privateState query",
+        "baseline": 1,
+        "wallBurstPosts": 20,
+        "clientAObservations": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          8,
+          10,
+          11,
+          13,
+          15,
+          17,
+          19,
+          20,
+          21
+        ],
+        "clientBObservations": [
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          10,
+          11,
+          13,
+          15,
+          16,
+          18,
+          20,
+          21
+        ],
+        "authoritativeCount": {
+          "maybe": 0,
+          "no": 0,
+          "seats": 50,
+          "wallPosts": 21,
+          "yes": 49
+        }
+      }
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:32.473Z",
+      "finishedAt": "2026-07-29T06:45:32.532Z",
+      "durationMs": 59.202,
+      "evidence": {
+        "objectIdentity": {
+          "storageIdSha256": "d5aea2ce81cfd2ebbccd2c067672e52da07831b21903af8a997e73fff1f4a4e0",
+          "assetKey": "hero-art",
+          "byteLength": 262144
+        },
+        "authorization": {
+          "cohostUpload": true,
+          "outsider": {
+            "rejected": true,
+            "code": "PARTY_MEMBER_REQUIRED"
+          }
+        },
+        "contentHash": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+        "deliveredHash": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+        "deleteProof": {
+          "priorUrlStatus": 404,
+          "metadataRows": 0
+        }
+      }
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:32.538Z",
+      "finishedAt": "2026-07-29T06:45:32.672Z",
+      "durationMs": 133.407,
+      "evidence": {
+        "scheduleIdentity": {
+          "attemptKey": "scheduled-reminder-1",
+          "scheduleId": "kc2663698xks1r7aps9rgnz9f58bec73"
+        },
+        "runReceipt": {
+          "attempt": {
+            "_creationTime": 1785307532605.3755,
+            "_id": "jh771spsc9h4xgytz9bxsr5rw58bevdn",
+            "attempts": 1,
+            "dedupeKey": "scheduled-reminder-1",
+            "eventKey": "event-summer-rooftop",
+            "kind": "scheduled-reminder",
+            "namespace": "llp0102-partiful-convex-w2",
+            "providerStatus": "http-200",
+            "state": "succeeded"
+          },
+          "reminder": {
+            "_creationTime": 1785307532540.0247,
+            "_id": "js762da71rqe4k2jsadkzga8n18bfpbg",
+            "actorIdentity": "https://llp0102-partiful.local|alice",
+            "attemptKey": "scheduled-reminder-1",
+            "completedAt": 1785307532625,
+            "endpoint": "http://127.0.0.1:34173/success",
+            "eventKey": "event-summer-rooftop",
+            "namespace": "llp0102-partiful-convex-w2",
+            "runCount": 1,
+            "scheduleId": "kc2663698xks1r7aps9rgnz9f58bec73",
+            "state": "complete"
+          },
+          "scheduled": {
+            "_creationTime": 1785307532540.0244,
+            "_id": "kc2663698xks1r7aps9rgnz9f58bec73",
+            "args": [
+              {
+                "actorIdentity": "https://llp0102-partiful.local|alice",
+                "attemptKey": "scheduled-reminder-1",
+                "endpoint": "http://127.0.0.1:34173/success",
+                "eventKey": "event-summer-rooftop",
+                "namespace": "llp0102-partiful-convex-w2"
+              }
+            ],
+            "completedTime": 1785307532627.7874,
+            "name": "party.js:deliverScheduled",
+            "scheduledTime": 1785307532590,
+            "state": {
+              "kind": "success"
+            }
+          }
+        },
+        "dedupeKey": "scheduled-reminder-1",
+        "providerBoundaryReceipts": [
+          {
+            "dedupeKey": "scheduled-reminder-1",
+            "path": "/success",
+            "receivedAt": "2026-07-29T06:45:32.617Z",
+            "bodySha256": "afbd707702630d876b9ec1a58639a505c719c76981af2e563c4957ef3cea4f95"
+          }
+        ]
+      }
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:32.673Z",
+      "finishedAt": "2026-07-29T06:45:32.696Z",
+      "durationMs": 23.077,
+      "evidence": {
+        "attemptLedger": {
+          "first": {
+            "attempts": 1,
+            "providerStatus": "http-200",
+            "state": "succeeded",
+            "suppressed": false
+          },
+          "retry": {
+            "attempts": 1,
+            "suppressed": true
+          }
+        },
+        "providerBoundary": [
+          {
+            "dedupeKey": "known-success-1",
+            "path": "/success",
+            "receivedAt": "2026-07-29T06:45:32.684Z",
+            "bodySha256": "3284d03d14b50e3f22b76dea97d9d4af8b4547937356282b8a08599a7cdd0c60"
+          }
+        ],
+        "terminalSettlement": "succeeded"
+      }
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:32.697Z",
+      "finishedAt": "2026-07-29T06:45:32.735Z",
+      "durationMs": 38.044,
+      "evidence": {
+        "faultInjection": "sink accepted request body then destroyed socket before HTTP settlement",
+        "attemptLedger": {
+          "first": {
+            "attempts": 1,
+            "providerStatus": "transport-outcome-unknown:Error: error sending request for url (http://127.0.0.1:34173/ambiguous): client error (SendRequest): connection closed b",
+            "state": "ambiguous",
+            "suppressed": false
+          },
+          "retry": {
+            "attempts": 2,
+            "providerStatus": "transport-outcome-unknown:Error: error sending request for url (http://127.0.0.1:34173/ambiguous): client error (SendRequest): connection closed b",
+            "state": "ambiguous",
+            "suppressed": false
+          }
+        },
+        "ambiguousState": "transport-outcome-unknown remains nonterminal and retryable",
+        "providerBoundaryReceipts": [
+          {
+            "dedupeKey": "ambiguous-1",
+            "path": "/ambiguous",
+            "receivedAt": "2026-07-29T06:45:32.707Z",
+            "bodySha256": "abe3a876f7ae2d2d412cf4d9aa128a6b987c03f89e163004ecbc8261c9c6f650"
+          },
+          {
+            "dedupeKey": "ambiguous-1",
+            "path": "/ambiguous",
+            "receivedAt": "2026-07-29T06:45:32.727Z",
+            "bodySha256": "abe3a876f7ae2d2d412cf4d9aa128a6b987c03f89e163004ecbc8261c9c6f650"
+          }
+        ],
+        "duplicateRisk": "retry can duplicate an effect that the provider accepted before disconnect"
+      }
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "PASS",
+      "startedAt": "2026-07-29T06:45:32.736Z",
+      "finishedAt": "2026-07-29T06:45:32.775Z",
+      "durationMs": 39.736,
+      "evidence": {
+        "authorityChange": {
+          "revoked": true
+        },
+        "protectedRead": null,
+        "negativeDelivery": {
+          "rejected": true,
+          "code": "PARTY_HOST_OR_COHOST_REQUIRED"
+        },
+        "retainedStoreInspection": {
+          "activeMemberships": 0,
+          "memberships": 1,
+          "rsvps": 1,
+          "wallPosts": 22
+        },
+        "retentionPolicy": "membership and RSVP retained until namespace cleanup; protected delivery denied immediately"
+      }
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "GAP",
+      "startedAt": "2026-07-29T06:45:32.777Z",
+      "finishedAt": "2026-07-29T06:45:32.777Z",
+      "durationMs": 0.058,
+      "evidence": {
+        "reasonCode": "UNAVAILABLE_REMOTE_DEPENDENCY",
+        "reason": "The supplied CONVEX_DEPLOY_KEY is empty; no hosted mutation or deployment was attempted.",
+        "localDeploymentReceipt": {
+          "deploymentName": "anonymous-agent",
+          "backendVersion": "precompiled-2026-07-21-82d5e9f",
+          "cloudPort": 3336,
+          "sitePort": 3337
+        },
+        "redactedConfigProof": {
+          "envKeys": [
+            "CONVEX_DEPLOYMENT",
+            "VITE_CONVEX_SITE_URL",
+            "VITE_CONVEX_URL"
+          ],
+          "configKeys": [
+            "adminKey",
+            "backendVersion",
+            "deploymentName",
+            "instanceSecret",
+            "ports"
+          ],
+          "secretValuesRetained": false
+        },
+        "effectReceiptCount": 4
+      }
+    }
+  ]
+}

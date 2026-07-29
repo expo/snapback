@@ -1,0 +1,67 @@
+{
+  "id": "PARTY-09-SCHEDULE",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:32.538Z",
+  "finishedAt": "2026-07-29T06:45:32.672Z",
+  "durationMs": 133.407,
+  "evidence": {
+    "scheduleIdentity": {
+      "attemptKey": "scheduled-reminder-1",
+      "scheduleId": "kc2663698xks1r7aps9rgnz9f58bec73"
+    },
+    "runReceipt": {
+      "attempt": {
+        "_creationTime": 1785307532605.3755,
+        "_id": "jh771spsc9h4xgytz9bxsr5rw58bevdn",
+        "attempts": 1,
+        "dedupeKey": "scheduled-reminder-1",
+        "eventKey": "event-summer-rooftop",
+        "kind": "scheduled-reminder",
+        "namespace": "llp0102-partiful-convex-w2",
+        "providerStatus": "http-200",
+        "state": "succeeded"
+      },
+      "reminder": {
+        "_creationTime": 1785307532540.0247,
+        "_id": "js762da71rqe4k2jsadkzga8n18bfpbg",
+        "actorIdentity": "https://llp0102-partiful.local|alice",
+        "attemptKey": "scheduled-reminder-1",
+        "completedAt": 1785307532625,
+        "endpoint": "http://127.0.0.1:34173/success",
+        "eventKey": "event-summer-rooftop",
+        "namespace": "llp0102-partiful-convex-w2",
+        "runCount": 1,
+        "scheduleId": "kc2663698xks1r7aps9rgnz9f58bec73",
+        "state": "complete"
+      },
+      "scheduled": {
+        "_creationTime": 1785307532540.0244,
+        "_id": "kc2663698xks1r7aps9rgnz9f58bec73",
+        "args": [
+          {
+            "actorIdentity": "https://llp0102-partiful.local|alice",
+            "attemptKey": "scheduled-reminder-1",
+            "endpoint": "http://127.0.0.1:34173/success",
+            "eventKey": "event-summer-rooftop",
+            "namespace": "llp0102-partiful-convex-w2"
+          }
+        ],
+        "completedTime": 1785307532627.7874,
+        "name": "party.js:deliverScheduled",
+        "scheduledTime": 1785307532590,
+        "state": {
+          "kind": "success"
+        }
+      }
+    },
+    "dedupeKey": "scheduled-reminder-1",
+    "providerBoundaryReceipts": [
+      {
+        "dedupeKey": "scheduled-reminder-1",
+        "path": "/success",
+        "receivedAt": "2026-07-29T06:45:32.617Z",
+        "bodySha256": "afbd707702630d876b9ec1a58639a505c719c76981af2e563c4957ef3cea4f95"
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "PARTY-05-GUEST-LIST",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:31.929Z",
+  "finishedAt": "2026-07-29T06:45:32.066Z",
+  "durationMs": 136.476,
+  "evidence": {
+    "policyTransition": [
+      false,
+      true
+    ],
+    "actorSpecificReads": {
+      "guestCountAfterEnable": 50,
+      "publicStillVisible": true
+    },
+    "alreadyConnectedClient": [
+      {
+        "visible": false,
+        "guestCount": 0
+      },
+      {
+        "visible": true,
+        "guestCount": 50
+      }
+    ],
+    "transport": "Convex WebSocket reactive query"
+  }
+}

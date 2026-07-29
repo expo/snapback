@@ -1,0 +1,30 @@
+{
+  "id": "PARTY-10-EFFECT-RETRY",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:32.673Z",
+  "finishedAt": "2026-07-29T06:45:32.696Z",
+  "durationMs": 23.077,
+  "evidence": {
+    "attemptLedger": {
+      "first": {
+        "attempts": 1,
+        "providerStatus": "http-200",
+        "state": "succeeded",
+        "suppressed": false
+      },
+      "retry": {
+        "attempts": 1,
+        "suppressed": true
+      }
+    },
+    "providerBoundary": [
+      {
+        "dedupeKey": "known-success-1",
+        "path": "/success",
+        "receivedAt": "2026-07-29T06:45:32.684Z",
+        "bodySha256": "3284d03d14b50e3f22b76dea97d9d4af8b4547937356282b8a08599a7cdd0c60"
+      }
+    ],
+    "terminalSettlement": "succeeded"
+  }
+}
