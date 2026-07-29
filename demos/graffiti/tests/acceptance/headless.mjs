@@ -40,6 +40,14 @@ const scope = { boardId: BOARD };
 const perms = [SnapbackClient.roomPermission('boardMember', scope)];
 const cursorRef = api.ephemeral.boardCursors;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const waitFor = async (predicate, label, timeoutMs = 2_000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await sleep(10);
+  }
+  throw new Error(`timed out waiting for ${label}`);
+};
 
 const server = await startServer({ port: 4433, db: ':memory:', cwd: repoRoot,
   provenance: { appId: 'graffiti', artifactsPath: join(repoRoot, 'demos', 'graffiti', 'snapback', 'generated', 'artifacts.json') } });
@@ -135,7 +143,13 @@ try {
   });
 
   await suite.check('cursor presence publishes, fans out to a peer, and coalesces to latest', async () => {
-    const observer = await db.subscribeEphemeral(cursorRef, { connectionId: 'cursorObserver', scope, userId: GRACE, permissions: perms });
+    const observer = await db.subscribeEphemeral(cursorRef, {
+      connectionId: 'cursorObserver',
+      scope,
+      userId: GRACE,
+      permissions: perms,
+      transport: 'poll',
+    });
     assertEqual(observer.currentEntries(), [], 'initial presence is empty');
     for (let i = 0; i < 8; i += 1) {
       await db.publishEphemeral(cursorRef, { connectionId: 'cursorAda', scope, userId: ADA, permissions: perms, value: { x: i, y: i + 1, color: '#e5484d', name: 'Ada' } });
@@ -198,12 +212,18 @@ try {
 
   await suite.check('disconnect removes the connection-owned cursor', async () => {
     const observer = await db.subscribeEphemeral(cursorRef, { connectionId: 'watcher', scope, userId: GRACE, permissions: perms });
-    await db.publishEphemeral(cursorRef, { connectionId: 'leaver', scope, userId: ADA, permissions: perms, value: { x: 4, y: 4, color: '#f76b15', name: 'Ada' } });
-    await observer.drain();
-    assert(observer.currentEntries().some((e) => e.key === 'leaver'), 'cursor missing before disconnect');
+    const published = await db.publishEphemeral(cursorRef, { connectionId: 'leaver', scope, userId: ADA, permissions: perms, value: { x: 4, y: 4, color: '#f76b15', name: 'Ada' } });
+    await waitFor(
+      () => observer.currentEntries().some((e) => e.key === published.key),
+      'live cursor before disconnect',
+    );
+    assert(observer.currentEntries().some((e) => e.key === published.key), 'cursor missing before disconnect');
     await db.disconnect('leaver');
-    await observer.drain();
-    assert(!observer.currentEntries().some((e) => e.key === 'leaver'), 'disconnect should remove the cursor');
+    await waitFor(
+      () => !observer.currentEntries().some((e) => e.key === published.key),
+      'live cursor removal after disconnect',
+    );
+    assert(!observer.currentEntries().some((e) => e.key === published.key), 'disconnect should remove the cursor');
     return { ok: true };
   });
 
@@ -211,23 +231,29 @@ try {
     const observer = await db.subscribeEphemeral(cursorRef, { connectionId: 'ttlWatcher', scope, userId: GRACE, permissions: perms });
     const durableBefore = (await db.inspect()).storage.version;
     const wallBefore = (await db.query(api.listCells, { args: { boardId: BOARD }, userId: GRACE })).rows.length;
-    await db.publishEphemeral(cursorRef, { connectionId: 'idler', scope, userId: ADA, permissions: perms, value: { x: 2, y: 2, color: '#99d52a', name: 'Ada' }, ttlMs: 300 });
-    await observer.drain();
-    assert(observer.currentEntries().some((e) => e.key === 'idler'), 'cursor missing before TTL expiry');
+    const published = await db.publishEphemeral(cursorRef, { connectionId: 'idler', scope, userId: ADA, permissions: perms, value: { x: 2, y: 2, color: '#99d52a', name: 'Ada' }, ttlMs: 300 });
+    await waitFor(
+      () => observer.currentEntries().some((e) => e.key === published.key),
+      'live cursor before TTL expiry',
+    );
+    assert(observer.currentEntries().some((e) => e.key === published.key), 'cursor missing before TTL expiry');
     // The client overlay prunes by server-provided expiry even if the remove
     // delta is lost (LLP 0013: the TTL is the universal backstop).
     await sleep(400);
-    assert(!observer.currentEntries({ prune: true }).some((e) => e.key === 'idler'), 'client TTL backstop should prune the idle cursor');
+    assert(!observer.currentEntries({ prune: true }).some((e) => e.key === published.key), 'client TTL backstop should prune the idle cursor');
     // A fresh subscription snapshot excludes the expired entry SERVER-SIDE:
     // prune:false so the assertion observes what the server actually sent,
     // not the client backstop re-hiding a server bug.
     const fresh = await db.subscribeEphemeral(cursorRef, { connectionId: 'ttlRejoin', scope, userId: GRACE, permissions: perms });
-    assert(!fresh.currentEntries({ prune: false }).some((e) => e.key === 'idler'), 'fresh snapshot must exclude the expired cursor server-side');
+    assert(!fresh.currentEntries({ prune: false }).some((e) => e.key === published.key), 'fresh snapshot must exclude the expired cursor server-side');
     // That subscribe swept the room (src/ephemeral.rs sweep_room_locked),
     // fanning a Remove delta out to existing subscribers — observe it landing
     // in the first observer's overlay, again without the client backstop.
-    await observer.drain();
-    assert(!observer.currentEntries({ prune: false }).some((e) => e.key === 'idler'), 'server expiry Remove fan-out must clear the cursor from live subscribers');
+    await waitFor(
+      () => !observer.currentEntries({ prune: false }).some((e) => e.key === published.key),
+      'server expiry remove on live stream',
+    );
+    assert(!observer.currentEntries({ prune: false }).some((e) => e.key === published.key), 'server expiry Remove fan-out must clear the cursor from live subscribers');
     assertEqual((await db.inspect()).storage.version, durableBefore, 'TTL expiry must not touch the durable version');
     const wallAfter = (await db.query(api.listCells, { args: { boardId: BOARD }, userId: GRACE })).rows.length;
     assertEqual(wallAfter, wallBefore, 'TTL expiry must not write durable tombstones');
@@ -264,7 +290,13 @@ try {
   });
 
   await suite.check('durable lane stays first under a cursor flood on one connection', async () => {
-    const overlay = await db.subscribeEphemeral(cursorRef, { connectionId: 'mixed', scope, userId: ADA, permissions: perms });
+    const overlay = await db.subscribeEphemeral(cursorRef, {
+      connectionId: 'mixed',
+      scope,
+      userId: ADA,
+      permissions: perms,
+      transport: 'poll',
+    });
     await db.subscribeLive(api.listCells, { connectionId: 'mixed', args: { boardId: BOARD }, userId: ADA });
     for (let i = 0; i < 8; i += 1) {
       await db.publishEphemeral(cursorRef, { connectionId: 'flooder', scope, userId: ADA, permissions: perms, value: { x: 100 + i, y: 1, color: '#e93d82', name: 'Ada' } });

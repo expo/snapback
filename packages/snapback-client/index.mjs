@@ -4496,8 +4496,38 @@ export class SnapbackClient {
     return response;
   }
 
-  async subscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
+  async subscribeEphemeral(ref, {
+    connectionId,
+    scope = {},
+    userId,
+    permissions = [],
+    transport = 'stream',
+    stream: streamOptions = {},
+  } = {}) {
     const collection = collectionName(ref);
+    if (transport !== 'stream' && transport !== 'poll') {
+      throw new TypeError(
+        `Snapback ephemeral transport must be "stream" or "poll", got ${JSON.stringify(transport)}`,
+      );
+    }
+    // An ephemeral subscription is live by default, so it owns managed-socket
+    // demand for exactly the overlay's lifetime. Readiness observation alone
+    // deliberately does not own demand (LLP 0034 §10.8); without this lease a
+    // fresh connection could take its HTTP snapshot successfully while no
+    // transport existed to deliver later room changes. `transport: 'poll'`
+    // preserves the explicit headless/manual-drain profile.
+    let releaseStreamDemand = null;
+    if (transport === 'stream') {
+      const manager = this.liveStreamManager(connectionId, streamOptions);
+      releaseStreamDemand = manager.acquireDemand();
+      try {
+        await manager.waitUntilReady();
+      } catch (error) {
+        releaseStreamDemand();
+        releaseStreamDemand = null;
+        throw error;
+      }
+    }
     // @ref LLP 0012#runtime-state — register before the snapshot request so a
     // shared socket cannot destructively drain and discard a post-snapshot
     // delta while the HTTP response is still in flight. The overlay buffers
@@ -4524,6 +4554,10 @@ export class SnapbackClient {
         () => overlay.applyInitialSnapshot(snapshot),
       );
       if (!committed.committed) throw staleAuthorityError();
+      if (releaseStreamDemand) {
+        overlay.adoptStreamDemand(releaseStreamDemand);
+        releaseStreamDemand = null;
+      }
       return overlay;
     } catch (error) {
       overlay?.dispose();
@@ -4534,12 +4568,21 @@ export class SnapbackClient {
         // socket unsubscribe so the abandoned server registration does not
         // linger until connection reap. Cleanup must never mask or delay the
         // original subscribe diagnostic.
-        void this.unsubscribeEphemeral(ref, {
+        const cleanup = this.unsubscribeEphemeral(ref, {
           connectionId,
           scope,
           userId,
           permissions,
         }).catch(() => {});
+        // Keep the socket alive only for this best-effort cleanup attempt.
+        // The failed overlay is already detached, and cleanup never delays or
+        // replaces the original subscription error.
+        const releaseAfterCleanup = releaseStreamDemand;
+        releaseStreamDemand = null;
+        void cleanup.finally(() => releaseAfterCleanup?.());
+      } else {
+        releaseStreamDemand?.();
+        releaseStreamDemand = null;
       }
       throw error;
     }
@@ -7162,6 +7205,7 @@ class LiveStreamManager {
     // and close the manager even while a caller is awaiting readiness.
     this.readinessStateListeners = new Set();
     this.pendingRequests = new Map();
+    this.demandLeases = new Set();
 
     this.ws = null;
     this.open = false;
@@ -7191,7 +7235,10 @@ class LiveStreamManager {
   }
 
   #demand() {
-    return this.durableListeners.size + this.ephemeralListeners.size + this.stateListeners.size;
+    return this.durableListeners.size
+      + this.ephemeralListeners.size
+      + this.stateListeners.size
+      + this.demandLeases.size;
   }
 
   #listen(set, listener) {
@@ -7213,6 +7260,28 @@ class LiveStreamManager {
 
   onState(listener) {
     return this.#listen(this.stateListeners, listener);
+  }
+
+  /// Own managed-socket demand without registering an observational callback.
+  /// Used by subscriptions whose lane delivery routes through the client's
+  /// shared consumer registry rather than a manager listener.
+  acquireDemand() {
+    if (this.closed) {
+      throw liveStreamReadinessError(
+        'SNAPBACK_LIVE_STREAM_CLOSED',
+        `Snapback live stream for ${this.connectionId} is closed`,
+      );
+    }
+    const lease = {};
+    this.demandLeases.add(lease);
+    this.#ensureSocket();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.demandLeases.delete(lease);
+      if (this.#demand() === 0) this.close();
+    };
   }
 
   isOpen() {
@@ -7890,6 +7959,7 @@ class LiveStreamManager {
     this.ephemeralListeners.clear();
     this.stateListeners.clear();
     this.readinessStateListeners.clear();
+    this.demandLeases.clear();
     this.onRelease();
   }
 }
@@ -8028,6 +8098,7 @@ export class EphemeralOverlay {
     this.__preSnapshotOverflowed = false;
     this.__drainCaptures = new Set();
     this.__changeListeners = new Set();
+    this.__releaseStreamDemand = null;
     this.__unregisterAuthMaterialization = client.registerAuthMaterialization?.({
       capture: () => this.authorityCapture,
       blank: () => this.#blankForAuthority(),
@@ -8121,6 +8192,22 @@ export class EphemeralOverlay {
     this.__unregisterAuthMaterialization?.();
     this.__unregisterAuthMaterialization = null;
     this.__changeListeners.clear();
+    this.__releaseStreamDemand?.();
+    this.__releaseStreamDemand = null;
+  }
+
+  /// Transfer the subscription's managed-socket lease to this overlay after
+  /// its authoritative initial snapshot commits. Before that point the
+  /// subscribe operation retains ownership so failure cleanup can still use
+  /// the socket after detaching the abandoned overlay.
+  adoptStreamDemand(release) {
+    if (typeof release !== 'function') {
+      throw new TypeError('Snapback ephemeral stream demand release must be a function');
+    }
+    if (this.__releaseStreamDemand) {
+      throw new TypeError('Snapback ephemeral overlay already owns stream demand');
+    }
+    this.__releaseStreamDemand = release;
   }
 
   /// Observe state changes (applied snapshots/upserts/removes and resync

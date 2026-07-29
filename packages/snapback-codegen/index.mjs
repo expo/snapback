@@ -2196,7 +2196,14 @@ function contractEphemeralDescriptor(collection, schemaDef) {
     name: collection.name,
     args: argDescriptors(def?.scope ?? {}),
     argOrder: Object.keys(def?.scope ?? {}),
-    result: { kind: 'list', row: { shape: 'unknown' } },
+    // The generated Contract row is known from the same collection validator
+    // that feeds api.d.ts and the per-collection descriptor sidecar. Preserve
+    // it across provider introspection instead of deliberately degrading the
+    // entire entry to unknown at the neutral metadata boundary.
+    //
+    // @ref LLP 0012#contract-artifacts — generated packages are typed,
+    // trustworthy contract artifacts rather than decorative declarations.
+    result: { kind: 'list', row: ephemeralEntryDescriptor(def?.value) },
     serverRunnable: false,
     localRunnable: true,
     subscription: 'initial-snapshot',
@@ -2211,6 +2218,20 @@ function contractEphemeralDescriptor(collection, schemaDef) {
     scopeFields: collection.scopeFields,
     defaultTtlMs: collection.defaultTtlMs,
     maxTtlMs: collection.maxTtlMs,
+  };
+}
+
+function ephemeralEntryDescriptor(valueValidator) {
+  return {
+    shape: 'object',
+    fields: {
+      key: { shape: 'primitive', name: 'string' },
+      value: validatorDescriptor(valueValidator),
+      updatedAt: { shape: 'primitive', name: 'number' },
+      expiresAt: { shape: 'primitive', name: 'number', optional: true },
+      sourceClientId: { shape: 'primitive', name: 'string' },
+      self: { shape: 'primitive', name: 'boolean' },
+    },
   };
 }
 

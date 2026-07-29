@@ -216,7 +216,12 @@ try {
     const scope = { boardId: 'board_1' };
     const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
     await assertThrows(
-      () => db.subscribeEphemeral(cursorRef, { connectionId: 'blocked_sub', scope, userId: GRACE }),
+      () => db.subscribeEphemeral(cursorRef, {
+        connectionId: 'blocked_sub',
+        scope,
+        userId: GRACE,
+        transport: 'poll',
+      }),
       'SNAPBACK_EPHEMERAL_UNAUTHORIZED',
       'non-member subscribe should fail',
     );
@@ -232,6 +237,7 @@ try {
       scope,
       userId: ADA,
       permissions,
+      transport: 'poll',
     });
     assertEqual(overlay.currentEntries(), [], 'initial cursor snapshot');
     await overlay.publish({ x: 1, y: 2, color: 'red' }, {
@@ -277,6 +283,7 @@ try {
       scope,
       userId: ADA,
       permissions,
+      transport: 'poll',
     });
     await db.liveQuery(api.listTodos, { connectionId: 'mixed_lane', userId: ADA });
     for (let i = 0; i < 6; i += 1) {

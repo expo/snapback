@@ -59,8 +59,20 @@ try {
     const permsA = [SnapbackClient.roomPermission('boardMember', scopeA)];
     const permsB = [SnapbackClient.roomPermission('boardMember', scopeB)];
     // ONE connection, two rooms.
-    const overlayA = await db.subscribeEphemeral('boardCursors', { connectionId: 'both_rooms', scope: scopeA, userId: ADA, permissions: permsA });
-    const overlayB = await db.subscribeEphemeral('boardCursors', { connectionId: 'both_rooms', scope: scopeB, userId: ADA, permissions: permsB });
+    const overlayA = await db.subscribeEphemeral('boardCursors', {
+      connectionId: 'both_rooms',
+      scope: scopeA,
+      userId: ADA,
+      permissions: permsA,
+      transport: 'poll',
+    });
+    const overlayB = await db.subscribeEphemeral('boardCursors', {
+      connectionId: 'both_rooms',
+      scope: scopeB,
+      userId: ADA,
+      permissions: permsB,
+      transport: 'poll',
+    });
     try {
       // Publishers in each room (separate connections so keys differ).
       const publishedA = await db.publishEphemeral('boardCursors', { connectionId: 'painter_A', scope: scopeA, userId: ADA, permissions: permsA, value: { x: 1, y: 1 } });
