@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "failedAt": "2026-07-29T05:50:00Z",
+  "scenario": "PARTY-07-LIVE-BURST",
+  "classification": "harness-transport-attribution",
+  "productBlame": false,
+  "diagnostic": {
+    "wallCounterBefore": 0,
+    "wallCounterAfter": 0,
+    "eventCounterBefore": 8,
+    "eventCounterAfter": 10,
+    "authoritativeWallTotal": 21,
+    "authoritativeMaybeCount": 1,
+    "realtimeSockets": 1
+  },
+  "remediation": "Create burst rows through Bob's authenticated client session so the user-scoped Realtime path is exercised end to end."
+}

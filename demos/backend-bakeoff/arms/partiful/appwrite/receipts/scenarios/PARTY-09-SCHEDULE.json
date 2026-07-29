@@ -1,0 +1,24 @@
+{
+  "id": "PARTY-09-SCHEDULE",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:59:08.523Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "appwrite-functions-scheduler",
+  "evidence": {
+    "functionId": "party-worker",
+    "scheduledAt": "2026-07-29T05:59:00.000Z",
+    "execution": {
+      "id": "6a699605ef4e9ea12d4e",
+      "trigger": "schedule",
+      "status": "completed"
+    },
+    "dedupeKey": "scheduled-event-01",
+    "attemptRows": [
+      {
+        "attempt": 1,
+        "outcome": "delivered"
+      }
+    ]
+  },
+  "note": "Appwrite's scheduled-execution API invoked the deployed function at a declared future time; its run and deduplicated attempt are inspectable."
+}

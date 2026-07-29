@@ -1,0 +1,21 @@
+{
+  "id": "PARTY-07-LIVE-BURST",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:56:21.912Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "appwrite-realtime-websocket",
+  "evidence": {
+    "secondClient": "persistent Chromium Bob session",
+    "transportSockets": 1,
+    "observed": {
+      "wallEvents": 80,
+      "eventEvents": 3
+    },
+    "authoritative": {
+      "wallRowsIncludingSeed": 21,
+      "yesCount": 50,
+      "maybeCount": 1
+    }
+  },
+  "note": "A second browser client observed the frozen 20-post burst and RSVP-total transition over Appwrite Realtime."
+}

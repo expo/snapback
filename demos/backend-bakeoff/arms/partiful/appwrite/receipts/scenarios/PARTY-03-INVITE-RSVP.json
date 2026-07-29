@@ -1,0 +1,35 @@
+{
+  "id": "PARTY-03-INVITE-RSVP",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:56:15.575Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "not-applicable",
+  "evidence": {
+    "invitationId": "invite-event-01-bob",
+    "attributedUserHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+    "transitions": [
+      {
+        "status": "yes",
+        "plusOnes": 1
+      },
+      {
+        "status": "maybe",
+        "plusOnes": 1
+      },
+      {
+        "status": "no",
+        "plusOnes": 0
+      },
+      {
+        "status": "yes",
+        "plusOnes": 1
+      }
+    ],
+    "authoritativeFinal": {
+      "status": "yes",
+      "plusOnes": 1,
+      "revoked": false
+    }
+  },
+  "note": "Bob's native session exercised yes/maybe/no plus-one transitions and admin authority verified every settlement."
+}

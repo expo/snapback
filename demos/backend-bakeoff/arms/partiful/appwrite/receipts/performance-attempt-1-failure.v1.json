@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "failedAt": "2026-07-29T06:15:00Z",
+  "classification": "browser-subscription-auth-race",
+  "productBlame": false,
+  "message": "Fresh performance browser initially established anonymous subscriptions while Auth restoration was racing, then failed to observe the first measured user-scoped wall event.",
+  "remediation": "Establish Realtime subscriptions only after React has an authenticated user; the anonymous public-preview path does not require push."
+}

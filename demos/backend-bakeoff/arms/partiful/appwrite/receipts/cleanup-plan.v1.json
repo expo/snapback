@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T05:14:49.365Z",
+  "exactWorkRoot": "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work",
+  "namespace": "llp0102-partiful-appwrite-w3",
+  "baselineReceipt": "receipts/baseline.v1.json",
+  "exactComposeFile": "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.arm-runtime/appwrite/docker-compose.yml",
+  "exactEnvFile": "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.arm-runtime/appwrite/.env",
+  "exactPorts": [
+    8092,
+    20082,
+    4334,
+    8492
+  ],
+  "exactRuntimePaths": [
+    "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.arm-runtime",
+    "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.cli-home",
+    "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.browser-runtime"
+  ],
+  "guard": "Only resources carrying the exact Compose project label or exact installer name may be removed.",
+  "unrelatedContainerAction": "preserve; never address by cleanup command",
+  "targetIdentityHash": "4ccd665646c487168ddc65da71804be4851e2f3d90be5a062bfc099605d5f423",
+  "targetMode": "fresh-local",
+  "baselineWasEmpty": true,
+  "effectSinkContainer": "llp0102-partiful-appwrite-w3-effect-sink",
+  "steps": [
+    "Stop only the exact recorded Vite PID after command/port validation.",
+    "Remove only the exact recorded effect-sink container after name, image, port, and runtime-record validation.",
+    "Remove only an exact arm-labeled installer if one still exists.",
+    "Run Docker Compose down -v for the exact generated files and exact Compose project.",
+    "Remove only the three ignored arm-local runtime directories.",
+    "Probe all assigned ports and exact Compose-label resources against the empty baseline."
+  ],
+  "recovery": "Removed local Appwrite data is not recoverable; retained bootstrap, schema, function, and deterministic provisioning source recreate it.",
+  "containsSecretValues": false
+}

@@ -1,0 +1,31 @@
+{
+  "id": "PARTY-02-PUBLIC-PRIVATE",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:56:15.532Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "not-applicable",
+  "evidence": {
+    "anonymousPublicPreviews": 19,
+    "previewFields": [
+      "title",
+      "description",
+      "starts_at",
+      "public",
+      "guest_list_visible",
+      "capacity",
+      "yes_count",
+      "maybe_count",
+      "no_count",
+      "host_id",
+      "cohost_id",
+      "sequence"
+    ],
+    "privateFieldsStructuralTable": [
+      "address",
+      "host_note"
+    ],
+    "anonymousPrivateRows": 0,
+    "directPrivateReadDenied": true
+  },
+  "note": "Anonymous reads returned public preview rows only; private fields live in a separately permissioned table."
+}

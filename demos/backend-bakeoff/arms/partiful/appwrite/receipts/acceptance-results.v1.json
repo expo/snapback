@@ -1,0 +1,690 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:59:10.340Z",
+  "expectedCheckCount": 15,
+  "observedCheckCount": 15,
+  "statusCounts": {
+    "pass": 14,
+    "gap": 1
+  },
+  "scenarios": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:15.499Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "not-applicable",
+      "evidence": {
+        "authoritativeAdminCounts": {
+          "events": 20,
+          "eventPrivate": 20,
+          "invitations": 4,
+          "guests": 49,
+          "wallPosts": 1,
+          "deliveries": 0,
+          "attempts": 0
+        },
+        "fixedDataset": {
+          "events": 20,
+          "guests": 49,
+          "capacity": 50,
+          "actors": 3,
+          "concurrentClients": 2,
+          "wallBurst": 20,
+          "assetBytes": 262144
+        },
+        "targetIdentity": {
+          "endpointHash": "ab66435e20eeca501e8bffea3cb5c0985e67ff55ca85921534ee72fa1e1eb1d1",
+          "projectIdHash": "03d4ac98033a135d1f2506d9db533ab8e8df4148f3415ad619e6e47e98a6ac65",
+          "version": "1.9.6"
+        },
+        "seedReceipt": "../seed.v1.json"
+      },
+      "note": "The exact frozen fixture and three native Auth principals were independently counted through Appwrite authority."
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:15.532Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "not-applicable",
+      "evidence": {
+        "anonymousPublicPreviews": 19,
+        "previewFields": [
+          "title",
+          "description",
+          "starts_at",
+          "public",
+          "guest_list_visible",
+          "capacity",
+          "yes_count",
+          "maybe_count",
+          "no_count",
+          "host_id",
+          "cohost_id",
+          "sequence"
+        ],
+        "privateFieldsStructuralTable": [
+          "address",
+          "host_note"
+        ],
+        "anonymousPrivateRows": 0,
+        "directPrivateReadDenied": true
+      },
+      "note": "Anonymous reads returned public preview rows only; private fields live in a separately permissioned table."
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:15.575Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "not-applicable",
+      "evidence": {
+        "invitationId": "invite-event-01-bob",
+        "attributedUserHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+        "transitions": [
+          {
+            "status": "yes",
+            "plusOnes": 1
+          },
+          {
+            "status": "maybe",
+            "plusOnes": 1
+          },
+          {
+            "status": "no",
+            "plusOnes": 0
+          },
+          {
+            "status": "yes",
+            "plusOnes": 1
+          }
+        ],
+        "authoritativeFinal": {
+          "status": "yes",
+          "plusOnes": 1,
+          "revoked": false
+        }
+      },
+      "note": "Bob's native session exercised yes/maybe/no plus-one transitions and admin authority verified every settlement."
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:15.627Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "not-applicable",
+      "evidence": {
+        "positive": {
+          "hostPrivateUpdate": true,
+          "cohostPublicUpdate": true,
+          "guestPrivateRead": true
+        },
+        "negative": {
+          "guestHostUpdateDenied": true,
+          "outsiderPrivateReadDenied": true,
+          "outsiderCohostUpdateDenied": true
+        },
+        "authority": "native Appwrite Auth sessions plus Team role and row permissions"
+      },
+      "note": "Host, cohost, guest, and outsider exercised distinct positive and negative authority paths."
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:20.806Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-realtime",
+      "evidence": {
+        "eventRemainedPublic": true,
+        "hidden": {
+          "bobDenied": true,
+          "malloryDenied": true
+        },
+        "visible": {
+          "invitedBobRow": "guest-01",
+          "outsiderMalloryDenied": true
+        },
+        "alreadyConnected": {
+          "before": 0,
+          "afterProtectedUpdate": 0
+        },
+        "transportSockets": 1
+      },
+      "note": "Guest-list permission transitioned independently of public preview; an already-connected client received no protected update."
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:21.021Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "native-appwrite-transaction",
+      "evidence": {
+        "twoActorBarrier": {
+          "actors": [
+            "bob",
+            "mallory"
+          ],
+          "stagedBeforeCommit": true
+        },
+        "settlement": {
+          "committed": 1,
+          "rejected": [
+            {
+              "code": 409,
+              "type": "transaction_conflict"
+            }
+          ]
+        },
+        "authoritative": {
+          "yesCount": 50,
+          "capacity": 50,
+          "statuses": [
+            "yes",
+            "invited"
+          ]
+        }
+      },
+      "note": "Two actor-scoped native transactions raced for the final seat; Appwrite committed one and rejected one with conflict."
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:21.912Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-realtime-websocket",
+      "evidence": {
+        "secondClient": "persistent Chromium Bob session",
+        "transportSockets": 1,
+        "observed": {
+          "wallEvents": 80,
+          "eventEvents": 3
+        },
+        "authoritative": {
+          "wallRowsIncludingSeed": 21,
+          "yesCount": 50,
+          "maybeCount": 1
+        }
+      },
+      "note": "A second browser client observed the frozen 20-post burst and RSVP-total transition over Appwrite Realtime."
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:56:21.948Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-storage",
+      "evidence": {
+        "bucketId": "event-art",
+        "objectId": "event-01-art",
+        "bytes": 262144,
+        "uploader": "alice-auth-session",
+        "authorizedDownloader": "bob-auth-session",
+        "contentSha256": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+        "outsiderDenied": true,
+        "postDeleteDenied": true
+      },
+      "note": "Authenticated upload, actor-specific delivery, exact content hash, and post-delete negative proof used Appwrite Storage."
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:59:08.523Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-functions-scheduler",
+      "evidence": {
+        "functionId": "party-worker",
+        "scheduledAt": "2026-07-29T05:59:00.000Z",
+        "execution": {
+          "id": "6a699605ef4e9ea12d4e",
+          "trigger": "schedule",
+          "status": "completed"
+        },
+        "dedupeKey": "scheduled-event-01",
+        "attemptRows": [
+          {
+            "attempt": 1,
+            "outcome": "delivered"
+          }
+        ]
+      },
+      "note": "Appwrite's scheduled-execution API invoked the deployed function at a declared future time; its run and deduplicated attempt are inspectable."
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:59:08.591Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-function-to-arm-effect-sink",
+      "evidence": {
+        "providerBoundary": {
+          "functionId": "party-worker",
+          "executionIds": [
+            "6a6996ac82531020f2ce",
+            "6a6996ac8a74ff91892f"
+          ],
+          "secretVariable": "redacted/present"
+        },
+        "attemptLedger": [
+          {
+            "attempt": 1,
+            "outcome": "delivered"
+          },
+          {
+            "attempt": 2,
+            "outcome": "duplicate-confirmed"
+          }
+        ],
+        "terminalSettlement": {
+          "deliveryRows": 1,
+          "deliveryCount": 1
+        }
+      },
+      "note": "The deployed Function crossed a secret-authenticated effect boundary twice while the unique dedupe ledger retained one delivery."
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:59:08.716Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-function-to-fault-injected-sink",
+      "evidence": {
+        "faultInjection": {
+          "firstSocketDestroyedAfterSinkCommit": true,
+          "sinkAttempts": [
+            {
+              "at": "2026-07-29T05:59:08.605Z",
+              "dedupeKey": "ambiguous-retry",
+              "attemptNumber": 1,
+              "duplicate": false,
+              "secretPresent": false
+            },
+            {
+              "at": "2026-07-29T05:59:08.632Z",
+              "dedupeKey": "ambiguous-retry",
+              "attemptNumber": 2,
+              "duplicate": true,
+              "secretPresent": false
+            }
+          ]
+        },
+        "firstExecution": {
+          "id": "6a6996ac92d55138f8eb",
+          "status": "failed"
+        },
+        "stateBeforeRetry": {
+          "attempts": [
+            "ambiguous"
+          ],
+          "deliveryRows": 0
+        },
+        "retryExecution": {
+          "id": "6a6996ac9977f9c65a26",
+          "status": "completed"
+        },
+        "finalAttemptLedger": [
+          {
+            "attempt": 1,
+            "outcome": "ambiguous"
+          },
+          {
+            "attempt": 2,
+            "outcome": "duplicate-confirmed"
+          }
+        ],
+        "finalDeliveryRows": 1
+      },
+      "note": "A sink-side commit followed by socket destruction remained explicitly ambiguous; retry learned duplicate success without a second effect."
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:59:10.275Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-realtime",
+      "evidence": {
+        "authorityChange": {
+          "invitation": "revoked",
+          "protectedRowPermissions": "host-only"
+        },
+        "negativeDelivery": {
+          "directDenied": true,
+          "realtimeCounterBefore": 80,
+          "realtimeCounterAfter": 80,
+          "protectedIdPresent": false
+        },
+        "retainedStoreInspection": {
+          "beforeIds": "wall-seed,wall-live-01,wall-live-02,wall-live-03,wall-live-04,wall-live-05,wall-live-06,wall-live-07,wall-live-08,wall-live-09,wall-live-10,wall-live-11,wall-live-12,wall-live-13,wall-live-14,wall-live-15,wall-live-16,wall-live-17,wall-live-18,wall-live-19,wall-live-20",
+          "afterIds": "wall-seed,wall-live-01,wall-live-02,wall-live-03,wall-live-04,wall-live-05,wall-live-06,wall-live-07,wall-live-08,wall-live-09,wall-live-10,wall-live-11,wall-live-12,wall-live-13,wall-live-14,wall-live-15,wall-live-16,wall-live-17,wall-live-18,wall-live-19,wall-live-20",
+          "oldAuthorizedDataRetainedInReactMemory": true,
+          "durableOfflineStore": "none implemented"
+        }
+      },
+      "note": "Revocation stopped future protected reads and Realtime delivery; the UI honestly retained previously authorized in-memory data until refresh."
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "gap",
+      "checkedAt": "2026-07-29T05:59:10.279Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "unavailable-remote-dependency",
+      "evidence": {
+        "localProviderDeployment": {
+          "checkedAt": "2026-07-29T05:38:43.181Z",
+          "functionId": "party-worker",
+          "runtime": "node-22",
+          "deploymentId": "6a6991e01fe611c85c71",
+          "status": "ready",
+          "buildDuration": 3,
+          "secretValuePresent": false
+        },
+        "redactedConfiguration": {
+          "effectUrlConfigured": true,
+          "effectSecretConfigured": true,
+          "apiKeySecretConfigured": true,
+          "secretValuesPresent": false
+        },
+        "localEffectReceipt": {
+          "attempts": 5
+        },
+        "hostedTarget": null,
+        "gapReason": "No arm-scoped Appwrite Cloud target or credentials were provided; the fresh self-host target proves the provider boundary but is not mislabeled hosted."
+      },
+      "note": "Local Appwrite Function deployment, secret configuration, logs, and effects are inspectable; hosted evidence is an environment/credential GAP."
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "status": "pass",
+      "checkedAt": "2026-07-29T06:15:29.936Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "appwrite-realtime-websocket",
+      "evidence": {
+        "schemaVersion": 1,
+        "checkedAt": "2026-07-29T06:15:29.936Z",
+        "claimScope": "isolated local Appwrite 1.9.6 self-host stack; not hosted or production latency",
+        "frozenDataset": {
+          "events": 20,
+          "contendedGuests": 49,
+          "capacity": 50,
+          "wallBurst": 20,
+          "assetBytes": 262144,
+          "actors": 3,
+          "concurrentClients": 2
+        },
+        "warmupsPerPath": 2,
+        "recordedSamplesPerPath": 7,
+        "statistic": "median and nearest-rank p95 over seven retained measurements",
+        "paths": {
+          "contention": {
+            "rawSamplesMs": [
+              56.126,
+              107.58,
+              151.034,
+              126.538,
+              58.955,
+              63.06,
+              118.803
+            ],
+            "medianMs": 107.58,
+            "nearestRankP95Ms": 151.034
+          },
+          "burst": {
+            "rawSamplesMs": [
+              173.11,
+              171.615,
+              164.843,
+              153.998,
+              146.233,
+              155.835,
+              175.97
+            ],
+            "medianMs": 164.843,
+            "nearestRankP95Ms": 175.97
+          },
+          "asset": {
+            "rawSamplesMs": [
+              24.528,
+              19.884,
+              20.014,
+              19.643,
+              23.394,
+              20.576,
+              18.91
+            ],
+            "medianMs": 20.014,
+            "nearestRankP95Ms": 24.528
+          },
+          "realtime": {
+            "rawSamplesMs": [
+              15.642,
+              13.932,
+              14.095,
+              13.211,
+              13.573,
+              14.436,
+              12.519
+            ],
+            "medianMs": 13.932,
+            "nearestRankP95Ms": 15.642
+          },
+          "deployBuild": {
+            "rawSamplesMs": [
+              466.867,
+              455.203,
+              467.137,
+              463.595,
+              471.243,
+              537.399,
+              838.987
+            ],
+            "medianMs": 467.137,
+            "nearestRankP95Ms": 838.987
+          }
+        },
+        "realtimeWebSocketsObserved": 1,
+        "productPolling": false,
+        "dockerResources": {
+          "composeProject": "llp0102-partiful-appwrite-w3",
+          "containerSnapshots": [
+            {
+              "name": "llp0102-partiful-appwrite-w3-effect-sink",
+              "memory": "13.4MiB / 7.737GiB",
+              "cpu": "0.02%"
+            },
+            {
+              "name": "appwrite",
+              "memory": "368.1MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "exc1",
+              "memory": "68.99MiB / 7.737GiB",
+              "cpu": "1.30%"
+            },
+            {
+              "name": "appwrite-mongodb",
+              "memory": "235.9MiB / 7.737GiB",
+              "cpu": "1.15%"
+            },
+            {
+              "name": "appwrite-traefik",
+              "memory": "30.88MiB / 7.737GiB",
+              "cpu": "0.06%"
+            },
+            {
+              "name": "appwrite-task-scheduler-executions",
+              "memory": "74.24MiB / 7.737GiB",
+              "cpu": "0.21%"
+            },
+            {
+              "name": "appwrite-realtime",
+              "memory": "109.8MiB / 7.737GiB",
+              "cpu": "0.17%"
+            },
+            {
+              "name": "appwrite-worker-certificates",
+              "memory": "59.33MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-audits",
+              "memory": "63.52MiB / 7.737GiB",
+              "cpu": "0.02%"
+            },
+            {
+              "name": "appwrite-worker-databases",
+              "memory": "59.05MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-deletes",
+              "memory": "63.19MiB / 7.737GiB",
+              "cpu": "0.03%"
+            },
+            {
+              "name": "appwrite-worker-builds",
+              "memory": "64.38MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-task-scheduler-messages",
+              "memory": "74.02MiB / 7.737GiB",
+              "cpu": "0.20%"
+            },
+            {
+              "name": "appwrite-worker-webhooks",
+              "memory": "62.37MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-stats-usage",
+              "memory": "63.74MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-task-scheduler-functions",
+              "memory": "74.38MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-screenshots",
+              "memory": "59.03MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-messaging",
+              "memory": "59.05MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-task-stats-resources",
+              "memory": "73.95MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-task-interval",
+              "memory": "74.04MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-mails",
+              "memory": "59.26MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-executions",
+              "memory": "65.16MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-functions",
+              "memory": "63.68MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-task-maintenance",
+              "memory": "73.94MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-stats-resources",
+              "memory": "59.07MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-migrations",
+              "memory": "59.1MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-redis",
+              "memory": "7.469MiB / 7.737GiB",
+              "cpu": "0.65%"
+            },
+            {
+              "name": "appwrite-browser",
+              "memory": "154.6MiB / 7.737GiB",
+              "cpu": "0.31%"
+            },
+            {
+              "name": "appwrite-console",
+              "memory": "4.527MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-embedding",
+              "memory": "856.3MiB / 7.737GiB",
+              "cpu": "0.00%"
+            }
+          ]
+        },
+        "machine": {
+          "architecture": "arm64",
+          "host": "Mac17,3",
+          "dockerCpus": 4,
+          "dockerMemory": "8 GiB",
+          "node": "v24.14.0"
+        },
+        "costWindow": {
+          "measuredProviderCharge": "$0.00",
+          "basis": "open-source Appwrite software in an arm-owned local Colima VM; host compute excluded",
+          "hostedActualUsage": "unavailable — no hosted target credentials",
+          "hostedListPriceEstimate": "not claimed"
+        }
+      },
+      "note": "Two warmups and seven retained samples cover frozen contention, burst, asset, Realtime, and deploy/build paths."
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "status": "pass",
+      "checkedAt": "2026-07-29T06:22:53Z",
+      "projectId": "llp0102-partiful-appwrite-w3",
+      "transport": "not-applicable",
+      "evidence": {
+        "port8092Closed": true,
+        "port20082Closed": true,
+        "port4334Closed": true,
+        "port8492Closed": true,
+        "matchingContainersRestored": true,
+        "matchingVolumesRestored": true,
+        "matchingNetworksRestored": true,
+        "openRuntimesContainersAbsent": true,
+        "effectSinkAbsent": true,
+        "absent:.arm-runtime": true,
+        "absent:.cli-home": true,
+        "absent:.browser-runtime": true
+      },
+      "note": "Exact-project cleanup removed only the recorded stack, effect sink, Vite listener, and arm-local runtime paths; all ports and exact resources are negative."
+    }
+  ],
+  "milestones": {
+    "firstLocalReadMs": 2486133,
+    "firstAuthoritativeMutationMs": 2486210,
+    "firstRealtimeTransitionMs": 2492547,
+    "localAcceptanceMs": 3640574,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 4083635
+  },
+  "stopDefects": [],
+  "finishedAt": "2026-07-29T06:22:53Z"
+}

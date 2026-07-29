@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:14:49.365Z",
+  "exactWorkRoot": "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work",
+  "namespace": "llp0102-partiful-appwrite-w3",
+  "sourceBaseCommit": "1fc440a545b6e3975a1cf96884e6da7df0692080",
+  "observedSourceCommit": "1fc440a545b6e3975a1cf96884e6da7df0692080",
+  "frozenSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "dockerContext": "colima",
+  "dockerCapacity": {
+    "cpus": 4,
+    "memoryBytes": 8307101696
+  },
+  "ports": {
+    "4334": "closed",
+    "8092": "closed",
+    "8492": "closed",
+    "20082": "closed"
+  },
+  "matchingContainers": [],
+  "matchingVolumes": [],
+  "matchingNetworks": [],
+  "unrelatedContainerHashes": [
+    "c5eea9d332376a812327263f1cd8637b55127a207def28f795cb3e3e90e3fb17",
+    "b69507cbdf28f9441aec5c5e7bf9edfed7c6b1d74287c8e18c1879c739e3c411",
+    "6cc060aaf79480d79f4db5b190f7a2d1cd559aa223edbde8cbd6ef2e57a43928",
+    "4a412407899d35c80b3668d14597f4bc3460a2b5ff2c45459588a52d94077a83",
+    "b697b055e568a2fb2c8d8319bc567e96249409ed2da4b25bb15ad94165718b03",
+    "d3797797f8870cd9341e6d85120dd2d60b845214f6bbd5253a0c819768ef3120",
+    "f87971226920eccfa5b750a18a684c82afaa821c02350f93e77e7102153c03a0",
+    "a07690f1947658f1674bfeb3e977bbf1f5e525790b48f99f9ed8060ca83a66d0",
+    "d2d6b4e913a647791e361f198aa6a8ee696c5cf9a0fb29170942c586e27903ee",
+    "6a46d6ebc12b61f0e3d789fd5d8519348491d959dead9532068d3a861a0a7596",
+    "a5b36465ebe9f039ffd8a51daf56d610b6e5c8d74b2ad17cab75a77cabe3f0b2",
+    "ad8e925fcbc938350f1190a843a2dcda2d226bb056b938889bf4a11e55c09fb1",
+    "b601e585dcdf1224ab8a03a7c34e72085f49569955b5b8a30b881b018dc84331",
+    "002677acd613676e1ac5e892f29b913b2142e89ee9ca31d700b3c517fe97064d",
+    "99048198304adbf05e3e390d829c63b9f055e4edbac774dc577759ae261248fd"
+  ],
+  "composePaths": {
+    "composeFile": "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.arm-runtime/appwrite/docker-compose.yml",
+    "envFile": "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.arm-runtime/appwrite/.env"
+  },
+  "runtimeRoot": "/private/tmp/llp0102-partiful-appwrite-w3/demos/backend-bakeoff/arms/partiful/appwrite/work/.arm-runtime",
+  "status": "empty"
+}

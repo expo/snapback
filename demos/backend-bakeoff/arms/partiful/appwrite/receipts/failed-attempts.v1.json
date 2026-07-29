@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T06:16:00Z",
+  "attempts": [
+    {
+      "command": "Hetzner Appwrite preflight",
+      "exitStatus": 1,
+      "classification": "environment-prerequisite",
+      "diagnostic": "No Docker-compatible runtime, passwordless sudo, or usable rootless namespace support.",
+      "resolution": "Coordinator reassigned this arm to an isolated local control-plane target.",
+      "productBlame": false,
+      "receipt": "hetzner-preflight-failure.v1.json"
+    },
+    {
+      "command": "npm run install:stack",
+      "exitStatus": 1,
+      "classification": "installer-stream-termination",
+      "diagnostic": "Official installer SSE terminated after the exact stack was already healthy; Colima did not mirror /private/tmp bind outputs.",
+      "resolution": "Readiness-gated recovery copied generated Compose files from the exact installer container.",
+      "productBlame": false,
+      "receipt": "install-attempt-1-failure.v1.json"
+    },
+    {
+      "command": "first function smoke execution",
+      "exitStatus": 1,
+      "classification": "control-plane-network-and-function-key",
+      "diagnostic": "Colima runtime could not reach a macOS-hosted sink, and the generated execution key did not authorize the TablesDB write at the external API endpoint.",
+      "resolution": "Placed an arm-owned sink on the isolated runtimes network and configured the arm API key as a secret function variable.",
+      "productBlame": false
+    },
+    {
+      "command": "acceptance attempts 1-4",
+      "exitStatus": 1,
+      "classification": "realtime-subscription-ergonomics",
+      "diagnostic": "Concurrent and array multi-channel subscribe patterns failed to observe later wall/guest channels; collection delivery also required table-level read authority.",
+      "resolution": "Awaited subscriptions sequentially and modeled visibility/revocation with explicit table permission transitions.",
+      "productBlame": true,
+      "receipts": [
+        "acceptance-attempt-1-failure.v1.json",
+        "acceptance-attempt-2-failure.v1.json",
+        "acceptance-attempt-3-failure.v1.json",
+        "acceptance-attempt-4-failure.v1.json"
+      ]
+    },
+    {
+      "command": "cron schedule acceptance",
+      "exitStatus": 1,
+      "classification": "local-scheduler-latency",
+      "diagnostic": "Cron scheduler loaded and enqueued the function, but the execution was not inspectable inside the bounded harness wait.",
+      "resolution": "Used Appwrite's native future scheduledAt execution API with minute precision.",
+      "productBlame": false,
+      "receipt": "acceptance-attempt-5-schedule-failure.v1.json"
+    },
+    {
+      "command": "first performance run",
+      "exitStatus": 1,
+      "classification": "auth-subscription-race-and-client-rate-limit",
+      "diagnostic": "A fresh browser raced anonymous Realtime registration with Auth restoration; repeated client-session burst writes also reached endpoint rate limiting.",
+      "resolution": "Subscribed only after Auth and used native server batch createRows for each exact 20-row burst.",
+      "productBlame": false,
+      "receipt": "performance-attempt-1-failure.v1.json"
+    },
+    {
+      "command": "first exact cleanup proof",
+      "exitStatus": 1,
+      "classification": "provider-runtime-residue-and-probe-bug",
+      "diagnostic": "Compose cleanup left three exact project-named Open Runtimes containers, while docker inspect of the absent sink returned an empty JSON array on stdout despite failure.",
+      "resolution": "Validated runtime name/ID/type/image before removal, changed the sink probe to use exit status, and added an Open Runtimes negative probe.",
+      "productBlame": false,
+      "receipt": "cleanup-attempt-1-failure.v1.json"
+    }
+  ],
+  "containsSecretValues": false
+}

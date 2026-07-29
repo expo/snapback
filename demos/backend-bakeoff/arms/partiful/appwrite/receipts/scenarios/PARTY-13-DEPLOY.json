@@ -1,0 +1,30 @@
+{
+  "id": "PARTY-13-DEPLOY",
+  "status": "gap",
+  "checkedAt": "2026-07-29T05:59:10.279Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "unavailable-remote-dependency",
+  "evidence": {
+    "localProviderDeployment": {
+      "checkedAt": "2026-07-29T05:38:43.181Z",
+      "functionId": "party-worker",
+      "runtime": "node-22",
+      "deploymentId": "6a6991e01fe611c85c71",
+      "status": "ready",
+      "buildDuration": 3,
+      "secretValuePresent": false
+    },
+    "redactedConfiguration": {
+      "effectUrlConfigured": true,
+      "effectSecretConfigured": true,
+      "apiKeySecretConfigured": true,
+      "secretValuesPresent": false
+    },
+    "localEffectReceipt": {
+      "attempts": 5
+    },
+    "hostedTarget": null,
+    "gapReason": "No arm-scoped Appwrite Cloud target or credentials were provided; the fresh self-host target proves the provider boundary but is not mislabeled hosted."
+  },
+  "note": "Local Appwrite Function deployment, secret configuration, logs, and effects are inspectable; hosted evidence is an environment/credential GAP."
+}

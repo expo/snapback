@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:15:20Z",
+  "classification": "installer-stream-environment",
+  "provider": "Appwrite 1.9.6 self-host",
+  "failure": "The official web installer's SSE connection terminated after the exact isolated Compose stack reached healthy.",
+  "authoritativeState": {
+    "healthVersionHttpStatus": 200,
+    "reportedVersion": "1.9.6",
+    "exactComposeProject": "llp0102-partiful-appwrite-w3",
+    "installerLabelVerified": true
+  },
+  "workaround": "Copied the generated Compose, environment, and Mongo bootstrap files from the exact arm-labeled installer container; future runs recover this automatically only after the bound health endpoint is positive.",
+  "productBlame": false,
+  "containsSecretValues": false
+}

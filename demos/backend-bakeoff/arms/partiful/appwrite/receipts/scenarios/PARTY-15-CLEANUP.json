@@ -1,0 +1,22 @@
+{
+  "id": "PARTY-15-CLEANUP",
+  "status": "pass",
+  "checkedAt": "2026-07-29T06:22:53Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "not-applicable",
+  "evidence": {
+    "port8092Closed": true,
+    "port20082Closed": true,
+    "port4334Closed": true,
+    "port8492Closed": true,
+    "matchingContainersRestored": true,
+    "matchingVolumesRestored": true,
+    "matchingNetworksRestored": true,
+    "openRuntimesContainersAbsent": true,
+    "effectSinkAbsent": true,
+    "absent:.arm-runtime": true,
+    "absent:.cli-home": true,
+    "absent:.browser-runtime": true
+  },
+  "note": "Exact-project cleanup removed only the recorded stack, effect sink, Vite listener, and arm-local runtime paths; all ports and exact resources are negative."
+}

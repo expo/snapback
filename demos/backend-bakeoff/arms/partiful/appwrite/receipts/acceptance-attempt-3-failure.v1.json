@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "failedAt": "2026-07-29T05:52:00Z",
+  "scenario": "PARTY-07-LIVE-BURST",
+  "classification": "client-sdk-subscription-race",
+  "productBlame": true,
+  "diagnostic": {
+    "concurrentSubscribeCalls": 3,
+    "activeSocketCount": 1,
+    "eventChannelDelivered": true,
+    "wallChannelDelivered": false,
+    "authenticatedMutationRemediationDidNotChangeOutcome": true
+  },
+  "remediation": "Use one Appwrite Realtime subscribe call with the array of all three channels, then route messages by channel."
+}

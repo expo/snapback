@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:09:55Z",
+  "classification": "environment",
+  "requestedMachine": "expo-build-1000 / 100.65.137.99",
+  "requestedWorktree": "/home/ccheever/worktrees/llp0102-partiful-appwrite-w3",
+  "capacity": {
+    "logicalCpus": 96,
+    "availableMemory": "242 GiB",
+    "availableDisk": "639 GiB",
+    "loadAverage": [0.84, 0.29, 0.10],
+    "assignedPortsObservedClosed": [8092, 8492, 20082, 4334]
+  },
+  "blocker": {
+    "dockerClientPresent": false,
+    "dockerServiceActive": false,
+    "containerdServiceActive": false,
+    "passwordlessSudoAvailable": false,
+    "rootlessUserNamespaceAvailable": false,
+    "rootlessProbe": "unshare -Ur failed while writing /proc/self/uid_map",
+    "officialComposeProvisionAttempted": false
+  },
+  "productBlame": false,
+  "resolution": "Coordinator redirected the unchanged arm assignment to an isolated control-plane worktree with a Docker-capable Colima context.",
+  "containsSecretValues": false
+}

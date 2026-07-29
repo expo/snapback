@@ -1,0 +1,18 @@
+{
+  "id": "PARTY-08-ASSET",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:56:21.948Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "appwrite-storage",
+  "evidence": {
+    "bucketId": "event-art",
+    "objectId": "event-01-art",
+    "bytes": 262144,
+    "uploader": "alice-auth-session",
+    "authorizedDownloader": "bob-auth-session",
+    "contentSha256": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+    "outsiderDenied": true,
+    "postDeleteDenied": true
+  },
+  "note": "Authenticated upload, actor-specific delivery, exact content hash, and post-delete negative proof used Appwrite Storage."
+}

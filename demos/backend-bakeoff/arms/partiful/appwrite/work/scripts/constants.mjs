@@ -1,0 +1,28 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+export const namespace = "llp0102-partiful-appwrite-w3";
+export const projectId = namespace;
+export const databaseId = "partiful";
+export const apiPort = 8092;
+export const installerPort = 20082;
+export const vitePort = 4334;
+export const httpsPort = 8492;
+export const endpoint = `http://127.0.0.1:${apiPort}/v1`;
+export const installerEndpoint = `http://127.0.0.1:${installerPort}`;
+export const appwriteVersion = "1.9.6";
+export const installerImage = `appwrite/appwrite:${appwriteVersion}`;
+export const workRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const armRoot = path.resolve(workRoot, "..");
+export const receiptsRoot = path.resolve(armRoot, "receipts");
+export const runtimeRoot = path.resolve(workRoot, ".arm-runtime");
+export const composeRoot = path.resolve(runtimeRoot, "appwrite");
+export const composeFile = path.resolve(composeRoot, "docker-compose.yml");
+export const envFile = path.resolve(composeRoot, ".env");
+export const cliHome = path.resolve(workRoot, ".cli-home");
+export const runtimeFile = path.resolve(runtimeRoot, "owner.json");
+export const installerName = `${namespace}-installer`;
+export const assignedPorts = [apiPort, installerPort, vitePort, httpsPort];
+export const frozenSnapbackCommit = "5f31cb6174daaefa04a1e05242acbbc22c725040";
+export const freezeAggregateSha256 = "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a";
+export const armBaseCommit = "1fc440a545b6e3975a1cf96884e6da7df0692080";

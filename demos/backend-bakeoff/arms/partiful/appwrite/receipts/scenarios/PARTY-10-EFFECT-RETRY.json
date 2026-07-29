@@ -1,0 +1,32 @@
+{
+  "id": "PARTY-10-EFFECT-RETRY",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:59:08.591Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "appwrite-function-to-arm-effect-sink",
+  "evidence": {
+    "providerBoundary": {
+      "functionId": "party-worker",
+      "executionIds": [
+        "6a6996ac82531020f2ce",
+        "6a6996ac8a74ff91892f"
+      ],
+      "secretVariable": "redacted/present"
+    },
+    "attemptLedger": [
+      {
+        "attempt": 1,
+        "outcome": "delivered"
+      },
+      {
+        "attempt": 2,
+        "outcome": "duplicate-confirmed"
+      }
+    ],
+    "terminalSettlement": {
+      "deliveryRows": 1,
+      "deliveryCount": 1
+    }
+  },
+  "note": "The deployed Function crossed a secret-authenticated effect boundary twice while the unique dedupe ledger retained one delivery."
+}

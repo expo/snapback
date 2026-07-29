@@ -1,0 +1,8 @@
+.arm-runtime/
+.cli-home/
+.browser-runtime/
+.agents/
+.claude/
+dist/
+node_modules/
+public/personas.json
