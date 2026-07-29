@@ -5805,7 +5805,7 @@ export class SnapbackClient {
     preloadedResume = null,
     // Channel C register-mode seam (LLP 0090 D4 rollout step 7): a
     // subscription this connection ALREADY owns from a register-mode bundle
-    // (`{ subscriptionId, rows, version, resume }` — see rqs-preload.mjs
+    // (`{ subscriptionId, rows, version, resume, attachDeadline }` — see rqs-preload.mjs
     // createRqsRegisteredRegistry). The bundle response IS the LLP
     // 0053-mandated fresh snapshot taken at the registration cut, so the
     // handle adopts it as current state and opens NO fresh
@@ -5820,6 +5820,13 @@ export class SnapbackClient {
   } = {}) {
     if (this.__externalBearerTransition) {
       await this.__externalBearerTransition;
+    }
+    if (registeredSubscription && transport !== 'stream') {
+      const error = new Error(
+        "SNAPBACK_REGISTERED_SUBSCRIPTION_STREAM_REQUIRED: registered bundle adoption requires transport:'stream'",
+      );
+      error.code = 'SNAPBACK_REGISTERED_SUBSCRIPTION_STREAM_REQUIRED';
+      throw error;
     }
     const name = functionName(ref);
     const client = this;
@@ -7704,9 +7711,9 @@ export class SnapbackClient {
     // fix 5): detach (dropping manager demand closes the shared socket when
     // this was its only consumer), mark the handle disposed, and rethrow —
     // liveQuery() fails loudly and leaves nothing running.
-    const establish = async () => {
+    const establishUnchecked = async () => {
       setConnection('connecting');
-      if (registeredSubscription && transport === 'stream') {
+      if (registeredSubscription) {
         detachStream = attachStream();
         const attachDeadline = registeredSubscription.attachDeadline;
         const remaining = Number.isSafeInteger(attachDeadline)
@@ -7810,6 +7817,31 @@ export class SnapbackClient {
       } else {
         setConnection('polling');
         emitEstablishedOnce();
+      }
+    };
+
+    const establish = async () => {
+      try {
+        await establishUnchecked();
+      } catch (error) {
+        // Registered adoption can fail before the ordinary subscribe branch
+        // (missing/expired attach authority or a failed socket readiness
+        // proof). Tear down the same resources as a failed fresh subscribe;
+        // no rejected boot may retain client demand past the server's bounded
+        // pending owner.
+        //
+        // @ref LLP 0092#0d4-attach-grace-reaping-and-pending-owner-bounds
+        disposed = true;
+        invalidateSubscribeLifecycle('disposed');
+        stopFallback();
+        clearResubscribeRetry();
+        unregisterAuthMaterialization();
+        unregisterExternalBearerHandle();
+        unregisterDurable();
+        detachStream?.();
+        detachStream = null;
+        setConnection('disconnected');
+        throw error;
       }
     };
 

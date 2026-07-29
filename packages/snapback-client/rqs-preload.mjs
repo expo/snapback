@@ -99,6 +99,20 @@ export function readRqsPreloadRegistry(options = {}) {
 export function createRqsRegisteredRegistry(bundle) {
   const entries = new Map();
   const commitVersion = typeof bundle?.commitVersion === 'number' ? bundle.commitVersion : 0;
+  const attachDeadline = Number.isSafeInteger(bundle?.connection?.attachDeadline)
+    && bundle.connection.attachDeadline >= 0
+    ? bundle.connection.attachDeadline
+    : null;
+  const connection = typeof bundle?.connection?.connectionId === 'string'
+    && bundle.connection.connectionId.length > 0
+    && typeof bundle.connection.grant === 'string'
+    && bundle.connection.grant.length > 0
+    ? {
+        connectionId: bundle.connection.connectionId,
+        grant: bundle.connection.grant,
+        attachDeadline,
+      }
+    : null;
   for (const entry of bundle?.entries ?? []) {
     if (!entry || typeof entry.function !== 'string') continue;
     if (typeof entry.subscriptionId !== 'string' || entry.subscriptionId.length === 0) continue;
@@ -109,10 +123,14 @@ export function createRqsRegisteredRegistry(bundle) {
       rows: Array.isArray(entry.rows) ? entry.rows : [],
       version: commitVersion,
       resume: entry.resume && typeof entry.resume.token === 'string' ? entry.resume : null,
+      // @ref LLP 0092#0d4-attach-grace-reaping-and-pending-owner-bounds —
+      // every adopted registration is usable only inside its bundle owner's
+      // exact server-authored attach window.
+      attachDeadline,
     });
   }
   return {
-    connection: bundle?.connection ?? null,
+    connection,
     generation: typeof bundle?.generation === 'string' ? bundle.generation : null,
     versionStream: typeof bundle?.versionStream === 'string' ? bundle.versionStream : null,
     get size() {

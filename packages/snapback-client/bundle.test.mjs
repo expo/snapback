@@ -150,7 +150,7 @@ try {
     connection: {
       connectionId: 'conn_reg',
       grant: 'sct_reg_secret',
-      attachDeadline: 987654,
+      attachDeadline: Date.now() + 30_000,
     },
   };
   const boot = await client.fetchBundle({
@@ -164,16 +164,43 @@ try {
   assert.equal(registry.connection.connectionId, 'conn_reg');
   assert.equal(registry.lookup('listPosts', {}).version, 9, 'entry version is the bundle commit');
   assert.equal(registry.lookup('listPosts', {}).resume, null);
+  assert.equal(
+    registry.lookup('listPosts', {}).attachDeadline,
+    boot.connection.attachDeadline,
+    'each registered entry retains the pending owner attach deadline',
+  );
+
+  const streamStates = new Set();
+  let readyTimeoutMs = null;
+  const streamManager = {
+    onState(listener) {
+      streamStates.add(listener);
+      return () => streamStates.delete(listener);
+    },
+    async waitUntilReady({ timeoutMs }) {
+      readyTimeoutMs = timeoutMs;
+      for (const listener of streamStates) listener('open');
+      return 1;
+    },
+    isOpen() {
+      return true;
+    },
+  };
+  client.liveStreamManager = () => streamManager;
 
   const updates = [];
   const handle = await client.liveQuery('listPosts', {
     connectionId: 'conn_reg',
     userId: 'user_1',
-    transport: 'poll',
+    transport: 'stream',
     persistResume: false,
     registeredSubscription: registry.consume('listPosts', {}),
     onUpdate: (rows, detail) => updates.push({ kind: detail.kind, rows: rows.length }),
   });
+  assert.ok(
+    readyTimeoutMs > 0 && readyTimeoutMs <= 30_000,
+    `socket readiness is bounded by the projected attach deadline: ${readyTimeoutMs}`,
+  );
   assert.equal(registry.consume('listPosts', {}), null, 'registry consumption is one-shot');
   assert.equal(handle.subscriptionId, 'sub_reg_1', 'the bundle registration is adopted');
   assert.deepEqual(handle.rows, [{ _id: 'p1', title: 'hello' }]);
@@ -216,6 +243,38 @@ try {
     'the adopted registration drains under the bundle grant',
   );
   handle.dispose();
+
+  await assert.rejects(
+    client.liveQuery('listPosts', {
+      connectionId: 'conn_reg',
+      transport: 'poll',
+      registeredSubscription: {
+        subscriptionId: 'sub_poll_forbidden',
+        rows: [],
+        version: 9,
+        resume: null,
+        attachDeadline: Date.now() + 30_000,
+      },
+    }),
+    (error) => error?.code === 'SNAPBACK_REGISTERED_SUBSCRIPTION_STREAM_REQUIRED',
+    'registered state cannot publish without the required socket attach/handoff',
+  );
+
+  await assert.rejects(
+    client.liveQuery('listPosts', {
+      connectionId: 'conn_reg',
+      transport: 'stream',
+      registeredSubscription: {
+        subscriptionId: 'sub_missing_deadline',
+        rows: [{ _id: 'forbidden', title: 'must not publish' }],
+        version: 9,
+        resume: null,
+      },
+    }),
+    (error) => error?.code === 'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED',
+    'missing attach authority fails closed before registered rows publish',
+  );
+  assert.equal(streamStates.size, 0, 'a refused registered boot releases stream demand');
 
   console.log('bundle.test.mjs passed');
 } finally {

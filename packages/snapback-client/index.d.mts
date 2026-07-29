@@ -225,6 +225,40 @@ export interface LiveQueryHandle<Rows> {
   flushResumeState(): Promise<void>;
 }
 
+export interface RqsRegisteredSubscription {
+  readonly subscriptionId: string;
+  readonly rows: readonly unknown[];
+  readonly version: number;
+  readonly resume: null | Readonly<Record<string, unknown> & { readonly token: string }>;
+  readonly attachDeadline: number | null;
+  readonly authorization?: unknown;
+}
+
+export interface RqsRegisteredRegistry {
+  readonly connection: null | Readonly<{
+    connectionId: string;
+    grant: string;
+    attachDeadline: number | null;
+  }>;
+  readonly generation: string | null;
+  readonly versionStream: string | null;
+  readonly size: number;
+  lookup(name: string, args?: Readonly<Record<string, unknown>>): RqsRegisteredSubscription | null;
+  consume(name: string, args?: Readonly<Record<string, unknown>>): RqsRegisteredSubscription | null;
+}
+
+export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegistry;
+
+export type LiveQueryRegistrationOptions =
+  | Readonly<{
+      transport: 'stream';
+      registeredSubscription?: RqsRegisteredSubscription | null;
+    }>
+  | Readonly<{
+      transport?: 'poll';
+      registeredSubscription?: null;
+    }>;
+
 export interface StartedLiveQueryHandle<Rows> {
   readonly current: LiveQueryHandle<Rows> | null;
   started(): Promise<void>;
@@ -663,7 +697,6 @@ export class SnapbackClient {
       readonly connectionId: string;
       readonly args?: FunctionArgs<Ref>;
       readonly userId?: string;
-      readonly transport?: 'poll' | 'stream';
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
       readonly onUpdate?: (rows: FunctionResult<Ref>) => void;
@@ -671,7 +704,7 @@ export class SnapbackClient {
         connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
-    },
+    } & LiveQueryRegistrationOptions,
   ): Promise<LiveQueryHandle<FunctionResult<Ref>>>;
   liveQuery<Row = unknown>(
     ref: NamedReference,
@@ -679,7 +712,6 @@ export class SnapbackClient {
       readonly connectionId: string;
       readonly args?: Record<string, unknown>;
       readonly userId?: string;
-      readonly transport?: 'poll' | 'stream';
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
       readonly onUpdate?: (rows: Row[]) => void;
@@ -687,7 +719,7 @@ export class SnapbackClient {
         connection: LiveQueryHandle<Row[]>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
-    },
+    } & LiveQueryRegistrationOptions,
   ): Promise<LiveQueryHandle<Row[]>>;
   startLiveQuery<Ref extends FunctionRef<'LiveQuery'>>(
     ref: Ref,
@@ -695,7 +727,6 @@ export class SnapbackClient {
       readonly connectionId: string;
       readonly args?: FunctionArgs<Ref>;
       readonly userId?: string;
-      readonly transport?: 'poll' | 'stream';
       readonly pollCadenceMs?: number;
       readonly fallbackToPoll?: boolean;
       readonly supersedes?: StartedLiveQueryHandle<FunctionResult<Ref>> | null;
@@ -704,7 +735,7 @@ export class SnapbackClient {
         connection: LiveQueryHandle<FunctionResult<Ref>>['connection'],
         detail?: { readonly error?: unknown },
       ) => void;
-    },
+    } & LiveQueryRegistrationOptions,
   ): StartedLiveQueryHandle<FunctionResult<Ref>>;
   subscribeEphemeral<
     Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,

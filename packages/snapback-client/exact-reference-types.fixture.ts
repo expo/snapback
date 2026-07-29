@@ -1,6 +1,7 @@
 import {
   SnapbackClient,
   admitSnapbackId,
+  createRqsRegisteredRegistry,
   type ActiveSeedIdentityV1,
   type SnapbackEphemeralReference,
   type SnapbackFunctionReference,
@@ -74,6 +75,34 @@ client.liveQuery(listTodos, {
   args: { owner: 'ada' },
   onUpdate(rows) {
     rows[0]?.title.toUpperCase();
+  },
+});
+const registeredRegistry = createRqsRegisteredRegistry({
+  commitVersion: 1,
+  entries: [],
+  connection: {
+    connectionId: 'fixture',
+    grant: 'grant',
+    attachDeadline: Date.now() + 30_000,
+  },
+});
+client.liveQuery(listTodos, {
+  connectionId: 'fixture',
+  args: { owner: 'ada' },
+  transport: 'stream',
+  registeredSubscription: registeredRegistry.consume('listTodos', { owner: 'ada' }),
+});
+// @ts-expect-error registered adoption requires the stream transport.
+client.liveQuery(listTodos, {
+  connectionId: 'fixture',
+  args: { owner: 'ada' },
+  transport: 'poll',
+  registeredSubscription: {
+    subscriptionId: 'sub_fixture',
+    rows: [],
+    version: 1,
+    resume: null,
+    attachDeadline: Date.now() + 30_000,
   },
 });
 client.subscribeEphemeral(presence, {
