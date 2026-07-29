@@ -1205,11 +1205,42 @@ export function validateStagedPublicationLedger(ledger) {
   return ledger;
 }
 
-function collectInstalledSnapbackVersions(node, output = new Map()) {
+const SNAPBACK_PLATFORM_RUNTIMES = [
+  '@snapback/runtime-darwin-arm64',
+  '@snapback/runtime-linux-x64',
+];
+
+function collectInstalledSnapbackVersions(
+  node,
+  hostRuntime,
+  output = new Map(),
+  omittedPlatformRuntimes = [],
+  parentPath = [],
+) {
   for (const [dependency, child] of Object.entries(node?.dependencies ?? {})) {
+    const treePath = [...parentPath, dependency];
     if (dependency.startsWith('@snapback/')) {
       if (typeof child?.version !== 'string') {
-        throw new TypeError(`latest-root dependency ${dependency} has no installed version`);
+        const expectedOmittedRuntime = SNAPBACK_PLATFORM_RUNTIMES.find(
+          (sourceName) => sourceName !== hostRuntime,
+        );
+        const platformFilteredOptional = (
+          dependency === expectedOmittedRuntime
+          && child !== null
+          && typeof child === 'object'
+          && !Array.isArray(child)
+          && Object.keys(child).length === 0
+          && parentPath.length === 1
+          && parentPath[0] === '@snapback/cli'
+        );
+        if (!platformFilteredOptional) {
+          throw new TypeError(`latest-root dependency ${dependency} has no installed version`);
+        }
+        omittedPlatformRuntimes.push({
+          sourceName: dependency,
+          treePath,
+        });
+        continue;
       }
       const prior = output.get(dependency);
       if (prior && prior !== child.version) {
@@ -1217,9 +1248,15 @@ function collectInstalledSnapbackVersions(node, output = new Map()) {
       }
       output.set(dependency, child.version);
     }
-    collectInstalledSnapbackVersions(child, output);
+    collectInstalledSnapbackVersions(
+      child,
+      hostRuntime,
+      output,
+      omittedPlatformRuntimes,
+      treePath,
+    );
   }
-  return output;
+  return { installed: output, omittedPlatformRuntimes };
 }
 
 export function validateLatestRootResolution({
@@ -1229,7 +1266,28 @@ export function validateLatestRootResolution({
   tagVector,
 }) {
   validateCandidateLedger(ledger);
-  const installed = collectInstalledSnapbackVersions(tree);
+  if (!SNAPBACK_PLATFORM_RUNTIMES.includes(hostRuntime)) {
+    throw new TypeError('latest-root proof selected an unsupported host runtime');
+  }
+  const {
+    installed,
+    omittedPlatformRuntimes,
+  } = collectInstalledSnapbackVersions(tree, hostRuntime);
+  const expectedOmittedRuntime = SNAPBACK_PLATFORM_RUNTIMES.find(
+    (sourceName) => sourceName !== hostRuntime,
+  );
+  if (
+    omittedPlatformRuntimes.length !== 1
+    || omittedPlatformRuntimes[0].sourceName !== expectedOmittedRuntime
+    || omittedPlatformRuntimes[0].treePath.length !== 2
+    || omittedPlatformRuntimes[0].treePath[0] !== '@snapback/cli'
+    || omittedPlatformRuntimes[0].treePath[1] !== expectedOmittedRuntime
+  ) {
+    throw new TypeError('latest root did not prove the opposite platform runtime omission');
+  }
+  if (installed.has(expectedOmittedRuntime)) {
+    throw new TypeError('latest root materialized the opposite platform runtime');
+  }
   for (const sourceName of [
     '@snapback/cli',
     '@snapback/client',
@@ -1259,6 +1317,7 @@ export function validateLatestRootResolution({
     root: '@snapback/cli',
     selected: ledger.version,
     installed: Object.fromEntries([...installed.entries()].sort()),
+    omittedOptionalPlatformRuntimes: omittedPlatformRuntimes,
     defaultTagVector: Object.fromEntries(ledger.packages.map((row) => [
       row.name,
       tagVector[row.name],
@@ -1365,12 +1424,28 @@ export function validateFinalLatestReceipts({
       }
     }
     const resolution = receipt.latestRootResolution;
+    const expectedOmittedRuntime = SNAPBACK_PLATFORM_RUNTIMES.find(
+      (sourceName) => sourceName !== hostRuntime,
+    );
+    const omittedPlatformRuntimes = resolution.omittedOptionalPlatformRuntimes;
+    const omission = omittedPlatformRuntimes?.[0];
     if (
       resolution.root !== '@snapback/cli'
       || resolution.defaultTagVector === null
       || typeof resolution.defaultTagVector !== 'object'
       || Array.isArray(resolution.defaultTagVector)
       || Object.keys(resolution.defaultTagVector).length !== ledger.packages.length
+      || !Array.isArray(omittedPlatformRuntimes)
+      || omittedPlatformRuntimes.length !== 1
+      || omission === null
+      || typeof omission !== 'object'
+      || Array.isArray(omission)
+      || Object.keys(omission).sort().join(',') !== 'sourceName,treePath'
+      || omission.sourceName !== expectedOmittedRuntime
+      || !Array.isArray(omission.treePath)
+      || omission.treePath.length !== 2
+      || omission.treePath[0] !== '@snapback/cli'
+      || omission.treePath[1] !== expectedOmittedRuntime
     ) {
       throw new TypeError(`final latest-root tag vector is incomplete: ${platform}`);
     }
@@ -1384,6 +1459,11 @@ export function validateFinalLatestReceipts({
     const installed = resolution.installed;
     if (installed === null || typeof installed !== 'object' || Array.isArray(installed)) {
       throw new TypeError(`final latest-root installed closure is missing: ${platform}`);
+    }
+    if (Object.hasOwn(installed, expectedOmittedRuntime)) {
+      throw new TypeError(
+        `final latest-root materialized the opposite runtime: ${platform}`,
+      );
     }
     const candidateBySource = new Map(
       ledger.packages.map((row) => [row.sourceName, row]),

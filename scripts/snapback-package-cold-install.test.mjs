@@ -1599,6 +1599,7 @@ test('latest-root proof binds the root closure and complete default-tag vector',
           },
           '@snapback/codegen': { version: candidate.version },
           '@snapback/runtime-darwin-arm64': { version: candidate.version },
+          '@snapback/runtime-linux-x64': {},
         },
       },
     },
@@ -1615,6 +1616,66 @@ test('latest-root proof binds the root closure and complete default-tag vector',
   });
   assert.equal(resolution.selected, candidate.version);
   assert.equal(Object.keys(resolution.defaultTagVector).length, 9);
+  assert.deepEqual(
+    resolution.omittedOptionalPlatformRuntimes,
+    [{
+      sourceName: '@snapback/runtime-linux-x64',
+      treePath: [
+        '@snapback/cli',
+        '@snapback/runtime-linux-x64',
+      ],
+    }],
+  );
+  const missingRequired = structuredClone(tree);
+  missingRequired.dependencies['@snapback/cli'].dependencies['@snapback/client'] = {};
+  assert.throws(
+    () => validateLatestRootResolution({
+      tree: missingRequired,
+      ledger: candidate,
+      hostRuntime: '@snapback/runtime-darwin-arm64',
+      tagVector,
+    }),
+    /dependency @snapback\/client has no installed version/u,
+  );
+  const missingHostRuntime = structuredClone(tree);
+  missingHostRuntime.dependencies['@snapback/cli'].dependencies[
+    '@snapback/runtime-darwin-arm64'
+  ] = {};
+  assert.throws(
+    () => validateLatestRootResolution({
+      tree: missingHostRuntime,
+      ledger: candidate,
+      hostRuntime: '@snapback/runtime-darwin-arm64',
+      tagVector,
+    }),
+    /dependency @snapback\/runtime-darwin-arm64 has no installed version/u,
+  );
+  const duplicateOmission = structuredClone(tree);
+  duplicateOmission.dependencies['@snapback/cli'].dependencies[
+    '@snapback/client'
+  ].dependencies['@snapback/runtime-linux-x64'] = {};
+  assert.throws(
+    () => validateLatestRootResolution({
+      tree: duplicateOmission,
+      ledger: candidate,
+      hostRuntime: '@snapback/runtime-darwin-arm64',
+      tagVector,
+    }),
+    /dependency @snapback\/runtime-linux-x64 has no installed version/u,
+  );
+  const materializedOpposite = structuredClone(tree);
+  materializedOpposite.dependencies['@snapback/runtime-linux-x64'] = {
+    version: candidate.version,
+  };
+  assert.throws(
+    () => validateLatestRootResolution({
+      tree: materializedOpposite,
+      ledger: candidate,
+      hostRuntime: '@snapback/runtime-darwin-arm64',
+      tagVector,
+    }),
+    /materialized the opposite platform runtime/u,
+  );
   assert.throws(
     () => validateLatestRootResolution({
       tree,
@@ -1669,6 +1730,17 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
           '@snapback/contract',
           hostRuntime,
         ].map((sourceName) => [sourceName, candidate.version])),
+        omittedOptionalPlatformRuntimes: [{
+          sourceName: platform === 'darwin'
+            ? '@snapback/runtime-linux-x64'
+            : '@snapback/runtime-darwin-arm64',
+          treePath: [
+            '@snapback/cli',
+            platform === 'darwin'
+              ? '@snapback/runtime-linux-x64'
+              : '@snapback/runtime-darwin-arm64',
+          ],
+        }],
         defaultTagVector: Object.fromEntries(candidate.packages.map((row) => [
           row.name,
           row.version,
@@ -1797,6 +1869,18 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
       githubCollection,
     }),
     /installed closure drifted/u,
+  );
+  const materializedOpposite = structuredClone(records);
+  materializedOpposite[0].receipt.latestRootResolution.installed[
+    '@snapback/runtime-linux-x64'
+  ] = candidate.version;
+  assert.throws(
+    () => validateFinalLatestReceipts({
+      ledger: candidate,
+      records: materializedOpposite,
+      githubCollection,
+    }),
+    /materialized the opposite runtime/u,
   );
 });
 

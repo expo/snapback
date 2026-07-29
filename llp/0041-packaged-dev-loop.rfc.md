@@ -347,10 +347,15 @@ Publication is a closed state machine:
    than being unpublished; and
 7. after the CLI root moves, both platforms perform one final fresh
    `latest`-root install and prove that it resolves exactly the candidate
-   ledger. Failure blocks served capability publication and moves the CLI root
-   back to its recorded prior tag when npm permits; if the root move cannot be
-   reversed, the release receipt is failed loudly and no target capability
-   carrier may reference it.
+   ledger. Each host must materialize its own required runtime and retain
+   exactly one empty npm-tree entry at the CLI's opposite,
+   platform-filtered optional-runtime edge, including that edge's tree path.
+   The opposite runtime must be absent everywhere else; an empty required,
+   host-runtime, unknown, duplicate, or additional Snapback entry refuses the
+   proof. Failure blocks served capability publication and
+   moves the CLI root back to its recorded prior tag when npm permits; if the
+   root move cannot be reversed, the release receipt is failed loudly and no
+   target capability carrier may reference it.
 
 Cross-host assembly never executes a foreign native binary. The native Linux
 builder launches `build-identity` itself and retains one closed
