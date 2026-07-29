@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-12-SCHEDULE",
+  "status": "pass",
+  "checkedAt": "2026-07-29T13:01:26.058Z",
+  "evidence": {
+    "scheduler": "pg_cron",
+    "schedule": "5 seconds",
+    "identity": "llp0102-final-research-supabase-w1-r3-refresh",
+    "run": {
+      "id": 12,
+      "dedupe_key": "scheduled-primary",
+      "room_id": "10000000-0000-4000-8000-000000000001",
+      "external_url": "https://example.invalid/frozen-research-source",
+      "content_hash": "sha256:frozen-external-source",
+      "progress": "fetched",
+      "ran_at": "2026-07-29T13:01:18.972686+00:00"
+    },
+    "authoritativeCount": 1,
+    "dedupeKey": "scheduled-primary"
+  }
+}

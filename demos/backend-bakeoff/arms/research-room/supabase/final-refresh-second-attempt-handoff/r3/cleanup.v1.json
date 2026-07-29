@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "attempt": "fresh-prospective-r3",
+  "target": "llp0102-final-research-supabase-w1-r3",
+  "passed": true,
+  "containers": 0,
+  "volumes": 0,
+  "networks": 0,
+  "assigned_port_listeners": 0,
+  "carrier_files": 0,
+  "raw_or_parser_files": 0,
+  "credential_pattern_file_hits": 0,
+  "assigned_ports": [
+    43125,
+    59104,
+    59105,
+    59106,
+    59107,
+    59108,
+    59109,
+    59110,
+    59111
+  ]
+}

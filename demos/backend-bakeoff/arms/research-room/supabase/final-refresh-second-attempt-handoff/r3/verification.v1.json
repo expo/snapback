@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "attempt": "fresh-prospective-r3",
+  "result": "pass-local-with-explicit-hosted-deploy-gap",
+  "target_identity_sha256": "01bdf0be97d34ad3a2f4bc1925683a3075268ee0d16035cd9535b0edb29e6027",
+  "checks": {
+    "json_files_parse": true,
+    "json_file_count": 30,
+    "scenario_capsule_complete": true,
+    "scenario_files": 15,
+    "unique_scenario_ids": 15,
+    "credential_pattern_file_hits_outside_synthetic_fixture": 0,
+    "raw_or_parser_files": 0,
+    "carrier_aware_credential_value_hits": 0,
+    "wrapper_source_hashes_match_transcript": true,
+    "git_diff_check": true,
+    "ref_check": true,
+    "guide_check": true,
+    "exact_cleanup": true
+  },
+  "ref_check": {
+    "llp_docs": 107,
+    "refs": 2309,
+    "files": 5215,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "guide_check": {
+    "pages": 41,
+    "snippets": 97,
+    "routes": 69,
+    "host_ops": 19,
+    "warnings": 21,
+    "warning_lineage": "pre-existing freshness warnings; no guide file changed"
+  },
+  "artifact_sha256": {
+    "safe-evidence-runner.mjs": "93ea221dac8e93dc10d34e5047d1fdffca9ac4cf820c1159fad000376fc0e067",
+    "fail-closed-cli-wrapper/THREAT-MODEL.md": "a3e3f14a09926763d8e69a472978514e43b8aa6ea6b694ff680ea2212248c882",
+    "fail-closed-cli-wrapper/PARSER-CORRECTION-REVIEW.md": "0b0c978c7598bfed0d2ab354fcc6a63066d52dd421a8b75363780e5da4a7b49e",
+    "fail-closed-cli-wrapper/synthetic-test-transcript.v1.json": "bb88e46b12c5c1225275dd3060804093160d847fa55947ff5e0f1a89ee21d7de"
+  },
+  "claim_boundaries": {
+    "hosted_deploy_sampled": false,
+    "hosted_cost_claimed": false,
+    "original_stop_lineage_preserved": true,
+    "r2_scenario_or_performance_claimed": false
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "attempt": "fresh-prospective-r3",
+  "provider": "supabase",
+  "app": "research-room",
+  "target": "llp0102-final-research-supabase-w1-r3",
+  "fresh_external_project": true,
+  "reused_retired_target_state": false,
+  "packages": {
+    "@supabase/supabase-js": "2.111.0",
+    "supabase-cli": "2.110.0"
+  },
+  "ports": {
+    "web": 43125,
+    "shadow_database": 59104,
+    "api": 59105,
+    "database": 59106,
+    "studio": 59107,
+    "mailpit": 59108,
+    "edge_inspector": 59109,
+    "analytics": 59110,
+    "pooler": 59111
+  },
+  "fresh_npm_ci": {
+    "exit_code": 0,
+    "stdout_stderr_bytes": 25,
+    "stdout_stderr_sha256": "554297cc94b2c30635c32138d8e882917a92b24135c63b84acb6ad49d3007b3a"
+  }
+}

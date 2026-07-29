@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-15-CLEANUP",
+  "status": "pass",
+  "checkedAt": "2026-07-29T13:05:14Z",
+  "evidence": {
+    "target": "llp0102-final-research-supabase-w1-r3",
+    "stopPath": "installed Supabase CLI 2.110.0 through reviewed fail-closed wrapper",
+    "stopChildExitCode": 0,
+    "stopWrapperExitCode": 0,
+    "containers": 0,
+    "volumes": 0,
+    "networks": 0,
+    "assignedPortListeners": 0,
+    "assignedPorts": [
+      43125,
+      59104,
+      59105,
+      59106,
+      59107,
+      59108,
+      59109,
+      59110,
+      59111
+    ],
+    "carrierFiles": 0,
+    "rawOrParserFiles": 0,
+    "credentialPatternFileHits": 0,
+    "carrierAwareScannedFiles": 33,
+    "carrierAwareCredentialValueHits": 0
+  }
+}

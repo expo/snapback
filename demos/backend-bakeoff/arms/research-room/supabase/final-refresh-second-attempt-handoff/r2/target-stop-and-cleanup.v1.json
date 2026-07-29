@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "attempt": "final-refresh-r2",
+  "target": "llp0102-final-research-supabase-w1",
+  "stop": {
+    "wrapper_exit_code": 0,
+    "child_exit_code": 0,
+    "child_stdout_bytes": 75,
+    "child_stdout_sha256": "73428baabc19186cf9d3e0090ab4db09f9900b11f24db897fc648789dc7bac19",
+    "child_stderr_bytes": 0,
+    "raw_streams_destroyed": true
+  },
+  "cleanup": {
+    "passed": true,
+    "containers": 0,
+    "volumes": 0,
+    "networks": 0,
+    "assigned_port_listeners": 0,
+    "carrier_files": 0,
+    "raw_or_parser_files": 0,
+    "credential_value_file_hits": 0
+  }
+}

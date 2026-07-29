@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-10-RETRY",
+  "status": "pass",
+  "checkedAt": "2026-07-29T13:01:24.045Z",
+  "evidence": {
+    "dedupeKey": "retry-key",
+    "firstId": "777687f6-2689-496e-8709-e425ba8528a0",
+    "retryId": "777687f6-2689-496e-8709-e425ba8528a0",
+    "questionCount": 1,
+    "answerCount": 0,
+    "attempts": [
+      {
+        "attempt": 1,
+        "settlement": "accepted"
+      },
+      {
+        "attempt": 2,
+        "settlement": "accepted"
+      }
+    ]
+  }
+}

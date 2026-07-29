@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "test_class": "synthetic-negative-containment",
+  "real_provider_command_executed_by_test": false,
+  "passed": true,
+  "case_count": 9,
+  "cases": [
+    {
+      "name": "exact-v2.110.0-env",
+      "passed": true,
+      "wrapper_exit_code": 0,
+      "child_exit_code": 0,
+      "wrapper_stdout_sha256": "12445d976048447787af3fc2f8f4eb95b2ab3145c06bdb7ed65434e271f2ca49",
+      "wrapper_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "state_parent_mode_0700": true,
+      "state_parent_owned_by_process": true,
+      "state_root_mode_0700": true,
+      "raw_files_destroyed": true,
+      "parser_streams_destroyed": true,
+      "carriers_mode_0600": true,
+      "carrier_entries_exact": true,
+      "no_forbidden_fragments_in_wrapper_streams": true
+    },
+    {
+      "name": "exact-v2.110.0-start-pretty",
+      "passed": true,
+      "wrapper_exit_code": 0,
+      "child_exit_code": 0,
+      "wrapper_stdout_sha256": "0e0f118a5bdebf9f31be0058af60dd570f838274cd57d2c2b8cb1ba70c110e1b",
+      "wrapper_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_files_destroyed": true,
+      "parser_streams_destroyed": true,
+      "carriers_mode_0600": true,
+      "carrier_entries_exact": true,
+      "no_forbidden_fragments_in_wrapper_streams": true
+    },
+    {
+      "name": "unexpected-key",
+      "passed": true,
+      "wrapper_exit_code": 72,
+      "child_exit_code": 0,
+      "wrapper_stdout_sha256": "d995b99b02adc40d934ecfbe70a68f62513472c95fb6182043bb4892efc87e89",
+      "unexpected_parser_key_failed_closed": true,
+      "zero_carriers_retained": true,
+      "raw_files_destroyed": true
+    },
+    {
+      "name": "child-failure",
+      "passed": true,
+      "wrapper_exit_code": 71,
+      "child_exit_code": 42,
+      "wrapper_stdout_sha256": "e38bdf1e3aefe4fd543ce66a80839e23505143213e51f6f07285e1c7175c8223",
+      "zero_carriers_retained": true,
+      "raw_files_destroyed": true
+    },
+    {
+      "name": "parser-crash",
+      "passed": true,
+      "wrapper_exit_code": 72,
+      "child_exit_code": 0,
+      "wrapper_stdout_sha256": "782bc49c069af28edb410e31ea4fbc9b2f190342cc15929e62151eb4c517c521",
+      "zero_carriers_retained": true,
+      "raw_files_destroyed": true,
+      "parser_streams_destroyed": true
+    },
+    {
+      "name": "malformed-manifest",
+      "passed": true,
+      "wrapper_exit_code": 70,
+      "child_exit_code": 0,
+      "wrapper_stdout_sha256": "8365f6c4ed043bb8fba79228d298a865bb91b5eb18dfe6b666575435fcfae662",
+      "zero_carriers_retained": true,
+      "raw_files_destroyed": true,
+      "parser_streams_destroyed": true
+    },
+    {
+      "name": "preexisting-root-refusal",
+      "passed": true,
+      "wrapper_exit_code": 70,
+      "child_not_started": true,
+      "protected_path_preserved": true
+    },
+    {
+      "name": "symlink-root-refusal",
+      "passed": true,
+      "wrapper_exit_code": 70,
+      "child_not_started": true,
+      "outside_target_preserved": true
+    },
+    {
+      "name": "insecure-parent-refusal",
+      "passed": true,
+      "wrapper_exit_code": 70,
+      "child_not_started": true,
+      "protected_path_preserved": true
+    }
+  ],
+  "tested_facts": {
+    "exact_v2_110_0_env_field_set": true,
+    "exact_v2_110_0_start_pretty_field_set": true,
+    "ansi_table_cells": true,
+    "env_assignments": true,
+    "jwt_like_strings": true,
+    "supabase_secret_prefixes": true,
+    "failure_output": true,
+    "wrapper_streams_allowlisted": true,
+    "state_parents_mode_0700_and_process_owned": true,
+    "state_roots_mode_0700": true,
+    "carrier_entries_exact": true,
+    "carriers_mode_0600": true,
+    "unexpected_keys_fail_closed": true,
+    "parser_crash_leaves_zero_carriers_or_raw_files": true,
+    "malformed_manifest_leaves_zero_carriers_or_raw_files": true,
+    "raw_files_destroyed_after_extraction": true
+  },
+  "source_sha256": {
+    "safe-supabase-cli.mjs": "be116f2d9acdeb730d095b01855cc6aeb95e5251191d9468d3668fea57c3ece4",
+    "extract-supabase-credentials.mjs": "eb683310eeb7a939a0941627551e0dcec19695dc5083da9c986bc7fea86ce255",
+    "synthetic-child.mjs": "a95379ba170077015789029357b0b5391b037e5c0991a0430926c84a24a58838",
+    "test-fail-closed.mjs": "13b7d1b7766a2d8b644141e0f291847238122ea5c7baccdb160ec2d31422a02e"
+  }
+}

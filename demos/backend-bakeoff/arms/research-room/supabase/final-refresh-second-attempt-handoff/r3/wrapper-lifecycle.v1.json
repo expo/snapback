@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "attempt": "fresh-prospective-r3",
+  "target_start": {
+    "wrapper_exit_code": 0,
+    "child_exit_code": 0,
+    "parser_exit_code": 0,
+    "byte_counts": {
+      "child_stdout": 4388,
+      "child_stderr": 527,
+      "parser_stdout": 228,
+      "parser_stderr": 0
+    },
+    "sha256": {
+      "child_stdout": "2f795dbc536880aca2b5cec13d7bc793d920e4489813206ab9f6441f8410784d",
+      "child_stderr": "cc403eced3e6a7c3d8d99e5f1234fa8f08e9d556afd7e0ce1ffaa0a61fadf53a",
+      "parser_stdout": "43a3b6578e7e7ec7958889b37de3e3e23d7520d8a1c547c3dd89d6ea1f5313de",
+      "parser_stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "checks": {
+      "parse_succeeded": true,
+      "unexpected_parser_key": false,
+      "required_keys_present": true,
+      "carrier_files_mode_0600": true,
+      "carrier_entries_exact": true,
+      "raw_and_parser_streams_destroyed": true
+    },
+    "key_presence": {
+      "api_url": true,
+      "anon_key": false,
+      "publishable_key": true,
+      "service_role_key": false,
+      "secret_key": true,
+      "s3_access_key_id": true,
+      "s3_access_key_secret": true
+    }
+  },
+  "target_status": {
+    "wrapper_exit_code": 0,
+    "child_exit_code": 0,
+    "child_stdout_bytes": 1276,
+    "child_stderr_bytes": 130,
+    "child_stdout_sha256": "b2e94880a3482da006765d399169e9eab0631b8a02c27c6735e07ca466880dbb",
+    "child_stderr_sha256": "2a3b7030f63bb78ff854502596d12339dd5e2eb3324f4cdde397546db1e56191",
+    "raw_streams_destroyed": true
+  },
+  "target_stop": {
+    "wrapper_exit_code": 0,
+    "child_exit_code": 0,
+    "child_stdout_bytes": 75,
+    "child_stderr_bytes": 0,
+    "child_stdout_sha256": "73428baabc19186cf9d3e0090ab4db09f9900b11f24db897fc648789dc7bac19",
+    "child_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "raw_streams_destroyed": true
+  }
+}
