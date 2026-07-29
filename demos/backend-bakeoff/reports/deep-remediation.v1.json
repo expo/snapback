@@ -37,7 +37,7 @@
       "evidencePaths": [
         "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
         "demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json",
-        "issues/20260728-guide-gap-assets-and-notifications-capability-rows.md"
+        "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md"
       ],
       "frequency": 2,
       "classification": "capability",
@@ -150,7 +150,7 @@
       "sourceApps": ["partiful", "research-room"],
       "backendComparisons": ["convex", "supabase", "firebase", "appwrite"],
       "evidencePaths": [
-        "issues/20260728-guide-gap-codegen-action-egress-gate.md",
+        "issues/closed/20260728-guide-gap-codegen-action-egress-gate.md",
         "issues/20260729-guide-gap-sessions-streamed-action-capability-composition.md",
         "demos/backend-bakeoff/arms/partiful/snapback/evidence/failed-attempts.md"
       ],
@@ -166,7 +166,7 @@
       "decision": "accept",
       "status": "in-progress",
       "beforeEvidencePaths": [
-        "issues/20260728-guide-gap-codegen-action-egress-gate.md",
+        "issues/closed/20260728-guide-gap-codegen-action-egress-gate.md",
         "issues/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
       ]
     },
@@ -176,7 +176,7 @@
       "sourceApps": ["linear"],
       "backendComparisons": ["supabase", "firebase", "convex", "spacetimedb", "appwrite"],
       "evidencePaths": [
-        "issues/20260728-guide-gap-mutation-buffered-write-ceiling.md",
+        "issues/closed/20260728-guide-gap-mutation-buffered-write-ceiling.md",
         "demos/backend-bakeoff/arms/linear/snapback/receipts/failed-attempts.v1.json"
       ],
       "frequency": 1,
@@ -191,7 +191,7 @@
       "decision": "accept",
       "status": "in-progress",
       "beforeEvidencePaths": [
-        "issues/20260728-guide-gap-mutation-buffered-write-ceiling.md"
+        "issues/closed/20260728-guide-gap-mutation-buffered-write-ceiling.md"
       ]
     },
     {
@@ -222,7 +222,7 @@
       "sourceApps": ["partiful", "research-room"],
       "backendComparisons": ["convex", "supabase", "firebase", "spacetimedb", "appwrite"],
       "evidencePaths": [
-        "issues/20260728-guide-gap-assets-and-notifications-capability-rows.md",
+        "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md",
         "guide/capabilities.md",
         "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json"
       ],
@@ -238,7 +238,7 @@
       "decision": "accept",
       "status": "in-progress",
       "beforeEvidencePaths": [
-        "issues/20260728-guide-gap-assets-and-notifications-capability-rows.md"
+        "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md"
       ]
     },
     {
