@@ -34178,6 +34178,10 @@ globalThis.__snapbackHandlers = {
             "LLP 0060 D6 private marker echoed on the handler wire envelope (schema authority in src/handler_wire.rs), never an HTTP diagnostic",
         ),
         (
+            "SNAPBACK_BUILD_DISTRIBUTION",
+            "compile-time environment variable classifying contributor-source versus public-package builds",
+        ),
+        (
             "SNAPBACK_BUILD_GIT_COMMIT",
             "compile-time environment variable carrying build provenance",
         ),
@@ -34224,6 +34228,10 @@ globalThis.__snapbackHandlers = {
         (
             "SNAPBACK_HOST_TOKEN",
             "private workerd text binding carrying the independent host-call capability",
+        ),
+        (
+            "SNAPBACK_HOSTED_JOURNEY_INVALID",
+            "CLI-local hosted-journey receipt validation code; never emitted as an HTTP diagnostic",
         ),
         (
             "SNAPBACK_RESPONSE_TOKEN",
