@@ -1,0 +1,397 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "effects": {
+          "invalidates": [
+            "events",
+            "rsvps"
+          ],
+          "writes": [
+            "events",
+            "rsvps"
+          ]
+        },
+        "name": "claimFinalSeat",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"eventId\": string; \"privateLocation\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "events"
+          ],
+          "writes": [
+            "events"
+          ]
+        },
+        "name": "editEvent",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"authorName\": string; \"body\": string; \"eventId\": string; \"ordinal\": number }",
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "name": "postToWall",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"deliveryKey\": string; \"eventSlug\": string; \"namespace\": string; \"trigger\": string }",
+        "effects": {
+          "invalidates": [
+            "reminderAttempts"
+          ],
+          "writes": [
+            "reminderAttempts"
+          ]
+        },
+        "name": "recordReminderAttempt",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"eventId\": string; \"idempotencyKey\": string }",
+        "effects": {
+          "invalidates": [
+            "notificationEffects"
+          ],
+          "writes": [
+            "notificationEffects"
+          ]
+        },
+        "name": "reserveNotification",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"eventId\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "invitations"
+          ],
+          "writes": [
+            "invitations"
+          ]
+        },
+        "name": "revokeGuest",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"eventId\": string; \"plusOneCount\": number; \"response\": string }",
+        "effects": {
+          "invalidates": [
+            "events",
+            "rsvps"
+          ],
+          "writes": [
+            "events",
+            "rsvps"
+          ]
+        },
+        "name": "rsvp",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"eventId\": string; \"visibility\": string }",
+        "effects": {
+          "invalidates": [
+            "events"
+          ],
+          "writes": [
+            "events"
+          ]
+        },
+        "name": "setGuestListVisibility",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"eventId\": string; \"role\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "invitations"
+          ],
+          "writes": [
+            "invitations"
+          ]
+        },
+        "name": "setRole",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"certainty\": string; \"idempotencyKey\": string; \"providerReceipt\"?: string; \"status\": string }",
+        "effects": {
+          "invalidates": [
+            "notificationEffects"
+          ],
+          "writes": [
+            "notificationEffects"
+          ]
+        },
+        "name": "settleNotification",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"bobId\": string; \"carolId\": string; \"namespace\": string }",
+        "effects": {
+          "invalidates": [
+            "events",
+            "invitations",
+            "rsvps"
+          ],
+          "writes": [
+            "events",
+            "invitations",
+            "rsvps"
+          ]
+        },
+        "name": "setupFixture",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events",
+            "invitations",
+            "notificationEffects"
+          ]
+        },
+        "name": "effectLedger",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attemptCount\": number; \"certainty\": string; \"idempotencyKey\": string; \"providerReceipt\"?: string; \"status\": string }>"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events",
+            "invitations",
+            "posts"
+          ]
+        },
+        "name": "eventWall",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"body\": string; \"ordinal\": number }>"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events",
+            "invitations",
+            "rsvps",
+            "posts"
+          ]
+        },
+        "name": "fixtureAudit",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"activeInvitations\": number; \"contendedAttendance\": number; \"contendedRsvps\": number; \"eventCount\": number; \"wallPosts\": number }>"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events",
+            "invitations",
+            "rsvps"
+          ]
+        },
+        "name": "guestList",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"guestName\": string; \"plusOneCount\": number; \"response\": string; \"role\": string; \"seats\": number; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events",
+            "invitations"
+          ]
+        },
+        "name": "privateControls",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attendanceCount\"?: number; \"capacity\"?: number; \"description\": string; \"eventId\": string; \"guestListVisibility\"?: string; \"location\"?: string; \"revision\": number; \"role\"?: string; \"slug\": string; \"startsAt\": number; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"namespace\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events"
+          ]
+        },
+        "name": "publicEvents",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attendanceCount\"?: number; \"capacity\"?: number; \"description\": string; \"eventId\": string; \"guestListVisibility\"?: string; \"location\"?: string; \"revision\": number; \"role\"?: string; \"slug\": string; \"startsAt\": number; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events",
+            "invitations",
+            "reminderAttempts"
+          ]
+        },
+        "name": "reminderLedger",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attemptCount\": number; \"deliveryKey\": string; \"status\": string; \"trigger\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:2e82bf99b66266b38036042afb6f7cc75449503d89925d186d04c226174bfc3d",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

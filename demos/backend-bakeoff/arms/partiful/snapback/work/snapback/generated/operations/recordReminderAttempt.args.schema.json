@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/recordReminderAttempt.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "deliveryKey": {
+      "type": "string"
+    },
+    "eventSlug": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string"
+    },
+    "trigger": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "namespace",
+    "eventSlug",
+    "deliveryKey",
+    "trigger"
+  ],
+  "title": "work:recordReminderAttempt arguments",
+  "type": "object"
+}

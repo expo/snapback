@@ -1,0 +1,393 @@
+{
+  "appId": "work",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2e82bf99b66266b38036042afb6f7cc75449503d89925d186d04c226174bfc3d",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:65d06ba16ed0dc4589d6a37d911232aee680ebcfc7888d3fc447488999da19bc",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "namespace",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "hostId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "description",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "location",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "startsAt",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "capacity",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "attendanceCount",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "guestListVisibility",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "publicActive",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "revision",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "namespace",
+            "slug"
+          ],
+          "name": "by_namespace_slug",
+          "unique": true
+        }
+      ],
+      "name": "events",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "namespace",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "guestName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventId",
+            "userId"
+          ],
+          "name": "by_event_user",
+          "unique": true
+        },
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        },
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        }
+      ],
+      "name": "invitations",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "namespace",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "guestName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "response",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "plusOneCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "seats",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "synthetic",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventId",
+            "userId"
+          ],
+          "name": "by_event_user",
+          "unique": true
+        },
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        }
+      ],
+      "name": "rsvps",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "namespace",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "ordinal",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventId",
+            "ordinal"
+          ],
+          "name": "by_event_ordinal"
+        }
+      ],
+      "name": "posts",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "namespace",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "deliveryKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "trigger",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "attemptCount",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "deliveryKey"
+          ],
+          "name": "by_delivery_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        }
+      ],
+      "name": "reminderAttempts",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "namespace",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "requestedBy",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "idempotencyKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "attemptCount",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "certainty",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "providerReceipt",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "idempotencyKey"
+          ],
+          "name": "by_idempotency",
+          "unique": true
+        },
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        }
+      ],
+      "name": "notificationEffects",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

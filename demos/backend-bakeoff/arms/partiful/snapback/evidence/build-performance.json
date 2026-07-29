@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "path": "vite-production-build",
+  "warmups": 2,
+  "recorded": 7,
+  "rawMs": [
+    343.229,
+    342.581,
+    346.394,
+    342.371,
+    339.132,
+    344.115,
+    345.398
+  ],
+  "medianMs": 343.229,
+  "p95NearestRankMs": 346.394,
+  "outputBytes": 200890,
+  "command": "bun run vite build"
+}

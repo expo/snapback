@@ -1,0 +1,203 @@
+{
+  "appId": "work",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/claimFinalSeat.args.schema.json",
+    "operations/editEvent.args.schema.json",
+    "operations/effectLedger.args.schema.json",
+    "operations/eventWall.args.schema.json",
+    "operations/fixtureAudit.args.schema.json",
+    "operations/guestList.args.schema.json",
+    "operations/postToWall.args.schema.json",
+    "operations/privateControls.args.schema.json",
+    "operations/publicEvents.args.schema.json",
+    "operations/recordReminderAttempt.args.schema.json",
+    "operations/reminderLedger.args.schema.json",
+    "operations/reserveNotification.args.schema.json",
+    "operations/revokeGuest.args.schema.json",
+    "operations/rsvp.args.schema.json",
+    "operations/scheduledReminder.args.schema.json",
+    "operations/sendNotification.args.schema.json",
+    "operations/setGuestListVisibility.args.schema.json",
+    "operations/setRole.args.schema.json",
+    "operations/settleNotification.args.schema.json",
+    "operations/setupFixture.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/claimFinalSeat.mutation.ts",
+    "contract/claimFinalSeat.mutation.contract-meta.ts",
+    "contract/editEvent.mutation.ts",
+    "contract/editEvent.mutation.contract-meta.ts",
+    "contract/effectLedger.query.ts",
+    "contract/effectLedger.query.contract-meta.ts",
+    "contract/eventWall.query.ts",
+    "contract/eventWall.query.contract-meta.ts",
+    "contract/fixtureAudit.query.ts",
+    "contract/fixtureAudit.query.contract-meta.ts",
+    "contract/guestList.query.ts",
+    "contract/guestList.query.contract-meta.ts",
+    "contract/postToWall.mutation.ts",
+    "contract/postToWall.mutation.contract-meta.ts",
+    "contract/privateControls.query.ts",
+    "contract/privateControls.query.contract-meta.ts",
+    "contract/publicEvents.query.ts",
+    "contract/publicEvents.query.contract-meta.ts",
+    "contract/recordReminderAttempt.mutation.ts",
+    "contract/recordReminderAttempt.mutation.contract-meta.ts",
+    "contract/reminderLedger.query.ts",
+    "contract/reminderLedger.query.contract-meta.ts",
+    "contract/reserveNotification.mutation.ts",
+    "contract/reserveNotification.mutation.contract-meta.ts",
+    "contract/revokeGuest.mutation.ts",
+    "contract/revokeGuest.mutation.contract-meta.ts",
+    "contract/rsvp.mutation.ts",
+    "contract/rsvp.mutation.contract-meta.ts",
+    "contract/setGuestListVisibility.mutation.ts",
+    "contract/setGuestListVisibility.mutation.contract-meta.ts",
+    "contract/setRole.mutation.ts",
+    "contract/setRole.mutation.contract-meta.ts",
+    "contract/settleNotification.mutation.ts",
+    "contract/settleNotification.mutation.contract-meta.ts",
+    "contract/setupFixture.mutation.ts",
+    "contract/setupFixture.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:4cab64495262f7f9e832617dcff9d13472227d2886a2bb10aad1bf3be948a733",
+  "config": [
+    {
+      "name": "notificationToken",
+      "pool": false,
+      "required": false
+    }
+  ],
+  "cronJobs": [
+    {
+      "action": "scheduledReminder",
+      "enabled": true,
+      "name": "eventReminders"
+    }
+  ],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "work:claimFinalSeat",
+      "kind": "Mutation",
+      "name": "claimFinalSeat"
+    },
+    {
+      "id": "work:editEvent",
+      "kind": "Mutation",
+      "name": "editEvent"
+    },
+    {
+      "id": "work:effectLedger",
+      "kind": "LiveQuery",
+      "name": "effectLedger"
+    },
+    {
+      "id": "work:eventWall",
+      "kind": "LiveQuery",
+      "name": "eventWall"
+    },
+    {
+      "id": "work:fixtureAudit",
+      "kind": "LiveQuery",
+      "name": "fixtureAudit"
+    },
+    {
+      "id": "work:guestList",
+      "kind": "LiveQuery",
+      "name": "guestList"
+    },
+    {
+      "id": "work:postToWall",
+      "kind": "Mutation",
+      "name": "postToWall"
+    },
+    {
+      "id": "work:privateControls",
+      "kind": "LiveQuery",
+      "name": "privateControls"
+    },
+    {
+      "id": "work:publicEvents",
+      "kind": "LiveQuery",
+      "name": "publicEvents"
+    },
+    {
+      "id": "work:recordReminderAttempt",
+      "kind": "Mutation",
+      "name": "recordReminderAttempt"
+    },
+    {
+      "id": "work:reminderLedger",
+      "kind": "LiveQuery",
+      "name": "reminderLedger"
+    },
+    {
+      "id": "work:reserveNotification",
+      "kind": "Mutation",
+      "name": "reserveNotification"
+    },
+    {
+      "id": "work:revokeGuest",
+      "kind": "Mutation",
+      "name": "revokeGuest"
+    },
+    {
+      "id": "work:rsvp",
+      "kind": "Mutation",
+      "name": "rsvp"
+    },
+    {
+      "id": "work:scheduledReminder",
+      "kind": "Action",
+      "name": "scheduledReminder"
+    },
+    {
+      "id": "work:sendNotification",
+      "kind": "Action",
+      "name": "sendNotification"
+    },
+    {
+      "id": "work:setGuestListVisibility",
+      "kind": "Mutation",
+      "name": "setGuestListVisibility"
+    },
+    {
+      "id": "work:setRole",
+      "kind": "Mutation",
+      "name": "setRole"
+    },
+    {
+      "id": "work:settleNotification",
+      "kind": "Mutation",
+      "name": "settleNotification"
+    },
+    {
+      "id": "work:setupFixture",
+      "kind": "Mutation",
+      "name": "setupFixture"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2e82bf99b66266b38036042afb6f7cc75449503d89925d186d04c226174bfc3d",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:65d06ba16ed0dc4589d6a37d911232aee680ebcfc7888d3fc447488999da19bc",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "events",
+    "invitations",
+    "rsvps",
+    "posts",
+    "reminderAttempts",
+    "notificationEffects"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/postToWall.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorName": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "eventId": {
+      "type": "string"
+    },
+    "ordinal": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "eventId",
+    "authorName",
+    "body",
+    "ordinal"
+  ],
+  "title": "work:postToWall arguments",
+  "type": "object"
+}

@@ -1,0 +1,26 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/settleNotification.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "certainty": {
+      "type": "string"
+    },
+    "idempotencyKey": {
+      "type": "string"
+    },
+    "providerReceipt": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "idempotencyKey",
+    "status",
+    "certainty"
+  ],
+  "title": "work:settleNotification arguments",
+  "type": "object"
+}

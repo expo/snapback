@@ -1,0 +1,4 @@
+.state/
+.state.snapback.restore.lock
+dist/
+node_modules/

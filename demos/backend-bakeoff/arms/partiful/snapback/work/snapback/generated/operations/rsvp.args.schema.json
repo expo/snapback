@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/rsvp.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string"
+    },
+    "plusOneCount": {
+      "type": "integer"
+    },
+    "response": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "response",
+    "plusOneCount"
+  ],
+  "title": "work:rsvp arguments",
+  "type": "object"
+}
