@@ -30,7 +30,7 @@
     },
     "test": {
       "files": 17,
-      "bytes": 103152,
+      "bytes": 103197,
       "lines": 2256
     }
   },
@@ -109,9 +109,9 @@
     {
       "path": "scripts/acceptance.mjs",
       "category": "test",
-      "bytes": 30676,
+      "bytes": 30702,
       "lines": 504,
-      "sha256": "36684f1ee8d81a5e5aaafc50d45ab2aaa47c51480bd77bd3b9c0530e89363e6c"
+      "sha256": "82979224cc56890d3b7009203a4d07a3786868343e41b9c33af795971ca0d0df"
     },
     {
       "path": "scripts/admin-client.mjs",
@@ -130,9 +130,9 @@
     {
       "path": "scripts/build-capsule.mjs",
       "category": "test",
-      "bytes": 10767,
+      "bytes": 10786,
       "lines": 201,
-      "sha256": "f15a281cb671716f06bbd5aabdf423c861c55db62d46c2a4cca9dd5597ddbc9e"
+      "sha256": "180b19b17f52a7ed0b5532517cff8f41867804fa6f1c19b8357ded9911d33590"
     },
     {
       "path": "scripts/cleanup.mjs",

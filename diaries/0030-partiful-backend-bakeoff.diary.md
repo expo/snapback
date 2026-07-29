@@ -355,3 +355,122 @@ settlement with stable idempotency keys. It should add real object storage
 ergonomics instead of relying on inline bytes. None of these outcomes requires
 copying SpacetimeDB's database architecture; they are plausible refinements of
 Snapback's existing authority, transaction, settlement, and target model.
+
+## 2026-07-28 to 2026-07-29 — Appwrite, deep round, complete with hosted unavailable
+
+### Environment and outcome
+
+The arm used Appwrite self-host 1.9.6, Web SDK 26.2.0, Node SDK 27.1.0, CLI
+23.2.0, TablesDB, Auth, Teams, Realtime, Storage, and a deployed Node 22
+Function. Fourteen local scenarios passed. Appwrite Cloud was unavailable
+because no arm-scoped target or credentials existed, so the hosted scenario is
+an unavailable remote dependency rather than a product failure. Coordinator
+evidence confidence is 15/16 because Partiful has no persistent offline
+scenario and this arm claims no durable offline store.
+
+### What felt good
+
+Native TablesDB transactions were the strongest Appwrite result. Two
+actor-scoped transactions staged the 49-to-50 final-seat race, one committed,
+one returned a typed `transaction_conflict`/409, and authority remained exactly
+50/50. The schema and indexes were compact to create and easy to inspect
+through admin APIs.
+
+Auth sessions, a Team role, and row permissions made the host, cohost, guest,
+and outsider tests concrete. Splitting public invitation fields from protected
+event state gave anonymous users a structural boundary instead of a
+client-side projection.
+
+Storage produced a clean application-level lifecycle: Alice uploaded the exact
+262,144-byte object, Bob downloaded an identical hash, Mallory was denied, and
+the post-delete read failed. Appwrite's breadth is real.
+
+Function variables gave the effect boundary redacted secrets, while execution
+logs and TablesDB attempt/delivery rows made settlement inspectable. A native
+future `scheduledAt` execution ran once, and both known-success and
+accepted-then-disconnected retries preserved one logical delivery.
+
+The self-hosted product exposed enough API surface to inventory the project,
+tables, permissions, indexes, function, executions, storage, and cleanup
+without scraping an admin UI.
+
+### What felt bad or surprising
+
+The local operational footprint was enormous for this application: 29 Compose
+containers, 12 volumes, two networks, three Open Runtimes residues, and an
+arm-owned effect sink on a 4 CPU/8 GiB Colima VM. The assigned Hetzner machine
+had ample compute but no Docker-compatible runtime or installation authority,
+so the arm had to move back to the control plane.
+
+The official installer stream terminated after the stack was healthy, and
+Colima did not mirror generated files from the `/private/tmp` bind. Recovery
+required health-checking the exact installer container and copying its Compose
+files. Node 22 was cached but not enabled in generated configuration, so the
+worker changed the exact stack's runtime setting and recreated the relevant
+services.
+
+Realtime was the largest product papercut. Three natural concurrent
+`subscribe()` calls activated only the first observed channel; an array
+subscription also failed to behave as expected. Sequential registration
+worked. Collection delivery additionally required table-level read permission,
+so table authority, row authority, Auth restoration, channel shape, and
+subscription timing formed a subtle state machine.
+
+The frozen 20-row client burst hit endpoint rate limiting; native
+`createRows` batching was the correct path. A signed-in host could not grant
+Bob read permission during Storage upload, requiring a server-authorized
+follow-up permission update.
+
+The cron definition loaded and enqueued work but did not yield an inspectable
+execution inside the bounded wait. The native future `scheduledAt` API worked,
+but requires minute precision and at least a one-minute lead. The generated
+Function execution key also failed to authorize TablesDB writes through the
+control-plane endpoint, so the arm used a broader app-scoped key as a redacted
+Function variable.
+
+The frozen dependency audit retained 16 findings—seven high, six moderate, and
+three low—mostly in the CLI's development tree.
+
+### Realtime revocation and retention
+
+An already-connected Bob received no protected event after guest-list authority
+was removed and no post after invitation revocation; fresh protected reads were
+denied. Appwrite did not proactively erase the 21 previously authorized wall
+rows from React memory. The UI disclosed that retention until refresh, exactly
+as the frozen scenario requires; this is not represented as an eviction pass.
+
+### Performance and operations
+
+Two warmups plus seven samples produced local medians of 107.580 ms for
+capacity contention, 164.843 ms for the 20-row burst, 20.014 ms for the asset
+round trip, 13.932 ms for Realtime delivery, and 467.137 ms for deploy/build.
+These are self-hosted local measurements, not Appwrite Cloud claims.
+
+The first cleanup pass caught three project-named Open Runtimes containers and
+a probe bug, retained both facts, validated exact name/runtime-ID/type/image
+ownership, and removed only those residues. Final proof shows all 29 Compose
+containers, 12 volumes, two networks, the three runtime containers, effect
+sink, four assigned ports, and three arm-runtime directories absent. Unrelated
+baseline hashes were untouched.
+
+### Would I choose it?
+
+Appwrite is strong when backend breadth, native transaction conflicts,
+inspectable authorization, first-party assets, Functions, and self-host control
+matter. It is not the lightest or most predictable developer loop in this
+comparison. I would choose it conditionally for ownership and breadth, not as
+the default for a small team optimizing for minimal machinery.
+
+### Lessons for Snapback
+
+Match Appwrite's end result for native assets, scheduled work, redacted
+function configuration, effect execution history, typed transaction conflict,
+and complete target inspection. Preserve Snapback's chance to be much better
+at local startup, deployment footprint, runtime coherence, and live-authority
+clarity.
+
+The most important competitive lesson is to make subscription readiness and
+authorization transitions difficult to misconfigure. One coherent live handle
+should expose readiness, authority cause, revocation, retained-state policy,
+and cleanup without requiring developers to coordinate table permission, row
+permission, session restoration, channel syntax, and registration order.

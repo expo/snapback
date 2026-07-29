@@ -5,7 +5,7 @@
   "observedCheckCount": 15,
   "statusCounts": {
     "pass": 14,
-    "gap": 1
+    "unavailable-remote-dependency": 1
   },
   "scenarios": [
     {
@@ -364,7 +364,7 @@
     },
     {
       "id": "PARTY-13-DEPLOY",
-      "status": "gap",
+      "status": "unavailable-remote-dependency",
       "checkedAt": "2026-07-29T05:59:10.279Z",
       "projectId": "llp0102-partiful-appwrite-w3",
       "transport": "unavailable-remote-dependency",

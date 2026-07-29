@@ -352,3 +352,60 @@ synthesis remain coordinator-owned.
 - Adjudication: complete. Maincloud deployment/config/logs/rollback remain
   credential-unavailable and are not inferred from standalone/tunnel evidence.
   No Stop-class defect is present.
+
+## Partiful / Appwrite
+
+- Capsule verifier: PASS after coordinator outcome-class and confidence
+  calibration.
+- Frozen identities: exact product/source commit, aggregate, and canonical
+  attempt ID match.
+- Results: 14 PASS, 1 unavailable remote dependency. The worker labeled
+  PARTY-13 a GAP while its own transport and reason said credentials were
+  unavailable. The coordinator changed only the classification to
+  `unavailable-remote-dependency`, consistently with LLP 0102; no functional
+  evidence changed.
+- Evidence confidence: coordinator-adjusted to 15/16. Seven dimensions are
+  direct. Revocation inspected connected memory, but there is no persistent
+  browser-offline scenario or durable offline store, so offline/reconnect is
+  indirect rather than a perfect score.
+- Referenced evidence: all 26 unique capsule paths resolve.
+- Inventory audit: 34 timed files are recorded. Thirty-one retained source,
+  policy, config, test, and lockfile hashes match the final artifact after the
+  coordinator's two format-only source corrections. Three ignored `dist/`
+  files are explicitly build-time outputs; their hashes and 467.137 ms median
+  build remain retained in the inventory/performance evidence.
+- Authority: three native Auth sessions plus Team/row permissions directly
+  exercised host, cohost, guest, outsider, anonymous preview, and protected
+  negative paths. Public and private event facts use separate tables.
+- Contention: two actor-scoped native transactions staged writes at 49/50;
+  exactly one committed, one returned typed 409 `transaction_conflict`, and
+  authoritative state remained 50.
+- Transport/revocation: a persistent independent Chromium client observed the
+  20-post and RSVP-total burst over native Appwrite Realtime. Guest-list and
+  invitation revocation stopped future protected reads/delivery, while 21
+  previously authorized wall rows remained in React memory and were explicitly
+  disclosed until refresh.
+- Assets/scheduling: Storage retained authenticated upload, actor-specific
+  delivery, exact 262,144-byte hash, outsider denial, and deletion. A native
+  future `scheduledAt` Function execution completed with one deduped attempt;
+  bounded cron inspection failure remains retained.
+- Effects: a deployed Node 22 Function crossed a secret-authenticated
+  container boundary. Known-success retry retained one delivery.
+  Accepted-then-socket-drop remained `ambiguous`; same-key retry learned
+  duplicate success without a second logical delivery.
+- Performance: five frozen paths each retain two warmups, seven raw samples,
+  median, nearest-rank p95, local machine context, and non-hosted scope.
+- Target/cleanup: empty exact Compose baseline and unrelated container hashes
+  precede provisioning. Final proof removes 29 Compose containers, 12 volumes,
+  two networks, the effect sink, three validated Open Runtimes residues,
+  Vite, runtime directories, and ports `4334/8092/8492/20082`. The first
+  residue/probe failure remains retained.
+- Secret/dependency audit: the sole secret-shaped source hit is an environment
+  variable reference, not a value. Function and API credentials existed only
+  in ignored runtime state and were removed. npm audit retains 16 findings:
+  seven high, six moderate, three low.
+- Environment attribution: the failed Hetzner lane had no container runtime or
+  install authority and did not host a target. Reassignment to the isolated
+  control-plane Compose lane is disclosed and is not product blame.
+- Adjudication: complete. Appwrite Cloud identity, logs, rollback, latency, and
+  cost remain unavailable remote evidence. No Stop-class defect is present.

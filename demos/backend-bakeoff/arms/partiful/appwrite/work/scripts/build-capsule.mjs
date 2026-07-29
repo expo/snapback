@@ -160,8 +160,8 @@ const capsule = {
       evidencePaths: ["receipts/scenarios/PARTY-07-LIVE-BURST.json", "receipts/performance.v1.json"],
     },
     "offline-reconnect": {
-      score: 2,
-      reason: "This workload has no offline queue requirement; revocation directly inspected the already-connected client's retained in-memory data and confirmed no durable offline row store was claimed.",
+      score: 1,
+      reason: "Revocation directly inspected the already-connected client's retained in-memory data, but the frozen Partiful app has no persistent browser-offline scenario and no durable offline row store was claimed.",
       evidencePaths: ["receipts/scenarios/PARTY-12-REVOCATION.json"],
     },
     settlement: {
@@ -194,7 +194,7 @@ const capsule = {
     postCleanupProbe: "Ports 4334, 8092, 8492, and 20082 closed; exact Compose resources, effect sink, Open Runtimes containers, and runtime paths absent.",
   },
   result: "complete",
-  resultSummary: "All local Partiful checks passed on native Appwrite surfaces; hosted evidence is an explicit environment GAP and cleanup is complete.",
+  resultSummary: "All local Partiful checks passed on native Appwrite surfaces; hosted evidence is an unavailable remote dependency and cleanup is complete.",
 };
 await writeFile(path.resolve(armRoot, "run-capsule.v1.json"), `${JSON.stringify(capsule, null, 2)}\n`);
 console.log(JSON.stringify({ ok: true, scenarioCount: scenarioResults.length, status: capsule.result }));

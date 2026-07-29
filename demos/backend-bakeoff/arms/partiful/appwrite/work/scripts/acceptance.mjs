@@ -477,7 +477,7 @@ await receipt("PARTY-12-REVOCATION", "pass", "appwrite-realtime", {
 }, "Revocation stopped future protected reads and Realtime delivery; the UI honestly retained previously authorized in-memory data until refresh.");
 
 const deploymentReceipt = JSON.parse(await readFile(path.resolve(receiptsRoot, "function-deployment.v1.json"), "utf8"));
-await receipt("PARTY-13-DEPLOY", "gap", "unavailable-remote-dependency", {
+await receipt("PARTY-13-DEPLOY", "unavailable-remote-dependency", "unavailable-remote-dependency", {
   localProviderDeployment: deploymentReceipt,
   redactedConfiguration: { effectUrlConfigured: true, effectSecretConfigured: true, apiKeySecretConfigured: true, secretValuesPresent: false },
   localEffectReceipt: { attempts: successAttempts.length + ambiguousAttempts.length + scheduleAttempts.length },
