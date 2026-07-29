@@ -426,3 +426,130 @@ Supabase. Preserve Snapback's lightweight single-target ambition: this arm's
 eight-container/245 MB footprint and runtime-mirror workaround are real
 agent-DX costs. Finally, make index/query-plan inspection and before/after
 migration invariants one command.
+
+## 2026-07-28 — Convex, deep round, complete with two gaps
+
+### Environment
+
+The arm used Convex 1.42.3 with the official anonymous local backend, React
+client, generated functions/types, reactive queries, native indexes and search
+indexes. A worktree-local custom-JWT issuer represented the three frozen
+actors because the anonymous local deployment did not provide a reusable
+hosted identity configuration.
+
+### Milestones
+
+The clean acceptance run completed in about 19 seconds. Seed plus first read
+took about 201 ms, the first authoritative mutation about 320 ms, and the first
+realtime transition about 470 ms. Two earlier attempts are part of the diary:
+one harness invocation failed before writing application rows because it
+shadowed Node's `performance` API, and the first complete run used a
+`ConvexClient` whose subscription cache made read timings unrealistically
+small. The coordinator caught that measurement error and reran the entire arm
+against a fresh target with `ConvexHttpClient` for list/detail timing.
+
+### What felt good
+
+Convex's function model was compact and cohesive. A single transactional query
+composed the issue detail graph, indexed queries covered the deterministic
+filters, and the native text-search index found the expected issue without a
+side service. Mutations combined the issue edit, activity record, authorization
+check, and revision compare-and-set in one serializable operation.
+
+Realtime was especially pleasant. A second authenticated client subscribed to
+the ordinary issue-detail query and received the new comment and activity over
+the native reactive WebSocket path. The measured local delivery median was
+about 46 ms, with no polling or separate publication configuration.
+
+### What felt bad or frustrating
+
+The ordinary browser client has no persistent cold query cache or offline
+mutation outbox, so the required offline/reconnect scenario is a product GAP.
+The anonymous local workflow also required custom JWT/JWKS glue, and its local
+configuration contained generated administrative secrets. Cleanup therefore
+had to remove the whole exact deployment directory rather than merely delete
+application rows.
+
+Schema evolution was workable but application-authored: make the field
+optional, deploy it, run a transactional backfill, then deploy/read the new
+index. This proved the end result over all 501 rows, but it was not a
+first-class reviewed migration plan with built-in rollback evidence.
+
+The dependency installation occupied roughly 148 MB and `npm audit` reported
+one high-severity finding. The generated surface was small, but the distinction
+between reactive-client cache performance and authoritative backend read
+performance was easy to miss.
+
+### Modeling and correctness
+
+Convex documents and indexes fit the list/board side of the workload well.
+Relational detail composition remained application code, but running it inside
+one query transaction provided a coherent snapshot. Stable sequence cursors
+covered all 501 rows exactly once under concurrent insert.
+
+Two actors raced with the same expected revision. Convex's serializable
+mutation execution plus the explicit revision check admitted exactly one
+writer, rejected the other with `REVISION_CONFLICT`, and left an independently
+readable authoritative winner.
+
+### Realtime, offline, and auth
+
+- Custom JWTs supplied distinct owner, member, and outsider identities.
+- Function-level membership checks rejected both outsider reads and writes.
+- Reactive queries provided direct second-client push.
+- Application-authored optimistic state reconciled after mutation settlement.
+- Persistent cold reads and queued offline mutation are unsupported by the
+  ordinary client and were not simulated.
+
+### Deployment and operations
+
+The official anonymous local backend was fast to start and easy to drive, but
+no isolated hosted credential was available, so hosted URL, region, usage,
+rollback, and export remain unavailable rather than inferred.
+
+Cleanup deleted every exact-namespace row, stopped the assigned ports, and
+removed `.convex`, `.arm-runtime`, `.env.local`, the private signing key, and
+public persona carriers. The coordinator independently verified those negative
+probes and the final local database hash before removal.
+
+### Glue and workaround inventory
+
+- Custom local JWT issuer and JWKS for three real authority paths.
+- Application-level revision field for typed conflict refusal.
+- Application-authored optimistic object before mutation settlement.
+- Optional-field rollout and explicit backfill for migration.
+- Explicit removal of secret-bearing local deployment state.
+- Honest persistent-offline and hosted-deployment gaps.
+
+### Outcome
+
+The arm completed 12 PASS, one product GAP, and one hosted
+credential-unavailable result. The capsule and every evidence path verify.
+Evidence confidence is 14/16 because the offline dimension is intentionally
+absent; all other dimensions have direct evidence.
+
+### Would I choose it?
+
+Yes, often. Convex is a strong default for a realtime collaborative web
+application when compact server functions, transactional correctness, native
+reactivity, and low orchestration matter more than SQL access or built-in
+offline-first behavior.
+
+I would hesitate when persistent offline work, externally governed relational
+data, mature migration operations, or self-hosted credential hygiene dominate
+the requirements.
+
+### Lessons for Snapback
+
+Match Convex's end result for a small authoring surface: schema, indexed query,
+mutation, authorization, and reactive client should feel like one coherent
+system. One server query should naturally compose a bounded detail graph, and
+one mutation should naturally own authorization, conflict policy, data change,
+and activity receipt.
+
+Snapback can differentiate by preserving retained cold reads and an outbox,
+making principal setup simpler than custom local JWT glue, and offering a
+reviewed migration/rollback workflow. It should also make authoritative versus
+client-cache performance explicit in its tooling, keep local credentials
+scoped and automatically disposable, and add native indexed search without
+expanding the operational footprint.

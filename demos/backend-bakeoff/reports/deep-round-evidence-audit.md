@@ -77,3 +77,34 @@ synthesis remain coordinator-owned.
   credential appears in the committed capsule/receipts.
 - Adjudication: complete. Hosted operations remain an environment/profile GAP
   and are not extrapolated from the local target.
+
+## Linear / Convex
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 1 GAP, 1 unavailable remote dependency.
+- Evidence confidence: 14/16; persistent offline/reconnect is the only missing
+  dimension.
+- Referenced evidence: every scenario and confidence path resolves.
+- Authority/conflict/search/transport: direct custom-JWT principals and
+  negative authority probes, transactional revision CAS, native search-index
+  results, and second-client reactive WebSocket delivery.
+- Performance: the coordinator rejected cached `ConvexClient` read timings,
+  recreated the target, and accepted only the clean `ConvexHttpClient`
+  list/detail samples. Two warmups and seven recorded samples are retained.
+- Migration: direct 501-document backfill and indexed read proof. It is
+  correctly described as an application-authored optional-field rollout, not
+  a first-class provider migration facility.
+- Target/cleanup: all exact namespace rows are zero; ports `3323/3324/4323`,
+  `.convex`, `.arm-runtime`, `.env.local`, private signing material, and public
+  persona carriers were independently observed absent. The final database hash
+  was retained before exact target removal.
+- Secret audit: generated local admin/instance secrets existed only inside the
+  ignored runtime target and were deleted with it; none appears in committed
+  source, capsule, or receipts.
+- Integrity correction: the coordinator found and fixed a stale hard-coded
+  Mallory hash in the capsule generator, then regenerated and reverified the
+  capsule against the direct seed receipt.
+- Adjudication: complete. Persistent offline capability is a product GAP.
+  Hosted deployment is credential-unavailable and is not scored as a Convex
+  product failure.
