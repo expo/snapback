@@ -1372,3 +1372,71 @@ Evidence:
 - `demos/backend-bakeoff/reports/remediation-1/evidence/todo/correctness-smoke.v1.json`
 - `demos/backend-bakeoff/reports/remediation-1/failed-attempts/todo-static-count-assertion/`
 - `demos/backend-bakeoff/reports/remediation-1-report.md`
+
+## 2026-07-29 — staged Linux package and external Todo confirmation
+
+This was a clean external confirmation rather than another source-tree run. I
+built frozen commit `4e5da63c33064082c73359f0ee02efcd11e360ff` in a detached
+Linux worktree, staged the seven-package host closure as
+`0.1.1-llp0102.1` with the publisher's dry-run mode, ran the official staged
+cold-install proof, and then copied the frozen Todo work directory outside the
+repository. The external copy generated and built offline and ran on assigned
+ports `33101` and `43101` with isolated HOME, XDG, npm, runtime, browser, and
+receipt state.
+
+The result was 11 passes, 3 declared gaps, and no failures across all 14
+expected checks. Authenticated membership reads, outsider refusal, CRUD,
+native push, concurrent conflict handling, ordering, logout, revocation,
+performance sampling, backup evidence, and exact cleanup all passed. The three
+gaps are product gaps rather than harness skips: the shipped protected Todo
+query is not locally runnable or retainable, the React Online surface has no
+durable offline mutation outbox, and reconnect therefore has no queued work to
+settle. It does return to the 100-row authoritative view without creating the
+attempted offline row.
+
+What felt good:
+
+- The staged package closure carried the full app loop. The official cold
+  proof passed offline codegen, packaged CLI introspection, runtime doctor,
+  scaffold/generate, deploy build, managed dev lifecycle, and browser bundling
+  without a sibling source checkout.
+- The package-only server produced strong provenance. Both the original start
+  and restart reported the exact frozen commit, clean source, and release
+  profile, and `/inspect` matched the generated app and bundle hashes.
+- Snapback's executable-artifact permission check correctly refused a
+  group-writable startup carrier. That is the right safety result.
+- Sessions, membership enforcement, server-owned writes, durable live updates,
+  concurrent mutation behavior, revocation, and cleanup all exercised the
+  installed backend rather than a substitute wrapper.
+
+What felt bad or frustrating:
+
+- Linux bootstrap was much harder than package consumption. No prepared binary
+  matched the frozen pinned Hermes revision. A prepared older Hermes tree was
+  correctly rejected by provenance, but reaching a valid build required the
+  exact Hermes patch stack plus lane-local ICU and curl development files.
+- The first package dry run under isolated HOME could not find Volta's Node
+  until `VOLTA_HOME=/home/ccheever/.volta` was bound explicitly.
+- `@snapback/client/online` is an exported runtime path but the staged client
+  package ships no declaration for it. The external TypeScript build failed
+  with TS7016 until a receipt-tracked, no-runtime-change declaration shim was
+  added.
+- A `0002` umask created a group-writable startup carrier. Snapback correctly
+  refused it, but the diagnostic did not name the failed mode, ownership, or
+  ACL predicate. An explicit `0022` fixed it.
+- Raw `/inspect` on a sessions target requires
+  `x-snapback-auth-client-protocol: 1`. Package-owned lifecycle/provenance
+  helpers should make the correct probe available.
+- Installed `snapback stop` closes the server and removes ready and
+  impersonation files, but leaves the owner-only `.secret-read-root` until the
+  arm removes its scoped runtime directory.
+- The frozen performance receipt hardcodes `Mac17,3 arm64` even though this run
+  executed on Minisforum Linux x86_64. The raw samples are retained with a
+  companion correction and are not used for cross-machine comparison.
+
+Compared with Convex or Supabase, Snapback made authority, bundle identity, and
+cleanup unusually inspectable from installed artifacts. The weak side is that
+packaging and host lifecycle still expose seams a mature default backend
+should hide. The biggest product gap remains offline behavior: an online Todo
+is solid, but the frozen surface does not yet make a resilient offline Todo
+feel native.

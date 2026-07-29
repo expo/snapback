@@ -871,3 +871,62 @@ Evidence:
 - `demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json`
 - `demos/backend-bakeoff/reports/remediation-1/evidence/chat/ephemeral-typing-diagnostic.json`
 - `demos/backend-bakeoff/reports/remediation-1-report.md`
+
+## 2026-07-29 — staged Linux package and external Chat confirmation
+
+I rebuilt the frozen Snapback source on Linux, staged the dry-run package
+closure as `0.1.1-llp0102.1`, and ran the frozen Chat app from a clean external
+copy on assigned ports `33102` and `43102`. All Snapback imports resolved from
+external `node_modules`; start, restart, and stop used the installed
+`snapback` command and installed Linux runtime. The project had independent
+HOME, XDG, npm, runtime, browser, and evidence state.
+
+The final result was 14 passes, 1 declared gap, and no failures across all 15
+expected checks. Seed shape, private-channel authority, authoritative sends,
+native durable push, stable pagination, native ephemeral typing and presence,
+reconnect, cross-client unread markers, concurrent sends, logout, revocation,
+performance sampling, backup evidence, and exact cleanup passed. The one gap
+was cold offline history: the protected membership-gated live query is not
+retainable through the React Online surface, so a fresh offline client has zero
+trusted retained rows.
+
+What felt good:
+
+- The installed runtime handled a broad realtime workload. Durable WebSocket
+  updates, ephemeral TTL overlays, multi-client unread state, concurrent
+  sequence allocation, sessions, revocation, browser personas, and restart
+  recovery all ran through the real backend.
+- Bundle and binary provenance remained unusually inspectable. Both starts
+  proved the exact frozen clean release and exact generated app bundle.
+- Outsider private reads and subscriptions, logout, and membership revocation
+  all failed closed rather than degrading into UI-only hiding.
+- Final cleanup was narrow and mechanically provable: the app-owned runtime
+  and persona carriers disappeared and assigned listeners were gone.
+
+What felt bad or frustrating:
+
+- The same package and Linux preparation issues observed in Todo apply here:
+  exact Hermes bootstrap required lane-local native development dependencies;
+  isolated HOME needed explicit Volta binding; and
+  `@snapback/client/online` lacked a public TypeScript declaration.
+- The external lifecycle needed custom package-only glue to bind assigned
+  ports, capture the process-bound impersonation capability, verify binary and
+  bundle identity, and prove shutdown. Those are normal installed-product
+  needs and should be first-party.
+- A collaborative `0002` umask produced a startup artifact Snapback correctly
+  rejected as group-writable, but the diagnostic hid the precise predicate.
+- Installed `snapback stop` left its owner-only secret-read root until the arm
+  removed the whole scoped runtime directory.
+- The burst of 20 messages had a roughly 20.9-second median on this local Linux
+  target, much slower than the single-event realtime path. This needs profiling
+  rather than being hidden by the overall pass.
+- The frozen performance receipt falsely labels this Linux x86_64 run as a
+  `Mac17,3 arm64` workload. A companion environment receipt corrects it; the
+  samples are not used for cross-machine comparison.
+
+Relative to Convex or Firebase, Snapback's combination of durable push and
+native ephemeral overlays is conceptually attractive for chat: typing and
+presence did not become durable rows, and authorization stayed part of the
+backend contract. Package typing, lifecycle orchestration, Linux preparation,
+burst throughput, and offline retained history all need to become boring
+before Snapback can be the default choice.
