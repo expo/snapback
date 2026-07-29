@@ -5035,6 +5035,7 @@ export class SnapbackClient {
     let handleAuthorityCapture = null;
     const freshSubscribeQueueGenerations = new WeakMap();
     let pauseReleasePromise = Promise.resolve();
+    let knownRetiredSubscriptionId = null;
 
     const handle = {
       subscriptionId: null,
@@ -5066,6 +5067,25 @@ export class SnapbackClient {
         return authorizationFence?.snapshot?.() ?? null;
       },
     };
+    const markKnownSubscriptionRetired = (subscriptionId) => {
+      if (
+        typeof subscriptionId === 'string'
+        && subscriptionId.length > 0
+        && handle.subscriptionId === subscriptionId
+      ) {
+        knownRetiredSubscriptionId = subscriptionId;
+      }
+    };
+    const isKnownSubscriptionRetired = (subscriptionId) => (
+      typeof subscriptionId === 'string'
+      && subscriptionId === knownRetiredSubscriptionId
+    );
+    const alreadyRetiredResponse = (subscriptionId) => ({
+      subscription_id: subscriptionId,
+      disposed: false,
+      alreadyRetired: true,
+      retirementCode: 'SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED',
+    });
     const terminalQueryDeleted = () => (
       authorizationFence?.snapshot?.().terminalDeleted === true
     );
@@ -5950,6 +5970,9 @@ export class SnapbackClient {
       externalBearerTransitionPermit = null,
     ) => {
       if (!subscriptionId) return Promise.resolve();
+      if (isKnownSubscriptionRetired(subscriptionId)) {
+        return Promise.resolve(alreadyRetiredResponse(subscriptionId));
+      }
       const retiringFence = retirementState.authorizationFence;
       return Promise.resolve()
         .then(() => {
@@ -5963,7 +5986,24 @@ export class SnapbackClient {
             ? client.#unsubscribeLive(name, options, externalBearerTransitionPermit)
             : client.unsubscribeLive(name, options);
         })
+        .catch((error) => {
+          if (error?.diagnostic?.code !== 'SNAPBACK_UNKNOWN_SUBSCRIPTION') {
+            throw error;
+          }
+          // Only this handle's captured generation may translate
+          // server-confirmed absence into completed local retirement. The
+          // public unsubscribe API remains strict, so foreign ids and
+          // ownership/session mismatches still fail closed.
+          markKnownSubscriptionRetired(subscriptionId);
+          return alreadyRetiredResponse(subscriptionId);
+        })
         .then(async (response) => {
+          if (
+            response?.subscription_id === subscriptionId
+            && typeof response?.disposed === 'boolean'
+          ) {
+            markKnownSubscriptionRetired(subscriptionId);
+          }
           if (response?.scopeRetirement && authorizationFence !== null) {
             // Pause serializes resume behind this promise, so the current
             // active fence is still the exact released subscription's fence.
@@ -5988,6 +6028,7 @@ export class SnapbackClient {
           ) {
             await commitAuthorizationTask(retirementState, () => retiringFence.finishRetirement());
           }
+          return response;
         });
     };
 
@@ -6345,6 +6386,7 @@ export class SnapbackClient {
         const installed = await client.commitAuthorityPublication(responseCapture, () => {
           assertSubscribeLifecycle(lifecycle);
           handle.subscriptionId = sub.subscription_id;
+          knownRetiredSubscriptionId = null;
           handleAuthorityCapture = responseCapture;
           if (!sub.authorizationScope) {
             if (sub.snapshot) {
@@ -6715,8 +6757,14 @@ export class SnapbackClient {
 
     const unregisterAuthMaterialization = client.registerAuthMaterialization({
       capture: () => handleAuthorityCapture,
-      blank: () => {
+      blank: (context = {}) => {
         if (disposed) return;
+        // @ref LLP 0059#typed-terminal-auth-error — terminal authority loss
+        // has an independent server cleanup owner. Record only this handle's
+        // exact generation so later unmount/dispose is local and idempotent.
+        if (context.terminal === true) {
+          markKnownSubscriptionRetired(handle.subscriptionId);
+        }
         paused = true;
         needsResubscribe = true;
         invalidateSubscribeLifecycle('authority-blanked');
@@ -6758,6 +6806,7 @@ export class SnapbackClient {
       const { subscriptionId, rows, version, resume } = registeredSubscription;
       if (typeof subscriptionId !== 'string' || subscriptionId.length === 0) return false;
       handle.subscriptionId = subscriptionId;
+      knownRetiredSubscriptionId = null;
       handle.rows = Array.isArray(rows) ? rows : [];
       handle.version = typeof version === 'number' ? version : 0;
       // Auth-scoped entries carry `resume: null` in both modes (LLP 0092
