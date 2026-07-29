@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "snapback.package-cold-install.v1",
+  "ok": true,
+  "claimTreatment": "checkpoint",
+  "claimSatisfied": false,
+  "platformClaimSatisfied": false,
+  "sourceRevision": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "sourceDirty": false,
+  "publicationMode": "dry-run",
+  "installSource": "staged",
+  "registry": "disposable-loopback",
+  "scopePreset": "ccheever",
+  "version": "0.1.1-llp0102.1",
+  "machine": {
+    "platform": "linux",
+    "architecture": "x64",
+    "osRelease": "6.17.0-40-generic",
+    "nodeVersion": "v24.15.0",
+    "runtimePackage": "@snapback/runtime-linux-x64",
+    "runnerEnvironment": "local",
+    "separatelyProvisionedCleanMachine": false,
+    "githubRunId": null,
+    "githubRunAttempt": null,
+    "githubRepository": null,
+    "githubWorkflowSha": null
+  },
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-linux-x64",
+      "publishedName": "@ccheever/snapback-runtime-linux-x64",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-runtime-linux-x64-0.1.1-llp0102.1.tgz",
+      "sha256": "0ba58d8734b2016a15aaa77a28532dbfbe33c9f04daf7cdb3d824fab1b8feb0f",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "publishedName": "@ccheever/snapback-contract",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-contract-0.1.1-llp0102.1.tgz",
+      "sha256": "72b01434c790a49c253afc69802216ff8493ddc323b44f97f8e371013d154113",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/client",
+      "publishedName": "@ccheever/snapback-client",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-client-0.1.1-llp0102.1.tgz",
+      "sha256": "4f2b614ebf2037b6ae4cd19db8a630e8f3515f1bed90d4ad84639a64abe554f9",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "publishedName": "@ccheever/snapback-codegen",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-codegen-0.1.1-llp0102.1.tgz",
+      "sha256": "61d79458b447d74094cb2a51775cc6cbf51de9c1a912fa158b45a7d811bcd468",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/react",
+      "publishedName": "@ccheever/snapback-react",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-react-0.1.1-llp0102.1.tgz",
+      "sha256": "d5bf48f3ba1233dc9f322d40d6c43e59e78f5245cd68beb32368e4704d78acad",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "publishedName": "@ccheever/snapback-app-cli",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-app-cli-0.1.1-llp0102.1.tgz",
+      "sha256": "f98ffe9b589367483e95b0d7df9e15bf3d6be71504e7d358bdf0f7902f1a6148",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "publishedName": "@ccheever/snapback-cli",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-cli-0.1.1-llp0102.1.tgz",
+      "sha256": "5694475adb0b4f2f7427a37ac4bf5c0dd30b6273472977047b104a5d162d92fc",
+      "registrySha256": null
+    }
+  ],
+  "deployBuild": {
+    "releaseId": "sha256:f507f1f5349560fbfded46d701f560b56aca6d71f9d18b3d41458036e6916e45",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "activationEligible": false,
+    "componentCount": 20,
+    "gapCount": 23
+  },
+  "checks": {
+    "materializedTarballInstall": true,
+    "stagedRegistryAliasResolution": true,
+    "publicRegistryAliasResolution": false,
+    "publicRegistryTarballDigestMatch": false,
+    "registryTarballCount": 0,
+    "noSiblingSourceCheckout": true,
+    "partitimeBackendBuilt": true,
+    "localCodegenOffline": true,
+    "remoteCodegenOffline": true,
+    "bundledSchemasAndCorpus": true,
+    "repositoryRelativePublicationPaths": true,
+    "packagedCliIntrospection": true,
+    "packagedRuntimeDoctor": true,
+    "packagedScaffoldAndOfflineGenerate": true,
+    "packagedDeployBuildAndVerify": true,
+    "packagedManagedDevReadyAttachWatchAndStop": true,
+    "browserAdapterBundle": true,
+    "resolvedDependencyCount": 16,
+    "browserBundleBytes": 531519
+  },
+  "nonclaims": [
+    {
+      "id": "public-registry-install",
+      "reason": "The proof resolves the exact public aliases through a disposable loopback npm registry backed by immutable tarballs; the packages are not yet published in a public registry."
+    },
+    {
+      "id": "separately-provisioned-clean-machine",
+      "reason": "The proof uses a fresh external directory on the development host, not a separately provisioned clean machine."
+    },
+    {
+      "id": "other-runtime-platforms-not-executed",
+      "reason": "This receipt launches linux-x64; every other retained runtime package requires its own clean machine proof."
+    }
+  ]
+}

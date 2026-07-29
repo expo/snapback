@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "snapback.package-publication.v1",
+  "mode": "dry-run",
+  "revision": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "sourceDirty": false,
+  "version": "0.1.1-llp0102.1",
+  "tag": "latest",
+  "registry": "https://registry.npmjs.org",
+  "scopePreset": "ccheever",
+  "runtimePlatforms": [
+    "linux-x64"
+  ],
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-linux-x64",
+      "name": "@ccheever/snapback-runtime-linux-x64",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-runtime-linux-x64-0.1.1-llp0102.1.tgz",
+      "sha256": "0ba58d8734b2016a15aaa77a28532dbfbe33c9f04daf7cdb3d824fab1b8feb0f",
+      "files": 3,
+      "unpackedSize": 91446787,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "name": "@ccheever/snapback-contract",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-contract-0.1.1-llp0102.1.tgz",
+      "sha256": "72b01434c790a49c253afc69802216ff8493ddc323b44f97f8e371013d154113",
+      "files": 20,
+      "unpackedSize": 722947,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/client",
+      "name": "@ccheever/snapback-client",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-client-0.1.1-llp0102.1.tgz",
+      "sha256": "4f2b614ebf2037b6ae4cd19db8a630e8f3515f1bed90d4ad84639a64abe554f9",
+      "files": 14,
+      "unpackedSize": 605849,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "name": "@ccheever/snapback-codegen",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-codegen-0.1.1-llp0102.1.tgz",
+      "sha256": "61d79458b447d74094cb2a51775cc6cbf51de9c1a912fa158b45a7d811bcd468",
+      "files": 177,
+      "unpackedSize": 1940406,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/react",
+      "name": "@ccheever/snapback-react",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-react-0.1.1-llp0102.1.tgz",
+      "sha256": "d5bf48f3ba1233dc9f322d40d6c43e59e78f5245cd68beb32368e4704d78acad",
+      "files": 4,
+      "unpackedSize": 8411,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "name": "@ccheever/snapback-app-cli",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-app-cli-0.1.1-llp0102.1.tgz",
+      "sha256": "f98ffe9b589367483e95b0d7df9e15bf3d6be71504e7d358bdf0f7902f1a6148",
+      "files": 3,
+      "unpackedSize": 8313,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "name": "@ccheever/snapback-cli",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "ccheever-snapback-cli-0.1.1-llp0102.1.tgz",
+      "sha256": "5694475adb0b4f2f7427a37ac4bf5c0dd30b6273472977047b104a5d162d92fc",
+      "files": 11,
+      "unpackedSize": 325839,
+      "status": "dry-run-ok"
+    }
+  ]
+}

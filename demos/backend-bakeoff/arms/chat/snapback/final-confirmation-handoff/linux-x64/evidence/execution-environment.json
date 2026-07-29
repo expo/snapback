@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "snapback.llp0102.execution-environment.v1",
+  "arm": "chat/snapback",
+  "worker": "ccheever-minisforum-AI-Series",
+  "machine": {
+    "os": "Ubuntu Linux",
+    "kernel": "6.17.0-40-generic",
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+    "logicalCpus": 24
+  },
+  "toolchain": {
+    "node": "24.15.0",
+    "npm": "11.13.0",
+    "bun": "1.3.9",
+    "chrome": "148.0.7778.96"
+  },
+  "assignedPorts": {
+    "api": 33102,
+    "vite": 43102
+  },
+  "isolation": [
+    "detached exact-freeze worktree",
+    "external project directory",
+    "arm-specific HOME",
+    "arm-specific XDG cache/config/data roots",
+    "arm-specific npm cache",
+    "arm-specific runtime root",
+    "arm-specific receipts root"
+  ],
+  "performanceReceiptCorrection": {
+    "field": "profile",
+    "staleValue": "small local Mac17,3 arm64 workload; two warmups and seven recorded samples",
+    "correctExecutionContext": "Minisforum Ubuntu Linux x86_64; two warmups and seven recorded samples",
+    "treatment": "Raw samples are retained, but machine-context confidence is lowered and the stale value must not be quoted as execution truth."
+  },
+  "postRun": {
+    "runtimeRootAbsent": true,
+    "apiPortClosed": true,
+    "vitePortClosed": true,
+    "matchingProcessAbsent": true
+  }
+}

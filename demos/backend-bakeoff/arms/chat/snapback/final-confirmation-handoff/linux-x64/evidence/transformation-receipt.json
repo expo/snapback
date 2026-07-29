@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "snapback.llp0102.external-transformation.v1",
+  "arm": "chat/snapback",
+  "sourceRevision": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "packageVersion": "0.1.1-llp0102.1",
+  "publicationMode": "dry-run",
+  "ledgerPath": "/home/ccheever/tmp/llp0102-stage5-lane1-packages-0.1.1-llp0102.1-retry2/publish-ledger.json",
+  "ledgerSha256": "504eb89db0c435a0ae6c1e1559e98026b36c9f999045e4299de6f45cc61b5773",
+  "externalWorkRoot": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external",
+  "sourceCapsuleMutated": false,
+  "transformations": [
+    {
+      "path": "package.json",
+      "operation": "structured-rewrite",
+      "reason": "bind all Snapback imports and commands to the staged host package closure",
+      "beforeSha256": "fcbb362266f237374841a3368d8cdd21b50176dcf7e4b049e6724d461aae3d68",
+      "afterSha256": "b0222eb6de4a7f5ff73ee392b91500b861eff316eaaa5ce67eb914e6fb07a782"
+    },
+    {
+      "path": "src/provider.ts",
+      "operation": "exact-replacement",
+      "reason": "replace source-tree client import with installed package export",
+      "beforeSha256": "0e4620c3ce3c756476761a03977462080652b3bc2f6de02cea8921d8c47edee5",
+      "afterSha256": "5556143131026477e48fdc2462b430fe143878d1edc5bc6bf79db76fcc98998b"
+    },
+    {
+      "path": "src/App.tsx",
+      "operation": "exact-replacement",
+      "reason": "replace source-tree React import with installed package export",
+      "beforeSha256": "75528ef74ee0fa04c5ff55d856395cf5b93928a55333d84654c9b5c776e07f83",
+      "afterSha256": "b435fcb489375ceca7fe56a994caf7e7acbe233e7c07398937ca6e330936acdc"
+    },
+    {
+      "path": "snapback/schema.mjs",
+      "operation": "exact-replacement",
+      "reason": "replace demo-kit schema DSL import with installed codegen export",
+      "beforeSha256": "0a22bef8ac3c42bdd1c50932d6d9abf024389023dd994f17a7712391d82d01de",
+      "afterSha256": "70535d274dd4a3eb63d1aa458e55bab5ea51ee63351dcc947381ba92f186cdcb"
+    },
+    {
+      "path": "snapback/functions.mjs",
+      "operation": "exact-replacement",
+      "reason": "replace demo-kit schema DSL import with installed codegen export",
+      "beforeSha256": "5b371464ecccc1945d38ce5ccee3da47e11d841181baad44de6b3084fdbed0de",
+      "afterSha256": "063d507e9181e38557b54d98270245feaf3f2ed047f7553e24f2af743dd1f45e"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "operation": "exact-replacement",
+      "reason": "replace all demo-kit client and lifecycle imports with installed packages and the external package-only launcher",
+      "beforeSha256": "d5541d547038ca0f0c37ad3000328e216710f7f6d8284757938e9e3929a156b5",
+      "afterSha256": "eced0b7f83cc1b2b4518ee5aef7b723b76be158824294a3a1191000643f174d4"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "operation": "exact-replacement",
+      "reason": "replace source-tree contract import with installed package export",
+      "beforeSha256": "eced0b7f83cc1b2b4518ee5aef7b723b76be158824294a3a1191000643f174d4",
+      "afterSha256": "b43b6e99fe3ff1817a5610335c3ea61cf772a51cae6fc1892ed46f8b1940d327"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "operation": "exact-replacement",
+      "reason": "remove source checkout root discovery",
+      "beforeSha256": "b43b6e99fe3ff1817a5610335c3ea61cf772a51cae6fc1892ed46f8b1940d327",
+      "afterSha256": "ce6fa4f656c7590c339550d564cecd411270d27a4a532f61a8dac559a6bb65ec"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "operation": "exact-replacement",
+      "occurrences": 2,
+      "reason": "run both installed server processes from the external project root",
+      "beforeSha256": "ce6fa4f656c7590c339550d564cecd411270d27a4a532f61a8dac559a6bb65ec",
+      "afterSha256": "a81c24a14fe9ffa1d78846e45490d6b7d054a28714fee95efdc401e9dfbbab37"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "operation": "exact-replacement",
+      "reason": "make the controlled browser path explicit and machine-local",
+      "beforeSha256": "a81c24a14fe9ffa1d78846e45490d6b7d054a28714fee95efdc401e9dfbbab37",
+      "afterSha256": "565b36c79b05816c133916f02795e50f3cfe4bd8e1218d836b665f462ed5e6a6"
+    },
+    {
+      "path": "vite.config.ts",
+      "operation": "exact-replacement",
+      "reason": "remove source-checkout filesystem access from Vite",
+      "beforeSha256": "59f68173b14ac2f693e674c6d5e64fef40adc890138331f2811e6dc62b027b26",
+      "afterSha256": "0709465427668ae85ef999f63762d7a06fd92962363fe8cc142ad656d3548115"
+    },
+    {
+      "path": "src/snapback-client-online.d.ts",
+      "operation": "add",
+      "reason": "the staged client package exports online.mjs without a TypeScript declaration; preserve runtime imports while recording the package gap",
+      "beforeSha256": null,
+      "afterSha256": "7db40af0be840da9732cd215c5dd852a9b84f4552b8ad7606a5e94b1398f167d"
+    },
+    {
+      "path": "scripts/finalize-capsule.mjs",
+      "operation": "delete",
+      "reason": "sealed capsule finalization is coordinator-owned and source-tree-coupled",
+      "beforeSha256": "85d6016b676ba431fdd0fa2c1c8658689484d298f40d8b7b1a5d44490ad9fe70",
+      "afterSha256": null
+    },
+    {
+      "path": "scripts/external-acceptance-kit.mjs",
+      "operation": "add",
+      "reason": "installed-package-only lifecycle with assigned-port, provenance, and cleanup proof",
+      "beforeSha256": null,
+      "afterSha256": "4ce84b472ce73fde0f3fc07f3e933a342554edc47db61f734ca2319c1c582f75"
+    }
+  ],
+  "scan": {
+    "paths": [
+      "package.json",
+      "src/provider.ts",
+      "src/App.tsx",
+      "src/snapback-client-online.d.ts",
+      "snapback/schema.mjs",
+      "snapback/functions.mjs",
+      "scripts/run-arm.mjs",
+      "scripts/external-acceptance-kit.mjs",
+      "vite.config.ts"
+    ],
+    "forbiddenTokens": [
+      "../../../../../../_kit/",
+      "../../../../../../../packages/snapback-",
+      "../../../../../../packages/snapback-",
+      "repoRoot",
+      "cargo run",
+      "target/release/snapback",
+      "target/debug/snapback"
+    ],
+    "findings": [],
+    "ok": true
+  }
+}
