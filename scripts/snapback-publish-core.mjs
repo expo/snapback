@@ -12,6 +12,18 @@ import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 // from silently becoming publication authority.
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
 
+export const BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS = Object.freeze([
+  'BrowserContext.serviceWorkers()',
+  'Cache.keys()',
+  'CacheStorage.keys()',
+  'ConsoleMessage.args()',
+  'IDBFactory.databases()',
+  'Page.workers()',
+  'Performance.getEntriesByType("resource")',
+  'Reflect.ownKeys(browser value)',
+  'Reflect.ownKeys(globalThis)',
+]);
+
 export const PACKAGE_INVENTORY = Object.freeze([
   ['@snapback/runtime-darwin-arm64', '@ccheever/snapback-runtime-darwin-arm64'],
   ['@snapback/runtime-linux-x64', '@ccheever/snapback-runtime-linux-x64'],
@@ -174,6 +186,8 @@ const BROWSER_CAPTURE_KEYS = [
 const BROWSER_CAPTURE_MATERIALIZATION_KEYS = [
   'cdpEventMaterialization',
   'chromiumInternalMaterialization',
+  'proofInvokedHostCollectionApis',
+  'proofInvokedHostCollectionResults',
   'proofOwnedCopiesAndEncodings',
   'requestPostDataProtocolCapBytes',
   'resourceProtocolCapBytes',
@@ -392,8 +406,16 @@ export function validateColdInstallBrowserEvidence(receipt) {
       !== 'not-bounded-by-this-proof'
     || capture.materializationBoundary.chromiumInternalMaterialization
       !== 'not-bounded-by-this-proof'
+    || capture.materializationBoundary.proofInvokedHostCollectionResults
+      !== 'post-return-bounded-not-pre-allocation-bounded'
+    || !Array.isArray(capture.materializationBoundary.proofInvokedHostCollectionApis)
+    || capture.materializationBoundary.proofInvokedHostCollectionApis.length
+      !== BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS.length
+    || capture.materializationBoundary.proofInvokedHostCollectionApis.some(
+      (value, index) => value !== BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS[index],
+    )
     || capture.materializationBoundary.proofOwnedCopiesAndEncodings
-      !== 'bounded-before-allocation'
+      !== 'bounded-before-allocation-after-host-return'
     || capture.materializationBoundary.requestPostDataProtocolCapBytes
       !== capture.maxSurfaceBytes
     || capture.materializationBoundary.resourceProtocolCapBytes

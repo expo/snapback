@@ -9,6 +9,7 @@ import {
 import { open as openFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import {
+  BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   validateColdInstallBrowserEvidence,
   validateCandidateLedger,
   validatePublicationReceiptProvenance,
@@ -16,7 +17,10 @@ import {
 } from './snapback-publish-core.mjs';
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
-export { validateColdInstallBrowserEvidence };
+export {
+  BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
+  validateColdInstallBrowserEvidence,
+};
 
 const PLAYWRIGHT_HEADLESS_EXECUTABLE_NAMES = new Set([
   'chrome-headless-shell',

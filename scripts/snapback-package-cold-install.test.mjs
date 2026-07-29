@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -14,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   aggregatePublicPackageProofs,
+  BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   boundedSerializeBrowserValue,
   browserAssetsContainSecretCanary,
   browserForbiddenMarkerVariants,
@@ -253,6 +255,55 @@ test('browser deep serializer traverses custom classes, functions, accessors, an
   );
 });
 
+test('host collection results are explicitly post-return bounded, not pre-allocation bounded', async () => {
+  assert.ok(Object.isFrozen(BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS));
+  assert.deepEqual(BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS, [
+    'BrowserContext.serviceWorkers()',
+    'Cache.keys()',
+    'CacheStorage.keys()',
+    'ConsoleMessage.args()',
+    'IDBFactory.databases()',
+    'Page.workers()',
+    'Performance.getEntriesByType("resource")',
+    'Reflect.ownKeys(browser value)',
+    'Reflect.ownKeys(globalThis)',
+  ]);
+  const target = {};
+  for (let index = 0; index < 128; index += 1) target[`key-${index}`] = index;
+  let ownKeysReturned = false;
+  const value = new Proxy(target, {
+    ownKeys(current) {
+      const keys = Reflect.ownKeys(current);
+      ownKeysReturned = true;
+      return keys;
+    },
+  });
+  await assert.rejects(
+    boundedSerializeBrowserValue(value, {
+      maxBytes: 1024,
+      maxDepth: 4,
+      maxNodes: 20,
+      maxProperties: 4,
+    }),
+    /property bound/u,
+  );
+  assert.equal(
+    ownKeysReturned,
+    true,
+    'the host collection exists before the serializer can apply its post-return property bound',
+  );
+});
+
+test('proof-owned collection copies remain incrementally bounded after host return', () => {
+  const source = readFileSync(script, 'utf8');
+  assert.doesNotMatch(source, /Object\.entries\(request\.headers/u);
+  assert.doesNotMatch(source, /\[\.\.\.request\.headers\.entries\(\)\]/u);
+  assert.doesNotMatch(source, /\[\.\.\.response\.headers\.entries\(\)\]/u);
+  assert.doesNotMatch(source, /\[\.\.\.store\.indexNames\]/u);
+  assert.match(source, /boundedHeaderEntries\(request\.headers/u);
+  assert.match(source, /store\.indexNames\.length > maxProperties/u);
+});
+
 test('bounded async evidence pool limits concurrency and fails closed on task count', async () => {
   const pool = createBoundedAsyncTaskPool({ maxTasks: 8, maxConcurrency: 2 });
   let active = 0;
@@ -396,7 +447,12 @@ function browserJourneyFixture(overrides = {}) {
     materializationBoundary: {
       cdpEventMaterialization: 'not-bounded-by-this-proof',
       chromiumInternalMaterialization: 'not-bounded-by-this-proof',
-      proofOwnedCopiesAndEncodings: 'bounded-before-allocation',
+      proofInvokedHostCollectionApis: [
+        ...BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
+      ],
+      proofInvokedHostCollectionResults:
+        'post-return-bounded-not-pre-allocation-bounded',
+      proofOwnedCopiesAndEncodings: 'bounded-before-allocation-after-host-return',
       requestPostDataProtocolCapBytes: 16 * 1024 * 1024,
       resourceProtocolCapBytes: 16 * 1024 * 1024,
       totalResourceProtocolCapBytes: 128 * 1024 * 1024,
@@ -661,6 +717,24 @@ test('qualified browser evidence fails closed on simulated, non-live, stale, or 
     (receipt) => {
       receipt.browserJourney.capture.materializationBoundary.cdpEventMaterialization =
         'bounded-before-allocation';
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
+    (receipt) => {
+      receipt.browserJourney.capture.materializationBoundary
+        .proofInvokedHostCollectionApis.pop();
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
+    (receipt) => {
+      receipt.browserJourney.capture.materializationBoundary
+        .proofInvokedHostCollectionResults = 'bounded-before-allocation';
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
+    (receipt) => {
+      receipt.browserJourney.capture.materializationBoundary
+        .proofOwnedCopiesAndEncodings = 'bounded-before-allocation';
       receipt.browserJourney.captureSha256 =
         sha256Hex(canonicalJcs(receipt.browserJourney.capture));
     },

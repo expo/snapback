@@ -127,10 +127,22 @@ materialized before the proof handler runs (notably a WebSocket
 `payloadData`). There is no per-frame CDP cap available to this instrument.
 The handler performs an O(1) encoded-length refusal before copying, decoding,
 or UTF-8 encoding such a value, and the receipt records this boundary
-explicitly. Thus the claim is bounded proof-owned copies and encodings plus
-fail-closed completeness, not bounded browser-process or protocol-transport
-memory. This is an evidence-instrument correction and makes no new
-package-publication claim.)
+explicitly.
+
+Nor can JavaScript apply a pre-allocation limit to a complete collection that
+a proof-invoked host API materializes as its return value. The exact receipt
+nonclaim covers `BrowserContext.serviceWorkers()`, `Cache.keys()`,
+`CacheStorage.keys()`, `ConsoleMessage.args()`, `IDBFactory.databases()`,
+`Page.workers()`, `Performance.getEntriesByType("resource")`,
+`Reflect.ownKeys(browser value)`, and `Reflect.ownKeys(globalThis)`. Count,
+property, byte, and depth limits apply immediately after those calls return;
+an over-limit result refuses the proof, but its host-result allocation has
+already happened. Proof-owned copies and encodings *after that host-return
+boundary* remain bounded before allocation and are built incrementally where
+necessary. Thus the claim is bounded post-host-return proof transformations
+plus fail-closed completeness, not bounded host-result, browser-process, or
+protocol-transport memory. This is an evidence-instrument correction and
+makes no new package-publication claim.)
 
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
@@ -650,8 +662,10 @@ outside the root workspace and exercise independent consumer setups.
   per-surface byte counts and domain-separated content commitments, never the
   captured values themselves. It also retains the materialization boundary:
   protocol body buffers are configured and completeness is fail-closed, while
-  Chromium-internal buffers and already-created CDP event objects remain
-  outside the proof's allocation-bound claim.
+  Chromium-internal buffers, already-created CDP event objects, and the exact
+  listed proof-invoked host collection results remain outside the proof's
+  pre-allocation-bound claim. Copies and encodings performed by the proof
+  after those values return remain pre-allocation bounded.
 
 ## Open Questions
 

@@ -28,6 +28,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   boundedSerializeBrowserValue,
   browserAssetsContainSecretCanary,
   createBoundedAsyncTaskPool,
@@ -429,6 +430,24 @@ async function inspectBrowserStorage(page) {
       surfaces.push({ kind, base64: encodeBase64(bytes) });
     };
     const addStructured = (kind, value) => addText(kind, renderBoundedJson(value));
+    const boundedHeaderEntries = (headers, label) => {
+      const entries = [];
+      let textCodeUnits = 0;
+      for (const [name, value] of headers.entries()) {
+        if (entries.length >= maxProperties) {
+          throw new Error(`${label} exceeded its property bound`);
+        }
+        if (
+          name.length > maxSurfaceBytes - textCodeUnits
+          || value.length > maxSurfaceBytes - textCodeUnits - name.length
+        ) {
+          throw new Error(`${label} exceeded its text bound`);
+        }
+        textCodeUnits += name.length + value.length;
+        entries.push([name, value]);
+      }
+      return entries;
+    };
     const countEntry = () => {
       storageEntries += 1;
       if (storageEntries > maxEntries) {
@@ -701,12 +720,12 @@ async function inspectBrowserStorage(page) {
             request: {
               url: request.url,
               method: request.method,
-              headers: [...request.headers.entries()],
+              headers: boundedHeaderEntries(request.headers, 'Cache request headers'),
             },
             response: {
               status: response.status,
               statusText: response.statusText,
-              headers: [...response.headers.entries()],
+              headers: boundedHeaderEntries(response.headers, 'Cache response headers'),
             },
           });
           const declaredLength = response.headers.get('content-length');
@@ -753,18 +772,34 @@ async function inspectBrowserStorage(page) {
               let keyBytes = 0;
               const transaction = database.transaction(storeName, 'readonly');
               const store = transaction.objectStore(storeName);
+              if (store.indexNames.length > maxProperties) {
+                throw new Error('IndexedDB index names exceeded their property bound');
+              }
+              const indexNames = [];
+              const indexes = [];
+              let indexNameCodeUnits = 0;
+              for (let indexNumber = 0; indexNumber < store.indexNames.length; indexNumber += 1) {
+                const indexName = store.indexNames[indexNumber];
+                if (
+                  typeof indexName !== 'string'
+                  || indexName.length > maxSurfaceBytes - indexNameCodeUnits
+                ) {
+                  throw new Error('IndexedDB index names exceeded their text bound');
+                }
+                indexNameCodeUnits += indexName.length;
+                indexNames.push(indexName);
+                const index = store.index(indexName);
+                indexes.push({
+                  name: index.name,
+                  keyPath: index.keyPath,
+                  multiEntry: index.multiEntry,
+                  unique: index.unique,
+                });
+              }
               const storeMetadata = {
                 autoIncrement: store.autoIncrement,
-                indexNames: [...store.indexNames],
-                indexes: [...store.indexNames].map((indexName) => {
-                  const index = store.index(indexName);
-                  return {
-                    name: index.name,
-                    keyPath: index.keyPath,
-                    multiEntry: index.multiEntry,
-                    unique: index.unique,
-                  };
-                }),
+                indexNames,
+                indexes,
                 keyPath: store.keyPath,
               };
               const cursorRequest = store.openKeyCursor();
@@ -1347,9 +1382,16 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         });
         if (request.hasPostData === true) {
           requestBodiesObserved += 1;
-          const contentLength = Object.entries(request.headers ?? {}).find(
-            ([name]) => name.toLowerCase() === 'content-length',
-          )?.[1];
+          let contentLength;
+          for (const name in request.headers ?? {}) {
+            if (
+              Object.hasOwn(request.headers, name)
+              && name.toLowerCase() === 'content-length'
+            ) {
+              contentLength = request.headers[name];
+              break;
+            }
+          }
           const declaredBodyBytes = contentLength === undefined
             ? null
             : Number(contentLength);
@@ -1796,7 +1838,12 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         materializationBoundary: {
           cdpEventMaterialization: 'not-bounded-by-this-proof',
           chromiumInternalMaterialization: 'not-bounded-by-this-proof',
-          proofOwnedCopiesAndEncodings: 'bounded-before-allocation',
+          proofInvokedHostCollectionApis: [
+            ...BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
+          ],
+          proofInvokedHostCollectionResults:
+            'post-return-bounded-not-pre-allocation-bounded',
+          proofOwnedCopiesAndEncodings: 'bounded-before-allocation-after-host-return',
           requestPostDataProtocolCapBytes: BROWSER_MAX_SURFACE_BYTES,
           resourceProtocolCapBytes: BROWSER_MAX_SURFACE_BYTES,
           totalResourceProtocolCapBytes: BROWSER_MAX_TOTAL_BYTES,
