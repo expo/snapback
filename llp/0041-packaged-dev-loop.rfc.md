@@ -46,6 +46,17 @@ section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
 
+**Revised (first-publication default-tag reconciliation):** 2026-07-29 (the
+`0.1.1` candidate run established that npm can assign `latest` to a brand-new
+public package name even when `npm publish --tag <candidate>` is explicit.
+Promotion now represents an exact prior member already equal to its candidate
+version as a verified no-op: only that member's aliases bind the new vector,
+ordinary prior members remain prior-vector-bound, the ordered event remains
+in the post ledger, and rollback never pretends the pre-existing default tag
+was changed by this operation. A preflight failure after authority acquisition
+also re-observes the full vector and closes the epoch as rolled back when it
+still equals the signed prior vector.)
+
 **Revised (nine-package candidate promotion):** 2026-07-28 (the next public
 closure uses immutable exact-version candidate publication, exact-registry
 cold proof, dependency-safe default-tag promotion with the CLI root last, and
@@ -317,7 +328,10 @@ Publication is a closed state machine:
    registry mutation;
 3. the nine immutable exact versions publish in dependency order under the
    non-default dist-tag `bakeoff-0-1-1-<source-sha12>`. A partial publish
-   cannot change any existing `latest` resolution;
+   cannot change an existing package's `latest` resolution. If npm establishes
+   `latest` while creating a brand-new package name, the observed exact
+   candidate version becomes an explicit already-promoted member of the prior
+   vector rather than an unrecorded side effect;
 4. the publication ledger re-downloads every exact registry version, proves
    its tarball digest equals the locally qualified tarball, and records source
    name, public name, version, integrity, dependencies, source SHA, and
@@ -423,6 +437,15 @@ normative `@snapback/*` source key with an exact
 `@ccheever/snapback-*` key, range, tag, non-normative alias key, or unknown
 internal package refuses even when npm would otherwise resolve it.
 
+When npm has already assigned the candidate version to a first-ever package's
+default tag, preflight validates that package's exact aliases against the
+authorized **new** vector while every other prior package remains bound to the
+authorized prior vector. Promotion re-reads the full registry vector and
+signed authority head, emits the package's ordered promotion event with
+`alreadyAtNewVersion: true`, performs no npm mutation for that row, and does
+not add it to the rollback changed set. Its immutable exact dependencies
+remain resolvable even if a later failure restores the other default tags.
+
 The post-promotion ledger is a canonical extension of the candidate ledger:
 it retains the candidate-ledger digest as `previousLedgerSha256`, adds the
 ordered prior/new tag observations and both final `latest` cold receipts, and
@@ -488,6 +511,13 @@ reverse step's full-vector expected value is still provable. The release
 receipt remains failed and no capability carrier may cite it unless the final
 full vector equals the recorded prior vector and the external authority closes
 the exact lease epoch as rolled back.
+
+A failure between authority acquisition and entry into the tag-transition
+engine—including prior-closure preflight—must still re-read the complete
+official vector. If that observation equals the signed prior vector, the
+publisher closes the epoch as rolled back even though no tag event exists; an
+unreadable or different vector leaves the authority acquired and requires
+explicit reconciliation rather than a guessed close.
 
 If a rollback command applies and then loses its response, the publisher reads
 the complete registry vector before deciding the step. An exact intended next

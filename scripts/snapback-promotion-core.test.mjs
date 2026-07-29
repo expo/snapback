@@ -22,6 +22,7 @@ import {
   validatePreClosePublicationState,
   validatePostPromotionLedger,
   vectorFromLease,
+  validatePriorDependencyAlias,
 } from './snapback-promotion-core.mjs';
 
 const names = [
@@ -167,6 +168,74 @@ test('promotion checks the complete vector around each tag mutation', async () =
     Array(9).fill('0.1.1'),
   );
   assert.equal(result.events.length, 9);
+});
+
+test('a first-publication package already on the new version is a verified no-op', async () => {
+  const base = fixture();
+  const unsigned = unsignedLease(base.lease);
+  unsigned.packages[5].expectedPriorVersion = unsigned.packages[5].newVersion;
+  const lease = signPublicationLease({ unsigned, privateKey: base.privateKey });
+  const vector = vectorFromLease(lease, 'prior');
+  const head = acquiredHead(lease, base.privateKey);
+  const writes = [];
+  const result = await promoteDefaultVector({
+    lease,
+    authorityPublicKey: base.publicKey,
+    readVector: async () => structuredClone(vector),
+    readLeaseHead: async () => structuredClone(head),
+    setTag: async (name, version) => {
+      writes.push([name, version]);
+      vector[name] = version;
+    },
+    removeTag: async (name) => { vector[name] = null; },
+    now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(writes.length, 8);
+  assert.deepEqual(
+    result.events.map((event) => event.package),
+    names,
+  );
+  assert.equal(result.events[5].alreadyAtNewVersion, true);
+  assert.deepEqual(result.events[5].before, result.events[5].after);
+  assert.deepEqual(Object.values(result.vector), Array(9).fill('0.1.1'));
+});
+
+test('only an already-candidate prior package may bind aliases to the new vector', () => {
+  const base = fixture();
+  const unsigned = unsignedLease(base.lease);
+  unsigned.packages[5].expectedPriorVersion = unsigned.packages[5].newVersion;
+  const lease = signPublicationLease({ unsigned, privateKey: base.privateKey });
+  assert.deepEqual(
+    validatePriorDependencyAlias({
+      lease,
+      ownerName: names[5],
+      dependency: '@snapback/cli',
+      target: names[8],
+      version: '0.1.1',
+    }),
+    { sectionVector: 'new', selectedVersion: '0.1.1' },
+  );
+  assert.throws(
+    () => validatePriorDependencyAlias({
+      lease,
+      ownerName: names[2],
+      dependency: '@snapback/client',
+      target: names[3],
+      version: '0.1.1',
+    }),
+    /escapes the authorized vector/u,
+  );
+  assert.deepEqual(
+    validatePriorDependencyAlias({
+      lease,
+      ownerName: names[2],
+      dependency: '@snapback/client',
+      target: names[3],
+      version: '0.1.0',
+    }),
+    { sectionVector: 'prior', selectedVersion: '0.1.0' },
+  );
 });
 
 test('failure rolls back every changed tag in reverse order', async () => {

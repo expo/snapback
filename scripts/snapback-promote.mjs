@@ -24,6 +24,7 @@ import {
   validatePublicationAuthorityReceipt,
   validateClosedLatestProofPlan,
   validatePreClosePublicationState,
+  validatePriorDependencyAlias,
 } from './snapback-promotion-core.mjs';
 import {
   parseBoundedJsonBytes,
@@ -194,10 +195,7 @@ async function preflightPriorDefaultClosure() {
     throw new Error('prior default-tag vector does not match the authorized lease');
   }
 
-  const selected = new Map(lease.packages.map((row) => [
-    row.name,
-    row.expectedPriorVersion,
-  ]));
+  const selected = new Set(lease.packages.map((row) => row.name));
   const temporaryRoot = mkdtempSync(join(dirname(options.out), '.snapback-prior-'));
   const packages = [];
   try {
@@ -255,18 +253,20 @@ async function preflightPriorDefaultClosure() {
           }
           if (!match) continue;
           const [, target, version] = match;
-          const expectedSourceKey = target.replace(
-            '@ccheever/snapback-',
-            '@snapback/',
-          );
-          if (
-            dependency !== expectedSourceKey
-            || !selected.has(target)
-            || selected.get(target) !== version
-          ) {
-            throw new Error(`prior ${row.name} alias ${target}@${version} escapes the authorized vector`);
-          }
-          dependencyAliases.push({ section, dependency, target, version });
+          const binding = validatePriorDependencyAlias({
+            lease,
+            ownerName: row.name,
+            dependency,
+            target,
+            version,
+          });
+          dependencyAliases.push({
+            section,
+            dependency,
+            target,
+            version,
+            sectionVector: binding.sectionVector,
+          });
         }
       }
       packages.push({
@@ -563,6 +563,15 @@ try {
       row.name,
       row.expectedPriorVersion,
     ]));
+    if (receipt.finalVector === null) {
+      try {
+        receipt.finalVector = await readVector(
+          lease.packages.map((row) => row.name),
+        );
+      } catch (observationError) {
+        receipt.finalVectorObservationError = observationError.message;
+      }
+    }
     if (canonicalJcs(receipt.finalVector) === canonicalJcs(priorVector)) {
       try {
         const rollbackClosure = publicationAuthorityTransition({

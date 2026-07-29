@@ -208,6 +208,50 @@ export function validateClosedLatestProofPlan({
   return plan;
 }
 
+/**
+ * Resolve the only exact internal version that a prior default-tag artifact
+ * may name. A package already selected at its candidate version can arise
+ * when npm assigns `latest` to a first-ever publication despite a non-default
+ * publish tag. That artifact is already promoted and therefore binds the new
+ * vector; every ordinary prior artifact remains bound to the prior vector.
+ */
+export function validatePriorDependencyAlias({
+  lease,
+  ownerName,
+  dependency,
+  target,
+  version,
+}) {
+  const rows = new Map(lease.packages.map((row) => [row.name, row]));
+  const owner = rows.get(ownerName);
+  const targetRow = rows.get(target);
+  const expectedSourceKey = target.replace(
+    '@ccheever/snapback-',
+    '@snapback/',
+  );
+  const ownerAlreadyAtCandidate = (
+    owner?.expectedPriorVersion === owner?.newVersion
+  );
+  const selectedVersion = ownerAlreadyAtCandidate
+    ? targetRow?.newVersion
+    : targetRow?.expectedPriorVersion;
+  if (
+    dependency !== expectedSourceKey
+    || owner === undefined
+    || targetRow === undefined
+    || selectedVersion === null
+    || selectedVersion !== version
+  ) {
+    throw new Error(
+      `prior ${ownerName} alias ${target}@${version} escapes the authorized vector`,
+    );
+  }
+  return {
+    sectionVector: ownerAlreadyAtCandidate ? 'new' : 'prior',
+    selectedVersion,
+  };
+}
+
 export function buildPostPromotionLedger({
   candidateLedger,
   lease,
@@ -459,6 +503,27 @@ export async function promoteDefaultVector({
       const before = await readVector(names);
       if (!vectorsEqual(before, expected, names)) {
         throw new Error(`default-tag vector drift before ${row.name}`);
+      }
+      if (row.expectedPriorVersion === row.newVersion) {
+        const after = await readVector(names);
+        if (!vectorsEqual(after, expected, names)) {
+          throw new Error(`default-tag vector drift at pre-promoted ${row.name}`);
+        }
+        const afterLeaseHead = await readLeaseHead();
+        const afterAuthorityTime = now();
+        requireLeaseHead(afterLeaseHead, lease, authorityPublicKey, afterAuthorityTime);
+        requireCurrentLease(lease, afterAuthorityTime);
+        emit({
+          phase: 'promote',
+          package: row.name,
+          beforeLeaseHead,
+          before,
+          after,
+          afterLeaseHead,
+          commandReportedError: null,
+          alreadyAtNewVersion: true,
+        });
+        continue;
       }
       requireCurrentLease(lease, now());
       let mutationError = null;
