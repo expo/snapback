@@ -55,7 +55,7 @@
       "profile": "no honestly complete hosted profile at starting commit",
       "plan": "GAP",
       "region": "GAP",
-      "gapReason": "Hosted evidence unavailable for this arm: product-gap. This is not scored as a product failure.",
+      "gapReason": "No honestly complete hosted profile exists at the frozen source commit; this product gap remains a scoring input.",
       "receiptPaths": []
     }
   },
@@ -132,7 +132,7 @@
     "offline-reconnect": {"score":0,"reason":"not reached","evidencePaths":[]},
     "settlement": {"score":1,"reason":"canonical exact-binary control direct; sessions app unavailable","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"]},
     "target-identity": {"score":2,"reason":"exact commit/artifact/profile/namespace identity retained","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"]},
-    "cleanup-isolation": {"score":2,"reason":"fresh exact paths and all assigned ports proven absent","evidencePaths":["receipts/cleanup.v1.json"]},
+    "cleanup-isolation": {"score":1,"reason":"Exact runtime/public paths and all assigned ports are absent, but no separately timestamped pre-write baseline receipt was retained.","evidencePaths":["receipts/cleanup.v1.json"]},
     "artifact-reproducibility": {"score":2,"reason":"source, lock, generated artifacts, hashes, and failed command retained","evidencePaths":["receipts/inventory.v1.json","receipts/commands-and-failures.v1.json"]}
   },
   "stopDefects": [],

@@ -521,3 +521,52 @@ synthesis remain coordinator-owned.
   one high finding, retained as ecosystem evidence.
 - Adjudication: complete. No Stop-class defect is present; the invalidation
   failure and all ten failed attempts remain visible rather than rewritten.
+
+## Research Room / Snapback
+
+- Capsule verifier: PASS after coordinator cleanup-confidence and hosted-gap
+  wording corrections.
+- Frozen identities: exact repaired source commit, freeze aggregate, namespace,
+  generated artifact hash, lockfile hash, and target identity match.
+- Results: 1 PASS, 2 explicit product GAPs, 12 FAIL. RESEARCH-15 cleanup passes.
+  RESEARCH-02 asset bytes/upload and RESEARCH-05 semantic/vector retrieval are
+  honest capability GAPs. Four core sessions/streaming scenarios fail
+  directly; eight downstream checks fail because the full target never bound.
+- Product defect: a generated sessions artifact requiring
+  `bounded_response_stream_v1`, produced and served with outbound Actions
+  enabled, is rejected before readiness with
+  `SNAPBACK_CAPABILITY_UNSUPPORTED`. The generated manifest includes the
+  capability. Source inspection shows sessions cold-start preflight uses the
+  declared local manifest rather than process-live outbound facts.
+- Isolation control: the unchanged exact binary passes the canonical dev-auth
+  streamed-action suite 8/8. A narrow sessions carrier followed by
+  hot-publication was refused with
+  `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` and was not adopted. The defect is
+  capability composition at sessions admission, not a general stream-host
+  failure.
+- Evidence confidence: coordinator-adjusted to 8/16. Actor authority and
+  reconnect are missing. Authored conflict plus exact-binary transport and
+  settlement controls are indirect. Target identity and artifact
+  reproducibility are direct. Cleanup final state is exact, but the absent
+  separately timestamped pre-write baseline limits cleanup isolation to 1.
+- Evidence boundary: no data/UI outcome is upgraded from code review. Seed,
+  outsider, keyword, citation, retry, cron, secrets, and performance remain
+  downstream failures. No 2+7 samples were fabricated against a dev-auth
+  substitute.
+- Artifacts: the generated aggregate and npm lock hashes independently match.
+  The retained generated API/manifests, 1,019 authored-source lines, 1,022-line
+  harness, dependency inventory, failed command, control command, and defect
+  receipt make the refusal reproducible.
+- Target/cleanup: admission refused before bind. Runtime/public paths, startup
+  carrier, restore sidecars, and ports `3340/4340/20440/9340` are absent.
+  No application data or config secret was created. Hosted operation remains a
+  product GAP and scoring input.
+- Guide-gap audit: a filesystem ticket requires one executable
+  sessions-plus-streamed-actions witness and consistent process-live capability
+  evaluation across generation, cold-start preflight, publication, and
+  inspection. The existing codegen-time egress ticket also applies.
+- Stop audit: the refusal is fail-closed. No cross-user disclosure, secret
+  exposure, late patch, destructive cleanup, or false capability pass occurred.
+- Adjudication: complete for the frozen arm. The general defect is eligible for
+  the second Snapback remediation tranche; it must not be patched inside this
+  frozen deep-round evidence.

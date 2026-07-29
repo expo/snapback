@@ -138,7 +138,7 @@ in exact frozen order as isolated capacity opens.
 
 | Arm | State | Coordinator integration |
 | --- | --- | --- |
-| Research Room / Snapback | Assigned | Worker 1 reserved on isolated frozen-commit local target after exact Partiful/Snapback cleanup |
+| Research Room / Snapback | Complete | Product-blocked: 1 PASS, two capability GAPs, 12 FAIL; sessions-plus-streaming admission defect, 8/16 calibrated confidence, diary, guide-gap issue, central audit, and exact cleanup integrated |
 | Research Room / Supabase | Assigned | Worker 2 queued on an isolated control-plane Supabase namespace after exact Partiful/Convex cleanup |
 | Research Room / Firebase | Assigned | Worker 3 queued on an isolated emulator project/port set after exact Partiful/InstantDB cleanup |
 | Research Room / SpacetimeDB | Assigned | Worker 1 queued on an isolated Apartment Air standalone database after exact Research/Snapback cleanup |
