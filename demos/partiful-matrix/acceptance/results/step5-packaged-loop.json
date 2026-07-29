@@ -3,75 +3,85 @@
   "ok": true,
   "claimTreatment": "authoritative",
   "claimSatisfied": true,
-  "sourceRevision": "ca92d02943e72c2ced7861a0cff54b8821878d48",
+  "sourceRevision": "16871f41045793edd81f86e7f2d6480b688d950d",
   "sourceDirty": false,
   "publicationMode": "publish",
+  "publicationLedgerSchema": "snapback.package-candidate-ledger.v1",
+  "publicationTag": "bakeoff-0-1-1-16871f410457",
+  "candidateLedgerSha256": "3da1d558d29cae937350133d60a22a12ef1e47d3c6db760cd6a08349f3646c16",
   "installSource": "public",
   "scopePreset": "ccheever",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "registry": "https://registry.npmjs.org",
   "packages": [
     {
       "sourceName": "@snapback/runtime-darwin-arm64",
       "publishedName": "@ccheever/snapback-runtime-darwin-arm64",
-      "version": "0.1.0",
-      "registrySha256": "d92bb126a521bc4c529b18c428200d87a65622702d8e94c6d79b643eca6adfcc",
-      "registryIntegrity": "sha512-RqoGCpIDIIdJYnFX9crnl9SaxYiNPwsnL85ItsXbHqF1pZ0xNkATjPuwk/GG75GYIOoNyPygdFUOIYVVuvRj+g=="
+      "version": "0.1.1",
+      "registrySha256": "78e8f7209f200ffa50cefb0646ee7763e3fec1bb07029e2334d6467ebcfb8062",
+      "registryIntegrity": "sha512-FP5yD73ohJmDrwmq9VtPkwgMS2GUMKljfPFXWS3FMABum2BvmABCq7wmGbvQhF7b2hFkv8di/SOaPpbhO7mDOQ=="
     },
     {
       "sourceName": "@snapback/runtime-linux-x64",
       "publishedName": "@ccheever/snapback-runtime-linux-x64",
-      "version": "0.1.0",
-      "registrySha256": "5390fec95a8e6d181e911bd2e75dadd058a4b4c4b39f1c52ed0bd1f6832772cc",
-      "registryIntegrity": "sha512-6ndcbpEC8Hnl2wy6AsAX5dvPJnky2ycWssOqY7pHSScTEEKZ3bNqEh1Fx1VEirHhFHBlxk0qixv1Q8BSxk9a+g=="
+      "version": "0.1.1",
+      "registrySha256": "fdb1983c1e0e638a5837e41824860e847e886f9bcb874978bb0b277c00777a1e",
+      "registryIntegrity": "sha512-XpizemZjE2BH2JXDmxUMPlPgqHC68PxeFRWW1Se3UpA57I/xtGoUiWrfZAHwnYJwspV9PSWOsfwmVOL3e0Ye+w=="
     },
     {
       "sourceName": "@snapback/contract",
       "publishedName": "@ccheever/snapback-contract",
-      "version": "0.1.0",
-      "registrySha256": "a4ff4a2ecdab51ec4796518cd2f02e9ffd6ecba7085226e8f674ef2ac9eecd4c",
-      "registryIntegrity": "sha512-g5mICwGM2UqYBSRDVHow3RKYR4dJ6D11HOPdCYfn6Ytoj9F0+xtiGAkJm1+NC3owuIrssnXqo9d5yFFglCmN3g=="
+      "version": "0.1.1",
+      "registrySha256": "712bf90bb31019e42877047157ef78023dd5f713d20ec1e159bf1dfaa1a99800",
+      "registryIntegrity": "sha512-cvX71tNLxFsgGRjV4m2kuEIZAKRp3VsJE4x1toflKVmgC9A9Fyu4jISh6kF/9lfBmlYL7nvnpFjRhk7vVwi6HA=="
     },
     {
       "sourceName": "@snapback/client",
       "publishedName": "@ccheever/snapback-client",
-      "version": "0.1.0",
-      "registrySha256": "0bdbe5e9d628fd2bed693ad9e78b3c1fbfca6fd80347057f992605c36bdfbeef",
-      "registryIntegrity": "sha512-solv5BfGi30aQ13r9vDF6ADdUKlY3CapN+yY840L9Z+cP1UqBXqKpYRrB8I8JvBWuRgSYfuw/trvvIrLArxrOw=="
+      "version": "0.1.1",
+      "registrySha256": "bbcf490ecb778e0c02821fdfc0f4f90d4cd4534c61fe19bede1f7f3bdcffd396",
+      "registryIntegrity": "sha512-C3kDEokSn0d0PpYM1xSIl6PBnyqWRG92JAxrogGyt8trenk5UFmHbD3oDVCiPoZI+7fHLRFfDU1YWqSVPfwCfA=="
     },
     {
       "sourceName": "@snapback/codegen",
       "publishedName": "@ccheever/snapback-codegen",
-      "version": "0.1.0",
-      "registrySha256": "aff8d7de2657b6189ab834cac06d15748c659b48930f51098c6e9c1999a2c894",
-      "registryIntegrity": "sha512-AkMVbzpWUIaF4dyEvnNZ6MOiVT5iJ3E4lLb+fSlHHT40UFUVZxp2O+PgUnNibW3fpr3zJRhAq5OJfmb/+qrm4Q=="
+      "version": "0.1.1",
+      "registrySha256": "0e41dbdde526a0a224752277ec7a3bf08e1310f8729d9d1a494bea3650d21df8",
+      "registryIntegrity": "sha512-ueJSnjjlwkEsRm1DsT1Bg9KdotPLbqkX59Se5uwDoQa4DvRJVDQYieOeRTD7R+naYgeIaXDFfi07w5QP4jP1Dw=="
+    },
+    {
+      "sourceName": "@snapback/vite",
+      "publishedName": "@ccheever/snapback-vite",
+      "version": "0.1.1",
+      "registrySha256": "41247a50a0538af1d6b9a51558233b995fda1dd3e52f35d097e9e2c644d2edfe",
+      "registryIntegrity": "sha512-pLhhqmFc+6asxoNnKmmyzniRcsbO1D5d8sRkWRDSRWcgzgqLA1s2on42SV1rLTLQxtGNi3zH/tz2Vqo3/LS99Q=="
     },
     {
       "sourceName": "@snapback/react",
       "publishedName": "@ccheever/snapback-react",
-      "version": "0.1.0",
-      "registrySha256": "571bced4c2cbd60aa800c94a39e122d02871da9d20ea24b5072792cb07aaeb6d",
-      "registryIntegrity": "sha512-8MyxGfy7woFdA0ni2VoIL6eO9jeT3a7VoAvcJXBZf+VImbhZQ3QYTK/9YTaeEDwydwerzC3/TInpVBwezqvPiQ=="
+      "version": "0.1.1",
+      "registrySha256": "5bf8fa460bdb04d8d8665307476f543d69f4766cb3789930b8f63bb2c4776ad5",
+      "registryIntegrity": "sha512-plgxHAzDDkNuOlz5TlKqbvOrFrmKdxS8bwmtpmJ9eJeuXABxl5/GLY8HR1Aeat54bDLzBng/+MpGwBIrhI5udg=="
     },
     {
       "sourceName": "@snapback/app-cli",
       "publishedName": "@ccheever/snapback-app-cli",
-      "version": "0.1.0",
-      "registrySha256": "149be2b4698d78fc36097944fbef9d4638c47a267d43d548974ac1ccb2011a20",
-      "registryIntegrity": "sha512-tKVtzx/EZ/AEIIho6pQlbUh0DfQXbUZNfNAxvNzbpOsTvBL4Yc7TH32dmsuRSCOAooRlRR1DBQ2oi+rXist0Tw=="
+      "version": "0.1.1",
+      "registrySha256": "2c736d9143322e0e0d9cee4700ece5caadf855d77108d915117f7c0ace658510",
+      "registryIntegrity": "sha512-v3i/rFW/JYJvpii6U3dJfGRR6sbLT3Ov+5gq8mfTuJyTmWxokYckjOk11WrOWznvBfc7UPqobmWei91YA5aqew=="
     },
     {
       "sourceName": "@snapback/cli",
       "publishedName": "@ccheever/snapback-cli",
-      "version": "0.1.0",
-      "registrySha256": "fab408cbc52e893a38a312fda495d31ad9313031dcc7b171438680682f798aca",
-      "registryIntegrity": "sha512-mczsTgYMHBjNS6QQY0qp0UeU/ZkrYZT5Hia6kc3fnKpx9MjyZ7VRwS1dStcD+AX+nIXnyQfJx0jkRdzZ9GbYDA=="
+      "version": "0.1.1",
+      "registrySha256": "e9a2e4cd2d29cfa91b4857ee7abfafeeedc7872ae62a32e9f815eb0c8f1f8aaa",
+      "registryIntegrity": "sha512-rCyXSx0wOrHdNJ93eFRBzJta7khy/tVn8Xg4+S1LLnBUU9FE+RncCENVeV0fvP23OHcC2HwBrSe73QOmmUxZpQ=="
     }
   ],
   "platforms": [
     {
       "platform": "darwin-arm64",
-      "sha256": "75d9b6b576aec43d852bdb02670fe6693a92e441bc5949cfb120dffa6b2f2435",
+      "sha256": "cf6bcb384d7a1e6e343c4c7af64cb149d02b7449eb4ebfe3f97c111e924a24c1",
       "machine": {
         "platform": "darwin",
         "architecture": "arm64",
@@ -80,17 +90,18 @@
         "runtimePackage": "@snapback/runtime-darwin-arm64",
         "runnerEnvironment": "github-hosted",
         "separatelyProvisionedCleanMachine": true,
-        "githubRunId": "30216614778",
+        "githubRunId": "30469673476",
         "githubRunAttempt": "1",
         "githubRepository": "ccheever/snapback",
-        "githubWorkflowSha": "d20c0e484d7b5f660103d299d3f1d6b9230922bc"
+        "githubWorkflowSha": "72da749b27bcdb19c15ecd1799b41367c9f96c37"
       },
       "checks": {
         "materializedTarballInstall": true,
         "stagedRegistryAliasResolution": false,
         "publicRegistryAliasResolution": true,
+        "latestRootCandidateClosure": false,
         "publicRegistryTarballDigestMatch": true,
-        "registryTarballCount": 8,
+        "registryTarballCount": 9,
         "noSiblingSourceCheckout": true,
         "partitimeBackendBuilt": true,
         "localCodegenOffline": true,
@@ -99,17 +110,52 @@
         "repositoryRelativePublicationPaths": true,
         "packagedCliIntrospection": true,
         "packagedRuntimeDoctor": true,
+        "packagedComparatorProfile": true,
         "packagedScaffoldAndOfflineGenerate": true,
         "packagedDeployBuildAndVerify": true,
         "packagedManagedDevReadyAttachWatchAndStop": true,
+        "packedReactWebTypecheckTestBuildAndLiveAcceptance": true,
+        "packedReactOneCommandBackendViteJourney": true,
+        "packedReactRealBrowserSeedLiveReload": true,
+        "browserPrivateSurfaceAbsence": true,
+        "packedReactExpoTypecheckAndIosExport": true,
+        "packagedViteRelativeVersionedSeedSeam": true,
         "browserAdapterBundle": true,
-        "resolvedDependencyCount": 9,
-        "browserBundleBytes": 484052
+        "resolvedDependencyCount": 10,
+        "browserBundleBytes": 605006
+      },
+      "browserCaptureSha256": "e76dfc0946c2f000249b53cc6a79e42078b2a69feaddfa91be472d33bd7cf0d6",
+      "browserDistributionSha256": "1fdaf2a168dcc4fbc5245864566512935b602a347163a0417f6b248e13c860e0",
+      "browserExecutableSha256": "7687bff7cb2db075f250e6d5848bbc8838cac3802ac3952a899c574f8eccab45",
+      "browserPackageTreeSha256": "d2af5388f6bf212585b0935991b706364752b889fd8024067db3255bc5c2cb4a",
+      "comparatorProof": {
+        "receiptSha256": "070c9fa4e2d8354971377aa5a2771b63c8c41320dc5b45e870dfb16f0a272e55",
+        "profileId": "package-green-fixture",
+        "binarySha256": "sha256:a1142b624b9c837b56eda1eba2051adac633c821dcb643ef585d886e4af137ef",
+        "executorPackages": {
+          "cli": {
+            "name": "@ccheever/snapback-cli",
+            "version": "0.1.1",
+            "sha256": "sha256:012dcf4e04cb975d862d750e0b5278f1930f2ab97fe53904af78c882ba2bb7bf"
+          },
+          "client": {
+            "name": "@ccheever/snapback-client",
+            "version": "0.1.1",
+            "sha256": "sha256:814a5d5d8d2da58063a130ad5f2f3d3c92b5af3ffdc8b117714d7cd1b8142911"
+          }
+        },
+        "checkIds": [
+          "native-live-delivery",
+          "atomic-declared-writes",
+          "rejected-mutation-rollback",
+          "presence-cleanup",
+          "ephemeral-durable-separation"
+        ]
       }
     },
     {
       "platform": "linux-x64",
-      "sha256": "0f386c20b58ce5f2616ffa8d313ced88d7509d6029cc521d292637ebb882d642",
+      "sha256": "4e4cb854acaf1701f093124401fef05c588de7ce4d9225c840429a2f7b97191f",
       "machine": {
         "platform": "linux",
         "architecture": "x64",
@@ -118,17 +164,18 @@
         "runtimePackage": "@snapback/runtime-linux-x64",
         "runnerEnvironment": "github-hosted",
         "separatelyProvisionedCleanMachine": true,
-        "githubRunId": "30216614778",
+        "githubRunId": "30469673476",
         "githubRunAttempt": "1",
         "githubRepository": "ccheever/snapback",
-        "githubWorkflowSha": "d20c0e484d7b5f660103d299d3f1d6b9230922bc"
+        "githubWorkflowSha": "72da749b27bcdb19c15ecd1799b41367c9f96c37"
       },
       "checks": {
         "materializedTarballInstall": true,
         "stagedRegistryAliasResolution": false,
         "publicRegistryAliasResolution": true,
+        "latestRootCandidateClosure": false,
         "publicRegistryTarballDigestMatch": true,
-        "registryTarballCount": 8,
+        "registryTarballCount": 9,
         "noSiblingSourceCheckout": true,
         "partitimeBackendBuilt": true,
         "localCodegenOffline": true,
@@ -137,12 +184,47 @@
         "repositoryRelativePublicationPaths": true,
         "packagedCliIntrospection": true,
         "packagedRuntimeDoctor": true,
+        "packagedComparatorProfile": true,
         "packagedScaffoldAndOfflineGenerate": true,
         "packagedDeployBuildAndVerify": true,
         "packagedManagedDevReadyAttachWatchAndStop": true,
+        "packedReactWebTypecheckTestBuildAndLiveAcceptance": true,
+        "packedReactOneCommandBackendViteJourney": true,
+        "packedReactRealBrowserSeedLiveReload": true,
+        "browserPrivateSurfaceAbsence": true,
+        "packedReactExpoTypecheckAndIosExport": true,
+        "packagedViteRelativeVersionedSeedSeam": true,
         "browserAdapterBundle": true,
-        "resolvedDependencyCount": 9,
-        "browserBundleBytes": 484052
+        "resolvedDependencyCount": 10,
+        "browserBundleBytes": 605006
+      },
+      "browserCaptureSha256": "6e8faf471f1082f0f3a85b157cb8ec575ac5d9a08eb4aeaf7dad555f1f6885b5",
+      "browserDistributionSha256": "bd019350d72bac4d5722d0054cc6c50358958388891914714df14248323c8759",
+      "browserExecutableSha256": "e11fc9ce65c96313476f7ee9844b6fb6a9220fb048693cfe9eee00acf4170a9f",
+      "browserPackageTreeSha256": "968e1d19ea5c34f4d843db17a64cdc290db27568490b2fac54866818c402724e",
+      "comparatorProof": {
+        "receiptSha256": "9d7714fd7294a7c739b2336cf15d32bd9461e61fb13070bad77908e15f309d55",
+        "profileId": "package-green-fixture",
+        "binarySha256": "sha256:2c4bfc1ad56cb72d8b5eec41b09364e73ea8f1c6195294c82c94b239afb5bee0",
+        "executorPackages": {
+          "cli": {
+            "name": "@ccheever/snapback-cli",
+            "version": "0.1.1",
+            "sha256": "sha256:012dcf4e04cb975d862d750e0b5278f1930f2ab97fe53904af78c882ba2bb7bf"
+          },
+          "client": {
+            "name": "@ccheever/snapback-client",
+            "version": "0.1.1",
+            "sha256": "sha256:814a5d5d8d2da58063a130ad5f2f3d3c92b5af3ffdc8b117714d7cd1b8142911"
+          }
+        },
+        "checkIds": [
+          "native-live-delivery",
+          "atomic-declared-writes",
+          "rejected-mutation-rollback",
+          "presence-cleanup",
+          "ephemeral-durable-separation"
+        ]
       }
     }
   ],
@@ -153,6 +235,8 @@
     "completeSupportedRuntimeMatrix": true,
     "packagedRuntimeDoctor": true,
     "packagedScaffoldGenerateDevTestAndWatch": true,
+    "realBrowserSeedLiveReloadOnEveryPlatform": true,
+    "browserPrivateSurfaceAbsenceOnEveryPlatform": true,
     "noSiblingSourceCheckout": true
   },
   "nonclaims": []
