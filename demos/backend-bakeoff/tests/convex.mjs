@@ -9,18 +9,20 @@ const env = readFileSync(join(import.meta.dirname, '..', '.env.local'), 'utf8');
 const url = env.match(/^VITE_CONVEX_URL=(.+)$/m)?.[1];
 if (!url) throw new Error('VITE_CONVEX_URL missing; run CONVEX_AGENT_MODE=anonymous bunx convex dev');
 
-const client = new ConvexClient(url);
+const actor = new ConvexClient(url);
+const observer = new ConvexClient(url);
 let incidentId = null;
 let off = null;
 let readyTimeout = null;
 let deliveryTimeout = null;
+let primaryError = null;
 try {
-  await client.mutation(api.incidents.seed, {});
-  const first = await client.query(api.incidents.list, {});
+  await actor.mutation(api.incidents.seed, {});
+  const first = await actor.query(api.incidents.list, {});
   if (first.length < 2) throw new Error('Convex seed is incomplete');
 
   const nonce = randomUUID();
-  incidentId = await client.mutation(api.incidents.create, {
+  incidentId = await actor.mutation(api.incidents.create, {
     actorId: 'user_ada',
     title: `Bakeoff acceptance ${nonce}`,
     severity: 'SEV-2',
@@ -45,9 +47,10 @@ try {
     LIVE_PHASE_TIMEOUT_MS,
   );
   let subscriptionReady = false;
+  let subscriptionError = null;
   let resolveUpdate;
   let rejectUpdate;
-  off = client.onUpdate(
+  off = observer.onUpdate(
     api.incidents.comments,
     { incidentId },
     (rows) => {
@@ -64,8 +67,9 @@ try {
     (error) => {
       clearTimeout(readyTimeout);
       if (deliveryTimeout) clearTimeout(deliveryTimeout);
-      if (subscriptionReady) rejectUpdate?.(error);
-      else rejectReady(error);
+      if (!subscriptionReady) rejectReady(error);
+      else if (rejectUpdate) rejectUpdate(error);
+      else subscriptionError = error;
     },
   );
   await ready;
@@ -73,12 +77,13 @@ try {
     resolveUpdate = resolve;
     rejectUpdate = reject;
   });
+  if (subscriptionError) rejectUpdate(subscriptionError);
   deliveryTimeout = setTimeout(
     () => rejectUpdate(new Error('Convex live update timed out')),
     LIVE_PHASE_TIMEOUT_MS,
   );
   timing.mutationStartedAt = new Date().toISOString();
-  await client.mutation(api.incidents.addComment, {
+  await actor.mutation(api.incidents.addComment, {
     actorId: 'user_ada',
     incidentId,
     body: witness,
@@ -88,25 +93,70 @@ try {
   await update;
   off();
   off = null;
-  const brief = await client.query(api.incidents.brief, { incidentId });
+  const brief = await actor.query(api.incidents.brief, { incidentId });
   if (!brief.includes('tasks complete')) throw new Error('Convex brief missing task summary');
-  const search = await client.query(api.incidents.search, { term: 'checkout' });
+  const search = await actor.query(api.incidents.search, { term: 'checkout' });
   if (!search.some((row) => row?.title === 'Checkout API latency')) {
     throw new Error('Convex search did not find checkout incident');
   }
   process.stdout.write(
     `Convex live witness: ${JSON.stringify(timing)}\n`,
   );
-  process.stdout.write('Convex integration: seed, transaction, nonce-bound native live update, search, brief — pass\n');
-} finally {
-  clearTimeout(readyTimeout);
-  clearTimeout(deliveryTimeout);
+  process.stdout.write('Convex integration: seed, transaction, cross-client nonce-bound native live update, search, brief — pass\n');
+} catch (error) {
+  primaryError = error;
+}
+
+clearTimeout(readyTimeout);
+clearTimeout(deliveryTimeout);
+const cleanupErrors = [];
+try {
   off?.();
-  if (incidentId) {
-    await client.mutation(api.incidents.deleteIncidentForAcceptance, {
-      actorId: 'user_ada',
-      incidentId,
-    });
+} catch (error) {
+  cleanupErrors.push(error);
+}
+if (incidentId) {
+  try {
+    await withTimeout(
+      actor.mutation(api.incidents.deleteIncidentForAcceptance, {
+        actorId: 'user_ada',
+        incidentId,
+      }),
+      'Convex acceptance cleanup',
+    );
+  } catch (error) {
+    cleanupErrors.push(error);
   }
-  await client.close();
+}
+const closeResults = await Promise.allSettled([
+  withTimeout(Promise.resolve().then(() => actor.close()), 'Convex actor close'),
+  withTimeout(Promise.resolve().then(() => observer.close()), 'Convex observer close'),
+]);
+for (const result of closeResults) {
+  if (result.status === 'rejected') cleanupErrors.push(result.reason);
+}
+if (primaryError || cleanupErrors.length > 0) {
+  throw new AggregateError(
+    [primaryError, ...cleanupErrors].filter(Boolean),
+    primaryError
+      ? `Convex integration failed${cleanupErrors.length > 0 ? ' and cleanup was incomplete' : ''}`
+      : 'Convex cleanup was incomplete',
+  );
+}
+
+async function withTimeout(promise, label) {
+  let timeout;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`${label} timed out`)),
+          LIVE_PHASE_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
 }

@@ -414,13 +414,15 @@ deadline, while Convex could accept a stale `Convex live witness` comment from
 the reused local deployment as its initial subscription snapshot.
 
 Both arms now prove a new event. Convex creates a nonce-named acceptance
-incident, waits for the initial query subscription, inserts a nonce-bearing
-comment, records the subscribe/mutation/delivery timestamps, and deletes the
-complete incident afterward. Supabase creates the same isolated shape, starts
-the delivery budget only after the RPC insert completes, and gives its remote
-hosted transport one bounded retry with a fresh client, socket, channel, and
-witness. The first manual proof of the revised Supabase arm passed in 779 ms;
-the revised Convex arm passed against its local deployment in 5 ms.
+incident with an actor client, waits for a distinct observer client's initial
+query subscription, inserts a nonce-bearing comment, records the
+subscribe/mutation/delivery timestamps, and deletes the complete incident
+afterward. Cleanup is separately bounded and both transports close even if
+deletion fails. Supabase creates the same isolated shape, starts the delivery
+budget only after the RPC insert completes, and gives its remote hosted
+transport one bounded retry with a fresh client, socket, channel, and witness.
+The first manual proof of the revised Supabase arm passed in 779 ms; the
+revised cross-client Convex arm passed against its local deployment in 74 ms.
 
 This made the comparison more honest rather than easier. A stale row cannot
 turn either native-live check green, a failed first Supabase attempt remains

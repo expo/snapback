@@ -73,7 +73,9 @@ The review found that the Convex arm could pass from a stale witness in the
 initial subscription snapshot while Supabase used a single shared deadline.
 The corrected arms now use isolated nonce-bound incidents, subscription-ready
 barriers, separate post-insert delivery budgets, timestamped evidence, and
-cleanup. Supabase's one retry owns a fresh client/socket/channel/witness.
+cleanup. Convex uses distinct actor and observer clients, bounds cleanup, and
+closes both transports even when cleanup fails. Supabase's one retry owns a
+fresh client/socket/channel/witness.
 
 The integrated security re-audit also found and closed a final browser proof
 overclaim: receipts now distinguish proof-owned transformations bounded before
