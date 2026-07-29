@@ -104,6 +104,76 @@ const createFence = (overrides = {}) => createLiveQueryAuthorizationFence({
   ...overrides,
 });
 
+// A current exact scope may advance monotonically within its authenticated
+// incarnation. Membership churn advances the global authorization epoch in
+// the causing commit; rejecting that obligation as a stale subscribe
+// expectation would retain rows that the terminal resolution must delete.
+// Lower epochs and other incarnations remain stale.
+{
+  const fence = createFence();
+  const nextAuthorization = { incarnation: INCARNATION, epoch: 5 };
+  const advanced = obligation({
+    disposition: 'delete',
+    observed: witness({ auth: nextAuthorization, minCommitVersion: 11 }),
+  });
+  const events = [];
+  const accepted = fence.receiveObligation(advanced, {
+    commit: (event) => events.push(event),
+  });
+  assert.equal(accepted.status, 'accepted');
+  assert.equal(events.at(-1).kind, 'delete');
+  assert.deepEqual(fence.snapshot().expectedAuthorization, nextAuthorization);
+
+  const delayed = obligation({
+    revision: 2,
+    observed: witness({ auth: authorization, minCommitVersion: 12 }),
+  });
+  assert.equal(fence.receiveObligation(delayed).status, 'stale-expectation');
+
+  const otherIncarnation = obligation({
+    revision: 3,
+    observed: witness({
+      auth: { incarnation: NEXT_INCARNATION, epoch: 1 },
+      minCommitVersion: 13,
+    }),
+  });
+  assert.equal(
+    fence.receiveObligation(otherIncarnation).status,
+    'stale-expectation',
+  );
+
+  const applied = fence.applyResolution({
+    fence: accepted.fence,
+    resolution: resolution(advanced, { kind: 'terminalDelete' }),
+    commit: (event) => events.push(event),
+  });
+  assert.equal(applied.disposition, 'delete');
+  assert.equal(fence.snapshot().terminalDeleted, true);
+
+  const unaffectedFence = createFence();
+  const unaffectedEvents = [];
+  const resnapshot = obligation({
+    observed: witness({ auth: nextAuthorization, minCommitVersion: 14 }),
+  });
+  const resnapshotAccepted = unaffectedFence.receiveObligation(resnapshot, {
+    commit: (event) => unaffectedEvents.push(event),
+  });
+  assert.equal(resnapshotAccepted.status, 'accepted');
+  const refreshed = unaffectedFence.applyResolution({
+    fence: resnapshotAccepted.fence,
+    resolution: resolution(resnapshot),
+    snapshot: snapshot({
+      version: 14,
+      rows: [{ id: 'still-authorized' }],
+      auth: nextAuthorization,
+    }),
+    commit: (event) => unaffectedEvents.push(event),
+  });
+  assert.equal(refreshed.disposition, 'retain');
+  assert.equal(unaffectedFence.isRenderable(refreshed.fence), true);
+  assert.deepEqual(unaffectedEvents.at(-1).rows, [{ id: 'still-authorized' }]);
+}
+
 // Query instances are scalar, monotone, and never reused. Incoming frames do
 // not allocate an identity, and exhaustion refuses instead of wrapping.
 {

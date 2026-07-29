@@ -343,7 +343,15 @@ export function createLiveQueryAuthorizationFence({
     if (incomingIssuer !== null && !same(incomingIssuer, state.expectedIssuerId)) {
       return clone({ status: 'stale-expectation', fence: fenceFor(state) });
     }
-    if (!same(obligation.witness.authorization, state.expectedAuthorization)) {
+    const incomingAuthorization = obligation.witness.authorization;
+    const advancesAuthorization = (
+      incomingAuthorization.incarnation === state.expectedAuthorization.incarnation
+      && incomingAuthorization.epoch > state.expectedAuthorization.epoch
+    );
+    if (
+      !same(incomingAuthorization, state.expectedAuthorization)
+      && !advancesAuthorization
+    ) {
       return clone({ status: 'stale-expectation', fence: fenceFor(state) });
     }
     if (
@@ -376,7 +384,9 @@ export function createLiveQueryAuthorizationFence({
       pending?.obligation ?? null,
       obligation,
       {
-        authorization: state.expectedAuthorization,
+        authorization: advancesAuthorization
+          ? incomingAuthorization
+          : state.expectedAuthorization,
         versionStream: state.expectedVersionStream,
         issuerId: obligation.scopeId.kind === 'clientQuery' ? null : state.expectedIssuerId,
       },
@@ -390,6 +400,14 @@ export function createLiveQueryAuthorizationFence({
     }
     const before = clone(state);
     try {
+      // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — within
+      // one incarnation a greater authorization epoch is current; only an
+      // incarnation or version-stream change requires a replacement
+      // bootstrap expectation. The exact current issuer/scope and the
+      // transport authority fence authenticate this monotone advance.
+      if (advancesAuthorization) {
+        state.expectedAuthorization = clone(incomingAuthorization);
+      }
       state.pendingByScope[key] = {
         obligation: clone(merged.obligation),
         resolution: null,
