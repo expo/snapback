@@ -103,9 +103,14 @@ closed v2 shape pins the GitHub repository, workflow, source ref and HEAD,
 helper digest, operation id, committed ledger path, receipt paths, collection
 path, and bounded dispatch/verification timeouts. Promotion refuses unknown
 members, absolute or traversing paths, a dirty checkout, a mismatched helper
-digest, or any substituted identity. The helper dispatches the pinned workflow,
-then reopens the run, workflow, and artifact inventory through the GitHub API
-before accepting the two platform receipts.
+digest, or any substituted identity before acquiring the authority lease, then
+reopens the frozen plan immediately before dispatch. After all tags converge,
+promotion also requires a fresh-cache, scripts-disabled npm alias install to
+resolve the candidate CLI and complete package closure. Only the exact signed
+prior CLI is a bounded retryable propagation result, and every probe preserves
+the hosted-proof timeout plus rollback lease reserve. The helper then
+dispatches the pinned workflow and reopens the run, workflow, and artifact
+inventory through the GitHub API before accepting the two platform receipts.
 
 The authority assigns `publicationEpoch`; callers can only present the
 expected epoch and head they just observed. Exact issue replay returns the

@@ -165,6 +165,211 @@ export function validatePreClosePublicationState({
   };
 }
 
+function requireLeaseBudget(lease, now, requiredRemainingMs) {
+  const expiresAt = parseTimestamp(lease.expiresAt, 'expiresAt');
+  if (expiresAt - now < requiredRemainingMs) {
+    throw new Error('publication lease lacks the reserved proof and rollback budget');
+  }
+}
+
+/**
+ * Wait until a fresh public install resolves the promoted CLI root and its
+ * complete package closure, not merely until dist-tag metadata converges.
+ *
+ * npm serves package metadata through more than one cache path. A successful
+ * dist-tag read therefore cannot by itself authorize the cross-host proof.
+ * Every bounded probe is fenced on both sides by the complete promoted vector
+ * and the exact acquired authority head. The caller reserves enough lease time
+ * for the hosted proof and a reverse transition before starting another probe.
+ *
+ * @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — a final
+ * `latest` proof may start only after a fresh root install resolves the exact
+ * candidate closure.
+ */
+export async function waitForPromotedInstallability({
+  lease,
+  authorityPublicKey,
+  expectedVector,
+  readVector,
+  readLeaseHead,
+  observeInstallability,
+  record = () => {},
+  now = () => Date.now(),
+  wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  attempts = 6,
+  delayMs = 10_000,
+  probeBoundMs = 45_000,
+  requiredRemainingMs = 0,
+}) {
+  if (
+    !Number.isSafeInteger(attempts)
+    || attempts < 1
+    || attempts > 12
+    || !Number.isSafeInteger(delayMs)
+    || delayMs < 0
+    || delayMs > 60_000
+    || !Number.isSafeInteger(probeBoundMs)
+    || probeBoundMs < 1
+    || probeBoundMs > 120_000
+    || !Number.isSafeInteger(requiredRemainingMs)
+    || requiredRemainingMs < 0
+    || requiredRemainingMs > 15 * 60_000
+  ) {
+    throw new TypeError('promoted installability barrier bounds are invalid');
+  }
+  const names = lease.packages.map((row) => row.name);
+  const cliRow = lease.packages.find((row) => row.name === '@ccheever/snapback-cli');
+  if (!cliRow || !vectorsEqual(expectedVector, vectorFromLease(lease, 'new'), names)) {
+    throw new TypeError('promoted installability barrier expected vector is invalid');
+  }
+  const evidence = {
+    schemaVersion: 'snapback.promoted-installability-barrier.v1',
+    status: 'running',
+    package: cliRow.name,
+    expectedVersion: cliRow.newVersion,
+    requiredRemainingMs,
+    probeBoundMs,
+    attempts: [],
+  };
+  const retain = () => record(structuredClone(evidence));
+  const fail = (cause) => {
+    evidence.status = 'failed';
+    evidence.completedAt = new Date(now()).toISOString();
+    evidence.error = cause.message;
+    retain();
+    cause.publicLatestRootBarrier = structuredClone(evidence);
+    throw cause;
+  };
+
+  try {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const startedAtMs = now();
+      requireCurrentLease(lease, startedAtMs);
+      requireLeaseBudget(
+        lease,
+        startedAtMs,
+        requiredRemainingMs + probeBoundMs,
+      );
+      const beforeHead = await readLeaseHead();
+      const beforeVector = await readVector(names);
+      validatePreClosePublicationState({
+        lease,
+        authorityPublicKey,
+        expectedVector,
+        observedVector: beforeVector,
+        head: beforeHead,
+        now: now(),
+      });
+      requireLeaseBudget(
+        lease,
+        now(),
+        requiredRemainingMs + probeBoundMs,
+      );
+
+      let observation;
+      try {
+        observation = await observeInstallability({
+          attempt,
+          expectedVector: structuredClone(expectedVector),
+        });
+      } catch (error) {
+        observation = {
+          ok: false,
+          rootVersion: null,
+          closure: null,
+          error: error.message,
+          retryablePriorRoot: false,
+        };
+      }
+      if (
+        observation === null
+        || typeof observation !== 'object'
+        || Array.isArray(observation)
+        || typeof observation.ok !== 'boolean'
+        || !Object.hasOwn(observation, 'rootVersion')
+        || !Object.hasOwn(observation, 'closure')
+        || !Object.hasOwn(observation, 'error')
+        || typeof observation.retryablePriorRoot !== 'boolean'
+        || ![null, cliRow.expectedPriorVersion, cliRow.newVersion]
+          .includes(observation.rootVersion)
+        || (observation.error !== null
+          && (typeof observation.error !== 'string'
+            || observation.error.length > 1_000))
+      ) {
+        throw new Error('public latest-root probe returned an invalid observation');
+      }
+
+      const afterHead = await readLeaseHead();
+      const afterVector = await readVector(names);
+      const completedAtMs = now();
+      validatePreClosePublicationState({
+        lease,
+        authorityPublicKey,
+        expectedVector,
+        observedVector: afterVector,
+        head: afterHead,
+        now: completedAtMs,
+      });
+      const attemptEvidence = {
+        attempt,
+        startedAt: new Date(startedAtMs).toISOString(),
+        completedAt: new Date(completedAtMs).toISOString(),
+        beforeVectorSha256: sha256Hex(canonicalJcs(beforeVector)),
+        afterVectorSha256: sha256Hex(canonicalJcs(afterVector)),
+        beforeHeadSha256: beforeHead.headSha256,
+        afterHeadSha256: afterHead.headSha256,
+        publicationEpoch: beforeHead.publicationEpoch,
+        observation: structuredClone(observation),
+      };
+      evidence.attempts.push(attemptEvidence);
+
+      if (observation.ok) {
+        if (
+          observation.rootVersion !== cliRow.newVersion
+          || observation.closure === null
+          || observation.error !== null
+          || observation.retryablePriorRoot
+        ) {
+          throw new Error('public latest-root probe accepted an incomplete closure');
+        }
+        requireLeaseBudget(lease, completedAtMs, requiredRemainingMs);
+        evidence.status = 'passed';
+        evidence.completedAt = new Date(completedAtMs).toISOString();
+        evidence.resolution = structuredClone(observation.closure);
+        retain();
+        return evidence;
+      }
+
+      if (
+        !observation.retryablePriorRoot
+        || cliRow.expectedPriorVersion === cliRow.newVersion
+        || observation.rootVersion !== cliRow.expectedPriorVersion
+      ) {
+        throw new Error(
+          'public latest-root probe failed outside the retryable prior-root state',
+        );
+      }
+      retain();
+      if (attempt === attempts) {
+        throw new Error(
+          `public latest-root installability did not converge after ${attempts} attempts`,
+        );
+      }
+      const beforeWaitMs = now();
+      requireCurrentLease(lease, beforeWaitMs);
+      requireLeaseBudget(
+        lease,
+        beforeWaitMs,
+        requiredRemainingMs + delayMs + probeBoundMs,
+      );
+      await wait(delayMs);
+    }
+  } catch (error) {
+    fail(error);
+  }
+  throw new Error('unreachable promoted installability barrier state');
+}
+
 export function validateClosedLatestProofPlan({
   plan,
   expectedOperationId,

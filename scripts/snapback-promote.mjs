@@ -25,6 +25,7 @@ import {
   validateClosedLatestProofPlan,
   validatePreClosePublicationState,
   validatePriorDependencyAlias,
+  waitForPromotedInstallability,
 } from './snapback-promotion-core.mjs';
 import {
   parseBoundedJsonBytes,
@@ -35,12 +36,17 @@ import {
 } from './snapback-publish-core.mjs';
 import {
   validateFinalLatestReceipts,
+  validateLatestRootResolution,
 } from './snapback-package-cold-install-lib.mjs';
 import {
   fetchPublicationAuthorityJson,
 } from '../packages/snapback-publication-authority/request.mjs';
 
 const registry = 'https://registry.npmjs.org';
+const LATEST_ROOT_PROBE_ATTEMPTS = 6;
+const LATEST_ROOT_PROBE_DELAY_MS = 10_000;
+const LATEST_ROOT_PROBE_TIMEOUT_MS = 45_000;
+const PROMOTION_ROLLBACK_RESERVE_MS = 120_000;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const latestProofHelper = join(
   repositoryRoot,
@@ -182,6 +188,142 @@ async function readVector(names) {
     vector[name] = Object.hasOwn(tags, lease.defaultTag) ? tags[lease.defaultTag] : null;
   }
   return vector;
+}
+
+async function observePublicLatestRootInstallability({ expectedVector }) {
+  const cliLeaseRow = lease.packages.find(
+    (row) => row.name === '@ccheever/snapback-cli',
+  );
+  if (!cliLeaseRow) {
+    throw new Error('public latest-root probe has no CLI lease row');
+  }
+  const runtimePackages = new Map([
+    ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
+    ['linux-x64', '@snapback/runtime-linux-x64'],
+  ]);
+  const hostRuntime = runtimePackages.get(`${process.platform}-${process.arch}`);
+  if (!hostRuntime) {
+    throw new Error('public latest-root probe has no supported host runtime');
+  }
+  const temporaryRoot = mkdtempSync(join(dirname(options.out), '.snapback-latest-root-'));
+  const appRoot = join(temporaryRoot, 'app');
+  const cacheRoot = join(temporaryRoot, 'npm-cache');
+  mkdirSync(appRoot, { recursive: true });
+  writeFileSync(join(appRoot, 'package.json'), `${JSON.stringify({
+    name: 'snapback-latest-root-propagation-probe',
+    version: '1.0.0',
+    private: true,
+    dependencies: {
+      '@snapback/cli': 'npm:@ccheever/snapback-cli@latest',
+    },
+  }, null, 2)}\n`);
+  let rootVersion = null;
+  const probeDeadline = Date.now() + LATEST_ROOT_PROBE_TIMEOUT_MS;
+  try {
+    const install = spawnSync('npm', [
+      'install',
+      '--ignore-scripts',
+      '--no-audit',
+      '--no-fund',
+      '--package-lock=false',
+      '--prefer-online',
+      '--cache', cacheRoot,
+      '--registry', registry,
+    ], {
+      cwd: appRoot,
+      encoding: 'utf8',
+      maxBuffer: 8 * 1024 * 1024,
+      timeout: Math.max(
+        1,
+        Math.min(35_000, probeDeadline - Date.now()),
+      ),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const rootManifestPath = join(
+      appRoot,
+      'node_modules',
+      '@snapback',
+      'cli',
+      'package.json',
+    );
+    if (existsSync(rootManifestPath)) {
+      rootVersion = readBoundedJsonFile(
+        rootManifestPath,
+        'public latest-root manifest',
+      ).version ?? null;
+    }
+    if (install.status !== 0) {
+      return {
+        ok: false,
+        rootVersion: null,
+        closure: null,
+        error: `fresh-cache npm install failed with ${
+          install.status ?? install.signal ?? 'unknown'
+        }`,
+        retryablePriorRoot: false,
+      };
+    }
+    const treeTimeoutMs = probeDeadline - Date.now();
+    if (treeTimeoutMs < 1) {
+      return {
+        ok: false,
+        rootVersion,
+        closure: null,
+        error: 'fresh-cache npm install exhausted the probe deadline',
+        retryablePriorRoot: false,
+      };
+    }
+    const listed = spawnSync('npm', ['ls', '--all', '--json'], {
+      cwd: appRoot,
+      encoding: null,
+      maxBuffer: 8 * 1024 * 1024,
+      timeout: treeTimeoutMs,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (listed.status !== 0 || !Buffer.isBuffer(listed.stdout)) {
+      return {
+        ok: false,
+        rootVersion: null,
+        closure: null,
+        error: `fresh-cache npm tree failed with ${
+          listed.status ?? listed.signal ?? 'unknown'
+        }`,
+        retryablePriorRoot: false,
+      };
+    }
+    const tree = parseBoundedJsonBytes(
+      listed.stdout,
+      'public latest-root npm tree',
+      { maxBytes: 8 * 1024 * 1024 },
+    );
+    try {
+      const closure = validateLatestRootResolution({
+        tree,
+        ledger,
+        hostRuntime,
+        tagVector: expectedVector,
+      });
+      return {
+        ok: true,
+        rootVersion,
+        closure,
+        error: null,
+        retryablePriorRoot: false,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        rootVersion,
+        closure: null,
+        error: error.message.slice(0, 1_000),
+        retryablePriorRoot:
+          cliLeaseRow.expectedPriorVersion !== cliLeaseRow.newVersion
+          && rootVersion === cliLeaseRow.expectedPriorVersion,
+      };
+    }
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
 }
 
 async function preflightPriorDefaultClosure() {
@@ -370,8 +512,11 @@ function loadLatestProofPlan() {
   });
 }
 
-function executeLatestProofPlan() {
-  const plan = loadLatestProofPlan();
+function executeLatestProofPlan(plan) {
+  const reopenedPlan = loadLatestProofPlan();
+  if (canonicalJcs(reopenedPlan) !== canonicalJcs(plan)) {
+    throw new Error('latest-root proof plan changed after preflight');
+  }
   const planRoot = dirname(options.latestProofPlan);
   const darwinReceipt = resolve(planRoot, plan.darwinReceipt);
   const linuxReceipt = resolve(planRoot, plan.linuxReceipt);
@@ -448,6 +593,16 @@ async function removeTag(name) {
   runNpm(args);
 }
 
+let latestProofPlan;
+try {
+  // Refuse a dirty/wrong checkout or substituted helper before acquiring the
+  // authority lease. executeLatestProofPlan reopens this frozen plan directly
+  // before dispatch to close the local TOCTOU window.
+  latestProofPlan = loadLatestProofPlan();
+} catch (error) {
+  fail(`latest-root proof preflight refused: ${error.message}`);
+}
+
 const receipt = {
   schemaVersion: 'snapback.package-promotion-receipt.v1',
   previousLedgerSha256: candidateLedgerSha256,
@@ -494,7 +649,30 @@ try {
       writeFileSync(options.out, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
     },
     async afterPromotion({ vector, events }) {
-      const latestRootReceipts = executeLatestProofPlan();
+      const publicLatestRootBarrier = await waitForPromotedInstallability({
+        lease,
+        authorityPublicKey,
+        expectedVector: vector,
+        readVector,
+        readLeaseHead,
+        observeInstallability: observePublicLatestRootInstallability,
+        attempts: LATEST_ROOT_PROBE_ATTEMPTS,
+        delayMs: LATEST_ROOT_PROBE_DELAY_MS,
+        probeBoundMs: LATEST_ROOT_PROBE_TIMEOUT_MS,
+        requiredRemainingMs:
+          latestProofPlan.dispatchTimeoutMs
+          + latestProofPlan.verifyTimeoutMs
+          + PROMOTION_ROLLBACK_RESERVE_MS,
+        record(evidence) {
+          receipt.publicLatestRootBarrier = evidence;
+          writeFileSync(
+            options.out,
+            `${JSON.stringify(receipt, null, 2)}\n`,
+            { mode: 0o600 },
+          );
+        },
+      });
+      const latestRootReceipts = executeLatestProofPlan(latestProofPlan);
       // @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
       // — reopen registry truth and a nonce-bound acquired head after proof,
       // immediately before constructing the terminal ledger and close.

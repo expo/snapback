@@ -23,6 +23,7 @@ import {
   validatePostPromotionLedger,
   vectorFromLease,
   validatePriorDependencyAlias,
+  waitForPromotedInstallability,
 } from './snapback-promotion-core.mjs';
 
 const names = [
@@ -968,6 +969,285 @@ test('pre-close gate reopens the complete vector and current acquired authority 
     }),
     /lease head drifted/u,
   );
+});
+
+test('promoted installability retries only the prior CLI root and retains the closure', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let clock = Date.parse('2026-07-28T19:05:00.000Z');
+  let probes = 0;
+  const waits = [];
+  const retained = [];
+  const result = await waitForPromotedInstallability({
+    lease,
+    authorityPublicKey: publicKey,
+    expectedVector: vector,
+    readVector: async () => structuredClone(vector),
+    readLeaseHead: async () => structuredClone(head),
+    observeInstallability: async () => {
+      probes += 1;
+      if (probes === 1) {
+        return {
+          ok: false,
+          rootVersion: '0.1.0',
+          closure: null,
+          error: 'latest root remained at the signed prior version',
+          retryablePriorRoot: true,
+        };
+      }
+      return {
+        ok: true,
+        rootVersion: '0.1.1',
+        closure: { root: '@snapback/cli', selected: '0.1.1' },
+        error: null,
+        retryablePriorRoot: false,
+      };
+    },
+    record: (evidence) => retained.push(evidence),
+    now: () => clock,
+    wait: async (milliseconds) => {
+      waits.push(milliseconds);
+      clock += milliseconds;
+    },
+    delayMs: 2_500,
+    probeBoundMs: 1_000,
+    requiredRemainingMs: 60_000,
+  });
+  assert.equal(result.status, 'passed');
+  assert.equal(result.attempts.length, 2);
+  assert.equal(result.attempts[0].observation.rootVersion, '0.1.0');
+  assert.equal(result.resolution.selected, '0.1.1');
+  assert.deepEqual(waits, [2_500]);
+  assert.equal(retained.at(-1).status, 'passed');
+  assert.match(result.attempts[0].beforeVectorSha256, /^[0-9a-f]{64}$/u);
+  assert.equal(result.attempts[0].publicationEpoch, lease.publicationEpoch);
+});
+
+test('promoted installability refuses probe errors and third states without retry', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  for (const observation of [
+    {
+      ok: false,
+      rootVersion: null,
+      closure: null,
+      error: 'fresh-cache npm install failed',
+      retryablePriorRoot: false,
+    },
+    {
+      ok: false,
+      rootVersion: '0.1.0',
+      closure: null,
+      error: 'fresh-cache npm install failed after partial materialization',
+      retryablePriorRoot: false,
+    },
+    {
+      ok: false,
+      rootVersion: '9.9.9',
+      closure: null,
+      error: 'unexpected root',
+      retryablePriorRoot: false,
+    },
+    {
+      ok: false,
+      rootVersion: '0.1.1',
+      closure: null,
+      error: 'candidate root had the wrong transitive closure',
+      retryablePriorRoot: false,
+    },
+    {
+      ok: true,
+      rootVersion: '0.1.1',
+      closure: null,
+      error: null,
+      retryablePriorRoot: false,
+    },
+  ]) {
+    let probes = 0;
+    let waits = 0;
+    await assert.rejects(
+      waitForPromotedInstallability({
+        lease,
+        authorityPublicKey: publicKey,
+        expectedVector: vector,
+        readVector: async () => structuredClone(vector),
+        readLeaseHead: async () => structuredClone(head),
+        observeInstallability: async () => {
+          probes += 1;
+          return observation;
+        },
+        now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+        wait: async () => { waits += 1; },
+        probeBoundMs: 1_000,
+        requiredRemainingMs: 60_000,
+      }),
+      /retryable prior-root state|invalid observation|incomplete closure/u,
+    );
+    assert.equal(probes, 1);
+    assert.equal(waits, 0);
+  }
+});
+
+test('an already-candidate CLI root never makes a malformed closure retryable', async () => {
+  const base = fixture();
+  const unsigned = unsignedLease(base.lease);
+  const cliRow = unsigned.packages.find(
+    (row) => row.name === '@ccheever/snapback-cli',
+  );
+  cliRow.expectedPriorVersion = cliRow.newVersion;
+  const lease = signPublicationLease({ unsigned, privateKey: base.privateKey });
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, base.privateKey);
+  let waits = 0;
+  await assert.rejects(
+    waitForPromotedInstallability({
+      lease,
+      authorityPublicKey: base.publicKey,
+      expectedVector: vector,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      observeInstallability: async () => ({
+        ok: false,
+        rootVersion: cliRow.newVersion,
+        closure: null,
+        error: 'candidate root had the wrong transitive closure',
+        retryablePriorRoot: true,
+      }),
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      wait: async () => { waits += 1; },
+      probeBoundMs: 1_000,
+      requiredRemainingMs: 60_000,
+    }),
+    /retryable prior-root state/u,
+  );
+  assert.equal(waits, 0);
+});
+
+test('promoted installability preserves hosted-proof and rollback lease budget', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let probes = 0;
+  const retained = [];
+  await assert.rejects(
+    waitForPromotedInstallability({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      observeInstallability: async () => {
+        probes += 1;
+        return {
+          ok: true,
+          rootVersion: '0.1.1',
+          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          error: null,
+          retryablePriorRoot: false,
+        };
+      },
+      record: (evidence) => retained.push(evidence),
+      now: () => Date.parse('2026-07-28T19:14:30.000Z'),
+      probeBoundMs: 15_000,
+      requiredRemainingMs: 20_000,
+    }),
+    /reserved proof and rollback budget/u,
+  );
+  assert.equal(probes, 0);
+  assert.equal(retained.at(-1).status, 'failed');
+  assert.match(retained.at(-1).error, /reserved proof and rollback budget/u);
+});
+
+test('promoted installability rechecks its reserve after pre-probe fences', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let clock = Date.parse('2026-07-28T19:10:00.000Z');
+  let probes = 0;
+  const retained = [];
+  await assert.rejects(
+    waitForPromotedInstallability({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      readVector: async () => {
+        clock += 10_000;
+        return structuredClone(vector);
+      },
+      readLeaseHead: async () => {
+        clock += 10_000;
+        return structuredClone(head);
+      },
+      observeInstallability: async () => {
+        probes += 1;
+        return {
+          ok: true,
+          rootVersion: '0.1.1',
+          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          error: null,
+          retryablePriorRoot: false,
+        };
+      },
+      record: (evidence) => retained.push(evidence),
+      now: () => clock,
+      probeBoundMs: 45_000,
+      requiredRemainingMs: 240_000,
+    }),
+    /reserved proof and rollback budget/u,
+  );
+  assert.equal(probes, 0);
+  assert.equal(retained.at(-1).status, 'failed');
+});
+
+test('exhausted promoted installability enters the complete vector rollback', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'prior');
+  const prior = structuredClone(vector);
+  const head = acquiredHead(lease, privateKey);
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      setTag: async (name, version) => { vector[name] = version; },
+      removeTag: async (name) => { vector[name] = null; },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      wait: async () => {},
+      registryConvergenceDelayMs: 0,
+      afterPromotion: async ({ vector: promoted }) => (
+        waitForPromotedInstallability({
+          lease,
+          authorityPublicKey: publicKey,
+          expectedVector: promoted,
+          readVector: async () => structuredClone(vector),
+          readLeaseHead: async () => structuredClone(head),
+          observeInstallability: async () => ({
+            ok: false,
+            rootVersion: '0.1.0',
+            closure: null,
+            error: 'latest root remained stale',
+            retryablePriorRoot: true,
+          }),
+          now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+          wait: async () => {},
+          attempts: 2,
+          delayMs: 0,
+          probeBoundMs: 1_000,
+          requiredRemainingMs: 60_000,
+        })
+      ),
+    }),
+    (error) => {
+      assert.match(error.message, /did not converge after 2 attempts/u);
+      assert.equal(error.result.rollback.length, 9);
+      assert.ok(error.result.rollback.every((event) => event.ok));
+      return true;
+    },
+  );
+  assert.deepEqual(vector, prior);
 });
 
 test('latest proof plan cannot inject a local command or substitute GitHub identity', () => {

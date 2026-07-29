@@ -57,6 +57,19 @@ was changed by this operation. A preflight failure after authority acquisition
 also re-observes the full vector and closes the epoch as rolled back when it
 still equals the signed prior vector.)
 
+**Revised (resolver-propagation barrier):** 2026-07-29 (promotion run
+`30480479462` proved that the official registry's direct dist-tag view can
+report the complete candidate vector while fresh npm alias resolution on both
+GitHub-hosted platforms still selects the prior CLI root. The promoter now
+validates and freezes the closed proof plan, helper digest, clean checkout, and
+HEAD before authority acquisition; after tag convergence it fences a
+fresh-cache, scripts-disabled `@snapback/cli@latest` install with the complete
+vector and signed acquired head on both sides. Only the exact signed prior CLI
+root is retryable. The candidate root with an incomplete closure, a missing or
+third root, resolver error, vector/head drift, or insufficient hosted-proof
+plus rollback lease budget refuses and enters the existing full rollback. This
+is a corrective instrument and does not itself claim a completed promotion.)
+
 **Revised (nine-package candidate promotion):** 2026-07-28 (the next public
 closure uses immutable exact-version candidate publication, exact-registry
 cold proof, dependency-safe default-tag promotion with the CLI root last, and
@@ -356,6 +369,33 @@ Publication is a closed state machine:
    moves the CLI root back to its recorded prior tag when npm permits; if the
    root move cannot be reversed, the release receipt is failed loudly and no
    target capability carrier may reference it.
+
+Before authority acquisition, the promoter must validate and freeze the closed
+proof plan, its package-owned helper digest, the exact checkout HEAD, and a
+tracked-clean checkout. It reopens that same plan and provenance immediately
+before dispatch; a dirty checkout or changed plan therefore refuses before the
+first mutation and also closes the local time-of-check/time-of-use window.
+
+Direct dist-tag convergence is necessary but not sufficient to begin step 7.
+After the complete promoted vector is journaled, the publisher creates a new
+temporary project and a unique empty npm cache, disables lifecycle scripts,
+and resolves only
+`@snapback/cli: npm:@ccheever/snapback-cli@latest` from the official registry.
+It validates the resulting complete npm tree with the same latest-root closure
+rules as the hosted proof. A stale result is retryable only when the installed
+root is exactly the lease's signed prior CLI version. A missing root, any third
+version, the candidate root with stale or malformed transitive dependencies,
+or any resolver error refuses immediately.
+
+Every resolver attempt is bracketed by a fresh complete-vector read and a
+challenge-bound acquired authority head. The attempt has one absolute process
+deadline and begins only while the lease retains the closed proof-plan timeout
+plus an explicit reverse-transition reserve. Those fences and a bounded
+attempt witness are retained under
+`publicLatestRootBarrier` in the promotion receipt, separately from the nine
+closed tag events. This publisher-region barrier prevents a known propagation
+race; it does not replace the final macOS and Linux GitHub-hosted executions,
+which remain the authoritative cross-host evidence.
 
 Cross-host assembly never executes a foreign native binary. The native Linux
 builder launches `build-identity` itself and retains one closed
