@@ -974,7 +974,7 @@ public actor SnapbackClient {
             if let error = WireErrorResponse.from(json) {
                 if Self.shouldRetryReservation(
                     status: http.statusCode,
-                    code: error.code,
+                    error: error,
                     attempt: reservationAttempt,
                     maximumAttempts: configuration.reservationRetryMaxAttempts
                 ) {
@@ -1000,12 +1000,15 @@ public actor SnapbackClient {
 
     static func shouldRetryReservation(
         status: Int,
-        code: String,
+        error: WireErrorResponse,
         attempt: Int,
         maximumAttempts: Int
     ) -> Bool {
         status == 409
-            && code == "SNAPBACK_AUTH_RESERVATION_STALE"
+            && error.code == "SNAPBACK_AUTH_RESERVATION_STALE"
+            && error.details["retryable"]?.boolValue == true
+            && error.details["retryStrategy"]?.stringValue == "short-jitter"
+            && error.details["effectCommitted"]?.boolValue == false
             && maximumAttempts > 0
             && attempt + 1 < maximumAttempts
     }

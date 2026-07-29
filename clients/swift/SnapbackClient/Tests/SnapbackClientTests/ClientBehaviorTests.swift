@@ -8,11 +8,16 @@ import XCTest
 private final class ReservationStubProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private static var statuses: [Int] = []
+    private static var includeEffectFreeDetails = true
     private(set) static var requestCount = 0
 
-    static func configure(_ configuredStatuses: [Int]) {
+    static func configure(
+        _ configuredStatuses: [Int],
+        includeEffectFreeDetails: Bool = true
+    ) {
         lock.lock()
         statuses = configuredStatuses
+        self.includeEffectFreeDetails = includeEffectFreeDetails
         requestCount = 0
         lock.unlock()
     }
@@ -25,14 +30,20 @@ private final class ReservationStubProtocol: URLProtocol, @unchecked Sendable {
         let index = Self.requestCount
         Self.requestCount += 1
         let status = index < Self.statuses.count ? Self.statuses[index] : 200
+        let includeEffectFreeDetails = Self.includeEffectFreeDetails
         Self.lock.unlock()
 
         let body: Data
         if status == 409 {
             body = Data(
-                """
-                {"diagnostic":{"code":"SNAPBACK_AUTH_RESERVATION_STALE","severity":"error","subsystem":"auth","message":"reservation stale","details":{}}}
-                """.utf8
+                (includeEffectFreeDetails
+                    ? """
+                      {"diagnostic":{"code":"SNAPBACK_AUTH_RESERVATION_STALE","severity":"error","subsystem":"auth","message":"reservation stale","details":{"retryable":true,"retryStrategy":"short-jitter","effectCommitted":false}}}
+                      """
+                    : """
+                      {"diagnostic":{"code":"SNAPBACK_AUTH_RESERVATION_STALE","severity":"error","subsystem":"auth","message":"reservation stale","details":{}}}
+                      """
+                ).data(using: .utf8)!
             )
         } else {
             body = Data(#"{"ok":true}"#.utf8)
@@ -1278,6 +1289,24 @@ final class ClientBehaviorTests: XCTestCase {
                 connectionScoped: false
             )
             XCTFail("expected HTTP 503 to surface")
+        } catch {
+            XCTAssertEqual(ReservationStubProtocol.requestCount, 1)
+        }
+    }
+
+    func testReservationStaleWithoutEffectFreeFactsDoesNotRetry() async {
+        ReservationStubProtocol.configure(
+            [409, 200],
+            includeEffectFreeDetails: false
+        )
+        do {
+            _ = try await client(maxAttempts: 40).request(
+                method: "POST",
+                path: "/mutation/write",
+                body: .object(["args": .object([:])]),
+                connectionScoped: false
+            )
+            XCTFail("expected incomplete reservation refusal to surface")
         } catch {
             XCTAssertEqual(ReservationStubProtocol.requestCount, 1)
         }

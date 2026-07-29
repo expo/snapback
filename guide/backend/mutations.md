@@ -107,9 +107,19 @@ conflict.
 Authorization-protected writes have one additional pre-transaction conflict:
 `SNAPBACK_AUTH_RESERVATION_STALE`. It is HTTP 409 with
 `details.retryable: true`, `details.effectCommitted: false`, and
-`details.retryStrategy: "short-jitter"`. The attempt committed nothing, so
-retry the complete write after a short jitter and re-evaluate its result. Do
-not treat it as backend downtime or use service-style exponential backoff.
+`details.retryStrategy: "short-jitter"`. The standard JavaScript and Swift
+clients recognize only that exact closed refusal and retry the complete write
+within a bounded short-jitter budget. They do not retry a missing fact, a
+different status, an ambiguous outcome, or anything that may have committed.
+Do not add an application retry loop, treat it as backend downtime, or use
+service-style exponential backoff.
+
+The JavaScript client defaults to 40 total attempts with 20–80 ms jitter.
+Configure `reservationRetryMaxAttempts` (use `1` to disable retries) and
+`reservationRetryJitterMilliseconds: [minimum, maximum]` at construction.
+Inspect `reservationRetryDiagnostics()` or provide
+`onReservationRetryDiagnostic` to retain scheduled, settled, and exhausted
+attempt evidence without changing mutation settlement.
 
 Tests for an authorization rule must assert the intended denial code
 (`SNAPBACK_AUTH_PERMISSION_DENIED`, for example), not merely that the write
@@ -154,7 +164,8 @@ that needs its successor fails before writing with
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
 - **Do not count `SNAPBACK_AUTH_RESERVATION_STALE` as an authorization-rule
-  denial.** Retry the whole attempt, then assert the rule's exact code.
+  denial.** Let the standard client retry the exact effect-free refusal, then
+  assert the rule's exact code.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
   They are server-owned.
 - **Do not infer success from HTTP status alone.** Consume the result,

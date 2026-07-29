@@ -196,6 +196,17 @@ Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.
 
+For the exact HTTP 409 `SNAPBACK_AUTH_RESERVATION_STALE` refusal whose closed
+details say `retryable: true`, `retryStrategy: "short-jitter"`, and
+`effectCommitted: false`, `mutate()` retries the unchanged complete operation
+within its bounded client budget. Construction options
+`reservationRetryMaxAttempts` and
+`reservationRetryJitterMilliseconds: [minimum, maximum]` configure that
+budget. `reservationRetryDiagnostics()` and
+`onReservationRetryDiagnostic` expose structured scheduled, settled, and
+exhausted attempt evidence. No other status or ambiguous/committed outcome is
+automatically retried.
+
 ## Subscribe to durable state
 
 `liveQuery(ref, options)` is the author-facing composite. It performs the
@@ -324,7 +335,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Durable live | `liveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
 | Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
-| Receipts | `recordReceipt`, `receipts`, `onReceipt` |
+| Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
 The overlay returned by `subscribeEphemeral` and the live handle returned by
