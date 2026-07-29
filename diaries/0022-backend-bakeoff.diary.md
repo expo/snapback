@@ -277,13 +277,14 @@ framework-owned and stamped by every central writer.
   coverage remain. Consequently the builders are unadvertised GAPs and this
   pass does not claim that the product migration is complete.
 
-The repository-scoped relation/activity ticket is now resolved: its codegen,
-provider-type, storage, cursor, diagnostic, direct Signal Desk acceptance
-(7/7), TypeScript, contract-inventory, and production-build gates are green.
-This is a better failure mode than the original surface. The capability index
-still tells an agent not to depend on the profiles as a published target
-guarantee until LLP 0110 completes its separate author-acceptance and
-cross-target evidence lifecycle.
+The contributor-source relation/activity implementation is complete: its
+codegen, provider-type, storage, cursor, diagnostic, direct Signal Desk
+acceptance (7/7), TypeScript, contract-inventory, and production-build gates
+are green. The repository ticket remains open because public-package and
+cross-target publication evidence is intentionally absent. This is a better
+failure mode than the original surface: the capability index tells an agent
+not to depend on the profiles as a published target guarantee until LLP 0110
+completes its separate evidence lifecycle.
 
 ## 2026-07-27 — first-class React presence and optimistic follow-up
 
@@ -436,3 +437,27 @@ proof-owned transformations, and receipt-binds the exact host collection APIs
 whose result arrays exist before JavaScript can apply a post-return count
 ceiling. That is a more useful and defensible boundary than claiming the proof
 controls allocations made inside Chromium or CDP.
+
+## 2026-07-28 — final green matrix and ranking
+
+The first green v2 receipt still had an evidence-language mismatch: Convex used
+one client for both mutation and subscription while the comparison said a
+second client observed the write. The final correction split actor and observer
+transports and made cleanup independently bounded so a failed delete cannot
+skip either close or hide the primary failure.
+
+The final receipt, `43d6c570…d989`, passes all eight required commands from
+clean runtime revision `f789a143`. Convex proves subscribe-before-mutate
+cross-client delivery in 5 ms. Supabase's first hosted delivery attempt timed
+out after the insert, then its single permitted fresh-transport retry passed;
+both attempts remain visible. That outcome is more informative than a
+single-shot green because it demonstrates the exact recovery policy the
+comparison now describes.
+
+After the improvement program, Snapback moves ahead of Supabase for this
+application-authoring exercise but not for hosted operations. Convex remains
+the fastest coherent path to a reactive app. Snapback now has the stronger
+local presence semantics, evidence, precise results, React lifecycle, search,
+and dev supervision; Supabase remains far ahead as a hosted database and
+operations product. The comparison now publishes those two separate rankings
+instead of pretending one ordering answers both questions.

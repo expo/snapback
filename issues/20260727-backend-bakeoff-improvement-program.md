@@ -1,6 +1,6 @@
 # Backend bakeoff improvement program
 
-**Status:** Open  
+**Status:** Open — local program complete; hosted residuals
 **Impact:** 5  
 **Urgency:** 4  
 **Ease:** 1  
@@ -23,21 +23,21 @@ existing programs or weakening Snapback's capability honesty.
 
 | Comparison item | Current classification | Owning ticket or disposition |
 | --- | --- | --- |
-| 1. installable React starter | Partial | `20260727-installable-react-starter.md` |
-| 2. one `snapback dev` supervisor | Shipped | LLP 0041/package suite; prove it through the new starter |
-| 3. exact runtime/link doctor | Gap | `20260727-guide-gap-runtime-link-smoke.md` |
-| 4. binary identity mismatch message | Partial | `20260727-guide-gap-runtime-link-smoke.md` |
-| 5. provider/query/mutation/presence hooks | Partial | `20260727-first-class-react-surface.md` |
-| 6. precise handler result types | Partial, unsound edge | `20260727-sound-handler-result-contracts.md` |
-| 7. colocated declaration/handler | Gap | `20260727-colocated-function-authoring.md` |
-| 8. typed aggregate subscriptions | Gap over partial bundle/store primitives | `20260727-typed-live-query-groups.md` |
-| 9. indexed text search | Gap | `20260727-portable-indexed-text-search.md` |
-| 10. parent/child and write/activity helpers | Partial | `20260727-relation-and-activity-patterns.md` |
-| 11. explicit seed evolution | Partial | `20260727-versioned-seed-identity.md` |
-| 12–13. reviewable artifacts and summary | Partial | `20260727-codegen-review-surface.md` |
-| 14. comparator-grade acceptance helper | Partial | `20260727-comparator-acceptance-kit.md` |
-| 15. supported hosted loop | Partial, existing program | updated `20260726-0072-fly-adapter-remaining-surface.md` |
-| 16. hosted ephemeral parity | Gap | `20260727-hosted-ephemeral-parity.md` |
+| 1. installable React starter | Implemented; public qualification pending | `20260727-installable-react-starter.md` |
+| 2. one `snapback dev` supervisor | Implemented | LLP 0041 and package suite |
+| 3. exact runtime/link doctor | Implemented | closed `20260727-guide-gap-runtime-link-smoke.md` |
+| 4. binary identity mismatch message | Implemented | closed `20260727-guide-gap-runtime-link-smoke.md` |
+| 5. provider/query/mutation/presence hooks | Implemented | closed `20260727-first-class-react-surface.md` |
+| 6. precise handler result types | Implemented | closed `20260727-sound-handler-result-contracts.md` |
+| 7. colocated declaration/handler | Implemented | closed `20260727-colocated-function-authoring.md` |
+| 8. typed aggregate subscriptions | Implemented | closed `20260727-typed-live-query-groups.md` |
+| 9. indexed text search | Implemented for local SQLite | closed `20260727-portable-indexed-text-search.md` |
+| 10. parent/child and write/activity helpers | Contributor-source complete; publication residual | `20260727-relation-and-activity-patterns.md` |
+| 11. explicit seed evolution | Implemented | closed `20260727-versioned-seed-identity.md` |
+| 12–13. reviewable artifacts and summary | Implemented | closed `20260727-codegen-review-surface.md` |
+| 14. comparator-grade acceptance helper | Implemented; public revalidation pending | `20260727-comparator-acceptance-kit.md` |
+| 15. supported hosted loop | Fail-closed prerequisite implementation; carrier/custody GAP | `20260726-0072-fly-adapter-remaining-surface.md`, `20260728-hosted-lifecycle-carrier-and-custody-gap.md` |
+| 16. hosted ephemeral parity | Gap; capability remains false | `20260727-hosted-ephemeral-parity.md` |
 
 ## Program rules
 
@@ -71,6 +71,21 @@ Independent tickets may run in parallel after their governing LLP revision
 hashes are fixed. Integration must preserve one generated identity and one
 client external-store seam rather than introducing compatibility layers that
 silently fork semantics.
+
+## Local-program checkpoint — 2026-07-28
+
+The final local Signal Desk receipt is
+`demos/backend-bakeoff/acceptance/results/backend-bakeoff-run.43d6c570f7f3f752f61ca545a1d81ef1a1a6b3b4d34fbe0066a6becc95d3d989.v2.json`.
+It binds clean runtime revision `f789a143`, passes all eight required lanes,
+and has a final independent `READY` review at retention commit `7f92156b`.
+The comparison now ranks Convex first, Snapback second, and Supabase third for
+the scoped application-authoring exercise.
+
+The program remains open only for deliberately honest publication/hosted
+residuals: public starter/comparator revalidation, positive public-package or
+cross-target relation/activity authority, the hosted lifecycle carrier and
+custody design, its remote Fly/Tigris corpus, and hosted ephemeral parity.
+No local capability is held back by the bakeoff rerun.
 
 ## Program acceptance
 

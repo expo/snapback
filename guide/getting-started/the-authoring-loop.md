@@ -56,11 +56,11 @@ supported runtime tuples installed that exact closure and passed the original
 
 Do not infer that the public `0.1.0` bytes contain every surface described by
 the current source tree. In particular, the current React scaffold depends on
-`@snapback/vite`, and its retained cold proof is a staged, dirty-source
-checkpoint on macOS/arm64. `@snapback/vite`, the current React starter, the
-current versioned-seed integration, and the Linux run of that expanded starter
-still need one newly versioned public closure before this page can call the
-React command a public-registry path.
+`@snapback/vite`, and its retained cold proof is a staged, clean-source
+checkpoint on macOS/arm64 with a real Chromium journey. `@snapback/vite`, the
+current React starter, the current versioned-seed integration, and the Linux
+run of that expanded starter still need one newly versioned public closure
+before this page can call the React command a public-registry path.
 
 On each supported tuple the mapped runtime package carries the prebuilt server
 and Hermes runtime. `doctor` first launches that relocated binary with

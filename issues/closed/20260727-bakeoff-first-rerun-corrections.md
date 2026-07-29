@@ -1,6 +1,6 @@
 # Backend bakeoff first-rerun corrections
 
-**Status:** In Progress  
+**Status:** Closed
 **Impact:** 5  
 **Urgency:** 5  
 **Ease:** 2  
@@ -80,9 +80,23 @@ fresh client/socket/channel/witness.
 The integrated security re-audit also found and closed a final browser proof
 overclaim: receipts now distinguish proof-owned transformations bounded before
 allocation after host return from nine exact browser collection APIs whose
-result allocation cannot be bounded until the host call returns. The second
-green matrix and independent review remain outstanding, so this ticket stays
-open.
+result allocation cannot be bounded until the host call returns.
+
+## Resolution — 2026-07-28
+
+The final retained receipt is
+`demos/backend-bakeoff/acceptance/results/backend-bakeoff-run.43d6c570f7f3f752f61ca545a1d81ef1a1a6b3b4d34fbe0066a6becc95d3d989.v2.json`.
+It binds clean source revision `f789a143`, passes all eight required lanes with
+zero timeouts, and reopens every child/log digest. Its Convex lane proves a
+nonce traveled from a distinct actor to observer after subscription readiness;
+cleanup and both client closes are bounded. Its Supabase lane retains a failed
+first delivery and the one permitted successful fresh-transport retry.
+
+Fable 5 reviewed both the failed and first green checkpoints. The final
+integrated review at retention commit `7f92156b` re-ran the standalone
+verifier, 8/8 runner tests, 64/64 publication/browser/authority tests, and the
+LLP reference audit, and returned `READY` with no blocker. The comparison and
+diary now narrate the final result. All acceptance criteria are met.
 
 ## Acceptance
 

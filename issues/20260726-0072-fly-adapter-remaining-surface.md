@@ -151,9 +151,10 @@ unperformed.
 ships a package-owned `snapback hosted` registry, the Fly driver, and exact
 `FlyTargetBindingV2`, `HostedControlHeadV2`, and lifecycle request/response
 schema mirrors. `plan`, `inspect`, and `logs` are reachable without a source
-checkout. Every packaged lifecycle-v2 verb currently returns one structured
-`notApplied` terminal with `remoteEvidence: false`; packaging the vocabulary
-does not claim a provider effect.
+checkout. Every packaged lifecycle-v2 verb now fails before credential
+resolution or provider work with
+`SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`; packaging the vocabulary does
+not claim a provider effect.
 
 The independently packed supervisor now also carries the closed request/scope
 registry and an operator-authority core: Ed25519 request binding, per-device
@@ -162,3 +163,13 @@ response replay, credential-response redaction, and the bounded release-upload
 state machine. These are checkout-free package proofs, not the external-store
 or provider-effect executor. The standing service has not been upgraded and
 no remote lifecycle row changes status.
+
+**Carrier/custody correction (2026-07-28):** all seventeen lifecycle
+operations, including `releaseLease`, share the same zero-provider-call
+refusal. The packaged availability registry is `disabled`, and no provider
+nonce is exposed as a public lease id. A separately reviewed per-operation
+carrier, opaque lease custody, listener/bootstrap proof, and live transaction
+corpus are tracked in
+`20260728-hosted-lifecycle-carrier-and-custody-gap.md`. This replaces the
+older “until an executor exists” description: an executor alone is
+insufficient and must not bypass the carrier/custody gate.

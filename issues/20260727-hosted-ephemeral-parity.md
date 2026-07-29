@@ -140,3 +140,13 @@ canonical `null` response now exact-replays instead of being mistaken for a
 cache miss. This is still prerequisite code only: it adds no provider
 operation, public listener, response signer, root provisioning, live update,
 or hosted capability claim.
+
+**Lifecycle carrier correction (2026-07-28):** the generic lifecycle v2
+carrier was proven insufficient for the operation-specific desired-state,
+receipt, recovery, cutover, and opaque-lease facts required by LLP 0111. All
+seventeen operations therefore refuse at
+`SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE` before credential resolution or
+Fly/Tigris work. This is stronger than the earlier `notApplied until executor`
+checkpoint: no executor may run until the separately reviewed
+carrier-and-custody gap is closed. The hosted ephemeral capability remains
+false, and no remote restart/republish/durable-priority row is credited.
