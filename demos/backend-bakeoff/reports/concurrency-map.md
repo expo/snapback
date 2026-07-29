@@ -129,8 +129,9 @@ All seven Partiful arms have now been assigned in exact frozen order.
 | 1 | Research Room / Snapback | Worker 1 / control-plane Mac, exact frozen product worktree | Detached worktree `/private/tmp/llp0102-research-snapback-w1` at product/source commit `5f31cb6174daaefa04a1e05242acbbc22c725040`; arm-owned SQLite target/runtime/sessions/persona carriers; server `3340`, Vite `4340`, effect receiver `20440`, browser-debug `9340`; exact namespace `llp0102-research-snapback-w1`; no hosted claim without direct evidence | Worker returns only the arm commit/artifacts, diary draft, and guide-gap drafts; coordinator imports, audits, scores, files guide gaps, and serializes shared files |
 | 2 | Research Room / Supabase | Worker 2 / control-plane Mac after Partiful/Convex cleanup | Detached worktree `/private/tmp/llp0102-research-supabase-w2` at the current evidence-integration base with no Snapback product edits; official local Supabase stack with exact Docker project/volume namespace `llp0102-research-supabase-w2`; API/DB/Studio range rooted at `58431`, Vite `4341`; worktree-local CLI/XDG state and a fresh local project | Worker starts only after its Partiful/Convex target is sealed and cleaned, then returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
 | 3 | Research Room / Firebase | Worker 3 / control-plane Mac after Partiful/InstantDB cleanup | Detached worktree `/private/tmp/llp0102-research-firebase-w3` at the current evidence-integration base; emulator project `llp0102-research-firebase-w3`; Auth `9342`, Firestore `8342`, Functions `5342`, Storage `9442`, UI/Vite `4342/4343`, hub/log `4542/4543`, Pub/Sub `8142`, Eventarc `9343`, Tasks `9542`, Hosting `5042`; worktree-local Firebase/Java/XDG/browser state and exact process ownership | Worker starts only after the InstantDB hosted target is sealed and exactly cleaned, then returns only the arm commit/artifacts and diary draft; coordinator imports, audits, scores, and serializes shared files |
+| 4 | Research Room / SpacetimeDB | Worker 1 / Apartment MacBook Air `100.70.173.122` after Research/Snapback cleanup | Remote detached worktree `/Users/ccheever/worktrees/llp0102-research-spacetimedb-w1` at the current evidence-integration base; worktree-local CLI/config/data roots; standalone server `3344`, Vite `4344`; exact database namespace `llp0102-research-spacetimedb-w1`; hosted claim only with direct arm-scoped Maincloud evidence | Worker starts only after its frozen Snapback target is sealed and cleaned, returns the arm commit/artifacts and diary draft, and leaves shared reports/scoring to the coordinator |
 
-Research Room/SpacetimeDB through InstantDB remain pending. They will be assigned
+Research Room/Convex through InstantDB remain pending. They will be assigned
 in exact frozen order as isolated capacity opens.
 
 ## Research Room live progress
@@ -140,7 +141,7 @@ in exact frozen order as isolated capacity opens.
 | Research Room / Snapback | Assigned | Worker 1 reserved on isolated frozen-commit local target after exact Partiful/Snapback cleanup |
 | Research Room / Supabase | Assigned | Worker 2 queued on an isolated control-plane Supabase namespace after exact Partiful/Convex cleanup |
 | Research Room / Firebase | Assigned | Worker 3 queued on an isolated emulator project/port set after exact Partiful/InstantDB cleanup |
-| Research Room / SpacetimeDB | Pending | Not yet assigned |
+| Research Room / SpacetimeDB | Assigned | Worker 1 queued on an isolated Apartment Air standalone database after exact Research/Snapback cleanup |
 | Research Room / Convex | Pending | Not yet assigned |
 | Research Room / Appwrite | Pending | Not yet assigned |
 | Research Room / InstantDB | Pending | Not yet assigned |
