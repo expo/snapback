@@ -5499,7 +5499,7 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:c83ef7969f3d9ba2c4e49475f7a5eaff2e6ade9e434cabdf7be2b0abd95c6408";
+    "sha256:2ce65f620949a0504afaacad72f31cb76bcec3e1fc91a9ac4eed004df85f3dc7";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 
@@ -5574,7 +5574,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:f04d3e50cc3fb05ef19ad8618c4bd861db7011b5fb4d03392831fa85f412f2d9"
+                    "sha256:5f3d739ad92675dab6c674a1d92c1cb55c5b3763731b8a2933738b7d929aad7f"
                         .to_owned(),
                 ),
             ])

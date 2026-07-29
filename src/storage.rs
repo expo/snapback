@@ -14030,23 +14030,17 @@ fn patch_document(
     version: u64,
     now_ms: u64,
 ) -> SnapbackResult<bool> {
-    let current = get_document_from_tx(tx, table, id, version)?;
-    let Some(current) = current.and_then(|value| value.as_object().cloned()) else {
-        // Preserve validation-before-existence for protected/unknown fields.
-        for (field, value) in row {
-            let field_manifest = ensure_field(table, field)?;
-            if matches!(
-                field_manifest.field_type,
-                FieldType::RelationIncarnation { .. }
-            ) {
-                return Err(relation_incarnation_write_protected(table, field));
-            }
-            validate_declared_field_value(field_manifest, value)?;
+    // Validate the authored patch before consulting the target row. Missing
+    // rows remain soft no-ops only for structurally valid patches, and the
+    // same ordered field walk fixes diagnostic precedence for every target.
+    for (field, value) in row {
+        if is_system_field(field) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SYSTEM_FIELD_WRITE",
+                "storage",
+                format!("{field} is managed by Snapback"),
+            ));
         }
-        return Ok(false);
-    };
-    let mut authored = row.clone();
-    for field in row.keys() {
         let field_manifest = ensure_field(table, field)?;
         if matches!(
             field_manifest.field_type,
@@ -14054,7 +14048,15 @@ fn patch_document(
         ) {
             return Err(relation_incarnation_write_protected(table, field));
         }
+        validate_declared_field_value(field_manifest, value)?;
+        json_to_sql_value(value, Some(&field_manifest.field_type))?;
     }
+
+    let current = get_document_from_tx(tx, table, id, version)?;
+    let Some(current) = current.and_then(|value| value.as_object().cloned()) else {
+        return Ok(false);
+    };
+    let mut authored = row.clone();
     // A foreign-key patch always re-derives its protected stamp. Unchanged
     // foreign keys preserve the stamp without consulting the parent.
     let relation_input = table
@@ -15625,6 +15627,19 @@ mod guarded_commit_tests {
             .expect_err("protected stamp cannot be patched");
             assert_eq!(
                 error.diagnostic.code,
+                "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED"
+            );
+            let missing_error = patch_document(
+                &tx,
+                &child,
+                "child-missing",
+                &object(&[("parentIncarnation", json!("forged"))]),
+                2,
+                2_000,
+            )
+            .expect_err("protected stamp is refused before missing-row lookup");
+            assert_eq!(
+                missing_error.diagnostic.code,
                 "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED"
             );
         }
