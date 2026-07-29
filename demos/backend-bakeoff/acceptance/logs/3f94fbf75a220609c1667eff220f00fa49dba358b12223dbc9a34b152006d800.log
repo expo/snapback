@@ -1,0 +1,10 @@
+spawned snapback binary identity: unpinned
+  ✓ loads generated artifacts and deterministic seed
+  ✓ bounded relations and activity helper preserve secrecy, cursors, atomicity, replay, and no-op refusal
+  ✓ search and derived brief execute inside the backend
+  ✓ session-owned registered connection releases without admin authority
+
+PASS backend bakeoff / Snapback app-specific extras — 4/4
+
+--- machine-readable report ---
+{"title":"backend bakeoff / Snapback app-specific extras","passed":4,"skipped":0,"failed":0,"total":4,"ok":true,"results":[{"name":"loads generated artifacts and deterministic seed","ok":true,"details":null},{"name":"bounded relations and activity helper preserve secrecy, cursors, atomicity, replay, and no-op refusal","ok":true,"details":null},{"name":"search and derived brief execute inside the backend","ok":true,"details":null},{"name":"session-owned registered connection releases without admin authority","ok":true,"details":null}],"expectedChecks":4,"cleanupErrors":[],"cleanupErrorCount":0}

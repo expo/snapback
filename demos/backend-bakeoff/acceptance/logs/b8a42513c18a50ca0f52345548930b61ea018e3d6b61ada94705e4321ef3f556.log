@@ -1,0 +1,1 @@
+$ node tests/react.mjs && node tests/react-query-group.mjs && node tests/react-query-group-receipt.mjs

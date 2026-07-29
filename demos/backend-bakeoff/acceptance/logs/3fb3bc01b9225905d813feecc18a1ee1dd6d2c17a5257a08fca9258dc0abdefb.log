@@ -1,0 +1,1 @@
+$ snapback accept comparator --config ./snapback-comparator.config.mjs --receipt ./.snapback/comparator-receipt.json --timeout-ms 30000
