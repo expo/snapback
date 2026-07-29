@@ -89,7 +89,7 @@ the next assignment in exact frozen order.
 | Arm | State | Coordinator integration |
 | --- | --- | --- |
 | Linear / SpacetimeDB | Running | Worker compiling/debugging on Minisforum; no blocker |
-| Linear / Firebase | Complete | 12 PASS, one native-search GAP, one hosted credential-unavailable result; capsule and cleanup proof imported for coordinator audit |
+| Linear / Firebase | Complete | 12 PASS, one native-search GAP, one hosted credential-unavailable result; capsule, diary draft, evidence audit, and cleanup proof integrated |
 | Linear / Supabase | Running | Worker implementation/evidence lane active |
 | Linear / Snapback | Complete | Capsule verifier, diary, LLP audit, guide-gap ticket, failed attempts, and cleanup proof integrated in `d3a6390a` |
 | Linear / Convex | Starting | Coordinator isolated lane assigned after Snapback integration |
