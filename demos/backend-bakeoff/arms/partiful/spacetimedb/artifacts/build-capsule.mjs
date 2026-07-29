@@ -57,7 +57,12 @@ const evidencePaths = {
 const capsule = {
   schemaVersion: 1,
   protocolId: 'llp-0102-backend-bakeoff-v1',
-  arm: { app: 'partiful', provider: 'spacetimedb', round: 'deep', attemptId: 'w2' },
+  arm: {
+    app: 'partiful',
+    provider: 'spacetimedb',
+    round: 'deep',
+    attemptId: 'partiful-spacetimedb-deep-01',
+  },
   environment: {
     freezeAggregateSha256,
     sourceCommit: frozenSnapbackCommit,
@@ -180,8 +185,8 @@ const capsule = {
       evidencePaths: ['evidence/acceptance-results.json'],
     },
     'offline-reconnect': {
-      score: 2,
-      reason: 'Seven retained reconnect samples re-authenticated Bob with the server-issued credential and rebuilt the protected view without duplicates.',
+      score: 1,
+      reason: 'Seven retained reconnect samples re-authenticated Bob and rebuilt the protected view without duplicates, but the frozen Partiful app has no persistent browser-offline scenario.',
       evidencePaths: ['evidence/performance-samples.json'],
     },
     settlement: {

@@ -5,7 +5,7 @@
     "app": "partiful",
     "provider": "spacetimedb",
     "round": "deep",
-    "attemptId": "w2"
+    "attemptId": "partiful-spacetimedb-deep-01"
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
@@ -381,8 +381,8 @@
       ]
     },
     "offline-reconnect": {
-      "score": 2,
-      "reason": "Seven retained reconnect samples re-authenticated Bob with the server-issued credential and rebuilt the protected view without duplicates.",
+      "score": 1,
+      "reason": "Seven retained reconnect samples re-authenticated Bob and rebuilt the protected view without duplicates, but the frozen Partiful app has no persistent browser-offline scenario.",
       "evidencePaths": [
         "evidence/performance-samples.json"
       ]

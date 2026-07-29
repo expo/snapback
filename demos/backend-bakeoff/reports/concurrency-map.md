@@ -116,7 +116,7 @@ All seven Partiful arms have now been assigned in exact frozen order.
 | --- | --- | --- |
 | Partiful / Supabase | Complete | 14 PASS, hosted unavailable; capsule, diary, central evidence audit, retained cold-Realtime/effect failures, and exact cleanup integrated |
 | Partiful / Firebase | Complete | 14 PASS, hosted unavailable; capsule, separate PARTY-07 remediation lineage, diary, central evidence audit, hashes, and exact two-target cleanup integrated |
-| Partiful / SpacetimeDB | Returned | Worker reports 14 PASS plus hosted unavailable, capsule/Stage-0 verification, LLP audit, exact negative cleanup proof, and closed ports; awaiting coordinator import/audit |
+| Partiful / SpacetimeDB | Complete | 14 PASS, hosted unavailable; canonical attempt ID, 15/16 calibrated confidence, capsule, diary, inventory audit, exact identity deletion, and closed-port proof integrated |
 | Partiful / Appwrite | Returned | Worker reports 14 PASS plus hosted GAP, capsule/protocol/Stage-0/build/ref verification, and exact 29-container cleanup; awaiting coordinator import/audit |
 | Partiful / Snapback | Running | Exact repaired product/source commit and isolated runtime target |
 | Partiful / Convex | Assigned | Worker 2 reserved on isolated Minisforum worktree/ports after SpacetimeDB cleanup |

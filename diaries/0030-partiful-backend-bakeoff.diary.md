@@ -253,3 +253,105 @@ The Firebase arm strengthens the view that Snapback's architecture can compete:
 its coherent authority/settlement model and smaller runtime are meaningful
 advantages. The gap is completeness and operational proof, not an obvious need
 to abandon the approach.
+
+## 2026-07-28 — SpacetimeDB, deep round, complete with hosted unavailable
+
+### Environment and outcome
+
+The arm used SpacetimeDB 2.7.0 on an isolated Linux standalone server with
+generated TypeScript bindings, a React client, and a deterministic external
+effect receiver reached through a readiness-gated Cloudflare Quick Tunnel.
+Fourteen local frozen scenarios passed; Maincloud evidence was unavailable
+because the frozen credential inventory had no account. Coordinator evidence
+confidence is 15/16: reconnect is direct, but Partiful has no frozen persistent
+browser-offline scenario.
+
+### What felt good
+
+Private source tables plus identity-aware public views fit this application
+unusually well. Mallory received the anonymous invitation projection and no
+protected state. More importantly, changing policy or revoking Bob removed
+rows from his already-connected subscription rather than merely denying his
+next request. This is one of the strongest revocation end results in the
+bakeoff.
+
+Transactional reducers made final-seat contention pleasantly small. Bob and
+Casey crossed one client barrier, one reducer committed, one rejected, and
+direct SQL confirmed that capacity was not exceeded. There was no explicit
+lock or transaction retry loop in application code.
+
+Generated bindings made reducer names and live row shapes comfortable in both
+the harness and UI. A second client received the 20-post burst, RSVP totals,
+asset changes, policy transitions, and revocation over native WebSockets
+without polling.
+
+Native scheduled procedures were also a good fit. One scheduled row produced
+one inspectable run and one idempotent notification attempt. Keeping external
+HTTP in a procedure, outside the transactional reducer section, encouraged a
+sound outbox-like boundary.
+
+### What felt bad or surprising
+
+The CLI vocabulary was inconsistent enough to consume real time:
+`spacetime --version`, positional `init`, `--module-path` for build and
+generate, and the `spacetimedb` npm package each differed from the first
+reasonable guess. Help output made these recoverable, but not predictable.
+
+Intentional reducer rejections arrived at the SDK as a generic
+`InternalError`; the useful capacity or authorization diagnostic lived in the
+server log. The server behavior was correct, but expected domain refusal felt
+like a crash at the call site.
+
+Identity-aware views are powerful and opaque. The client sees the resulting
+rows but has no first-class explanation for why this actor can see a row or
+why it disappeared. Debugging policy therefore required reading server source
+and correlating callbacks.
+
+Procedure HTTP correctly refused loopback/private destinations. That is a
+secure production default, but it made a deterministic local effect test much
+heavier: the arm needed an ephemeral public tunnel and a separate readiness
+gate. A 502 after the receiver accepted and dropped the response also proved
+why transport failure cannot be called provider failure; the ledger had to
+retain `ambiguous` and retry the same key.
+
+The frozen 256 KiB asset worked as inline table bytes with clean authority and
+hash evidence. Production event media would still want object storage, signed
+delivery, metadata, and lifecycle support.
+
+### Performance and operations
+
+Two warmups plus seven samples produced local medians of 5.265 ms for RSVP
+writes, 14.304 ms for capacity contention, 4.922 ms for realtime delivery,
+21.665 ms for the wall burst, 9.125 ms for the inline asset round trip,
+3.544 ms for reconnect/read, and 519.592 ms for a module build. These are
+isolated local-host measurements, not Maincloud claims.
+
+Cleanup deleted the exact immutable database identity. A syntactically valid
+positional `describe` then returned `No such database` without a usage
+diagnostic. The worker validated PID/cwd ownership, removed only arm state,
+closed ports `3332/4333`, and left no arm tunnel.
+
+### Would I choose it?
+
+SpacetimeDB is compelling for a connected, transaction-heavy application whose
+authorization can be expressed as identity-aware live views. Its reducers,
+generated bindings, schedules, and automatic live row eviction are genuinely
+preference-shaping.
+
+I would hesitate when conventional object storage, structured domain errors,
+ordinary local HTTP-effect testing, relational/ad-hoc query tooling, or a
+mature managed operational story dominates. The current Maincloud story is
+also unmeasured here.
+
+### Lessons for Snapback
+
+Match the end result of automatic protected-row eviction, transaction-by-default
+contention, typed generated bindings, and inspectable schedules. Improve on
+SpacetimeDB by returning structured domain refusals, explaining live authority,
+and offering a safe official local-effect transport.
+
+Snapback should standardize known-success, known-failure, and ambiguous effect
+settlement with stable idempotency keys. It should add real object storage
+ergonomics instead of relying on inline bytes. None of these outcomes requires
+copying SpacetimeDB's database architecture; they are plausible refinements of
+Snapback's existing authority, transaction, settlement, and target model.

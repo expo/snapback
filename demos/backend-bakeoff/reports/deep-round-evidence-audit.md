@@ -294,3 +294,61 @@ synthesis remain coordinator-owned.
   remain authoritative.
 - Adjudication: complete. Hosted deployment/config/logs/rollback and managed
   effect delivery are credential-unavailable. No Stop-class defect is present.
+
+## Partiful / SpacetimeDB
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator identity and
+  confidence corrections.
+- Frozen identities: product/source commit and aggregate match. The worker
+  replaced the canonical attempt ID with `w2`; the coordinator restored
+  `partiful-spacetimedb-deep-01` in both capsule and generator. No raw scenario
+  evidence changed.
+- Results: 14 PASS, 1 unavailable remote dependency.
+- Evidence confidence: coordinator-adjusted to 15/16. Seven dimensions are
+  direct and reproducible. Seven reconnect samples are direct, but the frozen
+  Partiful app has no persistent browser-offline scenario, so
+  offline/reconnect is scored 1 consistently with the other Partiful arms.
+- Referenced evidence: all 17 unique capsule paths resolve; the UI screenshot
+  hash matches.
+- Inventory audit: the timed inventory contains 116 files. Ninety are retained
+  in the commit. Twenty-six are deliberately ignored harness-generated
+  bindings; 22 are byte-identical to committed client bindings and four are
+  harness-specific index/type variants. Their exact hashes were independently
+  matched against the still-isolated Minisforum worktree, while the pinned
+  generator inputs and committed client bindings preserve deterministic
+  regeneration. They are a build-time inventory, not falsely described as 116
+  committed files.
+- Authority: four distinct hashed native identities exercised host, cohost,
+  guest, contender, and outsider paths. Caller-dependent views exposed only
+  public preview to Mallory and directly removed protected rows from Bob's
+  established subscription on policy change/revocation.
+- Contention: two principals crossed one barrier for the final seat; one
+  transactional reducer committed, one rejected, and direct SQL proved the
+  authoritative capacity invariant. The generic SDK error remains an
+  ergonomics defect, not a correctness failure.
+- Transport: second-client generated-binding WebSocket callbacks directly
+  observed 20 wall posts, RSVP totals, policy, asset, and revocation changes
+  without product polling.
+- Assets/scheduling: the frozen 256 KiB asset used authorized inline native
+  bytes with independent hash and deletion proof. A native scheduled procedure
+  produced one inspectable run and one deduped attempt.
+- Effects: the procedure crossed an actual HTTP boundary. SpacetimeDB's SSRF
+  protection refused loopback correctly, so a readiness-gated Quick Tunnel was
+  disclosed. Known-success retry suppressed a second call; accepted-then-drop
+  surfaced as HTTP 502, remained `ambiguous`, and settled on same-key retry
+  with one unique delivery.
+- Performance: six application paths plus module build each retain two
+  warmups, seven samples, median, nearest-rank p95, fixture, machine, and local
+  cost scope.
+- Target/cleanup: exact immutable identity deletion succeeded. The final
+  positional `describe --json <database>` exited 1 with `No such database`,
+  `syntaxValid=true`, and no `Usage:` diagnostic. Validated PIDs/cwds, exact
+  runtime state, tunnel, and ports `3332/4333` are absent.
+- Secret/dependency audit: 92 tracked files contain no private key, bearer,
+  JWT, or token value. Raw credentials existed only in ignored mode-0600 state
+  and were removed. All three npm audit-high probes returned zero.
+- Reproducibility caveat: the worker surface again exposes no exact tool-call
+  count, so zero is treated as missing data rather than literal cost.
+- Adjudication: complete. Maincloud deployment/config/logs/rollback remain
+  credential-unavailable and are not inferred from standalone/tunnel evidence.
+  No Stop-class defect is present.
