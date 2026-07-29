@@ -684,3 +684,72 @@ synthesis remain coordinator-owned.
 - Adjudication: complete. The SSRF refusal is a secure product behavior. No
   Stop-class disclosure, secret leak, late durable patch, destructive cleanup,
   or false capability pass occurred.
+
+## Research Room / Firebase
+
+- Capsule verifier, artifact verifier, and Stage-0 verifier: PASS after
+  coordinator offline-confidence calibration.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical attempt ID, Firebase Web/CLI/Admin/Functions versions, emulator
+  project hash, service manifest, and assigned ports agree across preflight,
+  seed, export, capsule, and cleanup.
+- Results: 15 PASS, 0 GAP, 0 FAIL. Hosted Firebase access remains
+  credential-unavailable and is not inferred from local evidence, but every
+  frozen product fact has a direct local-emulator witness.
+- Evidence confidence: coordinator-adjusted to 15/16. Seven dimensions are
+  direct. Five reconnect paths disable and restore the Firestore network before
+  an authoritative read, but the arm has no durable offline mutation queue or
+  retained-offline boot, so offline/reconnect is scored 1 consistently with
+  other deep arms.
+- Referenced evidence: all 23 unique capsule paths resolve. The arm verifier
+  confirms 15 exact scenario paths, 30 referenced artifacts, five performance
+  paths with two warmups and seven successful samples, matching target
+  identities, matching screenshot hash, and no secret-pattern hits.
+- UI evidence: the retained 1440×1000 headless-Chrome screenshot visibly shows
+  the expected Fieldnote Research sign-in shell and Alice entry action with no
+  error. It proves rendering only; it is not used as authority, transport, or
+  settlement evidence.
+- Authority: Alice, Bob, and Mallory are three native Auth-emulator principals.
+  Checked-in Firestore and Storage Rules enforce member reads/writes, exact
+  object delivery, and outsider denial. Mallory is denied the source document,
+  keyword query, question subscription, and file bytes before protected
+  delivery.
+- Files/search: Storage retains Alice upload/deletion, Bob's byte-identical
+  download, ownership metadata, and post-delete absence. Firestore indexed
+  keyword query returns the exact fixture set. The ordinary Admin SDK
+  `findNearest` path returns the deterministic 32-dimensional nearest source;
+  hosted index creation remains untested.
+- Streaming/cancellation: Bob's independent native snapshot listener observes
+  all four durable server-backed progress writes before terminal completion.
+  Cancellation commits a terminal fence, awaits the in-flight callable's
+  cancelled settlement, and transactionally rejects an injected late patch;
+  progress stays fixed and no answer appears.
+- Retry/outcomes: two same-identity callable invocations retain one question,
+  one answer, and one effect-attempt ledger. Complete, failed, cancelled,
+  timed-out, and ambiguous state/effect pairs remain distinct.
+- Scheduling: two failed harness paths remain retained. The first assumed the
+  hosted region-suffixed topic name; the corrected Pub/Sub publish was accepted
+  but did not invoke the handler within ten seconds. The final proof calls the
+  Functions emulator's generated `scheduledRefresh-0` background endpoint,
+  invokes the actual `onSchedule` definition, fetches the deterministic Hosting
+  source, and records one deduplicated four-phase durable run.
+- Secrets: the local Functions boundary receives the canary through
+  arm-private process environment, stores only its hash, and leaves no canary
+  in bundle, receipts, or diagnostics. This proves the frozen server-side
+  secrecy fact, not hosted Secret Manager configuration or production runtime
+  parity.
+- Performance: read, write, native push, reconnect, and build each retain two
+  warmups, seven raw samples, median, nearest-rank p95, local-emulator context,
+  and non-hosted cost scope.
+- Cleanup: exact data cleanup moves two rooms, twenty objects, and three
+  principals to zero and proves a deleted principal cannot sign in. All twelve
+  assigned ports are closed, no owned process remains, and runtime/secret/
+  export/browser/Firebase/Java/diagnostic state is absent. A screenshot command
+  left one exact Chrome PID after writing the image; its explicit termination
+  and empty post-termination process set are retained.
+- Dependency/diagnostic audit: pinned UI dependencies retain 11 npm findings
+  (five high, six moderate); Functions retain 12 (five high, seven moderate).
+  The emulator used host Node 24 while the deployable project declares Node 22,
+  weakening hosted/runtime-parity confidence without invalidating local facts.
+- Adjudication: complete. No Stop-class disclosure, secret exposure, late
+  durable patch, destructive cleanup, or false capability claim occurred.

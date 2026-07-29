@@ -445,8 +445,8 @@
       ]
     },
     "offline-reconnect": {
-      "score": 2,
-      "reason": "Every frozen reconnect sample disabled and re-enabled the Firestore network before an authoritative member read.",
+      "score": 1,
+      "reason": "Every frozen reconnect sample disabled and re-enabled the Firestore network before an authoritative member read, but the Research Room arm does not exercise a durable offline mutation queue or retained offline boot.",
       "evidencePaths": [
         "evidence/performance.json"
       ]

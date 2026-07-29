@@ -229,3 +229,123 @@ excellent.
 Finally, generated SDK subscription barriers make the authoritative client
 cache easy to inspect in acceptance tests. Snapback should keep transport
 attribution and settled-cache inspection equally direct.
+
+## 2026-07-29 — Firebase, deep round, complete
+
+### Environment and outcome
+
+The arm used Firebase Web SDK 12.16.0 and firebase-tools 15.24.0 on a fresh
+official Local Emulator Suite project. Auth, Firestore, Functions, Storage,
+Hosting, Pub/Sub, Eventarc, Tasks, Rules, and the Emulator UI shared one exact
+project identity. All 15 frozen scenarios pass with no product GAP, failure, or
+Stop-class defect. Hosted Firebase credentials were unavailable, so none of
+the local evidence is promoted to a hosted deployment claim.
+
+Coordinator evidence confidence is 15/16. Actor authority,
+transaction/conflict, transport, settlement, target identity, cleanup, and
+artifact reproducibility are direct. Reconnect has five direct measured paths,
+but the application has no durable offline mutation queue or retained-offline
+boot.
+
+### What felt good
+
+Firebase was very strong for this application shape. One local project made
+email/password Auth tokens flow into Firestore and Storage Rules, callable
+Functions receive validated auth context, and Firestore listeners deliver
+server-backed progress to Bob while Alice's Function was still running.
+
+Local vector search was a pleasant surprise. The Admin SDK's ordinary
+`findNearest` path accepted the frozen 32-dimensional vectors in the Firestore
+emulator and returned the deterministic nearest source. This is useful direct
+local evidence, although production still requires index creation that this arm
+did not exercise.
+
+Transactions and durable documents worked well for hard effect semantics.
+Cancellation marked the question terminal in a transaction; the running worker
+checked that fence before every patch and again before its answer transaction.
+An explicitly injected late patch was rejected after confirmed cancellation.
+The same deterministic identity retained one question, one answer, and one
+effect-attempt ledger across retry. Complete, failed, cancelled, timed-out, and
+ambiguous states stayed easy to inspect.
+
+Storage authorization was also credible. Storage Rules consulted room
+membership in Firestore, enforced owner metadata and object constraints, and
+denied Mallory. Alice uploaded and deleted while Bob downloaded exact bytes.
+The tradeoff is two-resource consistency: object and metadata are separate
+writes, so production UI code needs compensation if only one succeeds.
+
+### What felt bad or frustrating
+
+The installed dependency tree was about 337 MB before counting cached emulator
+tools. The pinned UI tree retained 11 npm audit findings and Functions retained
+12. The deployable Functions project declared Node 22, while the emulator used
+host Node 24 after warning, which weakens runtime-parity confidence.
+
+Unauthenticated local startup warns about failed Admin SDK config discovery and
+services that could hit production if accidentally called. Those broad warnings
+create anxiety even when every used service is explicitly emulated.
+
+Scheduled Functions were the roughest path. The emulator's local topic name
+differed from the hosted region-suffixed convention. Publishing to the corrected
+topic was accepted but did not invoke the handler within ten seconds. The
+Functions emulator's generated `scheduledRefresh-0` background endpoint did
+invoke the real `onSchedule` definition. Both failed attempts remain evidence;
+the scenario passes locally, but the testing route was not discoverable from
+the schedule documentation.
+
+Rules are authorization, not filters. Query structure must be designed
+alongside policy and indexes; a natural client query can fail even when each
+returned row would be authorized. Local secret handling also required
+application-owned environment setup, exact canary scans, and runtime-file
+retirement.
+
+Cleanup crossed Firestore, Storage, Auth, emulator processes, the scheduled
+trigger, browser state, CLI/XDG state, Java state, and diagnostics. A headless
+Chrome screenshot process lingered after producing its image and required exact
+PID termination. Vite also watched the worktree-local browser profile until the
+arm added a non-obvious exclusion.
+
+### Performance and cleanup
+
+Each of read, write, native push, reconnect, and build retains two warmups plus
+seven samples. Medians were 5.395 ms read, 2.647 ms write, 5.305 ms push,
+4.659 ms reconnect, and 1,243.711 ms build. These are small local-emulator
+measurements, not hosted latency or production-scale evidence.
+
+Exact cleanup moved two rooms, twenty objects, and three principals to zero,
+proved the deleted actor could not sign in, closed all twelve assigned ports,
+terminated the lingering exact Chrome PID, and removed runtime, secret, export,
+browser, Firebase, Java, and diagnostic state.
+
+### Would I choose it?
+
+Yes for this workload when the operational shape and document model fit.
+Firebase combines a broad, credible local suite, native push, policy-aware
+files, server Functions, vector retrieval, and integrated export. The main
+reservations are large dependency/runtime surfaces, rules-and-index coupling,
+two-resource file consistency, scheduler-test discoverability, and the gap
+between emulator and hosted runtime/configuration evidence.
+
+### Lessons for Snapback
+
+Match the outcome of Firebase's cohesive local suite: one command, one target
+identity, one inspectable service manifest, deterministic test principals,
+policy-aware local files, auth-aware server functions, native push, scheduler
+test controls, integrated export, and exact cleanup.
+
+Snapback can differentiate by making settlement semantics far more coherent
+than application-authored documents and transactions. A first-class durable
+effect state machine should expose complete, failed, cancelled, timed-out,
+ambiguous, retry, and late-write prevention without every app inventing its own
+question, progress, answer, and attempt ledgers.
+
+It can also be materially simpler operationally: one exact cleanup command
+should retire data, principals, objects, schedules, secrets, browser/session
+carriers, and local processes with a machine-readable receipt. Diagnostics
+should distinguish intentionally absent services from calls that can reach
+production and show the exact corrective action.
+
+Firebase's ordinary local vector path raises the capability bar. Snapback does
+not need to copy Firestore indexes, but semantic retrieval needs a deterministic
+local story, authoritative source identity, an explicit deployment path, and
+diagnostics that never let a client-side fake masquerade as native retrieval.
