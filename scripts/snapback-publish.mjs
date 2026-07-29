@@ -32,6 +32,7 @@ import {
   validateQualifiedTarballs,
   validateInternalDependencyClosure,
 } from './snapback-publish-core.mjs';
+import { sha256TarEntry } from './snapback-tar-entry.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicRegistry = 'https://registry.npmjs.org';
@@ -150,14 +151,6 @@ function publishedName(sourceName, preset) {
 
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
-}
-
-function sha256TarEntry(path, entry) {
-  return createHash('sha256')
-    .update(execFileSync('tar', ['-xzOf', path, entry], {
-      maxBuffer: 64 * 1024 * 1024,
-    }))
-    .digest('hex');
 }
 
 function sourceDirty() {

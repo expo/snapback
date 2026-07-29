@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
+  closeSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   rmSync,
   symlinkSync,
+  writeSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -49,9 +53,57 @@ import {
   validateQualifiedStagingLedger,
   validateQualifiedTarballs,
 } from './snapback-publish-core.mjs';
+import { sha256TarEntry } from './snapback-tar-entry.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 const DEFAULT_BROWSER_SOURCE_REVISION = '0'.repeat(40);
+
+test('packed runtime entry hashing streams entries larger than the old child buffer', () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'snapback-large-tar-entry-'));
+  try {
+    const packageRoot = join(temporary, 'package');
+    const binaryRoot = join(packageRoot, 'bin');
+    mkdirSync(binaryRoot, { recursive: true });
+    const binary = join(binaryRoot, 'snapback');
+    const binaryBytes = 65 * 1024 * 1024;
+    const block = Buffer.alloc(1024 * 1024, 0x5a);
+    const descriptor = openSync(binary, 'wx', 0o700);
+    try {
+      for (let offset = 0; offset < binaryBytes; offset += block.byteLength) {
+        writeSync(
+          descriptor,
+          block,
+          0,
+          Math.min(block.byteLength, binaryBytes - offset),
+        );
+      }
+    } finally {
+      closeSync(descriptor);
+    }
+    const archive = join(temporary, 'runtime.tgz');
+    const packed = spawnSync(
+      'tar',
+      ['-czf', archive, '-C', temporary, 'package/bin/snapback'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(packed.status, 0, packed.stderr);
+
+    const expected = createHash('sha256');
+    for (let offset = 0; offset < binaryBytes; offset += block.byteLength) {
+      expected.update(block.subarray(0, Math.min(block.byteLength, binaryBytes - offset)));
+    }
+    assert.equal(
+      sha256TarEntry(archive, 'package/bin/snapback'),
+      expected.digest('hex'),
+    );
+    assert.throws(
+      () => sha256TarEntry(archive, 'package/bin/snapback', { maxBytes: binaryBytes - 1 }),
+      /exceeded its .*byte bound/u,
+    );
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+});
 
 test('resolveInstalledBrowserExecutable binds the only installed headless shell', () => {
   const temporary = mkdtempSync(join(tmpdir(), 'snapback-browser-executable-'));
