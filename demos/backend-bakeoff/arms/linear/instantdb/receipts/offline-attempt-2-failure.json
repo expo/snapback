@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "classification": "builder-harness-transport-barrier",
+  "scenario": "LINEAR-10-OFFLINE",
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "failure": "Chromium Network.setBlockedURLs did not intercept the already-created InstantDB WebSocket, so connection state never became closed.",
+  "authoritativeImpact": "none; no offline mutation was attempted in this run",
+  "remediation": "Use Playwright's WebSocket routing directly, with a dynamic barrier that closes provider sockets while offline and proxies new sockets after reconnect.",
+  "containsSecretValues": false
+}

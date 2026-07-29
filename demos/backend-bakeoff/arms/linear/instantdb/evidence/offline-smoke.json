@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:02:52.516Z",
+  "ok": true,
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "actorIdSha256": "174a8b2bb0c15e581d318b8665f2da5d62cc94080bedd1097d2eae26ac1c623f",
+  "coldClient": {
+    "previousBrowserProcessClosed": true,
+    "persistentProfile": ".arm-runtime/chrome-alice",
+    "retainedRows": 50,
+    "retainedOrigin": "InstantDB browser IndexedDB query cache",
+    "indexedDbDatabaseCount": 1
+  },
+  "transportDisabled": {
+    "providerRequestsBlockedByChromium": 3,
+    "providerWebSocketsClosedByPlaywright": 1,
+    "routePattern": "instantdb.com",
+    "localhostViteRemainedReachable": true,
+    "browserConnectionState": "closed"
+  },
+  "queuedEdit": {
+    "issueIdSha256": "4c5e877fb362392a7f232bc7921cac2b5b1b61e82f1ec20aad5925b3a48d329a",
+    "originalStatus": "done",
+    "queuedStatus": "in_progress",
+    "queueUi": "Queued offline",
+    "optimisticVisibleOffline": true
+  },
+  "settlement": {
+    "reconnected": true,
+    "authoritativeStatus": "in_progress",
+    "restoredAfterProof": true
+  },
+  "containsSecretValues": false
+}

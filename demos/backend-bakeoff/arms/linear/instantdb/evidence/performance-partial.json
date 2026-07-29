@@ -1,0 +1,147 @@
+{
+  "claimScope": "small repeatable product workload; not production scale",
+  "warmups": 2,
+  "recordedSamples": 7,
+  "rawSamples": {
+    "representativeList": [
+      125.82600000000093,
+      112.63858299999993,
+      107.66141699999935,
+      98.16620799999873,
+      110.82566700000098,
+      106.50675000000047,
+      107.92312500000116
+    ],
+    "representativeDetail": [
+      162.2047500000008,
+      104.58995800000048,
+      105.12562500000058,
+      110.60666700000002,
+      168.47100000000137,
+      106.40312500000073,
+      111.69487500000105
+    ],
+    "representativeWrite": [
+      148.68754199999967,
+      114.17066700000214,
+      105.7457080000022,
+      118.08179100000052,
+      145.68487500000265,
+      112.16920799999934,
+      105.8012920000001
+    ],
+    "realtimeDelivery": [
+      168.46087500000067,
+      237.5299159999995,
+      138.77708300000086,
+      177.35550000000148,
+      271.3669579999987,
+      141.46054100000038,
+      138.7203750000008
+    ],
+    "reconnect": [
+      630.1697500000009,
+      463.8946250000008,
+      447.87787500000195,
+      454.885374999998,
+      613.9869590000017,
+      403.37850000000253,
+      462.0046250000014
+    ]
+  },
+  "statistics": {
+    "representativeList": {
+      "rawMs": [
+        125.82600000000093,
+        112.63858299999993,
+        107.66141699999935,
+        98.16620799999873,
+        110.82566700000098,
+        106.50675000000047,
+        107.92312500000116
+      ],
+      "medianMs": 107.92312500000116,
+      "nearestRankP95Ms": 125.82600000000093
+    },
+    "representativeDetail": {
+      "rawMs": [
+        162.2047500000008,
+        104.58995800000048,
+        105.12562500000058,
+        110.60666700000002,
+        168.47100000000137,
+        106.40312500000073,
+        111.69487500000105
+      ],
+      "medianMs": 110.60666700000002,
+      "nearestRankP95Ms": 168.47100000000137
+    },
+    "representativeWrite": {
+      "rawMs": [
+        148.68754199999967,
+        114.17066700000214,
+        105.7457080000022,
+        118.08179100000052,
+        145.68487500000265,
+        112.16920799999934,
+        105.8012920000001
+      ],
+      "medianMs": 114.17066700000214,
+      "nearestRankP95Ms": 148.68754199999967
+    },
+    "realtimeDelivery": {
+      "rawMs": [
+        168.46087500000067,
+        237.5299159999995,
+        138.77708300000086,
+        177.35550000000148,
+        271.3669579999987,
+        141.46054100000038,
+        138.7203750000008
+      ],
+      "medianMs": 168.46087500000067,
+      "nearestRankP95Ms": 271.3669579999987
+    },
+    "reconnect": {
+      "rawMs": [
+        630.1697500000009,
+        463.8946250000008,
+        447.87787500000195,
+        454.885374999998,
+        613.9869590000017,
+        403.37850000000253,
+        462.0046250000014
+      ],
+      "medianMs": 462.0046250000014,
+      "nearestRankP95Ms": 630.1697500000009
+    }
+  },
+  "machine": {
+    "hostname": "Charlies-MacBook-Air.local",
+    "platform": "darwin 25.5.0 arm64",
+    "cpus": 10,
+    "memoryBytes": 34359738368,
+    "loadAverageAtCapture": [
+      2.68408203125,
+      2.82470703125,
+      3.03857421875
+    ],
+    "node": "v24.14.0"
+  },
+  "target": {
+    "provider": "InstantDB hosted temporary app",
+    "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+    "region": "provider-selected; not exposed",
+    "plan": "official temporary/free"
+  },
+  "costWindow": {
+    "from": "2026-07-29T04:55:45.488Z",
+    "through": "scoped cleanup",
+    "actualProviderChargeUsd": 0,
+    "actualUsageAvailability": "Temporary app created without account/billing; no metered bill surface.",
+    "listPriceEstimateUsd": 0,
+    "estimateBasis": "Official CLI temporary application; automatic deletion after more than 24 hours.",
+    "extrapolationCountedAsMeasured": false
+  },
+  "buildOrDeploy": "evidence/performance-build.json (captured separately with 2+7 runs)"
+}
