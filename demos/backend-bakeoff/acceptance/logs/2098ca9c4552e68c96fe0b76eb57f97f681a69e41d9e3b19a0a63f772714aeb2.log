@@ -1,0 +1,13 @@
+vite v7.1.7 building for production...
+transforming...
+✓ 193 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                      0.47 kB │ gzip:  0.31 kB
+dist/assets/index-Sl0dYjOZ.css       9.02 kB │ gzip:  2.65 kB
+dist/assets/normalize-D-qts8Dt.js    1.02 kB │ gzip:  0.37 kB
+dist/assets/supabase-y3I3OLF3.js     3.32 kB │ gzip:  1.26 kB
+dist/assets/convex-BijznBwo.js      68.70 kB │ gzip: 19.09 kB
+dist/assets/index-YovIEHEn.js      207.63 kB │ gzip: 64.88 kB
+dist/assets/snapback-B6E59y9y.js   349.04 kB │ gzip: 88.23 kB
+✓ built in 783ms

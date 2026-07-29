@@ -1,0 +1,2 @@
+Supabase Realtime attempt: {"attempt":1,"outcome":"passed","subscriptionStartedAt":"2026-07-29T00:58:32.973Z","subscribedAt":"2026-07-29T00:58:33.390Z","insertCompletedAt":"2026-07-29T00:58:33.686Z","deliveredAt":"2026-07-29T00:58:34.141Z"}
+Supabase integration: transaction RPC, native realtime, search, brief — pass
