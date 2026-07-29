@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "namespace": "llp0102-linear-supabase-w3",
+  "projectId": "llp0102-linear-supabase-w3",
+  "startedAt": "2026-07-29T04:07:05.778Z",
+  "startedMonotonicMs": 254587766,
+  "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "runtimeProjectDir": "/Users/ccheever/.cache/llp0102-linear-supabase-w3-runtime",
+  "ports": {
+    "vite": 4322,
+    "api": 56431,
+    "database": 56432,
+    "studio": 56433,
+    "mail": 56434,
+    "smtp": 56435,
+    "pop3": 56436,
+    "analytics": 56437,
+    "pooler": 56438,
+    "shadow": 56439,
+    "inspector": 56440
+  }
+}

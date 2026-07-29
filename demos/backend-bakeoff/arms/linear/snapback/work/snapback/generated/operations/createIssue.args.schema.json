@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/createIssue.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assigneeId": {
+      "type": "string"
+    },
+    "organizationId": {
+      "type": "string"
+    },
+    "projectId": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    },
+    "teamId": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organizationId",
+    "teamId",
+    "projectId",
+    "assigneeId",
+    "title",
+    "sequence"
+  ],
+  "title": "work:createIssue arguments",
+  "type": "object"
+}

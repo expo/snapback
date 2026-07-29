@@ -1,0 +1,27 @@
+{
+  "id": "PARTY-02-PUBLIC-PRIVATE",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:31.838Z",
+  "finishedAt": "2026-07-29T06:45:31.856Z",
+  "durationMs": 18.162,
+  "evidence": {
+    "anonymousRead": {
+      "eventKey": "event-summer-rooftop",
+      "publicDescription": "Dinner, music, and sunset above the city.",
+      "slug": "summer-rooftop",
+      "startsAt": "2026-08-15T19:00:00-07:00",
+      "title": "Summer Rooftop Supper",
+      "venue": "Mission Rooftop"
+    },
+    "publicFields": [
+      "eventKey",
+      "publicDescription",
+      "slug",
+      "startsAt",
+      "title",
+      "venue"
+    ],
+    "privateAnonymous": null,
+    "hostPrivateFieldPresent": true
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "operation": "seed",
+  "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+  "actorHashes": {
+    "alice": {
+      "idSha256": "188545c4b7a08a13279e3dc0bcdd0e9a8cd41aa1161be693e9d7820ee4565499",
+      "authKind": "InstantDB native guest auth"
+    },
+    "bob": {
+      "idSha256": "3357a56a4aa5028cd55493b82eb8f384253cca60dad4773ee4036a7b4b4400d8",
+      "authKind": "InstantDB native guest auth"
+    },
+    "mallory": {
+      "idSha256": "3020c6e5422d1dc6108900d0473c4afcbe4e094822098f09284958a5229c521d",
+      "authKind": "InstantDB native guest auth"
+    }
+  },
+  "authoritativeCounts": {
+    "channels": 4,
+    "messagesByChannel": {
+      "general": 125,
+      "deep-round": 125,
+      "calibration": 125,
+      "field-notes": 125
+    },
+    "totalMessages": 500
+  },
+  "finishedAt": "2026-07-29T02:54:33.103Z"
+}

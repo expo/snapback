@@ -1,0 +1,30 @@
+{
+  "id": "LINEAR-03-FILTERS",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:28:47.085Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "Firestore indexed queries",
+  "evidence": {
+    "filters": {
+      "status": {
+        "resultCount": 125,
+        "expectedSetHash": "a58548a03695d66111f34797071181d792070ab5ca380e060e05e85e88122377"
+      },
+      "assigneeId": {
+        "resultCount": 250,
+        "expectedSetHash": "d807a616e6944682f0dc94ba6d8258926527c035992f4f4b30430573f32eaa62"
+      },
+      "projectId": {
+        "resultCount": 125,
+        "expectedSetHash": "a58548a03695d66111f34797071181d792070ab5ca380e060e05e85e88122377"
+      },
+      "labelIds": {
+        "resultCount": 50,
+        "expectedSetHash": "3293d663e8c944f079edc7539326231caf538e540b8d6ce5943f74007ba7469a"
+      }
+    },
+    "indexConfigSha256": "7296288fc5d27b43270f13365c0a818a89688c8baa47fc33f2f472f1821c4c69",
+    "indexDefinitions": 8
+  },
+  "note": "Four client queries matched independent Admin SDK authoritative sets; compound index artifact retained."
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T19:44:00.000Z",
+  "targetIdentityHash": "1d69c47ca499a7f5b31d656b6fb7bef31a0d528d91553e6c126fd1fe8fbebc9c",
+  "authoritativeTaskCount": 100,
+  "retainedEvidence": [
+    "authoritative-count.v1.json",
+    "browser-smoke.v1.json",
+    "correctness-smoke.v1.json",
+    "offline-smoke.v1.json",
+    "performance.v1.json",
+    "inventory.v1.json"
+  ],
+  "dataExport": {
+    "status": "explicit-gap",
+    "reason": "No provider-native logical export was exercised for this disposable standalone target. The frozen deterministic seed and module source recreate its state."
+  },
+  "containsSecretValues": false
+}

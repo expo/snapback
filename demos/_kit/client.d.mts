@@ -126,15 +126,29 @@ export interface EphemeralPublishResult {
   [key: string]: unknown;
 }
 
-export interface EphemeralSubscribeOptions {
+export interface EphemeralCollectionRef<Scope = Record<string, unknown>, Value = unknown> {
+  artifactKind: 'ephemeralCollectionReference';
+  name: string;
+  readonly __scope?: Scope;
+  readonly __value?: Value;
+}
+
+export interface EphemeralSubscribeOptions<Scope = Record<string, unknown>> {
   connectionId: string;
-  scope?: Record<string, unknown>;
+  scope?: Scope;
   userId?: string;
   permissions?: string[];
+  transport?: 'stream' | 'poll';
+  stream?: Record<string, unknown>;
 }
 
 export interface LiveStreamManager {
   isOpen(): boolean;
+  waitUntilReady(options?: {
+    timeoutMs?: number;
+    revalidate?: boolean;
+    signal?: AbortSignal;
+  }): Promise<number>;
   onState(listener: (state: string, detail?: { wasOpen?: boolean }) => void): () => void;
 }
 
@@ -184,8 +198,12 @@ export class SnapbackClient {
     options: LiveQueryOptions<Row, Args>,
   ): Promise<LiveQueryHandle<Row>>;
 
+  subscribeEphemeral<Scope, Value>(
+    ref: EphemeralCollectionRef<Scope, Value>,
+    options: EphemeralSubscribeOptions<Scope>,
+  ): Promise<EphemeralOverlay<Value>>;
   subscribeEphemeral<Value = unknown>(
-    ref: unknown,
+    ref: string,
     options: EphemeralSubscribeOptions,
   ): Promise<EphemeralOverlay<Value>>;
   liveStreamManager(connectionId: string, options?: Record<string, unknown>): LiveStreamManager;

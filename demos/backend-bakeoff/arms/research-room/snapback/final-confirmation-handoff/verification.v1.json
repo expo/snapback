@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "checks": {
+    "immutablePackageLedger": "pass",
+    "coldInstallReceipt": "pass",
+    "installedRuntimeMatchesTarball": "pass",
+    "repositoryRelativeImports": "absent",
+    "repositoryServerWrapper": "absent",
+    "sourceBinary": "absent",
+    "cargoFallback": "absent",
+    "generation": "pass",
+    "productionBuild": "pass",
+    "acceptance": "15/15; 13 pass, 2 gap, 0 fail",
+    "capsuleVerifier": "pass",
+    "evidencePaths": "9/9 resolve",
+    "secretScan": "24 files; canary and bearer values absent",
+    "refCheck": "107 LLP docs, 2309 refs, 0 errors, 0 unchecked",
+    "guideCheck": "pass with 21 pre-existing freshness warnings",
+    "diffCheck": "pass",
+    "llpMaintain": "propose-only pass"
+  },
+  "cleanup": {
+    "runtimeRootAbsent": true,
+    "publicRootAbsent": true,
+    "portsClosed": [
+      33105,
+      43105,
+      53105,
+      63105
+    ],
+    "errors": []
+  }
+}

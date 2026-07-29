@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T13:24:07.319Z",
+  "target": {
+    "projectId": "llp0102-final-chat-firebase-w2",
+    "identityHash": "70b5c4bf0089fe4aa6b71657711885092d2ec5bf8b434c03a8a9191bcc8382f5",
+    "mode": "fresh-local"
+  },
+  "processPlan": {
+    "roots": {
+      "emulatorPid": 34303,
+      "vitePid": 35103
+    },
+    "validatedProcesses": [
+      {
+        "pid": 34303,
+        "ppid": 5710,
+        "commandHash": "0ac1e7a188e45687df8c3ee851f06441b0011d2beb2afbc392428a648ae610c6"
+      },
+      {
+        "pid": 35103,
+        "ppid": 5710,
+        "commandHash": "dbc3d4100ab6e891057d6d11eb6d260efc8687cb65f4be2dc50a9d8e3ed8efa6"
+      },
+      {
+        "pid": 34359,
+        "ppid": 34303,
+        "commandHash": "e3b0fe89b78371474ab30b434bc7e9fed6ebb7b8a74431a5b89a94ebd0a8165a"
+      },
+      {
+        "pid": 34385,
+        "ppid": 34303,
+        "commandHash": "50c5f0aeb913f5ffc215a5994d3867cce3895bece99cd4ac09468f300a7148cf"
+      },
+      {
+        "pid": 36552,
+        "ppid": 34303,
+        "commandHash": "6fd686efe1c5f994218aff1b8c518e81fdec568cea10795a1a8ddaa9b84b53c9"
+      },
+      {
+        "pid": 36575,
+        "ppid": 34303,
+        "commandHash": "6fd686efe1c5f994218aff1b8c518e81fdec568cea10795a1a8ddaa9b84b53c9"
+      },
+      {
+        "pid": 35150,
+        "ppid": 35103,
+        "commandHash": "a6c2c9c7f2ac7271ad56402318b6396b55def5fc6bfbdc00978b8461f0367c99"
+      },
+      {
+        "pid": 35153,
+        "ppid": 35150,
+        "commandHash": "e7d1ca3569778017fc5cabf6d70407487976459635617270daae884bc7180866"
+      }
+    ],
+    "survivingPids": []
+  },
+  "portsAfter": {
+    "9299": "closed",
+    "9499": "closed",
+    "35201": "closed",
+    "35202": "closed",
+    "35203": "closed",
+    "35204": "closed",
+    "35250": "closed",
+    "35280": "closed",
+    "35281": "closed",
+    "35287": "closed",
+    "35288": "closed",
+    "35299": "closed"
+  },
+  "projectEndpointProbe": "connection-refused",
+  "unrelatedBaseline": "No shared or hosted target was used or mutated.",
+  "removedDirectories": [
+    ".browser-profile",
+    ".firebase-export",
+    ".xdg-config",
+    ".xdg-cache"
+  ],
+  "preservedEvidence": [
+    "receipts/export-file-sha256.txt",
+    "receipts/export-size-kib.txt",
+    "receipts/scenarios",
+    "receipts/acceptance-results.json",
+    "receipts/performance.json"
+  ],
+  "status": "complete"
+}

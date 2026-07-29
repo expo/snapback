@@ -1,0 +1,10 @@
+file:///Users/ccheever/worktrees/llp0102-chat-firebase/demos/backend-bakeoff/arms/chat/firebase/work/scripts/lib.mjs:76
+  const timer = setTimeout(() => reject(new Error(`Timed out: ${label}`)), timeoutMs);
+                                        ^
+
+Error: Timed out: Bob listener denied after membership removal
+    at Timeout.<anonymous> (file:///Users/ccheever/worktrees/llp0102-chat-firebase/demos/backend-bakeoff/arms/chat/firebase/work/scripts/lib.mjs:76:41)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+
+Node.js v24.18.0

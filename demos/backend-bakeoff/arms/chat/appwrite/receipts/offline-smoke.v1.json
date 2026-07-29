@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T01:07:12.124Z",
+  "status": "gap",
+  "warmHistory": {
+    "messageCount": 25,
+    "origin": "mounted React memory",
+    "transportDisabled": true
+  },
+  "coldHistory": {
+    "blockedReload": true,
+    "protectedMessageCount": 0,
+    "persistentProviderCache": false
+  },
+  "storeInventory": {
+    "indexedDbDatabaseCount": 0,
+    "indexedDbNameHashes": [],
+    "localStorageKeyHashes": [
+      "86c04bf33984d7edfebbfd74b22dc9d6220bce354cb17683c32031f8ef3c483c"
+    ],
+    "note": "The only retained provider state was the Appwrite Auth session; TablesDB history had no IndexedDB cache."
+  },
+  "reconnect": {
+    "authoritativeMessageCount": 25,
+    "uniqueMessageIds": 25,
+    "duplicated": false
+  },
+  "reason": "The Appwrite Web SDK retained loaded history only in React memory. An offline reload had no provider-backed history; reconnect refetched authority.",
+  "containsSecretValues": false
+}

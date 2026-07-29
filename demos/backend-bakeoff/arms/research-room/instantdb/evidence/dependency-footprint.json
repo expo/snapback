@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "providerPackages": {
+    "@instantdb/admin": "1.0.52",
+    "@instantdb/react": "1.0.52",
+    "instant-cli": "1.0.52"
+  },
+  "uiPackages": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "vite": "7.3.1",
+    "@vitejs/plugin-react": "5.1.4"
+  },
+  "npmAudit": {
+    "info": 0,
+    "low": 1,
+    "moderate": 0,
+    "high": 1,
+    "critical": 0,
+    "total": 2
+  },
+  "installedDependencyBytes": 162983936,
+  "containsCredentialValues": false
+}

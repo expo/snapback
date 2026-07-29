@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "kind": "pre-cleanup local SQLite content hash",
+  "bytes": 2920448,
+  "sha256": "7da3e3eda3ba81f6fdbf8980473acde9f4d8ecb307053d9792dec2b47d0df8a8",
+  "binaryRetained": false,
+  "recovery": "regenerate artifacts and rerun the authenticated bootstrap"
+}

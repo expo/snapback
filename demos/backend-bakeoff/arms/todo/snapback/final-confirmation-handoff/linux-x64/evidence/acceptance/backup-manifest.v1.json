@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T12:57:11.353Z",
+  "kind": "pre-cleanup local SQLite content hash",
+  "bytes": 520192,
+  "sha256": "f024d0fc0fb4f4845c17320b57ceacb7a9604063516dbf47ccb9fb1934c2ae7c",
+  "binaryRetained": false,
+  "recovery": "Regenerate artifacts, mint the local sessions, and rerun the authenticated workspace bootstrap acceptance setup."
+}

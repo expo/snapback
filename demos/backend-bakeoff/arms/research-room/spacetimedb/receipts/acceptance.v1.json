@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "title": "LLP 0102 Research Room / SpacetimeDB",
+  "expectedCheckCount": 15,
+  "result": "pass-with-gaps",
+  "summary": {
+    "pass": 13,
+    "gap": 2,
+    "fail": 0
+  },
+  "scenarios": [
+    {"id":"RESEARCH-01-SEED","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-02-FILES","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-03-OUTSIDER","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-04-KEYWORD","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-05-SEMANTIC","status":"gap","evidencePath":"receipts/acceptance.partial.v1.json","reason":"No ordinary vector index or semantic-nearest-neighbor query path in SpacetimeDB 2.7."},
+    {"id":"RESEARCH-06-PROGRESS","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-07-CITATIONS","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-08-COLLABORATOR","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-09-CANCEL","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-10-RETRY","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-11-OUTCOMES","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-12-SCHEDULE","status":"pass","evidencePath":"receipts/acceptance.partial.v1.json"},
+    {"id":"RESEARCH-13-SECRETS","status":"gap","evidencePath":"receipts/acceptance.partial.v1.json","reason":"No native module secret-management or injection surface; no canary was fabricated."},
+    {"id":"RESEARCH-14-PERFORMANCE","status":"pass","evidencePath":"receipts/performance.v1.json"},
+    {"id":"RESEARCH-15-CLEANUP","status":"pass","evidencePath":"receipts/cleanup.v1.json"}
+  ],
+  "stopClass": null
+}

@@ -1,0 +1,31 @@
+{
+  "id": "CHAT-03-SEND",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:13.506Z",
+  "settlement": {
+    "authorName": "Alice",
+    "authorSubject": "alice",
+    "id": "jd75f9rcdwgteg3p8jfave410h8bfaz6",
+    "sequence": 126
+  },
+  "authoritative": {
+    "_creationTime": 1785291253489.324,
+    "_id": "jd75f9rcdwgteg3p8jfave410h8bfaz6",
+    "authorName": "Alice",
+    "authorSubject": "alice",
+    "body": "authoritative hello",
+    "channelId": "j576rpbqgfa45ezns93vmv57c58bfag0",
+    "namespace": "llp0102-chat-convex-w2",
+    "sentAt": 1785291253489,
+    "sequence": 126
+  },
+  "elapsedMs": 17.90613899999994,
+  "serverFields": [
+    "_id",
+    "_creationTime",
+    "sequence",
+    "authorSubject",
+    "authorName",
+    "sentAt"
+  ]
+}

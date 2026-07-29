@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/addComment.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "issueId": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "issueId",
+    "body",
+    "sequence"
+  ],
+  "title": "work:addComment arguments",
+  "type": "object"
+}

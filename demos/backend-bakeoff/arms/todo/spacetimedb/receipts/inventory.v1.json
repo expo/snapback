@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/spacetimedb/work",
+  "generatedAt": "2026-07-28T19:44:40.594Z",
+  "totals": {
+    "policy": {
+      "files": 5,
+      "bytes": 36715,
+      "lines": 1179
+    },
+    "authored-source": {
+      "files": 19,
+      "bytes": 122005,
+      "lines": 3548
+    },
+    "dependency-manifest": {
+      "files": 2,
+      "bytes": 72434,
+      "lines": 2206
+    },
+    "configuration": {
+      "files": 7,
+      "bytes": 2685,
+      "lines": 108
+    },
+    "generated": {
+      "files": 14,
+      "bytes": 18051,
+      "lines": 516
+    }
+  },
+  "installedDependencyBytes": 143840799,
+  "files": [
+    {
+      "path": ".cursor/rules/cli.mdc",
+      "category": "policy",
+      "bytes": 4129,
+      "lines": 170,
+      "sha256": "027c640ba1d226281f4ba503b2f85a830650f72aa2e7945e9d3500df8284ea4b"
+    },
+    {
+      "path": ".cursor/rules/concepts.mdc",
+      "category": "policy",
+      "bytes": 4179,
+      "lines": 102,
+      "sha256": "0340a126d7940ddbdee083f082ec5f14f14b16bf38835bccd459b41ee7bc333b"
+    },
+    {
+      "path": ".cursor/rules/typescript-client.mdc",
+      "category": "policy",
+      "bytes": 3262,
+      "lines": 104,
+      "sha256": "12b995e535b27c5bfdc952e92129f28bfed4c08da4f09e6878a015661404eba8"
+    },
+    {
+      "path": ".cursor/rules/typescript-server.mdc",
+      "category": "policy",
+      "bytes": 7139,
+      "lines": 224,
+      "sha256": "678443e01886803a824e04505829e51e055663756ae40ed799717c689f76a70b"
+    },
+    {
+      "path": ".github/copilot-instructions.md",
+      "category": "authored-source",
+      "bytes": 18006,
+      "lines": 579,
+      "sha256": "cb646834a312c4b238cbc8dda76733326717172632ef939107714dd3588bf2ee"
+    },
+    {
+      "path": ".gitignore",
+      "category": "authored-source",
+      "bytes": 75,
+      "lines": 9,
+      "sha256": "29bb7a6aa533f16a84e08f765982a0bd18bba67c5372e16f71e343ce5cdaf8a5"
+    },
+    {
+      "path": ".windsurfrules",
+      "category": "policy",
+      "bytes": 18006,
+      "lines": 579,
+      "sha256": "cb646834a312c4b238cbc8dda76733326717172632ef939107714dd3588bf2ee"
+    },
+    {
+      "path": "AGENTS.md",
+      "category": "authored-source",
+      "bytes": 18006,
+      "lines": 579,
+      "sha256": "cb646834a312c4b238cbc8dda76733326717172632ef939107714dd3588bf2ee"
+    },
+    {
+      "path": "CLAUDE.md",
+      "category": "authored-source",
+      "bytes": 18006,
+      "lines": 579,
+      "sha256": "cb646834a312c4b238cbc8dda76733326717172632ef939107714dd3588bf2ee"
+    },
+    {
+      "path": "index.html",
+      "category": "authored-source",
+      "bytes": 308,
+      "lines": 13,
+      "sha256": "26f765dc3f79522edc6b473e753c9b49ed79c049c3c10e3323bea7b0e44caed2"
+    },
+    {
+      "path": "LICENSE",
+      "category": "authored-source",
+      "bytes": 11350,
+      "lines": 203,
+      "sha256": "5ef3fe1990c05675763c2a426ae5628aa7bdf1f073e3d2aa5ad817913e6b04f9"
+    },
+    {
+      "path": "package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 66888,
+      "lines": 2031,
+      "sha256": "f7ec24d5c8aacccee5b62008d8715c966209535485573d12cb0566e9fea9afa3"
+    },
+    {
+      "path": "package.json",
+      "category": "configuration",
+      "bytes": 925,
+      "lines": 27,
+      "sha256": "fda70f5aeea741fa91ca9416a6cad090e888a9f051ef234080500e4e6da26432"
+    },
+    {
+      "path": "README.md",
+      "category": "authored-source",
+      "bytes": 2960,
+      "lines": 117,
+      "sha256": "31d539aaa2d5e0f4e5994cb1671c2be6ed9a0b1279cc1238b69233c272a9b7e6"
+    },
+    {
+      "path": "scripts/authoritative-check.mjs",
+      "category": "authored-source",
+      "bytes": 1021,
+      "lines": 35,
+      "sha256": "f31f6ca50d2f0f839b5ea75c5b1611dabeffdd7a360c1b37ef3ab10a54eff4b2"
+    },
+    {
+      "path": "scripts/browser-smoke.mjs",
+      "category": "authored-source",
+      "bytes": 5103,
+      "lines": 147,
+      "sha256": "19fd3cbe7b087df6937c206077ed3086a9c60fd212bcf631cec17331818e9404"
+    },
+    {
+      "path": "scripts/cleanup-arm.mjs",
+      "category": "authored-source",
+      "bytes": 3510,
+      "lines": 125,
+      "sha256": "13c115533e1ba342f0a37327b292fd8354965e9bf7f1ec6fad2eef2fc3c82f83"
+    },
+    {
+      "path": "scripts/correctness-smoke.mjs",
+      "category": "authored-source",
+      "bytes": 9252,
+      "lines": 228,
+      "sha256": "e0647c12e53b6877dcc9b06a2c49644c8000c66e869d71afea3cb952fc8bf67c"
+    },
+    {
+      "path": "scripts/offline-smoke.mjs",
+      "category": "authored-source",
+      "bytes": 4521,
+      "lines": 122,
+      "sha256": "0c02ed73eeb7f972ed938566240e6c1a4bcfe0a09b7d967fa68da9857701b62b"
+    },
+    {
+      "path": "scripts/performance-smoke.mjs",
+      "category": "authored-source",
+      "bytes": 6898,
+      "lines": 185,
+      "sha256": "1c75418c89aa5b10bb9a18ba7df1f1e93e1e59c977b7f8e056b4df4d962462dc"
+    },
+    {
+      "path": "scripts/provision-personas.mjs",
+      "category": "authored-source",
+      "bytes": 2253,
+      "lines": 73,
+      "sha256": "9364e13a51f64915b4184953ae757b5aa4c25357ab580a11d6086a60bc15ab95"
+    },
+    {
+      "path": "spacetime.json",
+      "category": "configuration",
+      "bytes": 61,
+      "lines": 4,
+      "sha256": "391ff11a52a4ad147e4e4226ea8dc90996fd385b52e93c0073d8d16893ac2da1"
+    },
+    {
+      "path": "spacetime.local.json",
+      "category": "configuration",
+      "bytes": 42,
+      "lines": 3,
+      "sha256": "1f4112df18825038f08f0f014cae57c5ae9703932c295d0d1ad138b6d0f18ea8"
+    },
+    {
+      "path": "spacetimedb/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 5546,
+      "lines": 175,
+      "sha256": "75d5cd2a1e03f885a549cccbc553215802c308e74935b9104888e4ea55ff34a7"
+    },
+    {
+      "path": "spacetimedb/package.json",
+      "category": "configuration",
+      "bytes": 323,
+      "lines": 18,
+      "sha256": "a255990c46bba0ab8dc565d32b75b0823a315b8e1216903582b3a308ee339a1a"
+    },
+    {
+      "path": "spacetimedb/src/index.ts",
+      "category": "authored-source",
+      "bytes": 8828,
+      "lines": 290,
+      "sha256": "2ee07d057288b71a45b6534642064d233d129e487e3bbdd0d85330f303035c4d"
+    },
+    {
+      "path": "spacetimedb/tsconfig.json",
+      "category": "configuration",
+      "bytes": 597,
+      "lines": 24,
+      "sha256": "932f19d5f09b978424ac66817e0ca5e047d067a27f2973f841d5f672c9122726"
+    },
+    {
+      "path": "src/App.tsx",
+      "category": "authored-source",
+      "bytes": 6819,
+      "lines": 182,
+      "sha256": "4b344af199c867d40481782233380f6d492549ebf907b29c146507cb899d430c"
+    },
+    {
+      "path": "src/main.tsx",
+      "category": "authored-source",
+      "bytes": 1328,
+      "lines": 36,
+      "sha256": "221abda117a0aaae0dad36d29bc9799d1b45a4490db2af804cf0c6da790756ba"
+    },
+    {
+      "path": "src/module_bindings/create_task_reducer.ts",
+      "category": "generated",
+      "bytes": 501,
+      "lines": 21,
+      "sha256": "f3028f83e38c3c4ff3e5511c151a81db7bee7b5998f9744b47f80e30725e1144"
+    },
+    {
+      "path": "src/module_bindings/delete_task_reducer.ts",
+      "category": "generated",
+      "bytes": 380,
+      "lines": 16,
+      "sha256": "29fc59c8d2e869c372eefd5e1ad5ff293192d0f5fd08e094b5cb4f2288258009"
+    },
+    {
+      "path": "src/module_bindings/grant_member_reducer.ts",
+      "category": "generated",
+      "bytes": 433,
+      "lines": 18,
+      "sha256": "7f5d1b70a2d99a46b47e6a3d1a75528a8a0875b05aae741f8505526f86af0407"
+    },
+    {
+      "path": "src/module_bindings/index.ts",
+      "category": "generated",
+      "bytes": 10082,
+      "lines": 221,
+      "sha256": "127a0d01a00c3809c1768833d68c0b18896a699e1a91e13be3fa2f1d434e64f5"
+    },
+    {
+      "path": "src/module_bindings/move_task_reducer.ts",
+      "category": "generated",
+      "bytes": 407,
+      "lines": 17,
+      "sha256": "88a4d47eae7c5e7ac1dfdfb3c2d47343edea377dd9b4b746bf857896cd2b0587"
+    },
+    {
+      "path": "src/module_bindings/my_lists_table.ts",
+      "category": "generated",
+      "bytes": 551,
+      "lines": 20,
+      "sha256": "a850f4d21bb93cc4304e0901a9c5e942ec7b36aa3c5791f71f469407abed5e27"
+    },
+    {
+      "path": "src/module_bindings/my_memberships_table.ts",
+      "category": "generated",
+      "bytes": 547,
+      "lines": 21,
+      "sha256": "06b3bb9ec696473634eb22eb8df30ea015ed7b867b7621a3b00d21eaa408544b"
+    },
+    {
+      "path": "src/module_bindings/my_tasks_table.ts",
+      "category": "generated",
+      "bytes": 654,
+      "lines": 24,
+      "sha256": "86095b94022bb84d93dd471a34a24b78bfb5f389bb88667a1baf216b49dc678c"
+    },
+    {
+      "path": "src/module_bindings/my_workspaces_table.ts",
+      "category": "generated",
+      "bytes": 424,
+      "lines": 17,
+      "sha256": "7b25349e7f4fe570d7784fd08329d29d1bfc1ed643c016203b7532a24e3a8ba5"
+    },
+    {
+      "path": "src/module_bindings/revoke_member_reducer.ts",
+      "category": "generated",
+      "bytes": 388,
+      "lines": 16,
+      "sha256": "d0ace1d18137fcfd539b18d7591a6d7eeb22ee3db454dd6c9da2d88219e47af3"
+    },
+    {
+      "path": "src/module_bindings/types.ts",
+      "category": "generated",
+      "bytes": 1860,
+      "lines": 69,
+      "sha256": "ce504d4affa196dc4d8b9c31f1bfd675e4d755581a3dcd303a976b2049972720"
+    },
+    {
+      "path": "src/module_bindings/types/procedures.ts",
+      "category": "generated",
+      "bytes": 282,
+      "lines": 11,
+      "sha256": "e91691c4d61824f5a9e3ad46be93c1f741d29fdba976b6e11f43da0d8af52903"
+    },
+    {
+      "path": "src/module_bindings/types/reducers.ts",
+      "category": "generated",
+      "bytes": 1016,
+      "lines": 23,
+      "sha256": "8f0b7b7a75cd02ff0eb5a842dfb5dd7a1ec578be2a05c2806c7a0636a1edfab0"
+    },
+    {
+      "path": "src/module_bindings/update_task_reducer.ts",
+      "category": "generated",
+      "bytes": 526,
+      "lines": 22,
+      "sha256": "03b8f425bd210e7cdfe08232ff77f3d4493496964fe7f510448983ba534b3dd9"
+    },
+    {
+      "path": "src/styles.css",
+      "category": "authored-source",
+      "bytes": 3067,
+      "lines": 45,
+      "sha256": "c96bb60525ffcd1e42e3ff8348b33895a026e82f1e87920f467671b0f5f42e95"
+    },
+    {
+      "path": "tsconfig.json",
+      "category": "configuration",
+      "bytes": 601,
+      "lines": 25,
+      "sha256": "c440cd73af2751f2f626aa110cfa3e7dbc876e86a936a1b617d65b774b39665a"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "category": "authored-source",
+      "bytes": 694,
+      "lines": 1,
+      "sha256": "891f7d6fdd35c0cfc11c77eef0f48d0047ed614c3d7a4896c76613e4ea4297cc"
+    },
+    {
+      "path": "vite.config.ts",
+      "category": "configuration",
+      "bytes": 136,
+      "lines": 7,
+      "sha256": "0709465427668ae85ef999f63762d7a06fd92962363fe8cc142ad656d3548115"
+    }
+  ],
+  "containsSecretValues": false
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T10:50:18.665Z",
+  "actor": "bob-native-email-password-session",
+  "shellReady": true,
+  "renderedSourceLabels": [
+    "Architecture.pdf",
+    "Interview notes.md",
+    "Research source 03.txt",
+    "Research source 04.txt",
+    "Research source 05.txt",
+    "Research source 06.txt"
+  ],
+  "answerVisible": true,
+  "appwriteRealtimeSocketCount": 1,
+  "browserStatePathKind": "ignored worktree-local",
+  "containsSecretValues": false
+}

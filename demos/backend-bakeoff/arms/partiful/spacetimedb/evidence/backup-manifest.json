@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "strategy": "deterministic rebuild",
+  "nativeArmScopedExportCaptured": false,
+  "exportGap": "No SpacetimeDB 2.7.0 arm-scoped export command was used.",
+  "rebuildInputs": [
+    "work/server/spacetimedb/src/index.ts",
+    "work/server/spacetimedb/package-lock.json",
+    "work/client/src/module_bindings/",
+    "work/harness/verify.ts"
+  ],
+  "seedPath": "seed_fixtures reducer",
+  "targetNamespace": "llp0102-partiful-spacetimedb-w2",
+  "containsSecretValues": false
+}

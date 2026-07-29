@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "classification": "stop-class-builder-secret-exposure",
+  "provider": "supabase",
+  "providerDefect": false,
+  "scenarioWorkStarted": false,
+  "exposureSurface": "tool output",
+  "credentialCategories": [
+    "local publishable key",
+    "local secret key",
+    "local S3 access key",
+    "local S3 secret key"
+  ],
+  "rootCause": "The builder's output redactor handled assignment/JWT shapes but not the CLI's ANSI-rendered table cells.",
+  "response": [
+    "paused all metric and scenario work",
+    "notified the coordinator",
+    "stopped the exact project without backup",
+    "destroyed owner-only raw credential carriers",
+    "verified containers, volumes, networks, and ports absent"
+  ],
+  "irreversibility": "Containment invalidated the fresh local target and removed retained files, but cannot retract values already emitted into tool output.",
+  "priorLineage": "prior-builder-stop-lineage.v1.json"
+}
+

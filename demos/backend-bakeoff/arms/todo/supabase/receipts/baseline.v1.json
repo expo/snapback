@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-28T21:50:35.476Z",
+  "namespace": "llp0102-todo-supabase-calibration-todo-supabase-calibration-01",
+  "namespacePrefix": "llp0102_todo_sb01_",
+  "targetIdentity": {
+    "projectHostHash": "b408f86743cfd3ed93e6c40d7d33e2f62129b16692f42c47e9dc0d8839742d1f",
+    "databaseNameHash": "a942b37ccfaf5a813b1432caa209a43b9d144e47ad0de1549c289c253e556cd5",
+    "serverVersion": "17.6"
+  },
+  "baseline": {
+    "matchingRelations": [],
+    "matchingPublicationRelations": [],
+    "matchingPersonaUserIdHashes": []
+  },
+  "ok": true,
+  "containsSecretValues": false
+}

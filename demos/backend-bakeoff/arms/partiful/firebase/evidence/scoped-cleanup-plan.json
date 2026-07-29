@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "arm": "partiful/firebase",
+  "mode": "fresh-local",
+  "exactWorkRoot": "/private/tmp/llp0102-partiful-firebase-w1/demos/backend-bakeoff/arms/partiful/firebase/work",
+  "exactProjectId": "llp0102-partiful-firebase-w1",
+  "allowedResources": [
+    "all Firestore documents in the exact fresh emulator project",
+    "all Auth users in the exact fresh emulator project",
+    "all Storage objects in the exact fresh emulator project",
+    "the exact arm-owned emulator and UI processes",
+    "the exact arm-owned runtime/cache directories"
+  ],
+  "refusals": [
+    "refuse if cwd differs from exactWorkRoot",
+    "refuse if GCLOUD_PROJECT differs from exactProjectId",
+    "never address a hosted Firebase target",
+    "never infer a project or path from a broad environment variable",
+    "never delete outside the exact arm-owned paths"
+  ],
+  "assignedPorts": [
+    4331,
+    4332,
+    4531,
+    4532,
+    4533,
+    4534,
+    4535,
+    4536,
+    5331,
+    8331,
+    9331,
+    9431
+  ]
+}

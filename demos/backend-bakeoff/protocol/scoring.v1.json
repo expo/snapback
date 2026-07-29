@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "scale": {
+    "minimum": 0,
+    "maximum": 5,
+    "practicalTiePoints": 3
+  },
+  "categories": {
+    "authoring": 15,
+    "modeling": 10,
+    "correctness": 10,
+    "realtimeOffline": 12,
+    "auth": 8,
+    "completeness": 10,
+    "deploymentOperations": 12,
+    "testingDocsAgent": 8,
+    "performanceCost": 7,
+    "maturityControl": 8
+  },
+  "evidenceConfidenceDimensions": [
+    "actor-authority",
+    "transaction-conflict",
+    "transport",
+    "offline-reconnect",
+    "settlement",
+    "target-identity",
+    "cleanup-isolation",
+    "artifact-reproducibility"
+  ],
+  "evidenceConfidenceScale": {
+    "missingOrContradicted": 0,
+    "indirect": 1,
+    "directAndReproducible": 2,
+    "maximum": 16
+  },
+  "sensitivity": {
+    "variationPercent": 25,
+    "oneCategoryAtATime": true,
+    "renormalizeTo": 100
+  },
+  "architecturalPotentialAffectsCurrentRanking": false
+}

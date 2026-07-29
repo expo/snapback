@@ -1,0 +1,33 @@
+{
+  "id": "PARTY-13-DEPLOY",
+  "status": "GAP",
+  "startedAt": "2026-07-29T06:45:32.777Z",
+  "finishedAt": "2026-07-29T06:45:32.777Z",
+  "durationMs": 0.058,
+  "evidence": {
+    "reasonCode": "UNAVAILABLE_REMOTE_DEPENDENCY",
+    "reason": "The supplied CONVEX_DEPLOY_KEY is empty; no hosted mutation or deployment was attempted.",
+    "localDeploymentReceipt": {
+      "deploymentName": "anonymous-agent",
+      "backendVersion": "precompiled-2026-07-21-82d5e9f",
+      "cloudPort": 3336,
+      "sitePort": 3337
+    },
+    "redactedConfigProof": {
+      "envKeys": [
+        "CONVEX_DEPLOYMENT",
+        "VITE_CONVEX_SITE_URL",
+        "VITE_CONVEX_URL"
+      ],
+      "configKeys": [
+        "adminKey",
+        "backendVersion",
+        "deploymentName",
+        "instanceSecret",
+        "ports"
+      ],
+      "secretValuesRetained": false
+    },
+    "effectReceiptCount": 4
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    "npm audit --json",
+    "npm audit --prefix functions --json"
+  ],
+  "providerStarted": false,
+  "summary": {
+    "root": {
+      "info": 0,
+      "low": 0,
+      "moderate": 7,
+      "high": 16,
+      "critical": 0,
+      "total": 23
+    },
+    "functions": {
+      "info": 0,
+      "low": 0,
+      "moderate": 6,
+      "high": 7,
+      "critical": 0,
+      "total": 13
+    }
+  },
+  "directPackagesReportedThroughTransitiveChains": [
+    "firebase-admin",
+    "firebase-functions"
+  ],
+  "transitiveNames": [
+    "@google-cloud/storage",
+    "brace-expansion",
+    "gaxios",
+    "gcp-metadata",
+    "glob",
+    "google-gax",
+    "minimatch",
+    "retry-request",
+    "rimraf",
+    "teeny-request",
+    "uuid"
+  ],
+  "treatment": "retained readiness caveat; no npm audit fix was applied because it proposed incompatible direct-package downgrades and the task pins current official releases",
+  "stopClass": false,
+  "gateImpact": "did not alter the frozen acceptance protocol; raw npm audit JSON is retained under work/receipts"
+}

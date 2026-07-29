@@ -1,0 +1,18 @@
+{
+  "id": "CHAT-15-CLEANUP",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:38.792Z",
+  "targetBoundPlan": "receipts/cleanup-plan.json",
+  "dataCleanup": "receipts/cleanup-data.json",
+  "postCleanup": {
+    "channels": 0,
+    "memberships": 0,
+    "messages": 0,
+    "namespace": "llp0102-chat-convex-w2",
+    "presence": 0,
+    "profiles": 0,
+    "readMarkers": 0,
+    "typing": 0
+  },
+  "processAndFilesystemCleanup": "pending coordinator exact process stop"
+}

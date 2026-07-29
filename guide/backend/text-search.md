@@ -5,7 +5,7 @@ order: 27
 audience: agent-first
 capabilities: [backend.text-search]
 authorities: [llp/0073-portable-full-text-search.rfc.md, src/search/types.rs, src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/search.mjs]
-examples: [demos/backend-bakeoff]
+examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
@@ -34,7 +34,7 @@ meaning of its analyzer, fields, weights, visibility, stored result fields,
 and ordering. Changing any of those facts requires a new semantic version and
 rebuild.
 
-```js source=demos/backend-bakeoff/snapback/schema.mjs
+```js source=demos/signal-desk/snapback/schema.mjs
 export const incidents = defineTable({
   title: v.string(),
   summary: v.string(),
@@ -98,7 +98,7 @@ the source table, so consumers neither cast stored values nor treat arbitrary
 keys as present. Optional stored source fields are materialized as present
 `null` values and therefore generate `T | null`, matching runtime storage.
 
-```ts source=demos/backend-bakeoff/src/backends/snapback.ts
+```ts source=demos/signal-desk/src/backends/snapback.ts
   async searchIncidents(term: string) {
     const result = await this.client.search(api.searchIncidents, {
       query: parseSearchQueryV1(term, {

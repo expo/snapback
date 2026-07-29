@@ -1,0 +1,36 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #18201d;
+  background: #eceee8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1024px; min-height: 100vh; }
+button, input { font: inherit; }
+.frame { display: grid; grid-template-columns: 150px 1fr; min-height: 100vh; }
+.rail { padding: 24px 18px; background: #17231f; color: #dfe8e2; display: flex; flex-direction: column; gap: 9px; }
+.rail span { color: #93a098; font-size: 12px; }
+.mark { width: 42px; height: 42px; margin-bottom: 20px; border-radius: 13px; display: grid; place-items: center; background: #d8ff70; color: #17231f; font-weight: 900; }
+main { padding: 24px 28px 40px; }
+header, .heading { display: flex; justify-content: space-between; align-items: center; }
+header { margin-bottom: 22px; }
+h1, h2, p { margin-top: 0; }
+h1, h2 { margin-bottom: 0; letter-spacing: -.04em; }
+.eyebrow { margin-bottom: 5px; color: #69736e; font-size: 11px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.workspace { min-height: calc(100vh - 116px); display: grid; grid-template-columns: 210px minmax(520px, 1fr) 190px; gap: 14px; }
+.panel { background: #f9faf6; border: 1px solid #dfe3db; border-radius: 16px; box-shadow: 0 12px 30px rgba(38,48,43,.05); }
+.channels, .members { padding: 18px 12px; display: flex; flex-direction: column; gap: 6px; }
+.channels button { border: 0; background: transparent; text-align: left; border-radius: 9px; padding: 10px 12px; cursor: pointer; }
+.channels button.selected { background: #e9ede5; }
+.conversation { padding: 24px; display: grid; grid-template-rows: auto 1fr auto; }
+.heading { padding-bottom: 18px; border-bottom: 1px solid #e1e5dd; }
+.messages { padding: 20px 0; overflow: auto; }
+.messages article { display: flex; gap: 10px; margin-bottom: 18px; }
+.messages article p { line-height: 1.5; }
+.messages strong { display: block; }
+.avatar { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; background: #ffb86c; display: grid; place-items: center; }
+.typing { color: #777f7b; font-size: 13px; }
+.composer { color: #69736e; font-size: 12px; }
+.composer input { display: block; width: 100%; margin-top: 6px; padding: 13px 14px; border: 1px solid #cbd2c8; border-radius: 11px; }
+.members span { margin: 4px 6px; }
+.signin { max-width: 460px; margin: 120px auto; text-align: center; }
+.primary { margin-top: 30px; border: 0; border-radius: 9px; padding: 11px 16px; background: #22372f; color: white; font-weight: 750; }

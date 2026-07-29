@@ -1,0 +1,8 @@
+{
+  "capturedAt": "2026-07-29T02:39:00Z",
+  "classification": "builder-harness-error",
+  "scenario": "rendered React sanity",
+  "error": "The prefix selector matched the chat-message-list container itself, so the initial count was 1 and the settled count would have been 26 rather than 25.",
+  "targetCleaned": true,
+  "correction": "Select only article elements whose test id has the chat-message prefix, then wait for the frozen 25-row rendered barrier."
+}

@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 2,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "frozenAt": "2026-07-28T19:18:29.418Z",
+  "readinessAtFreeze": "ready",
+  "aggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "artifacts": [
+    {
+      "path": "demos/backend-bakeoff/README.md",
+      "bytes": 1391,
+      "sha256": "78a505052a5371af42b8be35b2702cc2a69c7e1fc15efcd6dc318692c126383f"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/index.html",
+      "bytes": 365,
+      "sha256": "592421e80af90854348c74e4cf43798e190d51640a0372f761c7046f6f082279"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/package-lock.json",
+      "bytes": 45017,
+      "sha256": "e875c2ba1c72c98c729399ba6e30820aeac1eb93d53e5efbdd00f0fb07eb7f98"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/package.json",
+      "bytes": 430,
+      "sha256": "f687b2348d1456623f99b4328f2a5075e40da6c127940c2675144895b2f30ded"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/src/App.tsx",
+      "bytes": 9798,
+      "sha256": "b4299ecebb762ecc8fc82e8c7bbb872eb49609b12be7b7b5a2ebc2e1e8a83664"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/src/main.tsx",
+      "bytes": 236,
+      "sha256": "a6bcae9c4f04d6ff36406b2966379834342b41b08b83ba7bd0334712d6cf87f0"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/src/styles.css",
+      "bytes": 6186,
+      "sha256": "c4d4fe9ca86ff2405f483b3c4eb0390c6054fcb4b73157ed43918b52e0d32eea"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/src/vite-env.d.ts",
+      "bytes": 38,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/tsconfig.json",
+      "bytes": 598,
+      "sha256": "e099becb02a63f70fa79dc3f7e2a8385e7b34c84e3e7c3777024a15a3f924d5a"
+    },
+    {
+      "path": "demos/backend-bakeoff/neutral-ui/vite.config.ts",
+      "bytes": 136,
+      "sha256": "eca485c281977125366d4800553256e419f364984e615f75a2d2bae54f7857fd"
+    },
+    {
+      "path": "demos/backend-bakeoff/package-lock.json",
+      "bytes": 500746,
+      "sha256": "6e5c0433cfee139dd157d1d47f37cfdef9d5ed5483e911e3515c43bf78651338"
+    },
+    {
+      "path": "demos/backend-bakeoff/package.json",
+      "bytes": 1177,
+      "sha256": "73e5a0911d9486fecc9ea03e21a9b5e3cd98c394bf314f83dca93608f0dd9391"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/acceptance/chat.v1.json",
+      "bytes": 3348,
+      "sha256": "38ed8a70acb3be57442f2ed52234b1725d1adebe4281e9c8ab93684a4f625197"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/acceptance/linear.v1.json",
+      "bytes": 3263,
+      "sha256": "3505649e585ae9fb33e7ed934433349b32ae0b09c4e4c4cf4e7b4566f8981044"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/acceptance/partiful.v1.json",
+      "bytes": 3392,
+      "sha256": "a3563462b5a75a328256f326e99837ff3c6f9bedd0b707210f1dcdd17abca33d"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/acceptance/research-room.v1.json",
+      "bytes": 3413,
+      "sha256": "c41b3c101da2080c5d8e2e50382f1016bd96ef98e21f0b33b730609a6e44cc29"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/acceptance/todo.v1.json",
+      "bytes": 3070,
+      "sha256": "d55ff560a23011c5fdaa4add3a1d2bdb0fce2c734b9d727f095fb9a3d1cb45a7"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/account-preflight.md",
+      "bytes": 3627,
+      "sha256": "2320217952c2b749bbac831fc854496a8fa812abf7d888d03f0446d40c965574"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/assistance-policy.v1.json",
+      "bytes": 2384,
+      "sha256": "3ffd95ecd9160797804306cae99e663380fc040a3c7560bccd5784b3ca23558f"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/completion-audit.v1.schema.json",
+      "bytes": 1150,
+      "sha256": "8f6c9c1697c25f7a5b67df0d828f8810e1968ae576afa4fe7f77c9209811aff5"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/credentials-health.v1.json",
+      "bytes": 3968,
+      "sha256": "718e93fb32ff0a116d22ed8c27a4927fbdfeed46baa444ba645852263bc8dc7c"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/dependency-health.v1.json",
+      "bytes": 1091,
+      "sha256": "5de9e72165241cc96fd521c951e7a13a4b7e7f290ea1148072d581736b7ef327"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/environment.v1.json",
+      "bytes": 1815,
+      "sha256": "34fa6fcdfb321071a96b6cbef6ebdf0ca83d91ca1b30e25c75f3163b6ca3bc86"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/order.v1.json",
+      "bytes": 911,
+      "sha256": "213e512b429b401d885a362641342ec83281941a4ea06237d942c01279f71844"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/prompts/chat.md",
+      "bytes": 1558,
+      "sha256": "a14a08a1227c949c2915e62cdcc2120560b14f6706a4ecc61c3a3c5e16623076"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/prompts/linear.md",
+      "bytes": 1468,
+      "sha256": "4fb5e8eb78c447d17ef7b97a1f51c66439ebb40809b42db60bbb7135720f230c"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/prompts/partiful.md",
+      "bytes": 1541,
+      "sha256": "26c1b07646f40610928723880444e471e66bd882a61b1627f4d00583167e3479"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/prompts/research-room.md",
+      "bytes": 1511,
+      "sha256": "e245d823d03a86d906f534d22dfb1b0ebba381f3afc45c9811a102486ed60e56"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/prompts/todo.md",
+      "bytes": 1688,
+      "sha256": "d208052e33dbb9679ca06992a2179871e9acd28ddee9dd4fcafb4a7060f04bbf"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/protocol.v1.json",
+      "bytes": 1651,
+      "sha256": "f7d5ab7559fd792b8b4fa9a6825859699414233d3e837044b36cc2140301b6f6"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/provider-inventory.v1.json",
+      "bytes": 8597,
+      "sha256": "fd0bb59282eb795a060ac737e70c0355734f738ec807629269bb4ed1165dae88"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/remediation-ledger.v1.schema.json",
+      "bytes": 3105,
+      "sha256": "7478f2f1d9b643c5774544fa482e39eddf715a97846afa517e90016a95fd35e6"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/run-capsule.v1.schema.json",
+      "bytes": 1722,
+      "sha256": "f7b20c62464fc3a994c00372d5522974d485624a38bc3084bfd9eff732b150b8"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/scoring-input.v1.schema.json",
+      "bytes": 1108,
+      "sha256": "f45b020bb6ff2a7fc172306e6fe86fff7e85922075fffc4e3757912a8d35c4b7"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/scoring.v1.json",
+      "bytes": 903,
+      "sha256": "33cb1a6fc8d4e89e15fe2c55b72b081c195a2a2bda33d7267c1ce51a8e748774"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/target-lifecycle.v1.json",
+      "bytes": 2110,
+      "sha256": "5e009fd972a09e8ca001c14715ef95112ed0140182388f405f0af0fa8405a7d7"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/templates/calibration-report.md",
+      "bytes": 1606,
+      "sha256": "ddbc9855cec118bd2f3abe0b8bf4b693424cfb7054698a9cc0c22ea9d98d8efd"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/templates/deep-round-report.md",
+      "bytes": 1397,
+      "sha256": "699889ce359098a2fcc8e04fe816532c4a350d00fa2b605b0662ccfca17ba18b"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/templates/final-report.md",
+      "bytes": 2555,
+      "sha256": "f1a8da7720e08d1dc57f0664eb2135cc3a87b6de142bb48370ee7292d0a209d4"
+    },
+    {
+      "path": "demos/backend-bakeoff/protocol/workloads.v1.json",
+      "bytes": 1778,
+      "sha256": "818c3de790310893dade593831ba9b33eaf1968582c51bea0f285b9339eea10f"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/arm-matrix.mjs",
+      "bytes": 3682,
+      "sha256": "5df8e2288dc6056663a7a7ebf1b0733a9aee79919bd7e7d0fb13950a1f4e6c1f"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/arm-matrix.test.mjs",
+      "bytes": 1406,
+      "sha256": "bfa6745e08c3299886f039cf1fb9e8da3bd62cead135da714425d18e6fc07487"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/freeze-boundary.mjs",
+      "bytes": 704,
+      "sha256": "3b3b3d3de86e337096249866029dc67bac8be68c739b67ee67d5962af418d4ef"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/freeze-boundary.test.mjs",
+      "bytes": 855,
+      "sha256": "e220912af3ac00b5e0d8318ab637302ba7bbbdc58b080bdda459b04a683d5d8e"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/inventory-arm.mjs",
+      "bytes": 3534,
+      "sha256": "864ede8fa43bdd79005592282486147e2078a086c35814f47232062d51abfc6a"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/preflight-credentials.mjs",
+      "bytes": 10517,
+      "sha256": "850d4da7c9917e9d65414338a20bae67253a1ffa66c276f1fd100bcec399714f"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/preflight-credentials.test.mjs",
+      "bytes": 4289,
+      "sha256": "6f3fae958bd88ebb86965efb58aed124feb077fdf0bad5824f03d99a499f32ea"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/program-status.mjs",
+      "bytes": 4571,
+      "sha256": "01823b60191553bb1d1fb507fac5e621b3897263f3e296799902e5a7fde6a655"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/program-status.test.mjs",
+      "bytes": 2178,
+      "sha256": "739c27abbebecf159c9d8893877a401778f583e25592489d8e913eb2678d432b"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/remediation-ledger.mjs",
+      "bytes": 4737,
+      "sha256": "73d9e630675979f647d4e62d4ce857b469892b2a708f61328aa2fce78b9a3558"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/remediation-ledger.test.mjs",
+      "bytes": 2076,
+      "sha256": "e8c32b46ca4822cde10f9cc1f133516fafe432e4588119a412313e47ef149038"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/run-capsule.mjs",
+      "bytes": 15232,
+      "sha256": "7ffce05e82c85e50ec60cbbf01b7609cbd4297e6adf198631f378e0b94259c26"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/run-capsule.test.mjs",
+      "bytes": 4718,
+      "sha256": "f601f7cbd8a77e5d492dd4f3e76a4e3a18c5adaa743f1d5aff8a906402ae2d78"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/scoring.mjs",
+      "bytes": 6379,
+      "sha256": "6b99ae48d6e0378bd4524c7db6c07ef1db7658517ab757f922a74cb97e91a338"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/scoring.test.mjs",
+      "bytes": 2847,
+      "sha256": "f7667b963f92826956660eeac1f227591b710d21eb229c46ef49efce390c2d87"
+    },
+    {
+      "path": "demos/backend-bakeoff/scripts/verify-stage0.mjs",
+      "bytes": 12768,
+      "sha256": "2cae6affd9aac8892be2b6d1d71e1a7727f21ffb9d2c0c2d85a0d2597972cd48"
+    },
+    {
+      "path": "llp/0102-seven-backend-five-app-bakeoff.plan.md",
+      "bytes": 31802,
+      "sha256": "71d2aa90b081bc607d64d08d8525befd2a0634b74c5fbf6dc0f76d800c996720"
+    }
+  ],
+  "appendOnlyArtifacts": [
+    {
+      "path": "diaries/0027-todo-backend-bakeoff.diary.md",
+      "prefixBytes": 881,
+      "prefixSha256": "4cd7d83517cf8ef5bc4967bfa3709546673cb16e15494a01ea2fdc1f92eb1415"
+    },
+    {
+      "path": "diaries/0028-chat-backend-bakeoff.diary.md",
+      "prefixBytes": 649,
+      "prefixSha256": "55abd8e8e432ca788d214b96c0f97228d8494c845920ffa90e234194f843ce46"
+    },
+    {
+      "path": "diaries/0029-linear-backend-bakeoff.diary.md",
+      "prefixBytes": 649,
+      "prefixSha256": "76869a33e309b24f8a890de059e88d3fbd6c66e7859e162362ac1e6b95d96f77"
+    },
+    {
+      "path": "diaries/0030-partiful-backend-bakeoff.diary.md",
+      "prefixBytes": 649,
+      "prefixSha256": "624a431b523fff3bb2c7d30f079aaa0ecea22f26b6395eef948d494c16bf7e88"
+    },
+    {
+      "path": "diaries/0031-research-room-backend-bakeoff.diary.md",
+      "prefixBytes": 637,
+      "prefixSha256": "936ca0be563969c5e3ed4c5be4d45594292492fac05e4237e1e213deccf0ba9c"
+    }
+  ],
+  "liveOutputDirectories": [
+    "arms",
+    "receipts",
+    "reports"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T01:32:19.236Z",
+  "targetMode": "fresh-local",
+  "targetIdentityHash": "aa090bb8a6f1246641e437b6bf92f322e2ddacfccf1a98983c860de412774b62",
+  "baselineReceiptPath": "receipts/baseline.v1.json",
+  "baselineWasEmpty": true,
+  "scope": {
+    "composeFile": "work/.arm-runtime/appwrite/docker-compose.yml",
+    "composeProject": "appwrite",
+    "exactInstallerImage": "appwrite/appwrite:1.9.6",
+    "installerPort": 20080,
+    "apiPort": 8090,
+    "vitePort": 4186,
+    "localRuntimeDirectories": [
+      "runtime",
+      "work/.arm-runtime"
+    ],
+    "cliPreferences": "~/.appwrite/prefs.json only when its sole session targets http://127.0.0.1:8090/v1"
+  },
+  "steps": [
+    "Stop port 4186 only when its command is this arm's Vite process.",
+    "Stop the exact Appwrite installer container publishing port 20080.",
+    "Run Docker Compose down -v against the exact installer-generated Compose file.",
+    "Remove CLI preferences only after sole-session endpoint verification.",
+    "Remove only this arm's disposable browser and ignored runtime directories.",
+    "Probe ports, Appwrite containers, volumes, networks, and CLI state against the empty baseline."
+  ],
+  "recovery": "Local data volumes are not recoverable after cleanup; retained provisioning source deterministically recreates the arm.",
+  "containsSecretValues": false
+}

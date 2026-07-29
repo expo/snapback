@@ -1,0 +1,10 @@
+{
+  "operation": "temporary-app-provision",
+  "result": "CLI returned success but initial harness parser failed",
+  "targetIdentity": "unknown and not retained",
+  "dataWritten": false,
+  "credentialValueRetained": false,
+  "manualDeletionPossible": false,
+  "providerManagedExpiryExpected": true,
+  "note": "The first parser consumed trailing human output after the JSON object. The temporary app, if created, contains no arm data and will follow InstantDB's automatic temporary-app expiry."
+}

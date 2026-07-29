@@ -30,7 +30,7 @@
 
 1. **The parameter domain contradicts the route contract.**
 
-   [LLP 0107](/private/tmp/snapback-0107-r1.n9tK3R/capsule/llp/0107-generated-query-group-bundle-adoption.spec.md:107) requires `{}` in V1 while generating a group for every admitted route. LLP 0092 already defines `params-v1`, and [LLP 0102](/private/tmp/snapback-0107-r1.n9tK3R/capsule/llp/0102-first-class-react-and-query-groups.spec.md:1244) requires typed route parameters. Current codegen and public tests implement that latter contract.
+   [LLP 0107](/private/tmp/snapback-0107-r1.n9tK3R/capsule/llp/0107-generated-query-group-bundle-adoption.spec.md:107) requires `{}` in V1 while generating a group for every admitted route. LLP 0092 already defines `params-v1`, and [LLP 0114](/private/tmp/snapback-0107-r1.n9tK3R/capsule/llp/0114-first-class-react-and-query-groups.spec.md:1244) requires typed route parameters. Current codegen and public tests implement that latter contract.
 
    Failure scenario: `/board/:boardId` is a valid admitted route and receives an authentic generated group, but LLP 0107 requires preparation with `{}`. The request therefore cannot materialize the child arguments and must either be refused or sent incorrectly.
 
@@ -85,7 +85,7 @@
 
 7. **Prepared-capability transfer and cleanup are not closed.**
 
-   LLP 0107 says provider creation consumes the capability and that partial consumption refuses. LLP 0102 instead consumes each registration lazily when its canonical child store starts and leaves unused registrations connection-owned until disconnect. The target also specifies cleanup for an authority race and provider disposal, but not malformed post-response validation, failed provider construction, abandonment, or expiry before consumption.
+   LLP 0107 says provider creation consumes the capability and that partial consumption refuses. LLP 0114 instead consumes each registration lazily when its canonical child store starts and leaves unused registrations connection-owned until disconnect. The target also specifies cleanup for an authority race and provider disposal, but not malformed post-response validation, failed provider construction, abandonment, or expiry before consumption.
 
    Failure scenarios:
 
@@ -93,7 +93,7 @@
    - A successful bundle whose final child fails client validation has already cached its grant and created pending server registrations, but no provider exists to release them.
    - An awaited prepared group that is never mounted retains client-side grant state and consumes pending-owner capacity until reaping.
 
-   Bounded resolution: define an atomic one-time transfer from a preparation owner to exactly one provider. Retain LLP 0102’s lazy per-store child consumption, clarify that reuse of the capability—not unused children—is what refuses, and give the owner idempotent disposal/expiry. Every non-transfer exit, post-response validation failure, provider-construction failure, authority replacement, and terminal expiry must release the connection/grant; provider disposal owns transferred and unconsumed registrations.
+   Bounded resolution: define an atomic one-time transfer from a preparation owner to exactly one provider. Retain LLP 0114’s lazy per-store child consumption, clarify that reuse of the capability—not unused children—is what refuses, and give the owner idempotent disposal/expiry. Every non-transfer exit, post-response validation failure, provider-construction failure, authority replacement, and terminal expiry must release the connection/grant; provider disposal owns transferred and unconsumed registrations.
 
 ## 3. DETAIL concerns
 
@@ -155,7 +155,7 @@ Divergence log:
 | Expired response acceptance and the publication/attach order | M2 — MATERIAL, IN-DELTA. |
 | Duplicate canonical children versus canonical-store sharing | M4 — MATERIAL, IN-DELTA. |
 | Auth-scoped classification | Resolved by LLP 0053’s fail-closed default; current implementation gap is D3 — DETAIL, IN-DELTA. |
-| Development identity continuity | Governing outcome is derivable from LLP 0102; implementation clarity gap is D1 — DETAIL, IN-DELTA. |
+| Development identity continuity | Governing outcome is derivable from LLP 0114; implementation clarity gap is D1 — DETAIL, IN-DELTA. |
 | Abandoned-owner cleanup trigger | Cleanup outcome is decided; trigger/bound is D2 — DETAIL, IN-DELTA. |
 | Capability absence versus request failure | Fully pinned: only exact target-owned capability absence may fallback. |
 
@@ -165,7 +165,7 @@ Divergence log:
 - Server registration is feasible and substantially landed: positional namespace length refusal is explicit, connection negotiation is carried into evaluation, failure purges partial topology, and every entry is evaluated under one serialized commit cut: [server admission](/private/tmp/snapback-0107-r2.5xV5kA/capsule/src/server.rs:17010), [atomic bundle evaluation](/private/tmp/snapback-0107-r2.5xV5kA/capsule/src/local.rs:7028).
 - Capability honesty and failure precedence are clear. The client checks the live target manifest and does not downgrade an advertised-target request failure: [capability check](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-client/react-binding.mjs:415), [fallback implementation](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-client/react-binding.mjs:665).
 - The server creates per-child scopes from positional namespaces, and the headless client installs authorization state before its registered update callback: [server scope creation](/private/tmp/snapback-0107-r2.5xV5kA/capsule/src/local.rs:7967), [client adoption](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-client/index.mjs:7393). The provider also registers a real barrier participant before returning its registry: [provider barrier](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-react/index.mjs:1407).
-- The sessions-mode Signal Desk evidence is real adapter evidence, not a package fake. Its retained receipt records registered source, commit, live mutation delivery, and zero terminal resources: [adapter path](/private/tmp/snapback-0107-r2.5xV5kA/capsule/demos/backend-bakeoff/src/backends/snapback.ts:58), [receipt](/private/tmp/snapback-0107-r2.5xV5kA/capsule/demos/backend-bakeoff/acceptance/results/react-query-group.v1.json:1).
+- The sessions-mode Signal Desk evidence is real adapter evidence, not a package fake. Its retained receipt records registered source, commit, live mutation delivery, and zero terminal resources: [adapter path](/private/tmp/snapback-0107-r2.5xV5kA/capsule/demos/signal-desk/src/backends/snapback.ts:58), [receipt](/private/tmp/snapback-0107-r2.5xV5kA/capsule/demos/signal-desk/acceptance/results/react-query-group.v1.json:1).
 
 ## 3. MATERIAL concerns
 
@@ -199,7 +199,7 @@ Bounded resolution: preserve LLP 0092 v1—every generated route parameter is a 
 
 ### M4 — IN-DELTA — Duplicate canonical children cannot satisfy both positional adoption and canonical-store sharing
 
-The target permits repeated functions through collision-free labels and requires every positional registration to be consumed exactly once. LLP 0102 simultaneously requires equal reference/args/authority identities to share one canonical store: [shared-store rule](/private/tmp/snapback-0107-r2.5xV5kA/capsule/llp/0102-first-class-react-and-query-groups.spec.md:345).
+The target permits repeated functions through collision-free labels and requires every positional registration to be consumed exactly once. LLP 0114 simultaneously requires equal reference/args/authority identities to share one canonical store: [shared-store rule](/private/tmp/snapback-0107-r2.5xV5kA/capsule/llp/0114-first-class-react-and-query-groups.spec.md:345).
 
 Failure scenario: an admitted route contains 32 identical `foo({})` children—a pattern already used by the codegen fixture. The server creates 32 distinct subscription IDs and namespaces. The provider indexes registrations in a `Map` keyed only by canonical reference and args, so 31 entries are overwritten; one store adopts one registration and the remaining subscriptions stay active until whole-connection disposal: [registration map](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-react/index.mjs:231).
 
@@ -207,7 +207,7 @@ Bounded resolution: for v1, define “duplicate” as an identical canonical `(f
 
 ## 4. DETAIL concerns
 
-- D1 — IN-DELTA: The target and LLP 0102 imply that prepared `userId` must equal the provider-bound development principal and be forwarded through reconnect/recovery. State that equality explicitly. Current code stores `devUserId` in the private owner but does not pass it to provider `startLiveQuery`: [owner capture](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-client/react-binding.mjs:638), [provider start](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-react/index.mjs:385).
+- D1 — IN-DELTA: The target and LLP 0114 imply that prepared `userId` must equal the provider-bound development principal and be forwarded through reconnect/recovery. State that equality explicitly. Current code stores `devUserId` in the private owner but does not pass it to provider `startLiveQuery`: [owner capture](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-client/react-binding.mjs:638), [provider start](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-react/index.mjs:385).
 - D2 — IN-DELTA: “Abandoned preparation” has a decided cleanup obligation but no exact abandonment trigger or bound. Pin automatic deadline cleanup and optionally an `AbortSignal`; otherwise a dropped promise has no `dispose()` caller. Current acquisition inserts a grant into the client map, while owner cleanup is invoked only explicitly.
 - D3 — IN-DELTA: LLP 0053 resolves auth classification—everything is auth-scoped unless explicitly `authorityIndependent`: [classification](/private/tmp/snapback-0107-r2.5xV5kA/capsule/llp/0053-authorization-invalidation.rfc.md:291). Current response validation instead infers the requirement from whether the server supplied any authorization projection, so omission of all projections is not detected at preparation: [current validation](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-client/react-binding.mjs:735). This is an implementation/evidence gap, not an additional design decision.
 - D4 — IN-DELTA: Codegen implements the pinned collision algorithm, but binding reconstruction still uses occurrence counts without the route-local used-name set: [binding reconstruction](/private/tmp/snapback-0107-r2.5xV5kA/capsule/packages/snapback-client/react-binding.mjs:129). The design is unambiguous; parity evidence is incomplete.
@@ -271,8 +271,8 @@ Divergence ledger:
 | Meaning of public `entries[].args` across registered and fallback variants | IN-DELTA DETAIL | Should be settled together with M1; raw mappings, string substitution, and typed materialized args are observably different. |
 | “At most one request” versus same-key transport replay | PRE-EXISTING DETAIL | Read as one logical preparation request; LLP 0092 idempotent replay may require multiple physical attempts. |
 | Protocol-1 dev behavior | IN-DELTA DETAIL | The general negotiated-protocol rule applies when offered; only protocol-free settled dev is the legacy exception. Scoped code currently treats authorization projections as sessions-only. |
-| Opacity versus LLP 0102’s older public child-registration inspection | IN-DELTA DETAIL | LLP 0107’s narrower, later opacity rule controls; LLP 0102 needs textual reconciliation. |
-| HMR order | PRE-EXISTING DETAIL | LLP 0107’s prepared-group-specific predecessor-first rule controls, notwithstanding LLP 0102’s generic successor-overlap witness. |
+| Opacity versus LLP 0114’s older public child-registration inspection | IN-DELTA DETAIL | LLP 0107’s narrower, later opacity rule controls; LLP 0114 needs textual reconciliation. |
+| HMR order | PRE-EXISTING DETAIL | LLP 0107’s prepared-group-specific predecessor-first rule controls, notwithstanding LLP 0114’s generic successor-overlap witness. |
 | Resume `meta.app` | IN-DELTA DETAIL | LLP 0107 and the committed closed schema require it; LLP 0090’s older pseudocode omits it. |
 | Attach confirmation mechanism | IN-DELTA DETAIL | A correlated readiness proof after the server’s preflight/attach cut satisfies the contract; a client-clock check does not. |
 
@@ -331,7 +331,7 @@ Bounded resolution: replace LLP 0092’s “public position” with “explicitl
 
 - **IN-DELTA:** Public `entries[].args` should explicitly mean returned typed materialized args for registered boot and name the corresponding fallback representation. M1’s resolution should settle this.
 
-- **IN-DELTA:** Reconcile LLP 0102’s older statement that public inspection may expose child registrations and a connection label with LLP 0107’s stricter opacity rule ([LLP 0102](/private/tmp/snapback-0107-r3.veZ3Be/capsule/llp/0102-first-class-react-and-query-groups.spec.md:1262)).
+- **IN-DELTA:** Reconcile LLP 0114’s older statement that public inspection may expose child registrations and a connection label with LLP 0107’s stricter opacity rule ([LLP 0114](/private/tmp/snapback-0107-r3.veZ3Be/capsule/llp/0114-first-class-react-and-query-groups.spec.md:1262)).
 
 - **IN-DELTA:** Update LLP 0090’s illustrative `ResumeMeta` object to include `app`; the target and committed DTO already make the correct closed decision.
 
@@ -339,7 +339,7 @@ Bounded resolution: replace LLP 0092’s “public position” with “explicitl
 
 - **PRE-EXISTING:** Clarify that “at most one register-mode request” means one logical acquisition with one idempotency key, not a prohibition on transport replay.
 
-- **PRE-EXISTING:** Reconcile the prepared-group predecessor-first HMR rule with LLP 0102’s generic successor-before-disposal overlap witness ([LLP 0102](/private/tmp/snapback-0107-r3.veZ3Be/capsule/llp/0102-first-class-react-and-query-groups.spec.md:1284)). The narrower target is usable, but the evidence expectations currently point in opposite orders.
+- **PRE-EXISTING:** Reconcile the prepared-group predecessor-first HMR rule with LLP 0114’s generic successor-before-disposal overlap witness ([LLP 0114](/private/tmp/snapback-0107-r3.veZ3Be/capsule/llp/0114-first-class-react-and-query-groups.spec.md:1284)). The narrower target is usable, but the evidence expectations currently point in opposite orders.
 
 ## 5. PRE-EXISTING material
 
@@ -355,7 +355,7 @@ It is not yet evidence for this revision:
 
 - The provider removes a child from its frame guard when creating the store, before the headless owner installs the subscription id. Frames in that interval are ignored by the headless consumer, leaving the exact stale-publication race LLP 0107 intends to close ([React handoff](/private/tmp/snapback-0107-r3.veZ3Be/capsule/packages/snapback-react/index.mjs:530); [headless adoption](/private/tmp/snapback-0107-r3.veZ3Be/capsule/packages/snapback-client/index.mjs:7475)).
 
-- The retained backend-bakeoff receipt predates opacity: its adapter still expects a public connection id ([test](/private/tmp/snapback-0107-r3.veZ3Be/capsule/demos/backend-bakeoff/tests/react-query-group.mjs:291)), while current target facts correctly withhold capability advertisement.
+- The retained backend-bakeoff receipt predates opacity: its adapter still expects a public connection id ([test](/private/tmp/snapback-0107-r3.veZ3Be/capsule/demos/signal-desk/tests/react-query-group.mjs:291)), while current target facts correctly withhold capability advertisement.
 
 - The isolated capsule does not contain `./ref-check`, so acceptance item 8 could not be exercised. No file was edited.
 

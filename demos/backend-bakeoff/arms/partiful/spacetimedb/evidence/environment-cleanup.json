@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T06:14:40.244Z",
+  "runtimePathAbsent": true,
+  "ports": {
+    "3332": {
+      "open": false
+    },
+    "4333": {
+      "open": false
+    }
+  },
+  "exactProcessesStopped": [
+    {
+      "label": "SpacetimeDB standalone",
+      "pid": 342958,
+      "cwd": "/home/ccheever/worktrees/llp0102-partiful-spacetimedb-w2/demos/backend-bakeoff/arms/partiful/spacetimedb",
+      "commandSha256": "4addbcbe538618fc1e1bee9e2266a8d982ab39fc8c29af4404d8b44badebf48e"
+    },
+    {
+      "label": "Vite",
+      "pid": 350538,
+      "cwd": "/home/ccheever/worktrees/llp0102-partiful-spacetimedb-w2/demos/backend-bakeoff/arms/partiful/spacetimedb/work/client",
+      "commandSha256": "75e6f746405527cdcc0ae2ca9d18038699c90ced98a9037611549976666a9b3b"
+    }
+  ],
+  "cloudflaredProcessesRemainingForArm": 0,
+  "containsSecretValues": false
+}

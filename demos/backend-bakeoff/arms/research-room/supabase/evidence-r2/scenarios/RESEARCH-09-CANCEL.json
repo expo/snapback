@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-09-CANCEL",
+  "status": "pass",
+  "checkedAt": "2026-07-29T08:54:55.560Z",
+  "evidence": {
+    "questionId": "d3741854-3b89-407d-a987-6b19605a08cb",
+    "cancellation": {
+      "state": "cancelled",
+      "cancelled_at": "2026-07-29T08:54:55.605143+00:00",
+      "settled_at": "2026-07-29T08:54:55.605143+00:00"
+    },
+    "countAtSettlement": 1,
+    "injectedLateAttempts": 3,
+    "lateResults": [
+      false,
+      false,
+      false
+    ],
+    "finalRows": [
+      {
+        "seq": 1,
+        "created_at": "2026-07-29T08:54:55.601385+00:00"
+      }
+    ],
+    "everyLateDurablePatchPrevented": true
+  }
+}

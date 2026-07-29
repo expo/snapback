@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "provider": "convex",
+  "app": "research-room",
+  "targetMode": "fresh-anonymous-local",
+  "namespace": "llp0102-research-convex-w2",
+  "worktree": "/home/ccheever/worktrees/llp0102-research-convex-w2",
+  "ports": {
+    "backend": 3345,
+    "site": 3346,
+    "vite": 4345
+  },
+  "targetPaths": [
+    "demos/backend-bakeoff/arms/research-room/convex/.convex",
+    "demos/backend-bakeoff/arms/research-room/convex/.env.local",
+    ".arm-state/cli",
+    ".arm-state/xdg",
+    ".arm-state/browser"
+  ],
+  "steps": [
+    "Call the authenticated Convex cleanup mutation and retain deleted table counts.",
+    "Query every application table independently and require zero rows.",
+    "Remove RESEARCH_CANARY from the exact selected local deployment.",
+    "Run exact-value scans without printing either the canary or control secret.",
+    "Stop the recorded Vite and Convex process trees after validating PID ownership and executable/cwd boundaries.",
+    "Require zero listeners on ports 3345, 3346, and 4345.",
+    "Delete only the exact arm .convex, generated .env.local, and worktree-local credential/browser/config state.",
+    "Require target paths, target processes, and target listeners to be absent."
+  ],
+  "sharedTarget": false,
+  "unrelatedBaseline": "not applicable: fresh isolated local target",
+  "broadDeleteAllowed": false
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "targetIdentity": "3fcca06a02b7cfd258cbef6526d1f953a05e9db2f6d23358abd803ef2ff0a28a",
+  "removed": [
+    "/private/tmp/llp0102-stage5-lane2-w3/linear-external/work/.arm-runtime",
+    "/private/tmp/llp0102-stage5-lane2-w3/linear-external/work/.arm-runtime.snapback.restore.lock",
+    "/private/tmp/llp0102-stage5-lane2-w3/linear-external/work/public/personas.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/linear-external/work/dist/personas.json"
+  ],
+  "exactTargetAbsent": true,
+  "targetReservationAbsent": true,
+  "personaCarrierAbsent": true,
+  "builtPersonaCarrierAbsent": true,
+  "unrelatedBaselinePreserved": true
+}

@@ -1,0 +1,15 @@
+[2026-07-29T02:12:36.253Z]  @firebase/firestore: Firestore (12.16.0): GrpcConnection RPC 'Listen' stream 0x61f89cd4 error. Code: 1 Message: 1 CANCELLED: Call cancelled
+[2026-07-29T02:12:36.253Z]  @firebase/firestore: Firestore (12.16.0): GrpcConnection RPC 'Listen' stream 0x61f89cd6 error. Code: 1 Message: 1 CANCELLED: Call cancelled
+[2026-07-29T02:12:36.253Z]  @firebase/firestore: Firestore (12.16.0): GrpcConnection RPC 'Listen' stream 0x61f89cdd error. Code: 1 Message: 1 CANCELLED: Call cancelled
+[2026-07-29T02:12:36.353Z]  @firebase/firestore: Firestore (12.16.0): GrpcConnection RPC 'Listen' stream 0x61f89cde error. Code: 1 Message: 1 CANCELLED: Call cancelled
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+[FunctionsError [FirebaseError]: INTERNAL] {
+  code: 'functions/internal',
+  customData: undefined,
+  details: undefined
+}
+
+Node.js v24.18.0

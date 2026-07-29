@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T21:32:39.059Z",
+  "ok": true,
+  "warmups": 2,
+  "recordedSamples": 7,
+  "measurements": {
+    "authoritativeReadAdmin": {
+      "rawMs": [
+        177.674,
+        172.223,
+        187.874,
+        174.561,
+        173.712,
+        177.803,
+        173.421
+      ],
+      "medianMs": 174.561,
+      "nearestRankP95Ms": 187.874
+    },
+    "mutationToOriginQuery": {
+      "rawMs": [
+        28.126,
+        32.551,
+        26.248,
+        26.543,
+        26.852,
+        31.334,
+        26.266
+      ],
+      "medianMs": 26.852,
+      "nearestRankP95Ms": 32.551
+    },
+    "mutationToSecondClientPush": {
+      "rawMs": [
+        101.332,
+        106.816,
+        51.544,
+        51.11,
+        50.766,
+        59.454,
+        50.152
+      ],
+      "medianMs": 51.544,
+      "nearestRankP95Ms": 106.816
+    },
+    "browserReconnectAndResubscribe": {
+      "rawMs": [
+        511.548,
+        490.166,
+        483.336,
+        490.53,
+        486.428,
+        459.919,
+        541.642
+      ],
+      "medianMs": 490.166,
+      "nearestRankP95Ms": 541.642
+    },
+    "productionClientBuild": {
+      "rawMs": [
+        176.812,
+        174.496,
+        174.153,
+        171.465,
+        176.6,
+        173.757,
+        175.725
+      ],
+      "medianMs": 174.496,
+      "nearestRankP95Ms": 176.812
+    }
+  },
+  "warmupSamplesMs": {
+    "authoritativeReadAdmin": [
+      3273.105,
+      3186.712
+    ],
+    "mutationToOriginQuery": [
+      34.083,
+      30.119
+    ],
+    "mutationToSecondClientPush": [
+      108.276,
+      103.882
+    ],
+    "browserReconnectAndResubscribe": [
+      550.721,
+      520.427
+    ],
+    "productionClientBuild": [
+      225.785,
+      186.228
+    ]
+  },
+  "machineContext": {
+    "target": "official Firebase Auth and Firestore local emulators",
+    "client": "Chrome headless on the same machine",
+    "dataset": "four lists and 100 tasks"
+  },
+  "scope": "fresh local small-profile measurements; not hosted Firebase latency",
+  "containsSecretValues": false
+}

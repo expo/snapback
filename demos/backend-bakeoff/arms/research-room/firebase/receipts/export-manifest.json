@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "capturedBeforeCleanup": true,
+  "command": "firebase emulators:export .runtime/export --force --project <exact-arm-project>",
+  "commandExitCode": 0,
+  "exportFileCount": 47,
+  "exportBytes": 1363502,
+  "orderedFileDigestAggregateSha256": "1c78af89346a6be568424445f7b12a7e55a0d9e52c6a8a0d99cf13adc1c30a95",
+  "retention": "The export itself stays in ignored worktree-local runtime state until exact cleanup; only this redacted integrity manifest is committed.",
+  "containsCredentialValues": false
+}

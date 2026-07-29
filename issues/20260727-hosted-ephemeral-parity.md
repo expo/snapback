@@ -64,7 +64,7 @@ anchor generation, then an `If-Match` current-anchor update. A stale
 conditional write was refused by Tigris, and the restarted Machine recovered
 generation 1 and the complete chain to the retained generation-0 root. The
 exact evidence is in
-`demos/backend-bakeoff/hosted-supervisor-installation.v1.json`.
+`demos/signal-desk/hosted-supervisor-installation.v1.json`.
 
 The hosted capability remains false. The existing `snapback-drill` target uses
 the older finite pre-signed hosted-auth chain and currently refuses `/health`

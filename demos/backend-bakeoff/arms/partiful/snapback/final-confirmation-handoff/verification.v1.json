@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "checks": [
+    {
+      "name": "frozen-source-identity",
+      "status": "pass",
+      "detail": "Exact source commit 4e5da63c33064082c73359f0ee02efcd11e360ff; sourceDirty=false."
+    },
+    {
+      "name": "package-cold-install",
+      "status": "pass",
+      "detail": "Official staged proof passed all installed runtime, doctor, codegen, scaffold, dev/watch/stop, deploy-build, and browser-bundle checks."
+    },
+    {
+      "name": "installed-only-boundary",
+      "status": "pass",
+      "detail": "External source/path scan found no repo-relative imports, demos/_kit wrappers, source binary, target/debug path, or cargo fallback."
+    },
+    {
+      "name": "ref-check",
+      "status": "pass",
+      "detail": "107 LLP docs, 2309 refs in 5158 files, 0 errors, 0 unchecked."
+    },
+    {
+      "name": "guide-check",
+      "status": "pass-with-warnings",
+      "detail": "41 pages, 97 snippets, 69 routes + 19 host-ops joined; 21 pre-existing freshness warnings."
+    },
+    {
+      "name": "stage0",
+      "status": "pass",
+      "detail": "Protocol valid: seven providers, five apps, 73 checks."
+    },
+    {
+      "name": "sealed-capsules",
+      "status": "pass",
+      "detail": "Official verifier accepted both unchanged sealed Snapback capsules."
+    },
+    {
+      "name": "secret-scan",
+      "status": "pass",
+      "detail": "No credential/canary/private-key values; config descriptions and cleanup carrier names are not credentials."
+    },
+    {
+      "name": "path-scan",
+      "status": "pass",
+      "detail": "Only exact external-copy cleanup paths under the arm-specific allowed prefix occur; no /Users path is retained."
+    },
+    {
+      "name": "whitespace",
+      "status": "pass",
+      "detail": "git diff --check passed."
+    },
+    {
+      "name": "scope",
+      "status": "pass",
+      "detail": "Only additive arm-local final-confirmation-handoff roots are changed."
+    },
+    {
+      "name": "provider-pause",
+      "status": "pass",
+      "detail": "Firebase was never started; serialization launched no provider target."
+    },
+    {
+      "name": "frozen-scenarios",
+      "status": "pass",
+      "detail": "15/15 recorded: 12 PASS, 3 GAP, 0 FAIL."
+    },
+    {
+      "name": "performance-window",
+      "status": "pass",
+      "detail": "After retaining the missing-directory attempt, a fresh complete 2-warmup + 7-recorded build window passed."
+    },
+    {
+      "name": "cleanup",
+      "status": "pass",
+      "detail": "Ports 33104/43104 closed; all exact state/config/keyring/lock paths absent; cleanup remaining=[]"
+    }
+  ]
+}

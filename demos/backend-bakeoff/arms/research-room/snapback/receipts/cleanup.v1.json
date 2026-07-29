@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "targetIdentity": "6607b7cd23312f0b646df8894e7240be50ca34275c34c2edb703175cf1ed972b",
+  "namespace": "llp0102-research-snapback-w1",
+  "removed": {
+    "runtimeRoot": true,
+    "publicRoot": true,
+    "diagnosticStartupCarrier": true,
+    "restoreLockSidecars": true
+  },
+  "absent": {
+    "runtimeRoot": true,
+    "publicRoot": true
+  },
+  "portsClosed": {
+    "3340": true,
+    "4340": true,
+    "9340": true,
+    "20440": true
+  },
+  "cleanupErrors": [],
+  "unrelatedBaselinePreserved": true,
+  "completedAt": "2026-07-29T07:07:21.000Z"
+}

@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/applyAnswerProgress.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "type": "string"
+    },
+    "delta": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "attemptId",
+    "sequence",
+    "delta"
+  ],
+  "title": "work:applyAnswerProgress arguments",
+  "type": "object"
+}

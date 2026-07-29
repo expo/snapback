@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "provider": "convex",
+  "app": "partiful",
+  "versions": {
+    "product": "Convex",
+    "client": "1.42.3",
+    "cli": "1.42.3",
+    "npmIntegrity": "sha512-7Tz/lH6UlZdiqzLPF/zrlH6Rlo/DOp836dL+GZkUMEQ2jaGGNnBIiIDcOOiEqtfSehuQ65r/rdNMnb4LupowaA==",
+    "backend": "precompiled-2026-07-21-82d5e9f"
+  },
+  "target": {
+    "profile": "official anonymous local deployment (beta)",
+    "namespace": "llp0102-partiful-convex-w2",
+    "deploymentName": "anonymous-agent",
+    "identityHash": "76815d5e818ebdddd4e0dac76d88de00636918166bc8cf85e09404fce814ec5d",
+    "stateLocationDuringRun": "worktree-local .convex/local/default",
+    "runtimeArtifactLocationDuringRun": "worktree-local temporary arm staging path; retained artifacts serialized under the canonical arm path",
+    "assignedPorts": {
+      "cloud": 3336,
+      "site": 3337,
+      "vite": 4336
+    },
+    "finalStatus": "cleaned"
+  },
+  "nativeSurfaces": {
+    "schema": "Convex schema validators plus compound indexes",
+    "reads": "native query functions",
+    "writes": "native serializable mutations with OCC retry",
+    "realtime": "ConvexClient WebSocket reactive query subscriptions",
+    "auth": "ctx.auth.getUserIdentity with development-only local-admin persona injection in the verifier",
+    "storage": "native upload URL, _storage identity, getUrl, and delete",
+    "schedules": "ctx.scheduler.runAfter and _scheduled_functions inspection",
+    "effects": "actions with fetch plus an application-owned durable attempt ledger",
+    "logs": "convex dev function log stream"
+  },
+  "hosted": {
+    "status": "explicit-gap",
+    "reasonCode": "UNAVAILABLE_REMOTE_DEPENDENCY",
+    "reason": "The supplied CONVEX_DEPLOY_KEY was empty; the readable shared URL was not mutated.",
+    "urlHash": "438744e7d242084e517427e42584480987db7e3ef41f9f99cb67bf2f9ecbc08b"
+  },
+  "dependencyAudit": {
+    "totalVulnerabilities": 0,
+    "receipt": "evidence/dependency-audit.json"
+  },
+  "officialDocs": "evidence/official-docs.md",
+  "artifacts": [
+    {
+      "path": ".gitignore",
+      "bytes": 68,
+      "sha256": "24345f8d710630d09daf3510da619181aa25c984e88222d289e42ee505cf4420"
+    },
+    {
+      "path": "convex.json",
+      "bytes": 29,
+      "sha256": "1bb7e2dec7148da5d684477c6074ecc66e48505ab67ea0074086b998ec39eda7"
+    },
+    {
+      "path": "convex/_generated/api.d.ts",
+      "bytes": 928,
+      "sha256": "6edb2b8b3f813c2161cd879bfdc7cd9dcc58027f143490239ec88f5be0f4d051"
+    },
+    {
+      "path": "convex/_generated/api.js",
+      "bytes": 480,
+      "sha256": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70"
+    },
+    {
+      "path": "convex/_generated/dataModel.d.ts",
+      "bytes": 1736,
+      "sha256": "db177073d16a4393c7a96bcdc3a2a904e88c2432d54d138ca7715cc431982c17"
+    },
+    {
+      "path": "convex/_generated/server.d.ts",
+      "bytes": 5600,
+      "sha256": "b0c8d708aaa165b10633bb6181dea1af4b9976a71ad001d75f42785ddfbca458"
+    },
+    {
+      "path": "convex/_generated/server.js",
+      "bytes": 3696,
+      "sha256": "aea87b3ee367e0e870f3da81ffce8babd8ea1aea695a1e38689841aebc09a1e8"
+    },
+    {
+      "path": "convex/party.ts",
+      "bytes": 30573,
+      "sha256": "0990eef05ba3d58b2f5babf1c6af2a969407ee05ea0a7b5fd267dd01e96364b3"
+    },
+    {
+      "path": "convex/schema.ts",
+      "bytes": 3536,
+      "sha256": "1c7bc39e3821ec9cd72a525f9771e41aabdbfd1c58faee41b60e3fa7e444598f"
+    },
+    {
+      "path": "convex/tsconfig.json",
+      "bytes": 760,
+      "sha256": "b7f94282db5106a68d95d522bf16d9518d9ef3eca014b8b26d9c92e2ccf62a95"
+    },
+    {
+      "path": "diary-entry-draft.md",
+      "bytes": 5031,
+      "sha256": "7f1b1e63dfac727884f5f752ecbcafc81822629dd26153425a25adb3ffa455ef"
+    },
+    {
+      "path": "evidence/acceptance-results.json",
+      "bytes": 19352,
+      "sha256": "46684474fc09696463878032b5213616ef87b8da61f703313638f3171a8c8b6b"
+    },
+    {
+      "path": "evidence/acceptance-results.partial.json",
+      "bytes": 15280,
+      "sha256": "5ec93581d5ddf06bff544fcc0bca76634e4a80427be03d0ab3842b9e1c6075f2"
+    },
+    {
+      "path": "evidence/assistance-and-failures.json",
+      "bytes": 2798,
+      "sha256": "1edd04767ba2705c34f447375c2a0d240f6a7723dcc1d695fcf43694c73d36b0"
+    },
+    {
+      "path": "evidence/authoritative-summary.json",
+      "bytes": 343,
+      "sha256": "582887b1018d312dbce019abeb8a79839e26495bb8cfaacf2c5bdbcee831b776"
+    },
+    {
+      "path": "evidence/cleanup-complete.json",
+      "bytes": 2862,
+      "sha256": "7afc088e90828f4fc6d8fa33c5c04b87c1357b4576589f69c6011d7fd7e11615"
+    },
+    {
+      "path": "evidence/cleanup-data-plane.json",
+      "bytes": 1661,
+      "sha256": "24f300725a27cfad7076f3fa530d8ee142bf5daf79aef8574a7fed8f76b24b73"
+    },
+    {
+      "path": "evidence/dependency-audit.json",
+      "bytes": 362,
+      "sha256": "5404c1a2befe854eecfb3900242a2a10ca26b6b12593e6734aaaecfbd15f23ce"
+    },
+    {
+      "path": "evidence/dependency-tree.json",
+      "bytes": 1676,
+      "sha256": "a4b833405f0c74a7784e783dc925ba488045b89035417f587a255438fb91c0cf"
+    },
+    {
+      "path": "evidence/effect-receipts.json",
+      "bytes": 941,
+      "sha256": "7e90e88ecee39883d2b7ab8390b00e52273ff1194bdd535c27163f4b76755b03"
+    },
+    {
+      "path": "evidence/evidence-audit.md",
+      "bytes": 2337,
+      "sha256": "274846cecb64510779ab881587734191f5d21b58b032a7cf844ba0b489550259"
+    },
+    {
+      "path": "evidence/official-docs.md",
+      "bytes": 2633,
+      "sha256": "f4cb391fef3f5f8ffa54fcb4137aa4d6afc1a39a6162974d7bd1242cd45438df"
+    },
+    {
+      "path": "evidence/performance.json",
+      "bytes": 18382,
+      "sha256": "97889a25ff8f3e4402ce9d2b2ade253a95b77b24cea12938ed9640c5f866c326"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-01-SEED.json",
+      "bytes": 781,
+      "sha256": "71acf5347be99e680fb1e597fde8c001f0f638b9d6f18dbb4b4fbafca4493b3c"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-02-PUBLIC-PRIVATE.json",
+      "bytes": 687,
+      "sha256": "27ffa85edc6403c1d7efdc4750deafbf2001c617566f0ba3bd737dbad2427e8a"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-03-INVITE-RSVP.json",
+      "bytes": 1903,
+      "sha256": "e794f97e4d7c5ab0eb3c48991de3a8590f031b0cb1b1db6b5226832270277429"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-04-ROLES.json",
+      "bytes": 596,
+      "sha256": "0bd4c283e1bedead7d607b90b9e3b933007487bc0d436d4324ccfc401d10bf24"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-05-GUEST-LIST.json",
+      "bytes": 570,
+      "sha256": "7e44fb258f09a365e104bb798cb77896cbfa7580dcf12952c2f36d06f3417097"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-06-CAPACITY.json",
+      "bytes": 981,
+      "sha256": "d483a67ad63d825b130372196eac0ba9120c4a8a5c74d0a67c62a8b46279db09"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-07-LIVE-BURST.json",
+      "bytes": 835,
+      "sha256": "6509e84b320371bd2505ea4a63c09563dfcdeee22520f6b66392a4971405a780"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-08-ASSET.json",
+      "bytes": 770,
+      "sha256": "72c79176a7834ccdb9f2a6d1c4c6f45e3fd34efc89f80310ca25dace70ea896f"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-09-SCHEDULE.json",
+      "bytes": 2221,
+      "sha256": "a2c226fc838af5999194bdac09461dca0784f094350a9acbbab76a7cc98efb0c"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-10-EFFECT-RETRY.json",
+      "bytes": 732,
+      "sha256": "6e39d623b41926e66e37dffdaab28c5c8ade7b5adc5e2e5523b54b44c7e401aa"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-11-EFFECT-AMBIGUOUS.json",
+      "bytes": 1551,
+      "sha256": "f68de350a651916b641bfb6713062ec5cfd9d1a03e1cbba24ec672b5cf90ef27"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-12-REVOCATION.json",
+      "bytes": 621,
+      "sha256": "c33c1c4a871e7f4f05ff773bfb147f5156a31202b6a10cc668721d7424923c5a"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-13-DEPLOY.json",
+      "bytes": 885,
+      "sha256": "5ad5b3c95ae42893ac55d8d933b35b332eaa2d6e857699a8cdb9f584a76a6185"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-14-PERFORMANCE.json",
+      "bytes": 1545,
+      "sha256": "4689f88b7f0de61a3d777827c634f04f2b0667422bfc749633c7eb7d25fbaf1a"
+    },
+    {
+      "path": "evidence/scenarios/PARTY-15-CLEANUP.json",
+      "bytes": 1926,
+      "sha256": "64604a2d81a388a6e26a29559569df01c5f4a9ff4c80ab3eb4e97473568a06e6"
+    },
+    {
+      "path": "evidence/screenshots/public-event.png",
+      "bytes": 302784,
+      "sha256": "dbe7f0f093bdeb8067b2f5de1c0676e63e17fcec7a86f800e92bdbb0beec4099"
+    },
+    {
+      "path": "index.html",
+      "bytes": 308,
+      "sha256": "52ebfb02d624b6bf1595a03ea7daeef48098e0a3ba7380c3e43c1dce688c92c2"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 66084,
+      "sha256": "d34be100f5ec60fea0554778603061bc3b5daa7deb289070b53e156434c26e17"
+    },
+    {
+      "path": "package.json",
+      "bytes": 586,
+      "sha256": "9869a8e544b81b8046efb710175ace113393d1d31b05c153338a1968503e1bfc"
+    },
+    {
+      "path": "src/App.tsx",
+      "bytes": 1548,
+      "sha256": "46ef675552bb9e65d365193795a5ef68e0b061a89d21d052b69bf1afd31c9bfd"
+    },
+    {
+      "path": "src/main.tsx",
+      "bytes": 510,
+      "sha256": "8973d544e172c08cc0b37a35e1e8174c10b3e59cafa73d58c28e32355cbe5dd4"
+    },
+    {
+      "path": "src/styles.css",
+      "bytes": 3125,
+      "sha256": "40cd88aadd6eff8d8f8570b3a50f0e5fb393478d7a75b2ed77c41e4fcb0c1d0c"
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "bytes": 38,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 438,
+      "sha256": "3c9cf209319947653da02183650686c7d5658405b099144341decb5ce0c4df0f"
+    },
+    {
+      "path": "vite.config.ts",
+      "bytes": 214,
+      "sha256": "37ca94e2cd3978c5356722f8439d62cf393a34a37522a1551d8ed3fbe26369f8"
+    },
+    {
+      "path": "work/acceptance.ts",
+      "bytes": 23164,
+      "sha256": "4b712790e65fea077d604fce155f3f0228d4afbd89883f21a80a0e8aeb9784e2"
+    },
+    {
+      "path": "work/cleanup.ts",
+      "bytes": 2655,
+      "sha256": "545419253643c38e5a8922566b6b61cceee66bc8f8a67eb9bd3576853c774527"
+    },
+    {
+      "path": "work/finalize.mjs",
+      "bytes": 17201,
+      "sha256": "49f1485f197c2a0eaef443c971e16fcf8ee923d0d75ec91a5a42b132cf3c7beb"
+    },
+    {
+      "path": "work/performance.ts",
+      "bytes": 8651,
+      "sha256": "c29cfaab04ae9d8477b99c593b43965a09687d362f2cb1837c4731df10a9132a"
+    }
+  ],
+  "artifactCount": 52
+}

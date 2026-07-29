@@ -1,0 +1,58 @@
+{
+  "authoredSource": {
+    "files": 6,
+    "lines": 317,
+    "bytes": 11840
+  },
+  "tests": {
+    "files": 10,
+    "lines": 1642,
+    "bytes": 66933
+  },
+  "configuration": {
+    "files": 5,
+    "lines": 161,
+    "bytes": 3812
+  },
+  "policy": {
+    "files": 2,
+    "lines": 66,
+    "bytes": 1970
+  },
+  "dependencyManifests": {
+    "files": 4,
+    "lines": 14298,
+    "bytes": 509016
+  },
+  "generated": {
+    "files": 3,
+    "lines": 57,
+    "bytes": 838183
+  },
+  "installedDependencyBytes": 489918874,
+  "glue": [
+    {
+      "item": "Full-text issue search",
+      "classification": "explicit GAP",
+      "files": [],
+      "note": "Firestore has no native full-text search; no external service was added merely to manufacture a pass."
+    },
+    {
+      "item": "Relational detail composition",
+      "classification": "application-authored fan-out",
+      "files": [
+        "scripts/acceptance.mjs"
+      ],
+      "note": "Firestore supplies point/indexed queries but no server join; issue detail composes bounded reads in application code."
+    },
+    {
+      "item": "Migration backfill",
+      "classification": "application-authored operation",
+      "files": [
+        "scripts/acceptance.mjs",
+        "firestore.indexes.json"
+      ],
+      "note": "Firestore is schemaless; adding an indexed field required an Admin SDK BulkWriter backfill plus index declaration."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T22:52:14.254Z",
+  "authPath": "Snapback local sessions email-code provider with admin-gated capture mailbox",
+  "principalIdHashes": {
+    "alice": "ab0fe24761c1c904fcb5e36e5fda403e47bf22197681a192818216efdb594fc6",
+    "bob": "4b6c42fc52a8b289d90adedb82a0f87a1242d04be6b14ba41f32979261e9fd4c",
+    "mallory": "8bc90863486f03979d2ef4b1a202f727bc29ef60c14239d9ffb232a93c2c51f8"
+  },
+  "distinctPrincipals": true
+}

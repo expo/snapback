@@ -1,0 +1,12 @@
+supabase_analytics_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_auth_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_db_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_edge_runtime_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_inbucket_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_kong_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_pg_meta_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_realtime_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_rest_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_storage_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_studio_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2
+supabase_vector_llp0102-research-supabase-w2-r2|llp0102-research-supabase-w2-r2

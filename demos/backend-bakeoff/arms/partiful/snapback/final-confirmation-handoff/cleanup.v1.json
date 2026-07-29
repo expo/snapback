@@ -1,0 +1,42 @@
+{
+  "targetBoundPlan": [
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/startup-artifacts.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-wal",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-shm",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-journal",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.config.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.admin-token",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.auth-keyring.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.lock",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.instance",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.snapback.lock",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/resume-keyring.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state.snapback.restore.lock"
+  ],
+  "presentBefore": [
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/startup-artifacts.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-wal",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-shm",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.config.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.auth-keyring.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.snapback.lock",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/resume-keyring.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state.snapback.restore.lock"
+  ],
+  "removed": [
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/startup-artifacts.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-wal",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-shm",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.config.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.auth-keyring.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.snapback.lock",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/resume-keyring.json",
+    "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state.snapback.restore.lock"
+  ],
+  "remaining": [],
+  "unrelatedBaseline": "No pre-existing arm files or listeners were present; cleanup enumerated exact arm-owned paths only.",
+  "postCleanupProbe": "all exact arm-owned target paths absent"
+}

@@ -47,7 +47,7 @@
   the generated profile must inherit the 32-child bundle bound; use the
   closed register response including nullable resume and authorization
   projection; pin cross-package identity bytes and collision-free names;
-  reconcile LLP 0102 parameterization, lazy child adoption, and capability
+  reconcile LLP 0114 parameterization, lazy child adoption, and capability
   ownership; name a real capability-only fallback signal; fence development
   identity and authority across preparation/adoption; and specify cleanup for
   every failed or abandoned ownership transition.

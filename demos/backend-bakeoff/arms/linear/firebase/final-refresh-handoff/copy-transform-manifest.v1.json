@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "source": "../work",
+  "prepared": "work",
+  "copiedFileCount": 28,
+  "copiedFiles": [
+    {
+      "path": ".firebaserc",
+      "sourceSha256": "9a1d3e8b3176b8975d3789a35e5b9692e2fc5a1df0323a3bc89e0a7cad3e0584",
+      "preparedSha256": "40f85f0abfaebb49259a229adb28170a5deefa4ce904da794d9f99c2a34b16a9",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "firebase.json",
+      "sourceSha256": "575f2a40335df531e83d1a196c3b3bf0d0b536f53027b40c754ca7cee5d4b331",
+      "preparedSha256": "33b1ed107185d28b1b15baf56e5814a246552f2d3df3d1fc00a72923ed0ac9e4",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "firestore.indexes.json",
+      "sourceSha256": "7296288fc5d27b43270f13365c0a818a89688c8baa47fc33f2f472f1821c4c69",
+      "preparedSha256": "7296288fc5d27b43270f13365c0a818a89688c8baa47fc33f2f472f1821c4c69",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "firestore.rules",
+      "sourceSha256": "369118a54cb9863eaa8259731c219c8ad6e3f634db221ae1e647367cbd242b5f",
+      "preparedSha256": "369118a54cb9863eaa8259731c219c8ad6e3f634db221ae1e647367cbd242b5f",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "functions/index.js",
+      "sourceSha256": "657be0b39fd6704a874bb028ae248fae8ad8697998cc635df85c6e8c2db55e53",
+      "preparedSha256": "657be0b39fd6704a874bb028ae248fae8ad8697998cc635df85c6e8c2db55e53",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "functions/package-lock.json",
+      "sourceSha256": "8dfa64c9761710fe5bc8c320e660d53dbc877844c9dbfe6bd750798263eabf94",
+      "preparedSha256": "dcfb6536563c88dc5ed160b74965b75862c67bd73711bb0e0dde76a5ed1af68e",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "functions/package.json",
+      "sourceSha256": "bdd8e73cae7ced6eab9e9023b8d397b7a0fc78d08b96fc134d5f1aa2d440aa72",
+      "preparedSha256": "9fa7f699c83e61783deef7dfdd8caf293c3f707e734ac8b0d9ce3901fd7a86d3",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "index.html",
+      "sourceSha256": "1edbf57ede4a2c6568f049b87241e3510f47ca6a0f96378787345846597e0869",
+      "preparedSha256": "1edbf57ede4a2c6568f049b87241e3510f47ca6a0f96378787345846597e0869",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "package-lock.json",
+      "sourceSha256": "841429a7dc6c720b62832cceec29fe4d80759a06e564c976f776902877fdec3e",
+      "preparedSha256": "e0aaa52ac5f61391896a668fc396f5ca1efafc4eee677f9498f9d138bc2d7cae",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "package.json",
+      "sourceSha256": "3cfce480e377e3f648165335e802caf06a8658a522ea042fbe207835553f1433",
+      "preparedSha256": "029837affe165f5ab1a888b62621ef7fbc856640492dd8fb0e415feb0b26fbb2",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/acceptance.mjs",
+      "sourceSha256": "087a1f222241b16bb0855df31ac8c3c189ae9d6cae30f2675601f66cd26eeea0",
+      "preparedSha256": "1eca3f86e35439d8e84827ff641c6ac11adcde79b600926074434c62aa4207dc",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/audit.mjs",
+      "sourceSha256": "e2cdb71a3cfecd726f2bf2a78f0aeed34c543290e75a9584f56a546eec325588",
+      "preparedSha256": "9839f5da27166d9d0877bfbf0a4ef7d04057a06aa5c15c9cec93e1a736ed9684",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/build-capsule.mjs",
+      "sourceSha256": "e002e90561957d8d18f8ada9b71a42485b1d126d9fcf581cfbe7af75edd9ba98",
+      "preparedSha256": "85348e820e9e4f3fbe2cc0af599ffe4f7b8a8969f1b565fea96dcc5db8826bd9",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/cleanup.mjs",
+      "sourceSha256": "9593a382ddaaafb55f6b9fd80ce9f2966df60d2aa76fafa238800b75c2961c23",
+      "preparedSha256": "e078aad5ecd1a9c918466ed4deb261dba32b65ad3a32384049d2f4628f747629",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/export.mjs",
+      "sourceSha256": "2d5bf968dcd5c3e6b01af07a1dbee7c7bc199f7b67b270f2accb8c8feec6903c",
+      "preparedSha256": "49a1b65944790ea87569dcc19a8bc1e9d6e2a854b3cf90a995b1fa16bbef3c45",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/inventory.mjs",
+      "sourceSha256": "4b8d134947183b218a4573281d5100904c05b5925b9352f02720fba09e6dbdbf",
+      "preparedSha256": "33211ba86a6874a5ec5cd81f38185a498a8944bb74636a04a60a8aebcc20162e",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/lib.mjs",
+      "sourceSha256": "93d5cbd2805f7562a568cc5acc942f274a2315c7659d3a8e001da589f4fe1868",
+      "preparedSha256": "670493d4c2d58261ddecefd0be90524d21ad29a5b7da477c71248aba2e98fd15",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/offline-browser.mjs",
+      "sourceSha256": "bb19d1d23fe989b62b7b9b4d4681dfe8d272ab511edce00e98818b9cdda9cc3d",
+      "preparedSha256": "320130c5a0263f8c1794eec0b2e192548c72f79677f8081832c89d76b6ce3fb8",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/preflight.mjs",
+      "sourceSha256": "e9d52c2fab4ce716c97542862d5dac65f5f21802b73798e7b4bf6b7266992e98",
+      "preparedSha256": "6ee84def6c786f29174f49d268b6efce5f7871aec075b63a1be72fdee14aa08a",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "scripts/start.mjs",
+      "sourceSha256": "94ba1c91d5f083c1e7523b0a83a6eb79b808761d5148ef717c0dcae94ff41c12",
+      "preparedSha256": "e888ffb013eeac034dd4f8daef6a1614c2d70b5381fab14ed8d1c81f1b0785f1",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "src/App.tsx",
+      "sourceSha256": "352a751faefb87e0261e78ed62f5ab9da209852c72381c6d3e9d2a3ed3ac474b",
+      "preparedSha256": "352a751faefb87e0261e78ed62f5ab9da209852c72381c6d3e9d2a3ed3ac474b",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "src/firebase.ts",
+      "sourceSha256": "e6bb2f9dcd4236d71e1ebcc54625913db2aa6e6c5333447041797ea7793826f2",
+      "preparedSha256": "a935f84317885a3d88d9443a00c61a8ab473f7a9e4c324b5333c759d6cf7d275",
+      "treatment": "copied-and-transformed"
+    },
+    {
+      "path": "src/main.tsx",
+      "sourceSha256": "a6bcae9c4f04d6ff36406b2966379834342b41b08b83ba7bd0334712d6cf87f0",
+      "preparedSha256": "a6bcae9c4f04d6ff36406b2966379834342b41b08b83ba7bd0334712d6cf87f0",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "src/styles.css",
+      "sourceSha256": "341e7bf54dcb2bafbc9f5297bfbdee37c40762a9fafd2be8a0005bedc11ff503",
+      "preparedSha256": "341e7bf54dcb2bafbc9f5297bfbdee37c40762a9fafd2be8a0005bedc11ff503",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "sourceSha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
+      "preparedSha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "storage.rules",
+      "sourceSha256": "ed10206af6e9b728e394ae422f8ac963f411c37a8ca5e1737e89925b3f9b1f82",
+      "preparedSha256": "ed10206af6e9b728e394ae422f8ac963f411c37a8ca5e1737e89925b3f9b1f82",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "tsconfig.json",
+      "sourceSha256": "2e5626351fc9134cc73e03e2923e6525046a1b1b6a1c4d3f78e474e65e48f88b",
+      "preparedSha256": "2e5626351fc9134cc73e03e2923e6525046a1b1b6a1c4d3f78e474e65e48f88b",
+      "treatment": "copied-byte-identical"
+    },
+    {
+      "path": "vite.config.ts",
+      "sourceSha256": "657ed3e208ba9fd2f6549728d82789d732bf9697e9a4a075d965af52972e17ba",
+      "preparedSha256": "71cfc47e751f46afefe141d038239954aaad5072c2adcfd9a0f522cb1fbe0c0c",
+      "treatment": "copied-and-transformed"
+    }
+  ]
+}

@@ -1,0 +1,702 @@
+{
+  "schemaVersion": 1,
+  "app": "partiful",
+  "provider": "convex",
+  "namespace": "llp0102-partiful-convex-w2",
+  "claimScope": "small repeatable product workload; not production scale",
+  "measurement": {
+    "clock": "performance.now monotonic wall duration",
+    "warmups": 2,
+    "recordedSamples": 7,
+    "statistics": [
+      "raw",
+      "median",
+      "nearest-rank-p95"
+    ],
+    "environment": "Minisforum Linux x86_64; fresh anonymous Convex local backend"
+  },
+  "paths": [
+    {
+      "name": "representative-read",
+      "units": "milliseconds",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "raw": [
+        {
+          "ordinal": 0,
+          "phase": "warmup",
+          "durationMs": 12.463,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 1,
+          "phase": "warmup",
+          "durationMs": 1.74,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "recorded",
+          "durationMs": 1.328,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "recorded",
+          "durationMs": 1.159,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "recorded",
+          "durationMs": 1.101,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "recorded",
+          "durationMs": 1.069,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "recorded",
+          "durationMs": 1.366,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "recorded",
+          "durationMs": 1.337,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "recorded",
+          "durationMs": 1.38,
+          "result": {
+            "events": 20,
+            "guestRows": 50,
+            "wallPosts": 22
+          }
+        }
+      ],
+      "median": 1.328,
+      "nearestRankP95": 1.38
+    },
+    {
+      "name": "representative-write",
+      "units": "milliseconds",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "raw": [
+        {
+          "ordinal": 0,
+          "phase": "warmup",
+          "durationMs": 11.285,
+          "result": {
+            "visible": true
+          }
+        },
+        {
+          "ordinal": 1,
+          "phase": "warmup",
+          "durationMs": 8.713,
+          "result": {
+            "visible": false
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "recorded",
+          "durationMs": 9.569,
+          "result": {
+            "visible": true
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "recorded",
+          "durationMs": 9.081,
+          "result": {
+            "visible": false
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "recorded",
+          "durationMs": 8.091,
+          "result": {
+            "visible": true
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "recorded",
+          "durationMs": 8.054,
+          "result": {
+            "visible": false
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "recorded",
+          "durationMs": 8.561,
+          "result": {
+            "visible": true
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "recorded",
+          "durationMs": 8.502,
+          "result": {
+            "visible": false
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "recorded",
+          "durationMs": 13.105,
+          "result": {
+            "visible": true
+          }
+        }
+      ],
+      "median": 8.561,
+      "nearestRankP95": 13.105
+    },
+    {
+      "name": "contention-final-seat",
+      "units": "milliseconds",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "raw": [
+        {
+          "ordinal": 0,
+          "phase": "warmup",
+          "durationMs": 155.671,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 1,
+          "phase": "warmup",
+          "durationMs": 86.137,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "recorded",
+          "durationMs": 104.231,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "recorded",
+          "durationMs": 56.485,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "recorded",
+          "durationMs": 123.43,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "recorded",
+          "durationMs": 125.635,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "recorded",
+          "durationMs": 148.654,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "recorded",
+          "durationMs": 102.886,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "recorded",
+          "durationMs": 125.919,
+          "result": {
+            "simultaneousActors": 2,
+            "succeeded": 1,
+            "rejected": 1,
+            "occupiedSeats": 50
+          }
+        }
+      ],
+      "median": 123.43,
+      "nearestRankP95": 148.654
+    },
+    {
+      "name": "asset-upload-deliver-delete-262144b",
+      "units": "milliseconds",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "raw": [
+        {
+          "ordinal": 0,
+          "phase": "warmup",
+          "durationMs": 47.445,
+          "result": {
+            "bytes": 262144,
+            "hash": "8a39d2abd3999ab73c34db2476849cddf303ce389b35826850f9a700589b4a90",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 1,
+          "phase": "warmup",
+          "durationMs": 41.801,
+          "result": {
+            "bytes": 262144,
+            "hash": "f317dd9d6ba01c465d82e4c4d55d01d270dda69db4a01a64c587a5593ac6084d",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "recorded",
+          "durationMs": 45.398,
+          "result": {
+            "bytes": 262144,
+            "hash": "b1026d9249014c863c3a8daf11dec61bd4d4abcfdc7f1a62181cf743d4b6a12e",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "recorded",
+          "durationMs": 46.997,
+          "result": {
+            "bytes": 262144,
+            "hash": "1efc0e4c060daa46145a63a8c676f2ba3b5cfc8f7e740a3d1823b631339ede0d",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "recorded",
+          "durationMs": 48.388,
+          "result": {
+            "bytes": 262144,
+            "hash": "de8aca1d7b8910126b9b62a261f5eaa8f8a68cb245dbd9c7b05db3db3c71dbab",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "recorded",
+          "durationMs": 40.168,
+          "result": {
+            "bytes": 262144,
+            "hash": "89cc4aac7a40201f83493c2e208705c1c049f9041c5815a8c2a270b0b7d642e2",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "recorded",
+          "durationMs": 39.979,
+          "result": {
+            "bytes": 262144,
+            "hash": "b81af6309664ddcf70e3319bdb0ed68ac1e251fcdc7957444d6481645ac09e17",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "recorded",
+          "durationMs": 37.736,
+          "result": {
+            "bytes": 262144,
+            "hash": "3637bbb97e98d009f2be4d0d4a50e73431d6b07b3ede39829e09bbf566a972a0",
+            "deleted": true
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "recorded",
+          "durationMs": 38.369,
+          "result": {
+            "bytes": 262144,
+            "hash": "886633006eb872027e75218eb451af5d97950607b994fe5ced36e70dbef2f9cf",
+            "deleted": true
+          }
+        }
+      ],
+      "median": 40.168,
+      "nearestRankP95": 48.388
+    },
+    {
+      "name": "realtime-delivery",
+      "units": "milliseconds",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "raw": [
+        {
+          "ordinal": 0,
+          "phase": "warmup",
+          "durationMs": 62.388,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 23
+          }
+        },
+        {
+          "ordinal": 1,
+          "phase": "warmup",
+          "durationMs": 36.053,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 24
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "recorded",
+          "durationMs": 31.699,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 25
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "recorded",
+          "durationMs": 44.738,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 26
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "recorded",
+          "durationMs": 32.903,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 27
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "recorded",
+          "durationMs": 42.552,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 28
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "recorded",
+          "durationMs": 43.047,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 29
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "recorded",
+          "durationMs": 32.603,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 30
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "recorded",
+          "durationMs": 43.367,
+          "result": {
+            "transport": "Convex WebSocket subscription",
+            "observedCount": 31
+          }
+        }
+      ],
+      "median": 42.552,
+      "nearestRankP95": 44.738
+    },
+    {
+      "name": "reconnect-first-reactive-value",
+      "units": "milliseconds",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "raw": [
+        {
+          "ordinal": 0,
+          "phase": "warmup",
+          "durationMs": 11.464,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 1,
+          "phase": "warmup",
+          "durationMs": 11.339,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "recorded",
+          "durationMs": 11.548,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "recorded",
+          "durationMs": 10.299,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "recorded",
+          "durationMs": 10.947,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "recorded",
+          "durationMs": 11.42,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "recorded",
+          "durationMs": 10.499,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "recorded",
+          "durationMs": 11.194,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "recorded",
+          "durationMs": 11.308,
+          "result": {
+            "transport": "fresh Convex WebSocket client",
+            "publicEventObserved": true
+          }
+        }
+      ],
+      "median": 11.194,
+      "nearestRankP95": 11.548
+    },
+    {
+      "name": "build-or-deploy",
+      "units": "milliseconds",
+      "warmups": 2,
+      "recordedSamples": 7,
+      "raw": [
+        {
+          "ordinal": 0,
+          "phase": "warmup",
+          "durationMs": 1250.278,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "475d2479d8ab12c625bde75aed031667320723dd8476088ffea7baa70d5b174a"
+          }
+        },
+        {
+          "ordinal": 1,
+          "phase": "warmup",
+          "durationMs": 1139.637,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "155fedd2730c4d15e69d4d21d7a2af09bc4ed35486e1f8bdebdd44738657c847"
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "recorded",
+          "durationMs": 1121.109,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "90db2848709d9f873b40d88022b57d76aa7cf3ee97da3608327e5cd22bdca51f"
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "recorded",
+          "durationMs": 1105.517,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "cbbfde5c08214e6b2f946018850ebd428c58edd6757996c1136eb750d989bbdc"
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "recorded",
+          "durationMs": 1071.936,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "9f656447b22e2f7b864a8340154e6d66b96adb1ae82ded54251e5697432e3b94"
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "recorded",
+          "durationMs": 1108.297,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "9f656447b22e2f7b864a8340154e6d66b96adb1ae82ded54251e5697432e3b94"
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "recorded",
+          "durationMs": 1140.636,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "521ead46eb8bae9fcccec5d66e276d88a5edf74e0c5121bcfd2dcafdf1091457"
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "recorded",
+          "durationMs": 1088.564,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "8e2b2cf99340b28bebfe83983ec84110ea2bbe72983020ec0901ee9790411350"
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "recorded",
+          "durationMs": 1076.103,
+          "result": {
+            "operation": "local production UI build plus TypeScript validation",
+            "hostedDeploy": false,
+            "outputSha256": "dcbcd2c95c5477f585e39029eb161566ff32e1874e50400e36cc3760fc67377d"
+          }
+        }
+      ],
+      "median": 1105.517,
+      "nearestRankP95": 1140.636
+    }
+  ],
+  "costWindow": {
+    "boundary": "fresh anonymous target provisioning through exact target cleanup",
+    "actualProviderUsage": "No billed provider usage surfaced for anonymous local deployment.",
+    "actualProviderCostUsd": 0,
+    "hostComputeExcluded": true,
+    "listPriceEstimateUsd": null,
+    "reason": "Hosted credentials were unavailable; a hosted list-price estimate would not describe the measured local target.",
+    "extrapolationCountsAsMeasured": false
+  }
+}

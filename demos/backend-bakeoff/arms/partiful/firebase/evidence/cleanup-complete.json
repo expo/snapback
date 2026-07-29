@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:43:37.648Z",
+  "exactProjectId": "llp0102-partiful-firebase-w1",
+  "dataPlaneReceipt": "evidence/cleanup-data-plane.json",
+  "dataPlaneAfter": {
+    "firestoreTopLevelCounts": {},
+    "remainingFirestoreDocs": 0,
+    "authUsers": 0,
+    "storageObjects": 0
+  },
+  "portsAfter": {
+    "4331": "closed",
+    "4332": "closed",
+    "4531": "closed",
+    "4532": "closed",
+    "4533": "closed",
+    "4534": "closed",
+    "4535": "closed",
+    "4536": "closed",
+    "5331": "closed",
+    "8331": "closed",
+    "9331": "closed",
+    "9431": "closed"
+  },
+  "survivingArmProcesses": [],
+  "runtimeStatePresent": false,
+  "runtimeCache": "Arm state and cache quarantines moved to macOS Trash; recoverable until Trash is emptied.",
+  "unrelatedBaseline": "No shared or hosted target was used or mutated.",
+  "status": "complete"
+}

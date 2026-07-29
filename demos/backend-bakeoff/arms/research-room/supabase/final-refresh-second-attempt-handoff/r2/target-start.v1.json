@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "attempt": "final-refresh-r2",
+  "target": "llp0102-final-research-supabase-w1",
+  "result": "safe-parser-refusal",
+  "wrapper_exit_code": 72,
+  "child_exit_code": 0,
+  "parser_exit_code": 65,
+  "byte_counts": {
+    "child_stdout": 4388,
+    "child_stderr": 527,
+    "parser_stdout": 233,
+    "parser_stderr": 0
+  },
+  "sha256": {
+    "child_stdout": "5958d97138c1a86b3cbc95cc2c107cfa60c919f27bdc8c920847f18d51755ccd",
+    "child_stderr": "cc403eced3e6a7c3d8d99e5f1234fa8f08e9d556afd7e0ce1ffaa0a61fadf53a",
+    "parser_stdout": "94d381f263ed43f6a5c2a6cb3d3dfc439f1c864c9f6294354e2373c930175d3c",
+    "parser_stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "checks": {
+    "child_streams_mode_0600": true,
+    "parser_streams_mode_0600": true,
+    "unexpected_parser_key": true,
+    "parse_succeeded": false,
+    "carriers_retained": false,
+    "raw_and_parser_streams_destroyed": true,
+    "raw_output_inspected_or_recovered": false
+  },
+  "scenario_count": 0,
+  "performance_sample_count": 0
+}

@@ -1,0 +1,25 @@
+{
+  "milestones": {
+    "firstLocalReadMs": 2495,
+    "firstAuthoritativeMutationMs": 4094,
+    "firstRealtimeTransitionMs": 4173,
+    "localAcceptanceMs": 86616,
+    "acceptanceCompletionMs": 86616
+  },
+  "statuses": {
+    "CHAT-01-SEED": "pass",
+    "CHAT-02-AUTHORITY": "pass",
+    "CHAT-03-SEND": "pass",
+    "CHAT-04-PUSH": "pass",
+    "CHAT-05-PAGINATION": "pass",
+    "CHAT-06-TYPING": "pass",
+    "CHAT-07-PRESENCE": "pass",
+    "CHAT-08-RECONNECT": "pass",
+    "CHAT-09-OFFLINE-HISTORY": "pending",
+    "CHAT-10-UNREAD": "pass",
+    "CHAT-11-CONCURRENT-SEND": "pass",
+    "CHAT-12-LOGOUT": "pass",
+    "CHAT-13-REVOKE": "pass",
+    "CHAT-14-PERFORMANCE": "pass"
+  }
+}

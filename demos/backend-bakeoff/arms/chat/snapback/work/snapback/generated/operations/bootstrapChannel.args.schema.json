@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/bootstrapChannel.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bobId": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "visibility": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "slug",
+    "name",
+    "visibility",
+    "bobId"
+  ],
+  "title": "work:bootstrapChannel arguments",
+  "type": "object"
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-05-GUEST-LIST",
+  "capturedAt": "2026-07-29T05:17:24.834Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Already-connected onSnapshot invalidated after rules dependency changed; retained rows cleared",
+  "transport": "firestore-listen-stream",
+  "initialRows": [],
+  "listenerError": {
+    "name": "FirebaseError",
+    "code": "permission-denied",
+    "message": "\nevaluation error at L56:24 for 'list' @ L56, false for 'list' @ L113, false for 'list' @ L56, false for 'list' @ L113"
+  },
+  "retainedRowsAfterDenial": 0,
+  "anonymousPublicStillReadable": true
+}

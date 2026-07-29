@@ -1,0 +1,201 @@
+{
+  "appId": "work",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:6802892f357948022e1b893b52f3ada912edca464742126a8c83500205a75dbb",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:18fbe538fd1a0fef563f137daeea594362665ce0193f49e33d629da920060fdc",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "workspaces",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "workspaces"
+            }
+          },
+          "name": "workspaceId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "owner",
+        "id": "workspaceMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "workspaceId",
+        "resourceTable": "workspaces",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "workspaceMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "workspaces"
+            }
+          },
+          "name": "workspaceId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "position",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "workspaceId",
+            "position"
+          ],
+          "name": "by_workspace_position"
+        }
+      ],
+      "name": "lists",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "workspaces"
+            }
+          },
+          "name": "workspaceId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "lists"
+            }
+          },
+          "name": "listId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "assigneeId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "dueDate",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "position",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "workspaceId",
+            "position"
+          ],
+          "name": "by_workspace_position"
+        },
+        {
+          "fields": [
+            "listId",
+            "position"
+          ],
+          "name": "by_list_position"
+        }
+      ],
+      "name": "tasks",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

@@ -1,0 +1,38 @@
+{
+  "operation": "clear-exact-disposable-target",
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "beforeCounts": {
+    "teams": 3,
+    "$users": 3,
+    "labels": 20,
+    "activities": 501,
+    "comments": 1001,
+    "organizations": 2,
+    "projects": 4,
+    "issues": 500,
+    "memberships": 3
+  },
+  "afterCounts": {
+    "teams": 0,
+    "$users": 0,
+    "labels": 0,
+    "activities": 0,
+    "comments": 0,
+    "organizations": 0,
+    "projects": 0,
+    "issues": 0,
+    "memberships": 0
+  },
+  "exactTargetOnly": true,
+  "targetDeletionUnsupportedWithAppScopedAdminToken": true,
+  "providerManagedExpiryExpected": true,
+  "temporaryAppLifecycle": "instant-cli documents automatic deletion after >24 hours",
+  "residualConfigurationUntilProviderExpiry": [
+    "schema",
+    "permissions"
+  ],
+  "oldActorTokenInvalidated": true,
+  "localRuntimeCredentialsRemoved": true,
+  "finishedAt": "2026-07-29T05:04:29.254Z",
+  "ok": true
+}

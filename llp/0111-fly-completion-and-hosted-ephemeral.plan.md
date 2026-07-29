@@ -976,7 +976,7 @@ The real provider proof advanced generation 0 to 1 with a harmless
 restarted the Machine, and recovered generation 1 with a verified predecessor
 chain to the exact generation-0 standing root. Bootstrap also reopens and
 verifies a nonzero generation instead of trying to recreate generation 0.
-`demos/backend-bakeoff/hosted-supervisor-installation.v1.json` binds the exact
+`demos/signal-desk/hosted-supervisor-installation.v1.json` binds the exact
 Machine, image, volume, current/root anchors, mirror, custody, tariff, restart,
 and retained-resource facts. This satisfies the standing installation and
 single-writer persistence slice only.
@@ -987,7 +987,7 @@ encrypted volume on a zero-service helper Machine, and proved SHA-256 equality,
 `PRAGMA integrity_check=ok`, and 29 schema tables. The helper Machine, helper
 volume, and test backup object were then destroyed/deleted and read back
 absent. The non-success receipt
-`demos/backend-bakeoff/hosted-product-journey.v1.json` records both that proof
+`demos/signal-desk/hosted-product-journey.v1.json` records both that proof
 and every skipped row.
 
 The mandatory journey remains incomplete. In particular, the existing product
@@ -1018,7 +1018,7 @@ Machine, commits the boot-stable admission epoch and replay floor through the
 same SQLite/mirror/anchor order, and only then signs a Rust-compatible online
 hosted admission with a maximum 60-second lifetime. Its mTLS/refusal proof
 passes before enrollment. The staged receipt is
-`demos/backend-bakeoff/hosted-target-onboarding.v1.json`. It is not a target
+`demos/signal-desk/hosted-target-onboarding.v1.json`. It is not a target
 binding, release, cutover, or capability receipt: the fresh encrypted volume,
 successor Machine, certificate transfer, route/head handoff, and remote
 application corpora remain mandatory.

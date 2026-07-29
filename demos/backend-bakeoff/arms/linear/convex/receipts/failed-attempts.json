@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "attempts": [
+    {
+      "phase": "acceptance harness initialization",
+      "diagnostic": "HARNESS_PERFORMANCE_NAME_SHADOW",
+      "effect": "The first invocation failed before the seed mutation because a receipt variable shadowed Node's performance API.",
+      "resolution": "Renamed the receipt variable and reran the complete clean attempt.",
+      "applicationRowsWritten": false,
+      "stopClass": false
+    }
+  ]
+}

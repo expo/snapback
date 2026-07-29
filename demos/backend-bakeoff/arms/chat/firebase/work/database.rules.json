@@ -1,0 +1,36 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "channelVisibility": {
+      "$channel": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+    "channelMembers": {
+      "$channel": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": false
+        }
+      }
+    },
+    "typing": {
+      "$channel": {
+        ".read": "auth != null && (root.child('channelVisibility').child($channel).val() === 'public' || root.child('channelMembers').child($channel).child(auth.uid).val() === true)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && root.child('channelMembers').child($channel).child(auth.uid).val() === true"
+        }
+      }
+    },
+    "presence": {
+      "$channel": {
+        ".read": "auth != null && (root.child('channelVisibility').child($channel).val() === 'public' || root.child('channelMembers').child($channel).child(auth.uid).val() === true)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && root.child('channelMembers').child($channel).child(auth.uid).val() === true"
+        }
+      }
+    }
+  }
+}

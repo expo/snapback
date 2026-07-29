@@ -1,0 +1,565 @@
+{
+  "schemaVersion": 1,
+  "diagnostic": "PARTY-05 already-connected guest-list revocation",
+  "startedAt": "2026-07-29T06:48:55.315Z",
+  "finishedAt": "2026-07-29T06:49:08.967Z",
+  "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+  "deployedConfigurationChanged": false,
+  "targetDataChanges": [
+    "events[contended].guestListVisible true -> false",
+    "events[contended].guestListVisible false -> true"
+  ],
+  "initialProof": {
+    "expectedCount": 49,
+    "payloads": [
+      {
+        "receivedAt": "2026-07-29T06:48:55.594Z",
+        "phase": "initial",
+        "payload": {
+          "type": "ok",
+          "data": {
+            "invitations": [
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:19",
+                "id": "07d83bbe-2d5a-4c25-ac99-af1317bff43a",
+                "inviteeId": "fixture-guest-19",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:21",
+                "id": "0c95d31c-57fe-48c6-b6f9-9f16af91bc3f",
+                "inviteeId": "fixture-guest-21",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:10",
+                "id": "0d1392ae-9004-4763-88d5-504a36720a1b",
+                "inviteeId": "fixture-guest-10",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:9",
+                "id": "0d1dcf01-0866-4684-8682-1b89ccfdd410",
+                "inviteeId": "fixture-guest-09",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:3",
+                "id": "0fee4ba4-aace-4f2b-854b-cc2138765b3b",
+                "inviteeId": "fixture-guest-03",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:37",
+                "id": "10c9bc44-8a7f-426e-828b-efb0f9115c1d",
+                "inviteeId": "fixture-guest-37",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:6",
+                "id": "18a7fb00-5d71-4b28-b33f-16224c447c2d",
+                "inviteeId": "fixture-guest-06",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:16",
+                "id": "1e88c59d-db25-4c9e-98e1-a9fc31d83494",
+                "inviteeId": "fixture-guest-16",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:39",
+                "id": "1f47ffce-7885-4574-bb33-c4939403deef",
+                "inviteeId": "fixture-guest-39",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:2",
+                "id": "29fd1008-972d-4b7d-b899-0659e92f35a3",
+                "inviteeId": "fixture-guest-02",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:28",
+                "id": "3480b5b0-7190-4ac4-9063-722cf26e06f7",
+                "inviteeId": "fixture-guest-28",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:35",
+                "id": "3800fca7-b0d1-469a-8fed-568478b44dca",
+                "inviteeId": "fixture-guest-35",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:29",
+                "id": "4545e7fe-cadd-4223-84f1-4ee1caadbeaa",
+                "inviteeId": "fixture-guest-29",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:11",
+                "id": "56e694af-deef-4fe3-9a30-2d3d8c1333a7",
+                "inviteeId": "fixture-guest-11",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:41",
+                "id": "67bdba4e-c4af-42ca-b9dd-9c2abb6247a3",
+                "inviteeId": "fixture-guest-41",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:4",
+                "id": "6ad5e9c3-6654-442a-991b-f94cd554d7b7",
+                "inviteeId": "fixture-guest-04",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:17",
+                "id": "6b5590d7-bf34-4c68-a37c-a708658d4096",
+                "inviteeId": "fixture-guest-17",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:46",
+                "id": "6fbca77a-b4c1-4c4d-8409-0caa48fa2b80",
+                "inviteeId": "fixture-guest-46",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:45",
+                "id": "71f78d90-59ce-4320-a860-4a4cf5092485",
+                "inviteeId": "fixture-guest-45",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:30",
+                "id": "7d3888d2-7521-4e91-9dc5-fbd564783960",
+                "inviteeId": "fixture-guest-30",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:25",
+                "id": "8fd48010-dfda-4e07-a02e-a6c692441956",
+                "inviteeId": "fixture-guest-25",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:24",
+                "id": "90f06d6f-69d2-4299-9c59-ed23985b780a",
+                "inviteeId": "fixture-guest-24",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:40",
+                "id": "928351d0-c4c2-44c2-b2f7-ec281b0d3d88",
+                "inviteeId": "fixture-guest-40",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:12",
+                "id": "929a743c-21db-47a4-a9e4-dc93d322f945",
+                "inviteeId": "fixture-guest-12",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:34",
+                "id": "9cb2391c-0b87-4589-bd46-2d20f8b8fdb2",
+                "inviteeId": "fixture-guest-34",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:13",
+                "id": "9e5f572b-e946-4c9e-9623-f436368092c9",
+                "inviteeId": "fixture-guest-13",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307464694,
+                "plusOne": 1,
+                "key": "llp0102-partiful-instantdb-w3:invite:0",
+                "id": "9e8b54b4-fca7-4d09-a062-82053fafbb40",
+                "inviteeId": "34aa3fae-f688-405e-9ced-19e1452ce660",
+                "response": "yes",
+                "invitee": "34aa3fae-f688-405e-9ced-19e1452ce660",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:42",
+                "id": "9f3c9381-77c9-43d8-8655-6da0ebde782f",
+                "inviteeId": "fixture-guest-42",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:7",
+                "id": "a43ec79d-61db-4d84-90f1-4911488ed7e0",
+                "inviteeId": "fixture-guest-07",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:15",
+                "id": "a8f559b8-acdc-4e6a-afea-f1ce4ea23b82",
+                "inviteeId": "fixture-guest-15",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:27",
+                "id": "ac64ff76-3a76-4d79-937c-42e30c3b53ae",
+                "inviteeId": "fixture-guest-27",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:22",
+                "id": "b8f88a76-2252-4ee3-abb2-1be1d3f1f839",
+                "inviteeId": "fixture-guest-22",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:1",
+                "id": "bd3c39f5-ef14-455a-a2d1-a3bcccd0b1ac",
+                "inviteeId": "fixture-guest-01",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:8",
+                "id": "be28eb50-ad2a-45f9-a48e-6164a4abd11f",
+                "inviteeId": "fixture-guest-08",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:32",
+                "id": "c0b8b0db-92bd-4b32-bc14-fa72c6db5752",
+                "inviteeId": "fixture-guest-32",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:31",
+                "id": "c363e98c-aef9-4bd6-8b9c-745f50210e5a",
+                "inviteeId": "fixture-guest-31",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:33",
+                "id": "c37173ac-2e4a-4e82-bdd9-6b003b6f6948",
+                "inviteeId": "fixture-guest-33",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:36",
+                "id": "c4bf1cae-c034-498d-bd8b-200964e23495",
+                "inviteeId": "fixture-guest-36",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:23",
+                "id": "c50736f2-1848-405d-9e5d-646f15ebb846",
+                "inviteeId": "fixture-guest-23",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:14",
+                "id": "c582371b-ac97-4875-958e-ae9fd8eb6100",
+                "inviteeId": "fixture-guest-14",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:48",
+                "id": "d93342d3-c370-41a8-a827-e7930d48200a",
+                "inviteeId": "fixture-guest-48",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:20",
+                "id": "df316db8-bef2-4bec-a80d-ffee1f42c6bb",
+                "inviteeId": "fixture-guest-20",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:44",
+                "id": "e03f3e32-2a9b-403d-9783-d77dd5e02309",
+                "inviteeId": "fixture-guest-44",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:5",
+                "id": "e1ffa507-df69-4e07-ab97-25499bd546c0",
+                "inviteeId": "fixture-guest-05",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:26",
+                "id": "e9c9efaf-10bd-4e68-b847-11b8897bfad5",
+                "inviteeId": "fixture-guest-26",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:47",
+                "id": "ecacf356-a17c-47c2-a4ff-d0df98582ae6",
+                "inviteeId": "fixture-guest-47",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:18",
+                "id": "f5f27313-660d-4b12-93d1-0d91a2662b92",
+                "inviteeId": "fixture-guest-18",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:43",
+                "id": "f86c786b-c695-4bfd-a10f-24b1edd9f695",
+                "inviteeId": "fixture-guest-43",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              },
+              {
+                "role": "guest",
+                "updatedAt": 1785307111903,
+                "plusOne": 0,
+                "key": "llp0102-partiful-instantdb-w3:invite:38",
+                "id": "f9020bae-cf23-421e-b69c-938d0b1fb866",
+                "inviteeId": "fixture-guest-38",
+                "response": "yes",
+                "eventId": "9fda4bc6-3db5-4b92-a5ae-2da64574e5aa"
+              }
+            ]
+          },
+          "pageInfo": {},
+          "sessionInfo": {
+            "machineId": "bd4d6975-0b1a-497f-b378-b4c2315d71c0",
+            "sessionId": "6a69a257-470a-474c-a2c4-6d1d33f96680"
+          }
+        }
+      }
+    ]
+  },
+  "falseWrite": {
+    "invokedAt": "2026-07-29T06:48:55.638Z",
+    "acknowledgedAt": "2026-07-29T06:48:55.774Z"
+  },
+  "authoritativeHostReadWhileFalse": {
+    "readAt": "2026-07-29T06:48:55.906Z",
+    "eventCount": 1,
+    "guestListVisible": false
+  },
+  "freshBobReadWhileFalse": {
+    "completedAt": "2026-07-29T06:48:56.069Z",
+    "kind": "success",
+    "payload": {
+      "type": "result",
+      "data": {
+        "invitations": []
+      }
+    }
+  },
+  "postWriteSseWindowMs": 12000,
+  "postWriteSsePayloads": [],
+  "restoration": {
+    "restoreWrite": {
+      "invokedAt": "2026-07-29T06:49:08.097Z",
+      "acknowledgedAt": "2026-07-29T06:49:08.263Z"
+    },
+    "authoritativeHostRead": {
+      "readAt": "2026-07-29T06:49:08.461Z",
+      "eventCount": 1,
+      "guestListVisible": true
+    },
+    "ssePayloads": []
+  },
+  "classification": "stream-only-invalidation",
+  "classificationInputs": {
+    "freshBobCountWhileFalse": 0,
+    "postWriteSuccessCounts": [],
+    "postWriteErrorCount": 0
+  },
+  "diagnosticError": null,
+  "credentialValuesPresent": false
+}

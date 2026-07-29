@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "remediationId": "PARTY-07-RSVP-WALL-NATIVE-PUSH-01",
+  "scope": "Untimed direct-evidence remediation only; original receipt and timed performance are immutable.",
+  "artifacts": [
+    "work/remediate-party07.ts",
+    "evidence/remediation-party07-live-rsvp-and-wall.json",
+    "evidence/remediation-party07-cleanup.json",
+    "evidence/remediation-party07-target-retirement.json",
+    "evidence/remediation-party07-attempts.json"
+  ],
+  "capsuleUpdated": true,
+  "diaryDraftErratumAppended": true,
+  "originalReceipt": "evidence/scenarios/PARTY-07-LIVE-BURST.json",
+  "originalPerformance": "evidence/performance.json"
+}

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "completedAt": "2026-07-29T08:34:21.034Z",
+  "projectIdSha256": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+  "planPath": "receipts/scoped-cleanup-plan.json",
+  "exportManifestPath": "receipts/export-manifest.json",
+  "dataPhase": {
+    "before": {
+      "rooms": 2,
+      "users": 3,
+      "objects": 20
+    },
+    "after": {
+      "rooms": 0,
+      "users": 0,
+      "objects": 0,
+      "deletedActorCannotSignIn": true,
+      "unrelatedBaselinePreserved": true
+    },
+    "exactStorageObjectsDeleted": 20,
+    "actorTokensInvalidatedByPrincipalDeletion": true
+  },
+  "processPhase": {
+    "assignedPortsClosed": {
+      "4342": true,
+      "4343": true,
+      "4542": true,
+      "4543": true,
+      "5042": true,
+      "5342": true,
+      "8142": true,
+      "8342": true,
+      "9342": true,
+      "9343": true,
+      "9442": true,
+      "9542": true
+    },
+    "ownedProcessesRemaining": 0,
+    "lingeringChromeHeadless": {
+      "observedPid": 73160,
+      "profile": "worktree-local .runtime/browser",
+      "termination": "explicit SIGTERM after screenshot command failed to exit",
+      "postTerminationOwnedProcesses": 0
+    }
+  },
+  "localStatePhase": {
+    "runtimeDirectoryRemoved": true,
+    "secretFileRemoved": true,
+    "exportRemovedAfterManifest": true,
+    "browserProfileRemoved": true,
+    "firebaseAndJavaStateRemoved": true,
+    "debugLogsRemovedAfterExact-canary-scan": true
+  },
+  "unrelatedBaselinePreserved": true,
+  "status": "complete",
+  "residualResources": [],
+  "containsCredentialValues": false
+}

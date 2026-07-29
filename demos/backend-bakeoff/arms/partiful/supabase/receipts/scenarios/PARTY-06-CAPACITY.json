@@ -1,0 +1,26 @@
+{
+  "id": "PARTY-06-CAPACITY",
+  "checkedAt": "2026-07-29T05:41:09.182Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "twoActorBarrier": {
+      "actors": [
+        "dave",
+        "erin"
+      ],
+      "outcomes": [
+        "rejected",
+        "committed"
+      ]
+    },
+    "settlement": {
+      "loserCode": "P0001",
+      "loserMessage": "CAPACITY_EXCEEDED"
+    },
+    "authoritativeCount": {
+      "capacity": 1,
+      "occupiedSeats": 1
+    }
+  }
+}

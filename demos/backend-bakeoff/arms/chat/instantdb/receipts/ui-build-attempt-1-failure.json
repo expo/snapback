@@ -1,0 +1,9 @@
+{
+  "attempt": 1,
+  "result": "failed",
+  "phase": "production-build",
+  "failureClass": "typescript-integration",
+  "summary": "The initial UI query attempted nested message pagination, omitted Vite ImportMeta types, and treated the typing helper as exposing an input onChange callback.",
+  "remediation": "Use a top-level paginated messages query with channel link projection, add vite/client types, and use the native typing helper's setActive API.",
+  "stopClass": false
+}

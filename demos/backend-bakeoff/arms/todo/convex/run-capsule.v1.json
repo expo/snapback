@@ -1,0 +1,449 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "todo",
+    "provider": "convex",
+    "round": "calibration",
+    "attemptId": "todo-convex-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Convex",
+      "client": "1.42.3",
+      "cli": "1.42.3"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-28T19:50:40Z",
+    "finishedAt": "2026-07-28T20:21:45Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 1871889,
+    "toolCalls": 52,
+    "timedWindowFrozenAt": "2026-07-28T20:21:45Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "879b26bb8549a8203a8376fffdede0b7bce2ecd8a98e3ce1592b04a8c4377a48",
+      "role": "member"
+    },
+    "bob": {
+      "principalIdHash": "1b38f95d1f505871b17e54b829ad9ee5ae03c2382befc823ad0b9484d670df5e",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "e75ec833b77d321b185801dea8b8f18291889ea2ad146ea57ab5b83dc08fa589",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-todo-convex-calibration-todo-convex-calibration-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "8a52ecbc24132f5197aa953ec3caa84149ca50f8ba46067086778e8ab6c9ee79",
+      "profile": "official anonymous local deployment",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json",
+        "receipts/browser-smoke.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed production deployment",
+      "plan": "Starter",
+      "region": "US region selected by Convex",
+      "gapReason": "Hosted evidence is not exercised in this arm because deploying a new function bundle to the available shared development deployment is not safely namespace-isolated. The official anonymous local deployment is used instead; this is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 905000,
+    "firstAuthoritativeMutationMs": 880000,
+    "firstRealtimeTransitionMs": 1183284,
+    "localAcceptanceMs": 1570000,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 1871889
+  },
+  "assistanceEvents": [],
+  "commands": [
+    {
+      "command": "npm create vite@latest work -- --template react-ts",
+      "startedMonotonicMs": 224802772,
+      "finishedMonotonicMs": 224803491,
+      "exitStatus": 0,
+      "classification": "provider-project-initialization"
+    },
+    {
+      "command": "npm install convex@1.42.3 @convex-dev/auth @auth/core@0.41.1",
+      "startedMonotonicMs": 224810000,
+      "finishedMonotonicMs": 224819124,
+      "exitStatus": 0,
+      "classification": "dependency-install-with-critical-audit-finding"
+    },
+    {
+      "command": "npx convex dev --once",
+      "startedMonotonicMs": 225000000,
+      "finishedMonotonicMs": 225090000,
+      "exitStatus": 1,
+      "classification": "local-backend-download-and-typescript-config-error"
+    },
+    {
+      "command": "npx convex dev --tail-logs disable --typecheck enable",
+      "startedMonotonicMs": 225100000,
+      "finishedMonotonicMs": 225100618,
+      "exitStatus": 0,
+      "classification": "fresh-local-backend-and-function-watch"
+    },
+    {
+      "command": "npx @convex-dev/auth --web-server-url http://127.0.0.1:4179 --skip-git-check",
+      "startedMonotonicMs": 225120000,
+      "finishedMonotonicMs": 225121728,
+      "exitStatus": 0,
+      "classification": "convex-auth-key-and-route-configuration"
+    },
+    {
+      "command": "node scripts/admin-cli.mjs seed",
+      "startedMonotonicMs": 225680000,
+      "finishedMonotonicMs": 225680200,
+      "exitStatus": 0,
+      "classification": "deterministic-authoritative-seed"
+    },
+    {
+      "command": "node scripts/provision-personas.mjs (first attempt)",
+      "startedMonotonicMs": 225720000,
+      "finishedMonotonicMs": 225744000,
+      "exitStatus": 1,
+      "classification": "anonymous-session-persistence-race"
+    },
+    {
+      "command": "node scripts/provision-personas.mjs",
+      "startedMonotonicMs": 225850000,
+      "finishedMonotonicMs": 225852006,
+      "exitStatus": 0,
+      "classification": "three-native-personas-and-exact-membership"
+    },
+    {
+      "command": "node scripts/browser-smoke.mjs",
+      "startedMonotonicMs": 225984000,
+      "finishedMonotonicMs": 225986056,
+      "exitStatus": 0,
+      "classification": "two-client-native-push-and-outsider-isolation"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs",
+      "startedMonotonicMs": 226250000,
+      "finishedMonotonicMs": 226256056,
+      "exitStatus": 0,
+      "classification": "crud-conflict-order-revocation-and-logout"
+    },
+    {
+      "command": "node scripts/offline-smoke.mjs",
+      "startedMonotonicMs": 226350000,
+      "finishedMonotonicMs": 226355677,
+      "exitStatus": 0,
+      "classification": "warm-offline-queue-cold-boot-gap-and-reconnect"
+    },
+    {
+      "command": "node scripts/performance-smoke.mjs",
+      "startedMonotonicMs": 226490000,
+      "finishedMonotonicMs": 226499076,
+      "exitStatus": 0,
+      "classification": "frozen-performance-sampling"
+    },
+    {
+      "command": "node scripts/inventory.mjs",
+      "startedMonotonicMs": 226673000,
+      "finishedMonotonicMs": 226673500,
+      "exitStatus": 0,
+      "classification": "artifact-inventory"
+    },
+    {
+      "command": "node scripts/cleanup-arm.mjs",
+      "startedMonotonicMs": 226674000,
+      "finishedMonotonicMs": 226674661,
+      "exitStatus": 0,
+      "classification": "target-bound-cleanup-and-negative-probe"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "TODO-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The admin-proof authoritative query sees four lists of 25 tasks, exactly 100 task rows, and exactly two active members; three stable Convex Auth user hashes are retained.",
+      "note": ""
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/browser-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Independent Alice and Bob Convex Auth browser profiles each received all 100 authorized tasks from the reactive query.",
+      "note": ""
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/browser-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory remained a stable authenticated Convex Auth user but received zero protected tasks and no workspace lists.",
+      "note": "Authorization was enforced inside the reactive backend query."
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two independent member clients observed create, edit, complete, reopen, reorder, and delete mutations; the final admin-proof summary returned to exactly 100 tasks.",
+      "note": "Convex mutations supplied the transaction and settlement boundary."
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/browser-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob observed Alice's committed insert and delete without refresh over a directly observed WebSocket connection to the local Convex backend.",
+      "note": ""
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "GAP: a warm connected page retained 100 in-memory rows during transport loss, but closing and reopening the previously used profile while the backend was unavailable produced no authenticated app shell and zero retained rows."
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "With the exact local backend process paused, the warm client accepted one create and one update while its remote task count stayed 100; both calls remained pending for reconnect.",
+      "note": "The form/input state supplied local UI evidence; Convex retained the mutation calls in the warm session."
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "After the exact backend resumed, both offline calls settled, the new title appeared, exactly one created marker existed, the count became 101, and cleanup returned the authoritative count to 100.",
+      "note": ""
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A two-client barrier issued concurrent title mutations; an independent admin-proof query identified the committed winner and both clients converged to it.",
+      "note": "Policy: serializable optimistic concurrency with the last committed mutation visible."
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Concurrent mutations changed one list-owned task ID sequence; the subscribed client derived exactly the unique positions 0 through 24.",
+      "note": ""
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Convex Auth logout removed the protected query result; automatic anonymous sign-in created a different unprivileged user with zero protected tasks.",
+      "note": ""
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Deactivating Bob's membership while connected cleared his protected query, and Alice's subsequent marker was not delivered until Bob was explicitly regranted.",
+      "note": ""
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The retained receipt contains two warmups and seven raw local samples for admin CLI read, mutation-to-origin, second-client push, browser reopen/resubscribe, and production client build.",
+      "note": "Small frozen local profile only; the CLI read includes process startup and these are not production-scale claims."
+    },
+    {
+      "id": "TODO-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The post-cleanup probe found all three exact arm listeners closed and the local deployment, browser runtime, environment file, and proof file absent.",
+      "note": "No shared Convex deployment was modified."
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 16,
+      "bytes": 64728,
+      "lines": 923
+    },
+    "generated": {
+      "files": 5,
+      "bytes": 12560,
+      "lines": 377
+    },
+    "tests": {
+      "files": 8,
+      "bytes": 38472,
+      "lines": 1085
+    },
+    "configuration": {
+      "files": 4,
+      "bytes": 1790,
+      "lines": 79
+    },
+    "policy": {
+      "files": 4,
+      "bytes": 1511,
+      "lines": 58
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 70450,
+      "lines": 2211
+    },
+    "installedDependencyBytes": 177310474,
+    "glue": [
+      "admin-proof CLI bridge for seed, membership, and authoritative reads",
+      "persistent-browser persona provisioner with stale-membership repair",
+      "two-client browser correctness, offline, and performance barriers",
+      "target-bound local deployment cleanup guard"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three stable Convex Auth users were exercised positively and negatively, including connected revocation and logout.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two-client barriers and an independent admin-proof query directly proved the serialized conflict winner and ordering invariant.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Independent browser clients opened native Convex WebSockets and retained raw second-client push samples.",
+      "evidencePaths": [
+        "receipts/browser-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "A process-level transport barrier directly distinguished warm cache retention, the cold-boot GAP, queued warm mutations, and reconnect.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Online and offline mutations were observed before and after authority, with exactly-one marker and an authoritative count after settlement.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "The exact anonymous local deployment was hashed, queried authoritatively, and bound to the cleanup receipt.",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "The predeclared plan guarded process ownership and proved all listeners, runtime state, and ignored credentials absent.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Source, deterministic seed, generated APIs, production build, and category-separated inventory are retained.",
+      "evidencePaths": [
+        "receipts/backup-manifest.v1.json",
+        "receipts/inventory.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "Ports 3210, 3211, and 4179 were closed; the exact local deployment, browser runtime, environment file, and admin-proof file were absent."
+  },
+  "result": "complete"
+}

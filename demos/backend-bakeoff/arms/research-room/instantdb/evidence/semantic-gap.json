@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "status": "explicit-gap",
+  "retainedEmbeddingDimensions": 32,
+  "providerOrdinaryPathFound": false,
+  "nonclaim": "No provider-native vector similarity index/query path was available in the tested InstantDB product surface. Deterministic embeddings are stored but no custom cosine fallback is presented as native semantic retrieval.",
+  "containsCredentialValues": false
+}

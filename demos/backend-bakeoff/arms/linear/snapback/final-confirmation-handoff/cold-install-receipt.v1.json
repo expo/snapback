@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "snapback.package-cold-install.v1",
+  "ok": true,
+  "claimTreatment": "checkpoint",
+  "claimSatisfied": false,
+  "platformClaimSatisfied": false,
+  "sourceRevision": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "sourceDirty": false,
+  "publicationMode": "dry-run",
+  "installSource": "staged",
+  "registry": "disposable-loopback",
+  "scopePreset": "identity",
+  "version": "0.1.1-llp0102.1",
+  "machine": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "osRelease": "25.5.0",
+    "nodeVersion": "v24.18.0",
+    "runtimePackage": "@snapback/runtime-darwin-arm64",
+    "runnerEnvironment": "local",
+    "separatelyProvisionedCleanMachine": false,
+    "githubRunId": null,
+    "githubRunAttempt": null,
+    "githubRepository": null,
+    "githubWorkflowSha": null
+  },
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-darwin-arm64",
+      "publishedName": "@snapback/runtime-darwin-arm64",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "snapback-runtime-darwin-arm64-0.1.1-llp0102.1.tgz",
+      "sha256": "df86fe1a0d61bba9969e6db1970ad4f9dd521e67bc3bb1e0943b1fdd6e548e74",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "publishedName": "@snapback/contract",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "snapback-contract-0.1.1-llp0102.1.tgz",
+      "sha256": "38699a25b61500aea8c1c6679beee3c0ba4c0322c5650267dbd2d7f579f972ed",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/client",
+      "publishedName": "@snapback/client",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "snapback-client-0.1.1-llp0102.1.tgz",
+      "sha256": "329000f196b0cba156fc5544da988685a1acd22a7ff8b65f2fc52dfe04d09ced",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "publishedName": "@snapback/codegen",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "snapback-codegen-0.1.1-llp0102.1.tgz",
+      "sha256": "cafeff5a89433bc4fdaf47e0f507bb06c1628ba6a035d0755dd09fe16dd5923d",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/react",
+      "publishedName": "@snapback/react",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "snapback-react-0.1.1-llp0102.1.tgz",
+      "sha256": "e1c52107a1e02a77e88b871d9f5ddf53528b733ed97a72dc729b04bada46889d",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "publishedName": "@snapback/app-cli",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "snapback-app-cli-0.1.1-llp0102.1.tgz",
+      "sha256": "1afd1403da7697332dd99063726361d9dd1c09a17610ccf6a910ecfaefdffe97",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "publishedName": "@snapback/cli",
+      "version": "0.1.1-llp0102.1",
+      "tarball": "snapback-cli-0.1.1-llp0102.1.tgz",
+      "sha256": "4d2c36853d1011807c3c46a41b4812e2fdce33ec858bbfbe32ed4403e6151205",
+      "registrySha256": null
+    }
+  ],
+  "deployBuild": {
+    "releaseId": "sha256:258bd42d160c4811b631c0aa34466e7d6c27e8bd293a6658ade871108971f181",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "activationEligible": false,
+    "componentCount": 20,
+    "gapCount": 23
+  },
+  "checks": {
+    "materializedTarballInstall": true,
+    "stagedRegistryAliasResolution": true,
+    "publicRegistryAliasResolution": false,
+    "publicRegistryTarballDigestMatch": false,
+    "registryTarballCount": 0,
+    "noSiblingSourceCheckout": true,
+    "partitimeBackendBuilt": true,
+    "localCodegenOffline": true,
+    "remoteCodegenOffline": true,
+    "bundledSchemasAndCorpus": true,
+    "repositoryRelativePublicationPaths": true,
+    "packagedCliIntrospection": true,
+    "packagedRuntimeDoctor": true,
+    "packagedScaffoldAndOfflineGenerate": true,
+    "packagedDeployBuildAndVerify": true,
+    "packagedManagedDevReadyAttachWatchAndStop": true,
+    "browserAdapterBundle": true,
+    "resolvedDependencyCount": 9,
+    "browserBundleBytes": 531519
+  },
+  "nonclaims": [
+    {
+      "id": "public-registry-install",
+      "reason": "The proof resolves the exact public aliases through a disposable loopback npm registry backed by immutable tarballs; the packages are not yet published in a public registry."
+    },
+    {
+      "id": "separately-provisioned-clean-machine",
+      "reason": "The proof uses a fresh external directory on the development host, not a separately provisioned clean machine."
+    },
+    {
+      "id": "other-runtime-platforms-not-executed",
+      "reason": "This receipt launches darwin-arm64; every other retained runtime package requires its own clean machine proof."
+    }
+  ]
+}

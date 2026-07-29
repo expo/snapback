@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/listLabels.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "organizationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organizationId"
+  ],
+  "title": "work:listLabels arguments",
+  "type": "object"
+}

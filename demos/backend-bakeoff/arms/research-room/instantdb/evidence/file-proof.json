@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "objectIdSha256": "6778d299bfd2581271918e1776a91537c194a34fde1cf41f9046acc38449c3f8",
+  "pathSha256": "28382a422b9edf40417e82ed670cdd0608c98bf54d4c899f0fe7492153662c14",
+  "contentHash": "697597fa56b97ce4530a0ec156c0f9937ea296ca466eeb5def8192c4c7666447",
+  "authority": {
+    "uploader": "alice-user-scope",
+    "deliveryObserver": "bob-user-scope",
+    "outsiderMetadataRows": 0
+  },
+  "deleteProof": {
+    "fileRows": 0,
+    "sourceRows": 0
+  },
+  "containsCredentialValues": false
+}

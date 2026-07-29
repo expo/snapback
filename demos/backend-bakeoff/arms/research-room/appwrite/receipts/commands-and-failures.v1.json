@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "timingBasis": "ISO start was emitted immediately before the first provider command; monotonic command intervals below are bounded observations.",
+  "commands": [
+    {
+      "command": "official Appwrite 1.9.6 web-installer container and generated Compose stack",
+      "exitStatus": 1,
+      "classification": "installer-event-stream-disconnect-after-healthy-start",
+      "startedMonotonicMs": 277790000,
+      "finishedMonotonicMs": 277827800
+    },
+    {
+      "command": "idempotent installer health recovery and Compose-file capture",
+      "exitStatus": 0,
+      "startedMonotonicMs": 277827801,
+      "finishedMonotonicMs": 277827914
+    },
+    {
+      "command": "npm install",
+      "exitStatus": 0,
+      "startedMonotonicMs": 277930000,
+      "finishedMonotonicMs": 277937033
+    },
+    {
+      "command": "Appwrite CLI login, organization/project/web-platform bootstrap, scoped server key",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278030000,
+      "finishedMonotonicMs": 278032160
+    },
+    {
+      "command": "native Auth, Team, TablesDB schema/indexes, Storage bucket, and deterministic seed",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278180000,
+      "finishedMonotonicMs": 278180903
+    },
+    {
+      "command": "function deployment using node-22 runtime identifier",
+      "exitStatus": 1,
+      "classification": "product-local-runtime-inventory",
+      "startedMonotonicMs": 278280000,
+      "finishedMonotonicMs": 278280289
+    },
+    {
+      "command": "function deployment using advertised node-16.0 runtime",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278360000,
+      "finishedMonotonicMs": 278363270
+    },
+    {
+      "command": "function delete/recreate with original variable identifiers",
+      "exitStatus": 1,
+      "classification": "product-function-variable-lifecycle",
+      "startedMonotonicMs": 278470000,
+      "finishedMonotonicMs": 278470105
+    },
+    {
+      "command": "replacement function deployment under fresh function namespace",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278480000,
+      "finishedMonotonicMs": 278483619
+    },
+    {
+      "command": "acceptance attempt with browser-oriented Realtime SDK in Node",
+      "exitStatus": 1,
+      "classification": "harness-browser-global",
+      "startedMonotonicMs": 278483620,
+      "finishedMonotonicMs": 278484002
+    },
+    {
+      "command": "frozen acceptance scenarios 01 through 13",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278500000,
+      "finishedMonotonicMs": 278746218
+    },
+    {
+      "command": "two warmups plus seven recorded samples for five workload paths",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278760000,
+      "finishedMonotonicMs": 278774563
+    },
+    {
+      "command": "browser UI integration first attempt",
+      "exitStatus": 1,
+      "classification": "harness-realtime-subscription-lifecycle",
+      "startedMonotonicMs": 278780000,
+      "finishedMonotonicMs": 278782200
+    },
+    {
+      "command": "browser UI integration and final production build",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278820000,
+      "finishedMonotonicMs": 278824000
+    }
+  ],
+  "assistanceEvents": [
+    {
+      "kind": "official-documentation",
+      "reason": "Verified current native paths for TablesDB, transactions, Storage, Realtime, Functions, scheduled executions, and secret variables.",
+      "sources": [
+        "https://appwrite.io/docs/products/databases",
+        "https://appwrite.io/docs/products/databases/transactions",
+        "https://appwrite.io/docs/products/storage",
+        "https://appwrite.io/docs/apis/realtime",
+        "https://appwrite.io/docs/products/functions/functions",
+        "https://appwrite.io/docs/products/functions/execute"
+      ]
+    },
+    {
+      "kind": "cross-arm-convention-inspection",
+      "reason": "Consulted the Partiful/Appwrite arm only for isolated installer, console bootstrap, API-key, and cleanup lifecycle conventions.",
+      "sources": [
+        "demos/backend-bakeoff/arms/partiful/appwrite/work/scripts"
+      ]
+    }
+  ],
+  "containsSecretValues": false
+}

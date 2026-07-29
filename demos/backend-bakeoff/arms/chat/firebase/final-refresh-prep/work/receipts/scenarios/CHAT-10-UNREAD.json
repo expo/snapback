@@ -1,0 +1,15 @@
+{
+  "id": "CHAT-10-UNREAD",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:27:41.501Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firestore document onSnapshot",
+  "evidence": {
+    "latestSequence": 129,
+    "markerBefore": 120,
+    "unreadBefore": 9,
+    "markerSeenOnSecondClient": 129,
+    "unreadAfterReconnect": 0
+  },
+  "note": "Unread marker is authoritative per-user data and converges to both signed-in clients."
+}

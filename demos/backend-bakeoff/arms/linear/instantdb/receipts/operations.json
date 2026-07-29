@@ -1,0 +1,62 @@
+{
+  "operation": "hosted-operations-inspection",
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "deploymentIdentity": {
+    "mode": "official hosted temporary app",
+    "namespace": "llp0102-linear-instantdb-w3",
+    "region": "provider-selected; not exposed"
+  },
+  "configuration": {
+    "schema": "instant.schema.ts",
+    "permissions": "instant.perms.ts",
+    "pushReceipts": "receipts/config-push-*.json"
+  },
+  "exportPath": {
+    "mechanism": "app-scoped @instantdb/admin authoritative query snapshot",
+    "summary": {
+      "organizations": {
+        "count": 2,
+        "canonicalIdSetSha256": "c5563a104b71c49467d6242bc1a815e01af70afcc89abac8e59ec11e82aa27e7"
+      },
+      "memberships": {
+        "count": 3,
+        "canonicalIdSetSha256": "f8dc4f5fd8bb18b2a57f2cb144ee4c46a9fb9341a70cf1273acd449f939a63a2"
+      },
+      "teams": {
+        "count": 3,
+        "canonicalIdSetSha256": "f51a989dc3d3102dece7db7fdf31381e743535a336d54b3714be1f14b9996697"
+      },
+      "projects": {
+        "count": 4,
+        "canonicalIdSetSha256": "f7c82b188a0c4d61c03682c4c42fcf34e9ce5c34904ad84d39eed1170c454b14"
+      },
+      "labels": {
+        "count": 20,
+        "canonicalIdSetSha256": "4fa47be7fa0523d34e40d5fad53bd55b431feece153f756028bd1419e3c9e3ad"
+      },
+      "issues": {
+        "count": 500,
+        "canonicalIdSetSha256": "275e26e2e8445b23397495708fe56d189bdd72690f8f364a431d9630f6aee631"
+      },
+      "comments": {
+        "count": 1001,
+        "canonicalIdSetSha256": "9e2b560d59b8bb9913d57a05874c66428c947107cb9390a993232005577f316d"
+      },
+      "activities": {
+        "count": 501,
+        "canonicalIdSetSha256": "0616cf88cfb90b15a9fc1b3c169a2962ac5a29d585d8023725940fd9080a35b9"
+      }
+    },
+    "restorableArtifactRetained": false,
+    "note": "A data-bearing raw export was intentionally not committed."
+  },
+  "logs": {
+    "inspectable": false,
+    "reason": "Temporary app token/CLI exposes no deployment log surface."
+  },
+  "rollback": {
+    "inspectable": false,
+    "reason": "CLI exposes push/pull but no deployment rollback primitive."
+  },
+  "capturedAt": "2026-07-29T04:59:17.553Z"
+}

@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T01:06:22.085Z",
+  "ok": true,
+  "seed": {
+    "publicMessages": 250,
+    "privateMessages": 250,
+    "totalMessages": 500,
+    "uniqueIds": 500
+  },
+  "authority": {
+    "messageId": "6a6952030015c1584c11",
+    "serverCreatedAt": "2026-07-29T01:06:11.268+00:00",
+    "serverAssignedId": "6a6952030015c1584c11",
+    "actorPermission": "update(\"user:alice\")",
+    "authorLabel": "Alice",
+    "note": "The UI derives actor authority from the server-validated per-user update ACL; $id and $createdAt are server assigned."
+  },
+  "outsider": {
+    "visibleChannels": [
+      "#General",
+      "#Random"
+    ],
+    "privateReadCount": 0,
+    "privateSubscriptionEvents": 0
+  },
+  "realtime": {
+    "transport": "Appwrite Realtime WebSocket on permission-filtered TablesDB row and Presences channels",
+    "nativeWebSocketObserved": true,
+    "secondClientPush": true
+  },
+  "pagination": {
+    "cursor": "private-alpha-118",
+    "firstPageIds": [
+      "6a6952030015c1584c11",
+      "private-alpha-122",
+      "private-alpha-123",
+      "private-alpha-125",
+      "private-alpha-121",
+      "private-alpha-124",
+      "private-alpha-105",
+      "private-alpha-120",
+      "private-alpha-119",
+      "private-alpha-102",
+      "private-alpha-103",
+      "private-alpha-112",
+      "private-alpha-117",
+      "private-alpha-113",
+      "private-alpha-114",
+      "private-alpha-104",
+      "private-alpha-115",
+      "private-alpha-106",
+      "private-alpha-110",
+      "private-alpha-107",
+      "private-alpha-111",
+      "private-alpha-116",
+      "private-alpha-108",
+      "private-alpha-101",
+      "private-alpha-118"
+    ],
+    "secondPageIds": [
+      "private-alpha-109",
+      "private-alpha-099",
+      "private-alpha-085",
+      "private-alpha-084",
+      "private-alpha-098",
+      "private-alpha-097",
+      "private-alpha-083",
+      "private-alpha-096",
+      "private-alpha-081",
+      "private-alpha-095",
+      "private-alpha-094",
+      "private-alpha-087",
+      "private-alpha-090",
+      "private-alpha-079",
+      "private-alpha-077",
+      "private-alpha-093",
+      "private-alpha-088",
+      "private-alpha-082",
+      "private-alpha-086",
+      "private-alpha-092",
+      "private-alpha-078",
+      "private-alpha-076",
+      "private-alpha-080",
+      "private-alpha-089",
+      "private-alpha-100"
+    ],
+    "concurrentInsertId": "pagination-1785287173286",
+    "overlap": [],
+    "stableNonduplicating": true
+  },
+  "ephemeral": {
+    "providerPath": "Appwrite Presences API attempted from authenticated Web SDK 26.2.0 against self-hosted 1.9.6",
+    "status": "gap",
+    "authenticatedClientResult": "unavailable",
+    "typingObserved": false,
+    "connectedUsers": [],
+    "bobExpiredAfterAbruptDisconnect": true,
+    "expiryWaitMs": 0,
+    "reason": "Authenticated client Presences.upsert returned user_unauthorized; no presence record existed to expire. Durable row emulation was not substituted."
+  },
+  "unread": {
+    "authoritativeMarker": true,
+    "sameUserSecondClientObservedZero": true,
+    "reconnectObservedZero": true
+  },
+  "concurrentSend": {
+    "bothPreserved": true,
+    "deterministicRule": "$createdAt ascending, then $id ascending",
+    "authoritativeOrder": [
+      "6a695205002661c6915e",
+      "6a69520500265c0b4a96"
+    ]
+  },
+  "reconnect": {
+    "warmHistoryRetainedInReactMemory": true,
+    "authoritativeReloadCount": 25,
+    "uniqueAfterReconnect": 25,
+    "duplicated": false
+  },
+  "offline": {
+    "status": "gap",
+    "warmReactMemoryCount": 25,
+    "coldPersistentHistory": false,
+    "retainedOrigin": "React memory only; no IndexedDB or provider offline cache"
+  },
+  "logout": {
+    "protectedUiRemoved": true,
+    "futurePrivateDelivery": false
+  },
+  "revocation": {
+    "beforeCount": 25,
+    "futureWriteDelivered": false,
+    "retainedCountBeforeReload": 25,
+    "freshPrivateChannelVisible": false,
+    "retainedHistoryContract": "Established React memory retained 25 historical rows until reload; no new protected event arrived and fresh query was denied."
+  },
+  "authoritativeFinal": {
+    "publicMessages": 250,
+    "privateMessages": 256,
+    "totalMessages": 506,
+    "uniqueIds": 506
+  },
+  "containsSecretValues": false
+}

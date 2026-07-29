@@ -1,0 +1,30 @@
+{
+  "publish": {
+    "room": {
+      "collection": "typing",
+      "scope": {
+        "channelId": "019fabb6-cc81-78d1-ab35-a4a9c1f61db3"
+      },
+      "routing_key": "9:channelId=36:019fabb6-cc81-78d1-ab35-a4a9c1f61db3"
+    },
+    "key": "019fabb6-cc33-7168-a855-d81c15517330",
+    "scope_epoch": 1,
+    "entry_version": 1,
+    "expires_at_ms": 1785292313922
+  },
+  "viewerEntriesWithoutPrune": [
+    {
+      "key": "019fabb6-cc33-7168-a855-d81c15517330",
+      "value": {
+        "name": "Bob",
+        "active": true
+      },
+      "expiresAtMs": 1785292313922,
+      "receivedAtMs": 1785292312422,
+      "scopeEpoch": 1,
+      "entryVersion": 1
+    }
+  ],
+  "publisherEntriesWithoutPrune": [],
+  "nativeChangeSignals": 1
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    "client-created",
+    "before-read",
+    "cron-tick",
+    "refresh-observed",
+    "repeat-action",
+    "inspect"
+  ]
+}

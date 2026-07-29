@@ -1,0 +1,35 @@
+{
+  "capturedAt": "2026-07-29",
+  "officialPrimarySources": [
+    {
+      "title": "Local Deployments for Development",
+      "url": "https://docs.convex.dev/cli/local-deployments",
+      "usedFor": "anonymous local beta topology and lifecycle"
+    },
+    {
+      "title": "Authentication overview",
+      "url": "https://docs.convex.dev/auth/overview",
+      "usedFor": "JWT authentication and function authorization model"
+    },
+    {
+      "title": "ConvexReactClient API",
+      "url": "https://docs.convex.dev/api/classes/react.ConvexReactClient",
+      "usedFor": "idiomatic clearAuth logout operation"
+    },
+    {
+      "title": "ConvexClient API",
+      "url": "https://docs.convex.dev/api/classes/browser.ConvexClient",
+      "usedFor": "native headless reactive query sessions"
+    },
+    {
+      "title": "Paginated Queries",
+      "url": "https://docs.convex.dev/database/pagination",
+      "usedFor": "stable native cursor pagination"
+    },
+    {
+      "title": "Auth in Functions",
+      "url": "https://docs.convex.dev/api/interfaces/server.Auth",
+      "usedFor": "server-side identity enforcement"
+    }
+  ]
+}

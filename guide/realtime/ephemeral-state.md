@@ -117,7 +117,15 @@ authorization beyond connection ownership is not shipped.
 
 `subscribeEphemeral(ref, { connectionId, scope, ... })` registers the lane
 consumer before requesting its authoritative snapshot, buffers in-flight
-deltas, then applies them after the snapshot boundary. The returned overlay
+deltas, then applies them after the snapshot boundary. Its default
+`transport: "stream"` path acquires managed-socket demand and proves current
+ping/pong readiness itself before subscribing; a fresh connection label needs
+no prior durable query and no manual
+`liveStreamManager(connectionId).waitUntilReady()` call. The overlay owns that
+demand until `dispose()`. Use `transport: "poll"` only for an explicit
+headless/manual-drain consumer.
+
+The returned overlay
 provides `currentEntries()`, `onChange`, `publish`, `delete`, `drain`, and
 `dispose`, plus `grantedConnectionId`: the exact opaque connection id used by
 that successful subscribe. Compare a connection-owned entry's `key` with this
@@ -160,7 +168,9 @@ Contract component reads the map as an `ephemeral` binding:
 
 The surface prewarms the room and configures the generated links; authored
 `publish ... rate=N` channels are statically checked against the generated
-publish budget. Keep imperative overlays in headless/React code and generated
+publish budget. Generated result rows preserve the collection's schema-known
+value type; a typed value must not degrade to `unknown` at provider
+introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
 

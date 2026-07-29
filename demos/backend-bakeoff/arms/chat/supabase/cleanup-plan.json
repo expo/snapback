@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "provider": "supabase",
+  "app": "chat",
+  "targetMode": "fresh-local",
+  "projectId": "llp0102-chat-supabase-w3",
+  "namespace": "llp0102-chat-supabase-calibration-chat-supabase-calibration-01",
+  "exactCliProjectDirectory": "/Users/ccheever/.cache/llp0102-chat-supabase-w3-runtime",
+  "exactRuntimeStateDirectory": "/private/tmp/llp0102-chat-supabase-state",
+  "command": "supabase stop --no-backup from exactCliProjectDirectory with the isolated Colima Docker endpoint",
+  "expectedResourceMatch": "Docker containers, volumes, and networks whose names contain llp0102-chat-supabase-w3",
+  "expectedPorts": [4289, 55421, 55422, 55423, 55424, 55425, 55426, 55427, 55428, 55429, 55430],
+  "preconditions": [
+    "acceptance and performance receipts frozen",
+    "public schema-only export retained",
+    "exact project container/volume/network inventory retained",
+    "Vite process stopped"
+  ],
+  "postconditions": [
+    "no exact project container remains",
+    "no exact project volume remains",
+    "no exact project network remains",
+    "all expected ports are closed",
+    "runtime-only mirror and isolated CLI state are removed",
+    "unrelated Docker resources are not selected or mutated"
+  ],
+  "forbidden": [
+    "generic supabase stop outside exact project directory",
+    "Docker prune",
+    "wildcard container or volume deletion",
+    "account-wide or unrelated project mutation"
+  ]
+}

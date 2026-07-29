@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "attempts": [
+    {
+      "phase": "production-shaped seed",
+      "diagnostic": "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
+      "message": "one mutation may buffer at most 1024 writes",
+      "resolution": "Split the frozen 500-issue fixture into five explicit 100-issue seed mutations."
+    },
+    {
+      "phase": "browser evidence",
+      "diagnostic": "HARNESS_EARLY_ASSERTION",
+      "message": "The shell rendered its initial zero-row state before the native live snapshot arrived.",
+      "resolution": "Wait for the authoritative 501-row browser state instead of only waiting for the count element."
+    },
+    {
+      "phase": "receipt finalization",
+      "diagnostic": "HARNESS_PERFORMANCE_NAME_SHADOW",
+      "message": "A receipt variable shadowed the global performance timing API after successful cleanup.",
+      "resolution": "Rename the receipt variable and rerun the complete clean attempt."
+    }
+  ],
+  "stopClass": false
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "checks": {
+    "supabaseJsVersion": "2.111.0",
+    "supabaseCliVersion": "2.110.0",
+    "freshTargetStart": "pass",
+    "projectContainersHealthy": 12,
+    "acceptance": "not run; Stop-class",
+    "performance": "not run; Stop-class",
+    "exactStopNoBackup": "pass",
+    "containersRemaining": 0,
+    "volumesRemaining": 0,
+    "networksRemaining": 0,
+    "credentialCarrierFilesRemaining": 0,
+    "assignedPorts": "all closed",
+    "handoffSecretPatternScan": "pass",
+    "jsonParse": "pass",
+    "refCheck": "107 LLP docs, 2309 refs, 0 errors, 0 unchecked",
+    "diffCheck": "pass",
+    "llpMaintain": "propose-only pass"
+  },
+  "result": "stopped"
+}

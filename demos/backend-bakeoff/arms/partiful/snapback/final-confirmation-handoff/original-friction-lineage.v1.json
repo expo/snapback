@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "preservedSealedAttempt": {
+    "result": "12 PASS / 3 GAP / 0 FAIL",
+    "timing": "sealed timing and assistance events remain authoritative",
+    "frictionClasses": [
+      "codegen dependency installation and codegen-time egress admission",
+      "action bundle separation",
+      "anonymous sessions query required raw protocol helper",
+      "action settlement envelope differs from mutation rejection",
+      "application-owned effect and role infrastructure"
+    ]
+  },
+  "finalConfirmationAttempts": [
+    {
+      "classification": "copied-harness-assumption",
+      "outcome": "builds-completed-write-failed",
+      "detail": "The first 2+7 build sampler completed its builds but assumed the arm-level evidence directory already existed. The directory was created and the entire 2+7 window reran."
+    }
+  ],
+  "preservedGaps": [
+    "PARTY-08-ASSET",
+    "PARTY-13-DEPLOY",
+    "PARTY-14-PERFORMANCE"
+  ],
+  "interpretation": "The installed package boundary changed no scenario outcome. Existing @snapback/codegen authoring imports worked directly; installed lifecycle still required arm-local orchestration around the CLI."
+}

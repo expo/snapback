@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:14:50.596Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "mode": "fresh-local-emulator",
+  "preWrite": {
+    "firestoreTopLevelCollections": [],
+    "authUsers": 0,
+    "storageObjects": 0
+  },
+  "assignedPorts": {
+    "auth": 9331,
+    "firestore": 8331,
+    "functions": 5331,
+    "storage": 9431,
+    "ui": 4331,
+    "fakeProvider": 4332,
+    "hub": 4531,
+    "logging": 4532,
+    "eventarc": 4533,
+    "tasks": 4534,
+    "firestoreWebsocket": 4535,
+    "pubsub": 4536
+  },
+  "sharedTarget": false,
+  "secretValuesPresent": false
+}

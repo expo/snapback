@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "attempt": "fresh-prospective-r3",
+  "acceptance": {
+    "runner_exit_code": 0,
+    "child_exit_code": 0,
+    "child_stdout_bytes": 150,
+    "child_stderr_bytes": 0,
+    "child_stdout_sha256": "f4a2585afaef0e08d8e17364a48650a1eb49b2e036957292f0211be44caffa79",
+    "child_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "initial_scenario_receipts": 13,
+    "streams_mode_0600_and_destroyed": true
+  },
+  "performance": {
+    "runner_exit_code": 0,
+    "child_exit_code": 0,
+    "child_stdout_bytes": 396,
+    "child_stderr_bytes": 0,
+    "child_stdout_sha256": "a8022c14edc75b504564bb19879fc50d964e444a36f6675e004a36e5bc935619",
+    "child_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "warmups": 2,
+    "recorded_samples": 7,
+    "streams_mode_0600_and_destroyed": true
+  },
+  "credential_scan": {
+    "runner_exit_code": 0,
+    "scanned_files": 33,
+    "credential_value_hits": 0,
+    "carrier_values_absent": true
+  },
+  "carrier_destruction": {
+    "runner_exit_code": 0,
+    "destroyed_carriers": 5,
+    "remaining_carriers": 0
+  }
+}

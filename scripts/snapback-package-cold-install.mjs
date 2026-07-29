@@ -2310,7 +2310,7 @@ await build({
     scaffoldRoot,
   });
 
-  // @ref LLP 0102#exact-executable-gate — the React release proof installs
+  // @ref LLP 0114#exact-executable-gate — the React release proof installs
   // materialized package tarballs in fresh web and Expo projects. Repository
   // workspaces and source-tree resolution cannot satisfy this gate.
   const installPackedFixture = async (fixtureRoot, { realBrowser = false } = {}) => {

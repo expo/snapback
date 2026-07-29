@@ -1,0 +1,105 @@
+{
+  "appId": "work",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/addMember.args.schema.json",
+    "operations/bootstrapWorkspace.args.schema.json",
+    "operations/createTask.args.schema.json",
+    "operations/deleteTask.args.schema.json",
+    "operations/editTask.args.schema.json",
+    "operations/leaveWorkspace.args.schema.json",
+    "operations/listLists.args.schema.json",
+    "operations/listTasks.args.schema.json",
+    "operations/reorderTask.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/addMember.mutation.ts",
+    "contract/addMember.mutation.contract-meta.ts",
+    "contract/bootstrapWorkspace.mutation.ts",
+    "contract/bootstrapWorkspace.mutation.contract-meta.ts",
+    "contract/createTask.mutation.ts",
+    "contract/createTask.mutation.contract-meta.ts",
+    "contract/deleteTask.mutation.ts",
+    "contract/deleteTask.mutation.contract-meta.ts",
+    "contract/editTask.mutation.ts",
+    "contract/editTask.mutation.contract-meta.ts",
+    "contract/leaveWorkspace.mutation.ts",
+    "contract/leaveWorkspace.mutation.contract-meta.ts",
+    "contract/listLists.query.ts",
+    "contract/listLists.query.contract-meta.ts",
+    "contract/listTasks.query.ts",
+    "contract/listTasks.query.contract-meta.ts",
+    "contract/reorderTask.mutation.ts",
+    "contract/reorderTask.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:49e04d021a7056305ad8201ae7c5164cf76891eb86ec3041191de20b3a050ce3",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "work:addMember",
+      "kind": "Mutation",
+      "name": "addMember"
+    },
+    {
+      "id": "work:bootstrapWorkspace",
+      "kind": "Mutation",
+      "name": "bootstrapWorkspace"
+    },
+    {
+      "id": "work:createTask",
+      "kind": "Mutation",
+      "name": "createTask"
+    },
+    {
+      "id": "work:deleteTask",
+      "kind": "Mutation",
+      "name": "deleteTask"
+    },
+    {
+      "id": "work:editTask",
+      "kind": "Mutation",
+      "name": "editTask"
+    },
+    {
+      "id": "work:leaveWorkspace",
+      "kind": "Mutation",
+      "name": "leaveWorkspace"
+    },
+    {
+      "id": "work:listLists",
+      "kind": "LiveQuery",
+      "name": "listLists"
+    },
+    {
+      "id": "work:listTasks",
+      "kind": "LiveQuery",
+      "name": "listTasks"
+    },
+    {
+      "id": "work:reorderTask",
+      "kind": "Mutation",
+      "name": "reorderTask"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:6802892f357948022e1b893b52f3ada912edca464742126a8c83500205a75dbb",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:18fbe538fd1a0fef563f137daeea594362665ce0193f49e33d629da920060fdc",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "workspaces",
+    "workspaceMembers",
+    "lists",
+    "tasks"
+  ]
+}

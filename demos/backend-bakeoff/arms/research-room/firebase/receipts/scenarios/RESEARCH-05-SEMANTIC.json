@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-05-SEMANTIC",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:01.825Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "The ordinary Firebase Admin SDK findNearest path returned the deterministic nearest source.",
+    "vectorPath": "firebase-admin Firestore findNearest/COSINE",
+    "resultIds": [
+      "source-001",
+      "source-007",
+      "source-013",
+      "source-019"
+    ]
+  },
+  "note": "Provider-native semantic retrieval passed locally."
+}

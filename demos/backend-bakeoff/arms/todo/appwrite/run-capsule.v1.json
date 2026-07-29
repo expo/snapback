@@ -1,0 +1,421 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "todo",
+    "provider": "appwrite",
+    "round": "calibration",
+    "attemptId": "todo-appwrite-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Appwrite",
+      "client": "26.2.0",
+      "cli": "23.2.0"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-28T23:03:14.683Z",
+    "finishedAt": "2026-07-28T23:24:42.928Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 1288245,
+    "toolCalls": 78,
+    "timedWindowFrozenAt": "2026-07-28T23:24:42.928Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "role": "member"
+    },
+    "bob": {
+      "principalIdHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-todo-appwrite-calibration-todo-appwrite-calibration-01",
+      "baselineReceiptPath": "receipts/baseline.v1.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "de76ea210ab0afc963172b53b1484769ecc8bd89d0c7dcdef825320788142e12",
+      "profile": "official Appwrite 1.9.6 self-host Docker stack with MongoDB",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/baseline.v1.json",
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "Appwrite Cloud project",
+      "plan": "Pro",
+      "region": "nearest selectable US-West region; exact identifier captured with target",
+      "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 790000,
+    "firstAuthoritativeMutationMs": 735000,
+    "firstRealtimeTransitionMs": 910000,
+    "localAcceptanceMs": 1120000,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 1288245
+  },
+  "assistanceEvents": [],
+  "commands": [
+    {
+      "command": "node scripts/install-local.mjs",
+      "startedMonotonicMs": 180000,
+      "finishedMonotonicMs": 610000,
+      "exitStatus": 1,
+      "classification": "official-web-installer-stream-ended-during-account-handoff-after-stack-start"
+    },
+    {
+      "command": "npm install",
+      "startedMonotonicMs": 250000,
+      "finishedMonotonicMs": 300000,
+      "exitStatus": 0,
+      "classification": "pinned-web-server-and-cli-dependencies"
+    },
+    {
+      "command": "appwrite login; Teams bootstrap; appwrite init project",
+      "startedMonotonicMs": 620000,
+      "finishedMonotonicMs": 710000,
+      "exitStatus": 0,
+      "classification": "local-console-auth-cli-version-skew-workaround-and-project-creation"
+    },
+    {
+      "command": "node scripts/provision.mjs",
+      "startedMonotonicMs": 730000,
+      "finishedMonotonicMs": 790000,
+      "exitStatus": 0,
+      "classification": "native-auth-teams-inline-tablesdb-schema-and-deterministic-seed"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs",
+      "startedMonotonicMs": 850000,
+      "finishedMonotonicMs": 940000,
+      "exitStatus": 0,
+      "classification": "crud-push-transaction-conflict-order-logout-and-revocation"
+    },
+    {
+      "command": "node scripts/offline-smoke.mjs",
+      "startedMonotonicMs": 950000,
+      "finishedMonotonicMs": 990000,
+      "exitStatus": 0,
+      "classification": "exact-api-port-native-offline-nonclaim-and-reconnect-gap-proof"
+    },
+    {
+      "command": "node scripts/performance-smoke.mjs",
+      "startedMonotonicMs": 1000000,
+      "finishedMonotonicMs": 1100000,
+      "exitStatus": 0,
+      "classification": "frozen-local-performance-sampling"
+    },
+    {
+      "command": "npm run lint && npm run build && node scripts/inventory.mjs",
+      "startedMonotonicMs": 1110000,
+      "finishedMonotonicMs": 1130000,
+      "exitStatus": 0,
+      "classification": "static-production-build-and-artifact-inventory"
+    },
+    {
+      "command": "npm audit --json",
+      "startedMonotonicMs": 1130000,
+      "finishedMonotonicMs": 1135000,
+      "exitStatus": 1,
+      "classification": "retained-cli-transitive-dependency-audit"
+    },
+    {
+      "command": "node scripts/cleanup-arm.mjs",
+      "startedMonotonicMs": 1260000,
+      "finishedMonotonicMs": 1288245,
+      "exitStatus": 0,
+      "classification": "baseline-restoring-compose-volume-cli-and-runtime-cleanup"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "TODO-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Admin authority proved one Team workspace, two memberships, four lists, 100 unique tasks, and four valid 25-ID orders.",
+      "note": ""
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Stable native Appwrite Auth users Alice and Bob each queried exactly 100 Team-authorized rows.",
+      "note": ""
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Native Auth outsider Mallory opened Realtime but TablesDB permission filtering returned zero protected rows.",
+      "note": ""
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "TablesDB transactions covered create, edit, complete, reopen, reorder, and delete while Bob observed every committed transition.",
+      "note": ""
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Native permission-filtered Appwrite Realtime WebSockets triggered Bob's query refresh without polling; seven samples are retained.",
+      "note": ""
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "The Web SDK retained session material but no TablesDB rows; blocked cold boot returned zero rows and fell back to login."
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "Blocked transactions returned transport errors, produced no optimistic task or SDK outbox, and left authority unchanged."
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "Online query and Realtime recovery worked, but no native queued create or update existed to settle."
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Concurrent TablesDB transactions produced one explicit commit conflict, advanced authority once, and both clients converged.",
+      "note": ""
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Concurrent transactional whole-array reorders converged to one valid unique 25-ID ordering.",
+      "note": ""
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Realtime disconnect plus native current-session deletion removed protected UI and stopped future delivery; retained-store names were hashed only.",
+      "note": ""
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Deleting Bob's Team membership denied a fresh query and blocked the next event.",
+      "note": "The established React view retained 100 previously rendered rows until reload because no usable revocation event cleared client memory."
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The local receipt retains two warmups and seven samples for Admin read, origin settlement, second-client push, browser resubscription, and build.",
+      "note": ""
+    },
+    {
+      "id": "TODO-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/cleanup-plan.v1.json",
+        "receipts/backup-manifest.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Guarded cleanup removed exact Compose containers, volumes, network, installer, Vite process, CLI session, and runtime, then proved the empty baseline.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 8,
+      "bytes": 34234,
+      "lines": 597
+    },
+    "generated": null,
+    "tests": {
+      "files": 8,
+      "bytes": 46206,
+      "lines": 1328
+    },
+    "configuration": {
+      "files": 7,
+      "bytes": 2458,
+      "lines": 113
+    },
+    "policy": {
+      "files": 1,
+      "bytes": 132,
+      "lines": 5
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 203535,
+      "lines": 5898
+    },
+    "installedDependencyBytes": 285412643,
+    "glue": [
+      "official web-installer and guarded Compose lifecycle",
+      "console/CLI organization compatibility bridge and redacted API-key custody",
+      "native Auth users, Teams permissions, inline TablesDB schema, and deterministic seed",
+      "transaction conflict, exact offline barrier, performance sampling, and baseline cleanup"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three stable Auth principals exercised positive Team permission, outsider refusal, logout, and membership removal.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two-browser barriers, explicit transaction commit conflict, revisions, and Admin reads proved title and order outcomes.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Independent clients opened native Appwrite Realtime WebSockets and seven second-client samples were retained.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "An exact API-port barrier proved warm-only memory, zero cold rows, failed unqueued writes, and ordinary reconnect.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Online transitions were checked in two clients and authority; offline non-settlement was directly proved.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Hashed endpoint/project plus exact product, SDK, CLI, database, and deployment versions bind the local target.",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "An empty baseline and exact Compose, ports, installer, CLI endpoint, and runtime guards matched all negative probes.",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Installer, provisioning, schema, permissions, deterministic seed, build, audit findings, inventory, and cleanup source are retained.",
+      "evidencePaths": [
+        "receipts/backup-manifest.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/inventory.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/baseline.v1.json",
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "Ports 4186, 8090, and 20080 closed; matching containers, volumes, networks, CLI preferences, and runtime paths were absent."
+  },
+  "result": "complete"
+}

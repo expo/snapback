@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-07-29T07:29:12Z",
+  "startedEpochMs": 1785310152095,
+  "activeLimitMinutes": 480,
+  "toolCallLimit": 400,
+  "trigger": "First provider-specific project command follows this receipt.",
+  "machine": "Mac17,3/arm64/macOS 26.5.2",
+  "worktreeBaseCommit": "5fe27663608c09e9da0b0e722c35d5146b3d49f1",
+  "namespace": "llp0102-research-firebase-w3",
+  "isolation": {
+    "projectId": "llp0102-research-firebase-w3",
+    "authPort": 9342,
+    "firestorePort": 8342,
+    "functionsPort": 5342,
+    "storagePort": 9442,
+    "vitePorts": [4342, 4343],
+    "hubPort": 4542,
+    "loggingPort": 4543,
+    "pubsubPort": 8142,
+    "eventarcPort": 9343,
+    "tasksPort": 9542,
+    "hostingPort": 5042
+  }
+}

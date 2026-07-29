@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T10:53:02.858Z",
+  "providerNativeExportAvailable": false,
+  "retainedAlternative": "authoritative count and content-hash manifest for the fresh disposable target",
+  "targetIdSha256": "2d8f64c5302204bb852a49b4308ffae281feb2714627504378453b2c1433e61a",
+  "counts": {
+    "effectAttempts": 14,
+    "answers": 2,
+    "progress": 13,
+    "questions": 9,
+    "sources": 20,
+    "$files": 20,
+    "rooms": 2,
+    "profiles": 3,
+    "$users": 3
+  },
+  "sourceContentHashes": [
+    "0248781643d8f813f9ad3d3bb2aeabed1cb430c5c74cd304d17f4abd3433db3d",
+    "07f326bbd7b93d21cbdd3944056df2a772a3f79cecbe3a9d367091b124955dee",
+    "141f2883ee4f125ae4b584293997477ec912df5df53a997c77c06a60db1edcd4",
+    "1fff171ba0fe15eeaccb9d3450b5664fabc686ee78eed2c359cd7f685636515f",
+    "2106c5d1cc6c33d0c4c102801fd817b6c7e8d0d73826cfcbb94ef4a220cff371",
+    "5179bf5c167d42a517cbc3def0ae93f2da6577b54bfbbd82fdd08fffb67f6992",
+    "5751fe6aa4197fae7b70622b994924e7257914a80b67ddb246397b45a4f6d23d",
+    "61c82a05656fadc6ad02aa62c68a2c3d4cb4602d7f5d20bc11e86b5fd4dcc996",
+    "65ed9cd8aced3627999d185a9a084c2773e5ea9eb69ceae619b7afa39007e260",
+    "67038fbc058692fbc5463abf0af3fde20c5f5694e12638fcd6a39d81008f87e1",
+    "75150bcc9b18f5edfcf3720a2aef14a300ffee252b11f6666d401d3c95f98acb",
+    "75629c7b307ee79ef0d195639089708d423bd95ebbbb7be41ace1b4b6f8190fd",
+    "7b463b97e69a9a39eb95f2869a84d24635db537dec7ec7ed49e3edeb69905e60",
+    "95414dc075705ac5adc56edd488092ddef3c21b2d153d77efcdc93ba61576e83",
+    "c6f1fea7ba3055f95ca0f126331383cde3c1a2393401e52b63ff3ccfea217414",
+    "cf2f95b1623eafe239aff54f6590b43f385a65594edb7081330bbe58b98814fc",
+    "d19fe1e05f278b02f373c7ee7ded5f5f30c40ce63099a4a140e7888dc85a0c8a",
+    "d939d6b7d452a7727199412148811bd87c4262ed863ad745d653c409c3eeb5d8",
+    "f31cbeee34557b1df50f7376ddd14da06248bca60ae48885edbbc86802fc0e54",
+    "f5213c772a4f6cb34de733e276bd70abdc8c6340a7d99bb1293d0ce2af2ec7b2"
+  ],
+  "recoverability": "No restore artifact; target is a disposable deterministic acceptance fixture.",
+  "containsCredentialValues": false
+}

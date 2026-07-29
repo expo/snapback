@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "app": "research-room",
+  "provider": "firebase",
+  "target": {
+    "mode": "fresh-local",
+    "projectIdSha256": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+    "profile": "Firebase Local Emulator Suite"
+  },
+  "claimScope": "small repeatable frozen product workload; not production scale",
+  "warmups": 2,
+  "recordedSamples": 7,
+  "paths": [
+    {
+      "id": "representative-read",
+      "shape": "Alice Firestore indexed keyword query returning five authorized source records.",
+      "unit": "ms",
+      "warmups": [
+        37.995,
+        6.505
+      ],
+      "rawSamples": [
+        5.177,
+        4.898,
+        5.278,
+        6.085,
+        5.409,
+        5.395,
+        5.998
+      ],
+      "successfulSamples": 7,
+      "failedSamples": 0,
+      "median": 5.395,
+      "nearestRankP95": 6.085
+    },
+    {
+      "id": "representative-write",
+      "shape": "Alice authorized source-metadata create followed by exact deletion.",
+      "unit": "ms",
+      "warmups": [
+        10.198,
+        3.959
+      ],
+      "rawSamples": [
+        3.5,
+        3.392,
+        2.93,
+        2.647,
+        2.589,
+        2.517,
+        2.364
+      ],
+      "successfulSamples": 7,
+      "failedSamples": 0,
+      "median": 2.647,
+      "nearestRankP95": 3.5
+    },
+    {
+      "id": "realtime-delivery",
+      "shape": "Bob native Firestore listener receives Alice's committed progress-like document.",
+      "unit": "ms",
+      "warmups": [
+        6.617,
+        5.532
+      ],
+      "rawSamples": [
+        5.35,
+        5.885,
+        5.608,
+        5.14,
+        5.305,
+        5.053,
+        5.261
+      ],
+      "successfulSamples": 7,
+      "failedSamples": 0,
+      "median": 5.305,
+      "nearestRankP95": 5.885
+    },
+    {
+      "id": "reconnect",
+      "shape": "Bob disables then re-enables the Firestore network and obtains an authoritative source read.",
+      "unit": "ms",
+      "warmups": [
+        5.325,
+        4.618
+      ],
+      "rawSamples": [
+        4.92,
+        3.959,
+        4.851,
+        4.863,
+        4.659,
+        3.194,
+        4.58
+      ],
+      "successfulSamples": 7,
+      "failedSamples": 0,
+      "median": 4.659,
+      "nearestRankP95": 4.92
+    },
+    {
+      "id": "build-or-deploy",
+      "shape": "TypeScript validation and production Vite build for the local Firebase Hosting artifact.",
+      "unit": "ms",
+      "warmups": [
+        1370.43,
+        1240.889
+      ],
+      "rawSamples": [
+        1243.711,
+        1274.035,
+        1243.872,
+        1233.788,
+        1235.574,
+        1251.984,
+        1228.067
+      ],
+      "successfulSamples": 7,
+      "failedSamples": 0,
+      "median": 1243.711,
+      "nearestRankP95": 1274.035
+    }
+  ],
+  "costWindow": {
+    "actualProviderUsage": "Local Emulator Suite; no provider billing meter or hosted usage.",
+    "listPriceEstimate": "Not measured; hosted target unavailable.",
+    "extrapolationCountedAsMeasured": false
+  }
+}

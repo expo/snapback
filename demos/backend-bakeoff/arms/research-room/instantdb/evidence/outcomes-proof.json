@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "injected": [
+    "complete",
+    "failed",
+    "cancelled",
+    "timed-out",
+    "ambiguous"
+  ],
+  "authoritativeStatuses": [
+    "ambiguous",
+    "cancelled",
+    "complete",
+    "failed",
+    "timed-out"
+  ],
+  "settlementRecords": [
+    {
+      "questionKey": "q-outcome-complete",
+      "status": "complete",
+      "settlement": "confirmed-complete"
+    },
+    {
+      "questionKey": "q-outcome-failed",
+      "status": "failed",
+      "settlement": "confirmed-failed"
+    },
+    {
+      "questionKey": "q-outcome-cancelled",
+      "status": "cancelled",
+      "settlement": "confirmed-cancelled"
+    },
+    {
+      "questionKey": "q-outcome-timed-out",
+      "status": "timed-out",
+      "settlement": "confirmed-timed-out"
+    },
+    {
+      "questionKey": "q-outcome-ambiguous",
+      "status": "ambiguous",
+      "settlement": "unknown-after-dispatch"
+    }
+  ],
+  "containsCredentialValues": false
+}

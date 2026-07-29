@@ -1,0 +1,9 @@
+{
+  "attempt": 4,
+  "stage": "evidence capture",
+  "classification": "CLI ergonomics",
+  "symptom": "A combined COUNT(*) FILTER projection was rejected, and generate rejected a command-local --server flag.",
+  "cause": "SpacetimeDB SQL supports the simple aggregate used here but not that PostgreSQL-style filtered aggregate projection; generate operates from a module path and has no --server option.",
+  "remediation": "Run two simple COUNT queries and generate bindings from the exact local module path.",
+  "stopClass": false
+}

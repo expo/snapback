@@ -759,7 +759,7 @@ existing effect refusal and rolls back.
 ## 7. Signal Desk proving use
 
 Signal Desk is the required first product fixture. The same implementation
-landing first imports the working-copy `demos/backend-bakeoff` and Diary 0022
+landing first imports the working-copy `demos/signal-desk` and Diary 0022
 into this repository, so every witness below is runnable from a clean checkout.
 The comparator-acceptance-kit and codegen-review-surface tickets are committed
 prerequisites, not assumed future machinery:

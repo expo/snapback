@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "app": "linear",
+  "provider": "snapback",
+  "sourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "namespace": "llp0102-final-linear-snapback-w3",
+  "ports": {
+    "server": 33103,
+    "vite": 43103
+  },
+  "expectedChecks": 14,
+  "checksRun": 14,
+  "pass": 10,
+  "gaps": 4,
+  "fail": 0,
+  "scenarioIds": [
+    "LINEAR-01-SEED",
+    "LINEAR-02-AUTHORITY",
+    "LINEAR-03-FILTERS",
+    "LINEAR-04-PAGINATION",
+    "LINEAR-05-DETAIL",
+    "LINEAR-06-OPTIMISTIC",
+    "LINEAR-07-CONFLICT",
+    "LINEAR-08-LIVE",
+    "LINEAR-09-SEARCH",
+    "LINEAR-10-OFFLINE",
+    "LINEAR-11-MIGRATION",
+    "LINEAR-12-DEPLOY",
+    "LINEAR-13-PERFORMANCE",
+    "LINEAR-14-CLEANUP"
+  ],
+  "targetIdentity": "3fcca06a02b7cfd258cbef6526d1f953a05e9db2f6d23358abd803ef2ff0a28a",
+  "cleanup": "complete",
+  "stopClass": null
+}

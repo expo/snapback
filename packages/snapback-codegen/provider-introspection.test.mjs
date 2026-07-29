@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -137,6 +138,31 @@ export const editTodo = defineMutation({
   const apiTypes = readFileSync(join(backend, 'generated', 'api.d.ts'), 'utf8');
   assert.match(apiTypes, /readonly __result\?: Result/);
   assert.match(apiTypes, /aLive: FunctionReference<[^\n]+ReadonlyArray</);
+  const clientModule = join(packageRoot, '../../demos/_kit/client.mjs');
+  writeFileSync(join(backend, 'ephemeral-types.fixture.ts'), `
+import { SnapbackClient } from ${JSON.stringify(clientModule)};
+import type { GeneratedEphemeral } from './generated/api';
+
+declare const client: SnapbackClient;
+declare const cursors: GeneratedEphemeral['cursors'];
+const overlay = await client.subscribeEphemeral(cursors, {
+  connectionId: 'typed-cursor',
+  scope: { roomId: 'room-a' },
+});
+const entry = overlay.currentEntries()[0];
+entry.value.x.toFixed();
+entry.value.y.toFixed();
+// @ts-expect-error the generated value validator has no z field
+entry.value.z;
+`);
+  execFileSync(join(packageRoot, '../../node_modules/.bin/tsc'), [
+    '--noEmit',
+    '--strict',
+    '--target', 'es2022',
+    '--module', 'esnext',
+    '--moduleResolution', 'bundler',
+    'ephemeral-types.fixture.ts',
+  ], { cwd: backend, stdio: 'pipe' });
 
   // Deleting the persisted declaration and regenerating restores identical
   // bytes; no wall clock or insertion-order state enters the artifact.
@@ -155,6 +181,39 @@ export const editTodo = defineMutation({
   assert.deepEqual(
     generated.providerIntrospection.operations.ephemeral.map(({ name }) => name),
     ['cursors'],
+  );
+  const cursorOperation = generated.providerIntrospection.operations.ephemeral[0];
+  assert.deepEqual(cursorOperation.result, {
+    kind: 'list',
+    row: {
+      shape: 'object',
+      fields: {
+        expiresAt: { shape: 'primitive', name: 'number', optional: true },
+        key: { shape: 'primitive', name: 'string' },
+        self: { shape: 'primitive', name: 'boolean' },
+        sourceClientId: { shape: 'primitive', name: 'string' },
+        updatedAt: { shape: 'primitive', name: 'number' },
+        value: {
+          shape: 'object',
+          fields: {
+            x: { shape: 'primitive', name: 'number' },
+            y: { shape: 'primitive', name: 'number' },
+          },
+        },
+      },
+    },
+  });
+  const cursorBinding = generated.providerBindingMetadata.bindings.ephemeral[0];
+  assert.equal(
+    cursorBinding.resultType,
+    'ReadonlyArray<{ "expiresAt"?: number; "key": string; "self": boolean; "sourceClientId": string; "updatedAt": number; "value": { "x": number; "y": number } }>',
+  );
+  assert(
+    !generated.diagnostics.some(
+      ({ code, path }) => code === 'PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED'
+        && path?.startsWith('ephemeral.cursors.'),
+    ),
+    'a schema-known ephemeral result must not emit a degraded-type warning',
   );
   const live = generated.providerIntrospection.operations.queries[0];
   assert.deepEqual(live.delivery.transports, [

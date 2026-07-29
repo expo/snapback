@@ -1,0 +1,76 @@
+⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI.
+i  emulators: Starting emulators: auth, functions, firestore, storage
+⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, database, hosting, pubsub, dataconnect
+⚠  functions: Unable to fetch project Admin SDK configuration, Admin SDK behavior in Cloud Functions emulator may be incorrect.
+i  firestore: downloading cloud-firestore-emulator-v1.21.0.jar...
+
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 46123.
+(node:47061) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+    at urlParse (node:url:136:13)
+    at Object.urlResolve [as resolve] (node:url:725:10)
+    at $RefParser.parse (/private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/node_modules/@apidevtools/json-schema-ref-parser/lib/index.js:103:19)
+    at $RefParser.resolve (/private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/node_modules/@apidevtools/json-schema-ref-parser/lib/index.js:184:16)
+    at $RefParser.bundle (/private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/node_modules/@apidevtools/json-schema-ref-parser/lib/index.js:227:16)
+    at bundle (/private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/node_modules/exegesis/lib/index.js:55:22)
+    at /private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/node_modules/exegesis/lib/index.js:60:34
+    at Generator.next (<anonymous>)
+    at /private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/node_modules/exegesis/lib/index.js:22:71
+    at new Promise (<anonymous>)
+i  storage: downloading cloud-storage-rules-runtime-v1.1.3.jar...
+
+⚠  emulators: The Emulator UI is not starting because none of the running emulators have a UI component.
+i  functions: Watching "/private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/functions" for Cloud Functions...
+⚠  functions: Your requested "node" version "22" doesn't match your global version "24". Using node@24 from host.
+Serving at port 8824
+
+✔  functions: Loaded functions definitions from source: moveIssue, addComment.
+✔  functions[us-west1-moveIssue]: http function initialized (http://127.0.0.1:56121/llp0102-final-linear-firebase-w3/us-west1/moveIssue).
+✔  functions[us-west1-addComment]: http function initialized (http://127.0.0.1:56121/llp0102-final-linear-firebase-w3/us-west1/addComment).
+
+[90m┌─────────────────────────────────────────────────────────────┐[39m
+[90m│[39m ✔  All emulators ready! It is now safe to connect your app. [90m│[39m
+[90m└─────────────────────────────────────────────────────────────┘[39m
+
+[90m┌────────────────[39m[90m┬─────────────────┐[39m
+[90m│[39m[33m Emulator       [39m[90m│[39m[33m Host:Port       [39m[90m│[39m
+[90m├────────────────[39m[90m┼─────────────────┤[39m
+[90m│[39m Authentication [90m│[39m 127.0.0.1:59121 [90m│[39m
+[90m├────────────────[39m[90m┼─────────────────┤[39m
+[90m│[39m Functions      [90m│[39m 127.0.0.1:56121 [90m│[39m
+[90m├────────────────[39m[90m┼─────────────────┤[39m
+[90m│[39m Firestore      [90m│[39m 127.0.0.1:58121 [90m│[39m
+[90m├────────────────[39m[90m┼─────────────────┤[39m
+[90m│[39m Storage        [90m│[39m 127.0.0.1:60121 [90m│[39m
+[90m└────────────────[39m[90m┴─────────────────┘[39m
+  Emulator Hub host: 127.0.0.1 port: 46121
+  Other reserved ports: 46122, 46123
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+i  functions: Beginning execution of "us-west1-moveIssue"
+i  functions: Beginning execution of "us-west1-moveIssue"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-moveIssue" in 2877.757ms
+i  functions: Finished "us-west1-moveIssue" in 2927.059208ms
+i  functions: Beginning execution of "us-west1-addComment"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-addComment" in 59.066708ms
+i  emulators: Received export request. Exporting data to /private/tmp/llp0102-final-linear-firebase-w3-prep/demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work/.state/firebase-export.
+✔  emulators: Export complete.
+ 
+i  emulators: Received SIGTERM for the first time. Starting a clean shutdown.
+i  emulators: Please wait for a clean shutdown or send the SIGTERM signal again to stop right now.
+i  emulators: Shutting down emulators.
+i  functions: Stopping Functions Emulator
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  storage: Stopping Storage Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

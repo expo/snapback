@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T06:21:16.354Z",
+  "targetIdentityHash": "4ccd665646c487168ddc65da71804be4851e2f3d90be5a062bfc099605d5f423",
+  "runtimeBornAt": "2026-07-29T05:14:54.758Z",
+  "retainedEvidence": [
+    "baseline.v1.json",
+    "authoritative-summary.v1.json",
+    "seed.v1.json",
+    "acceptance-results.v1.json",
+    "performance.v1.json",
+    "dependency-audit.v1.json",
+    "inventory.v1.json"
+  ],
+  "dataExport": {
+    "status": "explicit-gap",
+    "reason": "No data export retained; this fresh local target is disposable and committed provisioning source deterministically recreates it."
+  },
+  "containsSecretValues": false
+}

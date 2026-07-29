@@ -1,0 +1,29 @@
+{
+  "id": "LINEAR-07-CONFLICT",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:28:50.712Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "Callable Function plus Firestore serializable transaction",
+  "evidence": {
+    "barrier": {
+      "actors": [
+        "alice",
+        "bob"
+      ],
+      "expectedRevision": 2
+    },
+    "resultKinds": [
+      "fulfilled",
+      "rejected"
+    ],
+    "loserCode": "functions/aborted",
+    "authoritativeOutcome": {
+      "boardPosition": 1001,
+      "revision": 3,
+      "lastActorIdHash": "5d31ec2fe79f032850688d670fcc3718089057e5e45ef839d2b6ac1de9f018fc"
+    },
+    "clientsConverged": true,
+    "policy": "Server transaction compare-and-set: exactly one matching revision commits; the loser receives functions/aborted."
+  },
+  "note": "The winner may vary by scheduling, but the deterministic invariant is one commit, one typed refusal, and converged clients."
+}

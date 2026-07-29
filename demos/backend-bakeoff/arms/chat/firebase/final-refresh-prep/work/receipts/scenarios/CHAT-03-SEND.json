@@ -1,0 +1,22 @@
+{
+  "id": "CHAT-03-SEND",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:27:40.896Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firebase callable function + Firestore transaction",
+  "evidence": {
+    "callableResult": {
+      "id": "ufu4q1VMkvB88NwBpx9H",
+      "authorId": "Hfdd0b9nDmwG6HbSugJtMN3dDUax",
+      "sequence": 126
+    },
+    "authoritativeDocument": {
+      "id": "ufu4q1VMkvB88NwBpx9H",
+      "authorIdHash": "996c52dd36f43eae2a68c8551bfe2c2f2e0b8236d460c750ee1b385dc6e35407",
+      "sequence": 126,
+      "createdAt": "2026-07-29T13:27:40.885Z"
+    },
+    "implementation": "functions/index.js#sendMessage"
+  },
+  "note": "Function generates document identity, derives author from verified auth, and allocates sequence transactionally."
+}

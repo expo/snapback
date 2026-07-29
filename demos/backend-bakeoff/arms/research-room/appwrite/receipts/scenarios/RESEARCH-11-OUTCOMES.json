@@ -1,0 +1,32 @@
+{
+  "id": "RESEARCH-11-OUTCOMES",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:38.694Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "not-applicable",
+  "evidence": {
+    "outcomes": [
+      {
+        "status": "ambiguous",
+        "effectState": "unknown"
+      },
+      {
+        "status": "cancelled",
+        "effectState": "terminal"
+      },
+      {
+        "status": "complete",
+        "effectState": "confirmed"
+      },
+      {
+        "status": "failed",
+        "effectState": "terminal"
+      },
+      {
+        "status": "timed-out",
+        "effectState": "terminal"
+      }
+    ]
+  },
+  "note": "Five durable Appwrite rows preserve complete, failed, cancelled, timed-out, and ambiguous effect states."
+}

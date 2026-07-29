@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-28T23:03:14.683Z",
+  "targetMode": "fresh-local",
+  "baseline": {
+    "matchingContainers": 0,
+    "matchingNetworks": 0,
+    "matchingVolumes": 0,
+    "cliPreferencesPresent": false
+  },
+  "ok": true,
+  "note": "Captured by read-only Docker and filesystem probes before the official installer started.",
+  "containsSecretValues": false
+}

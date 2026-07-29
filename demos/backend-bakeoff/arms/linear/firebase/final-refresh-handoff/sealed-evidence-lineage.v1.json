@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "treatment": "immutable lineage only; no Stage 5 result is claimed from these files",
+  "fileCount": 36,
+  "files": [
+    {
+      "path": "../run-capsule.v1.json",
+      "bytes": 20116,
+      "sha256": "52d29ea11f5590184bf5b81c174aad2627d994bbeaea1ce0c315e5abf02b43ae"
+    },
+    {
+      "path": "../work/receipts/acceptance-results.json",
+      "bytes": 22019,
+      "sha256": "978541ab704fb1f38aa3206c46ba42e7e2631ec0359a4e1ca410dfe53e810031"
+    },
+    {
+      "path": "../work/receipts/baseline-before.json",
+      "bytes": 467,
+      "sha256": "035b15e2f16f77dcafc5ae17cea44df09d536a4038cc976c4d6443ffe88764e2"
+    },
+    {
+      "path": "../work/receipts/cleanup.json",
+      "bytes": 2692,
+      "sha256": "97b3726883359865c0fa0f08d46fc85e4b1ec4c10b190c7800f062770bf55c9b"
+    },
+    {
+      "path": "../work/receipts/emulator-hub.json",
+      "bytes": 1385,
+      "sha256": "52d21fc2aac728ad1a5cff8f813a5daeb7dceaac579fb42f1cac0487e1f4004c"
+    },
+    {
+      "path": "../work/receipts/emulator.log",
+      "bytes": 7924,
+      "sha256": "4355dfc2ea45d242dac4dd0d29ccd5fac567486ae9026c1201f00cd0bb538366"
+    },
+    {
+      "path": "../work/receipts/emulator.pid",
+      "bytes": 6,
+      "sha256": "7dd385b7e7d2a9c6e5b894f822cdc9963c441bb225855494f82dee6108c82e8c"
+    },
+    {
+      "path": "../work/receipts/export-manifest.json",
+      "bytes": 1495,
+      "sha256": "38ae80dcb989d1b942c772999560336bbb169b4aef578ccfcd373ca19eb6222a"
+    },
+    {
+      "path": "../work/receipts/export.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "../work/receipts/export.stdout.log",
+      "bytes": 376,
+      "sha256": "c6a6f08b36ac1ef8504740337d62d2185b13efbad80de84806f3e91d8d6b503b"
+    },
+    {
+      "path": "../work/receipts/failed-attempts.json",
+      "bytes": 2229,
+      "sha256": "ae30ce6fbcc4b2c090a58722302885ff2b910acd7a8066f7e34bfc5f6b55b7f0"
+    },
+    {
+      "path": "../work/receipts/functions-npm-audit.json",
+      "bytes": 5033,
+      "sha256": "d0f6673d4a60c469007723605d7af0c29d0cd10978eb718755a539fd8d94766a"
+    },
+    {
+      "path": "../work/receipts/inventory.json",
+      "bytes": 1394,
+      "sha256": "a8a725f55c9637079ea03d6c9b360823c4255fee6e1b7cec8e622c3d57d60a02"
+    },
+    {
+      "path": "../work/receipts/llp-maintain-pre-pr.md",
+      "bytes": 842,
+      "sha256": "ae0f9ec4c38f70e7f4e9e065817257cb87490cc2e6adf98d6a13f71a61ea23f2"
+    },
+    {
+      "path": "../work/receipts/npm-audit.json",
+      "bytes": 13184,
+      "sha256": "e1fcf1dfaea93cfe6dc13915a8ab6c5ced46efa0f07dc81502b4c02bdcb5ac2f"
+    },
+    {
+      "path": "../work/receipts/offline-browser.json",
+      "bytes": 921,
+      "sha256": "f25765dd23c28a02dd16357e744946317bc90088c8c6284e180d618c67765317"
+    },
+    {
+      "path": "../work/receipts/performance.json",
+      "bytes": 1926,
+      "sha256": "1fcced2e906f3c47ce5703e7c20ab6e71da211a552ec73c8e9e67fc4f2495e7f"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-01-SEED.json",
+      "bytes": 1020,
+      "sha256": "b24a2c377b36886ff7f50434b92adb72d0da4d7f78bec3fb428ead61368a00ff"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-02-AUTHORITY.json",
+      "bytes": 483,
+      "sha256": "976fd0981e115798afd2f69ee0b9cabcc5c3d259dd3530e9b9fa5beb4d85537d"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-03-FILTERS.json",
+      "bytes": 1066,
+      "sha256": "52f2087193af8b68974c933e804e3dc25b3081150c8ceb9367907d5d836497de"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-04-PAGINATION.json",
+      "bytes": 491,
+      "sha256": "d2ca22c4cace645f260706ba4ae2fabebe036ad1b9c7c132a939ea1aa0dd82ea"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-05-DETAIL.json",
+      "bytes": 775,
+      "sha256": "42015950f773aa6523c9c11adad9cedbb9dbf39d165e54f1dc3746d06433d66b"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-06-OPTIMISTIC.json",
+      "bytes": 700,
+      "sha256": "c97c6ccb8b684a89784380890913afaab92b2dd62100bb8619feff746ca9aee1"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-07-CONFLICT.json",
+      "bytes": 923,
+      "sha256": "09a090f8629dddb68a08111868f78acd28e5f7f959ff686f22adfe7f29f71523"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-08-LIVE.json",
+      "bytes": 573,
+      "sha256": "ce55d828f7484ec85c054e6a39719965e682e2c639e775a802e7aafe2c47fdc8"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-09-SEARCH.json",
+      "bytes": 676,
+      "sha256": "245e631f403923a45b90796c17a65148c2a7986a6c59d2c3ec63b9c71c219d73"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-10-OFFLINE.json",
+      "bytes": 1406,
+      "sha256": "cde4ff118de197dc0dd26b74cda94cd222b4961a8ecf3d4196111a811cc59209"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-11-MIGRATION.json",
+      "bytes": 1275,
+      "sha256": "144d711a853d2ff65792f36d3c4f9293cf4f434a733d953dada21f2b0a592a4a"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-12-DEPLOY.json",
+      "bytes": 2563,
+      "sha256": "660d8ee93d136a21187167abd55c49dc797934afb1a0ef1f3426dfa3e0909259"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-13-PERFORMANCE.json",
+      "bytes": 2417,
+      "sha256": "238802faead01839872860f9e10fdda13dea5e041da89b045d7b879ecde800c3"
+    },
+    {
+      "path": "../work/receipts/scenarios/LINEAR-14-CLEANUP.json",
+      "bytes": 3286,
+      "sha256": "3e5b43511a224cbb11674ac550042526d3a0b45a00750bf4b0fe4cf7b24d567f"
+    },
+    {
+      "path": "../work/receipts/scoped-cleanup-plan.json",
+      "bytes": 648,
+      "sha256": "f3ca3f343415e632650a76ac490b4bb9c01121255c52f68d95eae4eed8bb1995"
+    },
+    {
+      "path": "../work/receipts/seed-receipt.json",
+      "bytes": 835,
+      "sha256": "5e89013220bce66fbdf6c4b742719929bf8ff788e7105f105951944e840d2643"
+    },
+    {
+      "path": "../work/receipts/target-identity.json",
+      "bytes": 2381,
+      "sha256": "1969fc2b25f0ec1d189ed4d3c18add092460d4ca01e05accf1f7593bc2e2d48b"
+    },
+    {
+      "path": "../work/receipts/vite.log",
+      "bytes": 71,
+      "sha256": "ee53ebba9c402eedb94066ae6f76ffdd0578167ec7ff743640d525eec63fd1cd"
+    },
+    {
+      "path": "../work/receipts/vite.pid",
+      "bytes": 6,
+      "sha256": "83fa5499733d90329afd9a1f599fa29c5dc11254904d8d973a333bdf47be1662"
+    }
+  ],
+  "aggregateSha256": "14ba269e1bfda636c12d1d7dbf27809687be6e10bd998ea9f76cdf8d0cd4307d"
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "authPath": "Snapback native local email-code sessions",
+  "principalIdHashes": {
+    "alice": "47e5c3cfe829c41ae11b2a46b74def73b4c2af88530bb18ac90fed66b6f49c6f",
+    "bob": "c237c6401bc92c960e4f729a6be57b76543c32119660028b56749a9969801f40",
+    "mallory": "b0e9560683ddb9ca62fbbfd0828c9619a62d8376a6a1ba5fbbee568061699d9e"
+  },
+  "distinctPrincipals": true
+}

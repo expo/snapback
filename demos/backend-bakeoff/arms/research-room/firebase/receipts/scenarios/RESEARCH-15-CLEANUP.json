@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-15-CLEANUP",
+  "status": "pending",
+  "observedAt": "2026-07-29T08:00:05.736Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "Cleanup runs only after acceptance, performance, export, and target-bound plan freeze.",
+    "cleanupPlan": "receipts/scoped-cleanup-plan.json"
+  },
+  "note": "Pending exact local-target cleanup."
+}

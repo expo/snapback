@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "classification": "builder-harness-policy",
+  "scenario": "LINEAR-08-LIVE",
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "failure": "Client creation of a comment/activity also modifies the issue's reverse-link fields, which the initial issue update allowlist omitted.",
+  "securityImpact": "none; the comment/activity transaction was rejected authoritatively",
+  "remediation": "Permit only comments and activities reverse-link fields in the member issue-update allowlist; comment/activity create rules remain identity- and membership-bound.",
+  "containsSecretValues": false
+}

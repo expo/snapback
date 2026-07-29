@@ -1,0 +1,545 @@
+{
+  "appId": "work",
+  "artifactKind": "functionManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:49e04d021a7056305ad8201ae7c5164cf76891eb86ec3041191de20b3a050ce3",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "addMember",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "workspaceMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          }
+        ]
+      },
+      "exportedName": "addMember",
+      "id": "work:addMember",
+      "kind": "Mutation",
+      "name": "addMember",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "addMember",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "bootstrapWorkspace",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "lists"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "tasks"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaces"
+          }
+        ]
+      },
+      "exportedName": "bootstrapWorkspace",
+      "id": "work:bootstrapWorkspace",
+      "kind": "Mutation",
+      "name": "bootstrapWorkspace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "bootstrapWorkspace",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaces",
+        "tables": [
+          "workspaces",
+          "workspaceMembers",
+          "lists",
+          "tasks"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createTask",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "lists"
+          },
+          {
+            "access": "query",
+            "table": "workspaceMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "exportedName": "createTask",
+      "id": "work:createTask",
+      "kind": "Mutation",
+      "name": "createTask",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers",
+          "lists"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "createTask",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "tasks",
+        "tables": [
+          "tasks"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "deleteTask",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "tasks"
+          },
+          {
+            "access": "query",
+            "table": "workspaceMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "exportedName": "deleteTask",
+      "id": "work:deleteTask",
+      "kind": "Mutation",
+      "name": "deleteTask",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers",
+          "tasks"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "deleteTask",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "tasks",
+        "tables": [
+          "tasks"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "editTask",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "tasks"
+          },
+          {
+            "access": "query",
+            "table": "workspaceMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "exportedName": "editTask",
+      "id": "work:editTask",
+      "kind": "Mutation",
+      "name": "editTask",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers",
+          "tasks"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "editTask",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "tasks",
+        "tables": [
+          "tasks"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "leaveWorkspace",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          }
+        ]
+      },
+      "exportedName": "leaveWorkspace",
+      "id": "work:leaveWorkspace",
+      "kind": "Mutation",
+      "name": "leaveWorkspace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "leaveWorkspace",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listLists",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "lists"
+          },
+          {
+            "access": "query",
+            "table": "workspaceMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listLists",
+      "id": "work:listLists",
+      "kind": "LiveQuery",
+      "name": "listLists",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers",
+          "lists"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listLists",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listTasks",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "tasks"
+          },
+          {
+            "access": "query",
+            "table": "workspaceMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listTasks",
+      "id": "work:listTasks",
+      "kind": "LiveQuery",
+      "name": "listTasks",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers",
+          "tasks"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listTasks",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "reorderTask",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "tasks"
+          },
+          {
+            "access": "query",
+            "table": "workspaceMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "exportedName": "reorderTask",
+      "id": "work:reorderTask",
+      "kind": "Mutation",
+      "name": "reorderTask",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers",
+          "tasks"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "reorderTask",
+          "source": "// Bundled server handlers. The injected ctx is the only authority and data\n// surface; browser input never selects a principal or bypasses membership.\n\nasync function requireMember(ctx, workspaceId) {\n  await ctx.permissions.workspaceMembers.requireRole(workspaceId, 'owner', 'member');\n}\n\nglobalThis.__snapbackHandlers = {\n  async listLists(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('lists')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async listTasks(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    return await ctx.db\n      .query('tasks')\n      .withIndex('by_workspace_position')\n      .eq('workspaceId', args.workspaceId)\n      .order('position', 'asc')\n      .collect();\n  },\n\n  async bootstrapWorkspace(ctx, args) {\n    const name = String(args.name).trim();\n    if (!name) throw new Error('workspace name is required');\n    const workspaceId = await ctx.membership.workspaceMembers.bootstrap({\n      name,\n      createdBy: ctx.auth.userId,\n    });\n    if (!args.seedPrimary) return workspaceId;\n\n    const listNames = ['Inbox', 'Bakeoff', 'Operations', 'Done'];\n    for (let listIndex = 0; listIndex < listNames.length; listIndex += 1) {\n      const listId = await ctx.db.insert('lists', {\n        workspaceId,\n        name: listNames[listIndex],\n        position: listIndex,\n      });\n      for (let taskIndex = 0; taskIndex < 25; taskIndex += 1) {\n        await ctx.db.insert('tasks', {\n          workspaceId,\n          listId,\n          title: `Task ${listIndex + 1}.${String(taskIndex + 1).padStart(2, '0')}`,\n          completed: listIndex === 3,\n          assigneeId: taskIndex % 2 === 0 ? ctx.auth.userId : args.bobId,\n          dueDate: `2026-08-${String((taskIndex % 28) + 1).padStart(2, '0')}`,\n          position: taskIndex,\n        });\n      }\n    }\n    return workspaceId;\n  },\n\n  async addMember(ctx, args) {\n    await ctx.permissions.workspaceMembers.requireRole(args.workspaceId, 'owner');\n    await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createTask(ctx, args) {\n    await requireMember(ctx, args.workspaceId);\n    const list = await ctx.db.get('lists', args.listId);\n    if (!list || list.workspaceId !== args.workspaceId) {\n      throw new Error('list does not belong to workspace');\n    }\n    return await ctx.db.insert('tasks', {\n      workspaceId: args.workspaceId,\n      listId: args.listId,\n      title: String(args.title).trim(),\n      completed: false,\n      assigneeId: args.assigneeId,\n      dueDate: args.dueDate,\n      position: args.position,\n    });\n  },\n\n  async editTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const values = {};\n    if (args.title !== undefined) values.title = String(args.title).trim();\n    if (args.completed !== undefined) values.completed = args.completed;\n    if (args.assigneeId !== undefined) values.assigneeId = args.assigneeId;\n    if (args.dueDate !== undefined) values.dueDate = args.dueDate;\n    if (Object.keys(values).length === 0) return 0;\n    return (await ctx.db.patch('tasks', args.id, values)) ? 1 : 0;\n  },\n\n  async reorderTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    const rows = await ctx.db\n      .query('tasks')\n      .withIndex('by_list_position')\n      .eq('listId', task.listId)\n      .order('position', 'asc')\n      .collect();\n    const without = rows.filter((row) => row._id !== args.id);\n    const targetIndex = Math.max(0, Math.min(args.targetIndex, without.length));\n    without.splice(targetIndex, 0, task);\n    let changed = 0;\n    for (let position = 0; position < without.length; position += 1) {\n      const row = without[position];\n      if (row.position === position) continue;\n      if (await ctx.db.patch('tasks', row._id, { position })) changed += 1;\n    }\n    return changed;\n  },\n\n  async deleteTask(ctx, args) {\n    const task = await ctx.db.get('tasks', args.id);\n    if (!task) return 0;\n    await requireMember(ctx, task.workspaceId);\n    return (await ctx.db.delete('tasks', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "tasks",
+        "tables": [
+          "tasks"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:6802892f357948022e1b893b52f3ada912edca464742126a8c83500205a75dbb",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": []
+}

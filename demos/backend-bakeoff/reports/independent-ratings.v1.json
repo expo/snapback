@@ -1,0 +1,755 @@
+{
+  "schemaVersion": 1,
+  "ratings": {
+    "snapback": {
+      "todo": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 3,
+          "realtimeOffline": 2,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 2,
+          "maturityControl": 2
+        },
+        "evidence": [
+          "arms/todo/snapback/run-capsule.v1.json",
+          "arms/todo/snapback/final-confirmation-handoff/linux-x64/",
+          "reports/remediation-1-report.md",
+          "diaries/0027-todo-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "Post-remediation 11/3/0. Revocation now correctly blanks live handles. Authoring is ordinary-competent: guide-first path works but Ibex bootstrap cost is real. Modeling is strong (typed schema, conflict vocabulary, server-derived identity). Correctness upgraded from calibration after revocation fix but offline settlement is untested. Realtime push is native but offline retention is a product GAP across all three offline scenarios. Auth sessions model is coherent but initial setup had circular dependency friction. Platform covers durable data + ephemeral rooms + sessions but lacks assets, search, hosted deploy. Operations are local-only with no hosted profile. Performance samples show 1740ms build median."
+      },
+      "chat": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 3,
+          "realtimeOffline": 3,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 2,
+          "maturityControl": 2
+        },
+        "evidence": [
+          "arms/chat/snapback/run-capsule.v1.json",
+          "arms/chat/snapback/final-confirmation-handoff/linux-x64/",
+          "reports/remediation-1-report.md",
+          "diaries/0028-chat-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "Post-remediation 14/1/0. Ephemeral rooms for typing/presence are genuinely preference-shaping — no durable TTL tables or second database. Revocation fixed. 4890ms 20-message burst median is a notable performance penalty. Cold offline history is the remaining GAP. Reservation-stale retry is now automatic. Bootstrap dominated the first half-hour (Hermes source build). The coherent durable+ephemeral+sessions model is architecturally strong but the product surface remains behind leaders."
+      },
+      "linear": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 4,
+          "realtimeOffline": 1,
+          "auth": 3,
+          "completeness": 2,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 2,
+          "maturityControl": 2
+        },
+        "evidence": [
+          "arms/linear/snapback/run-capsule.v1.json",
+          "arms/linear/snapback/final-confirmation-handoff/",
+          "diaries/0029-linear-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "10/4/0. Transactional conflict resolution is strong — exactly one winner with typed diagnostic. Stable cursor pagination works. But search, offline, migration, and hosted deploy are all GAPs. The 1024-write-per-mutation ceiling forced seed decomposition. No full-text search path exists. Label filtering requires application-level semi-join."
+      },
+      "partiful": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 4,
+          "realtimeOffline": 3,
+          "auth": 4,
+          "completeness": 2,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 2,
+          "maturityControl": 2
+        },
+        "evidence": [
+          "arms/partiful/snapback/run-capsule.v1.json",
+          "arms/partiful/snapback/final-confirmation-handoff/",
+          "diaries/0030-partiful-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/3/0. Four session personas, typed roles, capacity enforcement, revocation blanking, cron scheduling, and effect settlement pass. Assets and hosted delivery remain decisive gaps; anonymous public preview and protected live-query behavior retain friction."
+      },
+      "research-room": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 4,
+          "realtimeOffline": 3,
+          "auth": 3,
+          "completeness": 2,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 2,
+          "maturityControl": 2
+        },
+        "evidence": [
+          "arms/research-room/snapback/run-capsule.v1.json",
+          "arms/research-room/snapback/remediation-2-handoff/",
+          "reports/remediation-2-report.md",
+          "diaries/0031-research-room-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "Post-remediation 13/2/0. The repaired path composes sessions and streaming. Bounded actions, durable progress, cancellation fencing, stable retry identity, and distinct settlement outcomes are strong. Assets and vector search remain gaps; distribution was staged only."
+      }
+    },
+    "convex": {
+      "todo": {
+        "categories": {
+          "authoring": 5,
+          "modeling": 4,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 4,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/todo/convex/run-capsule.v1.json",
+          "diaries/0027-todo-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "13/1/0. Schema, functions, transactions, reactive queries, and generated types form an exceptionally coherent authoring model. Durable cold offline boot is the one product gap."
+      },
+      "chat": {
+        "categories": {
+          "authoring": 4,
+          "modeling": 4,
+          "correctness": 4,
+          "realtimeOffline": 3,
+          "auth": 4,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 4,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/chat/convex/run-capsule.v1.json",
+          "diaries/0028-chat-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/3/0. Reactive queries are excellent for online chat, while native ephemeral typing, presence, and cold offline history remain gaps. Custom JWT ceremony and local runtime weight add friction."
+      },
+      "linear": {
+        "categories": {
+          "authoring": 4,
+          "modeling": 4,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 4,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/linear/convex/run-capsule.v1.json",
+          "diaries/0029-linear-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/1/0 plus hosted unavailable. Native text search, serializable mutations, typed conflicts, and reactive queries fit well; cold offline data and first-class migrations do not."
+      },
+      "partiful": {
+        "categories": {
+          "authoring": 4,
+          "modeling": 4,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 4,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/partiful/convex/run-capsule.v1.json",
+          "diaries/0030-partiful-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/0/0 plus hosted unavailable. Transactions, storage, scheduling, and reactive queries are cohesive. Isolation flags, test identity, and effect ambiguity remain application-owned friction."
+      },
+      "research-room": {
+        "categories": {
+          "authoring": 4,
+          "modeling": 4,
+          "correctness": 4,
+          "realtimeOffline": 3,
+          "auth": 3,
+          "completeness": 4,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 4,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/research-room/convex/run-capsule.v1.json",
+          "diaries/0031-research-room-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [
+          "convex-local-control-secret-in-process-argv"
+        ],
+        "rationale": "14 functional passes and one provider Stop. Integrated text/vector indexes, scheduling, files, and reactive progress are strong, but the tested local backend exposed a control credential in process argv and bound wildcard interfaces."
+      }
+    },
+    "supabase": {
+      "todo": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 5,
+          "correctness": 5,
+          "realtimeOffline": 2,
+          "auth": 5,
+          "completeness": 4,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/todo/supabase/run-capsule.v1.json",
+          "diaries/0027-todo-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "11/3/0. SQL, constraints, Auth, and RLS provide exceptional inspectable authority; durable client cache and offline outbox are absent."
+      },
+      "chat": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 5,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 5,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/chat/supabase/run-capsule.v1.json",
+          "diaries/0028-chat-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/1/0. Postgres Changes, Broadcast, and Presence are all native and proved with SQL/RLS authority. Cold offline history is absent; the local topology is heavy."
+      },
+      "linear": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 5,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 5,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/linear/supabase/run-capsule.v1.json",
+          "diaries/0029-linear-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/2/0. Native full-text search, SQL/RLS, atomic edits, and ordinary migrations are an excellent fit. Offline/outbox and hosted evidence remain absent."
+      },
+      "partiful": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 5,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 5,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/partiful/supabase/run-capsule.v1.json",
+          "diaries/0030-partiful-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/0/0 plus hosted unavailable. SQL transactions, RLS, Storage, cron, Edge Functions, and effect ledgers cover the app well; Realtime readiness and topology remain friction."
+      },
+      "research-room": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 5,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 5,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/research-room/supabase/run-capsule.v1.json",
+          "arms/research-room/supabase/final-refresh-second-attempt-handoff/",
+          "diaries/0031-research-room-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "15/0/0 on the safe current-version refresh. pgvector, full text, RLS, Storage, private Broadcast, and transactional cancellation/settlement are complete. Prior Stops were builder evidence-handling incidents, not provider disclosure."
+      }
+    },
+    "firebase": {
+      "todo": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 5,
+          "realtimeOffline": 5,
+          "auth": 5,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/todo/firebase/run-capsule.v1.json",
+          "diaries/0027-todo-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/0/0. Mature Auth, listeners, persistent cache, offline writes, and settlement all pass. The document/rules surface and emulator dependencies are broad."
+      },
+      "chat": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 5,
+          "auth": 4,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/chat/firebase/run-capsule.v1.json",
+          "arms/chat/firebase/final-refresh-prep/",
+          "diaries/0028-chat-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "15/0/0 on the explicit-port current refresh. Cold protected history and integrated Firestore/RTDB/Functions/Auth are decisive; contention, retained cache bytes, dependency size, and rule multiplicity temper the result."
+      },
+      "linear": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 5,
+          "realtimeOffline": 5,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/linear/firebase/run-capsule.v1.json",
+          "arms/linear/firebase/final-refresh-handoff/",
+          "diaries/0029-linear-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/1/0 plus hosted unavailable. Firestore gives the strongest cold offline issue editing and strong transactional conflicts, but has no native full-text search and no joins."
+      },
+      "partiful": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 5,
+          "realtimeOffline": 4,
+          "auth": 5,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/partiful/firebase/run-capsule.v1.json",
+          "diaries/0030-partiful-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/0/0 plus hosted unavailable. Auth, transactions, live rules invalidation, Functions, and Storage are mature and adversarially proved; policy and effect settlement are split across products and app code."
+      },
+      "research-room": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 5,
+          "realtimeOffline": 4,
+          "auth": 5,
+          "completeness": 5,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 4,
+          "performanceCost": 3,
+          "maturityControl": 5
+        },
+        "evidence": [
+          "arms/research-room/firebase/run-capsule.v1.json",
+          "diaries/0031-research-room-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "15/0/0. Vector search, files, Functions, Auth, rules, live progress, cancellation, and inspectable settlement all pass in the local suite, with substantial dependency and configuration breadth."
+      }
+    },
+    "instantdb": {
+      "todo": {
+        "categories": {
+          "authoring": 5,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 5,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 4,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/todo/instantdb/run-capsule.v1.json",
+          "diaries/0027-todo-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/0/0. The compact live React path plus durable cold offline cache, queued writes, and exact reconnect settlement is exceptional; permission validation and self-host CLI/docs are less mature."
+      },
+      "chat": {
+        "categories": {
+          "authoring": 4,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 4,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 3,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/chat/instantdb/run-capsule.v1.json",
+          "diaries/0028-chat-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "13/2/0. Live queries and room state are compact; server-owned order evidence and cold offline history are gaps, while permissions dominate debugging."
+      },
+      "linear": {
+        "categories": {
+          "authoring": 4,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 5,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 3,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/linear/instantdb/run-capsule.v1.json",
+          "diaries/0029-linear-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/2/0. Cold offline issue reads/writes are strong; native full-text search and semantic CAS are absent, and hosted temp credentials limit operations."
+      },
+      "partiful": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 3,
+          "realtimeOffline": 2,
+          "auth": 3,
+          "completeness": 2,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 2,
+          "performanceCost": 3,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/partiful/instantdb/run-capsule.v1.json",
+          "diaries/0030-partiful-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "9/6/0. Assets, scheduling, effects, revocation delivery, and secrets expose product gaps; silent stale protected state and convergent rather than serializable capacity are material caveats."
+      },
+      "research-room": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 3,
+          "realtimeOffline": 3,
+          "auth": 3,
+          "completeness": 2,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 2,
+          "performanceCost": 3,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/research-room/instantdb/run-capsule.v1.json",
+          "diaries/0031-research-room-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "11/4/0. Compact live collaboration and linked authorization work, while vector retrieval, scheduling, server secrets/functions, and target deletion are missing."
+      }
+    },
+    "spacetimedb": {
+      "todo": {
+        "categories": {
+          "authoring": 4,
+          "modeling": 4,
+          "correctness": 5,
+          "realtimeOffline": 2,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 5,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/todo/spacetimedb/run-capsule.v1.json",
+          "diaries/0027-todo-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "11/3/0. Transactional reducers, generated bindings, low latency, and active view revocation are strong; offline and full application auth remain gaps."
+      },
+      "chat": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 4,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/chat/spacetimedb/run-capsule.v1.json",
+          "diaries/0028-chat-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "13/2/0. Private views and active revocation are excellent; native ephemeral typing, cold history, parameterized paging, and full auth are absent or awkward."
+      },
+      "linear": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 5,
+          "realtimeOffline": 2,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 4,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/linear/spacetimedb/run-capsule.v1.json",
+          "diaries/0029-linear-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "11/2/0 plus hosted unavailable. CAS, transactions, migration, and subscriptions are strong; search and offline are product gaps and parameterless views complicate pagination."
+      },
+      "partiful": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 4,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/partiful/spacetimedb/run-capsule.v1.json",
+          "diaries/0030-partiful-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/0/0 plus hosted unavailable. Identity-aware views, active revocation, transactional capacity, and scheduled procedures fit unusually well; domain errors, assets, and HTTP effects remain rough."
+      },
+      "research-room": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 4,
+          "correctness": 5,
+          "realtimeOffline": 3,
+          "auth": 3,
+          "completeness": 3,
+          "deploymentOperations": 3,
+          "testingDocsAgent": 3,
+          "performanceCost": 4,
+          "maturityControl": 3
+        },
+        "evidence": [
+          "arms/research-room/spacetimedb/run-capsule.v1.json",
+          "diaries/0031-research-room-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "13/2/0. Scheduled transactional progress, cancellation, private views, and realtime are strong; semantic retrieval and native secret management are gaps."
+      }
+    },
+    "appwrite": {
+      "todo": {
+        "categories": {
+          "authoring": 2,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 2,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 2,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/todo/appwrite/run-capsule.v1.json",
+          "diaries/0027-todo-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "11/3/0. Transactions, Auth, Teams, and row permissions are credible, while offline is absent and the 28-container local surface is heavy."
+      },
+      "chat": {
+        "categories": {
+          "authoring": 2,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 2,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 2,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/chat/appwrite/run-capsule.v1.json",
+          "diaries/0028-chat-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/3/0. Auth and durable realtime work; documented Presence failed, cold history is absent, and the local platform remains operationally large."
+      },
+      "linear": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 2,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 3,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/linear/appwrite/run-capsule.v1.json",
+          "diaries/0029-linear-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "12/1/0 plus hosted unavailable. Native transaction conflicts and full-text search are useful; indexing, async control-plane changes, and the 29-container footprint add friction."
+      },
+      "partiful": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 2,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 3,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/partiful/appwrite/run-capsule.v1.json",
+          "diaries/0030-partiful-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/0/0 plus hosted unavailable. Transactions, storage, secrets, and scheduling are broad; Realtime registration, rate limits, cron observability, and topology are costly."
+      },
+      "research-room": {
+        "categories": {
+          "authoring": 3,
+          "modeling": 3,
+          "correctness": 4,
+          "realtimeOffline": 3,
+          "auth": 4,
+          "completeness": 4,
+          "deploymentOperations": 2,
+          "testingDocsAgent": 3,
+          "performanceCost": 3,
+          "maturityControl": 4
+        },
+        "evidence": [
+          "arms/research-room/appwrite/run-capsule.v1.json",
+          "diaries/0031-research-room-backend-bakeoff.diary.md"
+        ],
+        "stopDefects": [],
+        "rationale": "14/1/0. Files, full-text, functions, secrets, realtime, and scheduling cover nearly everything; semantic search is absent and the self-hosted runtime/topology is dated and heavy."
+      }
+    }
+  },
+  "warnings": [
+    "Snapback's final package confirmation was staged/dry-run only. No public distribution or hosted deployment credit is awarded, but the installed-package path did work for all 5 apps.",
+    "The deep-round Snapback Research capsule was product-blocked; the rating uses the remediated final confirmation while retaining the original defect as maturity context.",
+    "Convex Research Room carries a provider Stop-class control-secret-in-argv defect and is ineligible as go-to for that application.",
+    "Supabase Research Room had builder evidence-redaction Stops, not provider disclosure; the credential-bearing CLI output still informs operations and agent usability.",
+    "Firebase logout does not erase persistent Firestore IndexedDB bytes; future server access was correctly denied.",
+    "InstantDB Partiful retained stale protected state for 12 seconds after a permission transition; reasonable reviewers may score auth or correctness lower.",
+    "Todo and Chat final Snapback latency receipts were collected on Linux despite a stale embedded Mac label and are excluded from cross-machine comparison.",
+    "Supabase cold SUBSCRIBED readiness missed an immediate write in more than one arm and is treated as realtime friction.",
+    "The reviewer returned semantically complete ratings in a nonconforming envelope. The coordinator preserved every numeric rating, Stop, and recommendation, normalized field names and nesting, and compressed some rationales and evidence lists for the strict retained artifact; the raw reviewer text remains addressable by session ID and SHA-256 in the audit report."
+  ],
+  "provisionalGoTo": {
+    "overall": "firebase",
+    "byApp": {
+      "todo": "instantdb",
+      "chat": "firebase",
+      "linear": "supabase",
+      "partiful": "firebase",
+      "research-room": "supabase"
+    },
+    "reason": "Firebase is the most consistent complete product across the five apps, with uniquely strong retained offline behavior and a mature integrated surface. Supabase is the strongest conditional alternative for relational and search-heavy products; Convex is strongest when authoring coherence and reactive queries dominate, subject to its Research Room Stop."
+  },
+  "architecturalPotentialExcluded": true
+}

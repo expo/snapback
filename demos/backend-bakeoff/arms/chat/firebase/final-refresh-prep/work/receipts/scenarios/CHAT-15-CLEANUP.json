@@ -1,0 +1,28 @@
+{
+  "id": "CHAT-15-CLEANUP",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:30:05.418Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "cleanupReceipt": "receipts/cleanup.json",
+    "targetBoundPlan": "receipts/scoped-cleanup-plan.json",
+    "portsAfter": {
+      "9299": "closed",
+      "9499": "closed",
+      "35201": "closed",
+      "35202": "closed",
+      "35203": "closed",
+      "35204": "closed",
+      "35250": "closed",
+      "35280": "closed",
+      "35281": "closed",
+      "35287": "closed",
+      "35288": "closed",
+      "35299": "closed"
+    },
+    "survivingPids": [],
+    "unrelatedBaseline": "No shared or hosted target was used or mutated."
+  },
+  "note": "Exact validated emulator/Vite process trees terminated; all assigned and auxiliary ports closed; only arm-local runtime/cache/export directories removed."
+}

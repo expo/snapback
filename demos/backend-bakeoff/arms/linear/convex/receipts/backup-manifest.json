@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "post-namespace-cleanup local deployment database identity before exact target removal",
+  "bytes": 9949184,
+  "sha256": "80da26e94fb57a18fbcb9bd7fd219e987c8bc471a532ae07187f1edb25718761",
+  "binaryRetained": false,
+  "applicationRowsRetained": false,
+  "recovery": "Recreate the anonymous local deployment, regenerate the local JWT fixture, and rerun the deterministic secret-gated seed.",
+  "note": "The target is reproducible rather than backed up with secret-bearing local deployment configuration."
+}

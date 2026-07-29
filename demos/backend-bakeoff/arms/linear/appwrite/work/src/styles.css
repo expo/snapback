@@ -1,0 +1,27 @@
+:root {
+  color: #172033;
+  background: #eef1f7;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+button { border: 0; border-radius: 8px; padding: 9px 13px; cursor: pointer; }
+.shell { min-height: 100vh; display: grid; grid-template-columns: 210px 1fr; }
+aside { padding: 22px; background: #172033; color: white; display: flex; flex-direction: column; gap: 8px; }
+aside button { color: #cfd5e3; background: transparent; text-align: left; }
+aside button.active { color: white; background: #29334a; }
+.logo { font-weight: 800; font-size: 22px; margin-bottom: 20px; }
+main { padding: 28px; }
+header, .heading, .edit { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1, h2, p { margin-top: 0; }
+.eyebrow { color: #6a7180; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+.card { background: white; border-radius: 14px; box-shadow: 0 8px 24px #1d273711; padding: 20px; }
+.login { max-width: 420px; display: grid; gap: 14px; }
+label { display: grid; gap: 5px; }
+input { border: 1px solid #ccd2df; border-radius: 8px; padding: 9px; }
+.edit { justify-content: flex-start; margin-bottom: 14px; }
+.edit input { width: min(520px, 70%); }
+.issues { border-top: 1px solid #e3e6ed; }
+article { display: grid; grid-template-columns: 90px 1fr 130px 45px; gap: 12px; padding: 10px; border-bottom: 1px solid #edf0f4; }
+.pill { background: #e9edf7; border-radius: 99px; padding: 3px 9px; width: fit-content; }

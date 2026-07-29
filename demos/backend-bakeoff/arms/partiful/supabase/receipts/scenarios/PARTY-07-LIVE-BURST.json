@@ -1,0 +1,17 @@
+{
+  "id": "PARTY-07-LIVE-BURST",
+  "checkedAt": "2026-07-29T05:41:09.631Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "secondClient": {
+      "wallDeliveries": 10,
+      "rsvpDeliveries": 2
+    },
+    "transportAttribution": "native Supabase Realtime WebSocket Postgres Changes; no polling",
+    "authoritativeCount": {
+      "wallPosts": 10,
+      "yesSeats": 2
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T22:52:14.268Z",
+  "targetIdentity": "eba445349749dc4b881c8bee3a93094e5af84657775af5931d0c36a53352694d",
+  "exactTargets": [
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/.arm-runtime",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/public/personas.json",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/dist/personas.json"
+  ],
+  "broadGlobs": false,
+  "unrelatedBaseline": "repository and all other bakeoff arms remain untouched"
+}

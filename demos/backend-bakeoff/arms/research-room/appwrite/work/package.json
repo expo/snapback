@@ -1,0 +1,32 @@
+{
+  "name": "llp0102-research-appwrite-w1",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "install:stack": "node scripts/install-local.mjs",
+    "bootstrap": "node scripts/bootstrap-project.mjs && node scripts/create-api-key.mjs",
+    "provision": "node scripts/provision.mjs",
+    "deploy:function": "node scripts/deploy-function.mjs",
+    "build": "tsc -b && vite build",
+    "acceptance": "node scripts/acceptance.mjs",
+    "performance": "node scripts/performance.mjs",
+    "cleanup:arm": "node scripts/cleanup.mjs"
+  },
+  "dependencies": {
+    "appwrite": "26.2.0",
+    "node-appwrite": "27.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "appwrite-cli": "23.2.0",
+    "playwright-core": "1.62.0",
+    "typescript": "6.0.2",
+    "vite": "8.1.1"
+  }
+}

@@ -64,9 +64,9 @@ The specification is not ready, however, because several required behaviors cann
 
    Resolution: extend the same ledger with transactional installation, validation on every rebase, exception cleanup, remembered authoritative evidence for both response/query orderings, store pinning or explicit relinquishment, bounded pending layers, and authority checks after the final await.
 
-8. **MATERIAL — Provider replacement conflicts with LLP 0102 multi-root ownership.**
+8. **MATERIAL — Provider replacement conflicts with LLP 0114 multi-root ownership.**
 
-   LLP 0107 says the predecessor overlay is blanked and disposed before successor subscribe ([LLP 0107](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/llp/0107-react-presence-and-optimistic-lifecycle.spec.md:150)). LLP 0102 says an A→B context swap releases only that subtree; provider A may remain active in another root ([LLP 0102](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/llp/0102-first-class-react-and-query-groups.spec.md:944)).
+   LLP 0107 says the predecessor overlay is blanked and disposed before successor subscribe ([LLP 0107](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/llp/0107-react-presence-and-optimistic-lifecycle.spec.md:150)). LLP 0114 says an A→B context swap releases only that subtree; provider A may remain active in another root ([LLP 0114](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/llp/0114-first-class-react-and-query-groups.spec.md:944)).
 
    Resolution: distinguish subtree context replacement from an in-place client custody transition. Only the latter blanks every provider store.
 
@@ -78,7 +78,7 @@ The specification is not ready, however, because several required behaviors cann
 
 10. **MATERIAL — Acceptance is not yet finite and nonvacuous.**
 
-    The package bullets do not bind claims to exact runners/check identifiers, and the comparator receipt has no schema, retained path, target identity, or cleanup oracle. The current six-check demo uses one client for its “cross-client” test and proves neither TTL/disconnect cleanup, optimistic rollback, nor zero residual resources ([demo acceptance](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/demos/backend-bakeoff/tests/snapback.mjs:68)). SSR/no-demand and hosted-refusal behavior are also absent from the mandatory rows.
+    The package bullets do not bind claims to exact runners/check identifiers, and the comparator receipt has no schema, retained path, target identity, or cleanup oracle. The current six-check demo uses one client for its “cross-client” test and proves neither TTL/disconnect cleanup, optimistic rollback, nor zero residual resources ([demo acceptance](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/demos/signal-desk/tests/snapback.mjs:68)). SSR/no-demand and hosted-refusal behavior are also absent from the mandatory rows.
 
     Resolution: name canonical commands, check IDs/counts, zero-skip rules, receipt schema and target identity; require two independently constructed clients with polling disabled; and prove TTL plus forced-disconnect removal, rollback over newer authority, both matcher orderings, SSR no-demand, and zero provider/store/timer/listener/subscription/grant/socket counters.
 
@@ -87,7 +87,7 @@ The specification is not ready, however, because several required behaviors cann
 - **DETAIL —** `scopeEpoch` is declared as `string`; accepted and shipped semantics use a safe integer ([client declaration](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/packages/snapback-client/index.d.mts:125)).
 - **DETAIL —** The generated field is `defaultTtlMs`, not `ttlMs`.
 - **DETAIL —** “Every snapshot is frozen” should say whether nested presence values are cloned/deep-frozen; the current overlay returns wrappers around shared value objects.
-- **DETAIL —** The demo’s rejected-mutation rollback is shared UI logic, not Snapback-adapter-local logic ([App.tsx](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/demos/backend-bakeoff/src/App.tsx:326)).
+- **DETAIL —** The demo’s rejected-mutation rollback is shared UI logic, not Snapback-adapter-local logic ([App.tsx](/private/tmp/snapback-llp0106-r1.6ubjRs/capsule/demos/signal-desk/src/App.tsx:326)).
 - **DETAIL —** “Native delivery” should explicitly mean backend-native WebSocket delivery here, distinct from the separate Expo runtime claim.
 
 `./ref-check --verbose` passes. The current canonical demo wiring does not: `tests/demo_setup_v0.mjs` omits `backend-bakeoff`, and `check-required-surface-builds --list` rejects its required acceptance surface for missing `buildTargets`. No repository files were modified.

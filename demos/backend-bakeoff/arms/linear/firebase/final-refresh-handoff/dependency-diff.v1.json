@@ -1,0 +1,966 @@
+{
+  "schemaVersion": 1,
+  "requestedDirectChanges": [
+    {
+      "package": "firebase-admin",
+      "from": "13.5.0",
+      "to": "14.2.0",
+      "manifests": [
+        "work/package.json",
+        "work/functions/package.json"
+      ]
+    },
+    {
+      "package": "firebase-functions",
+      "from": "6.4.0",
+      "to": "7.3.2",
+      "manifests": [
+        "work/functions/package.json"
+      ]
+    }
+  ],
+  "compatibilityChanges": [
+    {
+      "field": "work/functions/package.json#engines.node",
+      "from": "20",
+      "to": "22",
+      "reason": "firebase-admin 14 requires Node.js 22 or newer; Firebase Functions officially supports Node.js 22."
+    }
+  ],
+  "unchangedDirectVersions": {
+    "firebase": "12.16.0",
+    "firebaseTools": "15.24.0",
+    "react": "19.2.8",
+    "reactDom": "19.2.8",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  },
+  "lockDiff": {
+    "root": {
+      "changed": [
+        {
+          "package": "@google-cloud/firestore",
+          "from": "7.11.6",
+          "to": "8.7.0"
+        },
+        {
+          "package": "firebase-admin",
+          "from": "13.5.0",
+          "to": "14.2.0"
+        },
+        {
+          "package": "google-gax",
+          "from": "4.6.1",
+          "to": "5.0.8"
+        },
+        {
+          "package": "jwks-rsa",
+          "from": "3.2.2",
+          "to": "4.1.0"
+        },
+        {
+          "package": "lru-cache",
+          "from": "6.0.0",
+          "to": "11.5.2"
+        },
+        {
+          "package": "lru-memoizer",
+          "from": "2.3.0",
+          "to": "3.0.0"
+        },
+        {
+          "package": "proto3-json-serializer",
+          "from": "2.0.2",
+          "to": "3.0.4"
+        }
+      ],
+      "added": [
+        {
+          "package": "firebase-admin/node_modules/data-uri-to-buffer",
+          "from": null,
+          "to": "4.0.1"
+        },
+        {
+          "package": "firebase-admin/node_modules/gaxios",
+          "from": null,
+          "to": "7.3.0"
+        },
+        {
+          "package": "firebase-admin/node_modules/gcp-metadata",
+          "from": null,
+          "to": "8.1.2"
+        },
+        {
+          "package": "firebase-admin/node_modules/google-auth-library",
+          "from": null,
+          "to": "10.9.1"
+        },
+        {
+          "package": "firebase-admin/node_modules/google-logging-utils",
+          "from": null,
+          "to": "1.1.3"
+        },
+        {
+          "package": "firebase-admin/node_modules/node-fetch",
+          "from": null,
+          "to": "3.3.2"
+        },
+        {
+          "package": "google-gax/node_modules/@grpc/proto-loader",
+          "from": null,
+          "to": "0.8.1"
+        },
+        {
+          "package": "google-gax/node_modules/data-uri-to-buffer",
+          "from": null,
+          "to": "4.0.1"
+        },
+        {
+          "package": "google-gax/node_modules/gaxios",
+          "from": null,
+          "to": "7.3.0"
+        },
+        {
+          "package": "google-gax/node_modules/gcp-metadata",
+          "from": null,
+          "to": "8.1.4"
+        },
+        {
+          "package": "google-gax/node_modules/gcp-metadata/node_modules/gaxios",
+          "from": null,
+          "to": "7.1.3"
+        },
+        {
+          "package": "google-gax/node_modules/google-auth-library",
+          "from": null,
+          "to": "10.5.0"
+        },
+        {
+          "package": "google-gax/node_modules/google-logging-utils",
+          "from": null,
+          "to": "1.1.3"
+        },
+        {
+          "package": "google-gax/node_modules/gtoken",
+          "from": null,
+          "to": "8.0.0"
+        },
+        {
+          "package": "google-gax/node_modules/node-fetch",
+          "from": null,
+          "to": "3.3.2"
+        },
+        {
+          "package": "google-gax/node_modules/retry-request",
+          "from": null,
+          "to": "8.0.4"
+        },
+        {
+          "package": "google-gax/node_modules/teeny-request",
+          "from": null,
+          "to": "10.1.4"
+        }
+      ],
+      "removed": [
+        {
+          "package": "@google-cloud/pubsub/node_modules/@grpc/grpc-js",
+          "from": "1.14.4",
+          "to": null
+        },
+        {
+          "package": "@google-cloud/pubsub/node_modules/@grpc/proto-loader",
+          "from": "0.8.1",
+          "to": null
+        },
+        {
+          "package": "@google-cloud/pubsub/node_modules/google-gax",
+          "from": "5.0.8",
+          "to": null
+        },
+        {
+          "package": "@google-cloud/pubsub/node_modules/google-gax/node_modules/google-auth-library",
+          "from": "10.5.0",
+          "to": null
+        },
+        {
+          "package": "@google-cloud/pubsub/node_modules/gtoken",
+          "from": "8.0.0",
+          "to": null
+        },
+        {
+          "package": "@google-cloud/pubsub/node_modules/proto3-json-serializer",
+          "from": "3.0.4",
+          "to": null
+        },
+        {
+          "package": "@google-cloud/pubsub/node_modules/retry-request",
+          "from": "8.0.4",
+          "to": null
+        },
+        {
+          "package": "@google-cloud/pubsub/node_modules/teeny-request",
+          "from": "10.1.4",
+          "to": null
+        },
+        {
+          "package": "@types/long",
+          "from": "4.0.2",
+          "to": null
+        },
+        {
+          "package": "farmhash-modern",
+          "from": "1.1.0",
+          "to": null
+        },
+        {
+          "package": "firebase-admin/node_modules/@types/node",
+          "from": "22.20.1",
+          "to": null
+        },
+        {
+          "package": "firebase-admin/node_modules/undici-types",
+          "from": "6.21.0",
+          "to": null
+        },
+        {
+          "package": "google-gax/node_modules/@grpc/grpc-js/node_modules/@grpc/proto-loader",
+          "from": "0.8.1",
+          "to": null
+        },
+        {
+          "package": "google-gax/node_modules/uuid",
+          "from": "9.0.1",
+          "to": null
+        },
+        {
+          "package": "google-logging-utils",
+          "from": "1.2.0",
+          "to": null
+        },
+        {
+          "package": "jwks-rsa/node_modules/jose",
+          "from": "4.15.9",
+          "to": null
+        },
+        {
+          "package": "node-forge",
+          "from": "1.4.0",
+          "to": null
+        },
+        {
+          "package": "uuid",
+          "from": "11.1.1",
+          "to": null
+        },
+        {
+          "package": "yallist",
+          "from": "4.0.0",
+          "to": null
+        }
+      ],
+      "counts": {
+        "changed": 7,
+        "added": 17,
+        "removed": 19
+      }
+    },
+    "functions": {
+      "changed": [
+        {
+          "package": "@google-cloud/firestore",
+          "from": "7.11.6",
+          "to": "8.7.0"
+        },
+        {
+          "package": "@grpc/proto-loader",
+          "from": "0.7.15",
+          "to": "0.8.1"
+        },
+        {
+          "package": "@types/express",
+          "from": "4.17.25",
+          "to": "5.0.6"
+        },
+        {
+          "package": "@types/express-serve-static-core",
+          "from": "4.19.9",
+          "to": "5.1.2"
+        },
+        {
+          "package": "@types/serve-static",
+          "from": "1.15.10",
+          "to": "2.2.0"
+        },
+        {
+          "package": "accepts",
+          "from": "1.3.8",
+          "to": "2.0.0"
+        },
+        {
+          "package": "ansi-regex",
+          "from": "5.0.1",
+          "to": "6.2.2"
+        },
+        {
+          "package": "ansi-styles",
+          "from": "4.3.0",
+          "to": "6.2.3"
+        },
+        {
+          "package": "body-parser",
+          "from": "1.20.6",
+          "to": "2.3.0"
+        },
+        {
+          "package": "content-disposition",
+          "from": "0.5.4",
+          "to": "1.1.0"
+        },
+        {
+          "package": "cookie-signature",
+          "from": "1.0.7",
+          "to": "1.2.2"
+        },
+        {
+          "package": "debug",
+          "from": "2.6.9",
+          "to": "4.4.3"
+        },
+        {
+          "package": "emoji-regex",
+          "from": "8.0.0",
+          "to": "9.2.2"
+        },
+        {
+          "package": "express",
+          "from": "4.22.2",
+          "to": "5.2.1"
+        },
+        {
+          "package": "finalhandler",
+          "from": "1.3.2",
+          "to": "2.1.1"
+        },
+        {
+          "package": "firebase-admin",
+          "from": "13.5.0",
+          "to": "14.2.0"
+        },
+        {
+          "package": "firebase-functions",
+          "from": "6.4.0",
+          "to": "7.3.2"
+        },
+        {
+          "package": "fresh",
+          "from": "0.5.2",
+          "to": "2.0.0"
+        },
+        {
+          "package": "google-gax",
+          "from": "4.6.1",
+          "to": "5.0.8"
+        },
+        {
+          "package": "iconv-lite",
+          "from": "0.4.24",
+          "to": "0.7.3"
+        },
+        {
+          "package": "jose",
+          "from": "4.15.9",
+          "to": "6.2.4"
+        },
+        {
+          "package": "jwks-rsa",
+          "from": "3.2.2",
+          "to": "4.1.0"
+        },
+        {
+          "package": "lru-cache",
+          "from": "6.0.0",
+          "to": "11.5.2"
+        },
+        {
+          "package": "lru-memoizer",
+          "from": "2.3.0",
+          "to": "3.0.0"
+        },
+        {
+          "package": "media-typer",
+          "from": "0.3.0",
+          "to": "1.1.1"
+        },
+        {
+          "package": "merge-descriptors",
+          "from": "1.0.3",
+          "to": "2.0.0"
+        },
+        {
+          "package": "ms",
+          "from": "2.0.0",
+          "to": "2.1.3"
+        },
+        {
+          "package": "negotiator",
+          "from": "0.6.3",
+          "to": "1.0.0"
+        },
+        {
+          "package": "path-to-regexp",
+          "from": "0.1.13",
+          "to": "8.4.2"
+        },
+        {
+          "package": "proto3-json-serializer",
+          "from": "2.0.2",
+          "to": "3.0.4"
+        },
+        {
+          "package": "range-parser",
+          "from": "1.2.1",
+          "to": "1.3.0"
+        },
+        {
+          "package": "raw-body",
+          "from": "2.5.3",
+          "to": "3.0.2"
+        },
+        {
+          "package": "send",
+          "from": "0.19.2",
+          "to": "1.2.1"
+        },
+        {
+          "package": "serve-static",
+          "from": "1.16.3",
+          "to": "2.2.1"
+        },
+        {
+          "package": "string-width",
+          "from": "4.2.3",
+          "to": "5.1.2"
+        },
+        {
+          "package": "strip-ansi",
+          "from": "6.0.1",
+          "to": "7.2.0"
+        },
+        {
+          "package": "type-is",
+          "from": "1.6.18",
+          "to": "2.1.0"
+        },
+        {
+          "package": "wrap-ansi",
+          "from": "7.0.0",
+          "to": "8.1.0"
+        }
+      ],
+      "added": [
+        {
+          "package": "@isaacs/cliui",
+          "from": null,
+          "to": "8.0.2"
+        },
+        {
+          "package": "@pkgjs/parseargs",
+          "from": null,
+          "to": "0.11.0"
+        },
+        {
+          "package": "accepts/node_modules/mime-db",
+          "from": null,
+          "to": "1.54.0"
+        },
+        {
+          "package": "accepts/node_modules/mime-types",
+          "from": null,
+          "to": "3.0.2"
+        },
+        {
+          "package": "balanced-match",
+          "from": null,
+          "to": "1.0.2"
+        },
+        {
+          "package": "body-parser/node_modules/content-type",
+          "from": null,
+          "to": "2.0.0"
+        },
+        {
+          "package": "brace-expansion",
+          "from": null,
+          "to": "2.1.3"
+        },
+        {
+          "package": "cliui/node_modules/ansi-regex",
+          "from": null,
+          "to": "5.0.1"
+        },
+        {
+          "package": "cliui/node_modules/ansi-styles",
+          "from": null,
+          "to": "4.3.0"
+        },
+        {
+          "package": "cliui/node_modules/emoji-regex",
+          "from": null,
+          "to": "8.0.0"
+        },
+        {
+          "package": "cliui/node_modules/string-width",
+          "from": null,
+          "to": "4.2.3"
+        },
+        {
+          "package": "cliui/node_modules/strip-ansi",
+          "from": null,
+          "to": "6.0.1"
+        },
+        {
+          "package": "cliui/node_modules/wrap-ansi",
+          "from": null,
+          "to": "7.0.0"
+        },
+        {
+          "package": "cross-spawn",
+          "from": null,
+          "to": "7.0.6"
+        },
+        {
+          "package": "data-uri-to-buffer",
+          "from": null,
+          "to": "4.0.1"
+        },
+        {
+          "package": "eastasianwidth",
+          "from": null,
+          "to": "0.2.0"
+        },
+        {
+          "package": "express/node_modules/mime-db",
+          "from": null,
+          "to": "1.54.0"
+        },
+        {
+          "package": "express/node_modules/mime-types",
+          "from": null,
+          "to": "3.0.2"
+        },
+        {
+          "package": "fetch-blob",
+          "from": null,
+          "to": "3.2.0"
+        },
+        {
+          "package": "firebase-admin/node_modules/gaxios",
+          "from": null,
+          "to": "7.3.0"
+        },
+        {
+          "package": "firebase-admin/node_modules/gcp-metadata",
+          "from": null,
+          "to": "8.1.2"
+        },
+        {
+          "package": "firebase-admin/node_modules/google-auth-library",
+          "from": null,
+          "to": "10.9.1"
+        },
+        {
+          "package": "firebase-admin/node_modules/google-logging-utils",
+          "from": null,
+          "to": "1.1.3"
+        },
+        {
+          "package": "firebase-admin/node_modules/node-fetch",
+          "from": null,
+          "to": "3.3.2"
+        },
+        {
+          "package": "foreground-child",
+          "from": null,
+          "to": "3.3.1"
+        },
+        {
+          "package": "formdata-polyfill",
+          "from": null,
+          "to": "4.0.10"
+        },
+        {
+          "package": "glob",
+          "from": null,
+          "to": "10.5.0"
+        },
+        {
+          "package": "google-gax/node_modules/gaxios",
+          "from": null,
+          "to": "7.3.0"
+        },
+        {
+          "package": "google-gax/node_modules/gcp-metadata",
+          "from": null,
+          "to": "8.1.4"
+        },
+        {
+          "package": "google-gax/node_modules/gcp-metadata/node_modules/gaxios",
+          "from": null,
+          "to": "7.1.3"
+        },
+        {
+          "package": "google-gax/node_modules/google-auth-library",
+          "from": null,
+          "to": "10.5.0"
+        },
+        {
+          "package": "google-gax/node_modules/google-logging-utils",
+          "from": null,
+          "to": "1.1.3"
+        },
+        {
+          "package": "google-gax/node_modules/gtoken",
+          "from": null,
+          "to": "8.0.0"
+        },
+        {
+          "package": "google-gax/node_modules/http-proxy-agent",
+          "from": null,
+          "to": "7.0.2"
+        },
+        {
+          "package": "google-gax/node_modules/node-fetch",
+          "from": null,
+          "to": "3.3.2"
+        },
+        {
+          "package": "google-gax/node_modules/retry-request",
+          "from": null,
+          "to": "8.0.4"
+        },
+        {
+          "package": "google-gax/node_modules/teeny-request",
+          "from": null,
+          "to": "10.1.4"
+        },
+        {
+          "package": "is-promise",
+          "from": null,
+          "to": "4.0.0"
+        },
+        {
+          "package": "isexe",
+          "from": null,
+          "to": "2.0.0"
+        },
+        {
+          "package": "jackspeak",
+          "from": null,
+          "to": "3.4.3"
+        },
+        {
+          "package": "minimatch",
+          "from": null,
+          "to": "9.0.9"
+        },
+        {
+          "package": "minipass",
+          "from": null,
+          "to": "7.1.3"
+        },
+        {
+          "package": "node-domexception",
+          "from": null,
+          "to": "1.0.0"
+        },
+        {
+          "package": "package-json-from-dist",
+          "from": null,
+          "to": "1.0.1"
+        },
+        {
+          "package": "path-key",
+          "from": null,
+          "to": "3.1.1"
+        },
+        {
+          "package": "path-scurry",
+          "from": null,
+          "to": "1.11.1"
+        },
+        {
+          "package": "path-scurry/node_modules/lru-cache",
+          "from": null,
+          "to": "10.4.3"
+        },
+        {
+          "package": "rimraf",
+          "from": null,
+          "to": "5.0.10"
+        },
+        {
+          "package": "router",
+          "from": null,
+          "to": "2.2.0"
+        },
+        {
+          "package": "send/node_modules/mime-db",
+          "from": null,
+          "to": "1.54.0"
+        },
+        {
+          "package": "send/node_modules/mime-types",
+          "from": null,
+          "to": "3.0.2"
+        },
+        {
+          "package": "shebang-command",
+          "from": null,
+          "to": "2.0.0"
+        },
+        {
+          "package": "shebang-regex",
+          "from": null,
+          "to": "3.0.0"
+        },
+        {
+          "package": "signal-exit",
+          "from": null,
+          "to": "4.1.0"
+        },
+        {
+          "package": "string-width-cjs",
+          "from": null,
+          "to": "4.2.3"
+        },
+        {
+          "package": "string-width-cjs/node_modules/ansi-regex",
+          "from": null,
+          "to": "5.0.1"
+        },
+        {
+          "package": "string-width-cjs/node_modules/emoji-regex",
+          "from": null,
+          "to": "8.0.0"
+        },
+        {
+          "package": "string-width-cjs/node_modules/strip-ansi",
+          "from": null,
+          "to": "6.0.1"
+        },
+        {
+          "package": "strip-ansi-cjs",
+          "from": null,
+          "to": "6.0.1"
+        },
+        {
+          "package": "strip-ansi-cjs/node_modules/ansi-regex",
+          "from": null,
+          "to": "5.0.1"
+        },
+        {
+          "package": "type-is/node_modules/content-type",
+          "from": null,
+          "to": "2.0.0"
+        },
+        {
+          "package": "type-is/node_modules/mime-db",
+          "from": null,
+          "to": "1.54.0"
+        },
+        {
+          "package": "type-is/node_modules/mime-types",
+          "from": null,
+          "to": "3.0.2"
+        },
+        {
+          "package": "web-streams-polyfill",
+          "from": null,
+          "to": "3.3.3"
+        },
+        {
+          "package": "which",
+          "from": null,
+          "to": "2.0.2"
+        },
+        {
+          "package": "wrap-ansi-cjs",
+          "from": null,
+          "to": "7.0.0"
+        },
+        {
+          "package": "wrap-ansi-cjs/node_modules/ansi-regex",
+          "from": null,
+          "to": "5.0.1"
+        },
+        {
+          "package": "wrap-ansi-cjs/node_modules/ansi-styles",
+          "from": null,
+          "to": "4.3.0"
+        },
+        {
+          "package": "wrap-ansi-cjs/node_modules/emoji-regex",
+          "from": null,
+          "to": "8.0.0"
+        },
+        {
+          "package": "wrap-ansi-cjs/node_modules/string-width",
+          "from": null,
+          "to": "4.2.3"
+        },
+        {
+          "package": "wrap-ansi-cjs/node_modules/strip-ansi",
+          "from": null,
+          "to": "6.0.1"
+        },
+        {
+          "package": "yargs/node_modules/ansi-regex",
+          "from": null,
+          "to": "5.0.1"
+        },
+        {
+          "package": "yargs/node_modules/emoji-regex",
+          "from": null,
+          "to": "8.0.0"
+        },
+        {
+          "package": "yargs/node_modules/string-width",
+          "from": null,
+          "to": "4.2.3"
+        },
+        {
+          "package": "yargs/node_modules/strip-ansi",
+          "from": null,
+          "to": "6.0.1"
+        }
+      ],
+      "removed": [
+        {
+          "package": "@grpc/grpc-js/node_modules/@grpc/proto-loader",
+          "from": "0.8.1",
+          "to": null
+        },
+        {
+          "package": "@types/long",
+          "from": "4.0.2",
+          "to": null
+        },
+        {
+          "package": "@types/mime",
+          "from": "1.3.5",
+          "to": null
+        },
+        {
+          "package": "@types/serve-static/node_modules/@types/send",
+          "from": "0.17.6",
+          "to": null
+        },
+        {
+          "package": "array-flatten",
+          "from": "1.1.1",
+          "to": null
+        },
+        {
+          "package": "destroy",
+          "from": "1.2.0",
+          "to": null
+        },
+        {
+          "package": "farmhash-modern",
+          "from": "1.1.0",
+          "to": null
+        },
+        {
+          "package": "google-gax/node_modules/uuid",
+          "from": "9.0.1",
+          "to": null
+        },
+        {
+          "package": "http-proxy-agent/node_modules/debug",
+          "from": "4.4.3",
+          "to": null
+        },
+        {
+          "package": "http-proxy-agent/node_modules/ms",
+          "from": "2.1.3",
+          "to": null
+        },
+        {
+          "package": "https-proxy-agent/node_modules/debug",
+          "from": "4.4.3",
+          "to": null
+        },
+        {
+          "package": "https-proxy-agent/node_modules/ms",
+          "from": "2.1.3",
+          "to": null
+        },
+        {
+          "package": "jsonwebtoken/node_modules/ms",
+          "from": "2.1.3",
+          "to": null
+        },
+        {
+          "package": "jwks-rsa/node_modules/debug",
+          "from": "4.4.3",
+          "to": null
+        },
+        {
+          "package": "jwks-rsa/node_modules/ms",
+          "from": "2.1.3",
+          "to": null
+        },
+        {
+          "package": "methods",
+          "from": "1.1.2",
+          "to": null
+        },
+        {
+          "package": "node-forge",
+          "from": "1.4.0",
+          "to": null
+        },
+        {
+          "package": "send/node_modules/mime",
+          "from": "1.6.0",
+          "to": null
+        },
+        {
+          "package": "send/node_modules/ms",
+          "from": "2.1.3",
+          "to": null
+        },
+        {
+          "package": "teeny-request/node_modules/debug",
+          "from": "4.4.3",
+          "to": null
+        },
+        {
+          "package": "teeny-request/node_modules/ms",
+          "from": "2.1.3",
+          "to": null
+        },
+        {
+          "package": "utils-merge",
+          "from": "1.0.1",
+          "to": null
+        },
+        {
+          "package": "uuid",
+          "from": "11.1.1",
+          "to": null
+        },
+        {
+          "package": "yallist",
+          "from": "4.0.0",
+          "to": null
+        }
+      ],
+      "counts": {
+        "changed": 38,
+        "added": 75,
+        "removed": 24
+      }
+    }
+  }
+}

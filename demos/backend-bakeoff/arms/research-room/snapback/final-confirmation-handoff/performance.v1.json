@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "workload": {
+    "warmups": 2,
+    "recordedSamples": 7,
+    "rooms": 2,
+    "sourcesPerPrimaryRoom": 20,
+    "embeddingDimensions": 32,
+    "actors": 3,
+    "concurrentClients": 2
+  },
+  "paths": {
+    "keywordSearch": {
+      "rawMs": [
+        10.466,
+        9.671,
+        10.268,
+        10.045,
+        9.875,
+        10.061,
+        9.812
+      ],
+      "medianMs": 10.045,
+      "nearestRankP95Ms": 10.466
+    },
+    "startQuestionWrite": {
+      "rawMs": [
+        33.817,
+        33.908,
+        33.533,
+        34.075,
+        33.889,
+        34.331,
+        34.561
+      ],
+      "medianMs": 33.908,
+      "nearestRankP95Ms": 34.561
+    },
+    "progressMutationToNativePush": {
+      "rawMs": [
+        132.715,
+        131.771,
+        130.37,
+        135.856,
+        136.086,
+        140.095,
+        135.857
+      ],
+      "medianMs": 135.856,
+      "nearestRankP95Ms": 140.095
+    },
+    "reconnectSnapshotWithStream": {
+      "rawMs": [
+        10.163,
+        10.06,
+        10.038,
+        10.195,
+        10.271,
+        19.416,
+        13.779
+      ],
+      "medianMs": 10.195,
+      "nearestRankP95Ms": 19.416
+    },
+    "productionBuild": {
+      "rawMs": [
+        452.713,
+        423.672,
+        483.49,
+        441.283,
+        428.067,
+        471.382,
+        431.459
+      ],
+      "medianMs": 441.283,
+      "nearestRankP95Ms": 483.49
+    }
+  },
+  "buildWarmupsMs": [
+    540.369,
+    448.692
+  ],
+  "machine": "darwin/arm64",
+  "target": "fresh local packaged SQLite + Ibex sessions target",
+  "sharedTargetNoise": false,
+  "cost": {
+    "actualUsage": "$0 local",
+    "listPriceEstimate": "$0 local",
+    "hostedExtrapolation": null
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:52:57.213Z",
+  "command": "spacetime build --module-path server/spacetimedb",
+  "productVersion": "2.7.0",
+  "unit": "milliseconds",
+  "warmups": [
+    653.644,
+    588.446
+  ],
+  "recorded": [
+    531.8,
+    514.941,
+    506.476,
+    519.592,
+    527.798,
+    530.675,
+    504.783
+  ],
+  "median": 519.592,
+  "p95": 531.8,
+  "successfulBuilds": 9
+}

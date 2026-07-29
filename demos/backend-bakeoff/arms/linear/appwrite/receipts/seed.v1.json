@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T04:47:46.836Z",
+  "counts": {
+    "organizations": 2,
+    "teams": 3,
+    "projects": 4,
+    "members": 2,
+    "labels": 20,
+    "issueLabels": 1000,
+    "issues": 500,
+    "comments": 1000,
+    "activities": 500
+  },
+  "personas": {
+    "alice": {
+      "principalIdHash": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "role": "owner"
+    },
+    "bob": {
+      "principalIdHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac",
+      "role": "outsider"
+    }
+  },
+  "primaryTeamId": "org-primary",
+  "secondaryTeamId": "org-secondary",
+  "containsSecretValues": false
+}

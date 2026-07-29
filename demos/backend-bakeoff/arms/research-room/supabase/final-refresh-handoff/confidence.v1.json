@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "refreshEligibility": "stopped",
+  "acceptanceConfidence": 0,
+  "performanceConfidence": 0,
+  "targetIdentityConfidence": 2,
+  "cleanupIsolationConfidence": 2,
+  "artifactReproducibilityConfidence": 2,
+  "reason": "Package/version, exact target identity, and cleanup are direct. Acceptance and performance were not run and receive no refreshed confidence."
+}
+

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "cleanedAt": "2026-07-29T10:58:37Z",
+  "namespace": "llp0102-research-convex-w2",
+  "freshLocalTarget": true,
+  "applicationCleanup": {
+    "deletedCounts": {
+      "answers": 0,
+      "attempts": 0,
+      "lateAttempts": 0,
+      "memberships": 0,
+      "progress": 0,
+      "questions": 0,
+      "refreshRuns": 0,
+      "rooms": 0,
+      "signals": 0,
+      "sources": 0
+    },
+    "postCleanupCounts": {
+      "answers": 0,
+      "attempts": 0,
+      "lateAttempts": 0,
+      "memberships": 0,
+      "progress": 0,
+      "questions": 0,
+      "refreshRuns": 0,
+      "rooms": 0,
+      "signals": 0,
+      "sources": 0
+    },
+    "mutationLogSha256": "44ced4a925ff7c1691de5966c15b4cc48ed9045ecb2213a00e9bbadbf8a6be4a",
+    "probeLogSha256": "3a3cf63257ec25754169ee5cd4355edd2b7776401546fa039907822d349d88c4"
+  },
+  "environmentCleanup": {
+    "variableName": "RESEARCH_CANARY",
+    "removeLogSha256": "dc53d69543f0cc669b8d596855f93a82a6c8ca4aff7c2c3fcaeeba458dd82455",
+    "negativeProbeExitCode": 0,
+    "negativeMessageObserved": true
+  },
+  "targetCleanup": {
+    "listenerCount": 0,
+    "recordedProcessCount": 0,
+    "targetPathCount": 0,
+    "r2ControlSecretExactValueMatches": 0,
+    "applicationCanaryExactValueMatches": 0
+  },
+  "unrelatedBaseline": "not applicable: fresh isolated local target",
+  "broadDeleteUsed": false,
+  "status": "pass"
+}

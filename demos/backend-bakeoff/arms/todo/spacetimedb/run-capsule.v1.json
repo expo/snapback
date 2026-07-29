@@ -1,0 +1,487 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "todo",
+    "provider": "spacetimedb",
+    "round": "calibration",
+    "attemptId": "todo-spacetimedb-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "SpacetimeDB",
+      "client": "2.7.0",
+      "cli": "2.7.0"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-28T19:19:14Z",
+    "finishedAt": "2026-07-28T19:44:41Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 1533328,
+    "toolCalls": 43,
+    "timedWindowFrozenAt": "2026-07-28T19:44:41Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "9c152e1d4651306eb69b50ecd828fcbbcdac576f540c8ecee5e2957be26cc2fd",
+      "role": "member"
+    },
+    "bob": {
+      "principalIdHash": "5fbb4940ff8e4b521f176b2d4a0c0db7cf1e0e756bc074a6fd7a7b44b3d0a2fc",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "e0711220a3616258dc29580b78cdd5f7515ffa92a8f7973aad5de9f107ec845d",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-todo-spacetimedb-calibration-todo-spacetimedb-calibration-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "1d69c47ca499a7f5b31d656b6fb7bef31a0d528d91553e6c126fd1fe8fbebc9c",
+      "profile": "official standalone local server",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/authoritative-count.v1.json",
+        "receipts/browser-smoke.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "Maincloud managed database/module",
+      "plan": "Maincloud Pro",
+      "region": "provider-selected",
+      "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 265551,
+    "firstAuthoritativeMutationMs": 309769,
+    "firstRealtimeTransitionMs": 619748,
+    "localAcceptanceMs": 1450000,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 1533328
+  },
+  "assistanceEvents": [
+    {
+      "elapsedMs": 60000,
+      "reason": "Resolve SDK environment variables, imports, generated-hook behavior, and reconnect semantics after the public quickstart left ambiguity.",
+      "informationSupplied": "Installed official SpacetimeDB 2.7.0 package source and official product documentation.",
+      "equivalentOpportunityOffered": true
+    }
+  ],
+  "commands": [
+    {
+      "command": "spacetime init todo-spacetimedb --template react-ts --local --non-interactive",
+      "startedMonotonicMs": 222916449,
+      "finishedMonotonicMs": 222916493,
+      "exitStatus": 0,
+      "classification": "provider-project-initialization"
+    },
+    {
+      "command": "npm install (client and module)",
+      "startedMonotonicMs": 223021966,
+      "finishedMonotonicMs": 223031943,
+      "exitStatus": 0,
+      "classification": "dependency-install"
+    },
+    {
+      "command": "spacetime build --project-path spacetimedb",
+      "startedMonotonicMs": 223037889,
+      "finishedMonotonicMs": 223037937,
+      "exitStatus": 2,
+      "classification": "documentation-cli-flag-mismatch"
+    },
+    {
+      "command": "spacetime build --module-path spacetimedb (type attempt 1)",
+      "startedMonotonicMs": 223047016,
+      "finishedMonotonicMs": 223047713,
+      "exitStatus": 2,
+      "classification": "builder-type-error"
+    },
+    {
+      "command": "spacetime build --module-path spacetimedb (type attempt 2)",
+      "startedMonotonicMs": 223057988,
+      "finishedMonotonicMs": 223058442,
+      "exitStatus": 2,
+      "classification": "documentation-import-mismatch"
+    },
+    {
+      "command": "spacetime build --module-path spacetimedb",
+      "startedMonotonicMs": 223074592,
+      "finishedMonotonicMs": 223075131,
+      "exitStatus": 0,
+      "classification": "module-build"
+    },
+    {
+      "command": "spacetime publish todo-spacetimedb-calibration-01 --anonymous",
+      "startedMonotonicMs": 223110064,
+      "finishedMonotonicMs": 223110658,
+      "exitStatus": 0,
+      "classification": "orphaned-local-attempt-owner-token-not-retained"
+    },
+    {
+      "command": "spacetime generate --lang typescript",
+      "startedMonotonicMs": 223116312,
+      "finishedMonotonicMs": 223116854,
+      "exitStatus": 0,
+      "classification": "binding-generation-with-stale-file-prompt"
+    },
+    {
+      "command": "spacetime publish todo-spacetimedb-calibration-02",
+      "startedMonotonicMs": 223176298,
+      "finishedMonotonicMs": 223176825,
+      "exitStatus": 0,
+      "classification": "fresh-local-target-provision"
+    },
+    {
+      "command": "node scripts/provision-personas.mjs",
+      "startedMonotonicMs": 223226106,
+      "finishedMonotonicMs": 223226218,
+      "exitStatus": 0,
+      "classification": "native-local-identities-and-owner-grants"
+    },
+    {
+      "command": "npm run build",
+      "startedMonotonicMs": 223320073,
+      "finishedMonotonicMs": 223321677,
+      "exitStatus": 0,
+      "classification": "client-production-build"
+    },
+    {
+      "command": "node scripts/browser-smoke.mjs",
+      "startedMonotonicMs": 223531875,
+      "finishedMonotonicMs": 223536197,
+      "exitStatus": 0,
+      "classification": "two-client-push-and-outsider-isolation"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs (numeric-position model)",
+      "startedMonotonicMs": 223680000,
+      "finishedMonotonicMs": 223685000,
+      "exitStatus": 1,
+      "classification": "concurrent-reorder-invariant-defect"
+    },
+    {
+      "command": "spacetime publish todo-spacetimedb-calibration-02 --delete-data=always --yes",
+      "startedMonotonicMs": 223760000,
+      "finishedMonotonicMs": 223761000,
+      "exitStatus": 0,
+      "classification": "isolated-target-reset-after-order-model-correction"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs",
+      "startedMonotonicMs": 223840000,
+      "finishedMonotonicMs": 223845000,
+      "exitStatus": 0,
+      "classification": "crud-conflict-order-logout-revocation"
+    },
+    {
+      "command": "node scripts/offline-smoke.mjs",
+      "startedMonotonicMs": 223900000,
+      "finishedMonotonicMs": 223965000,
+      "exitStatus": 0,
+      "classification": "offline-cache-and-reconnect-black-box"
+    },
+    {
+      "command": "node scripts/performance-smoke.mjs",
+      "startedMonotonicMs": 224000000,
+      "finishedMonotonicMs": 224075000,
+      "exitStatus": 0,
+      "classification": "frozen-performance-sampling"
+    },
+    {
+      "command": "node scripts/inventory-arm.mjs arms/todo/spacetimedb/work --output arms/todo/spacetimedb/receipts/inventory.v1.json",
+      "startedMonotonicMs": 224448000,
+      "finishedMonotonicMs": 224448500,
+      "exitStatus": 0,
+      "classification": "artifact-inventory"
+    },
+    {
+      "command": "node arms/todo/spacetimedb/work/scripts/cleanup-arm.mjs",
+      "startedMonotonicMs": 224449000,
+      "finishedMonotonicMs": 224449777,
+      "exitStatus": 0,
+      "classification": "target-bound-cleanup-and-negative-probe"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "TODO-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/authoritative-count.v1.json",
+        "receipts/browser-smoke.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Owner SQL sees exactly 100 private task rows; three hashed personas are bound and only Alice/Bob have active membership.",
+      "note": "Four lists with 25 tasks each were inserted transactionally by the module init reducer."
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/browser-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Independent Alice and Bob browser connections each receive 100 authorized tasks through caller-dependent views.",
+      "note": ""
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/browser-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory's connected identity receives zero workspaces, lists, memberships, and tasks from private-table views.",
+      "note": "No protected row entered Mallory's client cache."
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Independent member clients observed create, edit, complete, reopen, reorder, and delete reducer commits; the final authoritative order remained a unique 25-item permutation.",
+      "note": "Each mutation settled through a transactional server reducer and subscribed views."
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/browser-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob observed Alice's committed insert and delete without refresh through a SpacetimeDB WebSocket subscription.",
+      "note": ""
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "GAP: the official React subscription cache is in memory. A warm client lost its rows when transport failed, and a cold offline boot retained zero tasks."
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "GAP: no durable native offline mutation queue is exposed. The SDK can queue a reducer call before initial connection in memory, but has no retained task row available for the required offline update."
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "GAP: because the provider does not retain and queue the required offline create and update, it cannot settle those writes exactly once. Ordinary reconnect and resubscription did restore 100 server rows."
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A two-client barrier submitted concurrent title reducers; both clients converged on the authoritative last committed update and matching incremented revision.",
+      "note": "Documented arm policy: transaction serialization with last committed reducer update winning."
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Concurrent reorder reducers serialized updates to a single list-owned task ID sequence; both clients converged and computed exactly positions 0 through 24.",
+      "note": "The first per-row numeric position model failed this invariant and was replaced before final evidence."
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Disconnecting Alice cleared the in-memory protected cache; removing the stored identity and reloading created a fresh unprivileged identity with no protected rows.",
+      "note": ""
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The owner revoked Bob while Bob remained connected; his subscribed protected cache cleared and Alice's later write was not delivered. Regrant restored the authorized view.",
+      "note": ""
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The retained receipt contains two warmups and seven raw local samples for authoritative read, origin write, second-client push, reconnect/resubscribe, and module build.",
+      "note": "Small frozen local profile only; these measurements are not production-scale claims."
+    },
+    {
+      "id": "TODO-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The post-cleanup probe found both exact arm listeners closed and the arm runtime directory plus both ignored credential files absent.",
+      "note": "Cleanup removed both local database attempts and disposable browser profiles; no unrelated target was addressed."
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 19,
+      "bytes": 122005,
+      "lines": 3548
+    },
+    "generated": {
+      "files": 14,
+      "bytes": 18051,
+      "lines": 516
+    },
+    "tests": {
+      "files": 0,
+      "bytes": 0,
+      "lines": 0
+    },
+    "configuration": {
+      "files": 7,
+      "bytes": 2685,
+      "lines": 108
+    },
+    "policy": {
+      "files": 5,
+      "bytes": 36715,
+      "lines": 1179
+    },
+    "dependencyManifests": {
+      "files": 2,
+      "bytes": 72434,
+      "lines": 2206
+    },
+    "installedDependencyBytes": 143840799,
+    "glue": [
+      "persona provisioner for three server-issued local identities",
+      "headless browser receipts for two-client push, authorization, correctness, and offline behavior",
+      "owner CLI authoritative-count and performance probes",
+      "target-bound cleanup guard"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three provider-issued identities and private caller-dependent views were exercised positively and negatively, including live revocation.",
+      "evidencePaths": [
+        "receipts/browser-smoke.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two-client barrier tests directly proved the documented serialized conflict outcome and the corrected atomic ordering invariant.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Independent browser clients observed native WebSocket subscription transitions, and raw second-client push samples were retained.",
+      "evidencePaths": [
+        "receipts/browser-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "Backend-down black-box probes directly distinguished absent durable offline data from successful reconnect and resubscription.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Online reducers were checked through two clients and authoritative state; the offline settlement requirement is a directly evidenced product GAP rather than an untested claim.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "The exact fresh-local target identity was hashed, queried authoritatively, and bound to the cleanup receipt.",
+      "evidencePaths": [
+        "receipts/authoritative-count.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "A predeclared exact-target plan guarded process ownership and post-cleanup probes proved both listeners, runtime data, and local credentials absent.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "The deterministic seed, module and client source, generated bindings, build receipt, and category-separated inventory are retained.",
+      "evidencePaths": [
+        "receipts/backup-manifest.v1.json",
+        "receipts/inventory.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "Both exact listener ports were closed; the exact arm runtime directory and both ignored credential files were absent."
+  },
+  "result": "complete"
+}

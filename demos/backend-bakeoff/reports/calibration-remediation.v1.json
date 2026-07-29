@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "tranche": "calibration",
+  "startingSnapbackCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+  "entries": [
+    {
+      "id": "SB-001",
+      "title": "Blank protected live results on membership revocation",
+      "sourceApps": ["todo", "chat"],
+      "backendComparisons": ["instantdb", "spacetimedb", "firebase", "supabase"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/todo/snapback/receipts/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/correctness-smoke.v1.json",
+        "issues/closed/20260728-require-role-live-revocation-retains-protected-rows.md"
+      ],
+      "frequency": 2,
+      "classification": "defect",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "InstantDB and SpacetimeDB directly evicted protected rows from already-subscribed clients when membership was removed.",
+      "snapbackPropertyToPreserve": "LLP 0053's obligation, terminal proof, acknowledgement, lease, and no-future-delivery contract.",
+      "snapbackNativeOutcome": "A declaration-bound delete or downgrade generically wakes the protected live query, denies its rerun, terminally deletes its visible and retained state, and fences later delivery.",
+      "acceptanceWitness": "Resource-scoped and app-scoped sessions-mode tests cover delete and downgrade, blank-before-return, fresh denial, no later delivery, exact acknowledgement, and no fixture-specific invalidation; frozen TODO-12 and CHAT-13 rerun PASS.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+      "beforeEvidencePaths": [
+        "demos/backend-bakeoff/arms/todo/snapback/receipts/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/correctness-smoke.v1.json",
+        "issues/closed/20260728-require-role-live-revocation-retains-protected-rows.md"
+      ],
+      "afterEvidencePaths": [
+        "demos/backend-bakeoff/reports/remediation-1/evidence/todo/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json",
+        "tests/acceptance/sb-001-revocation-evidence.md"
+      ]
+    },
+    {
+      "id": "SB-002",
+      "title": "Make live disposal idempotent across authority retirement",
+      "sourceApps": ["todo", "chat"],
+      "backendComparisons": ["convex", "firebase", "supabase"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/todo/snapback/receipts/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/correctness-smoke.v1.json",
+        "issues/closed/20260728-live-handle-redundant-unsubscribe-errors.md"
+      ],
+      "frequency": 2,
+      "classification": "experience",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Mainstream client lifecycles allow ordinary unsubscribe cleanup after logout or listener failure without turning already-complete retirement into an application error.",
+      "snapbackPropertyToPreserve": "Unknown foreign subscription identifiers and ownership mismatches must still fail closed.",
+      "snapbackNativeOutcome": "A handle may dispose repeatedly after its own authority-driven retirement and receives a typed already-retired success, while unowned identifiers remain errors.",
+      "acceptanceWitness": "Lifecycle tests cover logout then dispose, revocation then dispose, double dispose, supersession, foreign id refusal, and no duplicate server effects; frozen logout scenarios retain PASS without diagnostic noise.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+      "beforeEvidencePaths": [
+        "demos/backend-bakeoff/arms/todo/snapback/receipts/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/correctness-smoke.v1.json",
+        "issues/closed/20260728-live-handle-redundant-unsubscribe-errors.md"
+      ],
+      "afterEvidencePaths": [
+        "packages/snapback-client/lifecycle-disposal.test.mjs",
+        "demos/backend-bakeoff/reports/remediation-1/evidence/todo/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json"
+      ]
+    },
+    {
+      "id": "SB-003",
+      "title": "Make ephemeral subscription transport readiness unskippable",
+      "sourceApps": ["chat"],
+      "backendComparisons": ["instantdb", "supabase", "firebase"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/failed-attempt-ephemeral-listener.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/ephemeral-typing-diagnostic.json",
+        "issues/closed/20260728-guide-gap-ephemeral-subscribe-stream-readiness.md"
+      ],
+      "frequency": 1,
+      "classification": "docs-diagnostics",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "InstantDB room topics/presence and Firebase RTDB listeners establish their transport as part of the ordinary subscription path.",
+      "snapbackPropertyToPreserve": "One connection manager may safely multiplex durable and ephemeral lanes under explicit lifecycle control.",
+      "snapbackNativeOutcome": "The generated ephemeral subscribe path either establishes and awaits its manager itself or emits an exact actionable readiness diagnostic; the Guide's first example is complete.",
+      "acceptanceWitness": "A fresh connection label receives its first ephemeral change from the documented/generated one-path recipe without a prior durable live query; codegen preserves specific row types.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+      "beforeEvidencePaths": [
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/failed-attempt-ephemeral-listener.json",
+        "issues/closed/20260728-guide-gap-ephemeral-subscribe-stream-readiness.md"
+      ],
+      "afterEvidencePaths": [
+        "demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/reports/remediation-1/evidence/chat/ephemeral-typing-diagnostic.json",
+        "demos/backend-bakeoff/arms/chat/snapback/work/snapback/generated/provider-bindings.d.ts"
+      ]
+    },
+    {
+      "id": "SB-004",
+      "title": "Retry effect-free authorization reservations below app code",
+      "sourceApps": ["todo", "chat"],
+      "backendComparisons": ["convex", "firebase", "supabase", "spacetimedb"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/failed-attempt-concurrent-reservation.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/correctness-smoke.v1.json",
+        "diaries/0027-todo-backend-bakeoff.diary.md"
+      ],
+      "frequency": 2,
+      "classification": "experience",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Convex, Supabase, and SpacetimeDB settled the frozen two-actor append through their normal transaction calls without an application-authored authorization-reservation loop.",
+      "snapbackPropertyToPreserve": "Retries are permitted only when the typed receipt proves no effect committed; ambiguous or committed outcomes remain visible and never replay automatically.",
+      "snapbackNativeOutcome": "The standard generated client performs a bounded whole-operation retry for effect-free reservation staleness and retains structured attempt evidence.",
+      "acceptanceWitness": "A two-client barrier test induces one stale reservation, commits two messages exactly once in deterministic order, exposes two attempts in diagnostics, and never retries an ambiguous or effect-committed result.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+      "beforeEvidencePaths": [
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/failed-attempt-concurrent-reservation.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/correctness-smoke.v1.json"
+      ],
+      "afterEvidencePaths": [
+        "packages/snapback-client/reservation-retry.test.mjs",
+        "demos/backend-bakeoff/reports/remediation-1/evidence/todo/correctness-smoke.v1.json",
+        "demos/backend-bakeoff/reports/remediation-1/evidence/chat/correctness-smoke.v1.json"
+      ]
+    },
+    {
+      "id": "SB-005",
+      "title": "Bring protected retained history and queued writes to the normal client path",
+      "sourceApps": ["todo", "chat"],
+      "backendComparisons": ["firebase", "instantdb"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/todo/snapback/receipts/offline-smoke.v1.json",
+        "demos/backend-bakeoff/arms/chat/snapback/receipts/correctness-smoke.v1.json",
+        "diaries/0027-todo-backend-bakeoff.diary.md"
+      ],
+      "frequency": 4,
+      "classification": "capability",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Firebase and InstantDB made retained data and offline settlement available through ordinary application clients rather than a custom sync engine.",
+      "snapbackPropertyToPreserve": "Server authority, lease-bounded protected bytes, explicit settlement, user-switch deletion, and fail-closed replay parity.",
+      "snapbackNativeOutcome": "An ordinary generated React query/mutation pair can opt into protected cold retention and a restart-safe outbox with visible cache provenance and settlement.",
+      "acceptanceWitness": "A cold process renders authorized rows offline, queues a mutation across restart, settles exactly once on reconnect, handles conflict explicitly, and deletes or quarantines protected bytes on expiry/revocation.",
+      "destination": "existing-llp",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-006",
+      "title": "Make first build use a prepared Ibex runtime",
+      "sourceApps": ["todo", "chat"],
+      "backendComparisons": ["convex", "instantdb", "spacetimedb"],
+      "evidencePaths": [
+        "diaries/0027-todo-backend-bakeoff.diary.md",
+        "diaries/0028-chat-backend-bakeoff.diary.md",
+        "demos/backend-bakeoff/arms/chat/snapback/run-capsule.v1.json"
+      ],
+      "frequency": 2,
+      "classification": "operations",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "SpacetimeDB reached a sub-second module loop and InstantDB reached a hosted temporary target without compiling a runtime toolchain.",
+      "snapbackPropertyToPreserve": "The local target remains the complete real runtime, and source build remains a supported explicit fallback.",
+      "snapbackNativeOutcome": "Supported machines acquire a verified prepared Hermes/Ibex artifact and reach the first Snapback build without an implicit source compilation.",
+      "acceptanceWitness": "A clean machine with no sibling Ibex checkout runs bootstrap, verifies artifact identity and launch, and builds the frozen external Todo/Chat apps without compiling Hermes.",
+      "destination": "filesystem-issue",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-007",
+      "title": "Expose authority and cache provenance as inspectable evidence",
+      "sourceApps": ["todo", "chat"],
+      "backendComparisons": ["firebase", "supabase", "instantdb"],
+      "evidencePaths": [
+        "diaries/0027-todo-backend-bakeoff.diary.md",
+        "diaries/0028-chat-backend-bakeoff.diary.md"
+      ],
+      "frequency": 6,
+      "classification": "docs-diagnostics",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Firebase exposed cache/server metadata and rule coverage; Supabase exposed SQL/RLS; InstantDB supplied debugTransact for relationship-policy investigation.",
+      "snapbackPropertyToPreserve": "Diagnostics reveal decision structure and provenance without leaking protected data, credentials, or policy secrets.",
+      "snapbackNativeOutcome": "A structured inspection path explains the actor, captured authority dependency, admitting/denying gate, transport, cache origin, and settlement state for a query or mutation.",
+      "acceptanceWitness": "An outsider denial, membership revocation, retained offline read, and concurrent mutation each emit redacted machine-readable explanations that bind to the authoritative receipt.",
+      "destination": "existing-llp",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-008",
+      "title": "Pave deterministic ordered append and stable cursor reads",
+      "sourceApps": ["todo", "chat"],
+      "backendComparisons": ["supabase", "firebase", "convex", "instantdb", "spacetimedb"],
+      "evidencePaths": [
+        "diaries/0027-todo-backend-bakeoff.diary.md",
+        "diaries/0028-chat-backend-bakeoff.diary.md"
+      ],
+      "frequency": 7,
+      "classification": "capability",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Every competitor supplied a workable server-authoritative order, but Firebase exposed a hot counter and SpacetimeDB needed a request/result table for cursor pages.",
+      "snapbackPropertyToPreserve": "Commit authority and conflict outcomes remain deterministic and target-portable.",
+      "snapbackNativeOutcome": "The Guide and generated surface provide one canonical ordered-append/cursor pattern with direct concurrent settlement evidence.",
+      "acceptanceWitness": "Twenty two-client appends settle without duplicates, ambiguous order, or application hot-counter retry; two cursor pages remain disjoint under a concurrent newer insert.",
+      "destination": "existing-llp",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-009",
+      "title": "Keep ephemeral state native rather than imitating durable TTL workarounds",
+      "sourceApps": ["chat"],
+      "backendComparisons": ["convex", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/chat/convex/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/chat/spacetimedb/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/chat/appwrite/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/chat/snapback/run-capsule.v1.json"
+      ],
+      "frequency": 3,
+      "classification": "benchmark-only",
+      "severity": "low",
+      "reach": "general",
+      "competitorOutcome": "Convex and SpacetimeDB could emulate typing with durable rows and cleanup glue, but InstantDB demonstrated the better native-room outcome.",
+      "snapbackPropertyToPreserve": "Typed non-durable room state, TTL, connection identity, and separation from the durable journal.",
+      "snapbackNativeOutcome": "Improve the existing native ephemeral path rather than adding provider-shaped durable TTL abstractions to satisfy the fixture.",
+      "acceptanceWitness": "Typing and presence pass with zero durable application rows, native expiry/disconnect evidence, typed generated rows, and one documented subscription lifecycle.",
+      "destination": "deliberate-non-goal",
+      "decision": "refuse",
+      "status": "refused"
+    }
+  ]
+}

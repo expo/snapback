@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "expectedChecks": 15,
+  "checksRun": 0,
+  "status": "stopped-before-scenarios",
+  "reason": "LLP 0102 Stop-class builder secret exposure after target start.",
+  "priorEvidence": {
+    "version": "2.57.4",
+    "path": "prior-2.57.4-acceptance.v1.json",
+    "treatment": "lineage-only; not refreshed evidence"
+  }
+}
+

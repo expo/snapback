@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T03:56:21.496Z",
+  "targetIdentity": "14d532f02e15cac5d886d92ffb4c819f4097052d96508b7a761ed63ad78e19d0",
+  "exactTargets": [
+    "/private/tmp/llp0102-remediation1-todo-runtime",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/public/personas.json",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/dist/personas.json"
+  ],
+  "broadGlobs": false,
+  "unrelatedBaseline": "repository and all other bakeoff arms remain untouched"
+}

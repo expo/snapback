@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "claimScope": "small repeatable frozen product workload; not production scale",
+  "protocol": {
+    "warmups": 2,
+    "recordedSamples": 7,
+    "statistic": "median and nearest-rank p95"
+  },
+  "paths": [
+    {
+      "path": "representative-read",
+      "warmups": [
+        190.798,
+        90.935
+      ],
+      "samples": [
+        156.864,
+        93.099,
+        182.789,
+        93.021,
+        110.358,
+        171.025,
+        171.739
+      ],
+      "medianMs": 156.864,
+      "nearestRankP95Ms": 182.789
+    },
+    {
+      "path": "representative-write",
+      "warmups": [
+        309.569,
+        319.692
+      ],
+      "samples": [
+        193.553,
+        304.569,
+        246.128,
+        180.974,
+        185.479,
+        132.13,
+        126.24
+      ],
+      "medianMs": 185.479,
+      "nearestRankP95Ms": 304.569
+    },
+    {
+      "path": "realtime-delivery",
+      "warmups": [
+        402.692,
+        259.445
+      ],
+      "samples": [
+        325.817,
+        251.763,
+        251.139,
+        252.457,
+        249.741,
+        316.608,
+        327.699
+      ],
+      "medianMs": 252.457,
+      "nearestRankP95Ms": 327.699
+    },
+    {
+      "path": "reconnect",
+      "warmups": [
+        139.157,
+        91.688
+      ],
+      "samples": [
+        154.059,
+        88.955,
+        149.563,
+        145.514,
+        147.891,
+        146.026,
+        138.842
+      ],
+      "medianMs": 146.026,
+      "nearestRankP95Ms": 154.059
+    },
+    {
+      "schemaVersion": 1,
+      "claimScope": "small repeatable product workload; not production scale",
+      "path": "build-or-deploy",
+      "commandShape": "npm run build",
+      "warmups": [
+        1299.346,
+        423.585
+      ],
+      "samples": [
+        418.394,
+        421.156,
+        423.285,
+        425.507,
+        425.33,
+        454.474,
+        425.419
+      ],
+      "medianMs": 425.33,
+      "nearestRankP95Ms": 454.474,
+      "output": "Vite production client bundle",
+      "rawLogs": "ignored mode-0600 runtime only",
+      "containsCredentialValues": false
+    }
+  ],
+  "containsCredentialValues": false
+}

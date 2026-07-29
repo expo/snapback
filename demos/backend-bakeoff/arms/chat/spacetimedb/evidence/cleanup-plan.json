@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scope": "fresh-target",
+  "server": "http://127.0.0.1:3312",
+  "databaseName": "llp0102-chat-spacetimedb-w1",
+  "databaseIdentity": "c2004eb2f79972743b2d2188d5169fabbe879a6453dd3d11653ef3530bcdb4c8",
+  "allowedDestructiveAction": "delete this exact fresh database only",
+  "serverDataDirectory": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/data",
+  "baseline": {
+    "serverWasStartedFreshForArm": true,
+    "assignedPortsWereFreeBeforeStart": [3312, 4291],
+    "unrelatedDatabaseTargets": []
+  },
+  "forbidden": [
+    "delete any other database",
+    "clear the server globally",
+    "touch another worker's ports, CLI state, or data directory"
+  ]
+}

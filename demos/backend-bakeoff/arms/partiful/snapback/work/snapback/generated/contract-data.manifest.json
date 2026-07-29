@@ -1,0 +1,907 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:4cab64495262f7f9e832617dcff9d13472227d2886a2bb10aad1bf3be948a733",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2e82bf99b66266b38036042afb6f7cc75449503d89925d186d04c226174bfc3d",
+  "manifestVersion": 2,
+  "mutations": {
+    "claimFinalSeat": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "events",
+        "rsvps"
+      ],
+      "name": "claimFinalSeat",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "events",
+        "rsvps"
+      ]
+    },
+    "editEvent": {
+      "argOrder": [
+        "eventId",
+        "title",
+        "privateLocation"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "privateLocation": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "events"
+      ],
+      "name": "editEvent",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "events"
+      ]
+    },
+    "postToWall": {
+      "argOrder": [
+        "eventId",
+        "authorName",
+        "body",
+        "ordinal"
+      ],
+      "args": {
+        "authorName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "ordinal": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "posts"
+      ],
+      "name": "postToWall",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "posts"
+      ]
+    },
+    "recordReminderAttempt": {
+      "argOrder": [
+        "namespace",
+        "eventSlug",
+        "deliveryKey",
+        "trigger"
+      ],
+      "args": {
+        "deliveryKey": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "eventSlug": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "namespace": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "trigger": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "reminderAttempts"
+      ],
+      "name": "recordReminderAttempt",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "reminderAttempts"
+      ]
+    },
+    "reserveNotification": {
+      "argOrder": [
+        "eventId",
+        "idempotencyKey"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "idempotencyKey": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "notificationEffects"
+      ],
+      "name": "reserveNotification",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "notificationEffects"
+      ]
+    },
+    "revokeGuest": {
+      "argOrder": [
+        "eventId",
+        "userId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "invitations"
+      ],
+      "name": "revokeGuest",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "invitations"
+      ]
+    },
+    "rsvp": {
+      "argOrder": [
+        "eventId",
+        "response",
+        "plusOneCount"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "plusOneCount": {
+          "name": "number",
+          "shape": "primitive"
+        },
+        "response": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "events",
+        "rsvps"
+      ],
+      "name": "rsvp",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "events",
+        "rsvps"
+      ]
+    },
+    "setGuestListVisibility": {
+      "argOrder": [
+        "eventId",
+        "visibility"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "visibility": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "events"
+      ],
+      "name": "setGuestListVisibility",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "events"
+      ]
+    },
+    "setRole": {
+      "argOrder": [
+        "eventId",
+        "userId",
+        "role"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "role": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "invitations"
+      ],
+      "name": "setRole",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "invitations"
+      ]
+    },
+    "settleNotification": {
+      "argOrder": [
+        "idempotencyKey",
+        "status",
+        "certainty",
+        "providerReceipt"
+      ],
+      "args": {
+        "certainty": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "idempotencyKey": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "providerReceipt": {
+          "name": "string",
+          "optional": true,
+          "shape": "primitive"
+        },
+        "status": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "notificationEffects"
+      ],
+      "name": "settleNotification",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "notificationEffects"
+      ]
+    },
+    "setupFixture": {
+      "argOrder": [
+        "namespace",
+        "bobId",
+        "carolId"
+      ],
+      "args": {
+        "bobId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "carolId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "namespace": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "events",
+        "invitations",
+        "rsvps"
+      ],
+      "name": "setupFixture",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "events",
+        "invitations",
+        "rsvps"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "effectLedger": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "effectLedger",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "events",
+        "invitations",
+        "notificationEffects"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "attemptCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "certainty": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "idempotencyKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "providerReceipt": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "eventWall": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "eventWall",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "events",
+        "invitations",
+        "posts"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ordinal": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "fixtureAudit": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "fixtureAudit",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "events",
+        "invitations",
+        "rsvps",
+        "posts"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "activeInvitations": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "contendedAttendance": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "contendedRsvps": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "eventCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "wallPosts": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "guestList": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "guestList",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "events",
+        "invitations",
+        "rsvps"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "guestName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "plusOneCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "response": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "role": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "seats": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "privateControls": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "privateControls",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "events",
+        "invitations"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "attendanceCount": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "capacity": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "description": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "guestListVisibility": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "revision": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "role": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "startsAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "publicEvents": {
+      "argOrder": [
+        "namespace"
+      ],
+      "args": {
+        "namespace": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "publicEvents",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "events"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "attendanceCount": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "capacity": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "description": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "guestListVisibility": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "revision": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "role": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "startsAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "reminderLedger": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "reminderLedger",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "events",
+        "invitations",
+        "reminderAttempts"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "attemptCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "deliveryKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "trigger": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:65d06ba16ed0dc4589d6a37d911232aee680ebcfc7888d3fc447488999da19bc",
+  "schemaVersion": "snapback.v1"
+}

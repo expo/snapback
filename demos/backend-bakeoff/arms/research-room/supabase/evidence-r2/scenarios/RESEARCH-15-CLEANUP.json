@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-15-CLEANUP",
+  "status": "pass",
+  "checkedAt": "2026-07-29T09:05:00Z",
+  "evidence": {
+    "targetBoundPlan": "../cleanup.json",
+    "exactFreshTargetRetired": true,
+    "postCleanupNegative": {
+      "containers": 0,
+      "volumes": 0,
+      "networks": 0,
+      "runtimeMirror": false,
+      "portsOpen": [],
+      "credentialFileHits": 0
+    }
+  }
+}

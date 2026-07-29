@@ -30,7 +30,7 @@ run node packages/snapback-codegen/index.mjs demos/card-game/snapback
 run node packages/snapback-codegen/index.mjs demos/rbac/snapback
 run node packages/snapback-codegen/index.mjs demos/shindig/snapback
 run node packages/snapback-codegen/index.mjs demos/partiful-matrix/snapback
-run node packages/snapback-codegen/index.mjs demos/backend-bakeoff/snapback
+run node packages/snapback-codegen/index.mjs demos/signal-desk/snapback
 run node packages/snapback-codegen/index.mjs demos/catalog-lens/snapback
 run node packages/snapback-codegen/index.mjs demos/dispatch-board/snapback
 run node packages/snapback-codegen/index.mjs demos/pulse-monitor/snapback
@@ -51,7 +51,7 @@ REVIEW_ROOTS=(
     demos/rbac/snapback/generated
     demos/shindig/snapback/generated
     demos/partiful-matrix/snapback/generated
-    demos/backend-bakeoff/snapback/generated
+    demos/signal-desk/snapback/generated
     demos/catalog-lens/snapback/generated
     demos/dispatch-board/snapback/generated
     demos/pulse-monitor/snapback/generated

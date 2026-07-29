@@ -1,0 +1,21 @@
+{
+  "name": "build-or-deploy",
+  "path": "Vite production build",
+  "warmupsMs": [
+    172.912,
+    167.354
+  ],
+  "recorded": {
+    "rawMs": [
+      174.416,
+      158.682,
+      166.898,
+      179.095,
+      168.4,
+      172.361,
+      178.744
+    ],
+    "medianMs": 172.361,
+    "nearestRankP95Ms": 179.095
+  }
+}

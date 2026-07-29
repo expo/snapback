@@ -1,0 +1,34 @@
+{
+  "id": "PARTY-01-SEED",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:56:15.499Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeAdminCounts": {
+      "events": 20,
+      "eventPrivate": 20,
+      "invitations": 4,
+      "guests": 49,
+      "wallPosts": 1,
+      "deliveries": 0,
+      "attempts": 0
+    },
+    "fixedDataset": {
+      "events": 20,
+      "guests": 49,
+      "capacity": 50,
+      "actors": 3,
+      "concurrentClients": 2,
+      "wallBurst": 20,
+      "assetBytes": 262144
+    },
+    "targetIdentity": {
+      "endpointHash": "ab66435e20eeca501e8bffea3cb5c0985e67ff55ca85921534ee72fa1e1eb1d1",
+      "projectIdHash": "03d4ac98033a135d1f2506d9db533ab8e8df4148f3415ad619e6e47e98a6ac65",
+      "version": "1.9.6"
+    },
+    "seedReceipt": "../seed.v1.json"
+  },
+  "note": "The exact frozen fixture and three native Auth principals were independently counted through Appwrite authority."
+}

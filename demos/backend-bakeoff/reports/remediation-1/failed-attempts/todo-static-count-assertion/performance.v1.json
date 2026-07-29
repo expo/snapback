@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T03:54:25.413Z",
+  "profile": "small local Mac17,3 arm64 workload; two warmups and seven recorded samples",
+  "paths": {
+    "representativeRead": {
+      "rawMs": [
+        39.707,
+        33.838,
+        30.468,
+        30.292,
+        30.099,
+        33.729,
+        33.685
+      ],
+      "medianMs": 33.685,
+      "nearestRankP95Ms": 39.707
+    },
+    "representativeWrite": {
+      "rawMs": [
+        119.826,
+        104.543,
+        97.771,
+        92.459,
+        93.302,
+        92.578,
+        93.008
+      ],
+      "medianMs": 93.302,
+      "nearestRankP95Ms": 119.826
+    },
+    "realtimeDelivery": {
+      "rawMs": [
+        91.9,
+        90.506,
+        86.912,
+        87.107,
+        96.374,
+        93.071,
+        91.458
+      ],
+      "medianMs": 91.458,
+      "nearestRankP95Ms": 96.374
+    },
+    "reconnect": {
+      "rawMs": [
+        31.889,
+        32.329,
+        31.624,
+        32.52,
+        33.614,
+        32.423,
+        32.707
+      ],
+      "medianMs": 32.423,
+      "nearestRankP95Ms": 33.614
+    },
+    "build": {
+      "rawMs": [
+        1762.748,
+        1816.572,
+        1761.18,
+        1706.201,
+        1902.849,
+        1665.661,
+        1780.299
+      ],
+      "medianMs": 1762.748,
+      "nearestRankP95Ms": 1902.849
+    }
+  }
+}

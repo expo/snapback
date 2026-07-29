@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "localDeterministicFake": true,
+  "publicTunnelProvider": "Cloudflare Quick Tunnel",
+  "publicTunnelHostnameHash": "218ba5b52a4787a9020d78b57286f04c92557f14d6865bb86623fdc0b14e4bbc",
+  "localEndpointHash": "35906f04370dbd02b4c8a4b5357707008d5cfaeb06bc45e1e87b646bff02ceac",
+  "hostedDeliveryClaimed": false,
+  "calls": [
+    {
+      "key": "",
+      "path": "/ready",
+      "bodyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "key": "reminder-fixture-001",
+      "path": "/success",
+      "bodyHash": "a89b79232e27a40a6cd5ac925e8497e3ddbe969a546da02cfe787d4d37c693e5"
+    },
+    {
+      "key": "notify-known-success-001",
+      "path": "/success",
+      "bodyHash": "ddfd6d8ba4f92cc9bb93d340bf474df05c8354da80e08a24aba511ac5116bf26"
+    },
+    {
+      "key": "notify-ambiguous-001",
+      "path": "/ambiguous",
+      "bodyHash": "5a5f34685fe4590643a62706c9336b42a505c9bb9be6cc00b947dd26c52b5634"
+    },
+    {
+      "key": "notify-ambiguous-001",
+      "path": "/ambiguous",
+      "bodyHash": "5a5f34685fe4590643a62706c9336b42a505c9bb9be6cc00b947dd26c52b5634"
+    }
+  ],
+  "uniqueDedupeKeys": [
+    "",
+    "notify-ambiguous-001",
+    "notify-known-success-001",
+    "reminder-fixture-001"
+  ],
+  "containsSecretValues": false
+}

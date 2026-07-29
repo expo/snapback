@@ -406,6 +406,7 @@ try {
     const overlay = await db.subscribeEphemeral('presence', {
       connectionId: label,
       scope: { room: 'a' },
+      transport: 'poll',
     });
     try {
       assertEqual(openBodies, [
@@ -435,6 +436,99 @@ try {
     } finally {
       overlay.dispose();
     }
+  });
+
+  await suite.check('fresh ephemeral subscribe owns a ready live stream until overlay disposal', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    const connectionId = 'conn_ephemeral_self_start';
+    let subscribeRequests = 0;
+    globalThis.fetch = async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === '/connection/open') {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({
+            connectionId,
+            connectionToken: 'sct_ephemeral_self_start',
+            wireVersion: 'snapback.v1',
+          }),
+        };
+      }
+      if (path === '/ephemeral/subscribe') {
+        subscribeRequests += 1;
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify(snapshot(2, [], 0)),
+        };
+      }
+      throw new Error(`unexpected self-start request: ${path}`);
+    };
+
+    const db = new SnapbackClient('http://stub');
+    const before = FakeWebSocket.instances.length;
+    const subscribing = db.subscribeEphemeral('presence', {
+      connectionId,
+      scope: { room: 'a' },
+      stream: {
+        heartbeatIntervalMs: 5_000,
+        freshnessBudgetMs: 20_000,
+      },
+    });
+    const ws = await nextSocket(before);
+    assertEqual(subscribeRequests, 0, 'snapshot subscribe waits for current-socket readiness');
+    ws.dispatch('open', {});
+    await waitFor(
+      () => ws.sent.some((message) => JSON.parse(message).type === 'ping'),
+      'self-start readiness ping',
+    );
+    const ping = ws.sent
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === 'ping');
+    ws.dispatch('message', {
+      data: JSON.stringify({ kind: 'pong', requestId: ping.requestId }),
+    });
+
+    const overlay = await subscribing;
+    assertEqual(subscribeRequests, 1, 'snapshot subscribe starts after readiness proof');
+    let changes = 0;
+    const offChange = overlay.onChange(() => {
+      changes += 1;
+    });
+    ws.dispatch('message', {
+      data: JSON.stringify({
+        kind: 'ephemeral',
+        message: {
+          Upsert: {
+            room: overlayRoom,
+            entry: {
+              key: 'cursor_live',
+              value: encodedValue({ x: 7 }),
+              received_at_ms: 107,
+              expires_at_ms: Date.now() + 10_000,
+              scope_epoch: 2,
+              entry_version: 1,
+            },
+          },
+        },
+      }),
+    });
+    await waitFor(
+      () => overlay.currentEntries({ prune: false }).length === 1,
+      'self-start ephemeral delta',
+    );
+    assertEqual(
+      overlay.currentEntries({ prune: false })[0].value,
+      { x: 7 },
+      'the fresh subscription receives socket-delivered room changes',
+    );
+    assertEqual(changes, 1, 'the overlay notifies its change observer');
+
+    offChange();
+    overlay.dispose();
+    await waitFor(() => ws.closeCalls > 0, 'overlay-owned stream demand release');
+    return { subscribeRequests, changes, socketClosed: ws.closeCalls > 0 };
   });
 
   await suite.check('finite scoped-token carrier failures preserve durable custody', async () => {
@@ -3374,6 +3468,7 @@ try {
       const subscribing = db.subscribeEphemeral('presence', {
         connectionId,
         scope: { room: 'a' },
+        transport: 'poll',
       });
       await waitFor(() => subscribeStarted, 'ephemeral subscribe request');
 
@@ -3469,6 +3564,7 @@ try {
       const subscribing = db.subscribeEphemeral('presence', {
         connectionId,
         scope: { room: 'a' },
+        transport: 'poll',
       });
       await waitFor(() => subscribeStarted, 'overflow subscribe request');
 

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "path": "build-or-deploy",
+  "operation": "spacetime build -p spacetimedb",
+  "providerVersion": "2.7.0",
+  "warmups": [
+    646.216,
+    588.666
+  ],
+  "recorded": [
+    498.604,
+    491.78,
+    489.859,
+    532.08,
+    526.947,
+    497.12,
+    496.452
+  ],
+  "sampleUnit": "milliseconds",
+  "deploySampled": false
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "provider": "supabase",
+  "app": "research-room",
+  "target": "llp0102-research-supabase-w2",
+  "expectedCheckCount": 15,
+  "result": "stop-class-secret-exposure",
+  "summary": {
+    "pass": 12,
+    "failStopClass": 1,
+    "notRun": 2,
+    "gap": 0
+  },
+  "scenarios": [
+    {"id":"RESEARCH-01-SEED","status":"pass"},
+    {"id":"RESEARCH-02-FILES","status":"pass"},
+    {"id":"RESEARCH-03-OUTSIDER","status":"pass"},
+    {"id":"RESEARCH-04-KEYWORD","status":"pass"},
+    {"id":"RESEARCH-05-SEMANTIC","status":"pass"},
+    {"id":"RESEARCH-06-PROGRESS","status":"pass"},
+    {"id":"RESEARCH-07-CITATIONS","status":"pass"},
+    {"id":"RESEARCH-08-COLLABORATOR","status":"pass"},
+    {"id":"RESEARCH-09-CANCEL","status":"pass"},
+    {"id":"RESEARCH-10-RETRY","status":"pass"},
+    {"id":"RESEARCH-11-OUTCOMES","status":"pass"},
+    {"id":"RESEARCH-12-SCHEDULE","status":"pass"},
+    {"id":"RESEARCH-13-SECRETS","status":"fail-stop-class"},
+    {"id":"RESEARCH-14-PERFORMANCE","status":"not-run-stop-class"},
+    {"id":"RESEARCH-15-CLEANUP","status":"pending-coordinator-adjudication"}
+  ],
+  "incidentReceipt": "stop-class-secret-exposure.v1.json"
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "preservedSealedAttempt": {
+    "result": "10 PASS / 4 GAP / 0 FAIL",
+    "timing": "about 36 seconds for the final sealed clean attempt",
+    "failures": [
+      [
+        "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
+        "500-issue fixture required five 100-issue batches"
+      ],
+      [
+        "HARNESS_EARLY_ASSERTION",
+        "browser initially rendered zero before the live snapshot"
+      ],
+      [
+        "HARNESS_PERFORMANCE_NAME_SHADOW",
+        "receipt variable shadowed the timing API after cleanup"
+      ]
+    ]
+  },
+  "finalConfirmationAttempts": [
+    {
+      "classification": "fleet-environment",
+      "outcome": "failed-before-package-work",
+      "detail": "A fully scrubbed PATH omitted Node."
+    },
+    {
+      "classification": "fleet-environment",
+      "outcome": "failed-before-package-work",
+      "detail": "Volta shim could not resolve Node with isolated HOME; pinning the concrete Node 24.18.0 bin directory fixed it."
+    },
+    {
+      "classification": "external-copy-transformation",
+      "outcome": "corrected-before-build",
+      "detail": "Perl interpolation temporarily rewrote @snapback imports as root paths; source/path scan caught it before codegen execution."
+    },
+    {
+      "classification": "snapback-package-types",
+      "outcome": "first-build-failed",
+      "detail": "@snapback/client/online is exported without a TypeScript declaration. An external-copy-only ambient declaration allowed the frozen UI to typecheck."
+    }
+  ],
+  "preservedGaps": [
+    "LINEAR-09-SEARCH",
+    "LINEAR-10-OFFLINE",
+    "LINEAR-11-MIGRATION",
+    "LINEAR-12-DEPLOY"
+  ],
+  "interpretation": "Package-boundary confirmation preserved every frozen scenario result. It added packaging evidence and one new TypeScript packaging friction; it did not erase or rescore the sealed experience."
+}

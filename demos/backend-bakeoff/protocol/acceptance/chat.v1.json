@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "app": "chat",
+  "expectedCheckCount": 15,
+  "scenarios": [
+    {
+      "id": "CHAT-01-SEED",
+      "fact": "Exact channels, messages, and personas exist in the fresh target or arm-isolated namespace.",
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "fact": "Members join allowed channels and Mallory cannot read or subscribe privately.",
+      "evidence": ["actor-attribution", "negative-read", "negative-subscription"]
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "fact": "A sent message has server-authoritative identity, author, and order.",
+      "evidence": ["settlement", "authoritative-read", "server-fields"]
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "fact": "Bob observes Alice's committed message through native push.",
+      "evidence": ["second-client", "transport-attribution", "no-product-polling"]
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "fact": "Cursor pages are stable and nonduplicating under a concurrent insert.",
+      "evidence": ["cursor-values", "page-union", "authoritative-order"]
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "fact": "Typing is ephemeral through a native path or recorded as GAP/application glue.",
+      "evidence": ["transport-attribution", "durability-inspection", "expiry"]
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "fact": "Presence reflects connect, disconnect, and expiry through a native path or explicit GAP.",
+      "evidence": ["two-clients", "transport-attribution", "expiry"]
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "fact": "Reconnect restores authoritative channel view without duplicate messages.",
+      "evidence": ["disconnect-proof", "authoritative-counts", "no-duplicates"]
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "fact": "Previously loaded history is readable offline where supported, otherwise GAP.",
+      "evidence": ["cold-client", "transport-disabled", "retained-origin"]
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "fact": "Unread state remains correct across two clients and a reconnect.",
+      "evidence": ["two-clients", "authoritative-marker", "reconnect"]
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "fact": "Concurrent sends preserve both messages with deterministic order.",
+      "evidence": ["two-actor-barrier", "authoritative-order", "no-loss"]
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "fact": "Logout stops future private-channel delivery.",
+      "evidence": ["logout-barrier", "already-connected-client", "negative-delivery"]
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "fact": "Membership removal stops future delivery and handles retained history honestly.",
+      "evidence": ["authority-change", "negative-delivery", "retained-store-inspection"]
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "fact": "Frozen burst, read, realtime, reconnect, and build/deploy samples are retained.",
+      "evidence": ["two-warmups", "seven-samples", "raw-samples", "machine-context"]
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "fact": "Only exact fresh targets or the arm-owned shared-target namespace are cleaned up; unrelated baseline state is preserved.",
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

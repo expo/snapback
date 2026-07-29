@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function room(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId));
+    }
+
+    function isMember(roomId) {
+      return signedIn() && request.auth.uid in room(roomId).data.memberIds;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isMember(roomId);
+      allow create, update, delete: if false;
+
+      match /sources/{sourceId} {
+        allow read: if isMember(roomId);
+        allow create: if isMember(roomId)
+          && request.resource.data.ownerId == request.auth.uid
+          && request.resource.data.objectPath == "rooms/" + roomId + "/sources/" + sourceId;
+        allow update: if isMember(roomId)
+          && resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.objectPath == resource.data.objectPath;
+        allow delete: if isMember(roomId) && resource.data.ownerId == request.auth.uid;
+      }
+
+      match /questions/{questionId} {
+        allow read: if isMember(roomId);
+        allow create: if isMember(roomId)
+          && request.resource.data.askerId == request.auth.uid
+          && request.resource.data.status == "queued";
+        allow update, delete: if false;
+
+        match /progress/{progressId} {
+          allow read: if isMember(roomId);
+          allow write: if false;
+        }
+      }
+
+      match /answers/{answerId} {
+        allow read: if isMember(roomId);
+        allow write: if false;
+      }
+
+      match /effectAttempts/{attemptId} {
+        allow read: if isMember(roomId);
+        allow write: if false;
+      }
+
+      match /refreshRuns/{runId} {
+        allow read: if isMember(roomId);
+        allow write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

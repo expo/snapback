@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "linear",
+    "provider": "instantdb",
+    "round": "deep",
+    "attemptId": "linear-instantdb-deep-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "snapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "providerVersions": {
+      "instantCore": "1.0.52",
+      "instantReact": "1.0.52",
+      "instantAdmin": "1.0.52",
+      "instantCli": "1.0.52",
+      "react": "19.1.1",
+      "vite": "7.1.3",
+      "typescript": "5.9.2"
+    },
+    "machine": "Mac17,3 / arm64 / macOS 26.5 (Darwin 25.5.0) / Node 24.14.0",
+    "executionShape": "Three native guest principals and independent core clients exercised authority/realtime; a persistent headless Chrome profile on port 4325 proved cold IndexedDB retention, an offline queue, and reconnect settlement.",
+    "startedAt": "2026-07-29T04:48:14.000Z",
+    "finishedAt": "2026-07-29T05:04:29.254Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 975254,
+    "toolCalls": 59,
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "174a8b2bb0c15e581d318b8665f2da5d62cc94080bedd1097d2eae26ac1c623f",
+      "authPath": "InstantDB native guest auth",
+      "role": "organization-owner"
+    },
+    "bob": {
+      "principalIdHash": "d5d16f072c3453866f20b8a5280e48007fb52ea5159a3e5d28fd380b3ca82a57",
+      "authPath": "InstantDB native guest auth",
+      "role": "team-member"
+    },
+    "mallory": {
+      "principalIdHash": "f98cd1b8bc4d9fdee21ce85ee4ed5d07f2d3f544836cb7241a80e61ee116a573",
+      "authPath": "InstantDB native guest auth",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-hosted",
+      "namespace": "llp0102-linear-instantdb-w3",
+      "identityHash": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+      "baselineReceiptPath": "receipts/target-provision-redacted.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.json"
+    },
+    "local": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "official self-host Docker stack",
+      "gapReason": "The assigned arm binding was a fresh official hosted temporary target; local parity was outside this arm run and is not claimed.",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "cleaned",
+      "identityHash": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+      "profile": "official hosted temporary app",
+      "plan": "official temporary/free app",
+      "region": "provider-selected; not exposed",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/target-provision-redacted.json",
+        "receipts/cleanup-final.json"
+      ],
+      "targetDeletion": "Automatic after more than 24 hours; app-scoped admin token cannot delete the app itself.",
+      "residualConfiguration": [
+        "schema",
+        "permissions"
+      ]
+    }
+  },
+  "milestones": {
+    "firstTargetProvisionedMs": 451488,
+    "firstAuthoritativeMutationMs": 470000,
+    "firstRealtimeTransitionMs": 660000,
+    "hostedUrlMs": 451488,
+    "acceptanceCompletionMs": 900000,
+    "cleanupCompletionMs": 975254
+  },
+  "assistanceEvents": [
+    {
+      "type": "official-documentation",
+      "note": "Used official InstantDB data modeling, InstaQL, permissions, CLI, and temporary-app documentation plus pinned SDK types."
+    },
+    {
+      "type": "retained-builder-failures",
+      "receiptPaths": [
+        "receipts/acceptance-attempt-1-failure.json",
+        "receipts/acceptance-attempt-2-failure.json",
+        "receipts/acceptance-attempt-3-failure.json",
+        "receipts/acceptance-attempt-4-process-exit.json",
+        "receipts/offline-attempt-1-failure.json",
+        "receipts/offline-attempt-2-failure.json"
+      ]
+    },
+    {
+      "type": "llp-maintain-pre-pr",
+      "note": "No LLP/ref reconciliation was proposed for this provider-arm-only change.",
+      "receiptPaths": [
+        "receipts/llp-maintain-audit.md"
+      ]
+    },
+    {
+      "type": "coordinator-capsule-correction",
+      "note": "The current verifier required a frozen transport enum and monotonic command bounds; coarse bounds are labeled and raw receipts remain authoritative.",
+      "receiptPaths": [
+        "receipts/coordinator-capsule-adjudication.md"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "instant-cli init-without-files --title llp0102-linear-instantdb-w3 --temp",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 451488,
+      "classification": "fresh official hosted temporary target",
+      "note": "Coarse interval bounded by the retained first-target milestone."
+    },
+    {
+      "command": "instant-cli push all --app [REDACTED] --yes",
+      "exitStatus": 0,
+      "startedMonotonicMs": 451489,
+      "finishedMonotonicMs": 470000,
+      "classification": "base schema/permissions and indexed-field evolution",
+      "note": "Coarse protocol interval; individual push receipts retain wall-clock timestamps."
+    },
+    {
+      "command": "node scripts/acceptance.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 470001,
+      "finishedMonotonicMs": 700000,
+      "classification": "final clean functional run and runtime 2+7 samples",
+      "note": "Coarse protocol interval bounded within retained acceptance milestones."
+    },
+    {
+      "command": "node scripts/offline-smoke.mjs with Vite 127.0.0.1:4325",
+      "exitStatus": 0,
+      "startedMonotonicMs": 700001,
+      "finishedMonotonicMs": 830000,
+      "classification": "controlled Chrome cold-cache, offline queue, reconnect",
+      "note": "Coarse protocol interval; browser receipt retains direct network and state observations."
+    },
+    {
+      "command": "node scripts/build-samples.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 830001,
+      "finishedMonotonicMs": 900000,
+      "classification": "two warmups plus seven production builds",
+      "note": "Coarse protocol interval ending at acceptance-completion milestone."
+    },
+    {
+      "command": "node scripts/clear-target.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 900001,
+      "finishedMonotonicMs": 975254,
+      "classification": "exact target entity/user cleanup and local credential removal",
+      "note": "Coarse protocol interval ending at retained cleanup-completion milestone."
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "LINEAR-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/seed-receipt.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact production-shaped dataset and personas exist.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-02-AUTHORITY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Owner, member, and outsider have distinct allowed views and writes.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-03-FILTERS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Indexed native filters matched authoritative expected sets.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-04-PAGINATION",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Stable 50-row cursor pagination remained nonduplicating under insert.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-05-DETAIL",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "One bounded native query composed all required issue detail.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-06-OPTIMISTIC",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Four optimistic fields reconciled to authority.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-07-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Concurrent whole-record updates converged under InstantDB last-write-wins.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-08-LIVE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Comment and activity reached Bob through native realtime.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-09-SEARCH",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "InstantDB exposes indexed comparison/pattern queries but no ordinary native full-text issue-search facility.",
+      "note": "Explicit nonclaim; not counted as a pass."
+    },
+    {
+      "id": "LINEAR-10-OFFLINE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/offline-smoke.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "Cold browser retained 50 rows and queued one edit while provider transport was disabled, then reconciled.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-11-MIGRATION",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/migration.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "An indexed field was added without losing seeded data.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-12-DEPLOY",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/operations.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "Hosted identity/config/export are inspectable, but logs and rollback are not exposed to the temporary app token.",
+      "note": "Explicit nonclaim; not counted as a pass."
+    },
+    {
+      "id": "LINEAR-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/performance.json",
+        "evidence/performance-build.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Frozen runtime samples and cost window retained; build samples are finalized separately.",
+      "note": ""
+    },
+    {
+      "id": "LINEAR-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/cleanup-plan.json",
+        "receipts/cleanup-final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Only the exact fresh temporary target was cleared; all entity/user counts reached zero and the old actor token failed.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.json",
+    "authoredSource": {
+      "files": 21,
+      "lines": 2580,
+      "bytes": 92824
+    },
+    "dependencies": {
+      "direct": 13,
+      "lockfilePackages": 252
+    },
+    "productionBuildBytes": 357277,
+    "npmAudit": {
+      "receiptPath": "receipts/npm-audit.json",
+      "finding": "One high aggregate finding on frozen Vite 7.1.3; the dev server was loopback-only and stopped after evidence."
+    }
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three native principals; positive owner/member and negative outsider reads/writes were authoritative.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two native client transactions were barrier-dispatched; authority and both clients converged on one whole-record LWW winner.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Bob directly observed Alice comment/activity through a native WebSocket query subscription.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "Cold browser cache, transport barrier, queued edit, reconnect, authority, and restoration were all directly observed.",
+      "evidencePaths": [
+        "evidence/offline-smoke.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Local optimistic materialization, transaction settlement, and independent admin authority were attributed separately.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "One hashed fresh target identity binds provision, every receipt, export posture, and cleanup.",
+      "evidencePaths": [
+        "receipts/target-provision-redacted.json",
+        "receipts/cleanup-final.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "Exact disposable target counts reached zero, old token failed, and worktree-local raw state was removed.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.json",
+        "receipts/cleanup-final.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Pinned lockfile, base/evolved schemas, policy, clients, harness, raw samples, failures, inventory, and cleanup are retained.",
+      "evidencePaths": [
+        "receipts/inventory.json",
+        "evidence/performance.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.json",
+    "receiptPaths": [
+      "receipts/cleanup-final.json"
+    ],
+    "postCleanupProbe": "Admin counts were zero for all eight product namespaces and $users; old Bob token verification failed.",
+    "detail": {
+      "operation": "clear-exact-disposable-target",
+      "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+      "beforeCounts": {
+        "teams": 3,
+        "$users": 3,
+        "labels": 20,
+        "activities": 501,
+        "comments": 1001,
+        "organizations": 2,
+        "projects": 4,
+        "issues": 500,
+        "memberships": 3
+      },
+      "afterCounts": {
+        "teams": 0,
+        "$users": 0,
+        "labels": 0,
+        "activities": 0,
+        "comments": 0,
+        "organizations": 0,
+        "projects": 0,
+        "issues": 0,
+        "memberships": 0
+      },
+      "exactTargetOnly": true,
+      "targetDeletionUnsupportedWithAppScopedAdminToken": true,
+      "providerManagedExpiryExpected": true,
+      "temporaryAppLifecycle": "instant-cli documents automatic deletion after >24 hours",
+      "residualConfigurationUntilProviderExpiry": [
+        "schema",
+        "permissions"
+      ],
+      "oldActorTokenInvalidated": true,
+      "localRuntimeCredentialsRemoved": true,
+      "finishedAt": "2026-07-29T05:04:29.254Z",
+      "ok": true
+    }
+  },
+  "result": "complete"
+}

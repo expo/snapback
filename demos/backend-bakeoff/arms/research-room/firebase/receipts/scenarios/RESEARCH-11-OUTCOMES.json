@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-11-OUTCOMES",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:05.267Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "Fault-injected question and effect-attempt records retain five distinct terminal/settlement states.",
+    "states": {
+      "complete": {
+        "questionId": "question-idempotent-retry",
+        "status": "complete",
+        "settlement": "confirmed-complete"
+      },
+      "failed": {
+        "questionId": "question-outcome-failed",
+        "status": "failed",
+        "settlement": "confirmed-failure"
+      },
+      "cancelled": {
+        "questionId": "question-cancel-late",
+        "status": "cancelled",
+        "settlement": "cancelled"
+      },
+      "timed-out": {
+        "questionId": "question-outcome-timeout",
+        "status": "timed-out",
+        "settlement": "confirmed-timeout"
+      },
+      "ambiguous": {
+        "questionId": "question-outcome-ambiguous",
+        "status": "ambiguous",
+        "settlement": "unknown-after-dispatch"
+      }
+    }
+  },
+  "note": "Complete, failed, cancelled, timed-out, and ambiguous outcomes remain distinguishable."
+}

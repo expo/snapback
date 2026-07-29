@@ -1,0 +1,366 @@
+{
+  "schemaVersion": 1,
+  "tranche": "deep-round",
+  "startingSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "entries": [
+    {
+      "id": "SB-010",
+      "title": "Resolve required capabilities from one process-live target truth",
+      "sourceApps": ["research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "spacetimedb", "appwrite", "instantdb"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/receipts/acceptance-failure.v1.json",
+        "issues/closed/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
+      ],
+      "frequency": 1,
+      "classification": "defect",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Firebase, Supabase, Convex, Appwrite, and SpacetimeDB admitted their ordinary authenticated Research Room application with realtime scheduled progress; Snapback's exact runtime implements the stream but its sessions cold-start path refuses the composition.",
+      "snapbackPropertyToPreserve": "Complete-pair pre-effect startup admission, server-derived sessions authority, fail-closed capability requirements, and the instance-live registered-implementation plus egress predicate.",
+      "snapbackNativeOutcome": "Cold-start preflight, same-mode provisioning, ordinary publication, generated manifests, and served inspection resolve every required capability from the same exact process-live target facts.",
+      "acceptanceWitness": "A clean external sessions application requiring bounded_response_stream_v1 cold-starts only when this exact process enables outbound actions; two sessions observe durable intermediate progress, cancellation fences late writes, all terminal outcomes remain distinct, and the egress-disabled twin refuses before bind.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+      "beforeEvidencePaths": [
+        "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json"
+      ],
+      "afterEvidencePaths": [
+        "src/local.rs",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/before-after.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json"
+      ]
+    },
+    {
+      "id": "SB-011",
+      "title": "Ship an authenticated asset lifecycle instead of metadata-only rows",
+      "sourceApps": ["partiful", "research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json",
+        "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md"
+      ],
+      "frequency": 2,
+      "classification": "capability",
+      "severity": "high",
+      "reach": "multiple-apps",
+      "competitorOutcome": "Five competitors provided native byte upload, authorized member delivery, owner deletion, and post-delete absence without relabeling application metadata as storage.",
+      "snapbackPropertyToPreserve": "Server-derived authority, target portability, export/restore legibility, bounded resource use, and exact cleanup.",
+      "snapbackNativeOutcome": "A declared asset field or resource supports bounded byte upload, authority-scoped delivery, ownership, deletion, export/restore, and target-reported limits through generated clients.",
+      "acceptanceWitness": "Partiful and Research Room upload deterministic fixtures, prove member byte identity and outsider refusal, enforce owner deletion, restore/export identity, and clean every byte from a target-scoped namespace.",
+      "destination": "existing-llp",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-012",
+      "title": "Make authorized indexed text and semantic retrieval ordinary",
+      "sourceApps": ["linear", "research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "appwrite", "spacetimedb", "instantdb"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/linear/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json",
+        "diaries/0029-linear-backend-bakeoff.diary.md",
+        "diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "frequency": 2,
+      "classification": "capability",
+      "severity": "high",
+      "reach": "multiple-apps",
+      "competitorOutcome": "Supabase and Convex supplied indexed full-text plus native vector retrieval in the same data authority; Firebase supplied a credible provider-native semantic extension path, while Appwrite and InstantDB made their vector gaps explicit.",
+      "snapbackPropertyToPreserve": "Authorization is evaluated with retrieval, results remain target-portable and inspectable, deterministic fixtures are possible, and scans are never mislabeled as indexes.",
+      "snapbackNativeOutcome": "Schema declarations can opt into authorized full-text and vector similarity indexes with generated query forms, explicit target capability admission, and honest per-target gaps.",
+      "acceptanceWitness": "Linear returns exact indexed keyword sets under member/outsider authority; Research Room returns the deterministic nearest authorized source from a native vector query; unsupported targets refuse at admission rather than scanning.",
+      "destination": "new-llp",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-013",
+      "title": "Bring protected offline retention and queued settlement to ordinary clients",
+      "sourceApps": ["todo", "chat", "linear", "partiful"],
+      "backendComparisons": ["firebase", "instantdb"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/reports/calibration-remediation.v1.json",
+        "demos/backend-bakeoff/arms/linear/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/linear/firebase/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/linear/instantdb/run-capsule.v1.json"
+      ],
+      "frequency": 5,
+      "classification": "capability",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Firebase and InstantDB expose retained data and reconnect settlement through their normal application clients rather than a benchmark-only or custom sync path.",
+      "snapbackPropertyToPreserve": "Lease-bounded protected bytes, user-switch deletion, server authority, explicit conflict and ambiguity, and replay parity.",
+      "snapbackNativeOutcome": "Generated clients expose opt-in protected cold retention and a restart-safe outbox with visible cache provenance and exact settlement.",
+      "acceptanceWitness": "A cold client renders only still-leased rows, queues a mutation across restart, settles exactly once after reconnect, exposes conflicts, and deletes or quarantines protected bytes on expiry, logout, revocation, and principal switch.",
+      "destination": "existing-llp",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-014",
+      "title": "Make a hosted deployment an evidence-bearing ordinary path",
+      "sourceApps": ["todo", "chat", "linear", "partiful", "research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/protocol/provider-inventory.v1.json",
+        "demos/backend-bakeoff/arms/linear/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/run-capsule.v1.json"
+      ],
+      "frequency": 5,
+      "classification": "operations",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Managed competitors offer an ordinary hosted target identity and deployment workflow; local-first competitors at least make the hosted gap and lifecycle legible.",
+      "snapbackPropertyToPreserve": "Local completeness, portable artifacts, exact deployment identity, scoped authority, rollback, backup, and no hidden control-plane trust.",
+      "snapbackNativeOutcome": "A clean external project can deploy the same admitted artifact to a named hosted target and inspect identity, region, version, auth posture, logs, backup/export, rollback, cost scope, and exact cleanup.",
+      "acceptanceWitness": "All five frozen apps deploy from clean external projects; target identities match served inspection, smoke and rollback pass, backup/read-back is byte exact, costs are scoped, and deletion leaves no app namespace.",
+      "destination": "existing-llp",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-015",
+      "title": "Make clean external-project bootstrap boring",
+      "sourceApps": ["todo", "chat", "linear", "partiful", "research-room"],
+      "backendComparisons": ["convex", "firebase", "instantdb", "spacetimedb"],
+      "evidencePaths": [
+        "diaries/0027-todo-backend-bakeoff.diary.md",
+        "diaries/0028-chat-backend-bakeoff.diary.md",
+        "diaries/0029-linear-backend-bakeoff.diary.md",
+        "diaries/0030-partiful-backend-bakeoff.diary.md",
+        "diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "frequency": 5,
+      "classification": "operations",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Convex, Firebase, InstantDB, and SpacetimeDB can reach their ordinary local or temporary-hosted loop from published CLIs and packages without repository-internal source knowledge.",
+      "snapbackPropertyToPreserve": "The local target remains the complete runtime, prepared artifacts are verified, source build remains explicit, and binary provenance is inspectable.",
+      "snapbackNativeOutcome": "A supported clean machine creates, generates, builds, starts, verifies, and removes an external Snapback app through one documented package path without a sibling checkout or implicit Hermes build.",
+      "acceptanceWitness": "Fresh macOS and Linux machines with empty caches run the published quickstart and all five final Snapback arms; binary/package identity is independently verified and no repository-relative import appears.",
+      "destination": "filesystem-issue",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-016",
+      "title": "Teach outbound capability admission at compile time and runtime",
+      "sourceApps": ["partiful", "research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "appwrite"],
+      "evidencePaths": [
+        "issues/closed/20260728-guide-gap-codegen-action-egress-gate.md",
+        "issues/closed/20260729-guide-gap-sessions-streamed-action-capability-composition.md",
+        "demos/backend-bakeoff/arms/partiful/snapback/evidence/failed-attempts.md"
+      ],
+      "frequency": 2,
+      "classification": "docs-diagnostics",
+      "severity": "high",
+      "reach": "general",
+      "competitorOutcome": "Integrated function providers make the build/deploy boundary for external effects visible in their ordinary function workflow and return phase-specific diagnostics.",
+      "snapbackPropertyToPreserve": "Egress stays opt-in, generated requirements cannot grant target authority, diagnostics remain value-free, and unsupported targets refuse before effects.",
+      "snapbackNativeOutcome": "The Guide and diagnostics distinguish authoring/codegen declaration from process-live target admission, show the grant on every relevant command, and prove their composition in sessions mode.",
+      "acceptanceWitness": "A clean documented fetch/stream example generates and runs with the gate enabled; codegen-disabled and runtime-disabled twins fail with different actionable value-free diagnostics; Guide snippets are CI-verified.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+      "beforeEvidencePaths": [
+        "issues/closed/20260728-guide-gap-codegen-action-egress-gate.md",
+        "issues/closed/20260729-guide-gap-sessions-streamed-action-capability-composition.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/backend/actions-and-fetch.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json",
+        "src/local.rs"
+      ]
+    },
+    {
+      "id": "SB-017",
+      "title": "Put bounded mutation limits and bulk-import guidance before runtime",
+      "sourceApps": ["linear"],
+      "backendComparisons": ["supabase", "firebase", "convex", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "issues/closed/20260728-guide-gap-mutation-buffered-write-ceiling.md",
+        "demos/backend-bakeoff/arms/linear/snapback/receipts/failed-attempts.v1.json"
+      ],
+      "frequency": 1,
+      "classification": "docs-diagnostics",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Competitors expose batch, transaction, or import limits close to the ordinary bulk-write path, reducing discovery through production-shaped failure.",
+      "snapbackPropertyToPreserve": "Atomic mutation buffering remains bounded and deterministic; larger imports do not silently weaken transaction or authority semantics.",
+      "snapbackNativeOutcome": "The mutation Guide states the exact target-reported ceiling, what counts as one buffered write, and a bounded resumable import pattern.",
+      "acceptanceWitness": "A CI-verified example imports more than one mutation ceiling in bounded chunks, resumes without duplicates, and an over-limit mutation retains SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "landed",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+      "beforeEvidencePaths": [
+        "issues/closed/20260728-guide-gap-mutation-buffered-write-ceiling.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/backend/mutations.md",
+        "guide/guide-manifest.generated.json"
+      ]
+    },
+    {
+      "id": "SB-018",
+      "title": "Pave multi-principal sessions tests and anonymous public reads",
+      "sourceApps": ["todo", "partiful", "research-room"],
+      "backendComparisons": ["firebase", "supabase", "convex", "appwrite", "instantdb"],
+      "evidencePaths": [
+        "issues/20260728-guide-gap-session-mailbox-fixture-is-incomplete.md",
+        "issues/20260728-guide-gap-anonymous-public-reads-in-sessions-mode.md",
+        "issues/20260728-guide-gap-reset-invalidates-session-identities.md"
+      ],
+      "frequency": 3,
+      "classification": "experience",
+      "severity": "high",
+      "reach": "multiple-apps",
+      "competitorOutcome": "Firebase, Supabase, Convex, Appwrite, and InstantDB provide ordinary test identities and public/authenticated client paths without hand-authoring protocol headers or discovering mailbox custody through source.",
+      "snapbackPropertyToPreserve": "The server derives identity, mailbox and impersonation authority never enter browser code, anonymous calls cannot smuggle principals, and reset revokes prior authority.",
+      "snapbackNativeOutcome": "First-party test helpers create multiple genuine local sessions; generated/headless clients expose an admitted anonymous public mode; the Guide teaches reset-safe membership bootstrap.",
+      "acceptanceWitness": "A clean sessions demo creates Alice, Bob, and Mallory through a server-side helper, serves an anonymous public preview and protected controls through paved clients, proves outsider denial, and survives a reset using authenticated resource bootstrap.",
+      "destination": "filesystem-issue",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-019",
+      "title": "Expose honest GAPs for assets and notification delivery in the capability index",
+      "sourceApps": ["partiful", "research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md",
+        "guide/capabilities.md",
+        "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json"
+      ],
+      "frequency": 2,
+      "classification": "docs-diagnostics",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Competitors document Storage and notification/function surfaces directly; builders can decide before modeling whether the integrated product covers bytes and delivery.",
+      "snapbackPropertyToPreserve": "Capability claims remain target-specific, evidence-backed, and explicit about missing surfaces; metadata rows and effect ledgers are not mislabeled.",
+      "snapbackNativeOutcome": "The complete capability index contains owned, dated assets and notification-delivery GAP rows linked to governing work and current non-goals.",
+      "acceptanceWitness": "Guide search reaches both rows, the Guide checker validates their metadata, and an agent reading only the index correctly predicts the Partiful and Research Room outcomes.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+      "beforeEvidencePaths": [
+        "issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/capabilities.md",
+        "guide/guide-manifest.generated.json"
+      ]
+    },
+    {
+      "id": "SB-020",
+      "title": "Provide a typed local configuration automation path",
+      "sourceApps": ["partiful", "research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "appwrite"],
+      "evidencePaths": [
+        "issues/20260728-guide-gap-local-config-automation-request-shape.md",
+        "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/commands-and-failures.v1.json"
+      ],
+      "frequency": 2,
+      "classification": "experience",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Integrated function providers expose a first-party CLI or management API for setting opaque runtime configuration and inspecting presence without returning values.",
+      "snapbackPropertyToPreserve": "Values never appear in manifests, argv, logs, browser memory, status output, or committed fixtures; generation and pool semantics stay explicit.",
+      "snapbackNativeOutcome": "The privileged headless client or CLI exposes typed status, set, unset, and verify operations with generation handling and value-free receipts.",
+      "acceptanceWitness": "A clean local demo follows only the Guide to set, verify, use, rotate, and remove an Action canary; exact-value scans of source, argv, logs, receipts, browser state, and final target are zero.",
+      "destination": "filesystem-issue",
+      "decision": "investigate",
+      "status": "proposed"
+    },
+    {
+      "id": "SB-021",
+      "title": "Keep explicit effect certainty and cancellation fencing first-class",
+      "sourceApps": ["partiful", "research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "demos/backend-bakeoff/arms/partiful/snapback/run-capsule.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json",
+        "diaries/0030-partiful-backend-bakeoff.diary.md",
+        "diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "frequency": 2,
+      "classification": "benchmark-only",
+      "severity": "low",
+      "reach": "general",
+      "competitorOutcome": "Competitors often reach scheduled progress quickly but require application-authored state machines to distinguish failed, cancelled, timed-out, and ambiguous effects and to fence late writes.",
+      "snapbackPropertyToPreserve": "Host-derived effect certainty, durable terminal winners, conflict reconciliation, and no late durable patch after cancellation.",
+      "snapbackNativeOutcome": "Improve the ergonomics and generated patterns around Snapback's existing settlement model rather than replacing it with provider-shaped best-effort retries.",
+      "acceptanceWitness": "Partiful and Research Room retain distinct terminal states, exact effectMayHaveExecuted facts, authoritative intermediate push, idempotent rejoin, and zero late patches under cancellation and timeout.",
+      "destination": "deliberate-non-goal",
+      "decision": "refuse",
+      "status": "refused"
+    },
+    {
+      "id": "SB-022",
+      "title": "Put membership-command cardinality beside the generated authoring path",
+      "sourceApps": ["research-room"],
+      "backendComparisons": ["convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"],
+      "evidencePaths": [
+        "issues/closed/20260729-guide-gap-membership-command-batch-limit.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/commands-and-failures.v1.json",
+        "diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "frequency": 1,
+      "classification": "docs-diagnostics",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Competitor membership setup APIs either accepted the frozen multi-member seed or exposed their transaction/resource boundary before the application ran.",
+      "snapbackPropertyToPreserve": "Each generated membership command remains an explicit fail-closed authority transition; several commands never become accidentally atomic or partially applied inside one mutation.",
+      "snapbackNativeOutcome": "The Guide and, where statically visible, codegen state the one-command v1 ceiling, bootstrap expansion, exact refusal, and an idempotent multi-mutation setup pattern.",
+      "acceptanceWitness": "A documented Research Room setup creates two resources and two member grants through four idempotent calls; a one-mutation four-command twin refuses atomically with SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED.",
+      "destination": "immediate-fix",
+      "decision": "accept",
+      "status": "verified",
+      "endingSnapbackCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+      "beforeEvidencePaths": [
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/commands-and-failures.v1.json",
+        "issues/closed/20260729-guide-gap-membership-command-batch-limit.md"
+      ],
+      "afterEvidencePaths": [
+        "guide/auth/scoped-roles.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/acceptance.v1.json"
+      ]
+    },
+    {
+      "id": "SB-023",
+      "title": "Make public client inspection negotiate the active sessions profile",
+      "sourceApps": ["research-room"],
+      "backendComparisons": ["firebase", "supabase", "convex", "appwrite"],
+      "evidencePaths": [
+        "issues/20260729-sessions-client-inspect-omits-protocol-offer.md",
+        "demos/backend-bakeoff/arms/research-room/snapback/remediation-2-handoff/schedule-steps.v1.json",
+        "diaries/0031-research-room-backend-bakeoff.diary.md"
+      ],
+      "frequency": 1,
+      "classification": "experience",
+      "severity": "medium",
+      "reach": "general",
+      "competitorOutcome": "Competitor client diagnostics and emulator inspection paths remain usable under the same ordinary authentication profile as application calls.",
+      "snapbackPropertyToPreserve": "Public served facts and sensitive operator facts remain separate; the secret-read lease is never inferred from an application session.",
+      "snapbackNativeOutcome": "SnapbackClient.inspect negotiates the active public auth-client protocol automatically while sensitive operator inspection retains its distinct typed authorization.",
+      "acceptanceWitness": "A sessions client reads public /inspect through the official method without hand-authored headers, receives a typed refusal for operator inspection without a secret-read lease, and succeeds only after minting that lease.",
+      "destination": "filesystem-issue",
+      "decision": "investigate",
+      "status": "proposed"
+    }
+  ]
+}

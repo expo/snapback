@@ -690,7 +690,13 @@ try {
   await suite.check('TTL expiry: an expired entry leaves entries and is never re-exposed (LLP 0034 §6)', async () => {
     const scope = { boardId: 'board_ttl' };
     const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
-    const overlay = await db.subscribeEphemeral('boardCursors', { connectionId: 'ttl_observer', scope, userId: ADA, permissions });
+    const overlay = await db.subscribeEphemeral('boardCursors', {
+      connectionId: 'ttl_observer',
+      scope,
+      userId: ADA,
+      permissions,
+      transport: 'poll',
+    });
     try {
       const published = await db.publishEphemeral('boardCursors', {
         connectionId: 'ttl_publisher', scope, userId: ADA, permissions,
@@ -705,7 +711,13 @@ try {
 
       // Server truth: any room touch sweeps expired entries, so a FRESH
       // snapshot never re-exposes it...
-      const fresh = await db.subscribeEphemeral('boardCursors', { connectionId: 'ttl_fresh', scope, userId: ADA, permissions });
+      const fresh = await db.subscribeEphemeral('boardCursors', {
+        connectionId: 'ttl_fresh',
+        scope,
+        userId: ADA,
+        permissions,
+        transport: 'poll',
+      });
       assert(!fresh.currentEntries({ prune: false }).some((entry) => entry.key === published.key), 'expired entry absent from a fresh snapshot');
       fresh.dispose();
       // ...and the original subscriber sees the authoritative removal, never
@@ -728,7 +740,13 @@ try {
     // SEQUENTIAL (awaited) so no overlapping captures double-count.
     const scope = { boardId: 'board_flood' };
     const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
-    const overlay = await db.subscribeEphemeral('boardCursors', { connectionId: 'flood_observer', scope, userId: ADA, permissions });
+    const overlay = await db.subscribeEphemeral('boardCursors', {
+      connectionId: 'flood_observer',
+      scope,
+      userId: ADA,
+      permissions,
+      transport: 'poll',
+    });
     try {
       const drainCadenceMs = 100;
       const windowMs = 1_200;

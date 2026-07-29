@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:49:15.472Z",
+  "serverEndpointHash": "e3ac1ae6057f6586c4f84108ac7a6d9227e458d5a6e5c3a27c28db9b2ccbca2a",
+  "databaseNameHash": "3330b6ff01b114293a091c2b0aaa62c738920a1e1fe622680ceeb4f47c8146a7",
+  "databaseIdentity": "c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261",
+  "productVersion": "2.7.0",
+  "cliCommit": "a08663c7b94688a2542577532d472f751e641f5b",
+  "moduleSchemaSha256": "a217b9a8dd1b2b839e2c495d4b129061e2864284269f254d13ea2a6e40b74ca5",
+  "deployment": "official standalone server",
+  "describeCommandSyntacticallyValid": true,
+  "containsSecretValues": false
+}

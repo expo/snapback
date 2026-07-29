@@ -4,7 +4,7 @@
 **Started:** 2026-07-27  
 **Systems:** Snapback, React, Convex, Supabase, Realtime, Ephemeral, Developer experience  
 **Related:** LLP 0015, LLP 0016, LLP 0061, LLP 0063, LLP 0074,
-`demos/backend-bakeoff/COMPARISON.md`
+`demos/signal-desk/COMPARISON.md`
 
 ## 2026-07-27 — choosing a wide-band product slice
 
@@ -216,7 +216,7 @@ Snapback's third place is useful precisely because it is not universal.
 Snapback ranks first for ephemeral presence and inspectable claim evidence,
 second for durable realtime, and last for initial setup, React integration,
 indexed search, and operational maturity. The prioritized remediation is in
-`demos/backend-bakeoff/COMPARISON.md`.
+`demos/signal-desk/COMPARISON.md`.
 
 ## 2026-07-27 — bounded relations and activity follow-up
 

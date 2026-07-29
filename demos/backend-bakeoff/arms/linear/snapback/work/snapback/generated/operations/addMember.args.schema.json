@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/addMember.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "organizationId": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organizationId",
+    "userId"
+  ],
+  "title": "work:addMember arguments",
+  "type": "object"
+}

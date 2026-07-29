@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function channel(channelId) {
+      return get(/databases/$(database)/documents/channels/$(channelId)).data;
+    }
+    function canRead(channelId) {
+      return signedIn() &&
+        (channel(channelId).visibility == "public" ||
+         request.auth.uid in channel(channelId).memberIds);
+    }
+
+    match /channels/{channelId} {
+      allow read: if signedIn() &&
+        (resource.data.visibility == "public" ||
+         request.auth.uid in resource.data.memberIds);
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow read: if canRead(channelId);
+        allow write: if false;
+      }
+
+      match /reads/{userId} {
+        allow read: if canRead(channelId) && request.auth.uid == userId;
+        allow create, update: if canRead(channelId) &&
+          request.auth.uid == userId &&
+          request.resource.data.keys().hasOnly(["lastReadSequence", "updatedAt"]) &&
+          request.resource.data.lastReadSequence is int;
+        allow delete: if canRead(channelId) && request.auth.uid == userId;
+      }
+    }
+  }
+}

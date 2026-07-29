@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "status": "accepted-stage0-amended",
+  "acceptedAt": "2026-07-28",
+  "authority": "llp/0102-seven-backend-five-app-bakeoff.plan.md",
+  "providers": [
+    "snapback",
+    "convex",
+    "supabase",
+    "firebase",
+    "instantdb",
+    "spacetimedb",
+    "appwrite"
+  ],
+  "apps": [
+    "todo",
+    "chat",
+    "linear",
+    "partiful",
+    "research-room"
+  ],
+  "stages": [
+    "freeze",
+    "calibration",
+    "remediation-1",
+    "deep-round",
+    "remediation-2",
+    "final-confirmation"
+  ],
+  "timedBudgets": {
+    "calibration": {
+      "activeMinutes": 240,
+      "toolCalls": 200
+    },
+    "deep": {
+      "activeMinutes": 480,
+      "toolCalls": 400
+    }
+  },
+  "personas": {
+    "alice": "authorized owner or member",
+    "bob": "authorized second member",
+    "mallory": "outsider"
+  },
+  "hardRules": {
+    "sharedBackendAbstraction": false,
+    "providerNativePath": true,
+    "pollingCountsAsRealtimePush": false,
+    "renderedStateCountsAsAuthority": false,
+    "gapsCountAsPasses": false,
+    "timedArmRequiresReadyPreflight": true,
+    "timedArmRequiresMatchingFreezeDigest": true
+  },
+  "targetAccessAmendment": {
+    "acceptedAt": "2026-07-28",
+    "freshFreeOrLocalAllowed": true,
+    "sharedHostedAllowed": true,
+    "sharedTargetRequiresUniqueNamespace": true,
+    "sharedTargetRequiresBaselinePreservation": true,
+    "localOnlyArmAllowedWhenHostedUnavailable": true
+  },
+  "stopClasses": [
+    "cross-user-disclosure",
+    "secret-exposure",
+    "destructive-cleanup",
+    "false-capability-claim",
+    "late-effect-after-confirmed-cancellation"
+  ]
+}

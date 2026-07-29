@@ -1,0 +1,23 @@
+{
+  "id": "CHAT-08-RECONNECT",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:14.486Z",
+  "beforeCount": 128,
+  "sentWhileDisconnected": [
+    {
+      "authorName": "Alice",
+      "authorSubject": "alice",
+      "id": "jd7dv299k0dm8h02zgc642swfx8bfw0a",
+      "sequence": 129
+    },
+    {
+      "authorName": "Alice",
+      "authorSubject": "alice",
+      "id": "jd771pmw1mkefpw1bhgs1z7mx98betzz",
+      "sequence": 130
+    }
+  ],
+  "afterCount": 130,
+  "noDuplicates": true,
+  "transport": "new authenticated ConvexClient WebSocket session and authoritative query"
+}

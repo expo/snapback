@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T21:36:45.594Z",
+  "targetIdentityHash": "a11623cea8167aa089f595cd50c3ebdd060f8bbbdd0f3aeb74591f466ec9a7f4",
+  "authoritativeTaskCount": 100,
+  "activeMemberCount": 2,
+  "retainedEvidence": [
+    "authoritative-summary.v1.json",
+    "personas.v1.json",
+    "correctness-smoke.v1.json",
+    "offline-smoke.v1.json",
+    "performance.v1.json",
+    "dependency-audit.v1.json",
+    "inventory.v1.json"
+  ],
+  "dataExport": {
+    "status": "explicit-gap",
+    "reason": "The disposable emulator export contains arm-local credentials and is deleted; deterministic seed and source recreate the tested state."
+  },
+  "containsSecretValues": false
+}

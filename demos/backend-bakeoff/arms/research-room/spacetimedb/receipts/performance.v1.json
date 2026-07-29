@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "machine": "Apartment Air / Mac17,3 / Apple M5 / arm64 / macOS 26.5.2 (25F84)",
+  "units": "milliseconds",
+  "claimScope": "small repeatable product workload; not production scale",
+  "warmupsPerPath": 2,
+  "recordedSamplesPerPath": 7,
+  "samples": {
+    "representative-read": {"warmups":[7.197,6.885],"recorded":[5.999,5.933,5.979,6.034,7.071,8.667,7.182]},
+    "representative-write": {"warmups":[38.407,28.022],"recorded":[22.838,20.64,26.117,22.221,20.477,22.526,22.042]},
+    "realtime-delivery": {"warmups":[331.297,333.348],"recorded":[332.727,334.675,334.955,334.566,332.286,328.341,331.299]},
+    "reconnect": {"warmups":[24.102,11.572],"recorded":[12.514,28.47,13.816,14.56,13.365,13.825,12.837]},
+    "build-or-deploy": {"warmups":[413,355],"recorded":[358,360,398,407,353,357,358]}
+  },
+  "statistics": {
+    "representative-read": {"median":6.034,"nearestRankP95":8.667},
+    "representative-write": {"median":22.221,"nearestRankP95":26.117},
+    "realtime-delivery": {"median":332.727,"nearestRankP95":334.955},
+    "reconnect": {"median":13.816,"nearestRankP95":28.47},
+    "build-or-deploy": {"median":358,"nearestRankP95":407}
+  },
+  "costWindow": {
+    "actualProviderUsage": "official local standalone; no metered provider charge",
+    "hostedListPrice": "not measured; hosted credential unavailable",
+    "extrapolationCountsAsMeasured": false
+  }
+}

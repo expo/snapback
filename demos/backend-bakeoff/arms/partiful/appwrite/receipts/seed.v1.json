@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:21:11.417Z",
+  "counts": {
+    "events": 20,
+    "eventPrivate": 20,
+    "invitations": 4,
+    "guests": 49,
+    "wallPosts": 1,
+    "deliveries": 0,
+    "attempts": 0
+  },
+  "fixedDataset": {
+    "events": 20,
+    "contendedGuests": 49,
+    "capacity": 50,
+    "actors": 3,
+    "concurrentClients": 2,
+    "wallBurst": 20,
+    "assetBytes": 262144
+  },
+  "personas": {
+    "alice": {
+      "principalIdHash": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "role": "host"
+    },
+    "bob": {
+      "principalIdHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "role": "guest"
+    },
+    "mallory": {
+      "principalIdHash": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac",
+      "role": "outsider"
+    }
+  },
+  "hostTeamId": "party-hosts",
+  "containsSecretValues": false
+}

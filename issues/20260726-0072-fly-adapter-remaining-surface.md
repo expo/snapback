@@ -40,9 +40,9 @@ restored it onto a fresh encrypted volume attached to a zero-service helper
 Machine, matched its digest, and passed SQLite integrity over 29 tables. The
 helper Machine, helper volume, and backup object were then deleted and
 read-back absent; the original production roster was unchanged. See
-`demos/backend-bakeoff/hosted-supervisor-installation.v1.json` and the
+`demos/signal-desk/hosted-supervisor-installation.v1.json` and the
 deliberately non-success
-`demos/backend-bakeoff/hosted-product-journey.v1.json`.
+`demos/signal-desk/hosted-product-journey.v1.json`.
 
 This does not close a lifecycle row. The drill used the existing private
 backup executable to validate the remote destructive primitive, not the
@@ -122,7 +122,7 @@ dedicated target outbound mTLS identity are staged for the fresh
 `snapback-drill-hosted-v2-20260728` identity. The admission-capable supervisor
 image is live and healthy, while the legacy routed Machine retains its exact
 old image, services, and cert-only volume. See
-`demos/backend-bakeoff/hosted-target-onboarding.v1.json`. This advances
+`demos/signal-desk/hosted-target-onboarding.v1.json`. This advances
 credential custody and the outbound channel only; no lifecycle row passes
 until the fresh successor, binding, release, cutover, and complete public CLI
 receipt do.

@@ -1,0 +1,11 @@
+{
+  "operation": "push-schema-and-permissions",
+  "startedAt": "2026-07-29T06:38:24.482Z",
+  "finishedAt": "2026-07-29T06:38:25.509Z",
+  "startedMonotonicMs": 263666454,
+  "finishedMonotonicMs": 263667481,
+  "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+  "exitStatus": 0,
+  "stdout": "Checking for an Instant SDK...\nFound @instantdb/react in your package.json.\n\nNo schema changes to apply!\nPlanning perms...\nNo perms changes to apply!\n",
+  "stderr": ""
+}

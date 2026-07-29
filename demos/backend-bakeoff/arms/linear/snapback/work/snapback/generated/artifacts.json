@@ -1,0 +1,166 @@
+{
+  "appId": "work",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/addComment.args.schema.json",
+    "operations/addMember.args.schema.json",
+    "operations/bootstrapOrganization.args.schema.json",
+    "operations/createIssue.args.schema.json",
+    "operations/listActivities.args.schema.json",
+    "operations/listComments.args.schema.json",
+    "operations/listIssueLabels.args.schema.json",
+    "operations/listIssues.args.schema.json",
+    "operations/listLabels.args.schema.json",
+    "operations/listOrganizationActivities.args.schema.json",
+    "operations/listOrganizationComments.args.schema.json",
+    "operations/listProjects.args.schema.json",
+    "operations/listTeams.args.schema.json",
+    "operations/pageIssues.args.schema.json",
+    "operations/seedIssuesBatch.args.schema.json",
+    "operations/updateIssue.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/addComment.mutation.ts",
+    "contract/addComment.mutation.contract-meta.ts",
+    "contract/addMember.mutation.ts",
+    "contract/addMember.mutation.contract-meta.ts",
+    "contract/bootstrapOrganization.mutation.ts",
+    "contract/bootstrapOrganization.mutation.contract-meta.ts",
+    "contract/createIssue.mutation.ts",
+    "contract/createIssue.mutation.contract-meta.ts",
+    "contract/listActivities.query.ts",
+    "contract/listActivities.query.contract-meta.ts",
+    "contract/listComments.query.ts",
+    "contract/listComments.query.contract-meta.ts",
+    "contract/listIssueLabels.query.ts",
+    "contract/listIssueLabels.query.contract-meta.ts",
+    "contract/listIssues.query.ts",
+    "contract/listIssues.query.contract-meta.ts",
+    "contract/listLabels.query.ts",
+    "contract/listLabels.query.contract-meta.ts",
+    "contract/listOrganizationActivities.query.ts",
+    "contract/listOrganizationActivities.query.contract-meta.ts",
+    "contract/listOrganizationComments.query.ts",
+    "contract/listOrganizationComments.query.contract-meta.ts",
+    "contract/listProjects.query.ts",
+    "contract/listProjects.query.contract-meta.ts",
+    "contract/listTeams.query.ts",
+    "contract/listTeams.query.contract-meta.ts",
+    "contract/pageIssues.query.ts",
+    "contract/pageIssues.query.contract-meta.ts",
+    "contract/seedIssuesBatch.mutation.ts",
+    "contract/seedIssuesBatch.mutation.contract-meta.ts",
+    "contract/updateIssue.mutation.ts",
+    "contract/updateIssue.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:874ceece43e817c431221cae84c778d21a84e8f89c8bc3322fa5e54bf2b2c44b",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "work:addComment",
+      "kind": "Mutation",
+      "name": "addComment"
+    },
+    {
+      "id": "work:addMember",
+      "kind": "Mutation",
+      "name": "addMember"
+    },
+    {
+      "id": "work:bootstrapOrganization",
+      "kind": "Mutation",
+      "name": "bootstrapOrganization"
+    },
+    {
+      "id": "work:createIssue",
+      "kind": "Mutation",
+      "name": "createIssue"
+    },
+    {
+      "id": "work:listActivities",
+      "kind": "LiveQuery",
+      "name": "listActivities"
+    },
+    {
+      "id": "work:listComments",
+      "kind": "LiveQuery",
+      "name": "listComments"
+    },
+    {
+      "id": "work:listIssueLabels",
+      "kind": "Query",
+      "name": "listIssueLabels"
+    },
+    {
+      "id": "work:listIssues",
+      "kind": "LiveQuery",
+      "name": "listIssues"
+    },
+    {
+      "id": "work:listLabels",
+      "kind": "Query",
+      "name": "listLabels"
+    },
+    {
+      "id": "work:listOrganizationActivities",
+      "kind": "Query",
+      "name": "listOrganizationActivities"
+    },
+    {
+      "id": "work:listOrganizationComments",
+      "kind": "Query",
+      "name": "listOrganizationComments"
+    },
+    {
+      "id": "work:listProjects",
+      "kind": "Query",
+      "name": "listProjects"
+    },
+    {
+      "id": "work:listTeams",
+      "kind": "Query",
+      "name": "listTeams"
+    },
+    {
+      "id": "work:pageIssues",
+      "kind": "Query",
+      "name": "pageIssues"
+    },
+    {
+      "id": "work:seedIssuesBatch",
+      "kind": "Mutation",
+      "name": "seedIssuesBatch"
+    },
+    {
+      "id": "work:updateIssue",
+      "kind": "Mutation",
+      "name": "updateIssue"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:912d80fe96e960e94ff902f1c9fd7bd9ad19381d75311c3adce62c662cb5c624",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "organizations",
+    "organizationMembers",
+    "teams",
+    "projects",
+    "labels",
+    "issues",
+    "issueLabels",
+    "comments",
+    "activities"
+  ]
+}

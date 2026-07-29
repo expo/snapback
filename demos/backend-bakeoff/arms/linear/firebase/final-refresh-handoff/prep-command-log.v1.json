@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "providerCommandsRun": 0,
+  "commands": [
+    {
+      "class": "dependency-install",
+      "command": "npm install --ignore-scripts --no-audit --no-fund",
+      "scope": "prepared root",
+      "exitStatus": 0,
+      "note": "Resolved firebase-admin 14.2.0; npm cache remained arm-local."
+    },
+    {
+      "class": "dependency-install",
+      "command": "npm install --prefix functions --ignore-scripts --no-audit --no-fund",
+      "scope": "prepared functions",
+      "exitStatus": 0,
+      "note": "Resolved firebase-admin 14.2.0 and firebase-functions 7.3.2; host Node 24 produced the expected exact-node-22 engine warning."
+    },
+    {
+      "class": "static-build",
+      "command": "npm run build",
+      "exitStatus": 0,
+      "note": "TypeScript and Vite passed; retained the existing ineffective-dynamic-import and >500 kB chunk warnings."
+    },
+    {
+      "class": "static-module-load",
+      "command": "Node 24.14.0 syntax and require checks",
+      "exitStatus": 0,
+      "note": "Exports were addComment and moveIssue."
+    },
+    {
+      "class": "static-module-load",
+      "command": "isolated npm node@22.23.1 syntax and require checks",
+      "exitStatus": 0,
+      "note": "Exports were addComment and moveIssue under the declared deployment major."
+    },
+    {
+      "class": "builder-error",
+      "command": "first dependency-lock comparison",
+      "exitStatus": 1,
+      "note": "Used ../../work instead of ../work from final-refresh-prep; no project or provider state changed."
+    },
+    {
+      "class": "builder-error",
+      "command": "first copy-manifest generation",
+      "exitStatus": 1,
+      "note": "Generator traversed ignored .state/npm-cache; corrected by excluding runtime paths."
+    },
+    {
+      "class": "builder-error",
+      "command": "second copy-manifest generation",
+      "exitStatus": 1,
+      "note": "Generator included build-created tsconfig.tsbuildinfo; corrected by excluding build outputs."
+    },
+    {
+      "class": "builder-error",
+      "command": "first provider-process absence scan",
+      "exitStatus": 1,
+      "note": "The regex matched its own shell command; rerun with a self-excluding pattern passed."
+    },
+    {
+      "class": "static-audit",
+      "command": "npm audit --prefix functions --omit=dev --json",
+      "exitStatus": 1,
+      "note": "npm reported 13 transitive findings; the piped summary command exited zero, but raw npm audit semantics are retained here as nonzero."
+    },
+    {
+      "class": "readiness-probe",
+      "command": "assigned port and provider-process absence checks",
+      "exitStatus": 0,
+      "note": "All eight proposed ports were closed and no matching emulator process existed."
+    }
+  ]
+}

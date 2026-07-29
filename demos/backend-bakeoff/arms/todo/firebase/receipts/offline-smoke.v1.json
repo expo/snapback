@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T21:31:29.818Z",
+  "ok": true,
+  "transportBarrier": {
+    "exactHubPid": 69025,
+    "exactHubCommandVerified": true,
+    "exportedBeforeStop": true,
+    "allFiveArmPortsClosed": true,
+    "restartedFromExport": true
+  },
+  "warmRowsBeforePause": 100,
+  "warmRowsWhilePaused": 100,
+  "coldBoot": {
+    "retainedRows": 100,
+    "snapshotFromCache": true,
+    "indexedDbDatabaseCount": 3
+  },
+  "offlineWrites": {
+    "optimisticTaskCount": 101,
+    "snapshotHasPendingWrites": true,
+    "queueUi": "Queued or saving",
+    "remoteCommitImpossibleWhileAllEmulatorPortsClosed": true
+  },
+  "reconnect": {
+    "authoritativeTaskCount": 101,
+    "authoritativeUpdateVisible": true,
+    "markerCopies": 1,
+    "restoredBaselineCount": 100
+  },
+  "containsSecretValues": false
+}

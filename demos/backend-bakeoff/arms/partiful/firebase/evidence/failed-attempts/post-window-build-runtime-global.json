@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:43:00Z",
+  "phase": "post-window verification",
+  "command": "npm run build",
+  "exitStatus": 1,
+  "failure": "The remediation project override referenced the Node process global directly in a module also compiled for the browser.",
+  "remediation": "Read the optional Node environment through a typed globalThis projection so browser compilation remains valid.",
+  "classification": "post-remediation harness portability error; not a Firebase product defect"
+}

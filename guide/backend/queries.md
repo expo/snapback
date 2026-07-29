@@ -4,8 +4,8 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/backend-bakeoff/snapback/functions.mjs]
-examples: [demos/todo, demos/todo-v2, demos/backend-bakeoff]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
@@ -43,7 +43,7 @@ export const listTodosOnce = defineQuery({
 self-contained handler expression with its arguments, result contract, and
 declared reads. The handler uses the bounded `ctx.db` surface:
 
-```js source=demos/backend-bakeoff/snapback/functions.mjs
+```js source=demos/signal-desk/snapback/functions.mjs
 export const generateBrief = defineJsQuery({
   args: { incidentId: v.id('incidents') },
   result: results.records(v.object({ brief: v.string() })),

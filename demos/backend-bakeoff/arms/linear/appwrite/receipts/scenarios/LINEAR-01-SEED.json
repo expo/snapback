@@ -1,0 +1,28 @@
+{
+  "id": "LINEAR-01-SEED",
+  "status": "pass",
+  "checkedAt": "2026-07-29T04:55:46.009Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeAdminCounts": {
+      "organizations": 2,
+      "teams": 3,
+      "projects": 4,
+      "members": 2,
+      "labels": 20,
+      "issueLabels": 1000,
+      "issues": 500,
+      "comments": 1000,
+      "activities": 500
+    },
+    "actors": 3,
+    "concurrentClients": 2,
+    "pageSize": 50,
+    "targetIdentity": {
+      "endpointHash": "dac93ea845f3bbff78bfe830aa8241c6e7ae8fbe0e27c7f769e9168321370ff0",
+      "projectIdHash": "9b24d0c1a3a7842eda2f62fab80993af918a70a0e4aef3f9e039f394f6f81cd5"
+    }
+  },
+  "note": "Admin authority directly verified the exact frozen dataset after native Auth users and Teams were provisioned."
+}

@@ -1,0 +1,31 @@
+{
+  "id": "LINEAR-12-DEPLOY",
+  "status": "unavailable-remote-dependency",
+  "checkedAt": "2026-07-29T04:55:50.996Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "local": {
+      "status": "pass",
+      "productVersion": "1.9.6",
+      "endpoint": "redacted-to-hash",
+      "projectIdHash": "9b24d0c1a3a7842eda2f62fab80993af918a70a0e4aef3f9e039f394f6f81cd5",
+      "composeProject": "llp0102-linear-appwrite-w2",
+      "runningContainers": 29,
+      "database": "MongoDB 8.2.5",
+      "deploymentPath": "official Appwrite web installer and Docker Compose"
+    },
+    "hosted": {
+      "status": "credential-unavailable",
+      "targetMutated": false,
+      "url": null
+    },
+    "officialDocs": [
+      "https://appwrite.io/docs/advanced/self-hosting/installation",
+      "https://appwrite.io/docs/products/databases/transactions",
+      "https://appwrite.io/docs/products/databases/queries",
+      "https://appwrite.io/docs/apis/realtime/subscribe"
+    ]
+  },
+  "note": "Hosted Appwrite Cloud credentials were unavailable; the official isolated local deployment is directly evidenced, and no hosted product claim is made."
+}

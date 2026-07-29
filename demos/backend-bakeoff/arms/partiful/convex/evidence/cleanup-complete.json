@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "namespace": "llp0102-partiful-convex-w2",
+  "targetIdentityHash": "76815d5e818ebdddd4e0dac76d88de00636918166bc8cf85e09404fce814ec5d",
+  "dataPlane": {
+    "schemaVersion": 1,
+    "namespace": "llp0102-partiful-convex-w2",
+    "targetIdentity": {
+      "kind": "fresh-anonymous-local",
+      "namespace": "llp0102-partiful-convex-w2",
+      "deploymentName": "anonymous-agent",
+      "backendVersion": "precompiled-2026-07-21-82d5e9f",
+      "ports": {
+        "cloud": 3336,
+        "site": 3337
+      }
+    },
+    "targetIdentityHash": "76815d5e818ebdddd4e0dac76d88de00636918166bc8cf85e09404fce814ec5d",
+    "plan": [
+      "Authenticate as the arm-owned Alice persona.",
+      "Delete only namespace-indexed native storage objects and table rows.",
+      "Probe every namespaced table for zero rows.",
+      "Stop exact recorded Vite/CLI/backend processes.",
+      "Retire the exact fresh local .convex target and worktree-local secret/config/browser state.",
+      "Verify ports and paths are absent; re-check the unrelated hosted instance identity without mutation."
+    ],
+    "baseline": {
+      "targetExistedBeforeArm": false,
+      "namespaceExistedBeforeArm": false,
+      "unrelatedHostedMutationAttempted": false
+    },
+    "before": {
+      "assets": 0,
+      "events": 20,
+      "memberships": 50,
+      "notificationAttempts": 3,
+      "personas": 4,
+      "reminders": 1,
+      "rsvps": 49,
+      "wallPosts": 31
+    },
+    "removed": {
+      "assets": 0,
+      "events": 20,
+      "memberships": 50,
+      "notificationAttempts": 3,
+      "personas": 4,
+      "reminders": 1,
+      "rsvps": 49,
+      "wallPosts": 31
+    },
+    "namespaceNegativeProbe": {
+      "assets": 0,
+      "events": 0,
+      "memberships": 0,
+      "notificationAttempts": 0,
+      "personas": 0,
+      "reminders": 0,
+      "rsvps": 0,
+      "wallPosts": 0
+    },
+    "allZero": true,
+    "completedAt": "2026-07-29T06:53:07.193Z"
+  },
+  "processPlane": {
+    "exactProcessesStopped": [
+      357354,
+      357357,
+      357376,
+      357488,
+      359698,
+      359717,
+      359718
+    ],
+    "exactPortsAbsent": [
+      3336,
+      3337,
+      4336
+    ],
+    "processNegativeProbe": true
+  },
+  "statePlane": {
+    "retiredPaths": [
+      "/home/ccheever/worktrees/llp0102-partiful-convex-w2/arms/partiful/convex/.convex",
+      "/home/ccheever/worktrees/llp0102-partiful-convex-w2/arms/partiful/convex/.env.local",
+      "/home/ccheever/worktrees/llp0102-partiful-convex-w2/.arm-state"
+    ],
+    "pathNegativeProbe": true,
+    "worktreeLocalCredentialsRemoved": true,
+    "browserProfileRemoved": true
+  },
+  "unrelatedBaseline": {
+    "status": 200,
+    "bytes": 64,
+    "bodySha256": "52ac067284b1f693d1f684db5d677d3434c7aef94ef24a53771de6f22a94f3a0",
+    "mutationAttempted": false
+  },
+  "completedAt": "2026-07-29T07:00:56.424Z"
+}

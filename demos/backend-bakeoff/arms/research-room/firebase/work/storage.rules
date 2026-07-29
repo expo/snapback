@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(roomId) {
+      return signedIn()
+        && request.auth.uid in
+          firestore.get(/databases/(default)/documents/rooms/$(roomId)).data.memberIds;
+    }
+
+    match /rooms/{roomId}/sources/{sourceId} {
+      allow read: if isMember(roomId);
+      allow create: if isMember(roomId)
+        && request.resource.size <= 131072
+        && request.resource.contentType == "text/plain"
+        && request.resource.metadata.ownerId == request.auth.uid
+        && request.resource.metadata.sourceId == sourceId;
+      allow update: if false;
+      allow delete: if isMember(roomId)
+        && resource.metadata.ownerId == request.auth.uid
+        && resource.metadata.sourceId == sourceId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

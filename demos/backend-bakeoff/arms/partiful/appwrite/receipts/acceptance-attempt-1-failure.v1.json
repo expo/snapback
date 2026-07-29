@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "failedAt": "2026-07-29T05:48:00Z",
+  "scenario": "PARTY-07-LIVE-BURST",
+  "classification": "harness-observability",
+  "productBlame": false,
+  "message": "Initial strict Realtime burst assertion failed before diagnostic values were retained; authoritative state contained the complete 20-row burst and RSVP transition.",
+  "remediation": "Reset exact arm data on every run and retain per-channel counters in any subsequent assertion."
+}

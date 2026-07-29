@@ -1,0 +1,10 @@
+{
+  "attempt": 5,
+  "stage": "performance sampling",
+  "classification": "harness environment defect",
+  "symptom": "The first build sample failed because the child environment replaced Volta's resolved Node tool-image paths with only its shim path.",
+  "cause": "The sampling script overwrote PATH after Node had resolved the active Volta tool image.",
+  "remediation": "Prefix the worktree-local SpacetimeDB CLI directory to the inherited resolved PATH.",
+  "sampleRetained": false,
+  "stopClass": false
+}

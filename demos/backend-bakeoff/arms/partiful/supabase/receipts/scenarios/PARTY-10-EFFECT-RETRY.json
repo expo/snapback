@@ -1,0 +1,24 @@
+{
+  "id": "PARTY-10-EFFECT-RETRY",
+  "checkedAt": "2026-07-29T05:41:17.569Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "attemptLedger": [
+      {
+        "attemptNo": 1,
+        "state": "succeeded",
+        "responseCode": 200
+      }
+    ],
+    "providerBoundary": {
+      "edgeFunction": "notify -> provider-fake HTTP",
+      "receiptHash": "160e111a2dba2e57f9c2b04eb63cacc75144954cfe0ef565dfe0cdbfd18268bd",
+      "deliveryCount": 1
+    },
+    "terminalSettlement": {
+      "retryDeduplicated": true,
+      "state": "succeeded"
+    }
+  }
+}

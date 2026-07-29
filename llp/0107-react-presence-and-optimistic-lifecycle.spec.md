@@ -12,11 +12,11 @@ suites, guide, and exact ten-check retained receipt are complete; hosted
 presence remains unsupported). 2026-07-27 (final author reconciliation pins
 result-contract and expiry negotiation carriers plus remaining lifecycle
 diagnostics/tests)
-**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0102, LLP 0105
+**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0114, LLP 0105
 
 ## Summary
 
-This Spec adds presence and optimistic rollback to LLP 0102's React surface as
+This Spec adds presence and optimistic rollback to LLP 0114's React surface as
 strict projections over its prepared provider, a client-owned room handle, the
 existing query-store ledger, and complete generated references. It adds no
 transport, authority, cache, ledger, credential carrier, or durable store. V1
@@ -42,7 +42,7 @@ useSnapbackMutation<Ref extends MutationReference,
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>
 ```
 
-References match the prepared app/target; scope/value/query args use LLP 0102's
+References match the prepared app/target; scope/value/query args use LLP 0114's
 `CanonicalClientValueV1`. Callers supply no identity, credential, authority,
 room, expiry, or mutation facts. `prepareReactBinding` privately admits exact
 generated/deployed collection name, schemas, key mode, bounds, app/target,
@@ -161,7 +161,7 @@ epoch, overflow, or permission path signals a reason. LLP 0105 authority change
 surfaces as handle reason `ephemeral_authority_changed`; React never reaches
 into `LiveStreamManager`.
 
-Per LLP 0102, custody change synchronously blanks, then quiesces/disposes every
+Per LLP 0114, custody change synchronously blanks, then quiesces/disposes every
 store before successor subscribe; subtree A→B replacement releases only that
 subtree. Revocation exposes no denied entries, removes self through the server
 barrier, and surfaces its trusted diagnostic.
@@ -237,7 +237,7 @@ subscriptions, publishers, timers, late work, resync reasons, and cleanup error.
 
 ## Package and acceptance
 
-LLP 0102's `@snapback/react` ships one web/Expo room store and registers it as
+LLP 0114's `@snapback/react` ships one web/Expo room store and registers it as
 LLP 0105's native republisher. Tests cover typing/refusals; room/publisher
 transitions; skew/TTL/rate/payload; handle late work; caps/cleanup; optimistic
 overlap/order/rebase/rollback; version separation; and packed web/Expo.
@@ -262,7 +262,7 @@ across provider, client manager, and server ephemeral namespaces and requires
 zero stores/timers/listeners/subscriptions/grants/socket demand. “Native
 delivery” means backend-native WebSocket; Expo bundling is separate.
 
-This supersedes LLP 0102 placeholders
+This supersedes LLP 0114 placeholders
 `SNAPBACK_REACT_PRESENCE_SELF_CONFLICT`,
 `SNAPBACK_REACT_PRESENCE_HEARTBEAT_INVALID`,
 `SNAPBACK_REACT_OPTIMISTIC_TARGET_INVALID`, and
@@ -287,13 +287,13 @@ Implemented on 2026-07-27 as one projection across:
   complete private collection/result descriptors;
 - `packages/snapback-react` for the provider-owned presence registry and the
   single authoritative optimistic query-store ledger; and
-- `demos/backend-bakeoff/src/backends/snapback.ts` for the removal of manual
+- `demos/signal-desk/src/backends/snapback.ts` for the removal of manual
   presence heartbeat/overlay and optimistic rollback glue.
 
 The package suites cover descriptor/refusal typing, old/new expiry negotiation,
 room sharing and cleanup, optimistic ordering/rebase/selective rollback, and
 the shared result validator. `bun run test:react` in
-`demos/backend-bakeoff` produced
+`demos/signal-desk` produced
 `acceptance/results/react-presence.v1.json`: all ten required ids passed with
 zero skips, using two independent native WebSocket clients and exact
 provider/client/server cleanup inspection. `typecheck` and the production

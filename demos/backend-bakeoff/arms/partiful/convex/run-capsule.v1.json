@@ -1,0 +1,468 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "partiful",
+    "provider": "convex",
+    "round": "deep",
+    "attemptId": "partiful-convex-deep-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "snapbackFrozenSourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "coordinatorIntegrationBase": "88347f6c9554b254804eacb2ee4310e805eacd53",
+    "providerVersions": {
+      "product": "Convex",
+      "client": "1.42.3",
+      "cli": "1.42.3",
+      "npmIntegrity": "sha512-7Tz/lH6UlZdiqzLPF/zrlH6Rlo/DOp836dL+GZkUMEQ2jaGGNnBIiIDcOOiEqtfSehuQ65r/rdNMnb4LupowaA==",
+      "backend": "precompiled-2026-07-21-82d5e9f"
+    },
+    "machine": "ccheever-minisforum-AI-Series/x86_64/Linux 6.17/24 logical CPUs/59 GiB RAM",
+    "startedAt": "2026-07-29T06:29:54.419Z",
+    "finishedAt": "2026-07-29T07:00:56.424Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 1862010,
+    "toolCalls": 78,
+    "toolCallCountMethod": "reconstructed from coordinator handoff plus worker tool transcript; below frozen limit",
+    "timedWindowFrozenAt": "2026-07-29T07:00:56.424Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "8e406d8dddb86774db592eaa69edbd57c30a2e310cf16ca7875f14766bc28b29",
+      "role": "host"
+    },
+    "bob": {
+      "principalIdHash": "2cbc83980d76b2c9b4a9079feebd927559fdd1819bf1d7ed2d511a46afa89f53",
+      "role": "guest/cohost/revoked/restored"
+    },
+    "casey": {
+      "principalIdHash": "d5690c7ca73d03de9247b750b5ab74b90f1e5d7c8454b555e514ef303afa6017",
+      "role": "guest"
+    },
+    "mallory": {
+      "principalIdHash": "de898f69af4eb24ec7967c07278467411e550575250c69195ace41374fad8bca",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-partiful-convex-w2",
+      "baselineReceiptPath": "evidence/cleanup-data-plane.json",
+      "scopedCleanupPlanPath": "evidence/cleanup-complete.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "76815d5e818ebdddd4e0dac76d88de00636918166bc8cf85e09404fce814ec5d",
+      "profile": "official anonymous local deployment",
+      "gapReason": "",
+      "receiptPaths": [
+        "evidence/authoritative-summary.json",
+        "evidence/acceptance-results.json",
+        "evidence/performance.json",
+        "evidence/cleanup-complete.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed production deployment",
+      "plan": "Starter",
+      "region": "US region selected by Convex",
+      "gapReason": "UNAVAILABLE_REMOTE_DEPENDENCY: supplied CONVEX_DEPLOY_KEY was empty; readable shared target was not mutated.",
+      "receiptPaths": [
+        "evidence/scenarios/PARTY-13-DEPLOY.json"
+      ]
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 937419,
+    "firstAuthoritativeMutationMs": 937386,
+    "firstRealtimeTransitionMs": 937647,
+    "localAcceptanceMs": 938356,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 1862010
+  },
+  "assistanceEvents": [
+    {
+      "kind": "provider-source-inspection",
+      "when": "preflight",
+      "scope": "Installed Convex 1.42.3 CLI bundle",
+      "reason": "The public CLI help omitted collision-safe local backend and site port flags required by the frozen parallel isolation map.",
+      "result": "Discovered and used --local-cloud-port 3336 and --local-site-port 3337."
+    },
+    {
+      "kind": "provider-source-inspection",
+      "when": "verification-harness",
+      "scope": "Installed Convex 1.42.3 JavaScript client source",
+      "reason": "Anonymous local multi-actor acceptance required deterministic acting identities; the runtime method exists but is omitted from public TypeScript declarations.",
+      "result": "Centralized a development-only setAdminAuth cast in the harness. Application authorization remained native ctx.auth checks."
+    },
+    {
+      "kind": "cross-arm-context",
+      "when": "design",
+      "scope": "Immediately preceding Partiful/SpacetimeDB arm built by the same worker",
+      "reason": "Frozen fixture dimensions, scenario interpretation, and evidence-shape lessons remained in context.",
+      "result": "No provider implementation code was copied; only protocol and harness-shape lessons transferred."
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm install --no-fund --no-audit",
+      "startedMonotonicMs": 415804000,
+      "finishedMonotonicMs": 415807000,
+      "exitStatus": 0,
+      "classification": "exact project dependency install"
+    },
+    {
+      "command": "convex dev --once --configure new (isolated ports)",
+      "startedMonotonicMs": 415808000,
+      "finishedMonotonicMs": 415809000,
+      "exitStatus": 1,
+      "classification": "noninteractive configuration failed"
+    },
+    {
+      "command": "CONVEX_AGENT_MODE=anonymous convex dev --once (isolated ports)",
+      "startedMonotonicMs": 415810000,
+      "finishedMonotonicMs": 415817000,
+      "exitStatus": 0,
+      "classification": "fresh local provisioning and function push"
+    },
+    {
+      "command": "CONVEX_AGENT_MODE=anonymous convex dev --tail-logs disable (isolated ports)",
+      "startedMonotonicMs": 415818000,
+      "finishedMonotonicMs": 417240000,
+      "exitStatus": 0,
+      "classification": "long-lived native backend"
+    },
+    {
+      "command": "npm run typecheck (first harness)",
+      "startedMonotonicMs": 416310000,
+      "finishedMonotonicMs": 416314000,
+      "exitStatus": 2,
+      "classification": "retained harness/type-surface failure"
+    },
+    {
+      "command": "npm run typecheck",
+      "startedMonotonicMs": 416320000,
+      "finishedMonotonicMs": 416323000,
+      "exitStatus": 0,
+      "classification": "backend, verifier, and UI validation"
+    },
+    {
+      "command": "npx tsx work/acceptance.ts",
+      "startedMonotonicMs": 416331000,
+      "finishedMonotonicMs": 416332000,
+      "exitStatus": 0,
+      "classification": "frozen scenarios 1 through 13"
+    },
+    {
+      "command": "npm run build",
+      "startedMonotonicMs": 416520000,
+      "finishedMonotonicMs": 416524000,
+      "exitStatus": 0,
+      "classification": "representative production UI build"
+    },
+    {
+      "command": "npx tsx work/performance.ts",
+      "startedMonotonicMs": 416540000,
+      "finishedMonotonicMs": 416551000,
+      "exitStatus": 0,
+      "classification": "frozen 2+7 performance sampling"
+    },
+    {
+      "command": "google-chrome --headless with worktree-local profile",
+      "startedMonotonicMs": 416590000,
+      "finishedMonotonicMs": 416617000,
+      "exitStatus": 0,
+      "classification": "representative UI browser evidence"
+    },
+    {
+      "command": "npm audit --json",
+      "startedMonotonicMs": 416690000,
+      "finishedMonotonicMs": 416692000,
+      "exitStatus": 0,
+      "classification": "dependency audit with zero findings"
+    },
+    {
+      "command": "npx tsx work/cleanup.ts",
+      "startedMonotonicMs": 417080000,
+      "finishedMonotonicMs": 417082000,
+      "exitStatus": 0,
+      "classification": "namespace-scoped data/storage cleanup and negative probe"
+    },
+    {
+      "command": "exact process-group stop and exact state retirement",
+      "startedMonotonicMs": 417220000,
+      "finishedMonotonicMs": 417256080,
+      "exitStatus": 0,
+      "classification": "target/process/secret/browser cleanup"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-01-SEED.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact events, guests, capacity fixture, and personas exist.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-02-PUBLIC-PRIVATE.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Public preview excludes private host controls and data.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-03-INVITE-RSVP.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "An invited guest records yes/no/maybe and plus-one transitions.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-04-ROLES.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Host, cohost, guest, and outsider have distinct read/write authority.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-05-GUEST-LIST.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Guest-list visibility changes independently from public event visibility.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-06-CAPACITY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two concurrent RSVPs for the final seat cannot overbook capacity.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-07-LIVE-BURST.json",
+        "evidence/remediation-party07-live-rsvp-and-wall.json",
+        "evidence/remediation-party07-cleanup.json",
+        "evidence/remediation-party07-target-retirement.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Wall posts and RSVP totals update live during the frozen burst.",
+      "note": "The original receipt directly proved the two-client 20-post push burst but did not retain an RSVP transition. A separately named fresh-target remediation preserves that receipt and proves both established clients observed RSVP yes/seats 0→2 and wall posts 1→21; independent authoritative totals agree. Original timed performance is unchanged."
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-08-ASSET.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Authenticated event art upload, authorized delivery, and deletion work.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-09-SCHEDULE.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "A scheduled reminder produces one inspectable idempotent attempt.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-10-EFFECT-RETRY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "A retry does not duplicate a known-success notification.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-11-EFFECT-AMBIGUOUS.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "An ambiguous notification outcome remains distinct and safely retryable.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-12-REVOCATION.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Revocation or event removal stops protected delivery and handles retained data honestly.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "unavailable-remote-dependency",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-13-DEPLOY.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Hosted secret/configuration, effect boundary, logs, and target identity are inspectable.",
+      "note": "The supplied CONVEX_DEPLOY_KEY is empty; no hosted mutation or deployment was attempted."
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-14-PERFORMANCE.json",
+        "evidence/performance.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Frozen contention/burst/asset/realtime/deploy samples and cost window are retained.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-15-CLEANUP.json",
+        "evidence/cleanup-complete.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Only exact fresh targets or arm-owned namespaced records, assets, schedules, and secrets are retired; unrelated baseline state is preserved.",
+      "note": "Direct retained evidence satisfies the frozen scenario fact."
+    }
+  ],
+  "inventory": {
+    "path": "evidence/inventory.json",
+    "artifactCount": 52,
+    "nativeSurfaces": {
+      "schema": "Convex schema validators plus compound indexes",
+      "reads": "native query functions",
+      "writes": "native serializable mutations with OCC retry",
+      "realtime": "ConvexClient WebSocket reactive query subscriptions",
+      "auth": "ctx.auth.getUserIdentity with development-only local-admin persona injection in the verifier",
+      "storage": "native upload URL, _storage identity, getUrl, and delete",
+      "schedules": "ctx.scheduler.runAfter and _scheduled_functions inspection",
+      "effects": "actions with fetch plus an application-owned durable attempt ledger",
+      "logs": "convex dev function log stream"
+    }
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Four deterministic identities have direct positive and negative native authorization evidence.",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-02-PUBLIC-PRIVATE.json",
+        "evidence/scenarios/PARTY-04-ROLES.json",
+        "evidence/scenarios/PARTY-12-REVOCATION.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "A direct two-actor barrier settled one final-seat success, one rejection, and an authoritative seat count.",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-06-CAPACITY.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Two native WebSocket query subscribers retained direct observations of policy and wall transitions; a separately named fresh remediation target additionally proves both established clients observed RSVP yes/seats 0→2 together with the 20-post burst.",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-05-GUEST-LIST.json",
+        "evidence/scenarios/PARTY-07-LIVE-BURST.json",
+        "evidence/remediation-party07-live-rsvp-and-wall.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 1,
+      "reason": "Seven recorded fresh-client reconnect samples reach the first native reactive value, but the frozen Partiful app has no persistent offline-write or retained-offline scenario.",
+      "evidencePaths": [
+        "evidence/performance.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Authoritative queries, scheduler system rows, storage hashes, and durable effect ledgers agree.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/effect-receipts.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Deployment name, backend version, exact ports, namespace, and a secret-free identity hash are retained.",
+      "evidencePaths": [
+        "evidence/scenarios/PARTY-01-SEED.json",
+        "evidence/inventory.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 1,
+      "reason": "Namespace, process, port, target-state, browser-state, and credential negative probes all passed, but the baseline fields were serialized during cleanup rather than in a separately timestamped pre-write receipt.",
+      "evidencePaths": [
+        "evidence/cleanup-data-plane.json",
+        "evidence/cleanup-complete.json",
+        "evidence/remediation-party07-cleanup.json",
+        "evidence/remediation-party07-target-retirement.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Pinned manifests, source, generated bindings, verifier scripts, official-source notes, raw samples, and checksums are retained.",
+      "evidencePaths": [
+        "package-lock.json",
+        "evidence/inventory.json",
+        "evidence/dependency-audit.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "evidence/cleanup-complete.json",
+    "receiptPaths": [
+      "evidence/cleanup-data-plane.json",
+      "evidence/cleanup-complete.json",
+      "evidence/remediation-party07-cleanup.json",
+      "evidence/remediation-party07-target-retirement.json"
+    ],
+    "postCleanupProbe": "All eight namespace table counts are zero; assigned ports and exact runtime/config paths are absent.",
+    "namespaceNegative": true,
+    "exactTargetRetired": true,
+    "exactProcessesStopped": true,
+    "exactPortsClosed": true,
+    "credentialsRemoved": true,
+    "unrelatedHostedMutationAttempted": false
+  },
+  "result": "complete"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "llp0102-partiful-instantdb",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "target:provision": "node scripts/provision-target.mjs",
+    "config:push": "node scripts/push-config.mjs",
+    "seed": "node scripts/seed.mjs",
+    "acceptance": "node scripts/acceptance.mjs",
+    "performance": "node scripts/performance.mjs",
+    "performance:build": "node scripts/build-samples.mjs",
+    "cleanup": "node scripts/cleanup.mjs",
+    "inventory": "node scripts/inventory.mjs",
+    "finalize": "node scripts/finalize.mjs",
+    "build": "tsc -b && vite build",
+    "dev": "vite --host 127.0.0.1 --port 4337"
+  },
+  "dependencies": {
+    "@instantdb/admin": "1.0.52",
+    "@instantdb/core": "1.0.52",
+    "@instantdb/react": "1.0.52",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.1.0",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "instant-cli": "1.0.52",
+    "typescript": "5.9.2",
+    "vite": "7.1.3"
+  }
+}

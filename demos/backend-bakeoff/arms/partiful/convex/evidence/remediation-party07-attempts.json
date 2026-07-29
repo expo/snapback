@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "remediationId": "PARTY-07-RSVP-WALL-NATIVE-PUSH-01",
+  "failedAttempts": [
+    {
+      "ordinal": 1,
+      "classification": "builder-type-error",
+      "symptom": "The first verifier typecheck used a callback type narrowed to non-null after an earlier assertion, while a reactive query callback may receive null.",
+      "resolution": "Made the remediation observer callback explicitly accept the protected query's null result."
+    },
+    {
+      "ordinal": 2,
+      "classification": "harness-process-lifecycle",
+      "symptom": "The first detached local backend process did not survive its launching shell, so the verifier received ECONNREFUSED before performing any target mutation.",
+      "resolution": "Ran the same exact fresh target in a retained PTY session, verified it was ready, then ran the verifier."
+    }
+  ],
+  "assistanceEvents": [],
+  "originalTimedPerformanceRewritten": false,
+  "originalScenarioReceiptRewritten": false
+}

@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T02:25:15.495Z",
+  "target": {
+    "projectId": "llp0102-chat-firebase-w1",
+    "identityHash": "73f32a095a9b3bd04be47c25ab47b377066a3705f9ca0bde890e99b734cdaa5b",
+    "mode": "fresh-local"
+  },
+  "processPlan": {
+    "roots": {
+      "emulatorPid": 3116,
+      "vitePid": 2009
+    },
+    "validatedProcesses": [
+      {
+        "pid": 3116,
+        "ppid": 1,
+        "commandHash": "6d93c72e204e4c4352c23063fa65593822bdfbf72c366cfdf7bbd19362b619d0"
+      },
+      {
+        "pid": 2009,
+        "ppid": 1,
+        "commandHash": "f4ca5837650b2ddf35af003d298d3471542d3462d3b9a7f2497af3fafb5a8f9a"
+      },
+      {
+        "pid": 3130,
+        "ppid": 3116,
+        "commandHash": "6d93c72e204e4c4352c23063fa65593822bdfbf72c366cfdf7bbd19362b619d0"
+      },
+      {
+        "pid": 2012,
+        "ppid": 2009,
+        "commandHash": "4c47ce1556556039ed5b6f3907031939d4baa60ffc227d6c8a9e3615616db3db"
+      },
+      {
+        "pid": 3168,
+        "ppid": 3130,
+        "commandHash": "cd1232bf1b84a9049b009bb60e7c498dbc93e7e119c47fcf5a7c0557fdd670a7"
+      },
+      {
+        "pid": 3194,
+        "ppid": 3130,
+        "commandHash": "ddab3599c22c984b77608dfc2c91df941d79568aefc65ebc70ae262bce1ce276"
+      },
+      {
+        "pid": 3415,
+        "ppid": 3130,
+        "commandHash": "a6278e5c5df51d27e69e341d904de80c35b4e871222980b11eea606b767afe7c"
+      },
+      {
+        "pid": 3455,
+        "ppid": 3130,
+        "commandHash": "a6278e5c5df51d27e69e341d904de80c35b4e871222980b11eea606b767afe7c"
+      },
+      {
+        "pid": 2017,
+        "ppid": 2012,
+        "commandHash": "dbc3d4100ab6e891057d6d11eb6d260efc8687cb65f4be2dc50a9d8e3ed8efa6"
+      },
+      {
+        "pid": 2038,
+        "ppid": 2017,
+        "commandHash": "778d83161388c39cffadef9d8d8fb33a1e650fdc502f2fbbb52d262188a9c58e"
+      },
+      {
+        "pid": 2039,
+        "ppid": 2038,
+        "commandHash": "7763618155925aa2db149f6606cb33faebec6b42016ceaf2080aa61ffabe3d09"
+      }
+    ],
+    "survivingPids": []
+  },
+  "portsAfter": {
+    "4287": "closed",
+    "4501": "closed",
+    "4502": "closed",
+    "5287": "closed",
+    "8280": "closed",
+    "9150": "closed",
+    "9280": "closed",
+    "9299": "closed"
+  },
+  "projectEndpointProbe": "connection-refused",
+  "unrelatedBaseline": "No shared or hosted target was used or mutated.",
+  "removedDirectories": [
+    ".browser-profile",
+    ".firebase-export",
+    ".xdg-config",
+    ".xdg-cache"
+  ],
+  "preservedEvidence": [
+    "receipts/export-file-sha256.txt",
+    "receipts/export-size-kib.txt",
+    "receipts/scenarios",
+    "receipts/acceptance-results.json",
+    "receipts/performance.json"
+  ],
+  "status": "complete"
+}

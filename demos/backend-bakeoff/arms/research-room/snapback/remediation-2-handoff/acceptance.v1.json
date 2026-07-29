@@ -1,0 +1,601 @@
+{
+  "schemaVersion": 1,
+  "title": "LLP 0102 Research Room / Snapback",
+  "expectedChecks": 15,
+  "checksRun": 15,
+  "scenarios": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "pass",
+      "evidence": {
+        "rooms": 2,
+        "sourcesPerPrimaryRoom": 20,
+        "sourceBytes": 65536,
+        "embeddingDimensions": 32,
+        "actors": 3,
+        "principalHashes": {
+          "alice": "322e37ae91a3a4b4e45bbe443a593277b456ad5bd07c7c3b6b361fbec9f42f4f",
+          "bob": "4e1bb32a42f7cdab083ef7ce6961654355335cd27e5907467521f4819a504769",
+          "mallory": "2a74046794024c677749cfa277592f5fe6010e045ea564647f9548eecd62fd13"
+        },
+        "seedReceipts": [
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fadbd0d827e118c6352c4ed209307",
+            "mutation": "bootstrapResearchRooms",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "rooms",
+              "roomMembers",
+              "roomViews",
+              "sources"
+            ],
+            "snapshotVersion": 1,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785326275984
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fadbd0d997c809a3c4d9cc5282f7a",
+            "mutation": "bootstrapResearchRooms",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "rooms",
+              "roomMembers",
+              "roomViews",
+              "sources"
+            ],
+            "snapshotVersion": 2,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785326276003
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fadbd0dab7e73b46b44a54737d120",
+            "mutation": "bootstrapResearchRooms",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "rooms",
+              "roomMembers",
+              "roomViews",
+              "sources"
+            ],
+            "snapshotVersion": 3,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785326276021
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fadbd0dbd76a3abbb879c95abc888",
+            "mutation": "bootstrapResearchRooms",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "rooms",
+              "roomMembers",
+              "roomViews",
+              "sources"
+            ],
+            "snapshotVersion": 4,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785326276039
+          }
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "gap",
+      "evidence": {
+        "capability": "asset upload/delivery/delete",
+        "status": "explicit-gap",
+        "reason": "The frozen Snapback capability manifest has no shipped asset byte-store/upload-session path; LLP 0044 remains Draft.",
+        "nonclaim": "The 20 source rows are deterministic metadata/content fixtures, not uploaded file objects."
+      }
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "pass",
+      "evidence": {
+        "deniedPaths": [
+          "sources",
+          "keyword",
+          "questions",
+          "answers",
+          "progress",
+          "answer subscription"
+        ],
+        "identity": "2a74046794024c677749cfa277592f5fe6010e045ea564647f9548eecd62fd13",
+        "fileBytePath": "absent by explicit provider GAP"
+      }
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "pass",
+      "evidence": {
+        "implementation": "bounded authoritative application query over frozen 20-row room source set",
+        "keyword": "aurora",
+        "expected": [
+          "source-02",
+          "source-04",
+          "source-06",
+          "source-08",
+          "source-10",
+          "source-12",
+          "source-14",
+          "source-16",
+          "source-18",
+          "source-20"
+        ],
+        "actual": [
+          "source-02",
+          "source-04",
+          "source-06",
+          "source-08",
+          "source-10",
+          "source-12",
+          "source-14",
+          "source-16",
+          "source-18",
+          "source-20"
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "gap",
+      "evidence": {
+        "capability": "provider-native semantic/vector retrieval",
+        "status": "explicit-gap",
+        "deterministicEmbeddingRowsRetained": 20,
+        "reason": "The frozen Snapback provider exposes no ordinary vector index or semantic search path.",
+        "nonclaim": "Application-side vector scanning was not substituted and called provider-native retrieval."
+      }
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "pass",
+      "evidence": {
+        "durableSequences": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "progressRows": [
+          {
+            "idHash": "edeb3b25e050291f540abf50af44ee623f66a900b58779d15984c2fe578f74a8",
+            "sequence": 1
+          },
+          {
+            "idHash": "fa222f88437159ff6a26cde22093aecfa92ad7265110b46a380ac8bbe751dd43",
+            "sequence": 2
+          },
+          {
+            "idHash": "6595438e27cae766859a3af3ff0be55dd086f17b8dcff80e043bc38c36366023",
+            "sequence": 3
+          },
+          {
+            "idHash": "ce2f6b96fa4e5370617d519cb8cc248124bd14fbc47d777f75b19654bc7a750a",
+            "sequence": 4
+          }
+        ],
+        "terminal": {
+          "status": "complete",
+          "sequence": 4
+        },
+        "transport": "Snapback durable WebSocket native push; fallback disabled",
+        "answerSnapshotDeliveries": 13,
+        "progressSnapshotDeliveries": 9
+      }
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "pass",
+      "evidence": {
+        "answerIdHash": "f8072bcb060273922ebf44c9ff5a2ff05ddf11cf92211fcb2d865836e76b63dc",
+        "citationIdHashes": [
+          "74f8a2db89c676b295380d80c3c087ca63dbda0e4e2a636a4dc54f8c8335091f",
+          "ca2ee2e99a0e2efb3aa8bd1ac8ede12bbd96b04f95b8571b7edcb3b7fe476742"
+        ],
+        "allCitationsResolveInsideAuthorizedRoom": true
+      }
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "pass",
+      "evidence": {
+        "initiatingActor": "alice",
+        "observingActor": "bob",
+        "observerPrincipalHash": "4e1bb32a42f7cdab083ef7ce6961654355335cd27e5907467521f4819a504769",
+        "answerDeliveries": 13,
+        "progressDeliveries": 9,
+        "transport": "native WebSocket push; fallbackToPoll=false"
+      }
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "pass",
+      "evidence": {
+        "cancellationReceipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fadbd144f7a3085896cac89aa23af",
+          "mutation": "cancelAnswer",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "answers"
+          ],
+          "snapshotVersion": 13,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785326277730
+        },
+        "hostOutcome": {
+          "outcome": "cancelled",
+          "sequence": 1
+        },
+        "sequenceAtCancel": 1,
+        "sequenceAfterLateInjection": 1,
+        "injectedMutationResult": {
+          "applied": false,
+          "terminal": true,
+          "status": "cancelled",
+          "sequence": 1
+        },
+        "lateDurablePatches": 0
+      }
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "pass",
+      "evidence": {
+        "idempotencyKeyHash": "85ab013ae82d476b15f3a0878c33c51c14ae5bcd5fe2d341091977ace1ef9b55",
+        "replayed": true,
+        "stableQuestionIdHash": "9b51f52daa2975196c1c7bec32343da1cb2c214c316d1fad4e85da9ea18196c3",
+        "stableAnswerIdHash": "f8072bcb060273922ebf44c9ff5a2ff05ddf11cf92211fcb2d865836e76b63dc",
+        "questionCountForKey": 1,
+        "answerCountForQuestion": 1
+      }
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "pass",
+      "evidence": {
+        "outcomes": {
+          "complete": "complete",
+          "failed": "failed",
+          "cancelled": "cancelled",
+          "timed_out": "timed_out",
+          "ambiguous": "ambiguous"
+        },
+        "actionResults": {
+          "failed": {
+            "outcome": "failed",
+            "sequence": 0,
+            "code": "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
+          },
+          "timed_out": {
+            "outcome": "timed_out",
+            "sequence": 0,
+            "code": "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
+          },
+          "ambiguous": {
+            "outcome": "ambiguous",
+            "sequence": 0,
+            "code": "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS"
+          }
+        },
+        "hostDerivedEffectCertainty": {
+          "timed_out": true,
+          "ambiguous": true
+        }
+      }
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "pass",
+      "evidence": {
+        "scheduleIdentity": "researchCron.deterministicRefresh / everyMs=1000 / NoOverlap / jitter=false",
+        "cronTick": [
+          {
+            "runId": "cron:deterministicRefresh:scheduled:0:1",
+            "jobName": "deterministicRefresh",
+            "scheduledAtMs": 0,
+            "dueAtMs": 0,
+            "startedAtMs": 1785326283917,
+            "finishedAtMs": 1785326283942,
+            "trigger": "Scheduled",
+            "attempt": 1,
+            "outcome": "Succeeded",
+            "durationMs": 25,
+            "idempotencyKey": "cron:deterministicRefresh:scheduled:0",
+            "slotKey": "cron:deterministicRefresh:scheduled:0",
+            "diagnostic": null,
+            "result": {
+              "replayed": false,
+              "runId": "019fadbd-2ca3-78d2-9950-e93b02a39242"
+            }
+          }
+        ],
+        "repeatActionResult": {
+          "replayed": true,
+          "runId": "019fadbd-2ca3-78d2-9950-e93b02a39242"
+        },
+        "durableSlotKey": "research-refresh-slot-v1",
+        "firstRunAppliedOnce": true,
+        "repeatedFetchDedupedAtDurableMutation": true,
+        "receiverRequests": [
+          {
+            "method": "GET",
+            "path": "/refresh",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          },
+          {
+            "method": "GET",
+            "path": "/refresh",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          }
+        ],
+        "cronInspection": {
+          "artifactKind": "cronRuntimeState",
+          "schemaVersion": "snapback.v0",
+          "jobCount": 1,
+          "failedJobCount": 0,
+          "inFlightJobCount": 0
+        }
+      }
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "pass",
+      "evidence": {
+        "configStatus": {
+          "generation": 1,
+          "backendClass": "local-file-immediate",
+          "appProvisioned": true,
+          "entries": [
+            {
+              "name": "researchProviderToken",
+              "description": "Deterministic research-provider bearer used by server-side actions",
+              "purpose": "Authenticates streamed answer generation and scheduled source refresh",
+              "secret": true,
+              "required": true,
+              "pool": false,
+              "howToGet": "Acceptance supplies an arm-scoped deterministic canary through the admin config API.",
+              "set": true,
+              "memberCount": 1,
+              "lastChangedMs": 1785326275880,
+              "source": "agent",
+              "applyState": "applied"
+            }
+          ],
+          "requiredMissing": []
+        },
+        "configStatusContainsCanary": false,
+        "clientBundleContainsCanary": false,
+        "diagnosticsContainCanary": false,
+        "receiverSawAuthorizationWithoutRetainingValue": [
+          {
+            "method": "GET",
+            "path": "/stream/complete",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          },
+          {
+            "method": "GET",
+            "path": "/stream/cancel",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          },
+          {
+            "method": "GET",
+            "path": "/stream/failed",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          },
+          {
+            "method": "GET",
+            "path": "/stream/timeout",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          },
+          {
+            "method": "POST",
+            "path": "/stream/ambiguous",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          },
+          {
+            "method": "GET",
+            "path": "/refresh",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          },
+          {
+            "method": "GET",
+            "path": "/refresh",
+            "authorized": true,
+            "idempotencyKeyPresent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "pass",
+      "evidence": {
+        "schemaVersion": 1,
+        "workload": {
+          "warmups": 2,
+          "recordedSamples": 7,
+          "rooms": 2,
+          "sourcesPerPrimaryRoom": 20,
+          "embeddingDimensions": 32,
+          "actors": 3,
+          "concurrentClients": 2
+        },
+        "paths": {
+          "keywordSearch": {
+            "rawMs": [
+              14.105,
+              13.823,
+              13.741,
+              13.471,
+              13.858,
+              18.239,
+              18.141
+            ],
+            "medianMs": 13.858,
+            "nearestRankP95Ms": 18.239
+          },
+          "startQuestionWrite": {
+            "rawMs": [
+              41.07,
+              40.512,
+              40.38,
+              40.475,
+              41.08,
+              41.644,
+              41.52
+            ],
+            "medianMs": 41.07,
+            "nearestRankP95Ms": 41.644
+          },
+          "progressMutationToNativePush": {
+            "rawMs": [
+              161.063,
+              147.391,
+              182.227,
+              137.486,
+              157.333,
+              164.036,
+              206.02
+            ],
+            "medianMs": 161.063,
+            "nearestRankP95Ms": 206.02
+          },
+          "reconnectSnapshotWithStream": {
+            "rawMs": [
+              14.872,
+              15.869,
+              14.982,
+              14.868,
+              14.803,
+              15.073,
+              19.452
+            ],
+            "medianMs": 14.982,
+            "nearestRankP95Ms": 19.452
+          },
+          "productionBuild": {
+            "rawMs": [
+              423.056,
+              486.155,
+              438.996,
+              442.941,
+              434.506,
+              435.399,
+              432.397
+            ],
+            "medianMs": 435.399,
+            "nearestRankP95Ms": 486.155
+          }
+        },
+        "buildWarmupsMs": [
+          485.604,
+          426.045
+        ],
+        "machine": "darwin/arm64",
+        "target": "fresh local packaged SQLite + Ibex sessions target",
+        "sharedTargetNoise": false,
+        "cost": {
+          "actualUsage": "$0 local",
+          "listPriceEstimate": "$0 local",
+          "hostedExtrapolation": null
+        }
+      }
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "status": "pass",
+      "evidence": {
+        "planPath": "cleanup-plan.v1.json",
+        "producerPlanPath": "receipts/cleanup-plan.v1.json",
+        "execution": "deferred to finally and attested in cleanup.v1.json"
+      }
+    }
+  ],
+  "pass": 13,
+  "gaps": 2,
+  "failures": 0,
+  "stopClass": null,
+  "targetIdentity": "536a3f0d90ed2a9ce9fe8face95d64f1643ff57b985cfce98200576e2bf801c4",
+  "principalHashes": {
+    "alice": "322e37ae91a3a4b4e45bbe443a593277b456ad5bd07c7c3b6b361fbec9f42f4f",
+    "bob": "4e1bb32a42f7cdab083ef7ce6961654355335cd27e5907467521f4819a504769",
+    "mallory": "2a74046794024c677749cfa277592f5fe6010e045ea564647f9548eecd62fd13"
+  },
+  "milestones": {
+    "firstLocalReadMs": 18.14995799999997,
+    "firstAuthoritativeMutationMs": 78.05141700000001,
+    "firstRealtimeTransitionMs": 1132.840667,
+    "acceptanceCompletionMs": 15372.743541
+  },
+  "startedAt": "2026-07-29T11:57:55.485Z",
+  "finishedAt": "2026-07-29T11:58:10.929Z",
+  "commandLog": [
+    {
+      "command": "bun install --frozen-lockfile (repository root)",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm ci (external copied work app)",
+      "exitStatus": 0
+    },
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 npm run generate",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0
+    },
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 npm run acceptance",
+      "exitStatus": 0
+    }
+  ],
+  "cleanup": {
+    "schemaVersion": 1,
+    "targetIdentity": "536a3f0d90ed2a9ce9fe8face95d64f1643ff57b985cfce98200576e2bf801c4",
+    "namespace": "llp0102-research-snapback-remediation2-w1",
+    "removed": {
+      "runtimeRoot": true,
+      "publicRoot": true
+    },
+    "absent": {
+      "runtimeRoot": true,
+      "publicRoot": true
+    },
+    "portsClosed": {
+      "3351": true,
+      "4351": true,
+      "9351": true,
+      "20451": true
+    },
+    "cleanupErrors": [],
+    "unrelatedBaselinePreserved": true,
+    "completedAt": "2026-07-29T11:58:10.929Z"
+  },
+  "primaryError": null
+}

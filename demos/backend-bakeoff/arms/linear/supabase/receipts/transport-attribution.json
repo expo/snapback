@@ -1,0 +1,9 @@
+{
+  "durable": "PostgREST over HTTP with PostgreSQL RLS",
+  "realtime": "Supabase Realtime Postgres Changes over WebSocket for issues, comments, and activities",
+  "pollingCountsAsPush": false,
+  "search": "PostgreSQL full-text search through PostgREST RPC",
+  "conflict": "PostgreSQL row-lock serialization with activity identity ordering",
+  "offline": "unsupported by bare supabase-js; no provider-owned retained query cache or mutation queue",
+  "reconnect": "native Realtime resubscribe followed by a fresh authoritative PostgREST page"
+}

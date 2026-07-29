@@ -1,0 +1,492 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId",
+            "userId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "bobId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "seedPrimary": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "name",
+            "seedPrimary",
+            "bobId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "workspaces",
+            "workspaceMembers",
+            "lists",
+            "tasks"
+          ],
+          "writes": [
+            "workspaces",
+            "workspaceMembers",
+            "lists",
+            "tasks"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "bootstrapWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assigneeId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "dueDate": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "listId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "position": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId",
+            "listId",
+            "title",
+            "assigneeId",
+            "dueDate",
+            "position"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "id"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "deleteTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assigneeId": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "dueDate": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "id",
+            "title",
+            "completed",
+            "assigneeId",
+            "dueDate"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "editTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "leaveWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "targetIndex": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "id",
+            "targetIndex"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "tasks"
+          ],
+          "writes": [
+            "tasks"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "reorderTask",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "workspaceMembers",
+            "lists"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listLists",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "name": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "position": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "workspaceId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "workspaceId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "workspaceId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "workspaceMembers",
+            "tasks"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listTasks",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "assigneeId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "completed": {
+                "name": "boolean",
+                "shape": "primitive"
+              },
+              "dueDate": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "listId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "position": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "workspaceId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "snapback.v1:sessions:function:sha256:49e04d021a7056305ad8201ae7c5164cf76891eb86ec3041191de20b3a050ce3",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:6802892f357948022e1b893b52f3ada912edca464742126a8c83500205a75dbb",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:18fbe538fd1a0fef563f137daeea594362665ce0193f49e33d629da920060fdc"
+  }
+}

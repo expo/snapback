@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "arm": "partiful/firebase",
+  "classificationRule": "These are retained build/tooling attempts and are not silently converted into provider product failures.",
+  "attempts": [
+    {
+      "phase": "credential-preflight",
+      "failure": "The first shell inherited a Volta shim whose Node target was unavailable.",
+      "remediation": "Used the active absolute Node installation with worktree-local XDG state.",
+      "productDefect": false
+    },
+    {
+      "phase": "credential-preflight",
+      "failure": "The second invocation accidentally doubled a relative path.",
+      "remediation": "Resolved the exact secret-file path before the third read-only probe.",
+      "productDefect": false
+    },
+    {
+      "phase": "credential-preflight-display",
+      "failure": "A jq display expression was malformed.",
+      "remediation": "Printed only the safe account-availability classification.",
+      "productDefect": false
+    },
+    {
+      "phase": "emulator-startup",
+      "failure": "A background launcher exited while the Firestore Java child remained alive.",
+      "remediation": "Validated the exact listener PID, stopped it, and relaunched the suite in a retained foreground session.",
+      "productDefect": false
+    },
+    {
+      "phase": "emulator-isolation",
+      "failure": "Firebase CLI automatically reserved Eventarc, Tasks, and Firestore UI websocket listeners not visible in the initial service list.",
+      "remediation": "Inspected the installed firebase-tools source, preflighted adjacent ports, and pinned 4533, 4534, and 4535 explicitly.",
+      "productDefect": false
+    },
+    {
+      "phase": "schedule-emulation",
+      "failure": "The scheduled function was ignored when the Pub/Sub emulator was absent.",
+      "remediation": "Preflighted and pinned Pub/Sub to 4536, then relaunched and retained real scheduled-function initialization.",
+      "productDefect": false
+    },
+    {
+      "phase": "dependency-install",
+      "failure": "Frozen dependency installs reported npm audit findings.",
+      "remediation": "Retained both audit JSON receipts and did not mutate frozen versions with an automatic fix.",
+      "productDefect": false,
+      "receipts": [
+        "evidence/npm-audit-work.json",
+        "evidence/npm-audit-functions.json"
+      ]
+    },
+    {
+      "phase": "cleanup",
+      "failure": "The first Storage emulator list request lacked its owner bearer identity and returned HTTP 403.",
+      "remediation": "Proved no mutation had begun, added the emulator owner identity, and reran exact-project cleanup successfully.",
+      "productDefect": false,
+      "receipt": "evidence/failed-attempts/cleanup-storage-auth.json"
+    },
+    {
+      "phase": "evidence-audit",
+      "failure": "The first PARTY-07 receipt lacked a simultaneous RSVP-total listener transition.",
+      "remediation": "Kept it as partial evidence and reran only the missing fact on a separate fresh remediation namespace with its own baseline and cleanup.",
+      "productDefect": false,
+      "receipt": "evidence/failed-attempts/party-07-partial-evidence.json"
+    },
+    {
+      "phase": "post-window-verification",
+      "failure": "The first final build command was issued from repository root, which has no build script.",
+      "remediation": "Reran from the arm work directory.",
+      "productDefect": false,
+      "receipt": "evidence/failed-attempts/post-window-build-cwd.json"
+    },
+    {
+      "phase": "post-window-verification",
+      "failure": "The remediation project override referenced the Node process global directly in a browser-compiled module.",
+      "remediation": "Read the optional environment through a typed globalThis projection; the production UI build then passed.",
+      "productDefect": false,
+      "receipt": "evidence/failed-attempts/post-window-build-runtime-global.json"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "target": "http://127.0.0.1:3310",
+  "namespace": "llp0102-chat-convex-w2",
+  "counts": {
+    "channels": 0,
+    "memberships": 0,
+    "messages": 0,
+    "namespace": "llp0102-chat-convex-w2",
+    "presence": 0,
+    "profiles": 0,
+    "readMarkers": 0,
+    "typing": 0
+  }
+}

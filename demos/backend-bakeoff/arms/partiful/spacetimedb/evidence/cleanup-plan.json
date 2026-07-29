@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T05:18:05.696Z",
+  "finalizedAt": "2026-07-29T05:55:00.000Z",
+  "exactArmRoot": "/home/ccheever/worktrees/llp0102-partiful-spacetimedb-w2/demos/backend-bakeoff/arms/partiful/spacetimedb",
+  "exactServer": "http://127.0.0.1:3332",
+  "exactDatabaseName": "llp0102-partiful-spacetimedb-w2",
+  "databaseIdentity": "c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261",
+  "exactPorts": [3332, 4333],
+  "exactRuntimePath": "/home/ccheever/worktrees/llp0102-partiful-spacetimedb-w2/demos/backend-bakeoff/arms/partiful/spacetimedb/state",
+  "guard": "Delete only the immutable database identity; stop only PIDs whose command and cwd bind them to this arm; never use server clear.",
+  "postCleanupDescribe": "spacetime describe --json llp0102-partiful-spacetimedb-w2 --server http://127.0.0.1:3332 --anonymous --yes --no-config",
+  "absenceRule": "Nonzero plus a database-not-found diagnostic; Usage or argument-parsing output invalidates the proof."
+}

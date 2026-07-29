@@ -60,7 +60,7 @@ property.
 Signal Desk is a thin `snapback-comparator.config.mjs` configuration and keeps
 its six domain claims without importing the repository-private harness. The
 earlier staged-package cold-install receipt at
-`demos/backend-bakeoff/acceptance/cold-install-react.v1.json` proved the CLI
+`demos/signal-desk/acceptance/cold-install-react.v1.json` proved the CLI
 closure installed without sibling-source resolution, but did not execute the
 installed comparator's default local-target path. When that stronger
 revalidation was added, the packaged dev-mode green fixture failed before any

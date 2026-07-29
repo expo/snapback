@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "app": "partiful",
+  "provider": "snapback",
+  "sourceCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "namespace": "llp0102-final-partiful-snapback-w3",
+  "ports": {
+    "server": 33104,
+    "deterministicEffectReceiver": 43104
+  },
+  "expectedChecks": 15,
+  "checksRun": 15,
+  "pass": 12,
+  "gaps": 3,
+  "fail": 0,
+  "scenarioIds": [
+    "PARTY-01-SEED",
+    "PARTY-02-PUBLIC-PRIVATE",
+    "PARTY-03-INVITE-RSVP",
+    "PARTY-04-ROLES",
+    "PARTY-05-GUEST-LIST",
+    "PARTY-06-CAPACITY",
+    "PARTY-07-LIVE-BURST",
+    "PARTY-08-ASSET",
+    "PARTY-09-SCHEDULE",
+    "PARTY-10-EFFECT-RETRY",
+    "PARTY-11-EFFECT-AMBIGUOUS",
+    "PARTY-12-REVOCATION",
+    "PARTY-13-DEPLOY",
+    "PARTY-14-PERFORMANCE",
+    "PARTY-15-CLEANUP"
+  ],
+  "targetIdentity": "226fdc8b1ddc42244c7c78555792a700e6a8394fdc60362b2f7883062441e00e",
+  "cleanup": "complete",
+  "stopClass": null
+}

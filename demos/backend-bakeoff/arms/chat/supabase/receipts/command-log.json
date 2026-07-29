@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "timingPrecision": "Monotonic intervals are retained at milestone precision from the interactive run; subprocess wall durations are direct where reported.",
+  "commands": [
+    {
+      "command": "npm install --no-audit --no-fund",
+      "startedMonotonicMs": 243916713,
+      "finishedMonotonicMs": 243942713,
+      "exitStatus": 0,
+      "classification": "setup",
+      "note": "41 direct installed package entries reported in 26 seconds."
+    },
+    {
+      "command": "supabase init",
+      "startedMonotonicMs": 243943000,
+      "finishedMonotonicMs": 243944700,
+      "exitStatus": 0,
+      "classification": "setup"
+    },
+    {
+      "command": "supabase start (first official image acquisition)",
+      "startedMonotonicMs": 243945000,
+      "finishedMonotonicMs": 243974000,
+      "exitStatus": 1,
+      "classification": "environment",
+      "note": "public.ecr.aws returned HTTP 429 Rate exceeded for pinned Logflare image."
+    },
+    {
+      "command": "supabase start (wrapper-yield retry)",
+      "startedMonotonicMs": 243975000,
+      "finishedMonotonicMs": 244030000,
+      "exitStatus": 1,
+      "classification": "harness",
+      "note": "Interactive wrapper abandoned still-running pulls; switched to persistent terminal sessions."
+    },
+    {
+      "command": "docker pull exact pinned Supabase image set",
+      "startedMonotonicMs": 244031000,
+      "finishedMonotonicMs": 244310000,
+      "exitStatus": 0,
+      "classification": "setup",
+      "note": "Sequential recovery avoided the registry burst rate limit."
+    },
+    {
+      "command": "supabase start from assigned /private/tmp worktree",
+      "startedMonotonicMs": 244311000,
+      "finishedMonotonicMs": 244560000,
+      "exitStatus": 1,
+      "classification": "environment",
+      "note": "Colima VM could not see /private/tmp bind sources; generated pgsodium key and Kong certificate mounts appeared as directories or invalid files."
+    },
+    {
+      "command": "supabase start from exact runtime-only /Users mirror",
+      "startedMonotonicMs": 244561000,
+      "finishedMonotonicMs": 244600000,
+      "exitStatus": 0,
+      "classification": "workaround",
+      "note": "Canonical source and all evidence remained in the detached worktree."
+    },
+    {
+      "command": "npm run acceptance (attempt 1)",
+      "startedMonotonicMs": 244601000,
+      "finishedMonotonicMs": 244604000,
+      "exitStatus": 1,
+      "classification": "builder-error",
+      "note": "Supabase CLI's new auto-expose=false default required an explicit service_role grant."
+    },
+    {
+      "command": "supabase db reset",
+      "startedMonotonicMs": 244605000,
+      "finishedMonotonicMs": 244640000,
+      "exitStatus": 0,
+      "classification": "setup"
+    },
+    {
+      "command": "npm run acceptance (attempt 2)",
+      "startedMonotonicMs": 244641000,
+      "finishedMonotonicMs": 244671000,
+      "exitStatus": 0,
+      "classification": "harness",
+      "note": "10 pass, 3 fail, 1 GAP; failed private push control during cold Realtime initialization and Presence assertion."
+    },
+    {
+      "command": "npm run acceptance (attempt 3)",
+      "startedMonotonicMs": 244672000,
+      "finishedMonotonicMs": 244701000,
+      "exitStatus": 0,
+      "classification": "harness",
+      "note": "12 pass, 1 fail, 1 GAP; remaining failure was a callback registered after subscribe, prohibited by supabase-js."
+    },
+    {
+      "command": "npm run acceptance (final)",
+      "startedMonotonicMs": 248887000,
+      "finishedMonotonicMs": 248916000,
+      "exitStatus": 0,
+      "classification": "acceptance",
+      "note": "13 pass, 1 offline-history GAP, cleanup pending."
+    },
+    {
+      "command": "npm run build",
+      "startedMonotonicMs": 248917000,
+      "finishedMonotonicMs": 248919000,
+      "exitStatus": 0,
+      "classification": "build",
+      "note": "Production client compiled with runtime-derived public local endpoint configuration."
+    },
+    {
+      "command": "supabase stop --no-backup from exact project directory",
+      "startedMonotonicMs": 248880000,
+      "finishedMonotonicMs": 248892000,
+      "exitStatus": 0,
+      "classification": "cleanup",
+      "note": "CLI reported project_id_filter llp0102-chat-supabase-w3."
+    },
+    {
+      "command": "exact Docker/port cleanup probe",
+      "startedMonotonicMs": 248893000,
+      "finishedMonotonicMs": 248894000,
+      "exitStatus": 0,
+      "classification": "cleanup-proof"
+    }
+  ]
+}

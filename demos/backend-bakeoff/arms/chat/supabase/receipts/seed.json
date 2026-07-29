@@ -1,0 +1,12 @@
+{
+  "namespace": "llp0102-chat-supabase-calibration-chat-supabase-calibration-01",
+  "channels": 4,
+  "memberships": 10,
+  "messages": 500,
+  "perChannelExpected": 125,
+  "actors": {
+    "alice": "808f96b1d6ef6ea46f535ee119522c9525074f3285815da0c07da4949177af32",
+    "bob": "85791764e50c5e90dc98317e53c3327e52ae0c9b81354af5616cee4a87a5c450",
+    "mallory": "c03c2de4a2e63d2dd01c1c16f05250062771d6c36561f6557d9bfbd212ac118e"
+  }
+}

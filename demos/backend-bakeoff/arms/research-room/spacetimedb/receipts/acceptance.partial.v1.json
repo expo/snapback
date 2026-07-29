@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "expectedCheckCount": 15,
+  "resultBeforeCleanup": "pass-with-gaps",
+  "summary": {
+    "pass": 12,
+    "gap": 2,
+    "fail": 0,
+    "pendingCleanup": 1
+  },
+  "scenarios": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "PASS",
+      "summary": "Fresh target contains two rooms, twenty 64 KiB primary-room sources, 32-dimensional embeddings, and three independent identities.",
+      "evidence": {
+        "rooms": [
+          "research-main",
+          "research-secondary"
+        ],
+        "primarySources": 20,
+        "sourceBytes": 65536,
+        "embeddingDimensions": 32,
+        "personas": [
+          "Alice",
+          "Bob",
+          "Mallory"
+        ],
+        "actorIdentityHashes": {
+          "Alice": "9be6e3fbcf781a84c4e688bee8db628229de7d1e4ffb09d793a91ba5f9608c25",
+          "Bob": "1039291a006013c8a4e1e3d1b74d54305033a0a12b932da033046f534b1839bd",
+          "Mallory": "edd1d73498697aa63de700dda64aadbc3002d0f9f13a36c5db61bc957f742667"
+        }
+      }
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "PASS",
+      "summary": "Inline byte storage, metadata, WebSocket delivery, owner-only deletion, and subscribed eviction were authoritative.",
+      "evidence": {
+        "objectIdentity": "source-upload-proof",
+        "bytes": 65536,
+        "expectedHash": "fnv1a32:67639dc5",
+        "deliveredHash": "fnv1a32:67639dc5",
+        "bobDeleteRefused": true,
+        "postDeleteRows": 0
+      }
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "PASS",
+      "summary": "Caller-dependent views expose no room data to Mallory and direct private-table subscription is rejected.",
+      "evidence": {
+        "malloryCounts": {
+          "rooms": 0,
+          "sources": 0,
+          "questions": 0,
+          "answers": 0,
+          "progress": 0
+        },
+        "negativeSubscription": "no such table: `source`. If the table exists, it may be marked private., executing: `SELECT * FROM source`"
+      }
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "PASS",
+      "summary": "A server reducer searched authoritative source metadata/text and materialized identity-scoped results.",
+      "evidence": {
+        "requestId": "keyword-proof",
+        "expected": [
+          "source-01",
+          "source-02"
+        ],
+        "actual": [
+          "source-01",
+          "source-02"
+        ],
+        "path": "reducer scan over private source rows + caller-dependent result view"
+      }
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "GAP",
+      "summary": "SpacetimeDB 2.7 stores the frozen vectors but has no ordinary vector index or semantic-nearest-neighbor query path.",
+      "evidence": {
+        "storedDimensions": 32,
+        "nonclaim": true,
+        "fallbackUsed": false
+      }
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "PASS",
+      "summary": "Four separate scheduled reducer commits precede the terminal answer update.",
+      "evidence": {
+        "sequences": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "labels": [
+          "retrieving",
+          "ranking",
+          "drafting",
+          "citing"
+        ],
+        "durableTimestamps": [
+          "1785312138243956",
+          "1785312138306910",
+          "1785312138369098",
+          "1785312138430828"
+        ],
+        "transport": "SpacetimeDB schedule table + WebSocket view subscription",
+        "callbackOrder": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "completionAfterCallbacks": true
+      }
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "PASS",
+      "summary": "The authoritative completed answer retains citations to two sources visible through the same room authority.",
+      "evidence": {
+        "answerId": "answer:question-progress",
+        "citations": [
+          "source-01",
+          "source-02"
+        ],
+        "resolvedFilenames": [
+          "Architecture.pdf",
+          "Interview notes.md"
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "PASS",
+      "summary": "Bob observed Alice’s four authoritative progress commits through native WebSocket row callbacks.",
+      "evidence": {
+        "secondClient": "Bob",
+        "callbacks": 4,
+        "transport": "SpacetimeDB WebSocket subscription callback",
+        "productPolling": false
+      }
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "PASS",
+      "summary": "Confirmed cancellation deletes scheduled work and the terminal guard refuses a late patch probe.",
+      "evidence": {
+        "progressAtCancel": 1,
+        "progressAfterLateProbe": 1,
+        "answerStatus": "cancelled",
+        "effectState": "confirmed-cancelled",
+        "waitAfterProbeMs": 350
+      }
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "PASS",
+      "summary": "The unique idempotency key makes a repeated reducer call a no-op without duplicating question, answer, or job lineage.",
+      "evidence": {
+        "idempotencyKey": "question-retry-key",
+        "questions": [
+          "question-retry"
+        ],
+        "answers": [
+          "answer:question-retry"
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "PASS",
+      "summary": "Fault fixtures preserve five distinct durable terminal/effect states.",
+      "evidence": {
+        "expected": [
+          "ambiguous",
+          "cancelled",
+          "complete",
+          "failed",
+          "timed-out"
+        ],
+        "actual": [
+          {
+            "status": "ambiguous",
+            "effectState": "unknown"
+          },
+          {
+            "status": "cancelled",
+            "effectState": "terminal"
+          },
+          {
+            "status": "complete",
+            "effectState": "confirmed"
+          },
+          {
+            "status": "failed",
+            "effectState": "terminal"
+          },
+          {
+            "status": "timed-out",
+            "effectState": "terminal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "PASS",
+      "summary": "A schedule table invoked a native HTTP procedure against a deterministic fixed-response endpoint and committed one idempotent refresh result.",
+      "evidence": {
+        "scheduleIdentity": "refresh-proof",
+        "externalUrlKind": "public fixed-response base64 endpoint",
+        "status": "complete",
+        "progressCount": 1,
+        "externalHash": "fnv1a32:98d84bf1",
+        "effectState": "confirmed"
+      }
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "GAP",
+      "summary": "SpacetimeDB 2.7 has no native module secret-management/injection surface; the deterministic refresh uses no credential and no canary value was fabricated.",
+      "evidence": {
+        "nativeSecretStore": false,
+        "clientSecretParameterUsed": false,
+        "storedSecretTableUsed": false,
+        "nonclaim": true
+      }
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "PASS",
+      "summary": "Two warmups and seven retained samples cover search, write/delete, four-step realtime completion, and reconnect; build/deploy samples are retained by the runner.",
+      "evidence": {
+        "warmupsPerPath": 2,
+        "recordedPerPath": 7,
+        "paths": [
+          "representative-read",
+          "representative-write",
+          "realtime-delivery",
+          "reconnect"
+        ],
+        "claimScope": "small repeatable product workload; not production scale"
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:39:00Z",
+  "scenario": "PARTY-07-LIVE-BURST",
+  "finding": "The first target retained authoritative proof of the 20-post second-client push path, but did not retain a simultaneous RSVP-total listener transition.",
+  "classification": "acceptance-harness evidence omission; not a Firebase product failure",
+  "disposition": "Do not count the partial receipt as the final pass. Re-run the exact missing fact on a fresh remediation namespace and retain separate baseline and cleanup proof.",
+  "originalEvidence": "evidence/party-07-live-burst.json"
+}

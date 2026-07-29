@@ -1,0 +1,700 @@
+{
+  "schemaVersion": 1,
+  "app": "linear",
+  "provider": "firebase",
+  "target": "llp0102-linear-firebase-w2",
+  "startedAt": "2026-07-29T04:31:00.626Z",
+  "finishedAt": "2026-07-29T04:34:45.653Z",
+  "expectedCheckCount": 14,
+  "completedInThisHarness": 12,
+  "pendingExternalChecks": [],
+  "scenarios": {
+    "LINEAR-01-SEED": {
+      "id": "LINEAR-01-SEED",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:06.959Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "authoritativeCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "comments": 1000,
+          "activities": 500
+        },
+        "firstPageCount": 50,
+        "personas": {
+          "alice": {
+            "uidHash": "b705fc2ab9d7796794665894e777a0698d726fdee11f823ceb39a67b0b3639e6",
+            "emailDomain": "example.test"
+          },
+          "bob": {
+            "uidHash": "24786d7348f0b1aaafc8c7ad8bfb1b092a38fc130d4003508c5525d13b7eaef5",
+            "emailDomain": "example.test"
+          },
+          "mallory": {
+            "uidHash": "f1538578e2af53523e6b0f627b9c8f3415df9535e1a214446b606532f558772e",
+            "emailDomain": "example.test"
+          }
+        },
+        "seedReceipt": "receipts/seed-receipt.json"
+      },
+      "note": "Admin SDK counts and signed-in client read prove the exact fresh-local seed."
+    },
+    "LINEAR-02-AUTHORITY": {
+      "id": "LINEAR-02-AUTHORITY",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:06.995Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore Security Rules",
+      "evidence": {
+        "aliceRole": "owner",
+        "bobPageCount": 50,
+        "malloryRead": "permission-denied",
+        "malloryWrite": "permission-denied",
+        "ruleSource": "firestore.rules"
+      },
+      "note": "Three native Auth-emulator principals exercised owner/member positive and outsider negative paths."
+    },
+    "LINEAR-03-FILTERS": {
+      "id": "LINEAR-03-FILTERS",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:07.067Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore indexed queries",
+      "evidence": {
+        "filters": {
+          "status": {
+            "resultCount": 125,
+            "expectedSetHash": "a58548a03695d66111f34797071181d792070ab5ca380e060e05e85e88122377"
+          },
+          "assigneeId": {
+            "resultCount": 250,
+            "expectedSetHash": "d807a616e6944682f0dc94ba6d8258926527c035992f4f4b30430573f32eaa62"
+          },
+          "projectId": {
+            "resultCount": 125,
+            "expectedSetHash": "a58548a03695d66111f34797071181d792070ab5ca380e060e05e85e88122377"
+          },
+          "labelIds": {
+            "resultCount": 50,
+            "expectedSetHash": "3293d663e8c944f079edc7539326231caf538e540b8d6ce5943f74007ba7469a"
+          }
+        },
+        "indexConfigSha256": "7296288fc5d27b43270f13365c0a818a89688c8baa47fc33f2f472f1821c4c69",
+        "indexDefinitions": 8
+      },
+      "note": "Four client queries matched independent Admin SDK authoritative sets; compound index artifact retained."
+    },
+    "LINEAR-04-PAGINATION": {
+      "id": "LINEAR-04-PAGINATION",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:07.090Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore document cursor",
+      "evidence": {
+        "cursor": {
+          "id": "issue-451",
+          "sequence": 451
+        },
+        "pageOneCount": 50,
+        "pageTwoCount": 50,
+        "unionCount": 100,
+        "concurrentInsertExcluded": true
+      },
+      "note": "Stable startAfter document cursor produced 100 unique rows despite a newer concurrent insert."
+    },
+    "LINEAR-05-DETAIL": {
+      "id": "LINEAR-05-DETAIL",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:07.102Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore point reads and bounded indexed queries",
+      "evidence": {
+        "issueId": "issue-001",
+        "projectId": "project-1",
+        "assigneeIdHash": "b705fc2ab9d7796794665894e777a0698d726fdee11f823ceb39a67b0b3639e6",
+        "labelIds": [
+          "label-01",
+          "label-02"
+        ],
+        "commentIds": [
+          "issue-001-comment-2",
+          "issue-001-comment-1"
+        ],
+        "activityIds": [
+          "issue-001-seed"
+        ],
+        "boundedQueryInventory": {
+          "pointReads": 5,
+          "boundedQueries": 2,
+          "maximumRows": 40
+        }
+      },
+      "note": "Related IDs were composed from direct authorized reads without an unbounded scan."
+    },
+    "LINEAR-06-OPTIMISTIC": {
+      "id": "LINEAR-06-OPTIMISTIC",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:07.111Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore latency compensation plus onSnapshot",
+      "evidence": {
+        "optimisticStateAttribution": {
+          "fromCache": true,
+          "hasPendingWrites": true
+        },
+        "settlement": "updateDoc acknowledged",
+        "authoritativeState": {
+          "status": "review",
+          "priority": 4,
+          "assigneeIdHash": "24786d7348f0b1aaafc8c7ad8bfb1b092a38fc130d4003508c5525d13b7eaef5",
+          "boardPosition": 777,
+          "revision": 2
+        }
+      },
+      "note": "Pending-write metadata distinguishes optimistic state; Bob observed the server-confirmed state."
+    },
+    "LINEAR-07-CONFLICT": {
+      "id": "LINEAR-07-CONFLICT",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:10.616Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Callable Function plus Firestore serializable transaction",
+      "evidence": {
+        "barrier": {
+          "actors": [
+            "alice",
+            "bob"
+          ],
+          "expectedRevision": 2
+        },
+        "resultKinds": [
+          "rejected",
+          "fulfilled"
+        ],
+        "loserCode": "functions/aborted",
+        "authoritativeOutcome": {
+          "boardPosition": 1002,
+          "revision": 3,
+          "lastActorIdHash": "24786d7348f0b1aaafc8c7ad8bfb1b092a38fc130d4003508c5525d13b7eaef5"
+        },
+        "clientsConverged": true,
+        "policy": "Server transaction compare-and-set: exactly one matching revision commits; the loser receives functions/aborted."
+      },
+      "note": "The winner may vary by scheduling, but the deterministic invariant is one commit, one typed refusal, and converged clients."
+    },
+    "LINEAR-08-LIVE": {
+      "id": "LINEAR-08-LIVE",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:10.637Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore onSnapshot/WebChannel push",
+      "evidence": {
+        "secondClient": "bob",
+        "commentId": "9TxWcO2cwobsV2Q84Lzo",
+        "activityId": "CPRxsrphEdrOFxXuW85P",
+        "authorIdHash": "b705fc2ab9d7796794665894e777a0698d726fdee11f823ceb39a67b0b3639e6",
+        "latencyMs": 17.421,
+        "snapshotFromCache": false,
+        "polling": false
+      },
+      "note": "Bob received both server-authored records through native listen streams."
+    },
+    "LINEAR-09-SEARCH": {
+      "id": "LINEAR-09-SEARCH",
+      "status": "gap",
+      "capturedAt": "2026-07-29T04:31:10.637Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "unsupported",
+      "evidence": {
+        "provider": "Cloud Firestore",
+        "attemptedNativePath": "Firestore query operators and documented solutions inventory",
+        "ordinarySupportedPath": null,
+        "authoritativeResults": null,
+        "officialDocumentation": "https://firebase.google.com/docs/firestore/solutions/search"
+      },
+      "note": "GAP: Cloud Firestore does not provide native full-text search; official Firebase guidance requires a dedicated third-party search service. No client filter is misreported as backend search."
+    },
+    "LINEAR-10-OFFLINE": {
+      "id": "LINEAR-10-OFFLINE",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:25.297Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore IndexedDB persistent cache and offline mutation queue",
+      "evidence": {
+        "online": {
+          "auth": "bob@example.test",
+          "source": "server",
+          "issueCount": 50,
+          "targetId": "issue-500"
+        },
+        "offline": {
+          "coldPage": true,
+          "transportDisabledBeforeQuery": true,
+          "retainedIssueCount": 50,
+          "snapshotSourceBeforeReconnect": "cache",
+          "queuedEditRenderedOptimistically": true,
+          "pendingWritesBeforeReconnect": true,
+          "authoritativeBeforeReconnectUnchanged": true,
+          "authoritativeAfterReconnectMatched": true,
+          "pendingWritesAfterReconnect": false,
+          "indexedDbDatabaseCount": 3,
+          "indexedDbNameHashes": [
+            "8cc71b55f0505e1ed5354cdc3c6597c7c3aa49658b11d02f7471243ed86bfce8",
+            "c59046c232ed5e82f5fc8ebdfbbf34939bcacd60f396ed6f075b565e2627b128",
+            "fd7ad3bf196e1dfb95fc443cb2925d9caecb55ebbb6cc120cddcbe5c6f0abade"
+          ],
+          "targetId": "issue-500",
+          "markerHash": "16bfc5891ce8b642211245f75c4677fa087726e0bf32c8da2343ca22953ba1b8"
+        }
+      },
+      "note": "A new page in the same isolated persistent profile booted 50 issues from native cache with Firestore transport disabled, queued one update, and reconciled exactly once after reconnect."
+    },
+    "LINEAR-11-MIGRATION": {
+      "id": "LINEAR-11-MIGRATION",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:10.700Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "Firestore schemaless evolution and composite index",
+      "evidence": {
+        "beforeCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "comments": 1001,
+          "activities": 502
+        },
+        "afterCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "comments": 1001,
+          "activities": 502
+        },
+        "backfilledDocuments": 500,
+        "queryResultCount": 10,
+        "indexProof": {
+          "collectionGroup": "issues",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "orgId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "customerImpact",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "sequence",
+              "order": "DESCENDING"
+            }
+          ]
+        },
+        "migrationMechanism": "Admin SDK BulkWriter backfill plus committed Firestore composite index"
+      },
+      "note": "The new field was backfilled across all production-shaped rows without count loss and queried through its declared index."
+    },
+    "LINEAR-12-DEPLOY": {
+      "id": "LINEAR-12-DEPLOY",
+      "status": "unavailable-remote-dependency",
+      "capturedAt": "2026-07-29T04:31:10.701Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "localTargetIdentity": "a7f785cbdd13864f6ce9eca0efe69a99e358baaa1030fa98d541249f09727f0c",
+        "localServices": {
+          "hub": {
+            "listen": [
+              {
+                "address": "127.0.0.1",
+                "family": "IPv4",
+                "port": 4521
+              }
+            ],
+            "name": "hub",
+            "host": "127.0.0.1",
+            "port": 4521
+          },
+          "logging": {
+            "listen": [
+              {
+                "address": "127.0.0.1",
+                "family": "IPv4",
+                "port": 4522
+              }
+            ],
+            "name": "logging",
+            "host": "127.0.0.1",
+            "port": 4522
+          },
+          "auth": {
+            "listen": [
+              {
+                "address": "127.0.0.1",
+                "family": "IPv4",
+                "port": 9321
+              }
+            ],
+            "name": "auth",
+            "host": "127.0.0.1",
+            "port": 9321
+          },
+          "functions": {
+            "name": "functions",
+            "host": "127.0.0.1",
+            "port": 5321
+          },
+          "firestore": {
+            "listen": [
+              {
+                "address": "127.0.0.1",
+                "family": "IPv4",
+                "port": 8321
+              }
+            ],
+            "name": "firestore",
+            "host": "127.0.0.1",
+            "port": 8321,
+            "pid": 25677,
+            "reservedPorts": [
+              9150
+            ],
+            "webSocketHost": "127.0.0.1",
+            "webSocketPort": 9150
+          },
+          "storage": {
+            "listen": [
+              {
+                "address": "127.0.0.1",
+                "family": "IPv4",
+                "port": 9421
+              }
+            ],
+            "name": "storage",
+            "host": "127.0.0.1",
+            "port": 9421
+          },
+          "eventarc": {
+            "name": "eventarc",
+            "host": "127.0.0.1",
+            "port": 9299
+          },
+          "tasks": {
+            "name": "tasks",
+            "host": "127.0.0.1",
+            "port": 9499
+          }
+        },
+        "configArtifacts": [
+          "firebase.json",
+          ".firebaserc",
+          "firestore.rules",
+          "firestore.indexes.json",
+          "storage.rules"
+        ],
+        "logs": [
+          "receipts/emulator.log",
+          "receipts/vite.log"
+        ],
+        "rollbackExportPlanned": "receipts/export-manifest.json",
+        "hostedDeployment": null
+      },
+      "note": "Hosted credentials are unavailable, so hosted identity/URL/logs are an environment GAP rather than a Firebase product failure. Local deploy/config/log/export evidence is retained."
+    },
+    "LINEAR-13-PERFORMANCE": {
+      "id": "LINEAR-13-PERFORMANCE",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:31:16.866Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "mixed native paths",
+      "evidence": {
+        "claimScope": "Firebase local emulators on one isolated Mac; not production or hosted latency",
+        "dataset": {
+          "organizations": 2,
+          "teamsPerPrimaryOrg": 3,
+          "projectsPerPrimaryOrg": 4,
+          "issues": 500,
+          "comments": 1000,
+          "labels": 20,
+          "pageSize": 50,
+          "concurrentClients": 2
+        },
+        "warmupsPerPath": 2,
+        "recordedSamplesPerPath": 7,
+        "unit": "milliseconds",
+        "representativeRead": {
+          "samples": [
+            7.405,
+            9.014,
+            7.478,
+            8.078,
+            7.364,
+            5.991,
+            8.429
+          ],
+          "median": 7.478,
+          "nearestRankP95": 9.014
+        },
+        "representativeDetail": {
+          "samples": [
+            8.642,
+            7.388,
+            9.46,
+            9.454,
+            7.513,
+            6.665,
+            7.198
+          ],
+          "median": 7.513,
+          "nearestRankP95": 9.46
+        },
+        "representativeWrite": {
+          "samples": [
+            1.187,
+            1.201,
+            1.129,
+            1.037,
+            0.94,
+            1.091,
+            1.237
+          ],
+          "median": 1.129,
+          "nearestRankP95": 1.237
+        },
+        "realtimeDelivery": {
+          "samples": [
+            3.278,
+            3.012,
+            3.167,
+            2.929,
+            3.026,
+            4.272,
+            3.273
+          ],
+          "median": 3.167,
+          "nearestRankP95": 4.272
+        },
+        "reconnect": {
+          "samples": [
+            5.588,
+            7.323,
+            5.723,
+            6.22,
+            6.333,
+            7.287,
+            6.897
+          ],
+          "median": 6.333,
+          "nearestRankP95": 7.323
+        },
+        "buildOrDeploy": {
+          "samples": [
+            1236.431,
+            844.977,
+            577.868,
+            552.204,
+            506.584,
+            535.587,
+            547.505
+          ],
+          "median": 552.204,
+          "nearestRankP95": 1236.431
+        },
+        "machine": {
+          "model": "Mac17,3",
+          "architecture": "arm64",
+          "memory": "32 GiB",
+          "os": "macOS 26.5.2 (25F84)",
+          "node": "v24.14.0",
+          "java": "OpenJDK 21.0.10"
+        },
+        "costWindow": {
+          "measured": "$0 local emulator",
+          "hostedActualUsage": "unavailable",
+          "hostedListPriceEstimate": "not estimated without a deployed target workload"
+        }
+      },
+      "note": "Two warmups and seven raw samples retained for every frozen local path."
+    },
+    "LINEAR-14-CLEANUP": {
+      "id": "LINEAR-14-CLEANUP",
+      "status": "pass",
+      "capturedAt": "2026-07-29T04:34:45.653Z",
+      "target": "llp0102-linear-firebase-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "schemaVersion": 1,
+        "capturedAt": "2026-07-29T04:34:45.653Z",
+        "target": {
+          "projectId": "llp0102-linear-firebase-w2",
+          "identityHash": "a7f785cbdd13864f6ce9eca0efe69a99e358baaa1030fa98d541249f09727f0c",
+          "mode": "fresh-local"
+        },
+        "processPlan": {
+          "roots": {
+            "emulatorPid": 25575,
+            "vitePid": 25663
+          },
+          "validatedProcesses": [
+            {
+              "pid": 25575,
+              "ppid": 1,
+              "pgid": 25575,
+              "commandHash": "ff0cddcc3697ae6bc9a904b7db5fb93122dbad1ae334efabff4b21a80b3546d4"
+            },
+            {
+              "pid": 25663,
+              "ppid": 1,
+              "pgid": 25663,
+              "commandHash": "49559e7e0f47ec22fc1eb199a9ea1d4955ea9e2db5369fd8142143750703df91"
+            },
+            {
+              "pid": 25677,
+              "ppid": 25575,
+              "pgid": 25677,
+              "commandHash": "314e2a0a5e0178ddcda45cb36c80f4a30d18fd58273d0994e9c14cb45fcdbe3d"
+            },
+            {
+              "pid": 26043,
+              "ppid": 25575,
+              "pgid": 25575,
+              "commandHash": "e3302e4095ff68db50b2cd766da3635514eed5c9f279188b4c8da1cba5d2cbd4"
+            },
+            {
+              "pid": 36928,
+              "ppid": 25575,
+              "pgid": 25575,
+              "commandHash": "42b242ff8cfe3b49d4f0ac08e1406b72688bc6f5a08c685f0bc38bad8b6fabd3"
+            },
+            {
+              "pid": 36929,
+              "ppid": 25575,
+              "pgid": 25575,
+              "commandHash": "42b242ff8cfe3b49d4f0ac08e1406b72688bc6f5a08c685f0bc38bad8b6fabd3"
+            },
+            {
+              "pid": 37019,
+              "ppid": 25575,
+              "pgid": 25575,
+              "commandHash": "42b242ff8cfe3b49d4f0ac08e1406b72688bc6f5a08c685f0bc38bad8b6fabd3"
+            },
+            {
+              "pid": 25681,
+              "ppid": 25663,
+              "pgid": 25663,
+              "commandHash": "21f1677c8f4f84241689e7c6c37d74002be01686fac03a710ca876993526fff7"
+            },
+            {
+              "pid": 25707,
+              "ppid": 25681,
+              "pgid": 25663,
+              "commandHash": "a4c3037bc38e921e8fc9f1aeed14e59004e18e13d8f000ec3b2917feb33fc456"
+            }
+          ],
+          "survivingPids": []
+        },
+        "assignedPorts": [
+          9321,
+          8321,
+          5321,
+          9421,
+          4321,
+          4521,
+          4522
+        ],
+        "providerIssuedPorts": [
+          9150,
+          9299,
+          9499
+        ],
+        "portsAfter": {
+          "4321": "closed",
+          "4521": "closed",
+          "4522": "closed",
+          "5321": "closed",
+          "8321": "closed",
+          "9150": "closed",
+          "9299": "closed",
+          "9321": "closed",
+          "9421": "closed",
+          "9499": "closed"
+        },
+        "projectEndpointProbe": "connection-refused",
+        "unrelatedBaseline": "No shared or hosted target was used or mutated.",
+        "removedDirectories": [
+          ".browser-profile",
+          ".firebase-export",
+          ".xdg-cache",
+          ".xdg-config"
+        ],
+        "exportEvidencePreserved": "receipts/export-manifest.json",
+        "status": "complete"
+      },
+      "note": "Exact detached process groups were validated and stopped; all seven assigned ports and provider-issued auxiliary ports closed; only worktree-local runtime directories were removed."
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 6333,
+    "firstAuthoritativeMutationMs": 6485,
+    "firstRealtimeTransitionMs": 10011,
+    "localAcceptanceMs": 16244,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 16244
+  },
+  "commands": [
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 505.061
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 601.025
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 1236.431
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 844.977
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 577.868
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 552.204
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 506.584
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 535.587
+    },
+    {
+      "command": "npm run build --silent",
+      "exitStatus": 0,
+      "durationMs": 547.505
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T19:44:41.327Z",
+  "ok": true,
+  "targetIdentityHash": "1d69c47ca499a7f5b31d656b6fb7bef31a0d528d91553e6c126fd1fe8fbebc9c",
+  "removed": [
+    "exact arm-owned standalone database directory (two local attempts)",
+    "exact arm-owned disposable browser profiles",
+    "exact arm-local ignored credential files"
+  ],
+  "probes": {
+    "port3102Closed": true,
+    "port4178Closed": true,
+    "runtimeDirectoryAbsent": true,
+    "armSecretsAbsent": true,
+    "envLocalAbsent": true
+  },
+  "recovery": "Removed target bytes are not recoverable; source and deterministic seed can recreate them.",
+  "containsSecretValues": false
+}

@@ -1,0 +1,382 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"body\": string; \"issueId\": string; \"sequence\": number }",
+        "effects": {
+          "invalidates": [
+            "comments",
+            "activities"
+          ],
+          "writes": [
+            "comments",
+            "activities"
+          ]
+        },
+        "name": "addComment",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"organizationId\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "organizationMembers"
+          ],
+          "writes": [
+            "organizationMembers"
+          ]
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"bobId\": string; \"name\": string; \"seedPrimary\": boolean; \"slug\": string }",
+        "effects": {
+          "invalidates": [
+            "organizations",
+            "organizationMembers",
+            "teams",
+            "projects",
+            "labels",
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ],
+          "writes": [
+            "organizations",
+            "organizationMembers",
+            "teams",
+            "projects",
+            "labels",
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ]
+        },
+        "name": "bootstrapOrganization",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"assigneeId\": string; \"organizationId\": string; \"projectId\": string; \"sequence\": number; \"teamId\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "issues",
+            "activities"
+          ],
+          "writes": [
+            "issues",
+            "activities"
+          ]
+        },
+        "name": "createIssue",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"bobId\": string; \"count\": number; \"organizationId\": string; \"startSequence\": number }",
+        "effects": {
+          "invalidates": [
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ],
+          "writes": [
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ]
+        },
+        "name": "seedIssuesBatch",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"assigneeId\"?: string; \"boardPosition\"?: number; \"id\": string; \"priority\"?: number; \"status\"?: string; \"title\"?: string }",
+        "effects": {
+          "invalidates": [
+            "issues",
+            "activities"
+          ],
+          "writes": [
+            "issues",
+            "activities"
+          ]
+        },
+        "name": "updateIssue",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"issueId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "issues",
+            "organizationMembers",
+            "activities"
+          ]
+        },
+        "name": "listActivities",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"actorId\": string; \"body\": string; \"issueId\": string; \"kind\": string; \"organizationId\": string; \"sequence\": number }>"
+      },
+      {
+        "argumentsType": "{ \"issueId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "issues",
+            "organizationMembers",
+            "comments"
+          ]
+        },
+        "name": "listComments",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"issueId\": string; \"organizationId\": string; \"sequence\": number }>"
+      },
+      {
+        "argumentsType": "{ \"issueId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "issues",
+            "organizationMembers",
+            "issueLabels"
+          ]
+        },
+        "name": "listIssueLabels",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"issueId\": string; \"labelId\": string; \"organizationId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"assigneeId\"?: string; \"labelId\"?: string; \"organizationId\": string; \"projectId\"?: string; \"status\"?: string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "issues",
+            "issueLabels"
+          ]
+        },
+        "name": "listIssues",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"assigneeId\": string; \"boardPosition\": number; \"description\": string; \"identifier\": string; \"organizationId\": string; \"priority\": number; \"projectId\": string; \"sequence\": number; \"status\": string; \"teamId\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"organizationId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "labels"
+          ]
+        },
+        "name": "listLabels",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"color\": string; \"name\": string; \"organizationId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"organizationId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "activities"
+          ]
+        },
+        "name": "listOrganizationActivities",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"actorId\": string; \"body\": string; \"issueId\": string; \"kind\": string; \"organizationId\": string; \"sequence\": number }>"
+      },
+      {
+        "argumentsType": "{ \"organizationId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "comments"
+          ]
+        },
+        "name": "listOrganizationComments",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"issueId\": string; \"organizationId\": string; \"sequence\": number }>"
+      },
+      {
+        "argumentsType": "{ \"organizationId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "projects"
+          ]
+        },
+        "name": "listProjects",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"name\": string; \"organizationId\": string; \"state\": string }>"
+      },
+      {
+        "argumentsType": "{ \"organizationId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "teams"
+          ]
+        },
+        "name": "listTeams",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"key\": string; \"name\": string; \"organizationId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"afterSequence\"?: number; \"limit\": number; \"organizationId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "issues"
+          ]
+        },
+        "name": "pageIssues",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"assigneeId\": string; \"boardPosition\": number; \"description\": string; \"identifier\": string; \"organizationId\": string; \"priority\": number; \"projectId\": string; \"sequence\": number; \"status\": string; \"teamId\": string; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

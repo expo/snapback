@@ -1,0 +1,129 @@
+{
+  "providerVersions": {
+    "instantCore": "1.0.52",
+    "instantReact": "1.0.52",
+    "instantAdmin": "1.0.52",
+    "instantCli": "1.0.52",
+    "react": "19.1.1",
+    "vite": "7.1.3",
+    "typescript": "5.9.2"
+  },
+  "authoredFiles": [
+    {
+      "path": "index.html",
+      "lines": 13,
+      "bytes": 319
+    },
+    {
+      "path": "instant.perms.ts",
+      "lines": 90,
+      "bytes": 2709
+    },
+    {
+      "path": "instant.schema.base.ts",
+      "lines": 119,
+      "bytes": 3985
+    },
+    {
+      "path": "instant.schema.evolved.ts",
+      "lines": 102,
+      "bytes": 3933
+    },
+    {
+      "path": "instant.schema.ts",
+      "lines": 102,
+      "bytes": 3933
+    },
+    {
+      "path": "scripts/acceptance.mjs",
+      "lines": 925,
+      "bytes": 33205
+    },
+    {
+      "path": "scripts/build-samples.mjs",
+      "lines": 64,
+      "bytes": 2086
+    },
+    {
+      "path": "scripts/clear-target.mjs",
+      "lines": 84,
+      "bytes": 2795
+    },
+    {
+      "path": "scripts/finalize-arm.mjs",
+      "lines": 308,
+      "bytes": 12252
+    },
+    {
+      "path": "scripts/finalize-performance.mjs",
+      "lines": 46,
+      "bytes": 1714
+    },
+    {
+      "path": "scripts/inventory.mjs",
+      "lines": 106,
+      "bytes": 3324
+    },
+    {
+      "path": "scripts/offline-smoke.mjs",
+      "lines": 211,
+      "bytes": 8205
+    },
+    {
+      "path": "scripts/provision-target.mjs",
+      "lines": 93,
+      "bytes": 3217
+    },
+    {
+      "path": "scripts/push-config.mjs",
+      "lines": 60,
+      "bytes": 1889
+    },
+    {
+      "path": "scripts/reset-fixture.mjs",
+      "lines": 51,
+      "bytes": 1851
+    },
+    {
+      "path": "scripts/stage-schema.mjs",
+      "lines": 14,
+      "bytes": 439
+    },
+    {
+      "path": "src/App.tsx",
+      "lines": 130,
+      "bytes": 3990
+    },
+    {
+      "path": "src/main.tsx",
+      "lines": 11,
+      "bytes": 236
+    },
+    {
+      "path": "src/styles.css",
+      "lines": 37,
+      "bytes": 2490
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "lines": 2,
+      "bytes": 38
+    },
+    {
+      "path": "vite.config.ts",
+      "lines": 12,
+      "bytes": 214
+    }
+  ],
+  "authoredTotals": {
+    "files": 21,
+    "lines": 2580,
+    "bytes": 92824
+  },
+  "dependencies": {
+    "direct": 13,
+    "lockfilePackages": 252
+  },
+  "productionBuildBytes": 357277,
+  "capturedAt": "2026-07-29T05:08:04.639Z"
+}

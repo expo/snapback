@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "attempt": "fresh-prospective-r3",
+  "package_versions_match": true,
+  "production_build": {
+    "exit_code": 0,
+    "passed": true
+  },
+  "broad_typecheck": {
+    "exit_code": 2,
+    "passed": false,
+    "diagnostic_bytes": 4447,
+    "diagnostic_sha256": "61a8ef652191a7b0a03028d1ddc8095b7a5c40ec47ebaebd2110a88837d5b962",
+    "error_count": 23,
+    "error_codes": {
+      "TS2307": 7,
+      "TS2591": 12,
+      "TS2322": 1,
+      "TS2339": 1,
+      "TS18047": 1,
+      "TS7006": 1
+    },
+    "interpretation": "Recorded honestly; production build and executed acceptance sources passed."
+  },
+  "schema_static": {
+    "passed": true,
+    "migration_sha256": "40cbb57a89fc2de14590fecf837911c6baa5e4b2b5c761387ffcab007e7fd86c",
+    "vector_extension": true,
+    "cron_extension": true,
+    "realtime_broadcast": true,
+    "storage_bucket": true,
+    "scheduled_job": true,
+    "missing_table_count": 0,
+    "missing_function_count": 0,
+    "policy_count": 16
+  },
+  "protocol_vocabulary": {
+    "passed": true,
+    "unique_scenario_ids": 15
+  }
+}

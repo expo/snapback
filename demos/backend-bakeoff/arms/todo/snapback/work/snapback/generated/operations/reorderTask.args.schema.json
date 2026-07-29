@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/reorderTask.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "targetIndex": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "targetIndex"
+  ],
+  "title": "work:reorderTask arguments",
+  "type": "object"
+}

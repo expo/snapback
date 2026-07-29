@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "actors": {
+    "alice": {
+      "principalIdHash": "f78df0ed7bd56c021061084fb144f83909f3f5bd0f97aaa0ee7f226ad99b7ebc"
+    },
+    "bob": {
+      "principalIdHash": "d08b4bc98f89c45d41826c60e0f15cbcb387baa924e55565b1bc20a272beb492"
+    },
+    "mallory": {
+      "principalIdHash": "34aa976c38a3b84bc4cae5c9cb0e61a88f3aa5d1bce63f6a3062da1f4710a41e"
+    },
+    "casey": {
+      "principalIdHash": "b52998fb1998b3fa6a8ff27d8ea778551973a62db8d54ac989519caddb5bea78"
+    }
+  },
+  "nativeIdentitySource": "SpacetimeDB development identities and private persona binding reducer",
+  "rawCredentialsPersistedInEvidence": false
+}

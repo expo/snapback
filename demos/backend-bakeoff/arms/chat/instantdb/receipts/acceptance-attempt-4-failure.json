@@ -1,0 +1,9 @@
+{
+  "attempt": 4,
+  "result": "failed",
+  "phase": "CHAT-12-LOGOUT",
+  "failureClass": "headless-harness-client-isolation",
+  "summary": "Node's global BroadcastChannel made independent in-process clients act like tabs sharing one browser context; Bob logout interrupted Alice's pending transaction with user-changed.",
+  "remediation": "Disable the Node-only shared BroadcastChannel in the headless harness while retaining independent native WebSocket sessions, restore the frozen private membership fixture, and rerun.",
+  "stopClass": false
+}

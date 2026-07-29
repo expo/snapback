@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "provider": "SpacetimeDB",
+  "providerVersion": "2.7.0",
+  "clientVersion": "2.7.0",
+  "cliVersion": "2.7.0",
+  "cliLauncherSha256": "74aca112ead0b20e64e01c4d4cbc2fdf022821f2f870b473a0be5e1da179c246",
+  "mode": "fresh-local",
+  "serverProfile": "official standalone local server",
+  "server": "http://127.0.0.1:3320",
+  "databaseName": "llp0102-linear-spacetimedb-w1",
+  "databaseIdentity": "c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e",
+  "databaseIdentityHash": "e714792b31b4bb901abeaff67a826647200f121a88690c7c37d06d4dcadaefae",
+  "ownerIdentityHash": "9131203c02c4b9febfc3c280b6b15bbe91201fbe4c61307c9dbf8d592ada91d0",
+  "machine": "Minisforum AI Series / Linux x86_64 / Linux 6.17.0-40-generic",
+  "assignedPorts": {
+    "standalone": 3320,
+    "vite": 4320
+  },
+  "isolatedPaths": {
+    "worktree": "/home/ccheever/worktrees/llp0102-linear-spacetimedb-w1",
+    "cliRoot": "state/cli",
+    "configPath": "state/config/cli.toml",
+    "dataRoot": "state/data",
+    "credentialCustody": "state/owner-custody.json and state/actor-custody.json (ignored, mode 0600, removed during cleanup)"
+  },
+  "hostedDeploymentClaimed": false,
+  "secretValuesPresent": false
+}

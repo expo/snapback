@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:47:50.504Z",
+  "ok": true,
+  "principalIdHashes": {
+    "alice": "8e2429e9fdfeaa3001c674005c038fe4f78fb42efdb487d051f0d11b3fbd5834",
+    "bob": "998fb5f5fd430bac05c5afa557ea0d2d3060b25c073041d66b4dd073c84c4690",
+    "mallory": "55aac4c01fc40ebbea1ad8f6a4528ba7e7de5e99dafec366fedf6fa2fbc43ae0"
+  },
+  "identityHashesStable": true,
+  "authorizedTaskCounts": {
+    "alice": 100,
+    "bob": 100,
+    "mallory": 0
+  },
+  "authoritativeSeed": {
+    "seeded": true,
+    "workspaceCount": 1,
+    "membershipCount": 2,
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "listOrderLengths": [
+      25,
+      25,
+      25,
+      25
+    ],
+    "principalIdHashes": {
+      "alice": "8e2429e9fdfeaa3001c674005c038fe4f78fb42efdb487d051f0d11b3fbd5834",
+      "bob": "998fb5f5fd430bac05c5afa557ea0d2d3060b25c073041d66b4dd073c84c4690"
+    }
+  },
+  "transport": "InstantDB native WebSocket live query",
+  "eachClientOpenedNativeWebSocket": true,
+  "outsider": {
+    "nativeAuthenticated": true,
+    "protectedRows": 0,
+    "protectedRowsRetained": false
+  },
+  "containsSecretValues": false
+}

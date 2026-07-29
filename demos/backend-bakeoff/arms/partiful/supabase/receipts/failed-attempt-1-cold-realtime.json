@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-07-29T05:17:32.410Z",
+  "failedAt": "2026-07-29T05:17:41.824Z",
+  "results": {
+    "PARTY-01-SEED": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "targetIdentity": {
+          "projectId": "llp0102-partiful-supabase-coord",
+          "namespace": "llp0102-partiful-supabase-coord",
+          "apiUrlHash": "67a115ebdf116ef7a91e507a3697d92a2bc133dfb57cf208cd06e52cbe581c0c",
+          "dbUrlHash": "ef517433d12b750392aea38d3d5b10a31e6642e296001869687bb3731eedaa68",
+          "identityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+          "profile": "official Supabase CLI Docker stack",
+          "versions": {
+            "client": "2.111.0",
+            "cli": "2.110.0",
+            "postgres": "17"
+          }
+        },
+        "counts": {
+          "profiles": 6,
+          "events": 3,
+          "event_members": 7,
+          "invitations": 4,
+          "rsvps": 0,
+          "wall_posts": 0,
+          "reminder_schedules": 0,
+          "notification_attempts": 0,
+          "provider_deliveries": 0
+        },
+        "eventIds": {
+          "primary": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c",
+          "capacity": "43c58731c2eca6dac1b28768c2c2c6962b610879d590237f9d95de28e51e414d",
+          "private": "968926bf2686579a8f099c7268e98f33f193b9b8fc176d9deae76c3cbcc7b738"
+        },
+        "personas": {
+          "alice": {
+            "idHash": "fae413b3fac347945c9b3b16597049b04eb594030cfdadb853dd0ea3ed87489c",
+            "role": "host"
+          },
+          "bob": {
+            "idHash": "3b17c25ea5b1826094d4a9574a64225d85e02633dddf58fcf5285d17e8ec7135",
+            "role": "guest"
+          },
+          "mallory": {
+            "idHash": "701753d91a33195da72a44b8a2cbc742e18a61361f8cfe617b53d4c7f7a3fd91",
+            "role": "outsider"
+          },
+          "carol": {
+            "idHash": "8564fe6c23301eebf86fc93cbf86c6e2d45e594281d5537c81d5c889bb105c0d",
+            "role": "cohost"
+          },
+          "dave": {
+            "idHash": "89fcd7a472450a43cddf757134bb31596bc01b9cec2b9c8706e3927c786715bf",
+            "role": "guest"
+          },
+          "erin": {
+            "idHash": "eec5d5e35adda3851d027471dd23d1a81fb668ca11063d3a070f1ad9c206615f",
+            "role": "guest"
+          }
+        }
+      }
+    },
+    "PARTY-02-PUBLIC-PRIVATE": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "anonymousRead": {
+          "slug": "summer-rooftop",
+          "idHash": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c"
+        },
+        "fieldBoundary": [
+          "art_path",
+          "id",
+          "slug",
+          "starts_at",
+          "summary",
+          "title",
+          "venue_public"
+        ],
+        "negativePrivateRead": {
+          "directTableRejected": true,
+          "privatePreviewRows": 0
+        }
+      }
+    },
+    "PARTY-03-INVITE-RSVP": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "invitationAttribution": {
+          "idHash": "89698c25ed7f76d28ced845ee7d794b0af601a2f93287b17a2cde1587fbc230b",
+          "createdByHash": "fae413b3fac347945c9b3b16597049b04eb594030cfdadb853dd0ea3ed87489c"
+        },
+        "transitions": [
+          {
+            "response": "yes",
+            "plusOne": 1,
+            "revision": 1
+          },
+          {
+            "response": "maybe",
+            "plusOne": 0,
+            "revision": 2
+          },
+          {
+            "response": "no",
+            "plusOne": 0,
+            "revision": 3
+          },
+          {
+            "response": "yes",
+            "plusOne": 1,
+            "revision": 4
+          }
+        ],
+        "authoritativeState": {
+          "response": "yes",
+          "plusOne": 1,
+          "revision": 4
+        }
+      }
+    },
+    "PARTY-04-ROLES": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "positiveRoleMatrix": {
+          "hostEdit": true,
+          "cohostEdit": true,
+          "guestRsvp": true
+        },
+        "negativeRoleMatrix": {
+          "guestHostControl": false,
+          "outsiderReadRows": 0,
+          "outsiderWriteRejected": true
+        }
+      }
+    },
+    "PARTY-05-GUEST-LIST": {
+      "status": "fail",
+      "note": "Error: events realtime timeout",
+      "evidence": {}
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 1380,
+    "firstAuthoritativeMutationMs": 1396,
+    "firstRealtimeTransitionMs": null,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": null
+  }
+}

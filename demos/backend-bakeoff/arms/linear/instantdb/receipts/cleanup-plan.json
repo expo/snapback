@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "provider": "InstantDB",
+  "arm": "linear/instantdb/deep",
+  "targetBinding": "fresh-hosted-temporary",
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "namespace": "llp0102-linear-instantdb-w3",
+  "allowedDeletes": [
+    "all entities in this exact fresh temporary target",
+    "all native guest users created in this exact fresh temporary target",
+    "worktree-local .arm-runtime credentials and browser/CLI state"
+  ],
+  "forbiddenDeletes": [
+    "any other InstantDB application",
+    "any shared account or workspace state",
+    "any file outside demos/backend-bakeoff/arms/linear/instantdb"
+  ],
+  "targetDeletion": "App-scoped admin token cannot delete the app; official temporary-app lifecycle automatically deletes it after more than 24 hours.",
+  "postCleanupProof": [
+    "authoritative zero counts for every arm namespace and $users",
+    "old Bob refresh token rejected",
+    "local raw credentials and browser state removed"
+  ],
+  "containsSecretValues": false
+}

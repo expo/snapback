@@ -1,0 +1,29 @@
+{
+  "operation": "seed-frozen-linear-workload",
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "actorHashes": {
+    "alice": {
+      "idSha256": "174a8b2bb0c15e581d318b8665f2da5d62cc94080bedd1097d2eae26ac1c623f",
+      "authKind": "InstantDB native guest auth"
+    },
+    "bob": {
+      "idSha256": "d5d16f072c3453866f20b8a5280e48007fb52ea5159a3e5d28fd380b3ca82a57",
+      "authKind": "InstantDB native guest auth"
+    },
+    "mallory": {
+      "idSha256": "f98cd1b8bc4d9fdee21ce85ee4ed5d07f2d3f544836cb7241a80e61ee116a573",
+      "authKind": "InstantDB native guest auth"
+    }
+  },
+  "authoritativeCounts": {
+    "organizations": 2,
+    "memberships": 3,
+    "teams": 3,
+    "projects": 4,
+    "labels": 20,
+    "issues": 500,
+    "comments": 1000,
+    "activities": 500
+  },
+  "finishedAt": "2026-07-29T04:58:57.666Z"
+}

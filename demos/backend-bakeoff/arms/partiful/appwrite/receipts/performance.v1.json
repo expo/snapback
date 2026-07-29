@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T06:15:29.936Z",
+  "claimScope": "isolated local Appwrite 1.9.6 self-host stack; not hosted or production latency",
+  "frozenDataset": {
+    "events": 20,
+    "contendedGuests": 49,
+    "capacity": 50,
+    "wallBurst": 20,
+    "assetBytes": 262144,
+    "actors": 3,
+    "concurrentClients": 2
+  },
+  "warmupsPerPath": 2,
+  "recordedSamplesPerPath": 7,
+  "statistic": "median and nearest-rank p95 over seven retained measurements",
+  "paths": {
+    "contention": {
+      "rawSamplesMs": [
+        56.126,
+        107.58,
+        151.034,
+        126.538,
+        58.955,
+        63.06,
+        118.803
+      ],
+      "medianMs": 107.58,
+      "nearestRankP95Ms": 151.034
+    },
+    "burst": {
+      "rawSamplesMs": [
+        173.11,
+        171.615,
+        164.843,
+        153.998,
+        146.233,
+        155.835,
+        175.97
+      ],
+      "medianMs": 164.843,
+      "nearestRankP95Ms": 175.97
+    },
+    "asset": {
+      "rawSamplesMs": [
+        24.528,
+        19.884,
+        20.014,
+        19.643,
+        23.394,
+        20.576,
+        18.91
+      ],
+      "medianMs": 20.014,
+      "nearestRankP95Ms": 24.528
+    },
+    "realtime": {
+      "rawSamplesMs": [
+        15.642,
+        13.932,
+        14.095,
+        13.211,
+        13.573,
+        14.436,
+        12.519
+      ],
+      "medianMs": 13.932,
+      "nearestRankP95Ms": 15.642
+    },
+    "deployBuild": {
+      "rawSamplesMs": [
+        466.867,
+        455.203,
+        467.137,
+        463.595,
+        471.243,
+        537.399,
+        838.987
+      ],
+      "medianMs": 467.137,
+      "nearestRankP95Ms": 838.987
+    }
+  },
+  "realtimeWebSocketsObserved": 1,
+  "productPolling": false,
+  "dockerResources": {
+    "composeProject": "llp0102-partiful-appwrite-w3",
+    "containerSnapshots": [
+      {
+        "name": "llp0102-partiful-appwrite-w3-effect-sink",
+        "memory": "13.4MiB / 7.737GiB",
+        "cpu": "0.02%"
+      },
+      {
+        "name": "appwrite",
+        "memory": "368.1MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "exc1",
+        "memory": "68.99MiB / 7.737GiB",
+        "cpu": "1.30%"
+      },
+      {
+        "name": "appwrite-mongodb",
+        "memory": "235.9MiB / 7.737GiB",
+        "cpu": "1.15%"
+      },
+      {
+        "name": "appwrite-traefik",
+        "memory": "30.88MiB / 7.737GiB",
+        "cpu": "0.06%"
+      },
+      {
+        "name": "appwrite-task-scheduler-executions",
+        "memory": "74.24MiB / 7.737GiB",
+        "cpu": "0.21%"
+      },
+      {
+        "name": "appwrite-realtime",
+        "memory": "109.8MiB / 7.737GiB",
+        "cpu": "0.17%"
+      },
+      {
+        "name": "appwrite-worker-certificates",
+        "memory": "59.33MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-audits",
+        "memory": "63.52MiB / 7.737GiB",
+        "cpu": "0.02%"
+      },
+      {
+        "name": "appwrite-worker-databases",
+        "memory": "59.05MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-deletes",
+        "memory": "63.19MiB / 7.737GiB",
+        "cpu": "0.03%"
+      },
+      {
+        "name": "appwrite-worker-builds",
+        "memory": "64.38MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-task-scheduler-messages",
+        "memory": "74.02MiB / 7.737GiB",
+        "cpu": "0.20%"
+      },
+      {
+        "name": "appwrite-worker-webhooks",
+        "memory": "62.37MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-stats-usage",
+        "memory": "63.74MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-task-scheduler-functions",
+        "memory": "74.38MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-screenshots",
+        "memory": "59.03MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-messaging",
+        "memory": "59.05MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-task-stats-resources",
+        "memory": "73.95MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-task-interval",
+        "memory": "74.04MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-mails",
+        "memory": "59.26MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-executions",
+        "memory": "65.16MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-functions",
+        "memory": "63.68MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-task-maintenance",
+        "memory": "73.94MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-stats-resources",
+        "memory": "59.07MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-migrations",
+        "memory": "59.1MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-redis",
+        "memory": "7.469MiB / 7.737GiB",
+        "cpu": "0.65%"
+      },
+      {
+        "name": "appwrite-browser",
+        "memory": "154.6MiB / 7.737GiB",
+        "cpu": "0.31%"
+      },
+      {
+        "name": "appwrite-console",
+        "memory": "4.527MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-embedding",
+        "memory": "856.3MiB / 7.737GiB",
+        "cpu": "0.00%"
+      }
+    ]
+  },
+  "machine": {
+    "architecture": "arm64",
+    "host": "Mac17,3",
+    "dockerCpus": 4,
+    "dockerMemory": "8 GiB",
+    "node": "v24.14.0"
+  },
+  "costWindow": {
+    "measuredProviderCharge": "$0.00",
+    "basis": "open-source Appwrite software in an arm-owned local Colima VM; host compute excluded",
+    "hostedActualUsage": "unavailable — no hosted target credentials",
+    "hostedListPriceEstimate": "not claimed"
+  }
+}

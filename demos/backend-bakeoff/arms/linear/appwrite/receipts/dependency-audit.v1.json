@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:00:35.628Z",
+  "command": "npm audit --json",
+  "exitStatus": 1,
+  "vulnerabilityCounts": {
+    "info": 0,
+    "low": 3,
+    "moderate": 6,
+    "high": 7,
+    "critical": 0,
+    "total": 16
+  },
+  "dependencyCounts": {
+    "prod": 9,
+    "dev": 391,
+    "optional": 49,
+    "peer": 3,
+    "peerOptional": 0,
+    "total": 399
+  },
+  "attribution": "The retained Appwrite CLI and its transitive dependency tree account for the audit findings; counts are reported without suppressing development-tool dependencies.",
+  "containsSecretValues": false
+}

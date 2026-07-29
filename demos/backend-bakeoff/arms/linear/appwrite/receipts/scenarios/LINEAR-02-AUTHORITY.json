@@ -1,0 +1,23 @@
+{
+  "id": "LINEAR-02-AUTHORITY",
+  "status": "pass",
+  "checkedAt": "2026-07-29T04:55:46.075Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "aliceVisibleOrganizations": [
+      "org-primary"
+    ],
+    "bobVisibleIssueTotal": 500,
+    "malloryVisibleIssueTotal": 0,
+    "aliceOwnerMutation": "committed-and-restored",
+    "bobOwnerMutationDenied": true,
+    "malloryDirectIssueReadDenied": true,
+    "teamRoles": {
+      "alice": "owner",
+      "bob": "member",
+      "mallory": "outsider"
+    }
+  },
+  "note": "Native Auth sessions and Team-role permissions directly distinguished owner, member, and outsider."
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T23:24:42.928Z",
+  "ok": true,
+  "targetIdentityHash": "de76ea210ab0afc963172b53b1484769ecc8bd89d0c7dcdef825320788142e12",
+  "baselineReceiptPath": "receipts/baseline.v1.json",
+  "removed": [
+    "exact official Appwrite Compose containers, named volumes, and network",
+    "exact Appwrite 1.9.6 web installer publishing port 20080",
+    "exact arm Vite process and disposable browser/runtime directories",
+    "sole Appwrite CLI session after endpoint verification against the absent baseline"
+  ],
+  "retained": [
+    "Docker images, installed npm dependencies, deterministic provisioning source, and evidence",
+    "all unrelated Docker and filesystem state"
+  ],
+  "probes": {
+    "port4186Closed": true,
+    "port8090Closed": true,
+    "port20080Closed": true,
+    "matchingContainersRestored": true,
+    "matchingVolumesRestored": true,
+    "matchingNetworksRestored": true,
+    "runtimeAbsent": true,
+    "installerRuntimeAbsent": true,
+    "cliPreferencesAbsent": true
+  },
+  "recovery": "Removed local Appwrite data is not recoverable; retained installer and provisioning source recreate it.",
+  "containsSecretValues": false
+}

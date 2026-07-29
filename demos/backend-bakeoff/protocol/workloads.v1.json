@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "performance": {
+    "claimScope": "small repeatable product workload; not production scale",
+    "warmups": 2,
+    "recordedSamples": 7,
+    "statistics": [
+      "raw",
+      "median",
+      "nearest-rank-p95"
+    ],
+    "paths": [
+      "representative-read",
+      "representative-write",
+      "realtime-delivery",
+      "reconnect",
+      "build-or-deploy"
+    ],
+    "costWindow": "one arm from fresh-target or namespace provisioning through scoped cleanup",
+    "costViews": [
+      "actual-provider-usage-when-available",
+      "list-price-estimate-for-identical-window"
+    ],
+    "extrapolationCountsAsMeasured": false
+  },
+  "datasets": {
+    "todo": {
+      "workspaces": 2,
+      "listsPerPrimaryWorkspace": 4,
+      "tasksPerList": 25,
+      "actors": 3,
+      "concurrentClients": 2
+    },
+    "chat": {
+      "publicChannels": 2,
+      "privateChannels": 2,
+      "messagesPerChannel": 125,
+      "pageSize": 25,
+      "burstMessages": 20,
+      "actors": 3,
+      "concurrentClients": 2
+    },
+    "linear": {
+      "organizations": 2,
+      "teamsPerPrimaryOrg": 3,
+      "projectsPerPrimaryOrg": 4,
+      "issues": 500,
+      "comments": 1000,
+      "labels": 20,
+      "pageSize": 50,
+      "actors": 3,
+      "concurrentClients": 2
+    },
+    "partiful": {
+      "events": 20,
+      "guestsOnContendedEvent": 49,
+      "contendedCapacity": 50,
+      "simultaneousRsvpAttempts": 2,
+      "wallBurstPosts": 20,
+      "assetBytes": 262144,
+      "actors": 3,
+      "concurrentClients": 2
+    },
+    "research-room": {
+      "rooms": 2,
+      "sourcesPerPrimaryRoom": 20,
+      "sourceBytes": 65536,
+      "deterministicEmbeddingDimensions": 32,
+      "progressUpdates": 4,
+      "actors": 3,
+      "concurrentClients": 2
+    }
+  }
+}

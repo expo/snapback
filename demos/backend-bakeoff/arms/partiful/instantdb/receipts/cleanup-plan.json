@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T07:09:11.284Z",
+  "operation": "exact cleanup of three fresh hosted temporary Instant apps created by this arm",
+  "targets": [
+    {
+      "attempt": 1,
+      "namespace": "llp0102-partiful-instantdb-w3",
+      "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+      "credentialSource": "work/.arm-runtime/target-attempt1.json",
+      "actions": [
+        "hash authoritative app export",
+        "delete every exact app webhook",
+        "delete only rows/files/users in fresh target for llp0102-partiful-instantdb-w3",
+        "prove zero counts and invalid actor tokens"
+      ]
+    },
+    {
+      "attempt": 2,
+      "namespace": "llp0102-partiful-instantdb-w3-a2",
+      "targetIdSha256": "2deddab673473b6465d75a1111e135aa0599a228bf5df506d4f0b758572b2af5",
+      "credentialSource": "work/.arm-runtime/target-attempt2.json",
+      "actions": [
+        "hash authoritative app export",
+        "delete every exact app webhook",
+        "delete only rows/files/users in fresh target for llp0102-partiful-instantdb-w3-a2",
+        "prove zero counts and invalid actor tokens"
+      ]
+    },
+    {
+      "attempt": 3,
+      "namespace": "llp0102-partiful-instantdb-w3-a3",
+      "targetIdSha256": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+      "credentialSource": "work/.arm-runtime/target.json",
+      "actions": [
+        "hash authoritative app export",
+        "delete every exact app webhook",
+        "delete only rows/files/users in fresh target for llp0102-partiful-instantdb-w3-a3",
+        "prove zero counts and invalid actor tokens"
+      ]
+    }
+  ],
+  "forbiddenAndAbsent": [
+    "account-wide deletion",
+    "shared-target deletion",
+    "wildcards or unresolved variables",
+    "cleanup derived from CLI current default",
+    "paths outside work/.arm-runtime and work/.env.local"
+  ],
+  "unrelatedBaseline": "not applicable: all three targets are fresh opaque temporary apps and no shared target is bound",
+  "providerShellLifecycle": "empty temporary app shells and schema/permission configuration expire automatically after more than 24 hours"
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    {
+      "command": "verify immutable staged package ledger and cold-install receipt",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm install from seven staged tarballs in clean external project",
+      "exitStatus": 0
+    },
+    {
+      "command": "SNAPBACK_OUTBOUND_ACTIONS=1 npm run generate",
+      "exitStatus": 0
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0
+    }
+  ],
+  "assistanceEvents": [
+    {
+      "kind": "source-inspection",
+      "reason": "Stage 5 package-only confirmation used only shipped Guide pages and installed package surfaces.",
+      "sources": [
+        "guide/auth/sessions-and-principals.md",
+        "guide/backend/streamed-actions.md",
+        "guide/testing/acceptance.md"
+      ]
+    },
+    {
+      "kind": "packaged-runtime",
+      "reason": "The target was launched and stopped exclusively through installed @snapback/cli and the staged Darwin runtime package.",
+      "sources": [
+        "publish-ledger.json",
+        "cold-install-receipt.json"
+      ]
+    },
+    {
+      "kind": "external-copy-transformation",
+      "reason": "Every transformation from the sealed work app is retained by hash in the final confirmation handoff.",
+      "sources": [
+        "transformations.v1.json"
+      ]
+    }
+  ]
+}

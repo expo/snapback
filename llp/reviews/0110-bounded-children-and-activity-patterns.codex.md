@@ -289,7 +289,7 @@ Not ready. Both profiles are finite at the authored-plan level, and their author
 - Model the activity ceiling as separate `create-owner.v1` and `existing-owner.v1` records rather than conditional prose.
 - Add acceptance cases for cursor `_id` disclosure, parent projection update between pages, empty/missing source effects, projection-source writes, ACK followed by primary failure, cross-scope unique conflict, and incompatible client/server contract deployment.
 - Publish an explicit first-party client matrix. The current Swift mutation surface sends neither settlement ID nor authority descriptor; it should either gain the queue contract or publish a structured GAP.
-- Clarify why LLP 0102 is listed as Related despite having no stated normative role in this revision.
+- Clarify why LLP 0114 is listed as Related despite having no stated normative role in this revision.
 
 ## 5. Open questions
 
@@ -449,7 +449,7 @@ The publication gate is grounded in real unmet dependencies:
 
 - LLP 0101 remains `Review`, and the corresponding sound-result-contract issue remains open ([issue](/private/tmp/snapback-llp0104-r3.ebcL9g/issues/20260727-sound-handler-result-contracts.md:3)).
 - The comparator kit and codegen review-surface tickets are open ([comparator](/private/tmp/snapback-llp0104-r3.ebcL9g/issues/20260727-comparator-acceptance-kit.md:3), [codegen](/private/tmp/snapback-llp0104-r3.ebcL9g/issues/20260727-codegen-review-surface.md:3)).
-- `demos/backend-bakeoff`, the new capability IDs, `sbpi1`, the registry, and both profiles are absent from current code.
+- `demos/signal-desk`, the new capability IDs, `sbpi1`, the registry, and both profiles are absent from current code.
 - Clean-package proof infrastructure exists, so that part of the gate is implementable.
 
 Accordingly, even after textual repair, every current target must continue reporting a structured GAP until the committed witnesses exist.

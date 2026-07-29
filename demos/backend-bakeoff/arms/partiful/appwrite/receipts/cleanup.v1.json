@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T06:22:53Z",
+  "ok": true,
+  "targetIdentityHash": "4ccd665646c487168ddc65da71804be4851e2f3d90be5a062bfc099605d5f423",
+  "baselineReceiptPath": "receipts/baseline.v1.json",
+  "removed": [
+    "exact Compose project llp0102-partiful-appwrite-w3 and its 29 labeled containers, 12 volumes, and 2 networks",
+    "exact recorded effect sink llp0102-partiful-appwrite-w3-effect-sink",
+    "three provider-created Open Runtimes containers validated by exact project-prefixed name, runtime ID label, runtime type, and Node 22 image",
+    "exact recorded Vite process and three ignored arm-local runtime directories"
+  ],
+  "retained": [
+    "Docker images, npm dependencies, source, receipts, and every resource without an exact arm identity"
+  ],
+  "probes": {
+    "port8092Closed": true,
+    "port20082Closed": true,
+    "port4334Closed": true,
+    "port8492Closed": true,
+    "matchingContainersRestored": true,
+    "matchingVolumesRestored": true,
+    "matchingNetworksRestored": true,
+    "openRuntimesContainersAbsent": true,
+    "effectSinkAbsent": true,
+    "absent:.arm-runtime": true,
+    "absent:.cli-home": true,
+    "absent:.browser-runtime": true
+  },
+  "repairReceipt": "receipts/cleanup-attempt-1-failure.v1.json",
+  "recovery": "Removed local Appwrite data is not recoverable; retained installer/bootstrap/provisioning/function source recreates it.",
+  "unrelatedBaselineAction": "none",
+  "containsSecretValues": false
+}

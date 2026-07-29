@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "app": "linear",
+  "expectedCheckCount": 14,
+  "scenarios": [
+    {
+      "id": "LINEAR-01-SEED",
+      "fact": "Exact production-shaped dataset and personas exist.",
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "LINEAR-02-AUTHORITY",
+      "fact": "Owner, team member, and outsider receive their distinct allowed views and writes.",
+      "evidence": ["positive-transitions", "negative-read", "negative-write"]
+    },
+    {
+      "id": "LINEAR-03-FILTERS",
+      "fact": "Indexed status, assignee, project, and label filters return deterministic results.",
+      "evidence": ["query-plan-or-index-proof", "authoritative-expected-set"]
+    },
+    {
+      "id": "LINEAR-04-PAGINATION",
+      "fact": "Stable 50-row cursor pagination remains nonduplicating under concurrent insert.",
+      "evidence": ["cursor-values", "page-union", "authoritative-order"]
+    },
+    {
+      "id": "LINEAR-05-DETAIL",
+      "fact": "Issue detail composes project, assignee, labels, comments, and activity.",
+      "evidence": ["authoritative-related-ids", "bounded-query-inventory"]
+    },
+    {
+      "id": "LINEAR-06-OPTIMISTIC",
+      "fact": "Status, priority, assignee, and board position reconcile authoritatively.",
+      "evidence": ["optimistic-state-attribution", "settlement", "authoritative-state"]
+    },
+    {
+      "id": "LINEAR-07-CONFLICT",
+      "fact": "Concurrent board moves/edits produce a documented deterministic outcome.",
+      "evidence": ["two-actor-barrier", "authoritative-outcome", "client-reconciliation"]
+    },
+    {
+      "id": "LINEAR-08-LIVE",
+      "fact": "Comments and activity reach a second client through attributed native realtime.",
+      "evidence": ["second-client", "transport-attribution", "authority"]
+    },
+    {
+      "id": "LINEAR-09-SEARCH",
+      "fact": "Full-text issue search uses the provider's ordinary supported path or is GAP.",
+      "evidence": ["index-or-service-identity", "authoritative-results", "nonclaim-if-gap"]
+    },
+    {
+      "id": "LINEAR-10-OFFLINE",
+      "fact": "Retained views and one queued edit are reconciled where supported, otherwise GAP.",
+      "evidence": ["cold-client", "transport-disabled", "settlement"]
+    },
+    {
+      "id": "LINEAR-11-MIGRATION",
+      "fact": "An indexed field is added without losing the seeded data.",
+      "evidence": ["before-counts", "migration-receipt", "after-counts", "index-proof"]
+    },
+    {
+      "id": "LINEAR-12-DEPLOY",
+      "fact": "Hosted deployment identity, logs, configuration, and rollback/export path are inspectable.",
+      "evidence": ["target-identity", "deployment-receipt", "operations-receipts"]
+    },
+    {
+      "id": "LINEAR-13-PERFORMANCE",
+      "fact": "Frozen list/detail/write/realtime/deploy samples and the disclosed fresh-target or shared-target cost window are retained.",
+      "evidence": ["two-warmups", "seven-samples", "raw-samples", "cost-window"]
+    },
+    {
+      "id": "LINEAR-14-CLEANUP",
+      "fact": "Only exact fresh targets or the arm-owned shared-target namespace are cleaned up; unrelated baseline state is preserved.",
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

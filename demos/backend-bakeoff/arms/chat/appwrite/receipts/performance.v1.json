@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T01:26:18.746Z",
+  "ok": true,
+  "warmups": 2,
+  "recordedSamples": 7,
+  "burstMessages": 20,
+  "measurements": {
+    "authoritativeRead": {
+      "rawMs": [
+        79.508,
+        85.673,
+        77.864,
+        78.9,
+        78.254,
+        78.636,
+        78.664
+      ],
+      "medianMs": 78.664,
+      "nearestRankP95Ms": 85.673
+    },
+    "twentyMessageBurstToOrigin": {
+      "rawMs": [
+        2266.697,
+        2282.756,
+        2262.696,
+        2254.106,
+        2218.123,
+        2267.551,
+        2183.486
+      ],
+      "medianMs": 2262.696,
+      "nearestRankP95Ms": 2282.756
+    },
+    "committedMessageToSecondClientPush": {
+      "rawMs": [
+        115.3,
+        116.94,
+        118.527,
+        117.63,
+        117.97,
+        117.127,
+        103.852
+      ],
+      "medianMs": 117.127,
+      "nearestRankP95Ms": 118.527
+    },
+    "browserReconnectAndResubscribe": {
+      "rawMs": [
+        479.916,
+        462.395,
+        483.809,
+        496.425,
+        472.101,
+        468.48,
+        490.111
+      ],
+      "medianMs": 479.916,
+      "nearestRankP95Ms": 496.425
+    },
+    "productionClientBuild": {
+      "rawMs": [
+        124.95,
+        133.502,
+        122.855,
+        129.495,
+        123.561,
+        126.069,
+        131.408
+      ],
+      "medianMs": 126.069,
+      "nearestRankP95Ms": 133.502
+    }
+  },
+  "warmupSamplesMs": {
+    "authoritativeRead": [
+      81.73,
+      81.847
+    ],
+    "twentyMessageBurstToOrigin": [
+      2288.555,
+      2303.777
+    ],
+    "committedMessageToSecondClientPush": [
+      121.697,
+      115.996
+    ],
+    "browserReconnectAndResubscribe": [
+      459.897,
+      475.694
+    ],
+    "productionClientBuild": [
+      126.906,
+      139.502
+    ]
+  },
+  "cleanup": {
+    "deletedNonSeedRows": 189,
+    "authoritativePrivateSeedRowsRemaining": 250
+  },
+  "machineContext": {
+    "target": "fresh local official Appwrite 1.9.6 self-host stack",
+    "client": "Chrome headless from the same macOS machine",
+    "dataset": "four channels and 500 seeded messages; measured channel has 125 seeded messages",
+    "network": "loopback HTTP and WebSocket to Docker Desktop on the same macOS machine"
+  },
+  "scope": "fresh local self-host measurements; not a general Appwrite benchmark",
+  "containsSecretValues": false
+}

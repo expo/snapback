@@ -1,0 +1,1164 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-07-29T04:55:45.954Z",
+  "finishedAt": "2026-07-29T05:02:35.357Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "milestones": {
+    "firstLocalReadMs": 758326,
+    "firstAuthoritativeMutationMs": 758392,
+    "firstRealtimeTransitionMs": 761086,
+    "localAcceptanceMs": 853199,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 1167674
+  },
+  "scenarios": {
+    "LINEAR-01-SEED": {
+      "id": "LINEAR-01-SEED",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:46.009Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "authoritativeAdminCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "members": 2,
+          "labels": 20,
+          "issueLabels": 1000,
+          "issues": 500,
+          "comments": 1000,
+          "activities": 500
+        },
+        "actors": 3,
+        "concurrentClients": 2,
+        "pageSize": 50,
+        "targetIdentity": {
+          "endpointHash": "dac93ea845f3bbff78bfe830aa8241c6e7ae8fbe0e27c7f769e9168321370ff0",
+          "projectIdHash": "9b24d0c1a3a7842eda2f62fab80993af918a70a0e4aef3f9e039f394f6f81cd5"
+        }
+      },
+      "note": "Admin authority directly verified the exact frozen dataset after native Auth users and Teams were provisioned."
+    },
+    "LINEAR-02-AUTHORITY": {
+      "id": "LINEAR-02-AUTHORITY",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:46.075Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "aliceVisibleOrganizations": [
+          "org-primary"
+        ],
+        "bobVisibleIssueTotal": 500,
+        "malloryVisibleIssueTotal": 0,
+        "aliceOwnerMutation": "committed-and-restored",
+        "bobOwnerMutationDenied": true,
+        "malloryDirectIssueReadDenied": true,
+        "teamRoles": {
+          "alice": "owner",
+          "bob": "member",
+          "mallory": "outsider"
+        }
+      },
+      "note": "Native Auth sessions and Team-role permissions directly distinguished owner, member, and outsider."
+    },
+    "LINEAR-03-FILTERS": {
+      "id": "LINEAR-03-FILTERS",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:46.106Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "indexedResults": {
+          "status": {
+            "total": 125,
+            "ids": [
+              "issue-498",
+              "issue-494",
+              "issue-490",
+              "issue-486",
+              "issue-482",
+              "issue-478",
+              "issue-474",
+              "issue-470",
+              "issue-466",
+              "issue-462",
+              "issue-458",
+              "issue-454",
+              "issue-450",
+              "issue-446",
+              "issue-442",
+              "issue-438",
+              "issue-434",
+              "issue-430",
+              "issue-426",
+              "issue-422",
+              "issue-418",
+              "issue-414",
+              "issue-410",
+              "issue-406",
+              "issue-402",
+              "issue-398",
+              "issue-394",
+              "issue-390",
+              "issue-386",
+              "issue-382",
+              "issue-378",
+              "issue-374",
+              "issue-370",
+              "issue-366",
+              "issue-362",
+              "issue-358",
+              "issue-354",
+              "issue-350",
+              "issue-346",
+              "issue-342",
+              "issue-338",
+              "issue-334",
+              "issue-330",
+              "issue-326",
+              "issue-322",
+              "issue-318",
+              "issue-314",
+              "issue-310",
+              "issue-306",
+              "issue-302"
+            ]
+          },
+          "assignee": {
+            "total": 250,
+            "ids": [
+              "issue-500",
+              "issue-498",
+              "issue-496",
+              "issue-494",
+              "issue-492",
+              "issue-490",
+              "issue-488",
+              "issue-486",
+              "issue-484",
+              "issue-482",
+              "issue-480",
+              "issue-478",
+              "issue-476",
+              "issue-474",
+              "issue-472",
+              "issue-470",
+              "issue-468",
+              "issue-466",
+              "issue-464",
+              "issue-462",
+              "issue-460",
+              "issue-458",
+              "issue-456",
+              "issue-454",
+              "issue-452",
+              "issue-450",
+              "issue-448",
+              "issue-446",
+              "issue-444",
+              "issue-442",
+              "issue-440",
+              "issue-438",
+              "issue-436",
+              "issue-434",
+              "issue-432",
+              "issue-430",
+              "issue-428",
+              "issue-426",
+              "issue-424",
+              "issue-422",
+              "issue-420",
+              "issue-418",
+              "issue-416",
+              "issue-414",
+              "issue-412",
+              "issue-410",
+              "issue-408",
+              "issue-406",
+              "issue-404",
+              "issue-402"
+            ]
+          },
+          "project": {
+            "total": 125,
+            "ids": [
+              "issue-498",
+              "issue-494",
+              "issue-490",
+              "issue-486",
+              "issue-482",
+              "issue-478",
+              "issue-474",
+              "issue-470",
+              "issue-466",
+              "issue-462",
+              "issue-458",
+              "issue-454",
+              "issue-450",
+              "issue-446",
+              "issue-442",
+              "issue-438",
+              "issue-434",
+              "issue-430",
+              "issue-426",
+              "issue-422",
+              "issue-418",
+              "issue-414",
+              "issue-410",
+              "issue-406",
+              "issue-402",
+              "issue-398",
+              "issue-394",
+              "issue-390",
+              "issue-386",
+              "issue-382",
+              "issue-378",
+              "issue-374",
+              "issue-370",
+              "issue-366",
+              "issue-362",
+              "issue-358",
+              "issue-354",
+              "issue-350",
+              "issue-346",
+              "issue-342",
+              "issue-338",
+              "issue-334",
+              "issue-330",
+              "issue-326",
+              "issue-322",
+              "issue-318",
+              "issue-314",
+              "issue-310",
+              "issue-306",
+              "issue-302"
+            ]
+          }
+        },
+        "label": {
+          "total": 50,
+          "issueIds": [
+            "issue-500",
+            "issue-481",
+            "issue-480",
+            "issue-461",
+            "issue-460",
+            "issue-441",
+            "issue-440",
+            "issue-421",
+            "issue-420",
+            "issue-401",
+            "issue-400",
+            "issue-381",
+            "issue-380",
+            "issue-361",
+            "issue-360",
+            "issue-341",
+            "issue-340",
+            "issue-321",
+            "issue-320",
+            "issue-301",
+            "issue-300",
+            "issue-281",
+            "issue-280",
+            "issue-261",
+            "issue-260",
+            "issue-241",
+            "issue-240",
+            "issue-221",
+            "issue-220",
+            "issue-201",
+            "issue-200",
+            "issue-181",
+            "issue-180",
+            "issue-161",
+            "issue-160",
+            "issue-141",
+            "issue-140",
+            "issue-121",
+            "issue-120",
+            "issue-101",
+            "issue-100",
+            "issue-081",
+            "issue-080",
+            "issue-061",
+            "issue-060",
+            "issue-041",
+            "issue-040",
+            "issue-021",
+            "issue-020",
+            "issue-001"
+          ],
+          "implementation": "indexed issue_labels junction table"
+        },
+        "committedIndexes": [
+          "org_status_sequence_idx",
+          "org_assignee_sequence_idx",
+          "org_project_sequence_idx",
+          "org_label_sequence_idx"
+        ]
+      },
+      "note": "Status, assignee, project, and label filters executed through committed Appwrite TablesDB indexes."
+    },
+    "LINEAR-04-PAGINATION": {
+      "id": "LINEAR-04-PAGINATION",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:46.132Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "pageSize": 50,
+        "cursor": "issue-451",
+        "page1Ids": [
+          "issue-500",
+          "issue-499",
+          "issue-498",
+          "issue-497",
+          "issue-496",
+          "issue-495",
+          "issue-494",
+          "issue-493",
+          "issue-492",
+          "issue-491",
+          "issue-490",
+          "issue-489",
+          "issue-488",
+          "issue-487",
+          "issue-486",
+          "issue-485",
+          "issue-484",
+          "issue-483",
+          "issue-482",
+          "issue-481",
+          "issue-480",
+          "issue-479",
+          "issue-478",
+          "issue-477",
+          "issue-476",
+          "issue-475",
+          "issue-474",
+          "issue-473",
+          "issue-472",
+          "issue-471",
+          "issue-470",
+          "issue-469",
+          "issue-468",
+          "issue-467",
+          "issue-466",
+          "issue-465",
+          "issue-464",
+          "issue-463",
+          "issue-462",
+          "issue-461",
+          "issue-460",
+          "issue-459",
+          "issue-458",
+          "issue-457",
+          "issue-456",
+          "issue-455",
+          "issue-454",
+          "issue-453",
+          "issue-452",
+          "issue-451"
+        ],
+        "page2Ids": [
+          "issue-450",
+          "issue-449",
+          "issue-448",
+          "issue-447",
+          "issue-446",
+          "issue-445",
+          "issue-444",
+          "issue-443",
+          "issue-442",
+          "issue-441",
+          "issue-440",
+          "issue-439",
+          "issue-438",
+          "issue-437",
+          "issue-436",
+          "issue-435",
+          "issue-434",
+          "issue-433",
+          "issue-432",
+          "issue-431",
+          "issue-430",
+          "issue-429",
+          "issue-428",
+          "issue-427",
+          "issue-426",
+          "issue-425",
+          "issue-424",
+          "issue-423",
+          "issue-422",
+          "issue-421",
+          "issue-420",
+          "issue-419",
+          "issue-418",
+          "issue-417",
+          "issue-416",
+          "issue-415",
+          "issue-414",
+          "issue-413",
+          "issue-412",
+          "issue-411",
+          "issue-410",
+          "issue-409",
+          "issue-408",
+          "issue-407",
+          "issue-406",
+          "issue-405",
+          "issue-404",
+          "issue-403",
+          "issue-402",
+          "issue-401"
+        ],
+        "overlapCount": 0,
+        "concurrentNewerInsertExcludedFromPage2": true
+      },
+      "note": "A 50-row cursor boundary remained duplicate-free under a concurrent newer insert."
+    },
+    "LINEAR-05-DETAIL": {
+      "id": "LINEAR-05-DETAIL",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:46.148Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "issueId": "issue-500",
+        "projectId": "project-4",
+        "assigneeId": "bob",
+        "labelIds": [
+          "label-20",
+          "label-01"
+        ],
+        "commentIds": [
+          "comment-0500",
+          "comment-1000"
+        ],
+        "activityIds": [
+          "activity-500"
+        ],
+        "composition": "application-authored bounded TablesDB point reads and indexed queries"
+      },
+      "note": "Issue detail composed project, assignee, labels, comments, and activity through bounded provider reads."
+    },
+    "LINEAR-06-OPTIMISTIC": {
+      "id": "LINEAR-06-OPTIMISTIC",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:48.585Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "local-optimistic",
+      "evidence": {
+        "issueId": "issue-500",
+        "beforeTitle": "Issue 500 deterministic search fixture",
+        "optimisticVisible": "Optimistic Appwrite edit 1785300947716",
+        "authorityDuringOptimism": "Issue 500 deterministic search fixture",
+        "settledAuthority": "Optimistic Appwrite edit 1785300947716",
+        "revisionBefore": 1,
+        "revisionAfter": 2,
+        "implementation": "application-authored React optimistic state over Appwrite TablesDB update"
+      },
+      "note": "The UI exposed an optimistic title before Appwrite authority changed, then reconciled to independently inspected authority."
+    },
+    "LINEAR-07-CONFLICT": {
+      "id": "LINEAR-07-CONFLICT",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:48.652Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "issueId": "issue-500",
+        "transactionIds": [
+          "dc86b0af5b63266906747e2d9680ac1ca0d569fd4726ab09064ea36b51999f25",
+          "3987c7e1e8bef082918df677e2b20fec75fea6a49eca554de28f5cd2d94f3417"
+        ],
+        "committed": 1,
+        "rejected": [
+          {
+            "code": 409,
+            "type": "transaction_conflict",
+            "message": "The transaction has a conflict. Please resolve the conflict and try again."
+          }
+        ],
+        "authoritativeWinnerTitle": "Alice transaction 1785300948601",
+        "authoritativeWinnerRevision": 3,
+        "restored": true
+      },
+      "note": "Two actor-scoped Appwrite transactions staged updates to one row; exactly one committed and the other received a native 409 conflict."
+    },
+    "LINEAR-08-LIVE": {
+      "id": "LINEAR-08-LIVE",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:48.769Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "push",
+      "evidence": {
+        "secondClient": "Bob persistent browser",
+        "actor": "Alice native session",
+        "realtimeWebSockets": 1,
+        "productPolling": false,
+        "latencyMs": 25.959,
+        "commentId": "live-comment-1785300948662",
+        "activityId": "live-activity-1785300948662",
+        "receivedEvents": [
+          {
+            "channels": [
+              "documents",
+              "databases.linear.collections.comments.documents",
+              "databases.linear.collections.comments.documents.live-comment-1785300948662",
+              "rows",
+              "databases.linear.tables.comments.rows",
+              "databases.linear.tables.comments.rows.live-comment-1785300948662",
+              "tablesdb.linear.tables.comments.rows",
+              "tablesdb.linear.tables.comments.rows.live-comment-1785300948662",
+              "documents.create",
+              "databases.linear.collections.comments.documents.create",
+              "databases.linear.collections.comments.documents.live-comment-1785300948662.create",
+              "rows.create",
+              "databases.linear.tables.comments.rows.create",
+              "databases.linear.tables.comments.rows.live-comment-1785300948662.create",
+              "tablesdb.linear.tables.comments.rows.create",
+              "tablesdb.linear.tables.comments.rows.live-comment-1785300948662.create"
+            ],
+            "events": [
+              "tablesdb.linear.tables.comments.rows.live-comment-1785300948662.create",
+              "databases.linear.collections.comments.documents.live-comment-1785300948662.create",
+              "databases.linear.tables.comments.rows.live-comment-1785300948662.create",
+              "tablesdb.*.tables.*.rows.*.create",
+              "databases.*.collections.*.documents.*.create",
+              "databases.*.tables.*.rows.*.create",
+              "tablesdb.*.tables.comments.rows.live-comment-1785300948662.create",
+              "databases.*.collections.comments.documents.live-comment-1785300948662.create",
+              "databases.*.tables.comments.rows.live-comment-1785300948662.create",
+              "tablesdb.linear.tables.*.rows.live-comment-1785300948662.create",
+              "databases.linear.collections.*.documents.live-comment-1785300948662.create",
+              "databases.linear.tables.*.rows.live-comment-1785300948662.create",
+              "tablesdb.*.tables.*.rows.live-comment-1785300948662.create",
+              "databases.*.collections.*.documents.live-comment-1785300948662.create",
+              "databases.*.tables.*.rows.live-comment-1785300948662.create",
+              "tablesdb.linear.tables.comments.rows.*.create",
+              "databases.linear.collections.comments.documents.*.create",
+              "databases.linear.tables.comments.rows.*.create",
+              "tablesdb.*.tables.comments.rows.*.create",
+              "databases.*.collections.comments.documents.*.create",
+              "databases.*.tables.comments.rows.*.create",
+              "tablesdb.linear.tables.*.rows.*.create",
+              "databases.linear.collections.*.documents.*.create",
+              "databases.linear.tables.*.rows.*.create",
+              "tablesdb.linear.tables.comments.rows.live-comment-1785300948662",
+              "databases.linear.collections.comments.documents.live-comment-1785300948662",
+              "databases.linear.tables.comments.rows.live-comment-1785300948662",
+              "tablesdb.*.tables.*.rows.*",
+              "databases.*.collections.*.documents.*",
+              "databases.*.tables.*.rows.*",
+              "tablesdb.*.tables.comments.rows.live-comment-1785300948662",
+              "databases.*.collections.comments.documents.live-comment-1785300948662",
+              "databases.*.tables.comments.rows.live-comment-1785300948662",
+              "tablesdb.linear.tables.*.rows.live-comment-1785300948662",
+              "databases.linear.collections.*.documents.live-comment-1785300948662",
+              "databases.linear.tables.*.rows.live-comment-1785300948662",
+              "tablesdb.*.tables.*.rows.live-comment-1785300948662",
+              "databases.*.collections.*.documents.live-comment-1785300948662",
+              "databases.*.tables.*.rows.live-comment-1785300948662",
+              "tablesdb.linear.tables.comments.rows.*",
+              "databases.linear.collections.comments.documents.*",
+              "databases.linear.tables.comments.rows.*",
+              "tablesdb.*.tables.comments.rows.*",
+              "databases.*.collections.comments.documents.*",
+              "databases.*.tables.comments.rows.*",
+              "tablesdb.linear.tables.*.rows.*",
+              "databases.linear.collections.*.documents.*",
+              "databases.linear.tables.*.rows.*",
+              "tablesdb.linear.tables.comments",
+              "databases.linear.collections.comments",
+              "databases.linear.tables.comments",
+              "tablesdb.*.tables.*",
+              "databases.*.collections.*",
+              "databases.*.tables.*",
+              "tablesdb.*.tables.comments",
+              "databases.*.collections.comments",
+              "databases.*.tables.comments",
+              "tablesdb.linear.tables.*",
+              "databases.linear.collections.*",
+              "databases.linear.tables.*",
+              "tablesdb.linear",
+              "databases.linear",
+              "tablesdb.*",
+              "databases.*"
+            ],
+            "payloadId": "live-comment-1785300948662"
+          },
+          {
+            "channels": [
+              "documents",
+              "databases.linear.collections.activities.documents",
+              "databases.linear.collections.activities.documents.live-activity-1785300948662",
+              "rows",
+              "databases.linear.tables.activities.rows",
+              "databases.linear.tables.activities.rows.live-activity-1785300948662",
+              "tablesdb.linear.tables.activities.rows",
+              "tablesdb.linear.tables.activities.rows.live-activity-1785300948662",
+              "documents.create",
+              "databases.linear.collections.activities.documents.create",
+              "databases.linear.collections.activities.documents.live-activity-1785300948662.create",
+              "rows.create",
+              "databases.linear.tables.activities.rows.create",
+              "databases.linear.tables.activities.rows.live-activity-1785300948662.create",
+              "tablesdb.linear.tables.activities.rows.create",
+              "tablesdb.linear.tables.activities.rows.live-activity-1785300948662.create"
+            ],
+            "events": [
+              "tablesdb.linear.tables.activities.rows.live-activity-1785300948662.create",
+              "databases.linear.collections.activities.documents.live-activity-1785300948662.create",
+              "databases.linear.tables.activities.rows.live-activity-1785300948662.create",
+              "tablesdb.*.tables.*.rows.*.create",
+              "databases.*.collections.*.documents.*.create",
+              "databases.*.tables.*.rows.*.create",
+              "tablesdb.*.tables.activities.rows.live-activity-1785300948662.create",
+              "databases.*.collections.activities.documents.live-activity-1785300948662.create",
+              "databases.*.tables.activities.rows.live-activity-1785300948662.create",
+              "tablesdb.linear.tables.*.rows.live-activity-1785300948662.create",
+              "databases.linear.collections.*.documents.live-activity-1785300948662.create",
+              "databases.linear.tables.*.rows.live-activity-1785300948662.create",
+              "tablesdb.*.tables.*.rows.live-activity-1785300948662.create",
+              "databases.*.collections.*.documents.live-activity-1785300948662.create",
+              "databases.*.tables.*.rows.live-activity-1785300948662.create",
+              "tablesdb.linear.tables.activities.rows.*.create",
+              "databases.linear.collections.activities.documents.*.create",
+              "databases.linear.tables.activities.rows.*.create",
+              "tablesdb.*.tables.activities.rows.*.create",
+              "databases.*.collections.activities.documents.*.create",
+              "databases.*.tables.activities.rows.*.create",
+              "tablesdb.linear.tables.*.rows.*.create",
+              "databases.linear.collections.*.documents.*.create",
+              "databases.linear.tables.*.rows.*.create",
+              "tablesdb.linear.tables.activities.rows.live-activity-1785300948662",
+              "databases.linear.collections.activities.documents.live-activity-1785300948662",
+              "databases.linear.tables.activities.rows.live-activity-1785300948662",
+              "tablesdb.*.tables.*.rows.*",
+              "databases.*.collections.*.documents.*",
+              "databases.*.tables.*.rows.*",
+              "tablesdb.*.tables.activities.rows.live-activity-1785300948662",
+              "databases.*.collections.activities.documents.live-activity-1785300948662",
+              "databases.*.tables.activities.rows.live-activity-1785300948662",
+              "tablesdb.linear.tables.*.rows.live-activity-1785300948662",
+              "databases.linear.collections.*.documents.live-activity-1785300948662",
+              "databases.linear.tables.*.rows.live-activity-1785300948662",
+              "tablesdb.*.tables.*.rows.live-activity-1785300948662",
+              "databases.*.collections.*.documents.live-activity-1785300948662",
+              "databases.*.tables.*.rows.live-activity-1785300948662",
+              "tablesdb.linear.tables.activities.rows.*",
+              "databases.linear.collections.activities.documents.*",
+              "databases.linear.tables.activities.rows.*",
+              "tablesdb.*.tables.activities.rows.*",
+              "databases.*.collections.activities.documents.*",
+              "databases.*.tables.activities.rows.*",
+              "tablesdb.linear.tables.*.rows.*",
+              "databases.linear.collections.*.documents.*",
+              "databases.linear.tables.*.rows.*",
+              "tablesdb.linear.tables.activities",
+              "databases.linear.collections.activities",
+              "databases.linear.tables.activities",
+              "tablesdb.*.tables.*",
+              "databases.*.collections.*",
+              "databases.*.tables.*",
+              "tablesdb.*.tables.activities",
+              "databases.*.collections.activities",
+              "databases.*.tables.activities",
+              "tablesdb.linear.tables.*",
+              "databases.linear.collections.*",
+              "databases.linear.tables.*",
+              "tablesdb.linear",
+              "databases.linear",
+              "tablesdb.*",
+              "databases.*"
+            ],
+            "payloadId": "live-activity-1785300948662"
+          }
+        ],
+        "authority": {
+          "commentBody": "Live comment 1785300948662",
+          "activityKind": "comment.created"
+        }
+      },
+      "note": "Bob received both committed rows through Appwrite Realtime WebSocket push, with independent Admin authority and no product polling."
+    },
+    "LINEAR-09-SEARCH": {
+      "id": "LINEAR-09-SEARCH",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:48.778Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "query": "deterministic search fixture",
+        "resultTotal": 500,
+        "returnedIds": [
+          "issue-001",
+          "issue-002",
+          "issue-003",
+          "issue-004",
+          "issue-005",
+          "issue-006",
+          "issue-007",
+          "issue-008",
+          "issue-009",
+          "issue-010",
+          "issue-011",
+          "issue-012",
+          "issue-013",
+          "issue-014",
+          "issue-015",
+          "issue-016",
+          "issue-017",
+          "issue-018",
+          "issue-019",
+          "issue-020",
+          "issue-021",
+          "issue-022",
+          "issue-023",
+          "issue-024",
+          "issue-025",
+          "issue-026",
+          "issue-027",
+          "issue-028",
+          "issue-029",
+          "issue-030",
+          "issue-031",
+          "issue-032",
+          "issue-033",
+          "issue-034",
+          "issue-035",
+          "issue-036",
+          "issue-037",
+          "issue-038",
+          "issue-039",
+          "issue-040",
+          "issue-041",
+          "issue-042",
+          "issue-043",
+          "issue-044",
+          "issue-045",
+          "issue-046",
+          "issue-047",
+          "issue-048",
+          "issue-049",
+          "issue-050"
+        ],
+        "index": "search_text_idx/fulltext",
+        "nativePath": "TablesDB fulltext index plus Query.search"
+      },
+      "note": "Appwrite's ordinary TablesDB full-text index returned authoritative backend search results."
+    },
+    "LINEAR-10-OFFLINE": {
+      "id": "LINEAR-10-OFFLINE",
+      "status": "gap",
+      "checkedAt": "2026-07-29T04:55:49.984Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "unsupported",
+      "evidence": {
+        "warmLoadedRows": 50,
+        "coldOfflineReloadRows": 0,
+        "offlineWriteRejected": true,
+        "providerCacheDatabaseObserved": false,
+        "queuedMutationObserved": false,
+        "reconnectRows": 50,
+        "reconnectUniqueRows": 50
+      },
+      "note": "GAP: the Appwrite Web SDK retained the Auth session but supplied neither a TablesDB offline cache nor a mutation queue; reconnect refetched 50 authoritative rows."
+    },
+    "LINEAR-11-MIGRATION": {
+      "id": "LINEAR-11-MIGRATION",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:55:50.713Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "beforeCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "members": 2,
+          "labels": 20,
+          "issueLabels": 1000,
+          "issues": 500,
+          "comments": 1001,
+          "activities": 501
+        },
+        "afterCounts": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "members": 2,
+          "labels": 20,
+          "issueLabels": 1000,
+          "issues": 500,
+          "comments": 1001,
+          "activities": 501
+        },
+        "backfilledRows": 500,
+        "queryPageSize": 50,
+        "index": {
+          "key": "org_impact_sequence_idx",
+          "type": "key",
+          "columns": [
+            "org_id",
+            "customer_impact",
+            "sequence"
+          ],
+          "orders": [
+            "ASC",
+            "ASC",
+            "DESC"
+          ],
+          "status": "available"
+        },
+        "schemaTransactionSupport": false
+      },
+      "note": "The new indexed field became available, all 500 issue rows were queryable through it, and production-shaped counts were preserved."
+    },
+    "LINEAR-12-DEPLOY": {
+      "id": "LINEAR-12-DEPLOY",
+      "status": "unavailable-remote-dependency",
+      "checkedAt": "2026-07-29T04:55:50.996Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "local": {
+          "status": "pass",
+          "productVersion": "1.9.6",
+          "endpoint": "redacted-to-hash",
+          "projectIdHash": "9b24d0c1a3a7842eda2f62fab80993af918a70a0e4aef3f9e039f394f6f81cd5",
+          "composeProject": "llp0102-linear-appwrite-w2",
+          "runningContainers": 29,
+          "database": "MongoDB 8.2.5",
+          "deploymentPath": "official Appwrite web installer and Docker Compose"
+        },
+        "hosted": {
+          "status": "credential-unavailable",
+          "targetMutated": false,
+          "url": null
+        },
+        "officialDocs": [
+          "https://appwrite.io/docs/advanced/self-hosting/installation",
+          "https://appwrite.io/docs/products/databases/transactions",
+          "https://appwrite.io/docs/products/databases/queries",
+          "https://appwrite.io/docs/apis/realtime/subscribe"
+        ]
+      },
+      "note": "Hosted Appwrite Cloud credentials were unavailable; the official isolated local deployment is directly evidenced, and no hosted product claim is made."
+    },
+    "LINEAR-13-PERFORMANCE": {
+      "id": "LINEAR-13-PERFORMANCE",
+      "status": "pass",
+      "checkedAt": "2026-07-29T04:57:20.878Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "push",
+      "evidence": {
+        "schemaVersion": 1,
+        "checkedAt": "2026-07-29T04:57:20.878Z",
+        "claimScope": "isolated local Appwrite 1.9.6 self-host stack; not hosted or production latency",
+        "dataset": {
+          "organizations": 2,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "issueLabels": 1000,
+          "commentsAtMeasurement": 1001,
+          "pageSize": 50,
+          "concurrentClients": 2
+        },
+        "warmupsPerPath": 2,
+        "recordedSamplesPerPath": 7,
+        "unit": "milliseconds",
+        "representativeRead": {
+          "samples": [
+            7.331,
+            7.42,
+            7.444,
+            7.22,
+            7.121,
+            7,
+            7.131
+          ],
+          "median": 7.22,
+          "nearestRankP95": 7.444
+        },
+        "representativeDetail": {
+          "samples": [
+            15.973,
+            15.043,
+            12.225,
+            12.831,
+            9.302,
+            11.375,
+            14.069
+          ],
+          "median": 12.831,
+          "nearestRankP95": 15.973
+        },
+        "representativeWrite": {
+          "samples": [
+            6.525,
+            5.866,
+            6.436,
+            5.806,
+            6.922,
+            6.262,
+            6.513
+          ],
+          "median": 6.436,
+          "nearestRankP95": 6.922
+        },
+        "realtimeDelivery": {
+          "samples": [
+            26.522,
+            14.459,
+            18.975,
+            26.928,
+            14.925,
+            18.601,
+            26.823
+          ],
+          "median": 18.975,
+          "nearestRankP95": 26.928
+        },
+        "reconnect": {
+          "samples": [
+            32.318,
+            16.093,
+            31.561,
+            15.954,
+            13.793,
+            15.623,
+            17.022
+          ],
+          "median": 16.093,
+          "nearestRankP95": 32.318
+        },
+        "buildOrDeploy": {
+          "samples": [
+            834.409,
+            763.979,
+            744.721,
+            655.714,
+            683.105,
+            881.405,
+            1101.035
+          ],
+          "median": 763.979,
+          "nearestRankP95": 1101.035
+        },
+        "realtimeWebSocketsObserved": 10,
+        "productPolling": false,
+        "dockerResources": {
+          "containers": 29,
+          "snapshots": [
+            {
+              "name": "appwrite-traefik",
+              "memory": "29.86MiB / 7.737GiB",
+              "cpu": "0.06%"
+            },
+            {
+              "name": "appwrite-task-scheduler-executions",
+              "memory": "73.98MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-builds",
+              "memory": "59.1MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-realtime",
+              "memory": "93.9MiB / 7.737GiB",
+              "cpu": "0.07%"
+            },
+            {
+              "name": "appwrite-task-scheduler-functions",
+              "memory": "74.03MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-task-scheduler-messages",
+              "memory": "74.05MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-deletes",
+              "memory": "63.46MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-databases",
+              "memory": "63.87MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-audits",
+              "memory": "63.55MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-certificates",
+              "memory": "59.02MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-webhooks",
+              "memory": "59.05MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-stats-usage",
+              "memory": "63.22MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite",
+              "memory": "350.4MiB / 7.737GiB",
+              "cpu": "1.59%"
+            },
+            {
+              "name": "appwrite-worker-stats-resources",
+              "memory": "59.06MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-task-stats-resources",
+              "memory": "73.84MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-executions",
+              "memory": "59.05MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-functions",
+              "memory": "63.12MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-mails",
+              "memory": "58.95MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-task-maintenance",
+              "memory": "73.93MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-task-interval",
+              "memory": "74.1MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-screenshots",
+              "memory": "59.03MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-worker-migrations",
+              "memory": "60.08MiB / 7.737GiB",
+              "cpu": "0.01%"
+            },
+            {
+              "name": "appwrite-worker-messaging",
+              "memory": "59.08MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "exc1",
+              "memory": "35.7MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-redis",
+              "memory": "7.914MiB / 7.737GiB",
+              "cpu": "0.34%"
+            },
+            {
+              "name": "appwrite-console",
+              "memory": "4.676MiB / 7.737GiB",
+              "cpu": "0.00%"
+            },
+            {
+              "name": "appwrite-mongodb",
+              "memory": "220.4MiB / 7.737GiB",
+              "cpu": "0.99%"
+            },
+            {
+              "name": "appwrite-browser",
+              "memory": "140.4MiB / 7.737GiB",
+              "cpu": "0.02%"
+            },
+            {
+              "name": "appwrite-embedding",
+              "memory": "856.4MiB / 7.737GiB",
+              "cpu": "0.00%"
+            }
+          ]
+        },
+        "machine": {
+          "model": "Mac17,3",
+          "architecture": "arm64",
+          "memory": "32 GiB host / 8 GiB Colima",
+          "dockerCpus": 4,
+          "os": "macOS 26.5.2 (25F84)",
+          "node": "v24.14.0"
+        },
+        "costWindow": {
+          "measuredProviderCharge": "$0 self-hosted local",
+          "localCompute": "user-owned Colima VM",
+          "hostedActualUsage": "unavailable",
+          "hostedListPriceEstimate": "not estimated without a deployed target workload"
+        }
+      },
+      "note": "Two warmups and seven recorded samples are retained for indexed read, composed detail, write, native push, reconnect, and build."
+    },
+    "LINEAR-14-CLEANUP": {
+      "id": "LINEAR-14-CLEANUP",
+      "status": "pass",
+      "checkedAt": "2026-07-29T05:02:35.357Z",
+      "projectId": "llp0102-linear-appwrite-w2",
+      "transport": "not-applicable",
+      "evidence": {
+        "port8091Closed": true,
+        "port20081Closed": true,
+        "port4324Closed": true,
+        "port8491Closed": true,
+        "matchingContainersRestored": true,
+        "matchingVolumesRestored": true,
+        "matchingNetworksRestored": true,
+        "absent:.arm-runtime": true,
+        "absent:.cli-home": true,
+        "absent:.browser-runtime": true
+      },
+      "note": "Exact-project cleanup removed the arm-labeled stack, volumes, networks, installer, Vite listener, and runtime directories; all assigned ports and exact resource probes were negative."
+    }
+  },
+  "pendingExternalChecks": [
+    "LINEAR-14-CLEANUP"
+  ],
+  "assistanceEvents": [
+    {
+      "kind": "cross-arm-reference",
+      "source": "Todo and Chat Appwrite calibration arms",
+      "reason": "Parent required prior-arm inspection; official installer, Auth/Teams, TablesDB, Realtime, and cleanup patterns informed this arm."
+    },
+    {
+      "kind": "official-documentation-refresh",
+      "sources": [
+        "Appwrite installation",
+        "TablesDB queries and permissions",
+        "Transactions",
+        "Realtime subscriptions"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,271 @@
+{
+  "id": "LINEAR-13-PERFORMANCE",
+  "status": "pass",
+  "checkedAt": "2026-07-29T04:57:20.878Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "push",
+  "evidence": {
+    "schemaVersion": 1,
+    "checkedAt": "2026-07-29T04:57:20.878Z",
+    "claimScope": "isolated local Appwrite 1.9.6 self-host stack; not hosted or production latency",
+    "dataset": {
+      "organizations": 2,
+      "teams": 3,
+      "projects": 4,
+      "labels": 20,
+      "issues": 500,
+      "issueLabels": 1000,
+      "commentsAtMeasurement": 1001,
+      "pageSize": 50,
+      "concurrentClients": 2
+    },
+    "warmupsPerPath": 2,
+    "recordedSamplesPerPath": 7,
+    "unit": "milliseconds",
+    "representativeRead": {
+      "samples": [
+        7.331,
+        7.42,
+        7.444,
+        7.22,
+        7.121,
+        7,
+        7.131
+      ],
+      "median": 7.22,
+      "nearestRankP95": 7.444
+    },
+    "representativeDetail": {
+      "samples": [
+        15.973,
+        15.043,
+        12.225,
+        12.831,
+        9.302,
+        11.375,
+        14.069
+      ],
+      "median": 12.831,
+      "nearestRankP95": 15.973
+    },
+    "representativeWrite": {
+      "samples": [
+        6.525,
+        5.866,
+        6.436,
+        5.806,
+        6.922,
+        6.262,
+        6.513
+      ],
+      "median": 6.436,
+      "nearestRankP95": 6.922
+    },
+    "realtimeDelivery": {
+      "samples": [
+        26.522,
+        14.459,
+        18.975,
+        26.928,
+        14.925,
+        18.601,
+        26.823
+      ],
+      "median": 18.975,
+      "nearestRankP95": 26.928
+    },
+    "reconnect": {
+      "samples": [
+        32.318,
+        16.093,
+        31.561,
+        15.954,
+        13.793,
+        15.623,
+        17.022
+      ],
+      "median": 16.093,
+      "nearestRankP95": 32.318
+    },
+    "buildOrDeploy": {
+      "samples": [
+        834.409,
+        763.979,
+        744.721,
+        655.714,
+        683.105,
+        881.405,
+        1101.035
+      ],
+      "median": 763.979,
+      "nearestRankP95": 1101.035
+    },
+    "realtimeWebSocketsObserved": 10,
+    "productPolling": false,
+    "dockerResources": {
+      "containers": 29,
+      "snapshots": [
+        {
+          "name": "appwrite-traefik",
+          "memory": "29.86MiB / 7.737GiB",
+          "cpu": "0.06%"
+        },
+        {
+          "name": "appwrite-task-scheduler-executions",
+          "memory": "73.98MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-builds",
+          "memory": "59.1MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-realtime",
+          "memory": "93.9MiB / 7.737GiB",
+          "cpu": "0.07%"
+        },
+        {
+          "name": "appwrite-task-scheduler-functions",
+          "memory": "74.03MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-task-scheduler-messages",
+          "memory": "74.05MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-deletes",
+          "memory": "63.46MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-databases",
+          "memory": "63.87MiB / 7.737GiB",
+          "cpu": "0.01%"
+        },
+        {
+          "name": "appwrite-worker-audits",
+          "memory": "63.55MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-certificates",
+          "memory": "59.02MiB / 7.737GiB",
+          "cpu": "0.01%"
+        },
+        {
+          "name": "appwrite-worker-webhooks",
+          "memory": "59.05MiB / 7.737GiB",
+          "cpu": "0.01%"
+        },
+        {
+          "name": "appwrite-worker-stats-usage",
+          "memory": "63.22MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite",
+          "memory": "350.4MiB / 7.737GiB",
+          "cpu": "1.59%"
+        },
+        {
+          "name": "appwrite-worker-stats-resources",
+          "memory": "59.06MiB / 7.737GiB",
+          "cpu": "0.01%"
+        },
+        {
+          "name": "appwrite-task-stats-resources",
+          "memory": "73.84MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-executions",
+          "memory": "59.05MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-functions",
+          "memory": "63.12MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-mails",
+          "memory": "58.95MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-task-maintenance",
+          "memory": "73.93MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-task-interval",
+          "memory": "74.1MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-screenshots",
+          "memory": "59.03MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-worker-migrations",
+          "memory": "60.08MiB / 7.737GiB",
+          "cpu": "0.01%"
+        },
+        {
+          "name": "appwrite-worker-messaging",
+          "memory": "59.08MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "exc1",
+          "memory": "35.7MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-redis",
+          "memory": "7.914MiB / 7.737GiB",
+          "cpu": "0.34%"
+        },
+        {
+          "name": "appwrite-console",
+          "memory": "4.676MiB / 7.737GiB",
+          "cpu": "0.00%"
+        },
+        {
+          "name": "appwrite-mongodb",
+          "memory": "220.4MiB / 7.737GiB",
+          "cpu": "0.99%"
+        },
+        {
+          "name": "appwrite-browser",
+          "memory": "140.4MiB / 7.737GiB",
+          "cpu": "0.02%"
+        },
+        {
+          "name": "appwrite-embedding",
+          "memory": "856.4MiB / 7.737GiB",
+          "cpu": "0.00%"
+        }
+      ]
+    },
+    "machine": {
+      "model": "Mac17,3",
+      "architecture": "arm64",
+      "memory": "32 GiB host / 8 GiB Colima",
+      "dockerCpus": 4,
+      "os": "macOS 26.5.2 (25F84)",
+      "node": "v24.14.0"
+    },
+    "costWindow": {
+      "measuredProviderCharge": "$0 self-hosted local",
+      "localCompute": "user-owned Colima VM",
+      "hostedActualUsage": "unavailable",
+      "hostedListPriceEstimate": "not estimated without a deployed target workload"
+    }
+  },
+  "note": "Two warmups and seven recorded samples are retained for indexed read, composed detail, write, native push, reconnect, and build."
+}

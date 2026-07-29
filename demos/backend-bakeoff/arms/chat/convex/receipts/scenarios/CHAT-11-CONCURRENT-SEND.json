@@ -1,0 +1,45 @@
+{
+  "id": "CHAT-11-CONCURRENT-SEND",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:14.638Z",
+  "barrier": "Promise.all from distinct authenticated ConvexClient sessions",
+  "settlements": [
+    {
+      "authorName": "Alice",
+      "authorSubject": "alice",
+      "id": "jd71km9pw6t10hydez6hg8n79n8becsp",
+      "sequence": 132
+    },
+    {
+      "authorName": "Bob",
+      "authorSubject": "bob",
+      "id": "jd7bvkb0n2zmtm404xxnhjq2vh8bfp0c",
+      "sequence": 133
+    }
+  ],
+  "authoritativeRows": [
+    {
+      "_creationTime": 1785291254616.5288,
+      "_id": "jd7bvkb0n2zmtm404xxnhjq2vh8bfp0c",
+      "authorName": "Bob",
+      "authorSubject": "bob",
+      "body": "concurrent-from-bob",
+      "channelId": "j576rpbqgfa45ezns93vmv57c58bfag0",
+      "namespace": "llp0102-chat-convex-w2",
+      "sentAt": 1785291254616,
+      "sequence": 133
+    },
+    {
+      "_creationTime": 1785291254534.9402,
+      "_id": "jd71km9pw6t10hydez6hg8n79n8becsp",
+      "authorName": "Alice",
+      "authorSubject": "alice",
+      "body": "concurrent-from-alice",
+      "channelId": "j576rpbqgfa45ezns93vmv57c58bfag0",
+      "namespace": "llp0102-chat-convex-w2",
+      "sentAt": 1785291254534,
+      "sequence": 132
+    }
+  ],
+  "deterministicOrder": true
+}

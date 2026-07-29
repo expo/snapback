@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/seedIssuesBatch.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bobId": {
+      "type": "string"
+    },
+    "count": {
+      "type": "integer"
+    },
+    "organizationId": {
+      "type": "string"
+    },
+    "startSequence": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "organizationId",
+    "bobId",
+    "startSequence",
+    "count"
+  ],
+  "title": "work:seedIssuesBatch arguments",
+  "type": "object"
+}

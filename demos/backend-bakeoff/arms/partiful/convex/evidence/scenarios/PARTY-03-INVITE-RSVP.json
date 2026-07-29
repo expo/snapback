@@ -1,0 +1,65 @@
+{
+  "id": "PARTY-03-INVITE-RSVP",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:31.857Z",
+  "finishedAt": "2026-07-29T06:45:31.896Z",
+  "durationMs": 39.535,
+  "evidence": {
+    "invitationAttribution": {
+      "displayName": "Bob",
+      "identity": "https://llp0102-partiful.local|bob",
+      "role": "guest",
+      "rsvp": {
+        "_creationTime": 1785307531858.8506,
+        "_id": "jx79mnc24yzys3bbm65gcx0bb18bec53",
+        "displayName": "Bob",
+        "eventKey": "event-summer-rooftop",
+        "identity": "https://llp0102-partiful.local|bob",
+        "namespace": "llp0102-partiful-convex-w2",
+        "plusOne": 1,
+        "revision": 3,
+        "status": "yes"
+      }
+    },
+    "transitions": [
+      {
+        "displayName": "Bob",
+        "eventKey": "event-summer-rooftop",
+        "identity": "https://llp0102-partiful.local|bob",
+        "namespace": "llp0102-partiful-convex-w2",
+        "plusOne": 1,
+        "revision": 1,
+        "status": "maybe"
+      },
+      {
+        "displayName": "Bob",
+        "eventKey": "event-summer-rooftop",
+        "identity": "https://llp0102-partiful.local|bob",
+        "namespace": "llp0102-partiful-convex-w2",
+        "plusOne": 0,
+        "revision": 2,
+        "status": "no"
+      },
+      {
+        "displayName": "Bob",
+        "eventKey": "event-summer-rooftop",
+        "identity": "https://llp0102-partiful.local|bob",
+        "namespace": "llp0102-partiful-convex-w2",
+        "plusOne": 1,
+        "revision": 3,
+        "status": "yes"
+      }
+    ],
+    "authoritativeState": {
+      "_creationTime": 1785307531858.8506,
+      "_id": "jx79mnc24yzys3bbm65gcx0bb18bec53",
+      "displayName": "Bob",
+      "eventKey": "event-summer-rooftop",
+      "identity": "https://llp0102-partiful.local|bob",
+      "namespace": "llp0102-partiful-convex-w2",
+      "plusOne": 1,
+      "revision": 3,
+      "status": "yes"
+    }
+  }
+}

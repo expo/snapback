@@ -1,0 +1,504 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T03:55:01.943Z",
+  "targetIdentity": "84c653c1d88ad56fdea9ff55f0724d05530656c2fdc0de69e3699529c5668eb7",
+  "actorHashes": {
+    "alice": "b8248e04bd2df0ab2f6d21d4fcdd140288e463b53db9ce23b66bf5645d328755",
+    "bob": "cf9f530d4e6a87faed4d6c6863d92528e1cf36c8fca588c217367c4cbbc76792",
+    "mallory": "14e996b4c748b99b08c2f9b5e87607fd6a0b211f7edf025e238b1fdf509bf0b3"
+  },
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "evidence": {
+        "targetIdentity": "84c653c1d88ad56fdea9ff55f0724d05530656c2fdc0de69e3699529c5668eb7",
+        "channels": [
+          {
+            "slug": "general",
+            "visibility": "public"
+          },
+          {
+            "slug": "leadership",
+            "visibility": "private"
+          },
+          {
+            "slug": "project-alpha",
+            "visibility": "private"
+          },
+          {
+            "slug": "random",
+            "visibility": "public"
+          }
+        ],
+        "authoritativeMessageCounts": {
+          "general": 125,
+          "random": 125,
+          "project-alpha": 125,
+          "leadership": 125
+        },
+        "bootstrapReceipts": [
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac01fa5d7bd39bffae82417d58a3",
+            "mutation": "bootstrapChannel",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "channels",
+              "channelMembers",
+              "channelViews",
+              "profiles",
+              "messages",
+              "readMarkers"
+            ],
+            "snapshotVersion": 1,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297238649
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac01fa917012a56f6b09cbe515d7",
+            "mutation": "bootstrapChannel",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "channels",
+              "channelMembers",
+              "channelViews",
+              "profiles",
+              "messages",
+              "readMarkers"
+            ],
+            "snapshotVersion": 3,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297238698
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac01fac770b289a7ea2b92570045",
+            "mutation": "bootstrapChannel",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "channels",
+              "channelMembers",
+              "channelViews",
+              "profiles",
+              "messages",
+              "readMarkers"
+            ],
+            "snapshotVersion": 5,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297238753
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac01faff7da3b34bc8081f7a4220",
+            "mutation": "bootstrapChannel",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "channels",
+              "channelMembers",
+              "channelViews",
+              "profiles",
+              "messages",
+              "readMarkers"
+            ],
+            "snapshotVersion": 7,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297238810
+          }
+        ],
+        "serverOwnedChannelIdHashes": {
+          "general": "2846f6e27cfe8349b54f66641abc5c1aa6bc09defc558e16a1ddd0f2782714ee",
+          "random": "92daeaeac5d3c7fd625073953d7353998471ad83c92e02830783d107174a9e3e",
+          "project-alpha": "de2ce2af1f394c87be8613aece07f97cf9e6382b20ada3feb473f703d516945a",
+          "leadership": "008fdf73117c2793ae5b9a8e783cea674af5486633263fe99dd19bf910192072"
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "evidence": {
+        "aliceVisibleChannels": 4,
+        "bobVisibleChannels": 4,
+        "malloryVisibleChannels": 2,
+        "negativeReadDiagnostic": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "negativeSubscriptionDiagnostic": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "status": "pass",
+      "evidence": {
+        "settlement": {
+          "kind": "mutation",
+          "mutationId": "mut_019fac01fc2073f09cc5d99d63d0a809",
+          "mutation": "sendMessage",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "channels",
+            "messages"
+          ],
+          "snapshotVersion": 9,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785297239089
+        },
+        "serverFields": {
+          "idHash": "29ce6c6305dc811cb0815aa8658ba44179d725a04fc480de02f698020e01ea9d",
+          "authorIdHash": "b8248e04bd2df0ab2f6d21d4fcdd140288e463b53db9ce23b66bf5645d328755",
+          "authorName": "Alice",
+          "sequence": 126,
+          "sentAt": 1785297239072
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "evidence": {
+        "transport": "Snapback durable WebSocket stream",
+        "fallbackToPoll": false,
+        "secondClient": "bob",
+        "deliveredBodyHash": "1f72ef429aeba58b072b23715644dba0cb3581836a137bd942b6e2e0bd4c8637"
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "evidence": {
+        "pageSize": 25,
+        "cursor": 103,
+        "firstSequences": [
+          127,
+          126,
+          125,
+          124,
+          123,
+          122,
+          121,
+          120,
+          119,
+          118,
+          117,
+          116,
+          115,
+          114,
+          113,
+          112,
+          111,
+          110,
+          109,
+          108,
+          107,
+          106,
+          105,
+          104,
+          103
+        ],
+        "secondSequences": [
+          102,
+          101,
+          100,
+          99,
+          98,
+          97,
+          96,
+          95,
+          94,
+          93,
+          92,
+          91,
+          90,
+          89,
+          88,
+          87,
+          86,
+          85,
+          84,
+          83,
+          82,
+          81,
+          80,
+          79,
+          78
+        ],
+        "pageUnionSize": 50,
+        "concurrentInsertSequence": 128
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "status": "pass",
+      "evidence": {
+        "transport": "Snapback native ephemeral overlay on the shared live socket",
+        "durability": "no durable table",
+        "keyMode": "user",
+        "ttlMs": 1500,
+        "observedThenExpired": true,
+        "nativeChangeSignals": 1,
+        "scope": {
+          "channelIdHash": "2846f6e27cfe8349b54f66641abc5c1aa6bc09defc558e16a1ddd0f2782714ee"
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "status": "pass",
+      "evidence": {
+        "transport": "Snapback native ephemeral overlay",
+        "twoClients": [
+          "alice viewer",
+          "bob second client"
+        ],
+        "keyMode": "connection",
+        "ttlMs": 2000,
+        "observedThenExpired": true,
+        "nativeChangeSignals": 1,
+        "multiInstanceClaim": false
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "evidence": {
+        "transport": "fresh Snapback durable WebSocket stream",
+        "authoritativeRows": 128,
+        "reconnectedRows": 128,
+        "duplicateIds": 0
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "gap",
+      "evidence": {
+        "contractCapabilities": {
+          "branchableFixtures": false,
+          "derivedOptimisticOverlays": false,
+          "forceStates": true,
+          "headlessBoot": true,
+          "initialSnapshot": true,
+          "localReplica": false,
+          "offlineReplay": false,
+          "optimisticMutations": false,
+          "rowSyncState": true,
+          "serverRunnableQueries": true,
+          "subscriptions": true
+        },
+        "queryLocalRunnable": false,
+        "queryRetainable": false,
+        "warmRowsBeforeDisconnect": 131,
+        "coldRows": 0,
+        "retainedOrigin": "none"
+      },
+      "note": "The protected membership-gated JS live query is not retainable; the React Online surface has no cold protected-history store."
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "evidence": {
+        "twoClients": true,
+        "authoritativeMarkerBefore": 125,
+        "authoritativeMarkerAfter": 129,
+        "reconnectMarker": 129,
+        "unreadBeforeMark": 4,
+        "unreadAfterMark": 0
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "evidence": {
+        "barrier": "Promise.all from distinct authenticated clients",
+        "settlements": [
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac020d017c3283587b7855e186ef",
+            "mutation": "sendMessage",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "channels",
+              "messages"
+            ],
+            "snapshotVersion": 14,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297243440
+          },
+          {
+            "kind": "mutation",
+            "mutationId": "mut_019fac020d707220aca8ece1947228b3",
+            "mutation": "sendMessage",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "channels",
+              "messages"
+            ],
+            "snapshotVersion": 15,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785297243538
+          }
+        ],
+        "attempts": [
+          1,
+          2
+        ],
+        "retryDiagnostics": [
+          {
+            "code": "SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED",
+            "mutation": "sendMessage",
+            "outcome": "effect-free-refusal",
+            "attempt": 1,
+            "nextAttempt": 2,
+            "maximumAttempts": 40,
+            "delayMilliseconds": 57,
+            "effectCommitted": false
+          },
+          {
+            "code": "SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED",
+            "mutation": "sendMessage",
+            "outcome": "settled",
+            "attempts": 2
+          }
+        ],
+        "authoritativeOrder": [
+          {
+            "bodyHash": "fb148df4d388fe10a93beeb9fbeee732cb746a3c77a15cad4de0a4c4db537585",
+            "sequence": 130
+          },
+          {
+            "bodyHash": "e1617224aa741ee94af8a260870397c9e16080f85e7df4927ee5db55469acdb9",
+            "sequence": 131
+          }
+        ],
+        "noLoss": true
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "evidence": {
+        "barrier": "replaceBearerToken(null) completed and predecessor rows blanked",
+        "alreadyConnectedClient": true,
+        "deliveredAfterLogout": false,
+        "retainedRows": 0,
+        "lifecycleDiagnostics": []
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "status": "pass",
+      "evidence": {
+        "authorityChange": "Bob self-removes through declared channelMembers transition",
+        "generatedAuthorizationDependence": [
+          "opaque"
+        ],
+        "clearedBeforeFutureWrite": true,
+        "retainedRowsAfterAuthorityChange": 0,
+        "deliveredAfterRevocation": false,
+        "postRevocationDiagnostic": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "note": ""
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "evidence": {
+        "schemaVersion": 1,
+        "checkedAt": "2026-07-29T03:55:01.941Z",
+        "profile": "small local Mac17,3 arm64 workload; two warmups and seven recorded samples",
+        "paths": {
+          "representativeRead25": {
+            "rawMs": [
+              37.631,
+              33.403,
+              32.911,
+              33.345,
+              36.095,
+              36.282,
+              36.067
+            ],
+            "medianMs": 36.067,
+            "nearestRankP95Ms": 37.631
+          },
+          "burst20Messages": {
+            "rawMs": [
+              4155.398,
+              2958.831,
+              3238.979,
+              3621.059,
+              3309.849,
+              3257.781,
+              3290.779
+            ],
+            "medianMs": 3290.779,
+            "nearestRankP95Ms": 4155.398
+          },
+          "realtimeDelivery": {
+            "rawMs": [
+              137.239,
+              128.229,
+              130.574,
+              131.53,
+              130.767,
+              131.018,
+              128.084
+            ],
+            "medianMs": 130.767,
+            "nearestRankP95Ms": 137.239
+          },
+          "reconnect": {
+            "rawMs": [
+              49.244,
+              50.425,
+              52.552,
+              54.629,
+              54.423,
+              49.735,
+              49.398
+            ],
+            "medianMs": 50.425,
+            "nearestRankP95Ms": 54.629
+          },
+          "build": {
+            "rawMs": [
+              1532.438,
+              1363.888,
+              1539.616,
+              1511.091,
+              1359.563,
+              1420.25,
+              1413.074
+            ],
+            "medianMs": 1420.25,
+            "nearestRankP95Ms": 1539.616
+          }
+        }
+      },
+      "note": ""
+    }
+  ]
+}

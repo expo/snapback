@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "path": "ordinary indexed InstaQL $ilike query",
+  "expectedTitles": [
+    "Source 01 climate",
+    "Source 05 climate",
+    "Source 09 climate",
+    "Source 13 climate",
+    "Source 17 climate"
+  ],
+  "authoritativeTitles": [
+    "Source 01 climate",
+    "Source 05 climate",
+    "Source 09 climate",
+    "Source 13 climate",
+    "Source 17 climate"
+  ],
+  "containsCredentialValues": false
+}

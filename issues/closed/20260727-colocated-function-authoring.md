@@ -72,7 +72,7 @@ Resolved 2026-07-28 by the LLP 0108 implementation slice.
   artifacts carry hashes and contracts but no executable source or source
   location.
 - Signal Desk now keeps its JS operations entirely in
-  `demos/backend-bakeoff/snapback/functions.mjs`; the parallel
+  `demos/signal-desk/snapback/functions.mjs`; the parallel
   `handlers.mjs` registry and all `source`/`exportName` wiring are gone.
   Its app-specific acceptance remains 3/3.
 - Focused evidence is `volta run --node 24 npm test` in

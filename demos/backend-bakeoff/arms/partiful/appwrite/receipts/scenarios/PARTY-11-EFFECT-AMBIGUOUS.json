@@ -1,0 +1,54 @@
+{
+  "id": "PARTY-11-EFFECT-AMBIGUOUS",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:59:08.716Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "appwrite-function-to-fault-injected-sink",
+  "evidence": {
+    "faultInjection": {
+      "firstSocketDestroyedAfterSinkCommit": true,
+      "sinkAttempts": [
+        {
+          "at": "2026-07-29T05:59:08.605Z",
+          "dedupeKey": "ambiguous-retry",
+          "attemptNumber": 1,
+          "duplicate": false,
+          "secretPresent": false
+        },
+        {
+          "at": "2026-07-29T05:59:08.632Z",
+          "dedupeKey": "ambiguous-retry",
+          "attemptNumber": 2,
+          "duplicate": true,
+          "secretPresent": false
+        }
+      ]
+    },
+    "firstExecution": {
+      "id": "6a6996ac92d55138f8eb",
+      "status": "failed"
+    },
+    "stateBeforeRetry": {
+      "attempts": [
+        "ambiguous"
+      ],
+      "deliveryRows": 0
+    },
+    "retryExecution": {
+      "id": "6a6996ac9977f9c65a26",
+      "status": "completed"
+    },
+    "finalAttemptLedger": [
+      {
+        "attempt": 1,
+        "outcome": "ambiguous"
+      },
+      {
+        "attempt": 2,
+        "outcome": "duplicate-confirmed"
+      }
+    ],
+    "finalDeliveryRows": 1
+  },
+  "note": "A sink-side commit followed by socket destruction remained explicitly ambiguous; retry learned duplicate success without a second effect."
+}

@@ -1,0 +1,851 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "demos/backend-bakeoff/arms/partiful/spacetimedb",
+  "generatedAt": "2026-07-29T06:21:01.784Z",
+  "totals": {
+    "authored-source": {
+      "files": 26,
+      "bytes": 417502,
+      "lines": 4612
+    },
+    "configuration": {
+      "files": 31,
+      "bytes": 39990,
+      "lines": 1360
+    },
+    "dependency-manifest": {
+      "files": 3,
+      "bytes": 65541,
+      "lines": 2065
+    },
+    "generated": {
+      "files": 52,
+      "bytes": 53576,
+      "lines": 1688
+    },
+    "policy": {
+      "files": 4,
+      "bytes": 30528,
+      "lines": 1029
+    }
+  },
+  "installedDependencyBytes": 209425083,
+  "files": [
+    {
+      "path": ".gitignore",
+      "category": "authored-source",
+      "bytes": 90,
+      "lines": 7,
+      "sha256": "8739dc719340a0b86f2b0341005d68eae2f06b97682612f514fd7cb39617dbe6"
+    },
+    {
+      "path": "artifacts/build-capsule.mjs",
+      "category": "authored-source",
+      "bytes": 13370,
+      "lines": 226,
+      "sha256": "a79551891075f4371fc37cd2cd3b5e05a7cf7c92a05431899729f0f52dd89b7e"
+    },
+    {
+      "path": "artifacts/build-inventory.mjs",
+      "category": "authored-source",
+      "bytes": 1442,
+      "lines": 40,
+      "sha256": "e3f3ed0a10898daf05f663190f77920b97005be656af868ba40b67b265c56761"
+    },
+    {
+      "path": "artifacts/cleanup.mjs",
+      "category": "authored-source",
+      "bytes": 6350,
+      "lines": 216,
+      "sha256": "4507dd8c2e74650baeebe057c421bc10b862a422f8f6fd0b3a83db48880d1d02"
+    },
+    {
+      "path": "artifacts/constants.mjs",
+      "category": "authored-source",
+      "bytes": 1303,
+      "lines": 23,
+      "sha256": "3b1d38e9e84721d6e0caa571d289a89be9f46e44a288b384310e6e9bd0eb5600"
+    },
+    {
+      "path": "artifacts/finalize-evidence.mjs",
+      "category": "authored-source",
+      "bytes": 5002,
+      "lines": 147,
+      "sha256": "8cb3714f4ff675e7a5784c59de417ab7659c06950bf731b79235b7b7fdd5fdcf"
+    },
+    {
+      "path": "artifacts/measure-build.mjs",
+      "category": "authored-source",
+      "bytes": 1541,
+      "lines": 46,
+      "sha256": "bf9f6de171a1e568ff5caa1fea2ae348ce25625d4f5dbff48a8cfac70bb8461d"
+    },
+    {
+      "path": "artifacts/provision-owner.mjs",
+      "category": "authored-source",
+      "bytes": 1387,
+      "lines": 45,
+      "sha256": "5f8e0a6a24d08396543db3eaa61f4e7093ae7490079d759b4106ffb0dd4cb9a7"
+    },
+    {
+      "path": "artifacts/start-local.mjs",
+      "category": "authored-source",
+      "bytes": 4572,
+      "lines": 161,
+      "sha256": "264a8cbb779d1570ca7aa5c1a148c687fe334796c88993ac5505fbcdaa11aa7e"
+    },
+    {
+      "path": "artifacts/start-ui.mjs",
+      "category": "authored-source",
+      "bytes": 1502,
+      "lines": 36,
+      "sha256": "8ac65deec7d4b63f771e218a3fca2cf9200061de3a7e725fd4d62e904af2c900"
+    },
+    {
+      "path": "evidence/acceptance-results.json",
+      "category": "configuration",
+      "bytes": 10081,
+      "lines": 285,
+      "sha256": "c9e74ecae8bf370046280af64eda661b6296c39aad50ff466ff661235f5d0ebd"
+    },
+    {
+      "path": "evidence/acceptance-results.partial.json",
+      "category": "configuration",
+      "bytes": 8336,
+      "lines": 239,
+      "sha256": "38e408efaf7e92a2aac03339d81685dd535fbb85c72f9c62f89c2c7cb6683a58"
+    },
+    {
+      "path": "evidence/actor-identity-receipt.json",
+      "category": "configuration",
+      "bytes": 645,
+      "lines": 20,
+      "sha256": "2756d2441561f64f6d3e781efcd0f9b986362bd1f9ad3bfe49f10ff19cff31c9"
+    },
+    {
+      "path": "evidence/backup-manifest.json",
+      "category": "configuration",
+      "bytes": 497,
+      "lines": 16,
+      "sha256": "a95269d2e3a1192b72c609ad9fb982116bc1fcfe740355cfbb77062417deb419"
+    },
+    {
+      "path": "evidence/baseline.json",
+      "category": "configuration",
+      "bytes": 1371,
+      "lines": 39,
+      "sha256": "7e5a913ab591612195b3cbdf9f8202e0cf4ee88dab881237e2d4ae7b3899afac"
+    },
+    {
+      "path": "evidence/build-performance.json",
+      "category": "configuration",
+      "bytes": 404,
+      "lines": 24,
+      "sha256": "f11dfcbb6d4fe7636c59ade5aff90b1b37b7d8b7dd59afdfb05777e3a1cf5377"
+    },
+    {
+      "path": "evidence/cleanup-plan.json",
+      "category": "configuration",
+      "bytes": 1007,
+      "lines": 15,
+      "sha256": "82412ce619f69e009130e45f087f6151cab8fa6555c77be3c4c975192329ae8b"
+    },
+    {
+      "path": "evidence/cleanup-receipt.json",
+      "category": "configuration",
+      "bytes": 2452,
+      "lines": 59,
+      "sha256": "81be5cdb17bcd394c14072f8c8a0dbd5ad33eb294c5df2b555ef39c404d4ba6f"
+    },
+    {
+      "path": "evidence/cost-window.json",
+      "category": "configuration",
+      "bytes": 300,
+      "lines": 11,
+      "sha256": "56b05ddadb0ae0ec3d87ea9fafb01f6641ef15d9ce2fba674981bf892f08faa3"
+    },
+    {
+      "path": "evidence/dependency-footprint.json",
+      "category": "configuration",
+      "bytes": 575,
+      "lines": 27,
+      "sha256": "1776086cbbe6043976bdf16b012dcd19fa003980ee004d5562b9bc20a2606b12"
+    },
+    {
+      "path": "evidence/deployment-receipt.json",
+      "category": "configuration",
+      "bytes": 471,
+      "lines": 12,
+      "sha256": "a982206410a2db905cbdb7b958cb4eeee4de3be51cece73166fee445cad719a9"
+    },
+    {
+      "path": "evidence/effect-receiver.json",
+      "category": "configuration",
+      "bytes": 1300,
+      "lines": 43,
+      "sha256": "9498fae0ea9ed038382eed32f26aa4e66ca9ac6f228494a9cd99f35c21b2b5ec"
+    },
+    {
+      "path": "evidence/environment-cleanup.json",
+      "category": "configuration",
+      "bytes": 872,
+      "lines": 30,
+      "sha256": "7f5fab428d290209067627f1b1736992ebe201c19517e3627892ead4231f03ca"
+    },
+    {
+      "path": "evidence/evidence-audit.md",
+      "category": "authored-source",
+      "bytes": 1229,
+      "lines": 21,
+      "sha256": "25e91553083198b9595b15af7f244c1b69718e5622c1a3e13ad0fef74ad80950"
+    },
+    {
+      "path": "evidence/failed-attempts.md",
+      "category": "authored-source",
+      "bytes": 2384,
+      "lines": 43,
+      "sha256": "e70d22766d984e22d689c3388909dc0cfa6ece4ddc323359ec463423529e4648"
+    },
+    {
+      "path": "evidence/freeze-proof.json",
+      "category": "configuration",
+      "bytes": 381,
+      "lines": 10,
+      "sha256": "ca27661da19ced2547b112a9b6ec825c95ac6f28696e776c451d998ee3a22e7c"
+    },
+    {
+      "path": "evidence/hosted-gap.json",
+      "category": "configuration",
+      "bytes": 331,
+      "lines": 12,
+      "sha256": "edac7d884a85e9a6f9f478c479d9c11fb5c818f521305859d2fc68a7c6dd7543"
+    },
+    {
+      "path": "evidence/llp-maintain-audit.md",
+      "category": "authored-source",
+      "bytes": 856,
+      "lines": 24,
+      "sha256": "cf380c81f8e1ec1292bc443723ccd94a38fee636f5ad0653220ae17b5a7d274a"
+    },
+    {
+      "path": "evidence/milestones.json",
+      "category": "configuration",
+      "bytes": 209,
+      "lines": 9,
+      "sha256": "e42e7277a5cbe2f3088bd252368c0cf8dabbe20294fa93133c1ddd3b3ad805ff"
+    },
+    {
+      "path": "evidence/milestones.partial.json",
+      "category": "configuration",
+      "bytes": 206,
+      "lines": 9,
+      "sha256": "a9ae596c46e63cd05401543076f9834df7b2674f97c43f2569b4e892ec2a61cd"
+    },
+    {
+      "path": "evidence/official-docs.md",
+      "category": "authored-source",
+      "bytes": 1193,
+      "lines": 20,
+      "sha256": "3e6c9fec4ce18628d27f9d137bd40bd2bb6f35ed0c23916545acc2aabc36cb90"
+    },
+    {
+      "path": "evidence/performance-build-samples.json",
+      "category": "configuration",
+      "bytes": 404,
+      "lines": 24,
+      "sha256": "f11dfcbb6d4fe7636c59ade5aff90b1b37b7d8b7dd59afdfb05777e3a1cf5377"
+    },
+    {
+      "path": "evidence/performance-samples.json",
+      "category": "configuration",
+      "bytes": 3662,
+      "lines": 178,
+      "sha256": "007fee217f3d14caa063eed870aa8facb933ee608eec126e19c77895ea40088b"
+    },
+    {
+      "path": "evidence/performance-samples.partial.json",
+      "category": "configuration",
+      "bytes": 2526,
+      "lines": 129,
+      "sha256": "b85d87f7f140c2b2c7e71d69342dfe95ee9a6a0abe8cbc714a4ede7993c10f93"
+    },
+    {
+      "path": "evidence/target-identity.json",
+      "category": "configuration",
+      "bytes": 644,
+      "lines": 14,
+      "sha256": "d40aef4bb4c9dfec57778b04912640aa18bae5df6a163d16291a23adb20cada5"
+    },
+    {
+      "path": "evidence/ui-smoke.json",
+      "category": "configuration",
+      "bytes": 377,
+      "lines": 15,
+      "sha256": "8ad060fa3a60aead3efc10250b389abf76ec21c8149598f9a308cc804f3d270a"
+    },
+    {
+      "path": "evidence/ui-smoke.png",
+      "category": "authored-source",
+      "bytes": 258434,
+      "lines": null,
+      "sha256": "ff2e55dbc842194b93781dc87a1a5fe9c4d30f00d49a2dbf6ed870d65cecebde"
+    },
+    {
+      "path": "handoff/diary-entry-draft.md",
+      "category": "authored-source",
+      "bytes": 4655,
+      "lines": 87,
+      "sha256": "d08f10fe136477ff6f9c859e96529175832dc483fbb7268e38e5f5f4ed08fe7a"
+    },
+    {
+      "path": "implementation-notes.md",
+      "category": "authored-source",
+      "bytes": 1803,
+      "lines": 35,
+      "sha256": "55b96e58e94a42a3a9bae3ca5b163165b4194388a8a058f2d9bedaa82e653bf5"
+    },
+    {
+      "path": "README.md",
+      "category": "authored-source",
+      "bytes": 826,
+      "lines": 16,
+      "sha256": "db3ee342e234ef672f8a0f0a3f2d54a51fcbd72c9c67b1f679161c8ac3be1d81"
+    },
+    {
+      "path": "work/client/index.html",
+      "category": "authored-source",
+      "bytes": 358,
+      "lines": 14,
+      "sha256": "cd63eb0d27a765c385cd4f509c1397daa8a973b27c3359b6e43f41c7f35508c6"
+    },
+    {
+      "path": "work/client/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 38024,
+      "lines": 1187,
+      "sha256": "4a420ea6bb4cb8e61c91cc42dbca0f8e5370bf2b124f92167382102687a3da06"
+    },
+    {
+      "path": "work/client/package.json",
+      "category": "configuration",
+      "bytes": 518,
+      "lines": 23,
+      "sha256": "a95e735ae179300c0845d203fbcac04cb86e386a4f0d5d602bb34fad2e0d11c2"
+    },
+    {
+      "path": "work/client/src/main.tsx",
+      "category": "authored-source",
+      "bytes": 3318,
+      "lines": 105,
+      "sha256": "e701f51deffbf006ed38f5eee67f3bcdbb29063fe99184f1508f57831582d626"
+    },
+    {
+      "path": "work/client/src/module_bindings/create_wall_post_reducer.ts",
+      "category": "generated",
+      "bytes": 427,
+      "lines": 18,
+      "sha256": "f268caac376d7c8c0d0039dd27fb0603e1638b73c8e8036818125f22fc363711"
+    },
+    {
+      "path": "work/client/src/module_bindings/delete_event_asset_reducer.ts",
+      "category": "generated",
+      "bytes": 405,
+      "lines": 17,
+      "sha256": "0b0e76c8419eaccfd0ced4b063f6b697c3a42aed11c80085b54501f37f208922"
+    },
+    {
+      "path": "work/client/src/module_bindings/deliver_notification_procedure.ts",
+      "category": "generated",
+      "bytes": 503,
+      "lines": 19,
+      "sha256": "4106d65e3f94d6fed663f5fd62fef84506b536d3f425d78b6aaf4f4fd4dbb4db"
+    },
+    {
+      "path": "work/client/src/module_bindings/index.ts",
+      "category": "generated",
+      "bytes": 8381,
+      "lines": 206,
+      "sha256": "c2717dd4a62fc05f306d69bfed591703e974985135f2a61669dbc4757a79a4d6"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_event_assets_table.ts",
+      "category": "generated",
+      "bytes": 641,
+      "lines": 22,
+      "sha256": "f5d1622f5bdbf5253b2082ec943b363b0cc0218c9bd811b6cc0c2aac619da386"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_event_totals_table.ts",
+      "category": "generated",
+      "bytes": 542,
+      "lines": 21,
+      "sha256": "409cadd324ae8bc77787849ea5f63eb0ea6bc78d510a6623f96db9b36eb696f1"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_events_table.ts",
+      "category": "generated",
+      "bytes": 805,
+      "lines": 27,
+      "sha256": "848047e41652df53618fd2d5fa27c9984c1f20f18407c511669e3fbf6ae5f50a"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_notification_attempts_table.ts",
+      "category": "generated",
+      "bytes": 643,
+      "lines": 22,
+      "sha256": "f3d407f8bfa9b5563d130e7eab3ba705245c22f8f8d95a1dc533264feb8c8a48"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_reminder_runs_table.ts",
+      "category": "generated",
+      "bytes": 577,
+      "lines": 20,
+      "sha256": "8a22150f91790615f4ee6b02181067174d3fba42d94d97b99dbcbe33421c8155"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_rsvps_table.ts",
+      "category": "generated",
+      "bytes": 657,
+      "lines": 23,
+      "sha256": "74fbb73c50733c4b9efa7f5c4fbd7bf3c60edacb5bc196001c172d424eea0f5c"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_wall_posts_table.ts",
+      "category": "generated",
+      "bytes": 589,
+      "lines": 21,
+      "sha256": "139c737a20e5dda9ce46862464cdc753029292785ef423f72e304fe330b412a2"
+    },
+    {
+      "path": "work/client/src/module_bindings/public_preview_table.ts",
+      "category": "generated",
+      "bytes": 576,
+      "lines": 21,
+      "sha256": "a39e3e7e21352b3cd62c612195a48624805c1cfdb740705adc04e6c54a001229"
+    },
+    {
+      "path": "work/client/src/module_bindings/register_persona_reducer.ts",
+      "category": "generated",
+      "bytes": 382,
+      "lines": 16,
+      "sha256": "b8b245e5d36097a2ce01131d4b722ac7c03d17a200e494a2105534d188ce9a0a"
+    },
+    {
+      "path": "work/client/src/module_bindings/reset_capacity_fixture_reducer.ts",
+      "category": "generated",
+      "bytes": 385,
+      "lines": 16,
+      "sha256": "3173ae758e54cd6dc99dc7cb0828d48ee849d3dd642ef379c25c33b86c7e466a"
+    },
+    {
+      "path": "work/client/src/module_bindings/restore_member_reducer.ts",
+      "category": "generated",
+      "bytes": 435,
+      "lines": 18,
+      "sha256": "81ece7b07d270e083a064e79e0a57924246a30ca946191ae50d62e9f1e386868"
+    },
+    {
+      "path": "work/client/src/module_bindings/revoke_member_reducer.ts",
+      "category": "generated",
+      "bytes": 413,
+      "lines": 17,
+      "sha256": "0b042da8d6599f5ef1c26bb8c80a5f073560b2e35200ed9f724b4b2bf2952258"
+    },
+    {
+      "path": "work/client/src/module_bindings/schedule_reminder_reducer.ts",
+      "category": "generated",
+      "bytes": 461,
+      "lines": 19,
+      "sha256": "db65a94b1c34a233b44345259e12ce08828b32dbecd5312aedc62d077ef5e2db"
+    },
+    {
+      "path": "work/client/src/module_bindings/seed_fixtures_reducer.ts",
+      "category": "generated",
+      "bytes": 359,
+      "lines": 14,
+      "sha256": "d03a53c3e6123d4b3a9a6e1ca930b65c8fdd34f0c216fb81fb9862120ca98ea6"
+    },
+    {
+      "path": "work/client/src/module_bindings/set_guest_list_visibility_reducer.ts",
+      "category": "generated",
+      "bytes": 408,
+      "lines": 17,
+      "sha256": "f685339cb02c66c54d71e163ba0773a067a93d155ee0be05a00c31ff0f1d17ac"
+    },
+    {
+      "path": "work/client/src/module_bindings/set_member_role_reducer.ts",
+      "category": "generated",
+      "bytes": 435,
+      "lines": 18,
+      "sha256": "81ece7b07d270e083a064e79e0a57924246a30ca946191ae50d62e9f1e386868"
+    },
+    {
+      "path": "work/client/src/module_bindings/set_rsvp_reducer.ts",
+      "category": "generated",
+      "bytes": 431,
+      "lines": 18,
+      "sha256": "f6ea024e789b73ae377285575b86d9355d56de32d33d49c5348a6fe48dcae40e"
+    },
+    {
+      "path": "work/client/src/module_bindings/types.ts",
+      "category": "generated",
+      "bytes": 4716,
+      "lines": 164,
+      "sha256": "ef64eecd8b64e5177195c423e60936669510a1722c56a03e343f8be1c7280be3"
+    },
+    {
+      "path": "work/client/src/module_bindings/types/procedures.ts",
+      "category": "generated",
+      "bytes": 552,
+      "lines": 13,
+      "sha256": "79c28f31611b0f0c38cb6ead96be44318fe32b4b61b8682444c15ffc0a6c36de"
+    },
+    {
+      "path": "work/client/src/module_bindings/types/reducers.ts",
+      "category": "generated",
+      "bytes": 1974,
+      "lines": 34,
+      "sha256": "190ac42b91a092b072666253afb3c374755a6f18858af094be3823b24d17eac0"
+    },
+    {
+      "path": "work/client/src/module_bindings/upload_event_asset_reducer.ts",
+      "category": "generated",
+      "bytes": 486,
+      "lines": 20,
+      "sha256": "acfcde77efd80849c424280b8e579a73a7f243252cc48b2e13d59dc201a16f4a"
+    },
+    {
+      "path": "work/client/src/module_bindings/visible_guests_table.ts",
+      "category": "generated",
+      "bytes": 603,
+      "lines": 21,
+      "sha256": "2ca31ff9cd16c488e94f985df83292e883e5a95a7adeca94d7a1d31cc5d87cce"
+    },
+    {
+      "path": "work/client/src/styles.css",
+      "category": "authored-source",
+      "bytes": 3845,
+      "lines": 95,
+      "sha256": "17482e3ed3866d3ca23f71d9151e3f8e002af0759e907f654e3bf640458e569b"
+    },
+    {
+      "path": "work/client/tsconfig.json",
+      "category": "configuration",
+      "bytes": 527,
+      "lines": 22,
+      "sha256": "83efc1798334967d5a907f26b8cba31fa213f16b5ac0ed5c02fd38e7cf0ceb66"
+    },
+    {
+      "path": "work/client/vite.config.ts",
+      "category": "configuration",
+      "bytes": 214,
+      "lines": 12,
+      "sha256": "3f27270137b433725be5322532ccffdafede824a144bc4337572b3c8cd3276d3"
+    },
+    {
+      "path": "work/harness/module_bindings/create_wall_post_reducer.ts",
+      "category": "generated",
+      "bytes": 427,
+      "lines": 18,
+      "sha256": "f268caac376d7c8c0d0039dd27fb0603e1638b73c8e8036818125f22fc363711"
+    },
+    {
+      "path": "work/harness/module_bindings/delete_event_asset_reducer.ts",
+      "category": "generated",
+      "bytes": 405,
+      "lines": 17,
+      "sha256": "0b0e76c8419eaccfd0ced4b063f6b697c3a42aed11c80085b54501f37f208922"
+    },
+    {
+      "path": "work/harness/module_bindings/deliver_notification_procedure.ts",
+      "category": "generated",
+      "bytes": 503,
+      "lines": 19,
+      "sha256": "4106d65e3f94d6fed663f5fd62fef84506b536d3f425d78b6aaf4f4fd4dbb4db"
+    },
+    {
+      "path": "work/harness/module_bindings/index.ts",
+      "category": "generated",
+      "bytes": 8382,
+      "lines": 207,
+      "sha256": "2b5640f7adbc4f79144ac4600bb148a238b6380b5b169f2b4ec5d7c8569ea363"
+    },
+    {
+      "path": "work/harness/module_bindings/my_event_assets_table.ts",
+      "category": "generated",
+      "bytes": 641,
+      "lines": 22,
+      "sha256": "f5d1622f5bdbf5253b2082ec943b363b0cc0218c9bd811b6cc0c2aac619da386"
+    },
+    {
+      "path": "work/harness/module_bindings/my_event_totals_table.ts",
+      "category": "generated",
+      "bytes": 542,
+      "lines": 21,
+      "sha256": "409cadd324ae8bc77787849ea5f63eb0ea6bc78d510a6623f96db9b36eb696f1"
+    },
+    {
+      "path": "work/harness/module_bindings/my_events_table.ts",
+      "category": "generated",
+      "bytes": 805,
+      "lines": 27,
+      "sha256": "848047e41652df53618fd2d5fa27c9984c1f20f18407c511669e3fbf6ae5f50a"
+    },
+    {
+      "path": "work/harness/module_bindings/my_notification_attempts_table.ts",
+      "category": "generated",
+      "bytes": 643,
+      "lines": 22,
+      "sha256": "f3d407f8bfa9b5563d130e7eab3ba705245c22f8f8d95a1dc533264feb8c8a48"
+    },
+    {
+      "path": "work/harness/module_bindings/my_reminder_runs_table.ts",
+      "category": "generated",
+      "bytes": 577,
+      "lines": 20,
+      "sha256": "8a22150f91790615f4ee6b02181067174d3fba42d94d97b99dbcbe33421c8155"
+    },
+    {
+      "path": "work/harness/module_bindings/my_rsvps_table.ts",
+      "category": "generated",
+      "bytes": 657,
+      "lines": 23,
+      "sha256": "74fbb73c50733c4b9efa7f5c4fbd7bf3c60edacb5bc196001c172d424eea0f5c"
+    },
+    {
+      "path": "work/harness/module_bindings/my_wall_posts_table.ts",
+      "category": "generated",
+      "bytes": 589,
+      "lines": 21,
+      "sha256": "139c737a20e5dda9ce46862464cdc753029292785ef423f72e304fe330b412a2"
+    },
+    {
+      "path": "work/harness/module_bindings/public_preview_table.ts",
+      "category": "generated",
+      "bytes": 576,
+      "lines": 21,
+      "sha256": "a39e3e7e21352b3cd62c612195a48624805c1cfdb740705adc04e6c54a001229"
+    },
+    {
+      "path": "work/harness/module_bindings/register_persona_reducer.ts",
+      "category": "generated",
+      "bytes": 382,
+      "lines": 16,
+      "sha256": "b8b245e5d36097a2ce01131d4b722ac7c03d17a200e494a2105534d188ce9a0a"
+    },
+    {
+      "path": "work/harness/module_bindings/reset_capacity_fixture_reducer.ts",
+      "category": "generated",
+      "bytes": 385,
+      "lines": 16,
+      "sha256": "3173ae758e54cd6dc99dc7cb0828d48ee849d3dd642ef379c25c33b86c7e466a"
+    },
+    {
+      "path": "work/harness/module_bindings/restore_member_reducer.ts",
+      "category": "generated",
+      "bytes": 435,
+      "lines": 18,
+      "sha256": "81ece7b07d270e083a064e79e0a57924246a30ca946191ae50d62e9f1e386868"
+    },
+    {
+      "path": "work/harness/module_bindings/revoke_member_reducer.ts",
+      "category": "generated",
+      "bytes": 413,
+      "lines": 17,
+      "sha256": "0b042da8d6599f5ef1c26bb8c80a5f073560b2e35200ed9f724b4b2bf2952258"
+    },
+    {
+      "path": "work/harness/module_bindings/schedule_reminder_reducer.ts",
+      "category": "generated",
+      "bytes": 461,
+      "lines": 19,
+      "sha256": "db65a94b1c34a233b44345259e12ce08828b32dbecd5312aedc62d077ef5e2db"
+    },
+    {
+      "path": "work/harness/module_bindings/seed_fixtures_reducer.ts",
+      "category": "generated",
+      "bytes": 359,
+      "lines": 14,
+      "sha256": "d03a53c3e6123d4b3a9a6e1ca930b65c8fdd34f0c216fb81fb9862120ca98ea6"
+    },
+    {
+      "path": "work/harness/module_bindings/set_guest_list_visibility_reducer.ts",
+      "category": "generated",
+      "bytes": 408,
+      "lines": 17,
+      "sha256": "f685339cb02c66c54d71e163ba0773a067a93d155ee0be05a00c31ff0f1d17ac"
+    },
+    {
+      "path": "work/harness/module_bindings/set_member_role_reducer.ts",
+      "category": "generated",
+      "bytes": 435,
+      "lines": 18,
+      "sha256": "81ece7b07d270e083a064e79e0a57924246a30ca946191ae50d62e9f1e386868"
+    },
+    {
+      "path": "work/harness/module_bindings/set_rsvp_reducer.ts",
+      "category": "generated",
+      "bytes": 431,
+      "lines": 18,
+      "sha256": "f6ea024e789b73ae377285575b86d9355d56de32d33d49c5348a6fe48dcae40e"
+    },
+    {
+      "path": "work/harness/module_bindings/types.ts",
+      "category": "generated",
+      "bytes": 4717,
+      "lines": 165,
+      "sha256": "6b219d5adfaa42d545e1ced8cd6559ed30d021f809df5b7a2e6c8b19765a7750"
+    },
+    {
+      "path": "work/harness/module_bindings/types/procedures.ts",
+      "category": "generated",
+      "bytes": 553,
+      "lines": 14,
+      "sha256": "fff9e2a6a8383a145385fc9db497ccc3b2738d829fe8f79c90bb871dca3ba28a"
+    },
+    {
+      "path": "work/harness/module_bindings/types/reducers.ts",
+      "category": "generated",
+      "bytes": 1975,
+      "lines": 35,
+      "sha256": "870a6aa45dff1fe98c84709fc4b0cb9965b7b1956708ec32807ebcee5553c2a2"
+    },
+    {
+      "path": "work/harness/module_bindings/upload_event_asset_reducer.ts",
+      "category": "generated",
+      "bytes": 486,
+      "lines": 20,
+      "sha256": "acfcde77efd80849c424280b8e579a73a7f243252cc48b2e13d59dc201a16f4a"
+    },
+    {
+      "path": "work/harness/module_bindings/visible_guests_table.ts",
+      "category": "generated",
+      "bytes": 603,
+      "lines": 21,
+      "sha256": "2ca31ff9cd16c488e94f985df83292e883e5a95a7adeca94d7a1d31cc5d87cce"
+    },
+    {
+      "path": "work/harness/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 21964,
+      "lines": 703,
+      "sha256": "afe1f0ad3431607e3ea8eb64412fd4ae96e61189862f04578831889fd759503f"
+    },
+    {
+      "path": "work/harness/package.json",
+      "category": "configuration",
+      "bytes": 357,
+      "lines": 19,
+      "sha256": "1051977059c239dbcb3073735c543ed307f5cc137a12823d2142bbadf1ba11c7"
+    },
+    {
+      "path": "work/harness/tsconfig.json",
+      "category": "configuration",
+      "bytes": 292,
+      "lines": 14,
+      "sha256": "3cd07a07435beeea93e5d2c70366bc29bffccc66dc3a43143069ffc581e539b4"
+    },
+    {
+      "path": "work/harness/verify.ts",
+      "category": "authored-source",
+      "bytes": 35427,
+      "lines": 954,
+      "sha256": "e5ec060615093e510e56d9b36afa8fd46cac36bb258ce804be2305cf58ac4826"
+    },
+    {
+      "path": "work/server/.cursor/rules/cli.mdc",
+      "category": "policy",
+      "bytes": 4028,
+      "lines": 169,
+      "sha256": "13f9d7bc818788aabc03599e8cc3f62bcf0e9eddfdecce7eaabe2356af6db7e2"
+    },
+    {
+      "path": "work/server/.cursor/rules/concepts.mdc",
+      "category": "policy",
+      "bytes": 4020,
+      "lines": 102,
+      "sha256": "c25dfd49557677f76c386da61e21d578b855b533d01d75438228d25dc3b18f96"
+    },
+    {
+      "path": "work/server/.cursor/rules/typescript-server.mdc",
+      "category": "policy",
+      "bytes": 7480,
+      "lines": 251,
+      "sha256": "838b1a3bec685c1bf3e5d8a1b293dbdad938995cdb93894e581c8dd558935c0a"
+    },
+    {
+      "path": "work/server/.github/copilot-instructions.md",
+      "category": "authored-source",
+      "bytes": 15000,
+      "lines": 507,
+      "sha256": "95b8f98b0f7caa71ab2bff1d4637fa5d8385494b7219d698039868620c981ae2"
+    },
+    {
+      "path": "work/server/.windsurfrules",
+      "category": "policy",
+      "bytes": 15000,
+      "lines": 507,
+      "sha256": "95b8f98b0f7caa71ab2bff1d4637fa5d8385494b7219d698039868620c981ae2"
+    },
+    {
+      "path": "work/server/AGENTS.md",
+      "category": "authored-source",
+      "bytes": 15000,
+      "lines": 507,
+      "sha256": "95b8f98b0f7caa71ab2bff1d4637fa5d8385494b7219d698039868620c981ae2"
+    },
+    {
+      "path": "work/server/CLAUDE.md",
+      "category": "authored-source",
+      "bytes": 15000,
+      "lines": 507,
+      "sha256": "95b8f98b0f7caa71ab2bff1d4637fa5d8385494b7219d698039868620c981ae2"
+    },
+    {
+      "path": "work/server/spacetime.json",
+      "category": "configuration",
+      "bytes": 61,
+      "lines": 4,
+      "sha256": "ed02f9f74b55b8704e2d28b59140135346a237120c76937774f9dedab486e6a9"
+    },
+    {
+      "path": "work/server/spacetime.local.json",
+      "category": "configuration",
+      "bytes": 46,
+      "lines": 3,
+      "sha256": "93711414dbdb480e73bdb5faa8651d74f33994bf96d95e6468317999cfcd9653"
+    },
+    {
+      "path": "work/server/spacetimedb/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 5553,
+      "lines": 175,
+      "sha256": "364cbf54274e0403eba4a2dec19767abb4ca2d44fa58b51dc4cde899ee41b4ac"
+    },
+    {
+      "path": "work/server/spacetimedb/package.json",
+      "category": "configuration",
+      "bytes": 327,
+      "lines": 19,
+      "sha256": "7fd9e048ab74c7c2ce59b4a1e8241dd5b1453f976f34953076d880526b9f8129"
+    },
+    {
+      "path": "work/server/spacetimedb/src/index.ts",
+      "category": "authored-source",
+      "bytes": 21615,
+      "lines": 730,
+      "sha256": "2b53aedc6c60f1bb75ceb4651b675bed33c142eda2f8e700d1a052a09875089d"
+    },
+    {
+      "path": "work/server/spacetimedb/tsconfig.json",
+      "category": "configuration",
+      "bytes": 597,
+      "lines": 24,
+      "sha256": "932f19d5f09b978424ac66817e0ca5e047d067a27f2973f841d5f672c9122726"
+    }
+  ],
+  "excludedSelfReferentialArtifacts": [
+    "evidence/inventory.json",
+    "run-capsule.v1.json"
+  ]
+}

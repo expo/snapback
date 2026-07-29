@@ -1,0 +1,7 @@
+{
+  "capability": "provider-native semantic/vector retrieval",
+  "status": "explicit-gap",
+  "deterministicEmbeddingRowsRetained": 20,
+  "reason": "The frozen Snapback provider exposes no ordinary vector index or semantic search path.",
+  "nonclaim": "Application-side vector scanning was not substituted and called provider-native retrieval."
+}

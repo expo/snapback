@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T06:22:00.660Z",
+  "ok": false,
+  "classification": "provider-runtime-residue-and-probe-bug",
+  "productBlame": false,
+  "diagnostic": {
+    "composeContainersRemaining": 0,
+    "volumesRemaining": 0,
+    "networksRemaining": 0,
+    "assignedPortsClosed": true,
+    "effectSinkActuallyAbsent": true,
+    "openRuntimesContainersRemaining": 3,
+    "effectProbeComparedInspectStdout": "[] newline"
+  },
+  "remediation": "Validated each remaining container's exact project-prefixed name, openruntimes-runtime-id label, utopia runtime type, and Node 22 image; removed only those three. Changed the sink probe to inspect exit status and added a runtime-container negative probe."
+}

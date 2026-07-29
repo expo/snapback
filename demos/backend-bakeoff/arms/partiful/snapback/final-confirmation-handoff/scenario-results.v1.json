@@ -1,0 +1,1119 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "app": "partiful",
+  "provider": "snapback",
+  "expectedCheckCount": 15,
+  "startedAt": "2026-07-29T12:28:25.158Z",
+  "namespace": "llp0102-final-partiful-snapback-w3",
+  "target": {
+    "profile": "packaged local SQLite + Ibex sessions",
+    "port": 33104,
+    "health": {
+      "ok": true,
+      "target": "local-dev-sqlite-ibex",
+      "sqlite_version": 0,
+      "ibex_available": true,
+      "authProvider": "available",
+      "binary": {
+        "crateVersion": "0.1.0",
+        "gitCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+        "gitDirty": false,
+        "buildProfile": "release",
+        "startupNonce": "019fadd8-fc21-70d0-9ca7-f30dfa1bfe52"
+      }
+    },
+    "identityHash": "226fdc8b1ddc42244c7c78555792a700e6a8394fdc60362b2f7883062441e00e",
+    "configStatus": {
+      "generation": 1,
+      "backendClass": "local-file-immediate",
+      "appProvisioned": true,
+      "entries": [
+        {
+          "name": "notificationToken",
+          "description": "Bearer token for the deterministic notification boundary",
+          "purpose": "Authenticates provider-style notification actions without exposing the value to clients",
+          "secret": true,
+          "required": false,
+          "pool": false,
+          "howToGet": "Acceptance-only arm-local token.",
+          "set": true,
+          "memberCount": 1,
+          "lastChangedMs": 1785328106892,
+          "source": "http",
+          "applyState": "applied"
+        }
+      ],
+      "requiredMissing": []
+    }
+  },
+  "scenarios": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "pass",
+      "evidence": {
+        "setup": {
+          "eventId": "019fadd8-fdd6-7132-bdd2-b4053946618a",
+          "contentionEventId": "019fadd8-fdd6-7132-bdd2-b44f7f9062bb",
+          "eventCount": 20,
+          "contendedAttendance": 49
+        },
+        "audit": {
+          "eventCount": 20,
+          "contendedAttendance": 49,
+          "contendedRsvps": 49,
+          "activeInvitations": 3,
+          "wallPosts": 0
+        },
+        "personaHashes": {
+          "alice": {
+            "principalIdHash": "aa4695402193a420680e40080bb60be7035108578d9cd9a90e4661c311dc4c2e",
+            "role": "host"
+          },
+          "bob": {
+            "principalIdHash": "09073fbca487fac5efbf5bbfb49ecc5bbe6a42a19fd0796276552cb54429e2c7",
+            "role": "guest/cohost/revoked"
+          },
+          "mallory": {
+            "principalIdHash": "9943ebef1da86737a14218fdc10d0dbaf202fdde1662b2c111927b31f4a99a06",
+            "role": "outsider"
+          }
+        }
+      }
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "pass",
+      "evidence": {
+        "anonymousEventCount": 20,
+        "publicKeys": [
+          "description",
+          "eventId",
+          "revision",
+          "slug",
+          "startsAt",
+          "title"
+        ],
+        "outsiderPrivateRows": 0
+      }
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "pass",
+      "evidence": {
+        "invitationPrincipalHash": "09073fbca487fac5efbf5bbfb49ecc5bbe6a42a19fd0796276552cb54429e2c7",
+        "transitions": [
+          {
+            "response": "yes",
+            "plusOneCount": 1,
+            "attendanceCount": 2
+          },
+          {
+            "response": "maybe",
+            "plusOneCount": 0,
+            "attendanceCount": 0
+          },
+          {
+            "response": "no",
+            "plusOneCount": 0,
+            "attendanceCount": 0
+          },
+          {
+            "response": "yes",
+            "plusOneCount": 1,
+            "attendanceCount": 2
+          }
+        ],
+        "authoritative": {
+          "userId": "019fadd8-fdb1-7a6d-96be-5d4c85f92b1b",
+          "guestName": "Bob",
+          "role": "guest",
+          "response": "yes",
+          "plusOneCount": 1,
+          "seats": 2
+        }
+      }
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "pass",
+      "evidence": {
+        "hostEdit": "allowed",
+        "guestEdit": "denied",
+        "cohostPolicyWrite": "allowed",
+        "outsiderPost": "denied"
+      }
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "pass",
+      "evidence": {
+        "transitions": [
+          {
+            "rowCount": 3,
+            "kind": "authorization_snapshot",
+            "atMs": 2059
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2088
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 2089
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2132
+          },
+          {
+            "rowCount": 3,
+            "kind": "authorization_snapshot",
+            "atMs": 2132
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 3326
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 3326
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 3855
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 3855
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 3925
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 3925
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 3992
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 3993
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4059
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4060
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4125
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4125
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4191
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4191
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4257
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4257
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4322
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4322
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4388
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4388
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_delete",
+            "atMs": 4731
+          }
+        ],
+        "publicPreviewCountDuringPrivatePolicy": 20,
+        "transport": "native-websocket-stream"
+      }
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "pass",
+      "evidence": {
+        "barrier": "Promise.allSettled same event snapshot",
+        "settlements": [
+          {
+            "status": "fulfilled",
+            "attendanceCount": 50
+          },
+          {
+            "status": "rejected",
+            "code": "SNAPBACK_HANDLER_FAILED",
+            "message": "SNAPBACK_HANDLER_FAILED: JavaScript handler failed"
+          }
+        ],
+        "authoritative": {
+          "attendanceCount": 50,
+          "rsvps": 50,
+          "capacity": 50
+        }
+      }
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "pass",
+      "evidence": {
+        "secondClient": "bob",
+        "transport": "native-websocket-stream",
+        "updates": [
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 2248
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2278
+          },
+          {
+            "rowCount": 1,
+            "kind": "authorization_snapshot",
+            "atMs": 2278
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2303
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2311
+          },
+          {
+            "rowCount": 2,
+            "kind": "authorization_snapshot",
+            "atMs": 2311
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2344
+          },
+          {
+            "rowCount": 3,
+            "kind": "authorization_snapshot",
+            "atMs": 2344
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2378
+          },
+          {
+            "rowCount": 4,
+            "kind": "authorization_snapshot",
+            "atMs": 2378
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2411
+          },
+          {
+            "rowCount": 5,
+            "kind": "authorization_snapshot",
+            "atMs": 2411
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2446
+          },
+          {
+            "rowCount": 6,
+            "kind": "authorization_snapshot",
+            "atMs": 2447
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2480
+          },
+          {
+            "rowCount": 7,
+            "kind": "authorization_snapshot",
+            "atMs": 2480
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2513
+          },
+          {
+            "rowCount": 8,
+            "kind": "authorization_snapshot",
+            "atMs": 2513
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2546
+          },
+          {
+            "rowCount": 9,
+            "kind": "authorization_snapshot",
+            "atMs": 2546
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2580
+          },
+          {
+            "rowCount": 10,
+            "kind": "authorization_snapshot",
+            "atMs": 2580
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2613
+          },
+          {
+            "rowCount": 11,
+            "kind": "authorization_snapshot",
+            "atMs": 2613
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2647
+          },
+          {
+            "rowCount": 12,
+            "kind": "authorization_snapshot",
+            "atMs": 2647
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2681
+          },
+          {
+            "rowCount": 13,
+            "kind": "authorization_snapshot",
+            "atMs": 2681
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2714
+          },
+          {
+            "rowCount": 14,
+            "kind": "authorization_snapshot",
+            "atMs": 2714
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2747
+          },
+          {
+            "rowCount": 15,
+            "kind": "authorization_snapshot",
+            "atMs": 2747
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2780
+          },
+          {
+            "rowCount": 16,
+            "kind": "authorization_snapshot",
+            "atMs": 2780
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2814
+          },
+          {
+            "rowCount": 17,
+            "kind": "authorization_snapshot",
+            "atMs": 2814
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2847
+          },
+          {
+            "rowCount": 18,
+            "kind": "authorization_snapshot",
+            "atMs": 2847
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2881
+          },
+          {
+            "rowCount": 19,
+            "kind": "authorization_snapshot",
+            "atMs": 2881
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2906
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 2914
+          },
+          {
+            "rowCount": 20,
+            "kind": "authorization_snapshot",
+            "atMs": 2914
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 3334
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 3334
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 3863
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 3863
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 3933
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 3933
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4001
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4001
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4067
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4068
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4133
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4133
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4199
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4199
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4265
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4265
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4330
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4331
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_quarantine",
+            "atMs": 4397
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_snapshot",
+            "atMs": 4397
+          },
+          {
+            "rowCount": 0,
+            "kind": "authorization_delete",
+            "atMs": 4731
+          }
+        ],
+        "authoritative": {
+          "wallPosts": 20,
+          "rsvpSeats": 2
+        }
+      }
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "gap",
+      "reason": "Snapback has no shipped author-facing authenticated asset upload/delivery/deletion capability at the frozen commit.",
+      "evidence": {
+        "capabilityManifest": {
+          "assetUpload": false,
+          "capabilityGaps": [
+            "postgres",
+            "cloudflare",
+            "hosted_untrusted_code",
+            "external_auth",
+            "assets",
+            "notifications",
+            "ephemeral_hosted_adapter",
+            "ephemeral_multi_instance_sticky_routing"
+          ]
+        },
+        "requiredBytes": 262144
+      }
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "pass",
+      "evidence": {
+        "cronTick": [
+          {
+            "runId": "cron:eventReminders:scheduled:0:1",
+            "jobName": "eventReminders",
+            "scheduledAtMs": 0,
+            "dueAtMs": 0,
+            "startedAtMs": 1785328108107,
+            "finishedAtMs": 1785328108122,
+            "trigger": "Scheduled",
+            "attempt": 1,
+            "outcome": "Succeeded",
+            "durationMs": 15,
+            "idempotencyKey": "cron:eventReminders:scheduled:0",
+            "slotKey": "cron:eventReminders:scheduled:0",
+            "diagnostic": null,
+            "result": {
+              "deduplicated": false,
+              "attemptCount": 1
+            }
+          }
+        ],
+        "ledger": [
+          {
+            "deliveryKey": "launch-party:reminder:1800000000000",
+            "trigger": "cron",
+            "attemptCount": 1,
+            "status": "recorded"
+          }
+        ],
+        "duplicateReplay": {
+          "deduplicated": true,
+          "attemptCount": 1
+        }
+      }
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "pass",
+      "evidence": {
+        "first": {
+          "code": "SNAPBACK_HANDLER_FAILED",
+          "message": "JavaScript handler failed"
+        },
+        "retry": {
+          "replayedWinner": false,
+          "status": "succeeded",
+          "receipt": "receipt-212fe5795b25"
+        },
+        "replay": {
+          "replayedWinner": true,
+          "status": "succeeded",
+          "attemptCount": 2
+        },
+        "provider": {
+          "requests": 2,
+          "uniqueDeliveries": 1
+        }
+      }
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "pass",
+      "evidence": {
+        "fault": "provider recorded delivery then destroyed socket before response",
+        "first": {
+          "code": "SNAPBACK_HANDLER_FAILED",
+          "message": "JavaScript handler failed"
+        },
+        "intermediateLedger": {
+          "idempotencyKey": "ambiguous-retry",
+          "attemptCount": 1,
+          "status": "ambiguous",
+          "certainty": "may-have-delivered"
+        },
+        "retry": {
+          "replayedWinner": false,
+          "status": "succeeded",
+          "receipt": "receipt-b1cfa95d4cdb"
+        },
+        "providerRequests": 2,
+        "uniqueDeliveries": 1
+      }
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "pass",
+      "evidence": {
+        "authorityChange": "Bob invitation active→revoked",
+        "connectedHandleRowsAfter": 0,
+        "subsequentWrite": "denied",
+        "retainedClaim": "Online handle blanked; no durable offline-retention claim made.",
+        "transport": "native-websocket-stream"
+      }
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "gap",
+      "reason": "The frozen local target reports no honestly complete hosted auth/deployment profile.",
+      "evidence": {
+        "localConfigRedacted": true,
+        "localEffectBoundary": true,
+        "hosted": "explicit-gap"
+      }
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "status": "gap",
+      "reason": "Supported read/write/reconnect samples are retained, but the frozen asset path is unavailable and build samples are collected separately.",
+      "evidence": {
+        "performance": {
+          "warmups": 2,
+          "recorded": 7,
+          "paths": {
+            "read": {
+              "rawMs": [
+                18.688,
+                15.76,
+                13.969,
+                12.491,
+                14.07,
+                11.522,
+                16.354
+              ],
+              "medianMs": 14.07,
+              "p95NearestRankMs": 18.688
+            },
+            "write": {
+              "rawMs": [
+                67.42,
+                67.174,
+                65.162,
+                65.578,
+                66.422,
+                65.252,
+                66.227
+              ],
+              "medianMs": 66.227,
+              "p95NearestRankMs": 67.42
+            },
+            "reconnect": {
+              "rawMs": [
+                33.328,
+                30.601,
+                30.369,
+                28.786,
+                40.851,
+                45.5,
+                44.741
+              ],
+              "medianMs": 33.328,
+              "p95NearestRankMs": 45.5
+            }
+          },
+          "unsupported": [
+            "asset"
+          ],
+          "costWindow": "single local acceptance run; $0 measured external usage"
+        },
+        "buildEvidencePath": "evidence/build-performance.json"
+      }
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "status": "pass",
+      "evidence": {
+        "targetBoundPlan": [
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/startup-artifacts.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-wal",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-shm",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-journal",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.config.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.admin-token",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.auth-keyring.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.lock",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.instance",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.snapback.lock",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/resume-keyring.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state.snapback.restore.lock"
+        ],
+        "presentBefore": [
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/startup-artifacts.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-wal",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-shm",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.config.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.auth-keyring.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.snapback.lock",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/resume-keyring.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state.snapback.restore.lock"
+        ],
+        "removed": [
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/startup-artifacts.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-wal",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite-shm",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.config.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.auth-keyring.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/partiful.sqlite.snapback.lock",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state/resume-keyring.json",
+          "/private/tmp/llp0102-stage5-lane2-w3/partiful-external/work/.state.snapback.restore.lock"
+        ],
+        "remaining": [],
+        "unrelatedBaseline": "No pre-existing arm files or listeners were present; cleanup enumerated exact arm-owned paths only.",
+        "postCleanupProbe": "all exact arm-owned target paths absent"
+      }
+    }
+  ],
+  "milestones": {
+    "firstAuthoritativeMutationMs": 1813,
+    "firstLocalReadMs": 1840,
+    "firstRealtimeTransitionMs": 2059,
+    "localAcceptanceMs": 4731,
+    "acceptanceCompletionMs": 4876
+  },
+  "transportEvents": [
+    {
+      "rowCount": 0,
+      "kind": "authorization_snapshot",
+      "atMs": 2248
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2278
+    },
+    {
+      "rowCount": 1,
+      "kind": "authorization_snapshot",
+      "atMs": 2278
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2303
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2311
+    },
+    {
+      "rowCount": 2,
+      "kind": "authorization_snapshot",
+      "atMs": 2311
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2344
+    },
+    {
+      "rowCount": 3,
+      "kind": "authorization_snapshot",
+      "atMs": 2344
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2378
+    },
+    {
+      "rowCount": 4,
+      "kind": "authorization_snapshot",
+      "atMs": 2378
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2411
+    },
+    {
+      "rowCount": 5,
+      "kind": "authorization_snapshot",
+      "atMs": 2411
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2446
+    },
+    {
+      "rowCount": 6,
+      "kind": "authorization_snapshot",
+      "atMs": 2447
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2480
+    },
+    {
+      "rowCount": 7,
+      "kind": "authorization_snapshot",
+      "atMs": 2480
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2513
+    },
+    {
+      "rowCount": 8,
+      "kind": "authorization_snapshot",
+      "atMs": 2513
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2546
+    },
+    {
+      "rowCount": 9,
+      "kind": "authorization_snapshot",
+      "atMs": 2546
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2580
+    },
+    {
+      "rowCount": 10,
+      "kind": "authorization_snapshot",
+      "atMs": 2580
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2613
+    },
+    {
+      "rowCount": 11,
+      "kind": "authorization_snapshot",
+      "atMs": 2613
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2647
+    },
+    {
+      "rowCount": 12,
+      "kind": "authorization_snapshot",
+      "atMs": 2647
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2681
+    },
+    {
+      "rowCount": 13,
+      "kind": "authorization_snapshot",
+      "atMs": 2681
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2714
+    },
+    {
+      "rowCount": 14,
+      "kind": "authorization_snapshot",
+      "atMs": 2714
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2747
+    },
+    {
+      "rowCount": 15,
+      "kind": "authorization_snapshot",
+      "atMs": 2747
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2780
+    },
+    {
+      "rowCount": 16,
+      "kind": "authorization_snapshot",
+      "atMs": 2780
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2814
+    },
+    {
+      "rowCount": 17,
+      "kind": "authorization_snapshot",
+      "atMs": 2814
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2847
+    },
+    {
+      "rowCount": 18,
+      "kind": "authorization_snapshot",
+      "atMs": 2847
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2881
+    },
+    {
+      "rowCount": 19,
+      "kind": "authorization_snapshot",
+      "atMs": 2881
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2906
+    },
+    {
+      "rowCount": 0,
+      "kind": "authorization_quarantine",
+      "atMs": 2914
+    },
+    {
+      "rowCount": 20,
+      "kind": "authorization_snapshot",
+      "atMs": 2914
+    }
+  ],
+  "failures": [],
+  "actors": {
+    "alice": {
+      "principalIdHash": "aa4695402193a420680e40080bb60be7035108578d9cd9a90e4661c311dc4c2e",
+      "role": "host"
+    },
+    "bob": {
+      "principalIdHash": "09073fbca487fac5efbf5bbfb49ecc5bbe6a42a19fd0796276552cb54429e2c7",
+      "role": "guest/cohost/revoked"
+    },
+    "mallory": {
+      "principalIdHash": "9943ebef1da86737a14218fdc10d0dbaf202fdde1662b2c111927b31f4a99a06",
+      "role": "outsider"
+    }
+  },
+  "finishedAt": "2026-07-29T12:28:30.035Z",
+  "activeElapsedMs": 4876,
+  "result": "completed-with-gaps"
+}

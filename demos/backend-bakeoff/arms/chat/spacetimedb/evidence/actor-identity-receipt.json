@@ -1,0 +1,11 @@
+{
+  "target": "llp0102-chat-spacetimedb-w1",
+  "databaseIdentity": "c2004eb2f79972743b2d2188d5169fabbe879a6453dd3d11653ef3530bcdb4c8",
+  "actors": {
+    "Alice": "21a7bcdc7c42b8e7c0212a0c76206395746732f96b6d669bc557ec81952c9313",
+    "Bob": "f22798292747df824e49c71ef24496b06c9d5ea97f21e0b43e4e2059b1fca0a6",
+    "Mallory": "04ba21bdccebf96aef346fb36f83b32b3da8795c814eb4e3e6ee23c9111466f7"
+  },
+  "hash": "sha256",
+  "rawIdentityTokensPersisted": false
+}

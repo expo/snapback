@@ -1,0 +1,9 @@
+{
+  "attempt": 3,
+  "stage": "migration build",
+  "classification": "provider type-system friction",
+  "symptom": "V2 would not compile because generated insert types still require a value for a schema column that declares a migration default.",
+  "cause": "The TypeScript module API uses the default for migrated historical rows but its insert type does not make that field optional.",
+  "remediation": "Supply customerImpact='normal' explicitly for new inserts while preserving the defaulted in-place migration proof for all V1 rows.",
+  "stopClass": false
+}

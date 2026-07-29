@@ -50,6 +50,13 @@ A binding must cover:
 | terminal auth | expose an error state and blank predecessor materialization before callbacks resume |
 | scope disposal | release every handle even if an observer throws |
 
+High-level handle disposal is idempotent after its own logout or terminal
+authority retirement. Keep that exact-handle behavior in the binding; do not
+catch arbitrary low-level `unsubscribeLive` errors, because foreign ids and
+ownership/session mismatches remain fail-closed. View unmount may ignore the
+returned cleanup task after synchronous local teardown; lifecycle tests and
+operational cleanup should await it so genuine typed failures stay visible.
+
 The headless JS handle already supplies `pause()`, `resume()`, `dispose()`,
 connection events, and error state. Native clients expose equivalent
 provider-level lifecycle hooks. Bind host lifecycle once at the provider

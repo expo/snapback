@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T13:01:02.371Z",
+  "contractCapabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "queryLocalRunnable": false,
+  "queryRetainable": false,
+  "warmRowsBeforeDisconnect": 131,
+  "coldRows": 0,
+  "retainedOrigin": "none",
+  "scenarioId": "CHAT-09-OFFLINE-HISTORY"
+}

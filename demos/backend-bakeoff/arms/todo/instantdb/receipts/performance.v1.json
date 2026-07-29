@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:53:34.228Z",
+  "ok": true,
+  "warmups": 2,
+  "recordedSamples": 7,
+  "measurements": {
+    "authoritativeReadAdmin": {
+      "rawMs": [
+        85.494,
+        82.78,
+        85.247,
+        85.342,
+        89.72,
+        89.346,
+        84.327
+      ],
+      "medianMs": 85.342,
+      "nearestRankP95Ms": 89.72
+    },
+    "mutationToOriginQuery": {
+      "rawMs": [
+        14.416,
+        12.558,
+        14.155,
+        12.137,
+        12.579,
+        12.916,
+        12.368
+      ],
+      "medianMs": 12.579,
+      "nearestRankP95Ms": 14.416
+    },
+    "mutationToSecondClientPush": {
+      "rawMs": [
+        90.926,
+        86.783,
+        91.757,
+        87.267,
+        87.874,
+        89.706,
+        41.696
+      ],
+      "medianMs": 87.874,
+      "nearestRankP95Ms": 91.757
+    },
+    "browserReconnectAndResubscribe": {
+      "rawMs": [
+        513.302,
+        493.85,
+        475.766,
+        501.611,
+        499.641,
+        496.833,
+        546.296
+      ],
+      "medianMs": 499.641,
+      "nearestRankP95Ms": 546.296
+    },
+    "productionClientBuild": {
+      "rawMs": [
+        142.063,
+        156.879,
+        152.704,
+        145.905,
+        157.576,
+        156.203,
+        156.226
+      ],
+      "medianMs": 156.203,
+      "nearestRankP95Ms": 157.576
+    }
+  },
+  "warmupSamplesMs": {
+    "authoritativeReadAdmin": [
+      102.621,
+      84.212
+    ],
+    "mutationToOriginQuery": [
+      24.968,
+      14.337
+    ],
+    "mutationToSecondClientPush": [
+      99.976,
+      90.665
+    ],
+    "browserReconnectAndResubscribe": [
+      496.944,
+      497.608
+    ],
+    "productionClientBuild": [
+      190.74,
+      152.063
+    ]
+  },
+  "machineContext": {
+    "target": "official InstantDB self-host images",
+    "client": "Chrome headless on the same machine",
+    "dataset": "four lists and 100 tasks"
+  },
+  "scope": "fresh local small-profile measurements; not production latency",
+  "containsSecretValues": false
+}

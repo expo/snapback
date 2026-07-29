@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "cleanedAt": "2026-07-29T03:54:26.396Z",
+  "targetIdentity": "507905e49b27fcf94436f344ce10964d2703f21ee75be591d97e4e1d1517f6cf",
+  "removed": [
+    "/private/tmp/llp0102-remediation1-todo-runtime",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/public/personas.json",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/dist/personas.json"
+  ],
+  "recoverable": false,
+  "recovery": "Reproducible from committed generated artifacts and deterministic authenticated bootstrap inputs.",
+  "exactTargetAbsent": true,
+  "personaCarrierAbsent": true,
+  "builtPersonaCarrierAbsent": true,
+  "unrelatedBaselinePreserved": true
+}

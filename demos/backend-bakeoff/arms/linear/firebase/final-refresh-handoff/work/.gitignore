@@ -1,0 +1,8 @@
+node_modules/
+functions/node_modules/
+dist/
+tsconfig.tsbuildinfo
+firestore-debug.log
+firebase-debug.log
+firebase-debug.*.log
+.state/

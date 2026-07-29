@@ -1,0 +1,24 @@
+{
+  "id": "PARTY-05-GUEST-LIST",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:56:20.806Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "appwrite-realtime",
+  "evidence": {
+    "eventRemainedPublic": true,
+    "hidden": {
+      "bobDenied": true,
+      "malloryDenied": true
+    },
+    "visible": {
+      "invitedBobRow": "guest-01",
+      "outsiderMalloryDenied": true
+    },
+    "alreadyConnected": {
+      "before": 0,
+      "afterProtectedUpdate": 0
+    },
+    "transportSockets": 1
+  },
+  "note": "Guest-list permission transitioned independently of public preview; an already-connected client received no protected update."
+}

@@ -1,0 +1,51 @@
+{
+  "capturedAt": "2026-07-29T02:09:12.284Z",
+  "sdk": "convex 1.42.3",
+  "target": "official anonymous local Convex deployment",
+  "endpoint": "http://127.0.0.1:3310",
+  "operationMode": "minimal Stop-class diagnosis; one uniquely identified Alice message",
+  "logoutMethod": "ConvexClient.clearAuth()",
+  "logoutBarrier": {
+    "denied": true,
+    "unauthenticated": true,
+    "error": "ConvexError: [CONVEX Q(chat:latestMessages)] [Request ID: 68cc41264f22e50d] Server Error\nUncaught ConvexError: UNAUTHENTICATED\n    at subject (../convex/chat.ts:12:18)\n    at async handler (../convex/chat.ts:170:4)\n\n  Called by client",
+    "at": 1785290951511
+  },
+  "watchErrorClass": "UNAUTHENTICATED",
+  "authoritativeCommit": {
+    "settlement": {
+      "authorName": "Alice",
+      "authorSubject": "alice",
+      "id": "jd7dmmkg6p7eh6k98abzh628c98behde",
+      "sequence": 135
+    },
+    "row": {
+      "id": "jd7dmmkg6p7eh6k98abzh628c98behde",
+      "body": "after-clear-auth-1785290951459",
+      "sequence": 135,
+      "authorSubject": "alice",
+      "sentAt": 1785290951512,
+      "creationTime": 1785290951512.268
+    }
+  },
+  "alreadyConnectedClient": true,
+  "deliveredAfterLogout": false,
+  "events": [
+    {
+      "event": "watch-update",
+      "at": 1785290951461,
+      "rowCount": 25,
+      "containsDiagnosticBody": false
+    },
+    {
+      "event": "clearAuth-called",
+      "at": 1785290951485
+    },
+    {
+      "event": "watch-error",
+      "at": 1785290951492,
+      "error": "ConvexError: [CONVEX Q(chat:latestMessages)] [Request ID: 68cc41264f22e50d] Server Error\nUncaught ConvexError: UNAUTHENTICATED\n    at subject (../convex/chat.ts:12:18)\n    at async handler (../convex/chat.ts:170:4)\n\n  Called by client"
+    }
+  ],
+  "conclusion": "ORIGINAL_STOP_WAS_HARNESS_ERROR"
+}

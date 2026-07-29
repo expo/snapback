@@ -1,0 +1,14 @@
+{
+  "id": "CHAT-12-LOGOUT",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:27:42.369Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firebase Auth signOut + application listener teardown",
+  "evidence": {
+    "listenerEstablishedBeforeBarrier": true,
+    "appUnsubscribedAtAuthBarrier": true,
+    "futureMessageDelivered": false,
+    "freshReadCode": "permission-denied"
+  },
+  "note": "UI/auth-state barrier unsubscribes the established listener; direct fresh read is denied."
+}

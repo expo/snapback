@@ -1,0 +1,189 @@
+{
+  "capturedAt": "2026-07-29T02:15:54.619Z",
+  "authoredFiles": [
+    ".gitignore",
+    "convex/auth.config.ts",
+    "convex/chat.ts",
+    "convex/dev_jwks.ts",
+    "convex/schema.ts",
+    "index.html",
+    "package-lock.json",
+    "package.json",
+    "scripts/acceptance.mjs",
+    "scripts/create-dev-auth.mjs",
+    "scripts/diagnose-logout-delivery.mjs",
+    "scripts/diagnose-logout-readonly.mjs",
+    "scripts/inventory.mjs",
+    "src/App.tsx",
+    "src/main.tsx",
+    "src/styles.css",
+    "src/vite-env.d.ts",
+    "tsconfig.app.json",
+    "tsconfig.app.tsbuildinfo",
+    "tsconfig.json",
+    "tsconfig.node.json",
+    "tsconfig.node.tsbuildinfo",
+    "vite.config.ts"
+  ],
+  "lineCounts": {
+    "convex/_generated/api.d.ts": 51,
+    "convex/_generated/dataModel.d.ts": 60,
+    "convex/_generated/server.d.ts": 143,
+    "convex/auth.config.ts": 14,
+    "convex/chat.ts": 408,
+    "convex/dev_jwks.ts": 2,
+    "convex/schema.ts": 72,
+    "index.html": 12,
+    "package-lock.json": 2231,
+    "package.json": 28,
+    "scripts/acceptance.mjs": 751,
+    "scripts/create-dev-auth.mjs": 23,
+    "scripts/diagnose-logout-delivery.mjs": 150,
+    "scripts/diagnose-logout-readonly.mjs": 123,
+    "scripts/inventory.mjs": 76,
+    "src/App.tsx": 70,
+    "src/main.tsx": 17,
+    "src/styles.css": 29,
+    "src/vite-env.d.ts": 1,
+    "tsconfig.app.json": 20,
+    "tsconfig.json": 7,
+    "tsconfig.node.json": 11,
+    "vite.config.ts": 7
+  },
+  "generatedFiles": [
+    "convex/_generated/api.d.ts",
+    "convex/_generated/api.js",
+    "convex/_generated/dataModel.d.ts",
+    "convex/_generated/server.d.ts",
+    "convex/_generated/server.js"
+  ],
+  "installedDependencyBytes": 134492160,
+  "npmAuditMetadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 1,
+      "critical": 0,
+      "total": 1
+    },
+    "dependencies": {
+      "prod": 9,
+      "dev": 117,
+      "optional": 78,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 151
+    }
+  },
+  "npmAuditExitStatus": 1,
+  "classifications": {
+    "backend": [
+      [
+        "convex/_generated/api.d.ts",
+        51
+      ],
+      [
+        "convex/_generated/dataModel.d.ts",
+        60
+      ],
+      [
+        "convex/_generated/server.d.ts",
+        143
+      ],
+      [
+        "convex/auth.config.ts",
+        14
+      ],
+      [
+        "convex/chat.ts",
+        408
+      ],
+      [
+        "convex/dev_jwks.ts",
+        2
+      ],
+      [
+        "convex/schema.ts",
+        72
+      ]
+    ],
+    "client": [
+      [
+        "src/App.tsx",
+        70
+      ],
+      [
+        "src/main.tsx",
+        17
+      ],
+      [
+        "src/styles.css",
+        29
+      ],
+      [
+        "src/vite-env.d.ts",
+        1
+      ]
+    ],
+    "acceptance": [
+      [
+        "scripts/acceptance.mjs",
+        751
+      ],
+      [
+        "scripts/create-dev-auth.mjs",
+        23
+      ],
+      [
+        "scripts/diagnose-logout-delivery.mjs",
+        150
+      ],
+      [
+        "scripts/diagnose-logout-readonly.mjs",
+        123
+      ],
+      [
+        "scripts/inventory.mjs",
+        76
+      ]
+    ],
+    "configuration": [
+      [
+        "package.json",
+        28
+      ],
+      [
+        "tsconfig.app.json",
+        20
+      ],
+      [
+        "tsconfig.json",
+        7
+      ],
+      [
+        "tsconfig.node.json",
+        11
+      ],
+      [
+        "vite.config.ts",
+        7
+      ]
+    ],
+    "policy": []
+  },
+  "glue": [
+    {
+      "path": "convex/auth.config.ts + scripts/create-dev-auth.mjs",
+      "purpose": "worktree-local customJwt development identity issuer because the anonymous local target has no inbox-backed identity fixture"
+    },
+    {
+      "path": "convex/chat.ts:setTyping/activeTyping",
+      "purpose": "durable TTL typing workaround; explicit product GAP"
+    },
+    {
+      "path": "convex/chat.ts:heartbeatPresence/activePresence",
+      "purpose": "durable TTL presence workaround; explicit product GAP"
+    }
+  ]
+}

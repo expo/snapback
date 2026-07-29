@@ -1,0 +1,21 @@
+{
+  "id": "CHAT-06-TYPING",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:21:30.322Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firebase Realtime Database onValue push",
+  "evidence": {
+    "transitions": [
+      {
+        "changedAt": 1785331290018,
+        "expiresAtClientMs": 1785331290237,
+        "state": "typing"
+      },
+      null
+    ],
+    "durableAfterExpiry": false,
+    "expiryMs": 250,
+    "glue": "Application-authored expiry/removal policy"
+  },
+  "note": "Native Firebase realtime path; typing TTL policy is explicitly application glue, not a Firestore/native typing primitive."
+}

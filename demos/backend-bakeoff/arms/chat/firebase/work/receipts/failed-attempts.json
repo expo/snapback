@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "attempts": [
+    {
+      "sequence": 1,
+      "classification": "environment",
+      "command": "java -version",
+      "result": "No Java Runtime present on assigned Air.",
+      "resolution": "Installed Homebrew openjdk@21 21.0.12; this 346.7 MB prerequisite and elapsed wait count as setup friction."
+    },
+    {
+      "sequence": 2,
+      "classification": "builder-error",
+      "command": "firebase emulators:start",
+      "result": "env: node: No such file or directory",
+      "resolution": "The isolated PATH included Java but omitted the machine's Volta node path. Added /Users/ccheever/.volta/bin."
+    },
+    {
+      "sequence": 3,
+      "classification": "harness",
+      "command": "node scripts/acceptance.mjs",
+      "result": "Unread reconnect proof queried the whole reads collection, which Firestore rules could not prove user-scoped; rules rejected it at L28.",
+      "resolution": "Changed the proof to a direct get of Bob's exact marker document. Product rules stayed strict."
+    },
+    {
+      "sequence": 4,
+      "classification": "harness-learning",
+      "command": "node scripts/acceptance.mjs",
+      "result": "Timed out waiting for the message listener to error immediately after the parent channel membership document changed.",
+      "evidence": [
+        "receipts/failed-attempt-02-revocation-listener-order.stderr.log"
+      ],
+      "resolution": "Triggered the next protected message change after revocation, at which point Firestore re-evaluated the dependent rule and failed the listener closed before exposing the new document."
+    },
+    {
+      "sequence": 5,
+      "classification": "product-performance",
+      "command": "20 simultaneous callable sends against one channel counter",
+      "result": "Firestore emulator returned ABORTED: Transaction lock timeout for the hot counter.",
+      "evidence": [
+        "receipts/failed-attempt-03-20way-counter-contention.stderr.log",
+        "receipts/failed-attempt-03-lock-timeout-lines.log"
+      ],
+      "resolution": "Preserved the failure; corrected the frozen workload to its specified two-client shape: ten consecutive two-actor barriers, twenty messages total. The failure remains meaningful hotspot evidence."
+    },
+    {
+      "sequence": 6,
+      "classification": "harness",
+      "command": "node scripts/acceptance.mjs",
+      "result": "All fourteen in-process scenarios completed, but the Node process retained Admin SDK handles and did not exit.",
+      "evidence": [
+        "receipts/failed-attempt-04-harness-nonexit.stdout.log",
+        "receipts/failed-attempt-04-acceptance-results.pre-exit-fix.json"
+      ],
+      "resolution": "Explicitly deleted the Admin app in finally; clean rerun exited zero."
+    }
+  ]
+}

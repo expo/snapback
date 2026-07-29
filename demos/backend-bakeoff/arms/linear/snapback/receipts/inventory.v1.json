@@ -1,0 +1,33 @@
+{
+  "receiptPath": "receipts/inventory.v1.json",
+  "authoredSource": {
+    "files": 14,
+    "lines": 1508
+  },
+  "generated": {
+    "files": 59,
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca"
+  },
+  "tests": {
+    "authoredAcceptanceScenarios": 14
+  },
+  "configuration": {
+    "files": 4
+  },
+  "policy": {
+    "files": 0,
+    "note": "membership policy is declared in schema.mjs"
+  },
+  "dependencyManifests": 2,
+  "installedDependencyBytes": 928,
+  "glue": [
+    {
+      "path": "src/provider.ts",
+      "kind": "provider adapter"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "kind": "evidence harness"
+    }
+  ]
+}

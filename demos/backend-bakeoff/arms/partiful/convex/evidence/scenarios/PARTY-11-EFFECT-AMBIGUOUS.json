@@ -1,0 +1,40 @@
+{
+  "id": "PARTY-11-EFFECT-AMBIGUOUS",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:32.697Z",
+  "finishedAt": "2026-07-29T06:45:32.735Z",
+  "durationMs": 38.044,
+  "evidence": {
+    "faultInjection": "sink accepted request body then destroyed socket before HTTP settlement",
+    "attemptLedger": {
+      "first": {
+        "attempts": 1,
+        "providerStatus": "transport-outcome-unknown:Error: error sending request for url (http://127.0.0.1:34173/ambiguous): client error (SendRequest): connection closed b",
+        "state": "ambiguous",
+        "suppressed": false
+      },
+      "retry": {
+        "attempts": 2,
+        "providerStatus": "transport-outcome-unknown:Error: error sending request for url (http://127.0.0.1:34173/ambiguous): client error (SendRequest): connection closed b",
+        "state": "ambiguous",
+        "suppressed": false
+      }
+    },
+    "ambiguousState": "transport-outcome-unknown remains nonterminal and retryable",
+    "providerBoundaryReceipts": [
+      {
+        "dedupeKey": "ambiguous-1",
+        "path": "/ambiguous",
+        "receivedAt": "2026-07-29T06:45:32.707Z",
+        "bodySha256": "abe3a876f7ae2d2d412cf4d9aa128a6b987c03f89e163004ecbc8261c9c6f650"
+      },
+      {
+        "dedupeKey": "ambiguous-1",
+        "path": "/ambiguous",
+        "receivedAt": "2026-07-29T06:45:32.727Z",
+        "bodySha256": "abe3a876f7ae2d2d412cf4d9aa128a6b987c03f89e163004ecbc8261c9c6f650"
+      }
+    ],
+    "duplicateRisk": "retry can duplicate an effect that the provider accepted before disconnect"
+  }
+}

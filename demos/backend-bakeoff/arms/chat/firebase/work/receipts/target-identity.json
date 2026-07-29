@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T02:22:40Z",
+  "mode": "fresh-local",
+  "product": "Firebase Local Emulator Suite",
+  "projectId": "llp0102-chat-firebase-w1",
+  "identityHash": "73f32a095a9b3bd04be47c25ab47b377066a3705f9ca0bde890e99b734cdaa5b",
+  "services": {
+    "auth": "127.0.0.1:9299",
+    "firestore": "127.0.0.1:8280",
+    "realtimeDatabase": "127.0.0.1:9280",
+    "functions": "127.0.0.1:5287",
+    "hub": "127.0.0.1:4501",
+    "logging": "127.0.0.1:4502",
+    "vite": "127.0.0.1:4287"
+  },
+  "versions": {
+    "firebaseClient": "12.16.0",
+    "firebaseTools": "15.24.0",
+    "firebaseAdmin": "13.5.0",
+    "firebaseFunctions": "6.4.0",
+    "firestoreEmulator": "1.21.0",
+    "realtimeDatabaseEmulator": "4.11.2"
+  },
+  "hosted": {
+    "status": "explicit-gap",
+    "reason": "Hosted Firebase project credentials were unavailable; authorized official local emulator path used.",
+    "productFailure": false
+  }
+}

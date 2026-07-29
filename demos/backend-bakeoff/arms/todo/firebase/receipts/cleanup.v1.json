@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T21:36:47.098Z",
+  "ok": true,
+  "targetIdentityHash": "a11623cea8167aa089f595cd50c3ebdd060f8bbbdd0f3aeb74591f466ec9a7f4",
+  "removed": [
+    "exact arm-owned Firebase Auth and Firestore emulator processes and ephemeral data",
+    "exact arm-owned Vite process and disposable browser profiles",
+    "exact arm-local persona credential file and generated emulator logs/cache"
+  ],
+  "retained": [
+    "shared Firebase CLI and Firestore emulator download caches"
+  ],
+  "probes": {
+    "port4181Closed": true,
+    "port8085Closed": true,
+    "port9102Closed": true,
+    "port4400Closed": true,
+    "port4500Closed": true,
+    "port9150Closed": true,
+    "runtimeAbsent": true,
+    "armSecretsAbsent": true,
+    "firebaseCacheAbsent": true,
+    "generatedLogsAbsent": true
+  },
+  "recovery": "Removed target/runtime bytes are not recoverable; retained source, rules, deterministic seed, and shared emulator download recreate them.",
+  "containsSecretValues": false
+}

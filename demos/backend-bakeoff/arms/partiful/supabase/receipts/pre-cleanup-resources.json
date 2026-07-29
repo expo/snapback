@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T05:44:26.529Z",
+  "projectId": "llp0102-partiful-supabase-coord",
+  "targetIdentityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+  "authoritativeCounts": {
+    "profiles": 6,
+    "events": 3,
+    "event_members": 7,
+    "invitations": 4,
+    "rsvps": 2,
+    "wall_posts": 11,
+    "reminder_schedules": 1,
+    "notification_attempts": 4,
+    "provider_deliveries": 2
+  },
+  "exactStorageRootObjects": 0,
+  "cronJobs": [
+    {
+      "jobid": 1,
+      "jobname": "llp0102-partiful-supabase-reminders",
+      "schedule": "5 seconds",
+      "command": "select public.run_due_reminders()",
+      "active": true
+    }
+  ],
+  "containers": [
+    "supabase_db_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/postgres:17.6.1.143|Up 3 minutes (healthy)",
+    "supabase_studio_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/studio:2026.07.13-sha-b5ada96|Up 21 minutes (healthy)",
+    "supabase_pg_meta_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/postgres-meta:v0.96.6|Up 21 minutes (healthy)",
+    "supabase_edge_runtime_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/edge-runtime:v1.74.2|Up 5 minutes",
+    "supabase_storage_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/storage-api:v1.66.4|Up 3 minutes (healthy)",
+    "supabase_rest_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/postgrest:v14.15|Up 21 minutes",
+    "supabase_realtime_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/realtime:v2.113.4|Up 3 minutes (healthy)",
+    "supabase_inbucket_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/mailpit:v1.30.2|Up 21 minutes (healthy)",
+    "supabase_auth_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/gotrue:v2.193.0|Up 3 minutes (healthy)",
+    "supabase_kong_llp0102-partiful-supabase-coord|public.ecr.aws/supabase/kong:2.8.1|Up 21 minutes (healthy)"
+  ],
+  "volumes": [
+    "supabase_db_llp0102-partiful-supabase-coord",
+    "supabase_edge_runtime_llp0102-partiful-supabase-coord",
+    "supabase_storage_llp0102-partiful-supabase-coord"
+  ],
+  "networks": [
+    "supabase_network_llp0102-partiful-supabase-coord"
+  ],
+  "unrelatedContainers": [
+    "052406cdd568|appwrite-worker-migrations",
+    "05fec75fc0d2|exc1-llp0102-partiful-appwrite-w3-6a698ebf89558a75abef",
+    "0bf5323fbda2|appwrite-worker-messaging",
+    "19a6f4d97536|exc1-llp0102-partiful-appwrite-w3-6a698e5cd4ab6c84130d",
+    "237be64361b5|appwrite-worker-certificates",
+    "2e8e89d6a8c9|appwrite-worker-builds",
+    "3164a91062a0|appwrite-task-scheduler-executions",
+    "3abfc041cae7|appwrite-worker-databases",
+    "3fd5df35b77b|appwrite-task-stats-resources",
+    "49170036bcba|appwrite-task-maintenance",
+    "4fb156ecea3d|appwrite-task-interval",
+    "50c4a0bd1cd6|appwrite-worker-executions",
+    "5114fb497dbd|appwrite-worker-mails",
+    "52ff2fd506cd|appwrite-browser",
+    "59ad8584cc53|appwrite-realtime",
+    "5f4ec8f2b89f|appwrite-worker-webhooks",
+    "65a1885e07b6|appwrite-worker-stats-usage",
+    "6c07cd655ab4|exc1-llp0102-partiful-appwrite-w3-6a6991e01fe611c85c71",
+    "7fdf02d6600b|appwrite-task-scheduler-functions",
+    "87e28672c0e1|appwrite-worker-screenshots",
+    "87ead6ad7663|appwrite-worker-audits",
+    "8d652234078e|appwrite-worker-deletes",
+    "b35c9994aab2|appwrite-embedding",
+    "c85b2cadf0b0|appwrite-console",
+    "d90ad4b90849|appwrite-redis",
+    "d9893bef44c6|appwrite-task-scheduler-messages",
+    "da9cdebf41f9|appwrite",
+    "db3e7f042334|appwrite-worker-functions",
+    "dc28fe8ade98|appwrite-worker-stats-resources",
+    "dcbe64235965|appwrite-mongodb",
+    "e29b1f7c20f4|llp0102-partiful-appwrite-w3-effect-sink",
+    "fe5bdfd076da|appwrite-traefik",
+    "ff82f779b6d3|exc1"
+  ],
+  "unrelatedContainerSetSha256": "8aa26c226667e852588eb0aeedb35ce846dd1a02504a42b4f91c5d91136c0f74",
+  "schemaSha256": "a545d44a29a7538f5f56471ccaba0ad9f608d171ef912ddb59786cf9bed9e011",
+  "schemaBytes": 24891,
+  "containsSecretValues": false
+}

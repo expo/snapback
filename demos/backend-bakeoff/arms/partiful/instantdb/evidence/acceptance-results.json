@@ -1,0 +1,680 @@
+{
+  "schemaVersion": 1,
+  "app": "partiful",
+  "provider": "instantdb",
+  "targetIdSha256": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+  "expectedCheckCount": 15,
+  "completedCheckCount": 15,
+  "cleanupPending": false,
+  "stopDefects": [],
+  "result": "complete-with-gaps",
+  "actorHashes": {
+    "alice": {
+      "idSha256": "ef5f392964923e2f55221513c16c29d3cd6e3f07ec96ad7769f2268e6309ceb2",
+      "emailSha256": "786da48d051e9a1356d72eaf64ff73b44ad783dc5abc1687108382f7b45a9052",
+      "authKind": "Instant native refresh-token principal"
+    },
+    "bob": {
+      "idSha256": "a7c8b16668a6d3d794b09276c8be7d554f223aa6778e4874eccddbb4ee73d2b0",
+      "emailSha256": "9d4fa8f9f248f564c3fbcea522ea3ed975b7425345ecf56ba72e897d7b64cc59",
+      "authKind": "Instant native refresh-token principal"
+    },
+    "mallory": {
+      "idSha256": "a74ae250b9b16e7fd86bc4d4fb3f7fc0fa3a3245d10bc4bb5c0eaab59a25b8b9",
+      "emailSha256": "92213d159a2edb1a36e49874081a28394d644caf55670086bd6966351e242fb8",
+      "authKind": "Instant native refresh-token principal"
+    }
+  },
+  "scenarioResults": [
+    {
+      "id": "PARTY-01-SEED",
+      "result": "PASS",
+      "summary": "Authoritative hosted query returned 20 events, 49 contended guests in 50 preallocated capacity slots, and three native users.",
+      "startedAt": "2026-07-29T07:02:13.043Z",
+      "finishedAt": "2026-07-29T07:02:13.439Z",
+      "evidence": {
+        "authoritativeCounts": {
+          "wallPosts": 0,
+          "reminderJobs": 0,
+          "$users": 3,
+          "profiles": 3,
+          "invitations": 49,
+          "events": 20,
+          "seatClaims": 50,
+          "notificationAttempts": 0,
+          "$files": 0
+        },
+        "authoritativeOccupiedSeatCount": 49,
+        "seedReceipt": "../receipts/seed-receipt.json"
+      }
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "result": "PASS",
+      "summary": "Guest-context query returned the public event without privateHostNote and filtered the private event entirely.",
+      "startedAt": "2026-07-29T07:02:13.439Z",
+      "finishedAt": "2026-07-29T07:02:13.752Z",
+      "evidence": {
+        "publicCount": 1,
+        "publicKeys": [
+          "capacity",
+          "cohostId",
+          "guestListVisible",
+          "host",
+          "hostId",
+          "id",
+          "public",
+          "slug",
+          "startsAt",
+          "title"
+        ],
+        "privateEventCount": 0,
+        "authority": "native Instant guest impersonation with deployed field/row rules"
+      }
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "result": "PASS",
+      "summary": "Bob’s native principal performed maybe/no/yes plus-one transitions and every state settled authoritatively.",
+      "startedAt": "2026-07-29T07:02:13.752Z",
+      "finishedAt": "2026-07-29T07:02:14.422Z",
+      "evidence": {
+        "invitationIdSha256": "eb7920e85183c1a68ee6dbfd7167d9382bc4473c8060b1d699081712f99549f0",
+        "observed": [
+          {
+            "response": "maybe",
+            "plusOne": 0
+          },
+          {
+            "response": "no",
+            "plusOne": 0
+          },
+          {
+            "response": "yes",
+            "plusOne": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "result": "PASS",
+      "summary": "Alice saw host-only data, Bob read as guest and wrote only as cohost, and Mallory’s private read/write attempts were denied.",
+      "startedAt": "2026-07-29T07:02:14.422Z",
+      "finishedAt": "2026-07-29T07:02:15.152Z",
+      "evidence": {
+        "hostPrivateField": true,
+        "guestPrivateField": false,
+        "guestWrite": {
+          "rejected": true,
+          "label": "guest host-control update",
+          "errorType": "permission-denied",
+          "errorMessage": "Permission denied: not perms-pass?"
+        },
+        "cohostWriteSettled": true,
+        "outsiderPrivateCount": 0,
+        "outsiderWrite": {
+          "rejected": true,
+          "label": "outsider host-control update",
+          "errorType": "permission-denied",
+          "errorMessage": "Permission denied: not perms-pass?"
+        }
+      }
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "result": "PASS",
+      "summary": "Bob’s existing native SSE subscription moved from 49 visible guests to zero after Alice atomically hid the event list and its invitation rows.",
+      "startedAt": "2026-07-29T07:02:15.152Z",
+      "finishedAt": "2026-07-29T07:02:16.102Z",
+      "evidence": {
+        "transport": "native Instant admin SDK SSE subscription",
+        "observations": [
+          {
+            "at": "2026-07-29T07:02:15.455Z",
+            "count": 49
+          },
+          {
+            "at": "2026-07-29T07:02:15.826Z",
+            "count": 0
+          }
+        ],
+        "remediation": "visibility dependency denormalized onto invitations; host updates event and 49 invitation policy fields in one atomic transaction",
+        "failedAttemptReceipts": [
+          "../receipts/acceptance-failure-1785307478546.json",
+          "../receipts/guest-list-revocation-diagnostic.json"
+        ]
+      }
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "result": "PASS",
+      "summary": "Two native actor transactions barrier-dispatched against one unique seat key; one authoritative row remained and total attendance was 50.",
+      "startedAt": "2026-07-29T07:02:16.102Z",
+      "finishedAt": "2026-07-29T07:02:16.418Z",
+      "evidence": {
+        "barrierReleasedAt": "2026-07-29T07:02:16.102Z",
+        "settlements": [
+          "fulfilled",
+          "fulfilled"
+        ],
+        "capacity": 50,
+        "authoritativeCount": 50,
+        "finalSeatRows": 1,
+        "winnerIdSha256": "a7c8b16668a6d3d794b09276c8be7d554f223aa6778e4874eccddbb4ee73d2b0",
+        "conflictMechanism": "unique indexed seatKey plus atomic lookup transaction; convergent whole-entity LWW on the same logical slot"
+      }
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "result": "PASS",
+      "summary": "Bob’s second native SSE client observed the 20-post wall burst and RSVP total transition from 49 to 50.",
+      "startedAt": "2026-07-29T07:02:16.418Z",
+      "finishedAt": "2026-07-29T07:02:17.916Z",
+      "evidence": {
+        "transport": "native Instant admin SDK SSE subscription; no polling",
+        "settled": {
+          "at": 4643.254375,
+          "posts": 20,
+          "attending": 50,
+          "latencyMs": 1017.4510830000004
+        },
+        "observationCount": 2,
+        "authoritativeCounts": {
+          "wallPosts": 20,
+          "seatClaims": 50
+        }
+      }
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "result": "GAP",
+      "summary": "Upload, authorized delivery, outsider denial, and metadata deletion passed; at least one signed delivery path remained usable after deletion, so complete deletion is not claimed.",
+      "startedAt": "2026-07-29T07:02:17.916Z",
+      "finishedAt": "2026-07-29T07:02:32.439Z",
+      "evidence": {
+        "fileIdSha256": "649a22f3ce110ca78c17558429eb0d45d69ec1696abab292572f908782ba7e19",
+        "pathSha256": "90a475ee8cb5fd982cbfcfb28446f10a0a2a71772183d2df62a51e106f6722b5",
+        "bytes": 262144,
+        "contentSha256": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+        "authorizedHttpStatus": 200,
+        "malloryRead": {
+          "rejected": true,
+          "label": "outsider protected file URL",
+          "errorType": "permission-denied",
+          "errorMessage": "Permission denied: not has-storage-permission?"
+        },
+        "postDeleteCount": 0,
+        "freshUrlAfterDelete": {
+          "kind": "error",
+          "errorType": "TypeError",
+          "errorMessage": "Failed to parse URL from null"
+        },
+        "freshLookupInvalidated": true,
+        "priorUrlInvalidated": false,
+        "retainedUrlStatuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "retainedCapabilityNote": "previously authorized signed URL remained a live bearer capability during the observation window",
+        "actorAuthority": "two independent @instantdb/core clients authenticated with native refresh tokens",
+        "discardedHarnessAttempt": "../receipts/acceptance-failure-1785308168142.json"
+      }
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "result": "GAP",
+      "summary": "InstantDB 1.0.52 exposes database, auth, storage, realtime, streams, and webhooks, but no first-party scheduled-job/cron authoring surface was present in the pinned SDK/CLI or official documentation.",
+      "startedAt": "2026-07-29T07:02:32.439Z",
+      "finishedAt": "2026-07-29T07:02:32.439Z",
+      "evidence": {
+        "claim": "not implemented and not simulated",
+        "inspectedSurfaces": [
+          "@instantdb/admin 1.0.52 exports",
+          "instant-cli 1.0.52 help",
+          "official docs index"
+        ],
+        "workaroundRejected": "A local timer would not be provider-hosted scheduled work."
+      }
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "result": "GAP",
+      "summary": "The native webhook manager rejected the deterministic HTTPS receiver during provisioning, so no external-effect retry pass is claimed.",
+      "startedAt": "2026-07-29T07:02:32.439Z",
+      "finishedAt": "2026-07-29T07:02:32.639Z",
+      "evidence": {
+        "errorType": "validation-failed",
+        "errorMessage": "Validation failed for webhook: Could not resolve URL.",
+        "failedReceiverAttempt": "https://postman-echo.com/post",
+        "priorFailedReceiverAttempt": "https://httpbin.org/status/204"
+      }
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "result": "GAP",
+      "summary": "The native webhook manager rejected the 20-second HTTPS fault receiver during provisioning, so no ambiguous-outcome pass is claimed.",
+      "startedAt": "2026-07-29T07:02:32.639Z",
+      "finishedAt": "2026-07-29T07:02:32.826Z",
+      "evidence": {
+        "errorType": "validation-failed",
+        "errorMessage": "Validation failed for webhook: Could not resolve URL.",
+        "failedReceiverAttempt": "https://postman-echo.com/delay/20"
+      }
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "result": "GAP",
+      "summary": "No revocation delivery was claimed because the deterministic HTTPS receiver could not be provisioned through the native webhook manager.",
+      "startedAt": "2026-07-29T07:02:32.826Z",
+      "finishedAt": "2026-07-29T07:02:32.908Z",
+      "evidence": {
+        "errorType": "validation-failed",
+        "errorMessage": "Validation failed for webhook: Could not resolve URL."
+      }
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "result": "GAP",
+      "summary": "The fresh hosted app, pushed schema/permissions, target identity, and native webhook history are inspectable; InstantDB has no pinned first-party hosted secret/function boundary for the requested notification code, so the complete deployment fact is not claimed.",
+      "startedAt": "2026-07-29T07:02:32.908Z",
+      "finishedAt": "2026-07-29T07:02:32.909Z",
+      "evidence": {
+        "targetIdSha256": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+        "configurationReceipts": [
+          "../receipts/target-provision-redacted.json",
+          "config-push receipts"
+        ],
+        "effectBoundary": null,
+        "logs": "native webhook delivery event/attempt history",
+        "secretBoundary": "GAP — admin token remained only in ignored local runtime state; no provider-hosted function secret was configured"
+      }
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "result": "PASS",
+      "summary": "All frozen contention, burst, 262,144-byte asset, realtime, and deploy paths retain two warmups and seven successful raw samples.",
+      "startedAt": "2026-07-29T06:32:56.448Z",
+      "finishedAt": "2026-07-29T07:09:11.284Z",
+      "evidence": {
+        "warmupsPerPath": 2,
+        "recordedSamplesPerPath": 7,
+        "paths": {
+          "contention-final-seat": {
+            "unit": "ms",
+            "count": 7,
+            "raw": [
+              342.947,
+              421.381,
+              399.61,
+              355.477,
+              346.998,
+              348.829,
+              414.379
+            ],
+            "median": 355.477,
+            "nearestRankP95": 421.381
+          },
+          "burst-20-wall-posts": {
+            "unit": "ms",
+            "count": 7,
+            "raw": [
+              532.696,
+              482.005,
+              412.996,
+              438.125,
+              545.582,
+              417.186,
+              546.95
+            ],
+            "median": 482.005,
+            "nearestRankP95": 546.95
+          },
+          "asset-262144-bytes": {
+            "unit": "ms",
+            "count": 7,
+            "raw": [
+              1185.949,
+              1117.606,
+              1087.05,
+              946.571,
+              1276.407,
+              1292.899,
+              1032.566
+            ],
+            "median": 1117.606,
+            "nearestRankP95": 1292.899
+          },
+          "realtime-delivery": {
+            "unit": "ms",
+            "count": 7,
+            "raw": [
+              567.119,
+              565.11,
+              741.281,
+              671.728,
+              636.489,
+              473.085,
+              569.623
+            ],
+            "median": 569.623,
+            "nearestRankP95": 741.281
+          },
+          "deploy-config-push": {
+            "unit": "ms",
+            "count": 7,
+            "raw": [
+              1339.029,
+              717.448,
+              683.275,
+              751.348,
+              679.816,
+              657.436,
+              660.485
+            ],
+            "median": 683.275,
+            "nearestRankP95": 1339.029
+          }
+        },
+        "costWindow": {
+          "startedAt": "2026-07-29T06:32:56.448Z",
+          "measuredProviderUsage": "Provider temporary-app dashboard usage telemetry was not exposed to this anonymous arm.",
+          "listPriceEstimate": "$0 for the documented temporary app during its >24-hour automatic lifecycle; no extrapolation is reported as measured.",
+          "extrapolationCountsAsMeasured": false
+        },
+        "receipt": "evidence/performance.json"
+      }
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "result": "PASS",
+      "summary": "All exact rows, files, users, webhooks, actor tokens, local credentials, browser state, and bound ports across three fresh temporary attempts were retired; empty app shells remain only for provider automatic expiry.",
+      "startedAt": "2026-07-29T07:09:11.284Z",
+      "finishedAt": "2026-07-29T07:09:17.160Z",
+      "evidence": {
+        "attempts": [
+          {
+            "attempt": 1,
+            "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+            "beforeCounts": {
+              "wallPosts": 0,
+              "reminderJobs": 0,
+              "$users": 3,
+              "profiles": 3,
+              "invitations": 49,
+              "events": 20,
+              "seatClaims": 49,
+              "notificationAttempts": 0,
+              "$files": 0,
+              "webhooks": 0
+            },
+            "afterCounts": {
+              "wallPosts": 0,
+              "reminderJobs": 0,
+              "$users": 0,
+              "profiles": 0,
+              "invitations": 0,
+              "events": 0,
+              "seatClaims": 0,
+              "notificationAttempts": 0,
+              "$files": 0,
+              "webhooks": 0
+            },
+            "actorTokensInvalidated": {
+              "alice": true,
+              "bob": true,
+              "mallory": true
+            }
+          },
+          {
+            "attempt": 2,
+            "targetIdSha256": "2deddab673473b6465d75a1111e135aa0599a228bf5df506d4f0b758572b2af5",
+            "beforeCounts": {
+              "wallPosts": 0,
+              "reminderJobs": 0,
+              "$users": 3,
+              "profiles": 3,
+              "invitations": 49,
+              "events": 20,
+              "seatClaims": 49,
+              "notificationAttempts": 0,
+              "$files": 0,
+              "webhooks": 0
+            },
+            "afterCounts": {
+              "wallPosts": 0,
+              "reminderJobs": 0,
+              "$users": 0,
+              "profiles": 0,
+              "invitations": 0,
+              "events": 0,
+              "seatClaims": 0,
+              "notificationAttempts": 0,
+              "$files": 0,
+              "webhooks": 0
+            },
+            "actorTokensInvalidated": {
+              "alice": true,
+              "bob": true,
+              "mallory": true
+            }
+          },
+          {
+            "attempt": 3,
+            "targetIdSha256": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+            "beforeCounts": {
+              "wallPosts": 0,
+              "reminderJobs": 0,
+              "$users": 3,
+              "profiles": 3,
+              "invitations": 49,
+              "events": 20,
+              "seatClaims": 50,
+              "notificationAttempts": 0,
+              "$files": 0,
+              "webhooks": 0
+            },
+            "afterCounts": {
+              "wallPosts": 0,
+              "reminderJobs": 0,
+              "$users": 0,
+              "profiles": 0,
+              "invitations": 0,
+              "events": 0,
+              "seatClaims": 0,
+              "notificationAttempts": 0,
+              "$files": 0,
+              "webhooks": 0
+            },
+            "actorTokensInvalidated": {
+              "alice": true,
+              "bob": true,
+              "mallory": true
+            }
+          }
+        ],
+        "localRuntimeCredentialsRemoved": true,
+        "unrelatedBaselinePreserved": true,
+        "providerShellLifecycle": "Each empty app shell is provider-scheduled for automatic deletion after more than 24 hours.",
+        "targetBoundPlan": "receipts/cleanup-plan.json",
+        "receipt": "receipts/cleanup-final.json"
+      }
+    }
+  ],
+  "cleanup": {
+    "schemaVersion": 1,
+    "startedAt": "2026-07-29T07:09:11.284Z",
+    "finishedAt": "2026-07-29T07:09:17.160Z",
+    "operation": "exact cleanup of three fresh hosted temporary Instant apps created by this arm",
+    "attempts": [
+      {
+        "attempt": 1,
+        "namespace": "llp0102-partiful-instantdb-w3",
+        "targetIdSha256": "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+        "beforeCounts": {
+          "wallPosts": 0,
+          "reminderJobs": 0,
+          "$users": 3,
+          "profiles": 3,
+          "invitations": 49,
+          "events": 20,
+          "seatClaims": 49,
+          "notificationAttempts": 0,
+          "$files": 0,
+          "webhooks": 0
+        },
+        "afterCounts": {
+          "wallPosts": 0,
+          "reminderJobs": 0,
+          "$users": 0,
+          "profiles": 0,
+          "invitations": 0,
+          "events": 0,
+          "seatClaims": 0,
+          "notificationAttempts": 0,
+          "$files": 0,
+          "webhooks": 0
+        },
+        "actorTokensInvalidated": {
+          "alice": true,
+          "bob": true,
+          "mallory": true
+        },
+        "exactTargetOnly": true,
+        "appShellStatus": "empty; provider automatic expiry pending (>24 hours)",
+        "residualConfigurationUntilProviderExpiry": [
+          "schema attributes and links",
+          "permission rules",
+          "opaque temporary app shell"
+        ]
+      },
+      {
+        "attempt": 2,
+        "namespace": "llp0102-partiful-instantdb-w3-a2",
+        "targetIdSha256": "2deddab673473b6465d75a1111e135aa0599a228bf5df506d4f0b758572b2af5",
+        "beforeCounts": {
+          "wallPosts": 0,
+          "reminderJobs": 0,
+          "$users": 3,
+          "profiles": 3,
+          "invitations": 49,
+          "events": 20,
+          "seatClaims": 49,
+          "notificationAttempts": 0,
+          "$files": 0,
+          "webhooks": 0
+        },
+        "afterCounts": {
+          "wallPosts": 0,
+          "reminderJobs": 0,
+          "$users": 0,
+          "profiles": 0,
+          "invitations": 0,
+          "events": 0,
+          "seatClaims": 0,
+          "notificationAttempts": 0,
+          "$files": 0,
+          "webhooks": 0
+        },
+        "actorTokensInvalidated": {
+          "alice": true,
+          "bob": true,
+          "mallory": true
+        },
+        "exactTargetOnly": true,
+        "appShellStatus": "empty; provider automatic expiry pending (>24 hours)",
+        "residualConfigurationUntilProviderExpiry": [
+          "schema attributes and links",
+          "permission rules",
+          "opaque temporary app shell"
+        ]
+      },
+      {
+        "attempt": 3,
+        "namespace": "llp0102-partiful-instantdb-w3-a3",
+        "targetIdSha256": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+        "beforeCounts": {
+          "wallPosts": 0,
+          "reminderJobs": 0,
+          "$users": 3,
+          "profiles": 3,
+          "invitations": 49,
+          "events": 20,
+          "seatClaims": 50,
+          "notificationAttempts": 0,
+          "$files": 0,
+          "webhooks": 0
+        },
+        "afterCounts": {
+          "wallPosts": 0,
+          "reminderJobs": 0,
+          "$users": 0,
+          "profiles": 0,
+          "invitations": 0,
+          "events": 0,
+          "seatClaims": 0,
+          "notificationAttempts": 0,
+          "$files": 0,
+          "webhooks": 0
+        },
+        "actorTokensInvalidated": {
+          "alice": true,
+          "bob": true,
+          "mallory": true
+        },
+        "exactTargetOnly": true,
+        "appShellStatus": "empty; provider automatic expiry pending (>24 hours)",
+        "residualConfigurationUntilProviderExpiry": [
+          "schema attributes and links",
+          "permission rules",
+          "opaque temporary app shell"
+        ]
+      }
+    ],
+    "unrelatedBaselinePreserved": true,
+    "unrelatedBaselineProof": "fresh opaque targets only; no shared target/account resource selected or mutated",
+    "localRuntimeCredentialsRemoved": true,
+    "exactProcessPorts": {
+      "vite4337": "stopped before cleanup",
+      "browserDebug9337": "stopped before cleanup"
+    },
+    "temporaryAppLifecycle": "Each empty app shell is provider-scheduled for automatic deletion after more than 24 hours.",
+    "residualGap": "App-scoped admin tokens cannot immediately delete the temporary app shell or remove its schema/permission configuration.",
+    "secretScan": {
+      "retainedArtifactCount": 69,
+      "adminTokenMatches": 0
+    }
+  },
+  "failedAttemptReceiptPaths": [
+    "receipts/acceptance-failure-1785307478546.json",
+    "receipts/acceptance-failure-1785307947076.json",
+    "receipts/acceptance-failure-1785308063698.json",
+    "receipts/acceptance-failure-1785308111922.json",
+    "receipts/acceptance-failure-1785308168142.json",
+    "receipts/acceptance-failure-1785308311054.json",
+    "receipts/acceptance-failure-1785308367624.json",
+    "receipts/acceptance-failure-1785308404835.json",
+    "receipts/acceptance-failure-1785308454775.json",
+    "receipts/acceptance-failure-1785308498201.json",
+    "receipts/seed-attempt-1-failure.json"
+  ],
+  "adjudicatedNonStop": {
+    "scenario": "PARTY-05-GUEST-LIST",
+    "classification": "stream-only-invalidation",
+    "coordinatorDecision": "not Stop-class because fresh false-state reads returned zero and no later protected payload arrived",
+    "retainedReceipts": [
+      "receipts/acceptance-failure-1785307478546.json",
+      "receipts/guest-list-revocation-diagnostic.json"
+    ]
+  }
+}

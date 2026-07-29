@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "provider": "supabase",
+  "app": "research-room",
+  "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "coordinatorBaseCommit": "ef7db00e250e401867c4486380969c7638c8fd32",
+  "files": {
+    "application": {"count":3,"lines":42,"bytes":1836},
+    "acceptanceAndPerformance": {"count":2,"lines":435,"bytes":27165},
+    "migrationAndEdgeFunction": {"count":2,"lines":265,"bytes":13677},
+    "configuration": {"count":4,"lines":446,"bytes":16384},
+    "dependencyLock": {"count":1,"bytes":41605},
+    "evidenceAtInventory": {"count":40,"bytes":100870}
+  },
+  "dependencies": {
+    "installedBytes": 51826688,
+    "production": 30,
+    "development": 1,
+    "totalIncludingOptional": 82,
+    "audit": {"info":0,"low":0,"moderate":0,"high":1,"critical":0},
+    "auditNote": "Pinned Vite 7.1.7 has one high aggregate audit finding; retained rather than silently force-upgraded."
+  },
+  "artifact": {"viteDistBytes":12288},
+  "nativeSurfaces": [
+    "Supabase Auth",
+    "PostgreSQL RLS",
+    "Storage private bucket and storage.objects policies",
+    "PostgreSQL generated tsvector and GIN",
+    "pgvector vector(32) and HNSW",
+    "PostgREST RPC",
+    "Realtime private Broadcast with database trigger",
+    "Edge Runtime function",
+    "pg_cron"
+  ],
+  "glueAndWorkarounds": [
+    "Docker-facing /Users mirror because Colima cannot bind /private/tmp",
+    "explicit realtime.setAuth after sign-in",
+    "database-triggered private Broadcast",
+    "exact actor cleanup before deterministic reseed"
+  ]
+}

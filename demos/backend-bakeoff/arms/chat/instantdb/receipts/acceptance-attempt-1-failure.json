@@ -1,0 +1,10 @@
+{
+  "attempt": 1,
+  "result": "failed",
+  "phase": "CHAT-03-SEND",
+  "targetIdSha256": "bd9cb37a6ca3afcc35b536e3e453e30cc5dd83cf5eff009d980bd7d1cb9414f3",
+  "failureClass": "permission-rule-evaluation",
+  "summary": "InstantDB rejected messages.create because newData.ref does not exist in its permission language. No outsider disclosure was observed.",
+  "remediation": "Use data and data.ref for create-time checks, reset the exact disposable target, then rerun from a fresh target.",
+  "stopClass": false
+}

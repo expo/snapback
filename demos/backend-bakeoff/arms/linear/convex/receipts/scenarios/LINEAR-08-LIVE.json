@@ -1,0 +1,16 @@
+{
+  "id": "LINEAR-08-LIVE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:51:40.413Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "push",
+  "evidence": {
+    "secondClient": "bob",
+    "commentIdHash": "ec667efc11c0ae53b3ed1c8d36bd0fbc70c86add35fce857b57da16384334823",
+    "deliveryMs": 5.563,
+    "comments": 3,
+    "activity": 4,
+    "transport": "Convex reactive WebSocket subscription"
+  },
+  "note": "Bob received comment and activity through a native reactive query, with no polling."
+}

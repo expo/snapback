@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T02:31:38.860Z",
+  "projectId": "llp0102-chat-supabase-w3",
+  "selectedBy": "exact project-id substring and explicit port list",
+  "cliStopExitStatus": 0,
+  "containers": [],
+  "volumes": [],
+  "networks": [],
+  "portsListening": {
+    "4289": false,
+    "55421": false,
+    "55422": false,
+    "55423": false,
+    "55424": false,
+    "55425": false,
+    "55426": false,
+    "55427": false,
+    "55428": false,
+    "55429": false,
+    "55430": false
+  },
+  "exactProjectAbsent": true,
+  "allPortsClosed": true,
+  "unrelatedResourcesSelected": 0,
+  "runtimeState": {
+    "hostRuntimeMirrorAbsent": true,
+    "isolatedHomeAndXdgAbsent": true,
+    "colimaVmBindSourceAbsent": true,
+    "hostRemoval": "moved to macOS Trash; recoverable until Trash is emptied",
+    "vmRemoval": "exact isolated /private/tmp/llp0102-chat-supabase tree deleted"
+  }
+}

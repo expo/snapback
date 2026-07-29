@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-28T20:21:00Z",
+  "targetMode": "fresh-local",
+  "targetIdentityHash": "8a52ecbc24132f5197aa953ec3caa84149ca50f8ba46067086778e8ab6c9ee79",
+  "namespace": "llp0102-todo-convex-calibration-todo-convex-calibration-01",
+  "scope": {
+    "runtimeDirectories": [
+      "arms/todo/convex/work/.convex",
+      "arms/todo/convex/runtime"
+    ],
+    "listenerPorts": [3210, 3211, 4179],
+    "credentialFiles": [
+      "arms/todo/convex/work/.arm-secrets.json",
+      "arms/todo/convex/work/.env.local"
+    ]
+  },
+  "steps": [
+    "Resolve each listener and verify its process command or parent command belongs to this exact arm.",
+    "Terminate only the exact arm-owned Convex dev and Vite process trees.",
+    "Remove the exact .convex local deployment, disposable browser profiles, and ignored local credential files.",
+    "Probe all three ports and all four paths for absence."
+  ],
+  "recovery": "The local deployment bytes and browser profiles are not recoverable after cleanup. Source, deterministic seed, and generated evidence remain.",
+  "containsSecretValues": false
+}

@@ -1,7 +1,7 @@
 // One finite, portable value grammar for client-side cache and React store
 // identity.
 //
-// @ref LLP 0102#exact-identity-bytes-and-limits — identity is the RFC 8785
+// @ref LLP 0114#exact-identity-bytes-and-limits — identity is the RFC 8785
 // admitted JSON subset with fixed structural and byte ceilings.
 
 export const CANONICAL_CLIENT_VALUE_V1_LIMITS = Object.freeze({

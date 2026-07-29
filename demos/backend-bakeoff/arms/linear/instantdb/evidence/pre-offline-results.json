@@ -1,0 +1,214 @@
+{
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "actorHashes": {
+    "alice": {
+      "idSha256": "174a8b2bb0c15e581d318b8665f2da5d62cc94080bedd1097d2eae26ac1c623f",
+      "authKind": "InstantDB native guest auth"
+    },
+    "bob": {
+      "idSha256": "d5d16f072c3453866f20b8a5280e48007fb52ea5159a3e5d28fd380b3ca82a57",
+      "authKind": "InstantDB native guest auth"
+    },
+    "mallory": {
+      "idSha256": "f98cd1b8bc4d9fdee21ce85ee4ed5d07f2d3f544836cb7241a80e61ee116a573",
+      "authKind": "InstantDB native guest auth"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "LINEAR-01-SEED",
+      "result": "PASS",
+      "summary": "Exact production-shaped dataset and personas exist.",
+      "evidence": {
+        "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+        "authoritativeCounts": {
+          "organizations": 2,
+          "memberships": 3,
+          "teams": 3,
+          "projects": 4,
+          "labels": 20,
+          "issues": 500,
+          "comments": 1000,
+          "activities": 500
+        },
+        "receipt": "../receipts/seed-receipt.json"
+      }
+    },
+    {
+      "id": "LINEAR-02-AUTHORITY",
+      "result": "PASS",
+      "summary": "Owner, member, and outsider have distinct allowed views and writes.",
+      "evidence": {
+        "organizationViews": {
+          "alice": 2,
+          "bob": 1,
+          "mallory": 0
+        },
+        "positiveWrites": [
+          "alice-owner",
+          "bob-member"
+        ],
+        "negativeRead": {
+          "denied": false,
+          "empty": true,
+          "errorClass": null
+        },
+        "negativeWriteDenied": true
+      }
+    },
+    {
+      "id": "LINEAR-03-FILTERS",
+      "result": "PASS",
+      "summary": "Indexed native filters matched authoritative expected sets.",
+      "evidence": {
+        "filters": {
+          "status": {
+            "count": 125,
+            "resultSetSha256": "04bd58f900cea502e7fb026586ac09a86d4ad39a55897acac3af8f779a5a54f1"
+          },
+          "assignee": {
+            "count": 250,
+            "resultSetSha256": "425466e81376c75c86c1f919908326d9e55be96adf903e35556bd56ff1fda1dc"
+          },
+          "project": {
+            "count": 125,
+            "resultSetSha256": "a3946bab2849879388f3b288dbd575608c806dfb71370d87fed12e4b9c32c697"
+          },
+          "label": {
+            "count": 50,
+            "resultSetSha256": "4fc851e35191ea00397968f9a06f0dd037d46a60d10b39e8b68aa8114205e14c"
+          }
+        },
+        "indexProof": "instant.schema.base.ts indexed status, assigneeId, projectId; relation predicate uses indexed label id",
+        "transport": "native InstaQL backend where predicates; no client filtering"
+      }
+    },
+    {
+      "id": "LINEAR-04-PAGINATION",
+      "result": "PASS",
+      "summary": "Stable 50-row cursor pagination remained nonduplicating under insert.",
+      "evidence": {
+        "cursorValues": {
+          "page1EndSha256": "730f1ce6cd8918aeaf2af2cda60a32451ba2c608ce525ae4a3eb51738ac3f71f",
+          "page2EndSha256": "7d3b18a493231cd2af1fc8b710b78660a83ed258c16e1c8755323aec4e211904"
+        },
+        "pageSizes": [
+          50,
+          50
+        ],
+        "overlapCount": 0,
+        "concurrentNewerRowOnPage2": false,
+        "authoritativeOrder": "unique indexed createdOrder desc"
+      }
+    },
+    {
+      "id": "LINEAR-05-DETAIL",
+      "result": "PASS",
+      "summary": "One bounded native query composed all required issue detail.",
+      "evidence": {
+        "relatedIdHashes": {
+          "project": [
+            "53b699790781bce26c7e7a95a10ebec00c8423823ada6010d06079f93566d37b"
+          ],
+          "assignee": [
+            "d5d16f072c3453866f20b8a5280e48007fb52ea5159a3e5d28fd380b3ca82a57"
+          ],
+          "labels": [
+            "35dba6ef5f00f5f64be8ed766f2687dbb82e504bf3d10cc8757a11f79da8d6f3",
+            "4bd389c8a79db24a1df5abb276b58650cc34bb0d8e2b1d07c82418a89a3fb5fc"
+          ],
+          "comments": [
+            "086dbae86491ae4d73c69ea970ce4243927049540b87be8f7bb885a28654e987",
+            "8d7d6cd80ec7b0efeeb2db857d7b7549aa932cf72267d015d45c9a89d8dde704"
+          ],
+          "activities": [
+            "5dbefdebd63490b8c0b8f82b11443018756cb8a2c4ccb3a0d619b2f536a806b0"
+          ]
+        },
+        "boundedQueryInventory": {
+          "topLevel": "issues where id equals one exact id",
+          "nestedRelations": [
+            "project",
+            "assignee",
+            "labels",
+            "comments",
+            "activities"
+          ],
+          "returnedCounts": {
+            "issues": 1,
+            "project": 1,
+            "assignee": 1,
+            "labels": 2,
+            "comments": 2,
+            "activities": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "LINEAR-06-OPTIMISTIC",
+      "result": "PASS",
+      "summary": "Four optimistic fields reconciled to authority.",
+      "evidence": {
+        "optimisticStateAttribution": {
+          "source": "InstantDB subscribeQuery local materialization",
+          "observedBeforeTransactPromiseSettlement": true
+        },
+        "settlement": "synced",
+        "authoritativeState": {
+          "status": "done",
+          "priority": "urgent",
+          "assigneeIdSha256": "d5d16f072c3453866f20b8a5280e48007fb52ea5159a3e5d28fd380b3ca82a57",
+          "boardPosition": 77
+        }
+      }
+    },
+    {
+      "id": "LINEAR-07-CONFLICT",
+      "result": "PASS",
+      "summary": "Concurrent whole-record updates converged under InstantDB last-write-wins.",
+      "evidence": {
+        "twoActorBarrier": "Promise.all dispatched Alice and Bob native transactions",
+        "documentedPolicy": "InstantDB last-write-wins; moveNonce identifies the authoritative whole-record winner",
+        "winner": "alice",
+        "authoritativeOutcome": {
+          "boardPosition": 301,
+          "priority": "high",
+          "moveNonceSha256": "5dc82d8596719c8fb6bc1327c081233fbc4337ec080176240d2275ac0056828f"
+        },
+        "clientReconciliation": {
+          "alice": true,
+          "bob": true
+        }
+      }
+    },
+    {
+      "id": "LINEAR-08-LIVE",
+      "result": "PASS",
+      "summary": "Comment and activity reached Bob through native realtime.",
+      "evidence": {
+        "secondClient": "Bob distinct native guest client",
+        "transportAttribution": "InstantDB WebSocket query subscription",
+        "productPolling": false,
+        "authority": {
+          "comments": 1,
+          "activities": 1
+        }
+      }
+    },
+    {
+      "id": "LINEAR-09-SEARCH",
+      "result": "GAP",
+      "summary": "InstantDB exposes indexed comparison/pattern queries but no ordinary native full-text issue-search facility.",
+      "evidence": {
+        "nonclaim": true,
+        "clientSideSearchUsed": false,
+        "indexedTitleAvailable": true,
+        "providerOrdinaryPath": "No documented full-text index/query path in pinned SDK/CLI; $like/$ilike pattern matching was not relabeled full text.",
+        "authoritativeResults": null
+      }
+    }
+  ],
+  "offlinePending": true,
+  "capturedAt": "2026-07-29T04:59:02.614Z"
+}

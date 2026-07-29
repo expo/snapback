@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T08:34:19.866Z",
+  "authoredSource": {
+    "files": 13,
+    "bytes": 99379,
+    "paths": [
+      "functions/index.js",
+      "scripts/acceptance.mjs",
+      "scripts/cleanup.mjs",
+      "scripts/finalize.mjs",
+      "scripts/inventory.mjs",
+      "scripts/performance.mjs",
+      "scripts/start-emulators.mjs",
+      "scripts/verify-artifacts.mjs",
+      "src/App.tsx",
+      "src/firebase.ts",
+      "src/main.tsx",
+      "src/styles.css",
+      "src/vite-env.d.ts"
+    ]
+  },
+  "generated": {
+    "files": 4,
+    "bytes": 793232,
+    "paths": [
+      "dist/assets/index-B6FD6h_P.css",
+      "dist/assets/index-C47h4I3w.js",
+      "dist/external-source.json",
+      "dist/index.html"
+    ]
+  },
+  "tests": {
+    "files": 7,
+    "bytes": 70573,
+    "paths": [
+      "scripts/acceptance.mjs",
+      "scripts/cleanup.mjs",
+      "scripts/finalize.mjs",
+      "scripts/inventory.mjs",
+      "scripts/performance.mjs",
+      "scripts/start-emulators.mjs",
+      "scripts/verify-artifacts.mjs"
+    ]
+  },
+  "configuration": {
+    "files": 8,
+    "bytes": 316051,
+    "paths": [
+      ".firebaserc",
+      "firebase.json",
+      "functions/package-lock.json",
+      "functions/package.json",
+      "package-lock.json",
+      "package.json",
+      "tsconfig.json",
+      "vite.config.ts"
+    ]
+  },
+  "policy": {
+    "files": 3,
+    "bytes": 3495,
+    "paths": [
+      "firestore.indexes.json",
+      "firestore.rules",
+      "storage.rules"
+    ]
+  },
+  "dependencyManifests": {
+    "files": 4,
+    "bytes": 314055,
+    "paths": [
+      "functions/package-lock.json",
+      "functions/package.json",
+      "package-lock.json",
+      "package.json"
+    ]
+  },
+  "installedDependencyBytes": 337191308,
+  "setupBytes": 419667,
+  "glue": [
+    "Firebase emulator launcher with worktree-local XDG, Java, and secret state",
+    "provider-native Auth/Firestore/Functions/Storage acceptance harness",
+    "scheduled-function emulator trigger adapter",
+    "exact target cleanup and capsule finalization scripts"
+  ]
+}

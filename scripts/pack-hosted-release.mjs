@@ -36,7 +36,7 @@ import {
   RUNTIME_BASE,
   canonicalJson,
   createHostedReleaseManifest,
-} from '../demos/backend-bakeoff/hosted-release/release-manifest.mjs';
+} from '../demos/signal-desk/hosted-release/release-manifest.mjs';
 
 const REQUIRED_ARGUMENTS = [
   'staging-root',

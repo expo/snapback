@@ -1,0 +1,17 @@
+{
+  "id": "CHAT-12-LOGOUT",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:15.189Z",
+  "logoutBarrier": "ConvexReactClient.clearAuth plus denied fresh query completed before authoritative send",
+  "logoutMethod": "ConvexReactClient.clearAuth()",
+  "freshQueryBarrier": {
+    "denied": true,
+    "errorClass": "UNAUTHENTICATED"
+  },
+  "watchErrorClass": "UNAUTHENTICATED",
+  "sentBody": "after-clear-auth-1785291254678",
+  "deliveredAfterLogout": false,
+  "alreadyConnectedClient": true,
+  "diagnosticReceipt": "receipts/logout-diagnosis-delivery.json",
+  "rawReceiptLabelErratum": "The retained diagnostic receipt says ConvexClient.clearAuth; executed source used ConvexReactClient.clearAuth."
+}

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T23:20:09.964Z",
+  "ok": true,
+  "outsider": {
+    "taskCount": 0,
+    "nativeWebSocketObserved": true
+  },
+  "crud": {
+    "createObservedBySecondClient": true,
+    "editObservedBySecondClient": true,
+    "completeObservedBySecondClient": true,
+    "reopenObservedBySecondClient": true,
+    "reorderObservedBySecondClient": true,
+    "deleteObservedBySecondClient": true,
+    "authorityCheckedAfterEveryTransition": true
+  },
+  "realtime": {
+    "transport": "Appwrite Realtime WebSocket over permission-filtered TablesDB row channels",
+    "nativeWebSocketObserved": true,
+    "secondClientPush": true
+  },
+  "conflict": {
+    "policy": "transaction commit uses Appwrite optimistic conflict detection; one or both commits may serialize, and clients converge on authority",
+    "converged": true,
+    "winningActorClass": "alice",
+    "authoritativeRevision": 2,
+    "revisionDelta": 1,
+    "conflictErrorVisible": true
+  },
+  "concurrentOrder": {
+    "validUniquePermutation": true,
+    "taskOrderLength": 25,
+    "uniqueTaskIds": 25,
+    "policy": "whole-array transactional update with optimistic commit conflict detection"
+  },
+  "revocation": {
+    "beforeTaskCount": 100,
+    "clearedAfterMembershipEvent": false,
+    "taskCountBeforeExplicitReload": 100,
+    "futureWriteDelivered": false,
+    "freshQueryDenied": true,
+    "regrantRestoredQueryAfterReload": true
+  },
+  "logout": {
+    "protectedUiRemoved": true,
+    "futureWriteDelivered": false,
+    "retainedStoreInventoryBefore": {
+      "indexedDbDatabaseCount": 0,
+      "indexedDbNameHashes": [],
+      "localStorageKeyHashes": [
+        "86c04bf33984d7edfebbfd74b22dc9d6220bce354cb17683c32031f8ef3c483c"
+      ]
+    },
+    "retainedStoreInventoryAfter": {
+      "indexedDbDatabaseCount": 0,
+      "indexedDbNameHashes": [],
+      "localStorageKeyHashes": [
+        "86c04bf33984d7edfebbfd74b22dc9d6220bce354cb17683c32031f8ef3c483c"
+      ]
+    },
+    "protectedValuesInspected": false,
+    "contract": "Appwrite Web SDK persisted the native Auth session in localStorage; deleteSession(current), Realtime.disconnect(), and React unmount removed protected UI and the SDK session key."
+  },
+  "authoritativeFinal": {
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "orderValid": true
+  },
+  "containsSecretValues": false
+}

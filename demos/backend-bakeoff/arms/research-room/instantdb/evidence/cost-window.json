@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "beganAt": "2026-07-29T10:35:27.074Z",
+  "providerPlan": "temporary managed app; provider-selected limits",
+  "actualProviderUsage": "not exposed at arm granularity",
+  "listPriceEstimate": "$0 for the temporary application lifecycle under provider-selected temporary-app policy",
+  "extrapolationCountsAsMeasured": false,
+  "containsCredentialValues": false
+}

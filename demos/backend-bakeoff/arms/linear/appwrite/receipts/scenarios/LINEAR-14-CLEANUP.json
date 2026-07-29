@@ -1,0 +1,20 @@
+{
+  "id": "LINEAR-14-CLEANUP",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:02:35.357Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "port8091Closed": true,
+    "port20081Closed": true,
+    "port4324Closed": true,
+    "port8491Closed": true,
+    "matchingContainersRestored": true,
+    "matchingVolumesRestored": true,
+    "matchingNetworksRestored": true,
+    "absent:.arm-runtime": true,
+    "absent:.cli-home": true,
+    "absent:.browser-runtime": true
+  },
+  "note": "Exact-project cleanup removed the arm-labeled stack, volumes, networks, installer, Vite listener, and runtime directories; all assigned ports and exact resource probes were negative."
+}

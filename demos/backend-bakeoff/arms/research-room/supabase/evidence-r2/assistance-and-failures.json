@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "provider": "supabase",
+  "app": "research-room",
+  "extension": true,
+  "assistanceEvents": [
+    {
+      "type": "community-provider-issue-inspection",
+      "timing": "after first local stack failure",
+      "sources": [
+        "https://github.com/orgs/supabase/discussions/30612",
+        "https://github.com/supabase/cli/issues/3632",
+        "https://github.com/supabase/cli/issues/3388"
+      ],
+      "informationUsed": "Compared pgsodium invalid-key/aarch64 startup symptoms. The eventual root cause was independently established as Colima not mounting macOS /private/tmp."
+    },
+    {
+      "type": "human-coordinator-adjudication",
+      "timing": "after Stop-class diagnostic exposure",
+      "informationUsed": "Classify as a builder evidence-redaction failure, contain the disposable target, preserve the frozen window, and run a fresh r2 untimed remediation extension."
+    }
+  ],
+  "failures": [
+    {"class":"builder","attempt":"initial timestamp","detail":"macOS date did not support the requested fractional format; seconds-resolution timestamp retained."},
+    {"class":"environment","attempt":"first local start","detail":"Colima could not mount the /private/tmp Git worktree. Docker treated pgsodium_root.key as a directory and Postgres failed health checks."},
+    {"class":"builder","attempt":"first wrapper","detail":"The zsh wrapper assigned to readonly variable status after the provider command failed."},
+    {"class":"builder-isolation","attempt":"diagnostic retry","detail":"A one-level-too-deep CLI workdir briefly used collision-prone default Compose identity supabase; preflight proved no owner and it was immediately retired."},
+    {"class":"environment","attempt":"manual bind repair","detail":"Correcting the key's type exposed permission and additional Kong certificate/Edge entrypoint binds. Replaced with a disposable Docker-facing mirror under /Users."},
+    {"class":"authoring","attempt":"first migration acceptance","detail":"Explicit table grants were missing; added authenticated/service-role grants while retaining RLS."},
+    {"class":"provider-local-runtime","attempt":"Postgres Changes","detail":"A UUID server filter was rejected, and CDC readiness was inconsistent after db reset. Explicit Realtime auth fixed the privilege cause; the app adopted Supabase's recommended private Broadcast path."},
+    {"class":"authoring","attempt":"Edge Function","detail":"The running Edge manifest predated the function file. An exact scoped restart with backup reloaded it and preserved data."},
+    {"class":"stop-builder-evidence-handling","attempt":"scoped restart diagnostics","detail":"The CLI emitted generated local credentials as one-line JSON and a builder redaction expression failed. Original target contained and retired; see the incident receipt."},
+    {"class":"harness","attempt":"r2 secret denial","detail":"A permission-denied response was initially treated as a leak instead of successful denial; assertion corrected."},
+    {"class":"harness","attempt":"r2 reseed","detail":"Auth principals survived a db reset; deterministic setup now removes only the three exact actor emails before recreating them."}
+  ]
+}

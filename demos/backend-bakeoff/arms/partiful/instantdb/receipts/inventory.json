@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T07:07:40.982Z",
+  "providerVersions": {
+    "product": "InstantDB hosted temporary app",
+    "client": "1.0.52",
+    "core": "1.0.52",
+    "admin": "1.0.52",
+    "cli": "1.0.52"
+  },
+  "authoredFiles": [
+    {
+      "path": ".env.local",
+      "bytes": 57,
+      "lines": 2
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 46,
+      "lines": 6
+    },
+    {
+      "path": "index.html",
+      "bytes": 315,
+      "lines": 13
+    },
+    {
+      "path": "instant.perms.ts",
+      "bytes": 3819,
+      "lines": 101
+    },
+    {
+      "path": "instant.schema.ts",
+      "bytes": 3460,
+      "lines": 107
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 127110,
+      "lines": 3756
+    },
+    {
+      "path": "package.json",
+      "bytes": 1060,
+      "lines": 36
+    },
+    {
+      "path": "scripts/acceptance.mjs",
+      "bytes": 30913,
+      "lines": 749
+    },
+    {
+      "path": "scripts/cleanup-stale-asset.mjs",
+      "bytes": 402,
+      "lines": 10
+    },
+    {
+      "path": "scripts/diagnose-guest-list-revocation.mjs",
+      "bytes": 5950,
+      "lines": 206
+    },
+    {
+      "path": "scripts/inventory.mjs",
+      "bytes": 4376,
+      "lines": 109
+    },
+    {
+      "path": "scripts/lib.mjs",
+      "bytes": 3049,
+      "lines": 97
+    },
+    {
+      "path": "scripts/performance.mjs",
+      "bytes": 8617,
+      "lines": 229
+    },
+    {
+      "path": "scripts/prepare-ui.mjs",
+      "bytes": 331,
+      "lines": 10
+    },
+    {
+      "path": "scripts/provision-target.mjs",
+      "bytes": 3891,
+      "lines": 109
+    },
+    {
+      "path": "scripts/push-config.mjs",
+      "bytes": 1606,
+      "lines": 46
+    },
+    {
+      "path": "scripts/reset-fixture.mjs",
+      "bytes": 1489,
+      "lines": 50
+    },
+    {
+      "path": "scripts/rotate-attempt.mjs",
+      "bytes": 897,
+      "lines": 16
+    },
+    {
+      "path": "scripts/rotate-attempt2.mjs",
+      "bytes": 897,
+      "lines": 16
+    },
+    {
+      "path": "scripts/seed.mjs",
+      "bytes": 4790,
+      "lines": 158
+    },
+    {
+      "path": "src/App.tsx",
+      "bytes": 3452,
+      "lines": 99
+    },
+    {
+      "path": "src/db.ts",
+      "bytes": 289,
+      "lines": 14
+    },
+    {
+      "path": "src/main.tsx",
+      "bytes": 233,
+      "lines": 12
+    },
+    {
+      "path": "src/styles.css",
+      "bytes": 3343,
+      "lines": 78
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "bytes": 39,
+      "lines": 3
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 549,
+      "lines": 23
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "bytes": 119,
+      "lines": 1
+    },
+    {
+      "path": "vite.config.ts",
+      "bytes": 215,
+      "lines": 13
+    }
+  ],
+  "authoredTotals": {
+    "files": 28,
+    "bytes": 211314,
+    "lines": 6069
+  },
+  "categories": {
+    "uiSource": [
+      {
+        "path": "src/App.tsx",
+        "bytes": 3452,
+        "lines": 99
+      },
+      {
+        "path": "src/db.ts",
+        "bytes": 289,
+        "lines": 14
+      },
+      {
+        "path": "src/main.tsx",
+        "bytes": 233,
+        "lines": 12
+      },
+      {
+        "path": "src/styles.css",
+        "bytes": 3343,
+        "lines": 78
+      },
+      {
+        "path": "src/vite-env.d.ts",
+        "bytes": 39,
+        "lines": 3
+      }
+    ],
+    "schemaAndPolicy": [
+      {
+        "path": "instant.perms.ts",
+        "bytes": 3819,
+        "lines": 101
+      },
+      {
+        "path": "instant.schema.ts",
+        "bytes": 3460,
+        "lines": 107
+      }
+    ],
+    "harnessAndOperations": [
+      {
+        "path": "scripts/acceptance.mjs",
+        "bytes": 30913,
+        "lines": 749
+      },
+      {
+        "path": "scripts/cleanup-stale-asset.mjs",
+        "bytes": 402,
+        "lines": 10
+      },
+      {
+        "path": "scripts/diagnose-guest-list-revocation.mjs",
+        "bytes": 5950,
+        "lines": 206
+      },
+      {
+        "path": "scripts/inventory.mjs",
+        "bytes": 4376,
+        "lines": 109
+      },
+      {
+        "path": "scripts/lib.mjs",
+        "bytes": 3049,
+        "lines": 97
+      },
+      {
+        "path": "scripts/performance.mjs",
+        "bytes": 8617,
+        "lines": 229
+      },
+      {
+        "path": "scripts/prepare-ui.mjs",
+        "bytes": 331,
+        "lines": 10
+      },
+      {
+        "path": "scripts/provision-target.mjs",
+        "bytes": 3891,
+        "lines": 109
+      },
+      {
+        "path": "scripts/push-config.mjs",
+        "bytes": 1606,
+        "lines": 46
+      },
+      {
+        "path": "scripts/reset-fixture.mjs",
+        "bytes": 1489,
+        "lines": 50
+      },
+      {
+        "path": "scripts/rotate-attempt.mjs",
+        "bytes": 897,
+        "lines": 16
+      },
+      {
+        "path": "scripts/rotate-attempt2.mjs",
+        "bytes": 897,
+        "lines": 16
+      },
+      {
+        "path": "scripts/seed.mjs",
+        "bytes": 4790,
+        "lines": 158
+      }
+    ],
+    "configurationAndManifests": [
+      {
+        "path": "index.html",
+        "bytes": 315,
+        "lines": 13
+      },
+      {
+        "path": "package-lock.json",
+        "bytes": 127110,
+        "lines": 3756
+      },
+      {
+        "path": "package.json",
+        "bytes": 1060,
+        "lines": 36
+      },
+      {
+        "path": "tsconfig.json",
+        "bytes": 549,
+        "lines": 23
+      },
+      {
+        "path": "vite.config.ts",
+        "bytes": 215,
+        "lines": 13
+      }
+    ]
+  },
+  "dependencies": {
+    "directProduction": 5,
+    "directDevelopment": 7,
+    "lockPackages": 251,
+    "installedDependencyBytes": 191758336
+  },
+  "productionBuildBytes": 364544,
+  "receiptsAtCapture": [
+    "acceptance-failure-1785307478546.json",
+    "acceptance-failure-1785307947076.json",
+    "acceptance-failure-1785308063698.json",
+    "acceptance-failure-1785308111922.json",
+    "acceptance-failure-1785308168142.json",
+    "acceptance-failure-1785308311054.json",
+    "acceptance-failure-1785308367624.json",
+    "acceptance-failure-1785308404835.json",
+    "acceptance-failure-1785308454775.json",
+    "acceptance-failure-1785308498201.json",
+    "config-push-1785306979935.json",
+    "config-push-1785307105509.json",
+    "config-push-1785307917301.json",
+    "config-push-1785308056996.json",
+    "config-push-1785308163110.json",
+    "fixture-reset-1785307111051.json",
+    "guest-list-revocation-diagnostic.json",
+    "npm-audit.json",
+    "preflight-attempt1.json",
+    "preflight-attempt2.json",
+    "preflight.json",
+    "seed-attempt-1-failure.json",
+    "seed-receipt-attempt1.json",
+    "seed-receipt-attempt2.json",
+    "seed-receipt.json",
+    "target-provision-attempt1-redacted.json",
+    "target-provision-attempt2-redacted.json",
+    "target-provision-redacted.json",
+    "ui-smoke.json",
+    "webhook-operations.json"
+  ],
+  "evidenceAtCapture": [
+    {
+      "path": "evidence/acceptance-results.json",
+      "bytes": 11743,
+      "lines": 305
+    },
+    {
+      "path": "evidence/performance-partial.json",
+      "bytes": 17689,
+      "lines": 650
+    },
+    {
+      "path": "evidence/performance.json",
+      "bytes": 18175,
+      "lines": 656
+    },
+    {
+      "path": "evidence/screenshots/login.png",
+      "bytes": 42687,
+      "lines": 130
+    }
+  ],
+  "glue": [
+    "native @instantdb/react UI queries/auth",
+    "native @instantdb/admin authority/subscription/webhook operations",
+    "native @instantdb/core actor-scoped Storage clients",
+    "instant-cli schema/permission deployment"
+  ]
+}

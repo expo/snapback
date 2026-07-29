@@ -1,0 +1,492 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "/private/tmp/llp0102-chat-snapback/demos/backend-bakeoff/arms/chat/snapback/work",
+  "generatedAt": "2026-07-29T02:44:41.417Z",
+  "totals": {
+    "dependency-manifest": {
+      "files": 2,
+      "bytes": 34746,
+      "lines": 1079
+    },
+    "authored-source": {
+      "files": 14,
+      "bytes": 84445,
+      "lines": 2264
+    },
+    "configuration": {
+      "files": 3,
+      "bytes": 1415,
+      "lines": 61
+    },
+    "generated": {
+      "files": 47,
+      "bytes": 159598,
+      "lines": 3635
+    }
+  },
+  "installedDependencyBytes": 81576033,
+  "files": [
+    {
+      "path": ".arm-runtime.snapback.restore.lock",
+      "category": "dependency-manifest",
+      "bytes": 317,
+      "lines": 2,
+      "sha256": "521912e6e75ea84661bc0dd7c1b359d78f66501e269983149288bad4a3c9a00b"
+    },
+    {
+      "path": ".gitignore",
+      "category": "authored-source",
+      "bytes": 90,
+      "lines": 6,
+      "sha256": "a278338ad5723280df6f46cebf1684d6bd09b5c894594b763db52ebddcdee58b"
+    },
+    {
+      "path": "index.html",
+      "category": "authored-source",
+      "bytes": 315,
+      "lines": 13,
+      "sha256": "8d3fdd7c32a706841cb65b2ddeb1ed19a551d88d2833548fe9c8e8d727126b91"
+    },
+    {
+      "path": "package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 34429,
+      "lines": 1077,
+      "sha256": "53ee88d9bb258e7a422737c19a342c37a5cef8f83f4ce19d792c50af99f3defb"
+    },
+    {
+      "path": "package.json",
+      "category": "configuration",
+      "bytes": 682,
+      "lines": 27,
+      "sha256": "fcbb362266f237374841a3368d8cdd21b50176dcf7e4b049e6724d461aae3d68"
+    },
+    {
+      "path": "scripts/finalize-capsule.mjs",
+      "category": "authored-source",
+      "bytes": 13039,
+      "lines": 283,
+      "sha256": "85d6016b676ba431fdd0fa2c1c8658689484d298f40d8b7b1a5d44490ad9fe70"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "category": "authored-source",
+      "bytes": 38394,
+      "lines": 1000,
+      "sha256": "28bb0cb643b4bd273d735a8f8b8dc413a69cacab7becbb32f7a908dd28343404"
+    },
+    {
+      "path": "snapback/functions.mjs",
+      "category": "authored-source",
+      "bytes": 3272,
+      "lines": 136,
+      "sha256": "5b371464ecccc1945d38ce5ccee3da47e11d841181baad44de6b3084fdbed0de"
+    },
+    {
+      "path": "snapback/generated/api.d.ts",
+      "category": "generated",
+      "bytes": 6409,
+      "lines": 85,
+      "sha256": "a22c10c4dd4b12ad4bff7c73ae9fc9bec0d13be703af5545d055346fad13df55"
+    },
+    {
+      "path": "snapback/generated/api.mjs",
+      "category": "generated",
+      "bytes": 6175,
+      "lines": 278,
+      "sha256": "0f170d27d65ef60b2894c9172260a5eea2d0fc66ef4d24d6bb83924de9f89326"
+    },
+    {
+      "path": "snapback/generated/artifacts.json",
+      "category": "generated",
+      "bytes": 3560,
+      "lines": 119,
+      "sha256": "f1583334777ebaf4e5e47771fa6ac2086e6fa1c6c063833803e650c97a9cbc0d"
+    },
+    {
+      "path": "snapback/generated/capability.manifest.json",
+      "category": "generated",
+      "bytes": 4513,
+      "lines": 188,
+      "sha256": "bbc2b162c7eb7772d78b71f351fde74d084de96f294784f80860010ae5894c74"
+    },
+    {
+      "path": "snapback/generated/contract-data.manifest.json",
+      "category": "generated",
+      "bytes": 13083,
+      "lines": 566,
+      "sha256": "40655dfc6bd52573aa3ed2a8e9d93b471c4cccb32e33d0aa1c1366ba4c1e402b"
+    },
+    {
+      "path": "snapback/generated/contract/addMember.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 331,
+      "lines": 7,
+      "sha256": "445d63fc40c97795eecc5db933f86eb10fb5db3550a19dea9e10630e8873a484"
+    },
+    {
+      "path": "snapback/generated/contract/addMember.mutation.ts",
+      "category": "generated",
+      "bytes": 503,
+      "lines": 13,
+      "sha256": "6bf5574a7bce97fd680667232d2a688228527273744357e917a38b15abe7f6d1"
+    },
+    {
+      "path": "snapback/generated/contract/bootstrapChannel.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 463,
+      "lines": 7,
+      "sha256": "b3f2904d1f1fc59b4f1347f9f56d5c7dfaffde73d24d88078e1222aff6959eb8"
+    },
+    {
+      "path": "snapback/generated/contract/bootstrapChannel.mutation.ts",
+      "category": "generated",
+      "bytes": 573,
+      "lines": 13,
+      "sha256": "fbbadc8082d4d738357651d753f6d5f787f6534cb5fc25eb6215cb76451aa6f6"
+    },
+    {
+      "path": "snapback/generated/contract/leaveChannel.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 337,
+      "lines": 7,
+      "sha256": "22aaa34dd1cb8e42dc83def5ef7f5c6942b728352edad5c2a292d2e9de6f3f46"
+    },
+    {
+      "path": "snapback/generated/contract/leaveChannel.mutation.ts",
+      "category": "generated",
+      "bytes": 505,
+      "lines": 13,
+      "sha256": "8e22fd2099aa256cd497851c0cc729a38ceabbc6d5ea0a2ca8c37b3c7dd8f96f"
+    },
+    {
+      "path": "snapback/generated/contract/listChannels.query.contract-meta.ts",
+      "category": "generated",
+      "bytes": 687,
+      "lines": 8,
+      "sha256": "0756e3869ab58559b68e7f1b80c1be6bf152f8441a21f6a0d7005455d9c6c763"
+    },
+    {
+      "path": "snapback/generated/contract/listChannels.query.ts",
+      "category": "generated",
+      "bytes": 502,
+      "lines": 13,
+      "sha256": "0a23977e79e1c430ae04ad32872038bb43004f77241eff65de7fc6af00759038"
+    },
+    {
+      "path": "snapback/generated/contract/listMessages.query.contract-meta.ts",
+      "category": "generated",
+      "bytes": 697,
+      "lines": 8,
+      "sha256": "7c2f90a08dfd3db09faa277ea359fc6ea0aa20acb77a4b69653a700e747d5b1a"
+    },
+    {
+      "path": "snapback/generated/contract/listMessages.query.ts",
+      "category": "generated",
+      "bytes": 502,
+      "lines": 13,
+      "sha256": "5a46fff3cc62491a2f60b5272d219ea8eec1c1342b4ce5a7ed7db464cd4b1e66"
+    },
+    {
+      "path": "snapback/generated/contract/listReadMarkers.query.contract-meta.ts",
+      "category": "generated",
+      "bytes": 637,
+      "lines": 8,
+      "sha256": "4673a17e17d53f462faa2199a31baa6ed0f2489c7deab48198955df17000e690"
+    },
+    {
+      "path": "snapback/generated/contract/listReadMarkers.query.ts",
+      "category": "generated",
+      "bytes": 520,
+      "lines": 13,
+      "sha256": "7ce6981faa27219fe9ce5d48e14bc9fd6bada5ff60bdafe4928d470ce9dfe61d"
+    },
+    {
+      "path": "snapback/generated/contract/markRead.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 287,
+      "lines": 7,
+      "sha256": "f38efa6872c5c56f515d5e8a1addcf8325f05eae9b57f563d94ac91e7d4d0ebc"
+    },
+    {
+      "path": "snapback/generated/contract/markRead.mutation.ts",
+      "category": "generated",
+      "bytes": 499,
+      "lines": 13,
+      "sha256": "81f13a7996916dd9b4ef53c4f741a6fc6638a2d45aff1ddcd4772db517e1684a"
+    },
+    {
+      "path": "snapback/generated/contract/pageMessages.query.contract-meta.ts",
+      "category": "generated",
+      "bytes": 664,
+      "lines": 8,
+      "sha256": "059d9acd49582249858ec0f1d178c20b0fd7a4ad2afb3ed9768302e774d46780"
+    },
+    {
+      "path": "snapback/generated/contract/pageMessages.query.ts",
+      "category": "generated",
+      "bytes": 542,
+      "lines": 13,
+      "sha256": "94f0d98f3b3d3205f99b8fa4250f6d8d9902ddee5cbb82dd773a968314d1b4b4"
+    },
+    {
+      "path": "snapback/generated/contract/presence.ephemeral.contract-meta.ts",
+      "category": "generated",
+      "bytes": 610,
+      "lines": 9,
+      "sha256": "6c92308a173cd0dac710c7f74f777b91bb9b4a4ce37f8f86fcca98b34ff5844d"
+    },
+    {
+      "path": "snapback/generated/contract/presence.ephemeral.ts",
+      "category": "generated",
+      "bytes": 834,
+      "lines": 22,
+      "sha256": "74baa4ce76da3d07766007509abb285edf6f705855870a41cb672238511f042f"
+    },
+    {
+      "path": "snapback/generated/contract/presence.publish.contract-meta.ts",
+      "category": "generated",
+      "bytes": 319,
+      "lines": 7,
+      "sha256": "5d65300636f3a93e76a5b2ba96b93ad9dcb3bdb53bf29d4acbd6703a525d9b6e"
+    },
+    {
+      "path": "snapback/generated/contract/presence.publish.ts",
+      "category": "generated",
+      "bytes": 852,
+      "lines": 20,
+      "sha256": "e98cf4284c0789d3b72ac8e894b330c804acfbabbb78a6667c91855f5912f069"
+    },
+    {
+      "path": "snapback/generated/contract/runtime-links.ts",
+      "category": "generated",
+      "bytes": 1600,
+      "lines": 36,
+      "sha256": "4f49d9d962fc4e9015e0828ecd9f6ffdecc65e955f792e72a49690c2fa9216b8"
+    },
+    {
+      "path": "snapback/generated/contract/sendMessage.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 315,
+      "lines": 7,
+      "sha256": "e6243df18db8664205a49f2ba0f7be14b59c7404fedbf69ee353c824902f7635"
+    },
+    {
+      "path": "snapback/generated/contract/sendMessage.mutation.ts",
+      "category": "generated",
+      "bytes": 513,
+      "lines": 13,
+      "sha256": "c5dd0b62917c1ae7434bb968d85c6f7ab4c0267cf010342feabfeedd09ceb4c1"
+    },
+    {
+      "path": "snapback/generated/contract/typing.ephemeral.contract-meta.ts",
+      "category": "generated",
+      "bytes": 598,
+      "lines": 9,
+      "sha256": "2d4e1d356b5cc2b6b0dd499cf69bc51199c37754a5e790de01f754bfa22b8ecc"
+    },
+    {
+      "path": "snapback/generated/contract/typing.ephemeral.ts",
+      "category": "generated",
+      "bytes": 816,
+      "lines": 22,
+      "sha256": "224a62e5e059c3c4fd81472b1ffd25bccc2d5f7a0e4530467d0be796fbf73655"
+    },
+    {
+      "path": "snapback/generated/contract/typing.publish.contract-meta.ts",
+      "category": "generated",
+      "bytes": 313,
+      "lines": 7,
+      "sha256": "211f7064f93be33f5f4ff89a3b8daac77a33ebac3a450e4533f22fa80f6d51ba"
+    },
+    {
+      "path": "snapback/generated/contract/typing.publish.ts",
+      "category": "generated",
+      "bytes": 842,
+      "lines": 20,
+      "sha256": "5b564080861a85f20a5ef3a4907da9119ed4adce0f1e241af2ba839cef0bbb89"
+    },
+    {
+      "path": "snapback/generated/functions.manifest.json",
+      "category": "generated",
+      "bytes": 73624,
+      "lines": 602,
+      "sha256": "0f8d3e0a83ba6a7bacdb3b586906cd993428fc3d6542f2e3fd838788a9a36361"
+    },
+    {
+      "path": "snapback/generated/operations/addMember.args.schema.json",
+      "category": "generated",
+      "bytes": 402,
+      "lines": 20,
+      "sha256": "82bb3ca48385ef3d65a9245e0fc680b054894c4f7f8f4a4879f74cdeb3c8d300"
+    },
+    {
+      "path": "snapback/generated/operations/bootstrapChannel.args.schema.json",
+      "category": "generated",
+      "bytes": 528,
+      "lines": 28,
+      "sha256": "f254cd6db8554bc4e3b0c1df90a1fa0ba6bada71f571df5c184c6d0ef2c371a5"
+    },
+    {
+      "path": "snapback/generated/operations/leaveChannel.args.schema.json",
+      "category": "generated",
+      "bytes": 348,
+      "lines": 16,
+      "sha256": "c91d044e112ed3b98db9a821fda68846c1b37af910ff788698d01e6e9a965999"
+    },
+    {
+      "path": "snapback/generated/operations/listChannels.args.schema.json",
+      "category": "generated",
+      "bytes": 260,
+      "lines": 9,
+      "sha256": "dfea336b71dc64003467684f3ed841d279a08c04ddc323a58791a008860e636c"
+    },
+    {
+      "path": "snapback/generated/operations/listMessages.args.schema.json",
+      "category": "generated",
+      "bytes": 348,
+      "lines": 16,
+      "sha256": "995cf2143f67a282f1cdc0881aba283585b8f53ad48a2b6d3cfcfa11f0e2c3a9"
+    },
+    {
+      "path": "snapback/generated/operations/listReadMarkers.args.schema.json",
+      "category": "generated",
+      "bytes": 266,
+      "lines": 9,
+      "sha256": "804acb93abf9dd63693b9c0328ac3504b93e24f47ff0c206802e9a16f751acdb"
+    },
+    {
+      "path": "snapback/generated/operations/markRead.args.schema.json",
+      "category": "generated",
+      "bytes": 405,
+      "lines": 20,
+      "sha256": "03cbea6815f1cc0794c3429aaa48673b7e6f31aef80efcc24b5db7cb5708be4c"
+    },
+    {
+      "path": "snapback/generated/operations/pageMessages.args.schema.json",
+      "category": "generated",
+      "bytes": 462,
+      "lines": 23,
+      "sha256": "7a57c913a74f7c9cb112cb76e96bb6cba048b3e7d4849b338a94f0bf116c7643"
+    },
+    {
+      "path": "snapback/generated/operations/sendMessage.args.schema.json",
+      "category": "generated",
+      "bytes": 402,
+      "lines": 20,
+      "sha256": "77c468c7026eeb96684f2940166cc253097593bab7e45a639829f7f9d7d77daf"
+    },
+    {
+      "path": "snapback/generated/package.json",
+      "category": "generated",
+      "bytes": 523,
+      "lines": 20,
+      "sha256": "4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981"
+    },
+    {
+      "path": "snapback/generated/provider-bindings.d.ts",
+      "category": "generated",
+      "bytes": 2670,
+      "lines": 37,
+      "sha256": "33706b23b45d3dd3b3f06631020f7804b85247d84b02cbfd5b35c71afca32792"
+    },
+    {
+      "path": "snapback/generated/provider-bindings.json",
+      "category": "generated",
+      "bytes": 6901,
+      "lines": 253,
+      "sha256": "9146288d4263fb55cbc20caef37cad81139dd4ad7708ac64d75c601cf525e9c1"
+    },
+    {
+      "path": "snapback/generated/provider-introspection.json",
+      "category": "generated",
+      "bytes": 16266,
+      "lines": 678,
+      "sha256": "30f366b7ba12c7b1353b028ae49fe434295a24a0641dbc8c6fa7f3620f685cd4"
+    },
+    {
+      "path": "snapback/generated/schema.manifest.json",
+      "category": "generated",
+      "bytes": 6592,
+      "lines": 312,
+      "sha256": "b7e5455abeaaef0e37c7dab08c703e0a1196c00481786d5a037c2359c55e1661"
+    },
+    {
+      "path": "snapback/handlers.mjs",
+      "category": "authored-source",
+      "bytes": 6370,
+      "lines": 205,
+      "sha256": "96f748493cf1837b0f30c931e2ff3e2b871770d3dbaca0bca5f8ab1bfc41d315"
+    },
+    {
+      "path": "snapback/schema.mjs",
+      "category": "authored-source",
+      "bytes": 3119,
+      "lines": 115,
+      "sha256": "0a22bef8ac3c42bdd1c50932d6d9abf024389023dd994f17a7712391d82d01de"
+    },
+    {
+      "path": "snapback/seed.mjs",
+      "category": "authored-source",
+      "bytes": 459,
+      "lines": 11,
+      "sha256": "e2fff204a63ffc88270568098df80e2b230ea2c3238f9ab6919bd7b13f8cabce"
+    },
+    {
+      "path": "src/App.tsx",
+      "category": "authored-source",
+      "bytes": 9243,
+      "lines": 249,
+      "sha256": "75528ef74ee0fa04c5ff55d856395cf5b93928a55333d84654c9b5c776e07f83"
+    },
+    {
+      "path": "src/main.tsx",
+      "category": "authored-source",
+      "bytes": 593,
+      "lines": 22,
+      "sha256": "5149a9dc0d78e0cb1014079e6f44e31dd3085aa8e28b8d171251deda70820435"
+    },
+    {
+      "path": "src/provider.ts",
+      "category": "authored-source",
+      "bytes": 5892,
+      "lines": 166,
+      "sha256": "bfb048b6b38977d53aac69c2f55c132ae0ce22e3ae77df0a4b48c62603e5925e"
+    },
+    {
+      "path": "src/styles.css",
+      "category": "authored-source",
+      "bytes": 3518,
+      "lines": 55,
+      "sha256": "7561ddd32d13d01ee7a261622d34365070aff799b0dbfff44884b9b3fc9dc21a"
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "category": "authored-source",
+      "bytes": 38,
+      "lines": 2,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "tsconfig.json",
+      "category": "configuration",
+      "bytes": 526,
+      "lines": 22,
+      "sha256": "b9405392ff861c12b13c6aec8b9f9905b184fafbebb8e0566e5283599521e982"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "category": "authored-source",
+      "bytes": 103,
+      "lines": 1,
+      "sha256": "6a223cad0e701043a18c83b818cca7f4241281c920bc0e53215c5e3969268d9b"
+    },
+    {
+      "path": "vite.config.ts",
+      "category": "configuration",
+      "bytes": 207,
+      "lines": 12,
+      "sha256": "59f68173b14ac2f693e674c6d5e64fef40adc890138331f2811e6dc62b027b26"
+    }
+  ]
+}

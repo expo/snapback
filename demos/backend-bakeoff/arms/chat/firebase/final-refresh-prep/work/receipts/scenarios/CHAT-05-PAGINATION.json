@@ -1,0 +1,23 @@
+{
+  "id": "CHAT-05-PAGINATION",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:27:40.944Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firestore query cursor",
+  "evidence": {
+    "order": "sequence desc",
+    "cursor": {
+      "id": "seed-103",
+      "sequence": 103
+    },
+    "concurrentInsert": {
+      "id": "GkN1rbRBoCgCVW3XbHSm",
+      "authorId": "Y3vucQmxIkpPPN0pGlZpm5CweMyf",
+      "sequence": 128
+    },
+    "pageOneCount": 25,
+    "pageTwoCount": 25,
+    "unionCount": 50
+  },
+  "note": "Document-snapshot startAfter cursor remains stable under a newer insert."
+}

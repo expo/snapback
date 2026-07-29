@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T12:57:11.353Z",
+  "targetIdentity": "8da06348b7c8e316d96b7590b46efbf773c4bd1f1ec65e6bf4f8a067a80a5103",
+  "exactTargets": [
+    "/home/ccheever/tmp/llp0102-stage5-todo-snapback-external/.final-runtime",
+    "/home/ccheever/tmp/llp0102-stage5-todo-snapback-external/public/personas.json",
+    "/home/ccheever/tmp/llp0102-stage5-todo-snapback-external/dist/personas.json"
+  ],
+  "broadGlobs": false,
+  "unrelatedBaseline": "repository and all other bakeoff arms remain untouched"
+}

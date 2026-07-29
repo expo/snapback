@@ -1,0 +1,32 @@
+{
+  "operation": "production-build",
+  "targetIdSha256": "9fcaac4509ce2c654a78fb0fbd8f7be8c34df6f8a6c4eba234490a36c166c196",
+  "warmupMs": [
+    1040.1979999999999,
+    969.4276659999998
+  ],
+  "rawMs": [
+    1959.6107080000002,
+    1855.6950410000004,
+    1294.8511249999992,
+    1508.9552909999993,
+    1493.3713329999991,
+    1513.2154169999994,
+    1536.6889580000006
+  ],
+  "medianMs": 1513.2154169999994,
+  "nearestRankP95Ms": 1959.6107080000002,
+  "machine": {
+    "hostname": "Charlies-MacBook-Air.local",
+    "cpus": 10,
+    "loadAverageAtCapture": [
+      2.58251953125,
+      2.7001953125,
+      2.923828125
+    ],
+    "node": "v24.14.0"
+  },
+  "output": "dist/",
+  "portReservation": 4325,
+  "capturedAt": "2026-07-29T05:03:46.424Z"
+}

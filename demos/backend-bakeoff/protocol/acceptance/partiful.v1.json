@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "app": "partiful",
+  "expectedCheckCount": 15,
+  "scenarios": [
+    {
+      "id": "PARTY-01-SEED",
+      "fact": "Exact events, guests, capacity fixture, and personas exist.",
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "fact": "Public preview excludes private host controls and data.",
+      "evidence": ["anonymous-read", "field-boundary", "negative-private-read"]
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "fact": "An invited guest records yes/no/maybe and plus-one transitions.",
+      "evidence": ["invitation-attribution", "settlement", "authoritative-state"]
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "fact": "Host, cohost, guest, and outsider have distinct read/write authority.",
+      "evidence": ["positive-role-matrix", "negative-role-matrix"]
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "fact": "Guest-list visibility changes independently from public event visibility.",
+      "evidence": ["policy-transition", "actor-specific-reads", "already-connected-client"]
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "fact": "Two concurrent RSVPs for the final seat cannot overbook capacity.",
+      "evidence": ["two-actor-barrier", "settlement", "authoritative-count"]
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "fact": "Wall posts and RSVP totals update live during the frozen burst.",
+      "evidence": ["second-client", "transport-attribution", "authoritative-count"]
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "fact": "Authenticated event art upload, authorized delivery, and deletion work.",
+      "evidence": ["object-identity", "authorization", "content-hash", "delete-proof"]
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "fact": "A scheduled reminder produces one inspectable idempotent attempt.",
+      "evidence": ["schedule-identity", "run-receipt", "dedupe-key"]
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "fact": "A retry does not duplicate a known-success notification.",
+      "evidence": ["attempt-ledger", "provider-boundary", "terminal-settlement"]
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "fact": "An ambiguous notification outcome remains distinct and safely retryable.",
+      "evidence": ["fault-injection", "attempt-ledger", "ambiguous-state"]
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "fact": "Revocation or event removal stops protected delivery and handles retained data honestly.",
+      "evidence": ["authority-change", "negative-delivery", "retained-store-inspection"]
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "fact": "Hosted secret/configuration, effect boundary, logs, and target identity are inspectable.",
+      "evidence": ["redacted-config-proof", "deployment-receipt", "effect-receipt"]
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "fact": "Frozen contention/burst/asset/realtime/deploy samples and cost window are retained.",
+      "evidence": ["two-warmups", "seven-samples", "raw-samples", "cost-window"]
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "fact": "Only exact fresh targets or arm-owned namespaced records, assets, schedules, and secrets are retired; unrelated baseline state is preserved.",
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

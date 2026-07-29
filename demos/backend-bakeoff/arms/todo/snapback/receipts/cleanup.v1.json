@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "cleanedAt": "2026-07-28T22:52:14.269Z",
+  "targetIdentity": "eba445349749dc4b881c8bee3a93094e5af84657775af5931d0c36a53352694d",
+  "removed": [
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/.arm-runtime",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/public/personas.json",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work/dist/personas.json"
+  ],
+  "recoverable": false,
+  "recovery": "Reproducible from committed generated artifacts and deterministic authenticated bootstrap inputs.",
+  "exactTargetAbsent": true,
+  "personaCarrierAbsent": true,
+  "builtPersonaCarrierAbsent": true,
+  "unrelatedBaselinePreserved": true
+}

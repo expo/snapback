@@ -1,0 +1,29 @@
+{
+  "id": "LINEAR-05-DETAIL",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:28:47.134Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "Firestore point reads and bounded indexed queries",
+  "evidence": {
+    "issueId": "issue-001",
+    "projectId": "project-1",
+    "assigneeIdHash": "5d31ec2fe79f032850688d670fcc3718089057e5e45ef839d2b6ac1de9f018fc",
+    "labelIds": [
+      "label-01",
+      "label-02"
+    ],
+    "commentIds": [
+      "issue-001-comment-2",
+      "issue-001-comment-1"
+    ],
+    "activityIds": [
+      "issue-001-seed"
+    ],
+    "boundedQueryInventory": {
+      "pointReads": 5,
+      "boundedQueries": 2,
+      "maximumRows": 40
+    }
+  },
+  "note": "Related IDs were composed from direct authorized reads without an unbounded scan."
+}

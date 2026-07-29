@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.convex/
+.env.local
+.arm-runtime/
+convex/_generated/
+*.tsbuildinfo

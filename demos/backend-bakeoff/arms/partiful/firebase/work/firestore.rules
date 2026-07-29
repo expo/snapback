@@ -1,0 +1,116 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function eventPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId);
+    }
+
+    function invitationPath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/invitations/$(uid);
+    }
+
+    function event(eventId) {
+      return get(eventPath(eventId)).data;
+    }
+
+    function isHost(eventId) {
+      return signedIn() && event(eventId).hostUid == request.auth.uid;
+    }
+
+    function isCohost(eventId) {
+      return signedIn() && request.auth.uid in event(eventId).cohostUids;
+    }
+
+    function hasActiveInvitation(eventId) {
+      return signedIn()
+        && exists(invitationPath(eventId, request.auth.uid))
+        && get(invitationPath(eventId, request.auth.uid)).data.status == "active";
+    }
+
+    function isMember(eventId) {
+      return isHost(eventId) || isCohost(eventId) || hasActiveInvitation(eventId);
+    }
+
+    match /publicEvents/{eventId} {
+      allow read: if resource.data.published == true;
+      allow write: if false;
+    }
+
+    match /events/{eventId} {
+      allow read: if isMember(eventId);
+      allow write: if false;
+
+      match /invitations/{uid} {
+        allow read: if isHost(eventId)
+          || isCohost(eventId)
+          || (signedIn() && request.auth.uid == uid);
+        allow write: if false;
+      }
+
+      match /rsvps/{uid} {
+        allow read: if isHost(eventId)
+          || isCohost(eventId)
+          || (
+            hasActiveInvitation(eventId)
+            && event(eventId).guestListVisibility == "guests"
+          );
+        allow write: if false;
+      }
+
+      match /wallPosts/{postId} {
+        allow read: if isMember(eventId);
+        allow create: if isMember(eventId)
+          && request.resource.data.keys().hasOnly([
+            "eventId",
+            "authorUid",
+            "authorName",
+            "body",
+            "createdAt",
+            "ordinal"
+          ])
+          && request.resource.data.eventId == eventId
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 500
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if signedIn()
+          && resource.data.authorUid == request.auth.uid;
+      }
+    }
+
+    match /eventControls/{eventId} {
+      allow read: if isHost(eventId) || isCohost(eventId);
+      allow write: if false;
+    }
+
+    match /scheduleDefinitions/{scheduleId} {
+      allow read: if isHost(resource.data.eventId);
+      allow write: if false;
+    }
+
+    match /reminderRuns/{runId} {
+      allow read: if isHost(resource.data.eventId) || isCohost(resource.data.eventId);
+      allow write: if false;
+    }
+
+    match /notificationEffects/{effectId} {
+      allow read: if isHost(resource.data.eventId) || isCohost(resource.data.eventId);
+      allow write: if false;
+    }
+
+    match /notificationAttempts/{attemptId} {
+      allow read: if isHost(resource.data.eventId) || isCohost(resource.data.eventId);
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

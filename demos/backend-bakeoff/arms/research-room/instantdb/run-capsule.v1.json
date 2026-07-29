@@ -1,0 +1,414 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "research-room",
+    "provider": "instantdb",
+    "round": "deep",
+    "attemptId": "research-room-instantdb-deep-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "coordinatorBaseCommit": "0dc4b3ff6257edc2ee0fea869fca5142531d0ce5",
+    "providerVersions": {
+      "product": "InstantDB",
+      "client": "1.0.52",
+      "admin": "1.0.52",
+      "cli": "1.0.52"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-29T10:35:27.074Z",
+    "finishedAt": "2026-07-29T10:53:05.444Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 1058370,
+    "toolCalls": 39,
+    "timedWindowFrozenAt": "2026-07-29T10:53:05.444Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "262e54912a197885f503a7726795ebc22e074a4b7ace868d63ca45ce82a20dd1",
+      "role": "room-member"
+    },
+    "bob": {
+      "principalIdHash": "783331143e825c1024c9df6bf1cf2e96eb87522d13724d9cd6ee32f6ec421e26",
+      "role": "room-member"
+    },
+    "mallory": {
+      "principalIdHash": "06f92a1277b17a3733eb201fd62eb4c2c0427c03ebccf34c027696bfec3e4715",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-hosted",
+      "namespace": "llp0102-research-instantdb-w3-a1",
+      "baselineReceiptPath": "receipts/target-provision-redacted.json",
+      "scopedCleanupPlanPath": "evidence/cleanup-plan.json"
+    },
+    "local": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "not selected because a fresh official hosted temporary app was available",
+      "gapReason": "No local target was run because the arm used the available fresh official hosted temporary target.",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "cleaned",
+      "identityHash": "2d8f64c5302204bb852a49b4308ffae281feb2714627504378453b2c1433e61a",
+      "profile": "official hosted temporary Instant app",
+      "plan": "provider-selected temporary app",
+      "region": "provider-selected",
+      "gapReason": "All records, files, users, and tokens were removed, but the anonymous temporary shell cannot be immediately deleted through the tested CLI identity and awaits documented auto-expiry.",
+      "receiptPaths": [
+        "receipts/target-provision-redacted.json",
+        "evidence/target-identity.json",
+        "evidence/cleanup-receipt.json"
+      ]
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 858926,
+    "firstAuthoritativeMutationMs": 858926,
+    "firstRealtimeTransitionMs": 864000,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": 45878,
+    "acceptanceCompletionMs": 1058370
+  },
+  "assistanceEvents": [
+    {
+      "kind": "official-documentation",
+      "disclosure": "Official InstantDB documentation informed CLI, schema, permissions, Storage, auth, querying, transactions, and subscriptions; every passing fact was independently exercised in this arm.",
+      "receiptPath": "evidence/official-docs.md"
+    },
+    {
+      "kind": "cross-arm-provider-knowledge",
+      "disclosure": "The worker had earlier provider-level InstantDB experience from another arm. No other arm source was inspected or copied; this app was independently designed from official documentation and re-proven against a fresh target.",
+      "sourcePath": "provider-level experience only; no source path inspected"
+    }
+  ],
+  "commands": [
+    {
+      "shape": "instant-cli@1.0.52 init-without-files --title <exact> --temp",
+      "result": "fresh hosted target provisioned",
+      "exitStatus": 0,
+      "startedMonotonicMs": 43000,
+      "finishedMonotonicMs": 46000
+    },
+    {
+      "shape": "instant-cli --yes --token <redacted> push all --app <redacted>",
+      "result": "schema and permissions applied",
+      "exitStatus": 0,
+      "startedMonotonicMs": 700000,
+      "finishedMonotonicMs": 715000
+    },
+    {
+      "shape": "node scripts/seed.mjs",
+      "result": "exact workload seeded",
+      "exitStatus": 0,
+      "startedMonotonicMs": 850000,
+      "finishedMonotonicMs": 859000
+    },
+    {
+      "shape": "node scripts/accept.mjs",
+      "result": "13 pre-cleanup scenarios adjudicated",
+      "exitStatus": 0,
+      "startedMonotonicMs": 865000,
+      "finishedMonotonicMs": 1010000
+    },
+    {
+      "shape": "node scripts/measure-build.mjs",
+      "result": "2 warmups and 7 build samples retained",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1011000,
+      "finishedMonotonicMs": 1017000
+    },
+    {
+      "shape": "node scripts/secret-scan.mjs",
+      "result": "five exact secret/canary values absent from retained roots",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1018000,
+      "finishedMonotonicMs": 1019000
+    },
+    {
+      "shape": "node scripts/cleanup.mjs",
+      "result": "all data/users/tokens/local state retired; empty shell auto-expiry pending",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1055000,
+      "finishedMonotonicMs": 1058370
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/target-identity.json",
+        "evidence/seed-receipt.json"
+      ],
+      "transport": "poll",
+      "authoritativeCheck": "admin query counts and deterministic embedding dimensions",
+      "note": "Exact frozen dataset exists."
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/file-proof.json"
+      ],
+      "transport": "poll",
+      "authoritativeCheck": "user-scoped upload/query/delete and fetched-byte hash",
+      "note": "Ownership-preserving file lifecycle passed."
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/outsider-negative.json",
+        "evidence/file-proof.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory-scoped query and subscription return zero rows",
+      "note": "No outsider disclosure."
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/keyword-proof.json"
+      ],
+      "transport": "poll",
+      "authoritativeCheck": "Alice-scoped indexed $ilike result equality",
+      "note": "Frozen expected set returned."
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/semantic-gap.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "explicit nonclaim",
+      "note": "InstantDB stores the embedding JSON, but the tested ordinary path has no native vector similarity query."
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/progress-collaboration-proof.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "admin query ordered durable rows before terminal",
+      "note": "Four durable progress rows precede completion."
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/citation-proof.json"
+      ],
+      "transport": "poll",
+      "authoritativeCheck": "answer citations resolve to authoritative member-visible sources",
+      "note": "Citations are retained and valid."
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/progress-collaboration-proof.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob-scoped second client observed four-row state and completion",
+      "note": "Native live query observation passed."
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/cancel-proof.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "cancelled status plus zero authoritative progress after injected late write",
+      "note": "Cancellation blocks late durable patches."
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/retry-proof.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "authoritative unique-key counts after repeated transactions",
+      "note": "Retry remained idempotent."
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/outcomes-proof.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "authoritative state-machine rows and settlement records",
+      "note": "All five outcomes remain distinct."
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/schedule-gap.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "explicit nonclaim",
+      "note": "No provider-native scheduled function path was available in the tested InstantDB product surface."
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/secrets-gap.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "explicit nonclaim",
+      "note": "Credential hygiene passed, but the required provider-hosted function/secret boundary is absent with the unavailable schedule path."
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/performance-samples.json",
+        "evidence/cost-window.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "all five paths retain exactly two warmups and seven samples",
+      "note": "Frozen performance and cost window retained."
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/cleanup-plan.json",
+        "evidence/cleanup-receipt.json",
+        "evidence/environment-cleanup.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "explicit cleanup nonclaim: all authoritative namespace counts zero and actor tokens invalid, but empty shell awaits provider auto-expiry",
+      "note": "All data, objects, users, tokens, processes, and local state retired; the empty anonymous temporary shell cannot be deleted immediately and awaits documented provider auto-expiry."
+    }
+  ],
+  "inventory": {
+    "receiptPath": "evidence/inventory.json",
+    "authoredSource": {
+      "files": 12,
+      "description": "React UI plus provisioning, seed, acceptance, performance, secret-scan, and cleanup scripts"
+    },
+    "generated": {
+      "files": 0
+    },
+    "tests": {
+      "files": 1,
+      "description": "15-scenario executable acceptance harness"
+    },
+    "configuration": {
+      "files": 4,
+      "description": "package manifest/lock, schema, and permissions"
+    },
+    "policy": {
+      "files": 1,
+      "description": "InstantDB linked-data permission rules"
+    },
+    "dependencyManifests": {
+      "files": 2
+    },
+    "installedDependencyBytes": 162983936,
+    "glue": [
+      "work/scripts/lib.mjs",
+      "work/scripts/push-config.mjs",
+      "work/scripts/provision-target.mjs"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three genuine hashed Instant principals exercised member and outsider paths; Mallory's direct query and subscription returned zero protected rows.",
+      "evidencePaths": [
+        "evidence/target-identity.json",
+        "evidence/outsider-negative.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 1,
+      "reason": "Atomic stable-id retry and linked status authorization are directly retained, but the frozen Research Room protocol has no simultaneous write-conflict scenario.",
+      "evidencePaths": [
+        "evidence/retry-proof.json",
+        "evidence/cancel-proof.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Bob's second user-scoped client directly observed native EventSource-backed live-query transitions; polling is not relabeled as realtime.",
+      "evidencePaths": [
+        "evidence/progress-collaboration-proof.json",
+        "evidence/performance-samples.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 1,
+      "reason": "Seven subscriptions reconnected and rebuilt the authorized snapshot, but no durable browser-offline queue is claimed.",
+      "evidencePaths": [
+        "evidence/performance-samples.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Authoritative rows retain complete, failed, cancelled, timed-out, and ambiguous states plus cancellation rejection and retry counts.",
+      "evidencePaths": [
+        "evidence/outcomes-proof.json",
+        "evidence/cancel-proof.json",
+        "evidence/retry-proof.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Fresh target title and provider identity are hash-bound from provisioning through exact cleanup.",
+      "evidencePaths": [
+        "receipts/target-provision-redacted.json",
+        "evidence/target-identity.json",
+        "evidence/cleanup-plan.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 1,
+      "reason": "Every record, object, user, token, listener, and local state carrier was removed with exact-identity guards, but the empty anonymous target shell awaits provider auto-expiry.",
+      "evidencePaths": [
+        "evidence/cleanup-plan.json",
+        "evidence/cleanup-receipt.json",
+        "evidence/environment-cleanup.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Pinned dependencies, schema, permissions, deterministic seed, executable 15-scenario harness, raw performance samples, screenshot, evidence, and cleanup scripts are retained.",
+      "evidencePaths": [
+        "evidence/inventory.json",
+        "evidence/performance-samples.json",
+        "evidence/ui-smoke.json",
+        "evidence/backup-manifest.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "explicit-gap",
+    "targetBoundPlanPath": "evidence/cleanup-plan.json",
+    "receiptPaths": [
+      "evidence/cleanup-receipt.json",
+      "evidence/environment-cleanup.json"
+    ],
+    "postCleanupProbe": "All nine authoritative namespaces are empty, all three actor tokens are invalid, ports 4347/9347 have zero listeners, runtime state is absent; empty anonymous target shell awaits provider auto-expiry."
+  },
+  "result": "complete"
+}

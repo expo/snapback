@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:24:48.358Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "mode": "fresh-local",
+  "planPath": "evidence/scoped-cleanup-plan.json",
+  "before": {
+    "firestoreTopLevelCounts": {
+      "eventControls": 21,
+      "events": 30,
+      "notificationAttempts": 4,
+      "notificationEffects": 3,
+      "publicEvents": 21,
+      "reminderRuns": 1,
+      "scheduleDefinitions": 1
+    },
+    "authUsers": 3,
+    "storageObjects": 0
+  },
+  "after": {
+    "firestoreTopLevelCounts": {},
+    "remainingFirestoreDocs": 0,
+    "authUsers": 0,
+    "storageObjects": 0
+  },
+  "unrelatedBaseline": "No shared or hosted target was used or mutated.",
+  "exactTargetNegativeProbe": "all exact-project data-plane counts are zero",
+  "status": "data-plane-complete"
+}

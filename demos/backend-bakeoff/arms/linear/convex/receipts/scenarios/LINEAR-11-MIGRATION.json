@@ -1,0 +1,44 @@
+{
+  "id": "LINEAR-11-MIGRATION",
+  "status": "pass",
+  "capturedAt": "2026-07-29T04:51:40.597Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "not-applicable",
+  "evidence": {
+    "beforeCounts": {
+      "activities": 504,
+      "comments": 1001,
+      "issueLabels": 500,
+      "issues": 501,
+      "labels": 20,
+      "memberships": 4,
+      "namespace": "llp0102-linear-convex-coord",
+      "organizations": 2,
+      "profiles": 3,
+      "projects": 4,
+      "teams": 3
+    },
+    "afterCounts": {
+      "activities": 504,
+      "comments": 1001,
+      "issueLabels": 500,
+      "issues": 501,
+      "labels": 20,
+      "memberships": 4,
+      "namespace": "llp0102-linear-convex-coord",
+      "organizations": 2,
+      "profiles": 3,
+      "projects": 4,
+      "teams": 3
+    },
+    "migrationReceipt": {
+      "before": 501,
+      "changed": 501
+    },
+    "backfilledDocuments": 501,
+    "index": "issues.by_org_triage",
+    "indexedResultCount": 201,
+    "mechanism": "optional field rollout, transactional application backfill, and deployed Convex index"
+  },
+  "note": "The new indexed field was backfilled on every issue without count loss and read through its deployed index."
+}

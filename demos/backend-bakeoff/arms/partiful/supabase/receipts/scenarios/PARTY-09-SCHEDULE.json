@@ -1,0 +1,23 @@
+{
+  "id": "PARTY-09-SCHEDULE",
+  "checkedAt": "2026-07-29T05:41:17.513Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "scheduleIdentity": {
+      "idHash": "e538cd7224227d53fe246e8ea79ea582749c70826e54771dc9a4d9d609a41bd5",
+      "cronJob": {
+        "jobid": 1,
+        "jobname": "llp0102-partiful-supabase-reminders",
+        "schedule": "5 seconds",
+        "command": "select public.run_due_reminders()"
+      }
+    },
+    "runReceipt": {
+      "state": "succeeded",
+      "providerReceipt": "local-scheduler"
+    },
+    "dedupeKeyHash": "594282609ff17b72f64c352623ecbde1708ffd4ddd564428b7f66c7c3ebe4729",
+    "idempotentAttemptCount": 1
+  }
+}

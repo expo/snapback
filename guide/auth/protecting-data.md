@@ -128,6 +128,12 @@ The reachable-client sequence is:
    queue/store resolution, and local boundary.
 5. Only after that commit does it acknowledge the opaque resolution token.
 
+Within one authenticated authorization-stream incarnation, a strictly greater
+authorization epoch is the current obligation, not a stale subscribe
+expectation. The client advances that exact fence before applying the
+resolution. A lower epoch or different incarnation/version stream remains
+stale and requires the normal replacement bootstrap.
+
 The kit test pins the order:
 
 ```js source=demos/_kit/tests/auth-invalidation-client.mjs

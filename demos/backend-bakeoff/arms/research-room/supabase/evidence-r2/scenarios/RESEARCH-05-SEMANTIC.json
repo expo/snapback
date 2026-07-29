@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-05-SEMANTIC",
+  "status": "pass",
+  "checkedAt": "2026-07-29T08:54:48.990Z",
+  "evidence": {
+    "path": "pgvector vector(32), HNSW vector_cosine_ops, <=> RPC",
+    "dimensions": 32,
+    "queryIdentity": "basis-3",
+    "expectedFirst": "20000000-0000-4000-8000-000000000004",
+    "results": [
+      {
+        "id": "20000000-0000-4000-8000-000000000004",
+        "title": "Frozen source 03",
+        "distance": 0
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000001",
+        "title": "Frozen source 00 quasar",
+        "distance": 1
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000002",
+        "title": "Frozen source 01",
+        "distance": 1
+      }
+    ]
+  }
+}

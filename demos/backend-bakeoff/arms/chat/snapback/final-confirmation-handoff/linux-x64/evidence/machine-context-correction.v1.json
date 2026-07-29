@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "snapback.llp0102.machine-context-correction.v1",
+  "arm": "chat/snapback",
+  "observedAt": "2026-07-29T06:03:43-07:00",
+  "receipt": {
+    "path": "acceptance/performance.v1.json",
+    "sha256": "d780004eac8dbae5c563612ed15d1e50025628a6bbbeb52a17744472fdbc443e",
+    "retainedVerbatim": true,
+    "affectedJsonPointers": [
+      "/profile"
+    ]
+  },
+  "embeddedClaim": "small local Mac17,3 arm64 workload; two warmups and seven recorded samples",
+  "observedMachine": {
+    "hostname": "ccheever-minisforum-AI-Series",
+    "os": "Ubuntu Linux",
+    "kernel": "6.17.0-40-generic",
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+    "logicalCpus": 24
+  },
+  "adjudication": {
+    "rawTimingsValidOn": "Minisforum Linux x86_64",
+    "embeddedMacProfile": "contradicted",
+    "crossMachineLatencyComparison": "not permitted",
+    "confidenceRecommendation": "Retain raw samples for within-arm descriptive evidence only; lower machine-context confidence and exclude them from cross-machine provider ranking unless centrally normalized or rerun."
+  }
+}

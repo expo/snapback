@@ -3,14 +3,14 @@ title: Actions and outbound fetch
 id: backend.actions-and-fetch
 order: 3
 audience: agent-first
-capabilities: [backend.actions, backend.action-streams]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+capabilities: [backend.actions]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
 examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-24
-reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
+reviewed: 2026-07-29
+reviewed-commit: HEAD
 ---
 
 # Actions and outbound fetch
@@ -79,9 +79,56 @@ not accept a replacement identity.
 
 ## Enable egress deliberately
 
-The local runtime denies `fetch` by default. Enable it explicitly with
-`SNAPBACK_OUTBOUND_ACTIONS=1` for the deployment/process that should have
-egress. Queries and mutations remain denied even in that runtime:
+Outbound egress is off by default, and the same opt-in is evaluated at two
+separate boundaries:
+
+1. **Generation time.** The process running `snapback generate` (or the
+   repository codegen entry point) needs `SNAPBACK_OUTBOUND_ACTIONS=1` while it
+   validates a bundle containing `fetch` or timers. Without it, generation
+   fails early with `BUNDLE_UNSUPPORTED_FETCH` or
+   `BUNDLE_UNSUPPORTED_TIMER`.
+2. **Process runtime.** The Snapback server process also needs
+   `SNAPBACK_OUTBOUND_ACTIONS=1`. Generation does not grant the running
+   process network authority, and the runtime remains the security boundary.
+
+The codegen acceptance witness sets the generation-process environment before
+validating the action:
+
+```js source=packages/snapback-codegen/authoring-validation.test.mjs
+const previousOutboundActions = process.env.SNAPBACK_OUTBOUND_ACTIONS;
+process.env.SNAPBACK_OUTBOUND_ACTIONS = '1';
+```
+
+Prefix whichever authoring command you use. The managed `dev` command runs
+generation before starting or attaching to the server, so one prefixed command
+carries the opt-in through that managed loop:
+
+```sh
+# Generate artifacts without starting the managed server.
+SNAPBACK_OUTBOUND_ACTIONS=1 snapback generate snapback
+
+# Or run managed generation + server development under the same opt-in.
+SNAPBACK_OUTBOUND_ACTIONS=1 snapback dev snapback
+```
+
+A harness that starts the server directly passes the runtime environment
+explicitly:
+
+```js source=demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs
+const source = await startStreamSource();
+const server = await startServer({
+  port: 0,
+  db: ':memory:',
+  cwd: repoRoot,
+  env: { SNAPBACK_OUTBOUND_ACTIONS: '1' },
+  provenance: {
+    appId: 'competitive-checkpoint',
+    artifactsPath: join(backendDir, 'generated', 'artifacts.json'),
+  },
+});
+```
+
+Queries and mutations remain denied fetch even in an enabled runtime:
 
 ```js source=demos/all-aboard/tests/acceptance/egress.mjs
   await suite.check('a query in the same runtime is still denied fetch and has no ctx.secrets', async () => {

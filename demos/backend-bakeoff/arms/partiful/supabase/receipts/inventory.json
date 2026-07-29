@@ -1,0 +1,499 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "/private/tmp/llp0102-partiful-supabase-coord/demos/backend-bakeoff/arms/partiful/supabase",
+  "generatedAt": "2026-07-29T05:48:07.747Z",
+  "totals": {
+    "test": {
+      "files": 3,
+      "bytes": 55099,
+      "lines": 1437
+    },
+    "configuration": {
+      "files": 41,
+      "bytes": 126535,
+      "lines": 4326
+    },
+    "authored-source": {
+      "files": 22,
+      "bytes": 66077,
+      "lines": 1436
+    },
+    "dependency-manifest": {
+      "files": 1,
+      "bytes": 56042,
+      "lines": 1732
+    }
+  },
+  "installedDependencyBytes": 245120641,
+  "files": [
+    {
+      "path": "receipts/acceptance.json",
+      "category": "test",
+      "bytes": 13841,
+      "lines": 473,
+      "sha256": "6fd2374520f41484fb8efc1b7a45c08c16084d2b9951c9a1fdf90e021a6f9d46"
+    },
+    {
+      "path": "receipts/acceptance.partial.json",
+      "category": "test",
+      "bytes": 7434,
+      "lines": 263,
+      "sha256": "d25c2abd54960c9d22bab9fabee3eb822043c1280d86ec996d02022f6b102ed6"
+    },
+    {
+      "path": "receipts/backup-manifest.json",
+      "category": "configuration",
+      "bytes": 809,
+      "lines": 27,
+      "sha256": "244686624df2f09fa51c49232fa91de27a5fbd42f4caa2c6f502911e290a5ecd"
+    },
+    {
+      "path": "receipts/cleanup-plan.json",
+      "category": "configuration",
+      "bytes": 1622,
+      "lines": 36,
+      "sha256": "0542e34da42b54791a65c8e7e5392c38e2249ad192879938006aedbf6d1b77b7"
+    },
+    {
+      "path": "receipts/cleanup.json",
+      "category": "configuration",
+      "bytes": 1129,
+      "lines": 35,
+      "sha256": "313086d05593991b0a5f255cd8f35f88117589a0c9c2f3da3391a798070d4988"
+    },
+    {
+      "path": "receipts/failed-attempt-1-cold-realtime.json",
+      "category": "configuration",
+      "bytes": 4613,
+      "lines": 158,
+      "sha256": "39488ef51d53600c40cfafb7fbfc5c7aafa2ea323eaa6dd0efbc47330be6438a"
+    },
+    {
+      "path": "receipts/failed-attempt-10-complete-process-exit.json",
+      "category": "configuration",
+      "bytes": 12127,
+      "lines": 431,
+      "sha256": "9e99f61f79bc3ab8fd0f1eee52881a558d37dff27193ce30f53fa1fc06195be7"
+    },
+    {
+      "path": "receipts/failed-attempt-2-cold-realtime.json",
+      "category": "configuration",
+      "bytes": 4613,
+      "lines": 158,
+      "sha256": "154d9343e2b78cec031969e78e5b0032bc9085a95f78e60adc92ee4ba6c8558d"
+    },
+    {
+      "path": "receipts/failed-attempt-3-auth-readiness.json",
+      "category": "configuration",
+      "bytes": 396,
+      "lines": 10,
+      "sha256": "5234e54eb7ff8670a530fd6851f7e2c37677d8052e9700e62c227ebf33121ab0"
+    },
+    {
+      "path": "receipts/failed-attempt-4-edge-effect.json",
+      "category": "configuration",
+      "bytes": 7494,
+      "lines": 267,
+      "sha256": "0e5c4f22a170215c01299770593011017592267dbf691e667c3ee9942777b850"
+    },
+    {
+      "path": "receipts/failed-attempt-5-edge-effect.json",
+      "category": "configuration",
+      "bytes": 7494,
+      "lines": 267,
+      "sha256": "7ee208380ede933757a932591530fde8d41cf678d133e587eb4544040d34f7c4"
+    },
+    {
+      "path": "receipts/failed-attempt-6-edge-auth-header.json",
+      "category": "configuration",
+      "bytes": 7434,
+      "lines": 263,
+      "sha256": "16f98c1736d0f6feb39d5a34a13f6933ef0e6cd04dd2435d0a027b8b5404953d"
+    },
+    {
+      "path": "receipts/failed-attempt-7-edge-auth-validation.json",
+      "category": "configuration",
+      "bytes": 7434,
+      "lines": 263,
+      "sha256": "a754eaa962f96169b4d5882b337249ce0862721e97463046c449d0697d3dae78"
+    },
+    {
+      "path": "receipts/failed-attempt-8-provider-auth-header.json",
+      "category": "configuration",
+      "bytes": 7434,
+      "lines": 263,
+      "sha256": "7e34126dc7a8650d7f728cd721b3e2e88eaff2537bad82901da312555993dd3f"
+    },
+    {
+      "path": "receipts/failed-attempt-9-provider-secret-cache.json",
+      "category": "configuration",
+      "bytes": 7434,
+      "lines": 263,
+      "sha256": "d25c2abd54960c9d22bab9fabee3eb822043c1280d86ec996d02022f6b102ed6"
+    },
+    {
+      "path": "receipts/inventory.json",
+      "category": "configuration",
+      "bytes": 15013,
+      "lines": 486,
+      "sha256": "121c9a2ff5f136d799f7d81678fad38f331959ec6d684024c0303a22370756c1"
+    },
+    {
+      "path": "receipts/llp-maintain-audit.md",
+      "category": "authored-source",
+      "bytes": 1327,
+      "lines": 27,
+      "sha256": "d2e1337a43443cf84810f191d94b3a6462d73985260442c5a2ddc4813e1df9d1"
+    },
+    {
+      "path": "receipts/npm-audit.json",
+      "category": "configuration",
+      "bytes": 363,
+      "lines": 23,
+      "sha256": "96e977b75eb7295b45f3febc02a25a5cf17e80e918af1016eebabec68df8bd73"
+    },
+    {
+      "path": "receipts/operations.json",
+      "category": "configuration",
+      "bytes": 1744,
+      "lines": 41,
+      "sha256": "42f06111c9481a379061812c3a55bfb68184c2a863c26e97a5bdadfc2cc7535a"
+    },
+    {
+      "path": "receipts/performance.json",
+      "category": "configuration",
+      "bytes": 1587,
+      "lines": 88,
+      "sha256": "0248e3573f7f24735412b7f80c3b5d2ce89a3f5ac9335af8f1ca94bb92defb97"
+    },
+    {
+      "path": "receipts/pre-cleanup-resources.json",
+      "category": "configuration",
+      "bytes": 4004,
+      "lines": 87,
+      "sha256": "e0de1676af4a6ffdafdc7b3fd28300ed20d967cc4087a20759d8d6735b4b57d2"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-01-SEED.json",
+      "category": "configuration",
+      "bytes": 2063,
+      "lines": 64,
+      "sha256": "49836735b8523aaa6231f03be87787c73f8aeea6878c05a7758dfc89b199a46a"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-02-PUBLIC-PRIVATE.json",
+      "category": "configuration",
+      "bytes": 527,
+      "lines": 26,
+      "sha256": "7ddd837471ec500f535ffc8b7f2d5b2122e7bea3830c9ade751060e3cf4dd4a6"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-03-INVITE-RSVP.json",
+      "category": "configuration",
+      "bytes": 824,
+      "lines": 40,
+      "sha256": "37bc01a2f3432a7258ec325930dbe942c8abdd185a946e3ffdfb049e1f748a28"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-04-ROLES.json",
+      "category": "configuration",
+      "bytes": 368,
+      "lines": 19,
+      "sha256": "76b5f7e2fce814ba7d2574a3c786305f025f2436897988034c791246e0f01a01"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-05-GUEST-LIST.json",
+      "category": "configuration",
+      "bytes": 603,
+      "lines": 32,
+      "sha256": "1d0231005f5a0021c1201eea44428540bae5f0579392264e2cadb5c92609c7fd"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-06-CAPACITY.json",
+      "category": "configuration",
+      "bytes": 465,
+      "lines": 27,
+      "sha256": "c2b58ad5e960c8a8a85007ff48d97523fa8ed4ae900617472716015a4a38d7a8"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-07-LIVE-BURST.json",
+      "category": "configuration",
+      "bytes": 387,
+      "lines": 18,
+      "sha256": "d6e5a849a9422987ec0352f57b80d4eb0c5b8668574970a7644f6abadd015df8"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-08-ASSET.json",
+      "category": "configuration",
+      "bytes": 558,
+      "lines": 23,
+      "sha256": "514f1d5d4d3215b04dec27539391c4b8347228162e92546ca8860a59d6eee9ba"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-09-SCHEDULE.json",
+      "category": "configuration",
+      "bytes": 659,
+      "lines": 24,
+      "sha256": "f22a99093886580749a25b8edf0d58b34cfe93fecb883a12be1525336a3d8a71"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-10-EFFECT-RETRY.json",
+      "category": "configuration",
+      "bytes": 557,
+      "lines": 25,
+      "sha256": "d79f55835e2e687342cd5e6586b24bff784c88f74182271d5388d5d2a69b7451"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-11-EFFECT-AMBIGUOUS.json",
+      "category": "configuration",
+      "bytes": 622,
+      "lines": 27,
+      "sha256": "c25c40dce08ba6a0687ab9cdef9b4ce875d5f2fe6cabe487887c80706babd5bc"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-12-REVOCATION.json",
+      "category": "configuration",
+      "bytes": 482,
+      "lines": 22,
+      "sha256": "3ce477ad5de117013c14878499f93c024baab3a3d8efaf02eb0d4c25e1af7895"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-13-DEPLOY.json",
+      "category": "configuration",
+      "bytes": 778,
+      "lines": 16,
+      "sha256": "40d1da5f3d8f5716f6eefe9a54e22900b39cbb87368f17db301b2e4a9aaffe6e"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-14-PERFORMANCE.json",
+      "category": "configuration",
+      "bytes": 1886,
+      "lines": 94,
+      "sha256": "f3a42208ec296b2400fcf01de396cb52fd4a6e8b57b7f38c2b674fcc16119be9"
+    },
+    {
+      "path": "receipts/scenarios/PARTY-15-CLEANUP.json",
+      "category": "configuration",
+      "bytes": 1531,
+      "lines": 41,
+      "sha256": "0b16a0a4f9d342780f0a227e0349e7583a6cdc67990038ac5cdecd137185bb71"
+    },
+    {
+      "path": "receipts/seed.json",
+      "category": "configuration",
+      "bytes": 1238,
+      "lines": 46,
+      "sha256": "079dfb583e4a5b1f86c9a3cd57b1ee3466300000d14703e9fa92fe7a37a95c5a"
+    },
+    {
+      "path": "receipts/target-identity.json",
+      "category": "configuration",
+      "bytes": 496,
+      "lines": 14,
+      "sha256": "be4a3b5b9f622c9ed9a4e6de5c5aae96e383d85fbb686497299eb561227aa579"
+    },
+    {
+      "path": "run-capsule.v1.json",
+      "category": "configuration",
+      "bytes": 16815,
+      "lines": 458,
+      "sha256": "8495a760463b0ff377a355200327d2c3b0dab47c464aee28fa15fa5f749b4b28"
+    },
+    {
+      "path": "work/.gitignore",
+      "category": "authored-source",
+      "bytes": 91,
+      "lines": 9,
+      "sha256": "431932c4f85145530034a7dbf19168db1c62b779079de1c7b70042d30a17574e"
+    },
+    {
+      "path": "work/index.html",
+      "category": "authored-source",
+      "bytes": 390,
+      "lines": 14,
+      "sha256": "b29880250b2bc2e6dbc5c9398a830e856b8faaad32fad0a12660538200cfc363"
+    },
+    {
+      "path": "work/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 56042,
+      "lines": 1732,
+      "sha256": "4aa8940d7678a52a9f78e4ad25361c05427d27335ddbab2c709e01fff9060b96"
+    },
+    {
+      "path": "work/package.json",
+      "category": "configuration",
+      "bytes": 682,
+      "lines": 27,
+      "sha256": "452f165f0904947d4fce1abbdcc5615f306ba78718613e633fa96004aba05c06"
+    },
+    {
+      "path": "work/run-state.json",
+      "category": "configuration",
+      "bytes": 414,
+      "lines": 10,
+      "sha256": "cb6a01b29ca202d7531ccce8e25bc31aa8d9363eaf9c3953c55a252f04339e4f"
+    },
+    {
+      "path": "work/scripts/acceptance.mjs",
+      "category": "test",
+      "bytes": 33824,
+      "lines": 701,
+      "sha256": "49cd5a79d1f998096ce125a99d979698b7cb2adc7ca80c4eee30605e6f7d3abe"
+    },
+    {
+      "path": "work/scripts/build.mjs",
+      "category": "authored-source",
+      "bytes": 557,
+      "lines": 19,
+      "sha256": "60357847e3a378afff6dcfb99108a9cb7a8ecb4ab4e4ac961272973da00a8f46"
+    },
+    {
+      "path": "work/scripts/cleanup-probe.mjs",
+      "category": "authored-source",
+      "bytes": 3691,
+      "lines": 69,
+      "sha256": "91d8d0c2589113e76945b1d59c04b2ada65217134e4101eec4e825f4cbfc04a6"
+    },
+    {
+      "path": "work/scripts/collect-evidence.mjs",
+      "category": "authored-source",
+      "bytes": 1001,
+      "lines": 30,
+      "sha256": "f1c41ffbc7d91e0704c3eeb09298e755ac77ef69af51512af3ffb78964b13d79"
+    },
+    {
+      "path": "work/scripts/dev.mjs",
+      "category": "authored-source",
+      "bytes": 732,
+      "lines": 24,
+      "sha256": "913677ea80608038215856a9053b9e3a469377b913080859ed1fbcaea6abbee4"
+    },
+    {
+      "path": "work/scripts/finalize-capsule.mjs",
+      "category": "authored-source",
+      "bytes": 14509,
+      "lines": 237,
+      "sha256": "4d5308031d13b5e90afea597b4886dcc66ddc634e8ebbccc127765a62af9ee21"
+    },
+    {
+      "path": "work/scripts/local-config.mjs",
+      "category": "authored-source",
+      "bytes": 1239,
+      "lines": 42,
+      "sha256": "e4599eacfa3a6769907bb98abb12ada757a9d96c9cf87ef0a9577173b4f53595"
+    },
+    {
+      "path": "work/scripts/pre-cleanup.mjs",
+      "category": "authored-source",
+      "bytes": 7292,
+      "lines": 163,
+      "sha256": "4816a646d8279fc4370e7440978b05f0eeb5c712f24e36576228d932533c80f3"
+    },
+    {
+      "path": "work/scripts/prepare-runtime.mjs",
+      "category": "authored-source",
+      "bytes": 778,
+      "lines": 21,
+      "sha256": "7d37883a59c9e508c35a37d88efbb6bd37ed14ae0d9694ff28a5284ec40338b5"
+    },
+    {
+      "path": "work/scripts/seed.mjs",
+      "category": "authored-source",
+      "bytes": 5947,
+      "lines": 167,
+      "sha256": "ae03744a3b8e2ad545b70930197053c0c084ed09316bf9416cc21e07ea7bdd47"
+    },
+    {
+      "path": "work/src/main.tsx",
+      "category": "authored-source",
+      "bytes": 251,
+      "lines": 9,
+      "sha256": "24887c6a2705ddf1bd245000c238d5f1794237ec68f2fc9f374dcf1d105e33f6"
+    },
+    {
+      "path": "work/src/PartifulApp.tsx",
+      "category": "authored-source",
+      "bytes": 1861,
+      "lines": 50,
+      "sha256": "befefb281204dfce31074e7e50cbb4db9385307896c7c830a12bc206011580c4"
+    },
+    {
+      "path": "work/src/styles.css",
+      "category": "authored-source",
+      "bytes": 2054,
+      "lines": 32,
+      "sha256": "a81dcaa748fe474ec0eb76081d6b6d53cc7ddd67de2764020d5b72c49018c0ec"
+    },
+    {
+      "path": "work/src/supabase.ts",
+      "category": "authored-source",
+      "bytes": 238,
+      "lines": 8,
+      "sha256": "76466e0bc9e146988a39812fab33c0fdbec62b7eba7b3cba9f2db4bc9d6ce9ee"
+    },
+    {
+      "path": "work/src/vite-env.d.ts",
+      "category": "authored-source",
+      "bytes": 38,
+      "lines": 2,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "work/supabase/.gitignore",
+      "category": "authored-source",
+      "bytes": 16,
+      "lines": 3,
+      "sha256": "da307c57c9f97864374d924169fdeac9a57b16dbfe667438ad79748eeb7ebf7e"
+    },
+    {
+      "path": "work/supabase/config.toml",
+      "category": "configuration",
+      "bytes": 1067,
+      "lines": 72,
+      "sha256": "162a68fffc3eff2dcfdb32ec84d42cc5b9f7f976cd0b84b0ae9b6f7cb6d53c33"
+    },
+    {
+      "path": "work/supabase/functions/notify/index.ts",
+      "category": "authored-source",
+      "bytes": 4009,
+      "lines": 91,
+      "sha256": "65d3d4c877d47f3ce760b1f1b7aa86aa890c29d14f45010234e1194af6e68e97"
+    },
+    {
+      "path": "work/supabase/functions/provider-fake/index.ts",
+      "category": "authored-source",
+      "bytes": 2127,
+      "lines": 48,
+      "sha256": "3193771536bd2bf063b64b438c34cd86367e25d6fcf3c2d63801036ac4c2342c"
+    },
+    {
+      "path": "work/supabase/migrations/20260729060000_partiful.sql",
+      "category": "authored-source",
+      "bytes": 15304,
+      "lines": 370,
+      "sha256": "eba523a76edf05d01f708d60abf7d556124b624486b207008420b2e41499ab0f"
+    },
+    {
+      "path": "work/tsconfig.json",
+      "category": "configuration",
+      "bytes": 557,
+      "lines": 23,
+      "sha256": "398ffb92e92a46b6ce911315515d87bb6b9861e500ba6a7653ab07e89921957b"
+    },
+    {
+      "path": "work/tsconfig.tsbuildinfo",
+      "category": "authored-source",
+      "bytes": 2625,
+      "lines": 1,
+      "sha256": "cb47fa21a11dccce5759a383d8406d04f59e79c2797cfcd1678c96ab8444feff"
+    },
+    {
+      "path": "work/vite.config.ts",
+      "category": "configuration",
+      "bytes": 212,
+      "lines": 12,
+      "sha256": "38f80842d068391fb3594beafc7c13a738e1a119d7635139e02fb9ecb440a371"
+    }
+  ]
+}

@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "provider": "convex",
+  "app": "research-room",
+  "runMode": "untimed-extension-after-stop",
+  "startedAt": "2026-07-29T10:51:01.219Z",
+  "finishedAt": "2026-07-29T10:58:37Z",
+  "milestones": {
+    "firstLocalReadMs": 10.365,
+    "firstAuthoritativeMutationMs": 47.871,
+    "firstRealtimeTransitionMs": 98.211
+  },
+  "target": {
+    "deploymentUrlHash": "d01aeff7c01430a3fe0d377b7d3b9bdeee6378642e280461872f75ab525aa0f9",
+    "siteUrlHash": "fa2d404ed92953525f5c5f5cb00b240a1d633e459cd869b83addc174e2e1cab7",
+    "localConfigPathHash": "8bcd650e0c8e4d9375fe75a7d60878d31245a2345fc1199c0e5f52f9f760150d"
+  },
+  "actors": {
+    "alice": "da581762ae8c77475ff914786ba7431c7f12a775409364bdf47b6f69eb970f84",
+    "bob": "1e9a59939305beca154b56c855f9728b7163ef27aacd2e6fc4483fa8ec85d72b",
+    "mallory": "0e9565b7ac67900bc862fae63873c4c9d00c718f3e45fdbd252339ef411b1d9c"
+  },
+  "scenarios": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "pass",
+      "transport": "not-applicable",
+      "authoritativeCheck": "Independent Bob Convex query read exact backend counts after Alice mutation.",
+      "details": {
+        "counts": {
+          "answerCount": 0,
+          "memberSubjects": [
+            "alice",
+            "bob"
+          ],
+          "questionCount": 0,
+          "roomCount": 2,
+          "roomSlug": "room-primary",
+          "sourceCount": 20
+        },
+        "seedSourceIdCount": 20
+      }
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "pass",
+      "transport": "native Convex file storage upload/delivery",
+      "authoritativeCheck": "Bob read metadata and delivered bytes; backend query returned null after owner deletion.",
+      "details": {
+        "objectIdentityHash": "99ec21a0d6f9446dca5e50286c3b960c7b404cb449571f1798ff0e5aae3edc8c",
+        "byteLength": 65536,
+        "contentHash": "4b640d85ab3ba30fd02c9fc9db4a8928f416322ad27022ea58a65aaee68a4df2",
+        "ownerSubject": "alice",
+        "deleted": true,
+        "postDeleteNull": true
+      }
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "pass",
+      "transport": "Convex search index",
+      "authoritativeCheck": "Convex query executed withSearchIndex over source searchText filtered by roomId.",
+      "details": {
+        "resultKeys": [
+          "source-00",
+          "source-03",
+          "source-06",
+          "source-09",
+          "source-12",
+          "source-15",
+          "source-18"
+        ],
+        "expectedKeys": [
+          "source-00",
+          "source-03",
+          "source-06",
+          "source-09",
+          "source-12",
+          "source-15",
+          "source-18"
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "pass",
+      "transport": "Convex vector index via ctx.vectorSearch in action",
+      "authoritativeCheck": "Native vector-search action returned deterministic nearest source.",
+      "details": {
+        "resultKeys": [
+          "source-00",
+          "source-16",
+          "source-15"
+        ],
+        "topScore": 0.9987468719482422
+      }
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "pass",
+      "transport": "native Convex WebSocket subscription push",
+      "authoritativeCheck": "Four scheduler-driven mutations were queried independently before terminal complete.",
+      "details": {
+        "durableProgress": [
+          {
+            "label": "retrieving",
+            "step": 1
+          },
+          {
+            "label": "ranking",
+            "step": 2
+          },
+          {
+            "label": "synthesizing",
+            "step": 3
+          },
+          {
+            "label": "citing",
+            "step": 4
+          }
+        ],
+        "observedPushCounts": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "pushEvents": [
+          {
+            "progressCount": 0,
+            "state": "running",
+            "observedAt": "2026-07-29T10:51:01.395Z"
+          },
+          {
+            "progressCount": 1,
+            "state": "running",
+            "observedAt": "2026-07-29T10:51:01.472Z"
+          },
+          {
+            "progressCount": 2,
+            "state": "running",
+            "observedAt": "2026-07-29T10:51:01.549Z"
+          },
+          {
+            "progressCount": 3,
+            "state": "running",
+            "observedAt": "2026-07-29T10:51:01.622Z"
+          },
+          {
+            "progressCount": 4,
+            "state": "complete",
+            "observedAt": "2026-07-29T10:51:01.701Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "pass",
+      "transport": "not-applicable",
+      "authoritativeCheck": "Answer citation IDs were dereferenced through Bob-authorized backend queries.",
+      "details": {
+        "answerIdHash": "41b572a0c414e0dffafd2453423458e9193fcdc7242a4eb1d56ca78d151a2be1",
+        "citationIdHashes": [
+          "d97fc3b40ddb488653803d2ecaac7ea7864421af396bd7709e4c90ef78746452",
+          "b033633ca7e671e8cf81735783df98113e7eda58d3e797adcbecf6d8a6a92aee"
+        ],
+        "allAuthorizedSourcesExist": true
+      }
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "pass",
+      "transport": "native Convex WebSocket subscription push",
+      "authoritativeCheck": "A distinct Bob-authenticated ConvexClient observed Alice's scheduler-authored transitions.",
+      "details": {
+        "actor": "bob",
+        "initiatingActor": "alice",
+        "pushEventCount": 5
+      }
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "pass",
+      "transport": "not-applicable",
+      "authoritativeCheck": "Backend state after scheduled late attempts retained zero progress/answer patches.",
+      "details": {
+        "cancelSettlement": {
+          "settled": true,
+          "state": "cancelled"
+        },
+        "injectedAttempt": {
+          "observedState": "cancelled",
+          "rejected": true
+        },
+        "authoritativeState": "cancelled",
+        "durableProgressCount": 0,
+        "answerPresent": false,
+        "rejectedAttemptLedger": [
+          {
+            "observedState": "cancelled",
+            "rejected": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "pass",
+      "transport": "not-applicable",
+      "authoritativeCheck": "Compound roomId+dedupeKey index returned one question and one answer with two attempt rows.",
+      "details": {
+        "sameQuestion": true,
+        "dispositions": [
+          {
+            "attempt": 1,
+            "disposition": "started"
+          },
+          {
+            "attempt": 2,
+            "disposition": "deduped"
+          }
+        ],
+        "answerCount": 1
+      }
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "pass",
+      "transport": "not-applicable",
+      "authoritativeCheck": "Independent query returned distinct durable state-machine values.",
+      "details": {
+        "observedStates": [
+          "ambiguous",
+          "cancelled",
+          "complete",
+          "failed",
+          "timed_out"
+        ],
+        "expectedStates": [
+          "ambiguous",
+          "cancelled",
+          "complete",
+          "failed",
+          "timed_out"
+        ]
+      }
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "pass",
+      "transport": "Convex scheduler -> action -> HTTP action fixture -> internal mutation",
+      "authoritativeCheck": "Two scheduled effects with one dedupe key produced one durable run.",
+      "details": {
+        "scheduleCount": 2,
+        "durableRunCount": 1,
+        "run": {
+          "status": "complete",
+          "externalRecordId": "external-record-001",
+          "payloadHash": "sha256:deterministic-external-fixture-v1",
+          "progress": "fetched-and-recorded"
+        }
+      }
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "fail",
+      "transport": "server action environment",
+      "authoritativeCheck": "Application canary stayed server-side, but the Convex local backend places its independent control secret in process argv.",
+      "details": {
+        "applicationCanaryConfigured": true,
+        "applicationCanaryValueReturned": false,
+        "providerStopDefect": "local-control-secret-in-process-argv",
+        "exactValueScanDeferredToCleanup": true
+      }
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "pass",
+      "transport": "query/action refusal plus native WebSocket subscription refusal",
+      "authoritativeCheck": "Mallory-authenticated native clients received FORBIDDEN for every protected surface.",
+      "details": {
+        "sources": true,
+        "keyword": true,
+        "semantic": true,
+        "subscription": true
+      }
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "pass",
+      "transport": "native HTTP and WebSocket client paths",
+      "authoritativeCheck": "Two warmups and seven raw samples retained for read/write/realtime/reconnect; build samples join after Vite runs.",
+      "details": {
+        "runtimeEvidencePath": "evidence/performance.runtime.json",
+        "buildSamplesPending": false,
+        "runtimePaths": [
+          {
+            "name": "representative-read",
+            "warmupCount": 2,
+            "recordedCount": 7
+          },
+          {
+            "name": "representative-write",
+            "warmupCount": 2,
+            "recordedCount": 7
+          },
+          {
+            "name": "realtime-delivery",
+            "warmupCount": 2,
+            "recordedCount": 7
+          },
+          {
+            "name": "reconnect",
+            "warmupCount": 2,
+            "recordedCount": 7
+          }
+        ],
+        "buildPath": {
+          "name": "build-or-deploy",
+          "warmupCount": 2,
+          "recordedCount": 7
+        },
+        "costWindow": {
+          "target": "anonymous local beta deployment",
+          "providerBilledUsage": "not available/local",
+          "providerListPriceEstimateUsd": 0,
+          "localResourceCostExcluded": true,
+          "productionScaleClaim": false
+        }
+      }
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "status": "pass",
+      "transport": "not-applicable",
+      "authoritativeCheck": "Provider mutation/probe reached zero rows before exact target process, listener, config, secret, and path removal.",
+      "details": {
+        "schemaVersion": 1,
+        "cleanedAt": "2026-07-29T10:58:37Z",
+        "namespace": "llp0102-research-convex-w2",
+        "freshLocalTarget": true,
+        "applicationCleanup": {
+          "deletedCounts": {
+            "answers": 0,
+            "attempts": 0,
+            "lateAttempts": 0,
+            "memberships": 0,
+            "progress": 0,
+            "questions": 0,
+            "refreshRuns": 0,
+            "rooms": 0,
+            "signals": 0,
+            "sources": 0
+          },
+          "postCleanupCounts": {
+            "answers": 0,
+            "attempts": 0,
+            "lateAttempts": 0,
+            "memberships": 0,
+            "progress": 0,
+            "questions": 0,
+            "refreshRuns": 0,
+            "rooms": 0,
+            "signals": 0,
+            "sources": 0
+          },
+          "mutationLogSha256": "44ced4a925ff7c1691de5966c15b4cc48ed9045ecb2213a00e9bbadbf8a6be4a",
+          "probeLogSha256": "3a3cf63257ec25754169ee5cd4355edd2b7776401546fa039907822d349d88c4"
+        },
+        "environmentCleanup": {
+          "variableName": "RESEARCH_CANARY",
+          "removeLogSha256": "dc53d69543f0cc669b8d596855f93a82a6c8ca4aff7c2c3fcaeeba458dd82455",
+          "negativeProbeExitCode": 0,
+          "negativeMessageObserved": true
+        },
+        "targetCleanup": {
+          "listenerCount": 0,
+          "recordedProcessCount": 0,
+          "targetPathCount": 0,
+          "r2ControlSecretExactValueMatches": 0,
+          "applicationCanaryExactValueMatches": 0
+        },
+        "unrelatedBaseline": "not applicable: fresh isolated local target",
+        "broadDeleteUsed": false,
+        "status": "pass"
+      }
+    }
+  ],
+  "summary": {
+    "expectedCheckCount": 15,
+    "actualCheckCount": 15,
+    "passCount": 14,
+    "failCount": 1,
+    "gapCount": 0,
+    "result": "stopped"
+  }
+}

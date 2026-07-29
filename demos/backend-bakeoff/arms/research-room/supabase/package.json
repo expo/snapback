@@ -1,0 +1,19 @@
+{
+  "name": "llp0102-research-room-supabase",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1 --port 4341",
+    "acceptance": "tsx work/acceptance.ts",
+    "performance": "tsx work/performance.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4",
+    "vite": "7.1.7"
+  },
+  "devDependencies": {
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "CHAT-06-TYPING",
+  "status": "gap",
+  "capturedAt": "2026-07-29T02:14:14.041Z",
+  "workaround": "application-authored durable typing row with client-supplied TTL filtering",
+  "expiresAt": 1785291253907,
+  "activeCount": 1,
+  "expiredVisibleCount": 0,
+  "durableRowsAfterExpiry": 1,
+  "nativeEphemeralPath": false,
+  "reason": "Convex core has native push but no built-in ephemeral typing primitive; durable TTL glue is not equivalent."
+}

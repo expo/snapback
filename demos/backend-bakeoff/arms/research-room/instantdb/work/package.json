@@ -1,0 +1,24 @@
+{
+  "name": "llp0102-research-room-instantdb",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4347",
+    "build": "vite build",
+    "push": "node scripts/push-config.mjs",
+    "seed": "node scripts/seed.mjs",
+    "accept": "node scripts/accept.mjs",
+    "cleanup": "node scripts/cleanup.mjs"
+  },
+  "dependencies": {
+    "@instantdb/admin": "1.0.52",
+    "@instantdb/react": "1.0.52",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "5.1.4",
+    "instant-cli": "1.0.52",
+    "vite": "7.3.1"
+  }
+}

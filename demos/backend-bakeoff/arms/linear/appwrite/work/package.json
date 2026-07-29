@@ -1,0 +1,36 @@
+{
+  "name": "llp0102-linear-appwrite-w2",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "preflight": "node scripts/preflight.mjs",
+    "install:stack": "node scripts/install-local.mjs",
+    "bootstrap": "node scripts/bootstrap-project.mjs && node scripts/create-api-key.mjs",
+    "provision": "node scripts/provision.mjs",
+    "dev": "vite --host 127.0.0.1 --port 4324",
+    "build": "tsc -b && vite build",
+    "acceptance": "node scripts/acceptance.mjs",
+    "performance": "node scripts/performance.mjs",
+    "audit": "node scripts/dependency-audit.mjs",
+    "inventory": "node scripts/inventory.mjs",
+    "cleanup:arm": "node scripts/cleanup.mjs",
+    "capsule": "node scripts/build-capsule.mjs"
+  },
+  "dependencies": {
+    "appwrite": "26.2.0",
+    "node-appwrite": "27.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "appwrite-cli": "23.2.0",
+    "playwright-core": "1.62.0",
+    "typescript": "6.0.2",
+    "vite": "8.1.1"
+  }
+}

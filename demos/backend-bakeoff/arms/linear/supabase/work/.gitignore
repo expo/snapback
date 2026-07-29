@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.xdg/
+.docker/
+.env*
+supabase/.branches/
+supabase/.temp/

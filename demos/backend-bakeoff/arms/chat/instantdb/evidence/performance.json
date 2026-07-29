@@ -1,0 +1,151 @@
+{
+  "claimScope": "small repeatable product workload; not production scale",
+  "warmups": 2,
+  "recordedSamples": 7,
+  "representativeRead": [
+    119.2180879999978,
+    130.45794099999694,
+    117.08517500000016,
+    160.66050600000017,
+    117.11373800000001,
+    117.19466800000009,
+    117.65157299999919
+  ],
+  "representativeWriteBurst20": [
+    252.46785299999829,
+    278.94131500000003,
+    244.12564400000338,
+    398.31700700000147,
+    289.92100800000117,
+    272.5701700000027,
+    242.1535580000018
+  ],
+  "realtimeDelivery": [
+    136.05367299999853,
+    136.15592499999912,
+    136.71562999999878,
+    145.09606600000188,
+    247.41901900000084,
+    174.37124100000074,
+    160.26688400000057
+  ],
+  "reconnect": [
+    582.1205240000018,
+    537.9462530000019,
+    588.3772040000003,
+    534.1098209999982,
+    570.6316770000012,
+    549.637404000001,
+    731.5690380000015
+  ],
+  "buildOrDeploy": [
+    3095.7009959999996,
+    3158.9663680000012,
+    3070.207525,
+    3146.102312000001,
+    3116.624072999999,
+    3168.422300000002,
+    3135.1074750000007
+  ],
+  "statistics": {
+    "representativeRead": {
+      "rawMs": [
+        119.2180879999978,
+        130.45794099999694,
+        117.08517500000016,
+        160.66050600000017,
+        117.11373800000001,
+        117.19466800000009,
+        117.65157299999919
+      ],
+      "medianMs": 117.65157299999919,
+      "nearestRankP95Ms": 160.66050600000017
+    },
+    "representativeWriteBurst20": {
+      "rawMs": [
+        252.46785299999829,
+        278.94131500000003,
+        244.12564400000338,
+        398.31700700000147,
+        289.92100800000117,
+        272.5701700000027,
+        242.1535580000018
+      ],
+      "medianMs": 272.5701700000027,
+      "nearestRankP95Ms": 398.31700700000147
+    },
+    "realtimeDelivery": {
+      "rawMs": [
+        136.05367299999853,
+        136.15592499999912,
+        136.71562999999878,
+        145.09606600000188,
+        247.41901900000084,
+        174.37124100000074,
+        160.26688400000057
+      ],
+      "medianMs": 145.09606600000188,
+      "nearestRankP95Ms": 247.41901900000084
+    },
+    "reconnect": {
+      "rawMs": [
+        582.1205240000018,
+        537.9462530000019,
+        588.3772040000003,
+        534.1098209999982,
+        570.6316770000012,
+        549.637404000001,
+        731.5690380000015
+      ],
+      "medianMs": 570.6316770000012,
+      "nearestRankP95Ms": 731.5690380000015
+    },
+    "buildOrDeploy": {
+      "rawMs": [
+        3095.7009959999996,
+        3158.9663680000012,
+        3070.207525,
+        3146.102312000001,
+        3116.624072999999,
+        3168.422300000002,
+        3135.1074750000007
+      ],
+      "medianMs": 3135.1074750000007,
+      "nearestRankP95Ms": 3168.422300000002
+    }
+  },
+  "machine": {
+    "hostname": "expose-builder-pixel",
+    "platform": "linux 6.8.0-111-generic x64",
+    "cpus": 96,
+    "memoryBytes": 269935517696,
+    "loadAverageAtCapture": [
+      0.06,
+      0.06,
+      0.18
+    ],
+    "node": "v24.13.1"
+  },
+  "target": {
+    "provider": "InstantDB hosted temporary app",
+    "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+    "region": "provider-selected; not exposed",
+    "plan": "temporary/free"
+  },
+  "buildWarmups": [
+    3183.96725,
+    3114.6083230000004
+  ],
+  "costWindow": {
+    "actualProviderUsage": "Provider did not expose per-temporary-app metering.",
+    "listPriceEstimateUsd": 0,
+    "basis": "Official temporary hosted app created without an account; automatically deleted by provider after >24 hours.",
+    "extrapolationCountedAsMeasured": false
+  },
+  "uiShell": {
+    "implementation": "React 19 + @instantdb/react native hooks",
+    "port": 4290,
+    "productionBuild": true,
+    "controlledBrowser": false
+  }
+}

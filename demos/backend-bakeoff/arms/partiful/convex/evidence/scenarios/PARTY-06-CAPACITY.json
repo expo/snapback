@@ -1,0 +1,43 @@
+{
+  "id": "PARTY-06-CAPACITY",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:32.067Z",
+  "finishedAt": "2026-07-29T06:45:32.186Z",
+  "durationMs": 118.658,
+  "evidence": {
+    "twoActorBarrier": {
+      "barrierStartedAt": "2026-07-29T06:45:32.084Z",
+      "actors": [
+        "Bob",
+        "Casey"
+      ],
+      "simultaneousAttempts": 2
+    },
+    "fixture": {
+      "capacity": 50,
+      "occupiedSeats": 49
+    },
+    "settlement": [
+      {
+        "status": "fulfilled",
+        "response": {
+          "displayName": "Bob",
+          "eventKey": "event-summer-rooftop",
+          "identity": "https://llp0102-partiful.local|bob",
+          "namespace": "llp0102-partiful-convex-w2",
+          "plusOne": 0,
+          "revision": 1,
+          "status": "yes"
+        }
+      },
+      {
+        "status": "rejected",
+        "errorCode": "PARTY_CAPACITY_EXCEEDED"
+      }
+    ],
+    "authoritativeCount": {
+      "occupiedSeats": 50,
+      "capacity": 50
+    }
+  }
+}

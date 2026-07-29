@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-14-PERFORMANCE",
+  "status": "pass-local-with-hosted-deploy-gap",
+  "checkedAt": "2026-07-29T13:02:42.091Z",
+  "evidence": {
+    "warmups": 2,
+    "recordedSamples": 7,
+    "rawSamples": "../performance.json",
+    "summary": {
+      "searchMs": {
+        "median": 2.427,
+        "p95": 2.621,
+        "min": 2.159,
+        "max": 2.621
+      },
+      "writeMs": {
+        "median": 1.912,
+        "p95": 2.016,
+        "min": 1.667,
+        "max": 2.016
+      },
+      "progressBroadcastMs": {
+        "median": 1.79,
+        "p95": 2.078,
+        "min": 1.703,
+        "max": 2.078
+      },
+      "reconnectMs": {
+        "median": 3.555,
+        "p95": 4.209,
+        "min": 3.426,
+        "max": 4.209
+      },
+      "artifactBuildMs": {
+        "median": 238.739,
+        "p95": 249.826,
+        "min": 233.798,
+        "max": 249.826
+      }
+    },
+    "costWindow": {
+      "localActualUsd": 0,
+      "localPlan": "official local CLI stack",
+      "hostedActualUsd": null,
+      "hostedListPriceExtrapolation": null,
+      "confidence": "local-only; no hosted cost claim"
+    },
+    "hostedDeployGap": "not sampled: shared hosted credentials did not include a project-scoped CLI access token"
+  }
+}

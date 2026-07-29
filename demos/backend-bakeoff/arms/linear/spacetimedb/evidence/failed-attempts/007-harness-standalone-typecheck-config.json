@@ -1,0 +1,10 @@
+{
+  "attempt": 7,
+  "stage": "final validation",
+  "classification": "harness configuration defect",
+  "symptom": "The runtime-proven harness failed a standalone npx tsc --noEmit check under NodeNext resolution and without Node ambient types.",
+  "cause": "SpacetimeDB's generated TypeScript bindings target bundler resolution, while the harness tsconfig selected NodeNext; @types/node was also absent.",
+  "remediation": "Use ESNext plus Bundler resolution, permit imported .ts extensions, add Node ambient types, and rerun both harness and server no-emit checks successfully.",
+  "runtimeAcceptanceAffected": false,
+  "stopClass": false
+}

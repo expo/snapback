@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "provider": "supabase",
+  "app": "research-room",
+  "lineage": [
+    {
+      "attempt": "original-builder",
+      "result": "stop-class-secret-exposure",
+      "immutable_record": "../builder-handoff/stop-incident.json"
+    },
+    {
+      "attempt": "final-refresh-r1",
+      "result": "stop-class-secret-exposure",
+      "immutable_record": "../final-refresh-handoff/stop-incident.v1.json"
+    },
+    {
+      "attempt": "final-refresh-r2",
+      "result": "safe-parser-refusal",
+      "scenario_count": 0,
+      "performance_sample_count": 0,
+      "cleanup_passed": true
+    },
+    {
+      "attempt": "fresh-prospective-r3",
+      "result": "pass-local-with-explicit-hosted-deploy-gap",
+      "scenario_count": 15,
+      "performance_warmups": 2,
+      "performance_recorded_samples": 7,
+      "cleanup_passed": true
+    }
+  ],
+  "original_timing_and_friction_mutated": false
+}

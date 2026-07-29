@@ -1,0 +1,14 @@
+{
+  "id": "CHAT-08-RECONNECT",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:21:30.512Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firestore disableNetwork/enableNetwork + onSnapshot",
+  "evidence": {
+    "beforeCount": 100,
+    "afterCount": 100,
+    "messageId": "Xz78lSpGloSWzB2TT7KY",
+    "occurrenceCount": 1
+  },
+  "note": "Authoritative server snapshot restored after deliberate client network disable."
+}

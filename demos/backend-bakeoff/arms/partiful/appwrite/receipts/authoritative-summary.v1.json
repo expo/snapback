@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T06:21:16.353Z",
+  "ok": true,
+  "targetIdentityHash": "4ccd665646c487168ddc65da71804be4851e2f3d90be5a062bfc099605d5f423",
+  "targetIdentity": {
+    "endpointHash": "ab66435e20eeca501e8bffea3cb5c0985e67ff55ca85921534ee72fa1e1eb1d1",
+    "projectIdHash": "03d4ac98033a135d1f2506d9db533ab8e8df4148f3415ad619e6e47e98a6ac65",
+    "composeProject": "llp0102-partiful-appwrite-w3",
+    "productVersion": "1.9.6",
+    "expectedProductVersion": "1.9.6",
+    "providerClients": {
+      "web": "26.2.0",
+      "node": "27.1.0",
+      "cli": "23.2.0"
+    },
+    "composeSha256": "4cc90f4761e32dc5adb2a25bf2212bdaf3765b3b2f9652a5640610c3b7f95b45",
+    "envSha256": "a990d8275a433cd2382401cbb837cdc3ba6b6e998fe42431684105b8d72ca752"
+  },
+  "authoritative": {
+    "userCount": 3,
+    "teamCount": 1,
+    "tables": {
+      "events": {
+        "rows": 20,
+        "permissions": [
+          "create(\"user:alice\")"
+        ],
+        "rowSecurity": true,
+        "indexes": [
+          {
+            "key": "sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "public_sequence_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "eventPrivate": {
+        "rows": 20,
+        "permissions": [],
+        "rowSecurity": true,
+        "indexes": [
+          {
+            "key": "event_unique",
+            "type": "unique",
+            "status": "available"
+          }
+        ]
+      },
+      "invitations": {
+        "rows": 4,
+        "permissions": [],
+        "rowSecurity": true,
+        "indexes": [
+          {
+            "key": "event_user_unique",
+            "type": "unique",
+            "status": "available"
+          },
+          {
+            "key": "user_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "guests": {
+        "rows": 49,
+        "permissions": [
+          "read(\"user:bob\")"
+        ],
+        "rowSecurity": true,
+        "indexes": [
+          {
+            "key": "event_sequence_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "wallPosts": {
+        "rows": 22,
+        "permissions": [
+          "create(\"users\")",
+          "read(\"user:bob\")"
+        ],
+        "rowSecurity": true,
+        "indexes": [
+          {
+            "key": "event_sequence_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "deliveries": {
+        "rows": 3,
+        "permissions": [],
+        "rowSecurity": true,
+        "indexes": [
+          {
+            "key": "dedupe_unique",
+            "type": "unique",
+            "status": "available"
+          }
+        ]
+      },
+      "attempts": {
+        "rows": 5,
+        "permissions": [],
+        "rowSecurity": true,
+        "indexes": [
+          {
+            "key": "dedupe_attempt_unique",
+            "type": "unique",
+            "status": "available"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "buckets": 1,
+      "remainingFiles": 0
+    },
+    "function": {
+      "id": "party-worker",
+      "runtime": "node-22",
+      "schedule": "",
+      "deployments": 1,
+      "executions": 6,
+      "variableKeys": [
+        {
+          "key": "EFFECT_URL",
+          "secret": false
+        },
+        {
+          "key": "APPWRITE_EXTERNAL_ENDPOINT",
+          "secret": false
+        },
+        {
+          "key": "EFFECT_SECRET",
+          "secret": true
+        },
+        {
+          "key": "ARM_API_KEY",
+          "secret": true
+        }
+      ],
+      "secretValuesPresent": false
+    },
+    "exactComposeResources": {
+      "containers": 29,
+      "volumes": 12,
+      "networks": 2
+    },
+    "effectSink": {
+      "name": "llp0102-partiful-appwrite-w3-effect-sink",
+      "image": "openruntimes/node:v5-22",
+      "secretValuesPresent": false
+    }
+  },
+  "containsSecretValues": false
+}

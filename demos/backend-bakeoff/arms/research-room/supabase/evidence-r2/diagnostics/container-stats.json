@@ -1,0 +1,134 @@
+[
+  {
+    "BlockIO": "0B / 114MB",
+    "CPUPerc": "0.30%",
+    "Container": "supabase_db_llp0102-research-supabase-w2-r2",
+    "ID": "2f115ab2c0c1",
+    "MemPerc": "2.07%",
+    "MemUsage": "163.8MiB / 7.737GiB",
+    "Name": "supabase_db_llp0102-research-supabase-w2-r2",
+    "NetIO": "6.17MB / 4.86MB",
+    "PIDs": "36"
+  },
+  {
+    "BlockIO": "0B / 0B",
+    "CPUPerc": "0.00%",
+    "Container": "supabase_studio_llp0102-research-supabase-w2-r2",
+    "ID": "9a097c38b7ec",
+    "MemPerc": "2.45%",
+    "MemUsage": "193.8MiB / 7.737GiB",
+    "Name": "supabase_studio_llp0102-research-supabase-w2-r2",
+    "NetIO": "10.7kB / 350B",
+    "PIDs": "11"
+  },
+  {
+    "BlockIO": "0B / 0B",
+    "CPUPerc": "9.47%",
+    "Container": "supabase_pg_meta_llp0102-research-supabase-w2-r2",
+    "ID": "d084d948ee8d",
+    "MemPerc": "1.00%",
+    "MemUsage": "79.48MiB / 7.737GiB",
+    "Name": "supabase_pg_meta_llp0102-research-supabase-w2-r2",
+    "NetIO": "10.5kB / 126B",
+    "PIDs": "12"
+  },
+  {
+    "BlockIO": "0B / 17.7MB",
+    "CPUPerc": "0.02%",
+    "Container": "supabase_edge_runtime_llp0102-research-supabase-w2-r2",
+    "ID": "f9ba8a7c94cf",
+    "MemPerc": "0.89%",
+    "MemUsage": "70.89MiB / 7.737GiB",
+    "Name": "supabase_edge_runtime_llp0102-research-supabase-w2-r2",
+    "NetIO": "3.03MB / 33.7kB",
+    "PIDs": "17"
+  },
+  {
+    "BlockIO": "0B / 65.5kB",
+    "CPUPerc": "0.01%",
+    "Container": "supabase_storage_llp0102-research-supabase-w2-r2",
+    "ID": "e68449a99af4",
+    "MemPerc": "1.70%",
+    "MemUsage": "134.8MiB / 7.737GiB",
+    "Name": "supabase_storage_llp0102-research-supabase-w2-r2",
+    "NetIO": "146kB / 141kB",
+    "PIDs": "12"
+  },
+  {
+    "BlockIO": "24.6kB / 0B",
+    "CPUPerc": "0.10%",
+    "Container": "supabase_rest_llp0102-research-supabase-w2-r2",
+    "ID": "f784b6fc8307",
+    "MemPerc": "0.94%",
+    "MemUsage": "74.35MiB / 7.737GiB",
+    "Name": "supabase_rest_llp0102-research-supabase-w2-r2",
+    "NetIO": "5.45MB / 4.32MB",
+    "PIDs": "19"
+  },
+  {
+    "BlockIO": "0B / 0B",
+    "CPUPerc": "1.01%",
+    "Container": "supabase_realtime_llp0102-research-supabase-w2-r2",
+    "ID": "8b3b46f3d084",
+    "MemPerc": "2.20%",
+    "MemUsage": "174.1MiB / 7.737GiB",
+    "Name": "supabase_realtime_llp0102-research-supabase-w2-r2",
+    "NetIO": "415kB / 343kB",
+    "PIDs": "32"
+  },
+  {
+    "BlockIO": "94.2kB / 500kB",
+    "CPUPerc": "0.00%",
+    "Container": "supabase_inbucket_llp0102-research-supabase-w2-r2",
+    "ID": "a1e300f4b65d",
+    "MemPerc": "0.08%",
+    "MemUsage": "6.078MiB / 7.737GiB",
+    "Name": "supabase_inbucket_llp0102-research-supabase-w2-r2",
+    "NetIO": "11.1kB / 350B",
+    "PIDs": "8"
+  },
+  {
+    "BlockIO": "65.5kB / 0B",
+    "CPUPerc": "0.00%",
+    "Container": "supabase_auth_llp0102-research-supabase-w2-r2",
+    "ID": "a5e89842056a",
+    "MemPerc": "0.13%",
+    "MemUsage": "10.1MiB / 7.737GiB",
+    "Name": "supabase_auth_llp0102-research-supabase-w2-r2",
+    "NetIO": "242kB / 238kB",
+    "PIDs": "9"
+  },
+  {
+    "BlockIO": "0B / 98.3kB",
+    "CPUPerc": "0.01%",
+    "Container": "supabase_kong_llp0102-research-supabase-w2-r2",
+    "ID": "889256c1e858",
+    "MemPerc": "1.19%",
+    "MemUsage": "94.03MiB / 7.737GiB",
+    "Name": "supabase_kong_llp0102-research-supabase-w2-r2",
+    "NetIO": "3.45MB / 3.51MB",
+    "PIDs": "3"
+  },
+  {
+    "BlockIO": "0B / 8.19kB",
+    "CPUPerc": "1.11%",
+    "Container": "supabase_vector_llp0102-research-supabase-w2-r2",
+    "ID": "5ca3efc20536",
+    "MemPerc": "0.45%",
+    "MemUsage": "35.79MiB / 7.737GiB",
+    "Name": "supabase_vector_llp0102-research-supabase-w2-r2",
+    "NetIO": "200kB / 3.48MB",
+    "PIDs": "6"
+  },
+  {
+    "BlockIO": "0B / 0B",
+    "CPUPerc": "1.23%",
+    "Container": "supabase_analytics_llp0102-research-supabase-w2-r2",
+    "ID": "70dae309e12c",
+    "MemPerc": "6.66%",
+    "MemUsage": "528MiB / 7.737GiB",
+    "Name": "supabase_analytics_llp0102-research-supabase-w2-r2",
+    "NetIO": "2.56MB / 2.81MB",
+    "PIDs": "37"
+  }
+]

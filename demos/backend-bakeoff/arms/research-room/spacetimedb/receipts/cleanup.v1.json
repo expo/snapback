@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "databaseName": "llp0102-research-spacetimedb-w1",
+    "databaseIdentityHash": "d04326695027c08e10c08a26924015299ffb59bb7f3529479abd4a0872980247",
+    "standalone": "http://127.0.0.1:3344",
+    "worktree": "/Users/ccheever/worktrees/llp0102-research-spacetimedb-w1"
+  },
+  "cleanupPlan": [
+    "delete only database llp0102-research-spacetimedb-w1 through the isolated CLI",
+    "confirm an authoritative SQL request returns No such database / HTTP 404",
+    "stop only listeners whose command lines resolve inside the exact arm worktree",
+    "move ignored CLI, runtime, dependency, build, and scaffold state to a recoverable trash directory",
+    "prove assigned ports and runtime paths absent"
+  ],
+  "databaseDelete": {
+    "command": "spacetime delete -s local-w1 -y llp0102-research-spacetimedb-w1",
+    "exitStatus": 0,
+    "postDeleteProbeExitStatus": 1,
+    "postDeleteProbe": "Error: No such database; HTTP 404 for the exact database identity"
+  },
+  "processes": [
+    {"pid":62594,"command":"arm-owned spacetimedb-standalone on 127.0.0.1:3344","signal":"TERM"},
+    {"pid":73015,"command":"arm-owned Vite on 127.0.0.1:4344","signal":"TERM"},
+    {"pid":66014,"command":"arm-owned failed-first-run harness effect server on 127.0.0.1:20444","signal":"TERM"}
+  ],
+  "portsClosed": [3344, 4344, 20444, 9344],
+  "pathsAbsent": [
+    "work/.arm-runtime",
+    "work/.spacetime-cli",
+    "work/client/node_modules",
+    "work/client/dist",
+    "work/harness/node_modules",
+    "work/module/spacetimedb/node_modules",
+    "work/module/spacetimedb/dist"
+  ],
+  "recoverableTrashPath": "/Users/ccheever/.Trash/llp0102-research-spacetimedb-w1-20260729T0804Z",
+  "unrelatedBaselineTouched": false,
+  "status": "complete"
+}

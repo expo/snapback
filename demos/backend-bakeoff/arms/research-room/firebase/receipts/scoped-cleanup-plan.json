@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "boundTarget": {
+    "mode": "fresh-local",
+    "projectIdSha256": "06082d16839e467b0f30b3de823783f008c6c28458e306834e801f46b118b854",
+    "emulatorHub": "127.0.0.1:4542"
+  },
+  "preconditions": [
+    "Acceptance and timed performance evidence are frozen.",
+    "The emulator export completed and its redacted integrity manifest is retained.",
+    "Every deletion resolves through the exact arm project, room IDs, actor UIDs, bucket, or worktree runtime path."
+  ],
+  "operations": [
+    {
+      "resource": "Firestore",
+      "targets": ["rooms/room-primary", "rooms/room-secondary"],
+      "method": "Admin SDK recursiveDelete on exact document references"
+    },
+    {
+      "resource": "Cloud Storage emulator",
+      "targetPrefix": "rooms/",
+      "method": "List the exact arm bucket and delete only returned objects under the bound prefix"
+    },
+    {
+      "resource": "Authentication emulator",
+      "targets": ["alice-research", "bob-research", "mallory-research"],
+      "method": "Admin SDK deleteUsers with exact UIDs"
+    },
+    {
+      "resource": "scheduler/function/secret runtime",
+      "targets": ["firebase-schedule-scheduledRefresh", ".runtime/refresh-secret", ".runtime/export", ".runtime/browser", ".runtime/xdg", ".runtime/java"],
+      "method": "Stop exact emulator/Vite processes, then remove only ignored worktree-local runtime state"
+    }
+  ],
+  "forbidden": [
+    "account-wide cleanup",
+    "shared-project deletion",
+    "unresolved environment variables",
+    "globs or wildcard target selection",
+    "cleanup outside the exact arm worktree and emulator project"
+  ]
+}

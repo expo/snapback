@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "classification": "isolation-discovery-attempt",
+  "finalResultClaimed": false,
+  "semanticResult": "complete",
+  "issue": "Firebase Functions implicitly opened Eventarc and Tasks on unassigned default ports 9299 and 9499.",
+  "collisionObserved": false,
+  "ownershipProof": "The emulator hub and exact PID tree attributed both listeners to this arm.",
+  "cleanupProof": "Exact cleanup closed both default listeners with no surviving owned process.",
+  "remediation": {
+    "action": "full-rerun",
+    "eventarcPort": 61121,
+    "tasksPort": 62121,
+    "preflighted": true,
+    "hubVerified": true,
+    "fullAcceptanceRepeated": true,
+    "performanceWindowRepeated": "2 warmups plus 7 recorded samples for all six paths",
+    "exportRepeated": true,
+    "cleanupRepeated": true
+  },
+  "evidence": {
+    "receipts": "work/receipts-isolation-discovery",
+    "capsule": "isolation-discovery-run-capsule.v1.json",
+    "hubReceipt": "work/receipts-isolation-discovery/emulator-hub.json",
+    "cleanupReceipt": "work/receipts-isolation-discovery/cleanup.json"
+  }
+}

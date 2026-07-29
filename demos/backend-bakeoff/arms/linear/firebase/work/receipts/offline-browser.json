@@ -1,0 +1,27 @@
+{
+  "online": {
+    "auth": "bob@example.test",
+    "source": "server",
+    "issueCount": 50,
+    "targetId": "issue-500"
+  },
+  "offline": {
+    "coldPage": true,
+    "transportDisabledBeforeQuery": true,
+    "retainedIssueCount": 50,
+    "snapshotSourceBeforeReconnect": "cache",
+    "queuedEditRenderedOptimistically": true,
+    "pendingWritesBeforeReconnect": true,
+    "authoritativeBeforeReconnectUnchanged": true,
+    "authoritativeAfterReconnectMatched": true,
+    "pendingWritesAfterReconnect": false,
+    "indexedDbDatabaseCount": 3,
+    "indexedDbNameHashes": [
+      "8cc71b55f0505e1ed5354cdc3c6597c7c3aa49658b11d02f7471243ed86bfce8",
+      "c59046c232ed5e82f5fc8ebdfbbf34939bcacd60f396ed6f075b565e2627b128",
+      "fd7ad3bf196e1dfb95fc443cb2925d9caecb55ebbb6cc120cddcbe5c6f0abade"
+    ],
+    "targetId": "issue-500",
+    "markerHash": "16bfc5891ce8b642211245f75c4677fa087726e0bf32c8da2343ca22953ba1b8"
+  }
+}

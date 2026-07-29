@@ -1,0 +1,14 @@
+{
+  "status": "gap",
+  "note": "Bare supabase-js has no provider-owned retained PostgREST query store or durable mutation queue. A cold client with transport disabled returned no rows, the attempted RPC errored, and authority stayed unchanged.",
+  "evidence": {
+    "coldClient": "fresh createClient instance with no application cache",
+    "transportDisabled": true,
+    "retainedRows": 0,
+    "readError": "TypeError: transport disabled by frozen offline harness",
+    "queuedEdit": "unsupported; request returned transport error and no SDK queue was created",
+    "editError": "TypeError: transport disabled by frozen offline harness",
+    "authoritativeRevisionUnchanged": 1,
+    "applicationGlueExcluded": "IndexedDB/SQLite retention and an outbox would be app-authored, so were not credited"
+  }
+}

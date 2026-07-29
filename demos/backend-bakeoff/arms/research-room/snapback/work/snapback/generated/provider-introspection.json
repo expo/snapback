@@ -1,0 +1,861 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "delta": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId",
+            "sequence",
+            "delta"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "answers",
+            "progressEvents"
+          ],
+          "writes": [
+            "answers",
+            "progressEvents"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "applyAnswerProgress",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "fetchedRevision": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "slotKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sourceSlug": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "slotKey",
+            "sourceSlug",
+            "fetchedRevision"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "sources",
+            "refreshRuns"
+          ],
+          "writes": [
+            "sources",
+            "refreshRuns"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "applyScheduledRefresh",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "bobId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "bobId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "rooms",
+            "roomMembers",
+            "roomViews",
+            "sources"
+          ],
+          "writes": [
+            "rooms",
+            "roomMembers",
+            "roomViews",
+            "sources"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "bootstrapResearchRooms",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "answers"
+          ],
+          "writes": [
+            "answers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "cancelAnswer",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "tail": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId",
+            "sequence",
+            "tail"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "answers"
+          ],
+          "writes": [
+            "answers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "completeAnswer",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "effectMayHaveExecuted": {
+              "name": "boolean",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId",
+            "status",
+            "effectMayHaveExecuted"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "answers"
+          ],
+          "writes": [
+            "answers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "settleAnswer",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "idempotencyKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "prompt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId",
+            "prompt",
+            "idempotencyKey"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "questions",
+            "answers"
+          ],
+          "writes": [
+            "questions",
+            "answers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "startQuestion",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "keyword": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId",
+            "keyword"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "sources"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "keywordSearch",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "byteSize": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "embeddingJson": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "keywordText": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "mediaType": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "refreshedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "roomId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sha256": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "answers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listAnswers",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "attemptId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "citationsJson": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "content": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "effectMayHaveExecuted": {
+                "name": "boolean",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "questionId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "roomId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "status": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "progressEvents"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listProgress",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "answerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "delta": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "recordedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "roomId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "questions"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listQuestions",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "askedBy": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "attemptId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "idempotencyKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "prompt": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "roomId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomViews"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listRooms",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdBy": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "name": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rooms",
+            "roomMembers",
+            "sources"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listSources",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "byteSize": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "embeddingJson": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "keywordText": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "mediaType": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "refreshedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "roomId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sha256": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "snapback.v1:sessions:function:sha256:d56da3ee0998e41da418b6e43efc12d663b135a5cdb62a6a827056d328149719",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:90937ae3194852043d0ec046d1a6ca17a208e9a2257d9065749e6306798d4a2c",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:f9e2a283e5e0195a9727b31369eb7015b0799afb15694f3c52ac3ff0038ac51b"
+  }
+}

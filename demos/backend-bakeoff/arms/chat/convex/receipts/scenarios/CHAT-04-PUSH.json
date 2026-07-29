@@ -1,0 +1,10 @@
+{
+  "id": "CHAT-04-PUSH",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:13.626Z",
+  "secondClient": "bob",
+  "transport": "ConvexClient WebSocket reactive query",
+  "noProductPolling": true,
+  "observedBody": "push-1785291253506",
+  "elapsedMs": 119.58651899999995
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-07-CITATIONS",
+  "status": "pass",
+  "checkedAt": "2026-07-29T08:43:48.857Z",
+  "evidence": {
+    "answer": {
+      "id": "12d9800c-dbb7-4ba4-91f7-6ee9601558eb",
+      "question_id": "30db5aa6-4702-49be-9ec9-1b9f3ae4cb3d",
+      "body": "The quasar sources agree.",
+      "citations": [
+        {
+          "source_id": "20000000-0000-4000-8000-000000000001"
+        },
+        {
+          "source_id": "20000000-0000-4000-8000-000000000008"
+        }
+      ]
+    },
+    "citedSources": [
+      {
+        "id": "20000000-0000-4000-8000-000000000001",
+        "room_id": "10000000-0000-4000-8000-000000000001"
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000008",
+        "room_id": "10000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "allSourcesInAuthorizedRoom": true
+  }
+}

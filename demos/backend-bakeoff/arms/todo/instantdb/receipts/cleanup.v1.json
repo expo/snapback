@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:55:53.589Z",
+  "ok": true,
+  "targetIdentityHash": "37d1a13f7a11f47a775fcc37c846f210ba8739d87a786956279402783b3044fa",
+  "removed": [
+    "exact arm-owned InstantDB Compose containers, network, and named volumes",
+    "exact arm-owned upstream clone and disposable browser profiles",
+    "exact arm-local application and Compose credential files"
+  ],
+  "retained": [
+    "shared Docker image cache"
+  ],
+  "probes": {
+    "port4180Closed": true,
+    "port8889Closed": true,
+    "port8891Closed": true,
+    "port9100Closed": true,
+    "port9101Closed": true,
+    "composeProjectAbsent": true,
+    "runtimeAbsent": true,
+    "armSecretsAbsent": true
+  },
+  "recovery": "Removed target/runtime bytes are not recoverable; retained source, deterministic seed, and official images recreate them.",
+  "containsSecretValues": false
+}

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-11-EFFECT-AMBIGUOUS",
+  "capturedAt": "2026-07-29T05:17:26.523Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Intermediate and terminal effect ledger reads plus fake provider idempotency ledger",
+  "transport": "callable-function-to-http-provider-boundary-with-dropped-socket",
+  "firstError": {
+    "name": "FirebaseError",
+    "code": "functions/unavailable",
+    "message": "PARTY_EFFECT_AMBIGUOUS"
+  },
+  "intermediate": {
+    "mode": "ambiguous-first",
+    "eventId": "event-01",
+    "reason": "ambiguous acceptance",
+    "providerInvocationCount": 1,
+    "idempotencyKey": "event-01:ambiguous-acceptance",
+    "attemptCount": 1,
+    "effectKey": "event-01:ambiguous-acceptance",
+    "updatedAt": {
+      "_seconds": 1785302246,
+      "_nanoseconds": 498000000
+    },
+    "ambiguity": "provider may have accepted before transport failure",
+    "errorClass": "TypeError",
+    "status": "ambiguous",
+    "settledAt": {
+      "_seconds": 1785302246,
+      "_nanoseconds": 503000000
+    }
+  },
+  "retry": {
+    "effectKey": "event-01:ambiguous-acceptance",
+    "deduped": true,
+    "attemptCount": 2,
+    "providerReceiptId": "local-receipt-ZXZlbnQtMDE6YW1iaWd1b3Vz"
+  },
+  "final": {
+    "mode": "ambiguous-first",
+    "eventId": "event-01",
+    "idempotencyKey": "event-01:ambiguous-acceptance",
+    "effectKey": "event-01:ambiguous-acceptance",
+    "ambiguity": "provider may have accepted before transport failure",
+    "errorClass": "TypeError",
+    "reason": "ambiguous acceptance retry",
+    "providerInvocationCount": 2,
+    "attemptCount": 2,
+    "updatedAt": {
+      "_seconds": 1785302246,
+      "_nanoseconds": 516000000
+    },
+    "providerReceiptId": "local-receipt-ZXZlbnQtMDE6YW1iaWd1b3Vz",
+    "providerDeduped": true,
+    "status": "known_success",
+    "settledAt": {
+      "_seconds": 1785302246,
+      "_nanoseconds": 519000000
+    }
+  },
+  "provider": {
+    "requests": [
+      {
+        "idempotencyKey": "event-01:ambiguous-acceptance",
+        "mode": "ambiguous-first",
+        "deduped": false,
+        "ordinal": 3
+      },
+      {
+        "idempotencyKey": "event-01:ambiguous-acceptance",
+        "mode": "ambiguous-first",
+        "deduped": true,
+        "ordinal": 4
+      }
+    ],
+    "receipt": {
+      "receiptId": "local-receipt-ZXZlbnQtMDE6YW1iaWd1b3Vz",
+      "deliveries": 1,
+      "firstMode": "ambiguous-first"
+    }
+  }
+}

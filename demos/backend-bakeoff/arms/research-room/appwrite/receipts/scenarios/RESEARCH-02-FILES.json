@@ -1,0 +1,20 @@
+{
+  "id": "RESEARCH-02-FILES",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:34.196Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "appwrite-storage",
+  "evidence": {
+    "bucketId": "research-sources",
+    "objectId": "source-upload-proof",
+    "bytes": 65536,
+    "contentSha256": "0dc640b7e747127fbb4ffc4beab0a3b382897d28f8e3158110bdc7e5cd071a89",
+    "uploader": "alice-native-session",
+    "authorizedDownloader": "bob-native-session",
+    "outsiderDenied": true,
+    "memberDeleteDenied": true,
+    "ownerDeleteSucceeded": true,
+    "postDeleteDenied": true
+  },
+  "note": "Appwrite Storage and TablesDB jointly proved metadata, ownership, authorization, byte delivery, and deletion."
+}

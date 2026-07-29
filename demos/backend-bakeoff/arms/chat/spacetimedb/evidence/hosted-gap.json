@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "provider": "spacetimedb",
+  "hostedProfile": "Maincloud managed database/module",
+  "status": "explicit-gap",
+  "reason": "Frozen credential health records hosted evidence as credential-unavailable. LLP 0102 permits a fresh local-only arm; this environment gap is not scored as a SpacetimeDB product failure.",
+  "localSubstituteClaimedAsHosted": false
+}

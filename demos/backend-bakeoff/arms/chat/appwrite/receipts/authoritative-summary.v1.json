@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T01:32:19.235Z",
+  "ok": true,
+  "targetIdentityHash": "aa090bb8a6f1246641e437b6bf92f322e2ddacfccf1a98983c860de412774b62",
+  "targetIdentity": {
+    "endpointHash": "49fef17327c4fea01df62cbc6226a1781de196f9b28f28b5c7fb9ae8132ebd95",
+    "projectIdHash": "344867572bb2be482f729c2c536179b411c1f4cca168532921e6ffcd269a177d",
+    "productVersion": "1.9.6",
+    "clientVersion": "26.2.0",
+    "cliVersion": "23.2.0",
+    "database": "MongoDB 8.2.5",
+    "deployment": "official Appwrite web-installer Docker Compose"
+  },
+  "authoritative": {
+    "channelCount": 4,
+    "publicMessageCount": 250,
+    "privateMessageCount": 250,
+    "totalMessageCount": 500,
+    "channelCounts": {
+      "public-general": 125,
+      "public-random": 125,
+      "private-alpha": 125,
+      "private-beta": 125
+    }
+  },
+  "principalIdHashes": {
+    "alice": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+    "bob": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+    "mallory": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac"
+  },
+  "containsSecretValues": false
+}

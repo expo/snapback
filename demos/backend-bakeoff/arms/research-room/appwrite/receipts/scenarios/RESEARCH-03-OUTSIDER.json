@@ -1,0 +1,20 @@
+{
+  "id": "RESEARCH-03-OUTSIDER",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:34.228Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "not-applicable",
+  "evidence": {
+    "malloryCounts": {
+      "rooms": 0,
+      "room_members": 0,
+      "sources": 0,
+      "questions": 0,
+      "answers": 0,
+      "answer_progress": 0
+    },
+    "directSourceReadDenied": true,
+    "authority": "native Appwrite Auth session plus row-security permissions"
+  },
+  "note": "Mallory's independent native session received zero protected rows and a direct source refusal."
+}

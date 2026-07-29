@@ -1,0 +1,26 @@
+{
+  "id": "PARTY-11-EFFECT-AMBIGUOUS",
+  "checkedAt": "2026-07-29T05:41:17.590Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "faultInjection": "provider accepted delivery; caller deliberately discarded response certainty",
+    "attemptLedger": [
+      {
+        "attemptNo": 1,
+        "state": "ambiguous",
+        "fault": "ambiguous-after-accept"
+      },
+      {
+        "attemptNo": 2,
+        "state": "succeeded",
+        "fault": "reconciled-ambiguous"
+      }
+    ],
+    "ambiguousState": {
+      "retained": true,
+      "reconciledByProviderStatus": true,
+      "providerDeliveryCount": 1
+    }
+  }
+}

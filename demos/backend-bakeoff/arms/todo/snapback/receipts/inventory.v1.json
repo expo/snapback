@@ -1,0 +1,436 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/todo/snapback/work",
+  "generatedAt": "2026-07-28T23:01:09.608Z",
+  "totals": {
+    "dependency-manifest": {
+      "files": 2,
+      "bytes": 34745,
+      "lines": 1079
+    },
+    "authored-source": {
+      "files": 14,
+      "bytes": 72569,
+      "lines": 1913
+    },
+    "configuration": {
+      "files": 3,
+      "bytes": 1416,
+      "lines": 62
+    },
+    "generated": {
+      "files": 39,
+      "bytes": 118773,
+      "lines": 2882
+    }
+  },
+  "installedDependencyBytes": 81576033,
+  "files": [
+    {
+      "path": ".arm-runtime.snapback.restore.lock",
+      "category": "dependency-manifest",
+      "bytes": 316,
+      "lines": 2,
+      "sha256": "e71df70fc82b2979e43e6f390ea6e5a280e202cc15f2ca85560b1cc6c5c28250"
+    },
+    {
+      "path": ".gitignore",
+      "category": "authored-source",
+      "bytes": 56,
+      "lines": 6,
+      "sha256": "358147bf5a656ad196cc6615ac9e9d9df60f3039802af7e0f0feb90df568f930"
+    },
+    {
+      "path": "index.html",
+      "category": "authored-source",
+      "bytes": 309,
+      "lines": 14,
+      "sha256": "34bc5e80e1e73e27833ff163372ea2652731c8335c5ab0d6dade43f029c0d094"
+    },
+    {
+      "path": "package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 34429,
+      "lines": 1077,
+      "sha256": "fcc9c057912aa3924b5696806bbf86db30b5acb0a13fb2358fce993bb85eacc8"
+    },
+    {
+      "path": "package.json",
+      "category": "configuration",
+      "bytes": 682,
+      "lines": 27,
+      "sha256": "f95410905be6bc13e8c09e0593b4bf7fc12bade303ca7ea1f30db682d4b82a49"
+    },
+    {
+      "path": "scripts/finalize-capsule.mjs",
+      "category": "authored-source",
+      "bytes": 11876,
+      "lines": 264,
+      "sha256": "13fe7e3de1417c1d320f5a6f9e271edc015bb84a687fa9767ff24b2fbcede843"
+    },
+    {
+      "path": "scripts/run-arm.mjs",
+      "category": "authored-source",
+      "bytes": 34623,
+      "lines": 890,
+      "sha256": "cb87cff7ebec8a919f80313bdee4d26bb6ed53f3abd99922af2bf365e7fea0cc"
+    },
+    {
+      "path": "snapback/functions.mjs",
+      "category": "authored-source",
+      "bytes": 3362,
+      "lines": 133,
+      "sha256": "aa035e5cec8770f37c0fedc3a685b442b0ef94a5016020a5fe4bfe1447e3d98d"
+    },
+    {
+      "path": "snapback/generated/api.d.ts",
+      "category": "generated",
+      "bytes": 5519,
+      "lines": 81,
+      "sha256": "90801006952bbdf64cb0b06207ecf2fa6cbae9079491da30302ec3ab7fd647ce"
+    },
+    {
+      "path": "snapback/generated/api.mjs",
+      "category": "generated",
+      "bytes": 4998,
+      "lines": 235,
+      "sha256": "07e3d2bdb458383521fff6475a8a729ce2f639b94cc7d992c3d3a32e77293d73"
+    },
+    {
+      "path": "snapback/generated/artifacts.json",
+      "category": "generated",
+      "bytes": 3112,
+      "lines": 106,
+      "sha256": "5b207314338e35bd59cac4a142c2089f1c3e034b098d8283fdb4ef0230ee08a8"
+    },
+    {
+      "path": "snapback/generated/capability.manifest.json",
+      "category": "generated",
+      "bytes": 4513,
+      "lines": 188,
+      "sha256": "bbc2b162c7eb7772d78b71f351fde74d084de96f294784f80860010ae5894c74"
+    },
+    {
+      "path": "snapback/generated/contract-data.manifest.json",
+      "category": "generated",
+      "bytes": 8618,
+      "lines": 384,
+      "sha256": "e26c1b575012ce5e30af701a67548dd517948fa468e755fe5edc4aace79b2514"
+    },
+    {
+      "path": "snapback/generated/contract/addMember.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 299,
+      "lines": 7,
+      "sha256": "a95f9a5bdf3f2b1e2cccf44d66bc4a525823d11d9e2a82587b81042c37ebe426"
+    },
+    {
+      "path": "snapback/generated/contract/addMember.mutation.ts",
+      "category": "generated",
+      "bytes": 505,
+      "lines": 13,
+      "sha256": "f1a70f0e7d09d6fdc12b9b238a216f40bd3d2bfc068cc6e923f444000986ca2a"
+    },
+    {
+      "path": "snapback/generated/contract/bootstrapWorkspace.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 393,
+      "lines": 7,
+      "sha256": "21696c0628dfb00dbd74731c8bff40c793d4c699ce142d06b3e3ad00531ce4f9"
+    },
+    {
+      "path": "snapback/generated/contract/bootstrapWorkspace.mutation.ts",
+      "category": "generated",
+      "bytes": 573,
+      "lines": 13,
+      "sha256": "36ba7b41ee591e473c188cc904dc42d211f199899302c57828f245eeea45cc23"
+    },
+    {
+      "path": "snapback/generated/contract/createTask.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 279,
+      "lines": 7,
+      "sha256": "554e9bd240f76ae694b10c613ac29ce92966be6c38ebbe98be9f6a61ab45a516"
+    },
+    {
+      "path": "snapback/generated/contract/createTask.mutation.ts",
+      "category": "generated",
+      "bytes": 581,
+      "lines": 13,
+      "sha256": "09401198ce3e7ec4fe851280aad84e54d08d069877cb062c76f1a80e12528e20"
+    },
+    {
+      "path": "snapback/generated/contract/deleteTask.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 279,
+      "lines": 7,
+      "sha256": "362b8c65926f03ec74d770f32bb2d5cc91eda3595351839663ab8083e5a78c11"
+    },
+    {
+      "path": "snapback/generated/contract/deleteTask.mutation.ts",
+      "category": "generated",
+      "bytes": 486,
+      "lines": 13,
+      "sha256": "a79aa7ff2f6a11ada0aae7214a8310804083f7c62e6aa01fae1de85bb6fdb3a7"
+    },
+    {
+      "path": "snapback/generated/contract/editTask.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 275,
+      "lines": 7,
+      "sha256": "b974abdcc620b9b2f7aaeb1df07d7cfd1e0b6be82a357fb68fc70b31fb898e30"
+    },
+    {
+      "path": "snapback/generated/contract/editTask.mutation.ts",
+      "category": "generated",
+      "bytes": 550,
+      "lines": 13,
+      "sha256": "331e4a834fc356e2259a8cc5df935dba92ac767181e38f69f5717ef2bf340b4e"
+    },
+    {
+      "path": "snapback/generated/contract/leaveWorkspace.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 309,
+      "lines": 7,
+      "sha256": "7000189a53d7d1e49035e9f6d38b0199c26d541d43186e9dd346608120792395"
+    },
+    {
+      "path": "snapback/generated/contract/leaveWorkspace.mutation.ts",
+      "category": "generated",
+      "bytes": 519,
+      "lines": 13,
+      "sha256": "c7e5d836fc8667f9d131827387438263858069aa5b255e98f368ffa3b9ad5aac"
+    },
+    {
+      "path": "snapback/generated/contract/listLists.query.contract-meta.ts",
+      "category": "generated",
+      "bytes": 623,
+      "lines": 8,
+      "sha256": "3c903a072f6689eac6c14ee590a0f765e204bacb0a47df3ac6662487296a6a6d"
+    },
+    {
+      "path": "snapback/generated/contract/listLists.query.ts",
+      "category": "generated",
+      "bytes": 486,
+      "lines": 13,
+      "sha256": "9bdf5ea0e2ec5094e93b8c149fcc35df55dd693913056c05670cd29cdd74d8e0"
+    },
+    {
+      "path": "snapback/generated/contract/listTasks.query.contract-meta.ts",
+      "category": "generated",
+      "bytes": 705,
+      "lines": 8,
+      "sha256": "c9a10bd94c4a0dce581cef58be85756b4e7b27ad3aa2528f092aadd4e5124eb4"
+    },
+    {
+      "path": "snapback/generated/contract/listTasks.query.ts",
+      "category": "generated",
+      "bytes": 486,
+      "lines": 13,
+      "sha256": "d99bdca6df46b8824871cf46b457631615a6bca10fbfd9a3719d5fd5988b05f8"
+    },
+    {
+      "path": "snapback/generated/contract/reorderTask.mutation.contract-meta.ts",
+      "category": "generated",
+      "bytes": 281,
+      "lines": 7,
+      "sha256": "329421ee8340556f35e75dde024da24571679a9fd4685edde68a0ac11216df10"
+    },
+    {
+      "path": "snapback/generated/contract/reorderTask.mutation.ts",
+      "category": "generated",
+      "bytes": 513,
+      "lines": 13,
+      "sha256": "b3523cb7c5d0936856fcebb5fa4647ea313e00bba670e698cc79d38ab5a1769f"
+    },
+    {
+      "path": "snapback/generated/contract/runtime-links.ts",
+      "category": "generated",
+      "bytes": 1355,
+      "lines": 32,
+      "sha256": "cb8d0c629d97bd0b8526609740d6eb8c74be40a9719daf7f4170fad2851531d8"
+    },
+    {
+      "path": "snapback/generated/functions.manifest.json",
+      "category": "generated",
+      "bytes": 55339,
+      "lines": 546,
+      "sha256": "54ff55f563b76899d6c80622ecb318f1eca9aca30f940fe546841de2603646fd"
+    },
+    {
+      "path": "snapback/generated/operations/addMember.args.schema.json",
+      "category": "generated",
+      "bytes": 406,
+      "lines": 20,
+      "sha256": "4629feabadabf76f98f0e7dd1315ab61610dafb69a397458f3e0659decefe271"
+    },
+    {
+      "path": "snapback/generated/operations/bootstrapWorkspace.args.schema.json",
+      "category": "generated",
+      "bytes": 479,
+      "lines": 24,
+      "sha256": "653174bad19b6b03109a34bd9b179aeb90101ad2bb86b061ff946b07203b0761"
+    },
+    {
+      "path": "snapback/generated/operations/createTask.args.schema.json",
+      "category": "generated",
+      "bytes": 661,
+      "lines": 36,
+      "sha256": "bc266ec86511f5f0a01836f25450700fb4d69d50b964e912176e971729ddc3d3"
+    },
+    {
+      "path": "snapback/generated/operations/deleteTask.args.schema.json",
+      "category": "generated",
+      "bytes": 330,
+      "lines": 16,
+      "sha256": "53a2944794bdcdd6dc5497d78bcb484152b06bd802b519ab3f452aab7160fabd"
+    },
+    {
+      "path": "snapback/generated/operations/editTask.args.schema.json",
+      "category": "generated",
+      "bytes": 518,
+      "lines": 28,
+      "sha256": "c38f3084caf25add45a53098db0d244b717d349af3b58355368dc907577cf9e6"
+    },
+    {
+      "path": "snapback/generated/operations/leaveWorkspace.args.schema.json",
+      "category": "generated",
+      "bytes": 356,
+      "lines": 16,
+      "sha256": "fb967798fee75de879510134a7784ab940fe5a1015822a543e922cee9828f5d7"
+    },
+    {
+      "path": "snapback/generated/operations/listLists.args.schema.json",
+      "category": "generated",
+      "bytes": 346,
+      "lines": 16,
+      "sha256": "22e998c44a88e163c46b37a47dafa7b0bfc4dc88581db19e034c5a7b66ddd692"
+    },
+    {
+      "path": "snapback/generated/operations/listTasks.args.schema.json",
+      "category": "generated",
+      "bytes": 346,
+      "lines": 16,
+      "sha256": "f311f9d12c251270833c8b25749915eb867796c7aa463738c373794a6803f754"
+    },
+    {
+      "path": "snapback/generated/operations/reorderTask.args.schema.json",
+      "category": "generated",
+      "bytes": 403,
+      "lines": 20,
+      "sha256": "b95c156f3819ce90d3f72c8581ebbb7c7bd23620c7a355dc585d0f73c785ab96"
+    },
+    {
+      "path": "snapback/generated/package.json",
+      "category": "generated",
+      "bytes": 523,
+      "lines": 20,
+      "sha256": "4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981"
+    },
+    {
+      "path": "snapback/generated/provider-bindings.d.ts",
+      "category": "generated",
+      "bytes": 1864,
+      "lines": 29,
+      "sha256": "7e34b60b9de5010a691085a4e27a8298d8012eb00f55a4bd5d75ccc7d4e7e46e"
+    },
+    {
+      "path": "snapback/generated/provider-bindings.json",
+      "category": "generated",
+      "bytes": 4990,
+      "lines": 192,
+      "sha256": "cd712f41419bebd57d969097cf4a704bfc6f4830f1cb4f029dca6d5bf01c152e"
+    },
+    {
+      "path": "snapback/generated/provider-introspection.json",
+      "category": "generated",
+      "bytes": 11631,
+      "lines": 493,
+      "sha256": "c84c3fc5ca46d88ae64a9960f11a621c82f9c6389e8f761fdd4083bf3e2ce750"
+    },
+    {
+      "path": "snapback/generated/schema.manifest.json",
+      "category": "generated",
+      "bytes": 4324,
+      "lines": 202,
+      "sha256": "9fc21b08581faa5907c43117a38e246f9d63f288842981523606c3fa168c0df2"
+    },
+    {
+      "path": "snapback/handlers.mjs",
+      "category": "authored-source",
+      "bytes": 4550,
+      "lines": 134,
+      "sha256": "d9ca579f33bcc385b0ade79a93e4aaeb2071d838996ce982db0a57bbd767b441"
+    },
+    {
+      "path": "snapback/schema.mjs",
+      "category": "authored-source",
+      "bytes": 1554,
+      "lines": 53,
+      "sha256": "d592a7d53d589e4327b2db3fc8bad09c906703b42414d0f3510362755d940cfb"
+    },
+    {
+      "path": "snapback/seed.mjs",
+      "category": "authored-source",
+      "bytes": 301,
+      "lines": 8,
+      "sha256": "06d3b26572d0c4bc3994d818c6e5fa812cd7f6bdc5d130764cdbb85c348d2b98"
+    },
+    {
+      "path": "src/App.tsx",
+      "category": "authored-source",
+      "bytes": 7855,
+      "lines": 217,
+      "sha256": "2d9a8003f68c0c702ff1b03ad4593a7cd17566a672962333398976579a77f2f5"
+    },
+    {
+      "path": "src/main.tsx",
+      "category": "authored-source",
+      "bytes": 645,
+      "lines": 22,
+      "sha256": "d200617a1610be1b01c47cef48aacac13a452b3c65e879914609306139130eb0"
+    },
+    {
+      "path": "src/provider.ts",
+      "category": "authored-source",
+      "bytes": 3757,
+      "lines": 114,
+      "sha256": "b0a42a4e21dce0f430625543fab5905e265d292bbda4a73655d8a83e5714d575"
+    },
+    {
+      "path": "src/styles.css",
+      "category": "authored-source",
+      "bytes": 3540,
+      "lines": 55,
+      "sha256": "113287935d81b73a9a723791c335334949fe134395cc72c73d46ccaec6fb4793"
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "category": "authored-source",
+      "bytes": 38,
+      "lines": 2,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "tsconfig.json",
+      "category": "configuration",
+      "bytes": 527,
+      "lines": 23,
+      "sha256": "197496301426e947b5d2c0b453b6acb32d703bc6ead04301779e73b6ce677ef9"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "category": "authored-source",
+      "bytes": 103,
+      "lines": 1,
+      "sha256": "6a223cad0e701043a18c83b818cca7f4241281c920bc0e53215c5e3969268d9b"
+    },
+    {
+      "path": "vite.config.ts",
+      "category": "configuration",
+      "bytes": 207,
+      "lines": 12,
+      "sha256": "59f68173b14ac2f693e674c6d5e64fef40adc890138331f2811e6dc62b027b26"
+    }
+  ]
+}

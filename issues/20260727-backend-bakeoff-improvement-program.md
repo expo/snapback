@@ -9,7 +9,7 @@
 **Systems:** Developer experience, Authoring, React, Code generation, Search, Storage, Testing, Deployment, Ephemeral state  
 **Author:** Codex, directed by Charlie Cheever  
 **Date:** 2026-07-27  
-**Related:** working-copy `demos/backend-bakeoff/COMPARISON.md`, Diary 0022, LLP 0010, LLP 0016, LLP 0041, LLP 0064, LLP 0065, LLP 0072, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0090  
+**Related:** working-copy `demos/signal-desk/COMPARISON.md`, Diary 0022, LLP 0010, LLP 0016, LLP 0041, LLP 0064, LLP 0065, LLP 0072, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0090  
 **Marker:** program-index, backend-bakeoff
 
 The Signal Desk comparison found sixteen ways Snapback could offer a more
@@ -75,7 +75,7 @@ silently fork semantics.
 ## Local-program checkpoint — 2026-07-28
 
 The final local Signal Desk receipt is
-`demos/backend-bakeoff/acceptance/results/backend-bakeoff-run.43d6c570f7f3f752f61ca545a1d81ef1a1a6b3b4d34fbe0066a6becc95d3d989.v2.json`.
+`demos/signal-desk/acceptance/results/backend-bakeoff-run.43d6c570f7f3f752f61ca545a1d81ef1a1a6b3b4d34fbe0066a6becc95d3d989.v2.json`.
 It binds clean runtime revision `f789a143`, passes all eight required lanes,
 and has a final independent `READY` review at retention commit `7f92156b`.
 The comparison now ranks Convex first, Snapback second, and Supabase third for

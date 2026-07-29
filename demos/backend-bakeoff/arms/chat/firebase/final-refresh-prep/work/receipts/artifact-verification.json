@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T13:29:12.119Z",
+  "checks": [
+    {
+      "command": "npm run build",
+      "exitStatus": 0,
+      "stdoutTail": [
+        "> llp0102-final-chat-firebase-w2@0.0.0 build",
+        "> tsc -b && vite build",
+        "",
+        "vite v7.1.4 building for production...",
+        "transforming...",
+        "✓ 51 modules transformed.",
+        "rendering chunks...",
+        "computing gzip size...",
+        "dist/index.html                     0.41 kB │ gzip:   0.27 kB",
+        "dist/assets/index-B8hvfR7j.css      0.60 kB │ gzip:   0.38 kB",
+        "dist/assets/index-NaQj-Te8.js   1,135.48 kB │ gzip: 292.57 kB │ map: 4,866.50 kB",
+        "✓ built in 958ms"
+      ],
+      "stderrTail": [
+        "(!) Some chunks are larger than 500 kB after minification. Consider:",
+        "- Using dynamic import() to code-split the application",
+        "- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks",
+        "- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit."
+      ]
+    },
+    {
+      "command": "node --check functions/index.js",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/acceptance.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/build-capsule.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/cleanup.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/finalize-receipts.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/inventory.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/lib.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/offline-browser.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "node --check scripts/verify-artifacts.mjs",
+      "exitStatus": 0,
+      "stdoutTail": [
+        ""
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "npm ls --depth=0 --json",
+      "exitStatus": 0,
+      "stdoutTail": [
+        "    \"typescript\": {",
+        "      \"version\": \"5.9.2\",",
+        "      \"resolved\": \"https://registry.npmjs.org/typescript/-/typescript-5.9.2.tgz\",",
+        "      \"overridden\": false",
+        "    },",
+        "    \"vite\": {",
+        "      \"version\": \"7.1.4\",",
+        "      \"resolved\": \"https://registry.npmjs.org/vite/-/vite-7.1.4.tgz\",",
+        "      \"overridden\": false",
+        "    }",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "command": "npm ls --depth=0 --json",
+      "exitStatus": 0,
+      "stdoutTail": [
+        "    \"firebase-admin\": {",
+        "      \"version\": \"14.2.0\",",
+        "      \"resolved\": \"https://registry.npmjs.org/firebase-admin/-/firebase-admin-14.2.0.tgz\",",
+        "      \"overridden\": false",
+        "    },",
+        "    \"firebase-functions\": {",
+        "      \"version\": \"7.3.2\",",
+        "      \"resolved\": \"https://registry.npmjs.org/firebase-functions/-/firebase-functions-7.3.2.tgz\",",
+        "      \"overridden\": false",
+        "    }",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        ""
+      ]
+    }
+  ],
+  "pinned": {
+    "firebase": "12.16.0",
+    "firebaseTools": "15.24.0",
+    "firebaseAdmin": "14.2.0",
+    "firebaseFunctions": "7.3.2",
+    "react": "19.1.1",
+    "vite": "7.1.4"
+  },
+  "expected": {
+    "firebase": "12.16.0",
+    "firebaseTools": "15.24.0",
+    "firebaseAdmin": "14.2.0",
+    "firebaseFunctions": "7.3.2",
+    "react": "19.1.1",
+    "vite": "7.1.4"
+  },
+  "versionsMatch": true,
+  "sourceSha256": {
+    "database.rules.json": "30637f928b5affcef0bbd1b532888233525e0f9a803e40c2eb9934bc90d76f1b",
+    "firestore.rules": "220c2017762f69cc7327e9de779035ba5cd8c3a635ef29675543e6d01f49589c",
+    "functions/index.js": "78f293fce6f3ca83ba0d37eba352c4a74badbe2791fe59c657bbc933f89cac8b",
+    "src/App.tsx": "639625a46cb85c0d8f1c5b512593ba33fb196a97068c7c67d7cba91329f6ee3e",
+    "src/firebase.ts": "0a2b95909c63595534c7c218b9fb13d4441f999e39c15c597d3a570b2026baa6",
+    "src/main.tsx": "b1de0de2281a4057c8e8144857d694713821680d95c91faaa36625c63e78cee3",
+    "src/styles.css": "fea4f7c41ed2beeb999612811c2ae1c4e4eec61ef405ee7e8f9b24c4ad695e36"
+  },
+  "distSha256": {
+    "dist/assets/index-B8hvfR7j.css": "50dc916f800f3683b68a8ca905b7652bfcf709ef27f27a3c5d63583e4a862765",
+    "dist/assets/index-NaQj-Te8.js": "5b590952b4422ddc2eb72326ab272a8c98b9c41a9225007cec00a00ea4230c73",
+    "dist/assets/index-NaQj-Te8.js.map": "e888b8faf60e5565290ae3e9cab0580d060de3fc382bd14c43d5768c884bdb85",
+    "dist/index.html": "3802e72750dd26778796a2f2d94535081af361d722ca0accaa7d2e56dad9ae11"
+  },
+  "result": "pass"
+}

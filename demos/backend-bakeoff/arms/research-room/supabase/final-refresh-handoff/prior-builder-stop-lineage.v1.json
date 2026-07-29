@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "classification": "stop-class-secret-exposure",
+  "status": "diagnosed-metrics-paused",
+  "occurredAt": "2026-07-29T08:45:00Z",
+  "target": "llp0102-research-supabase-w2",
+  "scope": "fresh disposable local target credentials only",
+  "sharedOrUserCredentialsExposed": false,
+  "description": "The Supabase CLI emitted local target credentials as a one-line JSON object during a scoped restart. A builder-authored tail redaction expression did not match that representation, and the line appeared in tool diagnostic output.",
+  "attribution": {
+    "providerBehavior": "The local CLI intentionally reports generated development credentials on successful start.",
+    "builderError": "The coordinator-facing diagnostic command tailed that raw line with an insufficient redaction pattern.",
+    "authorizationOrCrossUserLeak": false
+  },
+  "affectedCredentialHashes": {
+    "PUBLISHABLE_KEY": "9705102db0d5f99ee08daa19a73e510d9877a2a9add9369da247cbbe6c2a0140",
+    "SECRET_KEY": "c85debb55f2f204d868cc1552c42faa143b4c675f61363ab040dd50b5b5304cd",
+    "JWT_SECRET": "a064b502e61d27e94b8717290e5e1b32e36720e9fbdf952ec81a84c07128cb37",
+    "ANON_KEY": "bf1725a8f98bea37e88618702e725ba84bd8acdb2647c5e0ed638bfd685791cf",
+    "SERVICE_ROLE_KEY": "70541e07fd4f900b66e289f5be55c85f9bef1def4924a5b0c518c45ea1688c12",
+    "S3_PROTOCOL_ACCESS_KEY_ID": "b0f3a96ded759f6c5f13d27881ffcbfd7821fd6bb5858b0ab819e7a187e46452",
+    "S3_PROTOCOL_ACCESS_KEY_SECRET": "7f59edafa4d502ca0156b8fddf28394634d77b1843838b5783a7c9c95fcbd32f"
+  },
+  "rawSecretBearingLogHashesBeforeDestruction": {
+    "supabase-status.raw.json": "45fafc218704c84a4da4466136e2d8e657e76145dd1ae2428407d1b675ccd5cb",
+    "supabase-status-after-reset.raw.json": "45fafc218704c84a4da4466136e2d8e657e76145dd1ae2428407d1b675ccd5cb",
+    "supabase-start-runtime-mirror.raw.log": "1e5e9969b35dd4aec59ada93a31a30be7323c8ab2fa65705058977c3409f0fb8",
+    "scoped-restart-start.raw.log": "513bfd21bc1a37085c6a51b02a8eb2eaca7ec0254cbd5acca9d4714fa23ed7e6"
+  },
+  "retainedFactsBeforePause": {
+    "functionalScenariosPassed": [
+      "RESEARCH-01-SEED",
+      "RESEARCH-02-FILES",
+      "RESEARCH-03-OUTSIDER",
+      "RESEARCH-04-KEYWORD",
+      "RESEARCH-05-SEMANTIC",
+      "RESEARCH-06-PROGRESS",
+      "RESEARCH-07-CITATIONS",
+      "RESEARCH-08-COLLABORATOR",
+      "RESEARCH-09-CANCEL",
+      "RESEARCH-10-RETRY",
+      "RESEARCH-11-OUTCOMES",
+      "RESEARCH-12-SCHEDULE"
+    ],
+    "edgeFunctionAfterScopedRestart": {
+      "httpStatus": 200,
+      "serverCredentialLoaded": true,
+      "credentialReturned": false
+    }
+  },
+  "containment": {
+    "adjudicatedAt": "2026-07-29T08:50:00Z",
+    "exactTargetStoppedWithoutBackup": true,
+    "containersRemaining": 0,
+    "volumesRemaining": 0,
+    "networksRemaining": 0,
+    "dockerFacingRuntimeMirrorRemaining": false,
+    "colimaPrivateTmpMirrorRemaining": false,
+    "assignedPortsClosed": [58430,58431,58432,58433,58434,58436,58437,58439,4341],
+    "rawSecretBearingLogsDestroyedAfterHashing": true,
+    "postDestructionCredentialValueFileHits": {
+      "PUBLISHABLE_KEY": 0,
+      "SECRET_KEY": 0,
+      "JWT_SECRET": 0,
+      "ANON_KEY": 0,
+      "SERVICE_ROLE_KEY": 0,
+      "S3_PROTOCOL_ACCESS_KEY_ID": 0,
+      "S3_PROTOCOL_ACCESS_KEY_SECRET": 0
+    },
+    "postDestructionGenericCredentialPatternFileHits": 0,
+    "rotationProof": "The credentials belonged only to the deleted fresh local target. Its database volume, containers, network, generated runtime files, and raw credential-bearing logs are absent."
+  },
+  "requiredRemediation": "Completed for the original target. A coordinator-authorized fresh r2 target may proceed only as an untimed completion/remediation extension."
+}

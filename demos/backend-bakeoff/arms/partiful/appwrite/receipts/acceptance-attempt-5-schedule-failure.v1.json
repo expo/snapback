@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "failedAt": "2026-07-29T05:52:00Z",
+  "scenario": "PARTY-09-SCHEDULE",
+  "classification": "local-scheduler-latency",
+  "productBlame": false,
+  "diagnostic": {
+    "cron": "* * * * *",
+    "schedulerLoadedFunction": true,
+    "schedulerEnqueuedExecution": true,
+    "executionVisibleWithin80Seconds": false,
+    "harnessClearedScheduleAfterTimeout": true
+  },
+  "remediation": "Use Appwrite's native future scheduledAt execution API for a bounded inspectable scheduled run; preserve cron queue logs as failed-attempt evidence."
+}

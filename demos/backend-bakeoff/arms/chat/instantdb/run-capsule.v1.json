@@ -1,0 +1,421 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "chat",
+    "provider": "instantdb",
+    "round": "calibration",
+    "attemptId": "chat-instantdb-calibration-w2-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "instantCore": "1.0.52",
+      "instantReact": "1.0.52",
+      "instantAdmin": "1.0.52",
+      "instantCli": "1.0.52",
+      "react": "19.1.1",
+      "vite": "7.1.3",
+      "typescript": "5.9.2"
+    },
+    "machine": "Hetzner expo-build-1000 / expose-builder-pixel / x86_64 / Linux 6.8.0-111-generic / Node 24.13.1",
+    "executionShape": "Independent native core clients provided actor, authority, WebSocket, room topic, and presence evidence; React received a production build and port-4290 HTTP smoke. No controlled browser was available.",
+    "startedAt": "2026-07-29T02:29:42.000Z",
+    "finishedAt": "2026-07-29T03:00:14.757Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 1832757,
+    "toolCalls": 74,
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "188545c4b7a08a13279e3dc0bcdd0e9a8cd41aa1161be693e9d7820ee4565499",
+      "authPath": "InstantDB native guest auth",
+      "role": "member"
+    },
+    "bob": {
+      "principalIdHash": "3357a56a4aa5028cd55493b82eb8f384253cca60dad4773ee4036a7b4b4400d8",
+      "authPath": "InstantDB native guest auth",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "3020c6e5422d1dc6108900d0473c4afcbe4e094822098f09284958a5229c521d",
+      "authPath": "InstantDB native guest auth",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-hosted",
+      "namespace": "llp0102-chat-instantdb-w2",
+      "identityHash": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+      "baselineReceiptPath": "receipts/target-provision-redacted.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.json"
+    },
+    "local": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "InstantDB self-host Docker",
+      "gapReason": "Assigned Hetzner host had no Docker daemon; official hosted temporary target was used instead.",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "cleaned",
+      "identityHash": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+      "profile": "official hosted temporary app",
+      "plan": "official temporary/free app",
+      "region": "provider-selected; not exposed",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/target-provision-redacted.json",
+        "receipts/cleanup-final.json"
+      ],
+      "targetDeletion": "Automatic after >24 hours; immediate delete requires an account identity unavailable to the app-scoped token.",
+      "residualConfiguration": [
+        "schema",
+        "permissions"
+      ]
+    }
+  },
+  "milestones": {
+    "firstTargetProvisionedMs": 420000,
+    "firstAuthoritativeMutationMs": 930000,
+    "firstRealtimeTransitionMs": 970000,
+    "acceptanceCompletionMs": 1817804,
+    "cleanupCompletionMs": 1832757
+  },
+  "assistanceEvents": [
+    {
+      "type": "official-documentation",
+      "note": "Used InstantDB official docs and pinned installed SDK source for auth, permissions, queries, rooms, CLI, backend, and temporary-app behavior."
+    },
+    {
+      "type": "retained-builder-and-harness-failures",
+      "receiptPaths": [
+        "receipts/target-provision-orphan.json",
+        "receipts/acceptance-attempt-1-failure.json",
+        "receipts/acceptance-attempt-2-failure.json",
+        "receipts/acceptance-attempt-3-failure.json",
+        "receipts/acceptance-attempt-4-failure.json",
+        "receipts/ui-build-attempt-1-failure.json"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "instant-cli init-without-files --title llp0102-chat-instantdb-w2 --temp",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 300000,
+      "classification": "fresh hosted temporary target"
+    },
+    {
+      "command": "instant-cli push all --app [REDACTED] --yes",
+      "exitStatus": 0,
+      "startedMonotonicMs": 300001,
+      "finishedMonotonicMs": 360000,
+      "classification": "schema and permissions"
+    },
+    {
+      "command": "node scripts/acceptance.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 360001,
+      "finishedMonotonicMs": 1680000,
+      "classification": "final clean 13-scenario functional run and 2+7 samples"
+    },
+    {
+      "command": "node scripts/build-samples.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1680001,
+      "finishedMonotonicMs": 1715000,
+      "classification": "two warmups plus seven production builds"
+    },
+    {
+      "command": "Vite dev server on 127.0.0.1:4290 and HTTP probe",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1715001,
+      "finishedMonotonicMs": 1725000,
+      "classification": "provider React shell smoke; listener stopped"
+    },
+    {
+      "command": "node scripts/clear-target.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1725001,
+      "finishedMonotonicMs": 1832757,
+      "classification": "exact target data/user cleanup and credential removal"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact isolated dataset exists.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Members see allowed channels; outsider sees only public.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Author identity is permission-bound, but the authoritative read did not expose a server timestamp/order field.",
+      "note": "Explicit evidence gap; not counted as a pass."
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob observed Alice commit through native push.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Cursor pages remained nonduplicating under an insert.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Typing used native ephemeral room topics.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Presence reflected two clients and removal after leave.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Native reconnect restored the same authoritative view.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "The browser SDK uses IndexedDB, but this remote headless run had no controlled browser; a custom storage shim was not counted as proof.",
+      "note": "Explicit evidence gap; not counted as a pass."
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Durable read marker synchronized across Bob clients and reconnect.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Both barrier-released sends settled and have deterministic order.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Membership removal stopped future protected delivery.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Native signOut stopped future private delivery.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/performance.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Frozen read, 20-message write burst, native realtime, reconnect, and production-build samples retained.",
+      "note": ""
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/cleanup-final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "All exact target data and native users were deleted, the old actor token was invalidated, and local raw credentials were removed.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.json",
+    "authoredSource": {
+      "files": 20,
+      "lines": 2105,
+      "bytes": 64785
+    },
+    "dependencies": {
+      "direct": 12,
+      "lockfilePackages": 251
+    },
+    "productionBuildBytes": 356150,
+    "npmAudit": {
+      "receiptPath": "receipts/npm-audit.json",
+      "finding": "One high aggregate finding on frozen Vite 7.1.3; the dev server was loopback-only and stopped after smoke."
+    }
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three native guest principals plus member and outsider positive/negative reads and subscriptions.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two actor sends settled concurrently and both authoritative rows were retained.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Native WebSocket query subscriptions, room topics, and room presence were directly observed.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 1,
+      "reason": "Reconnect was proven, but browser IndexedDB offline history was an explicit GAP.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "settlement": {
+      "score": 1,
+      "reason": "Native transact settlement and authoritative reads were proven; server order field was not exposed on the entity.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Fresh hosted target identity was hashed and bound throughout provisioning, evidence, and cleanup.",
+      "evidencePaths": [
+        "receipts/target-provision-redacted.json",
+        "receipts/cleanup-final.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "Exact disposable target data/users went to zero and old actor token was invalidated; provider owns final temp-app expiry.",
+      "evidencePaths": [
+        "receipts/cleanup-final.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Pinned lockfile, visible schema/permissions/client/harness, raw samples, and production build evidence are retained.",
+      "evidencePaths": [
+        "receipts/inventory.json",
+        "evidence/performance.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.json",
+    "receiptPaths": [
+      "receipts/cleanup-final.json"
+    ],
+    "postCleanupProbe": "Admin counts were zero for channels/messages/readMarkers/$users and the old Bob token failed verification.",
+    "detail": {
+      "operation": "clear-exact-disposable-target",
+      "targetIdSha256": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+      "beforeCounts": {
+        "channels": 4,
+        "messages": 696,
+        "readMarkers": 1,
+        "$users": 3
+      },
+      "afterCounts": {
+        "channels": 0,
+        "messages": 0,
+        "readMarkers": 0,
+        "$users": 0
+      },
+      "exactTargetOnly": true,
+      "targetDeletionUnsupportedWithAppScopedAdminToken": true,
+      "providerManagedExpiryExpected": true,
+      "temporaryAppLifecycle": "instant-cli documents automatic deletion after >24 hours",
+      "residualConfigurationUntilProviderExpiry": [
+        "schema",
+        "permissions"
+      ],
+      "oldActorTokenInvalidated": true,
+      "localRuntimeCredentialsRemoved": true,
+      "finishedAt": "2026-07-29T03:00:14.757Z",
+      "ok": true
+    }
+  },
+  "result": "complete"
+}

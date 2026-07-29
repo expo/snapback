@@ -1,0 +1,29 @@
+{
+  "id": "CHAT-01-SEED",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:13.442Z",
+  "seed": {
+    "channelIds": {
+      "general": "j573yt2hat48k8e0s53xa9vmhn8bfct9",
+      "leadership": "j5738jqykasg3nbvv0nvr50hks8bf0qe",
+      "project-alpha": "j576rpbqgfa45ezns93vmv57c58bfag0",
+      "random": "j57cngkpv3p48t6zewngd9deph8bfsgt"
+    },
+    "channels": 4,
+    "messages": 500,
+    "namespace": "llp0102-chat-convex-w2",
+    "profiles": 3
+  },
+  "authoritativeCounts": {
+    "channels": 4,
+    "memberships": 4,
+    "messages": 500,
+    "namespace": "llp0102-chat-convex-w2",
+    "presence": 0,
+    "profiles": 3,
+    "readMarkers": 8,
+    "typing": 0
+  },
+  "firstSeedAndReadMs": 172.81756600000006,
+  "exactFixture": true
+}

@@ -1,0 +1,8 @@
+{
+  "durable": "Supabase Realtime Postgres Changes WebSocket push; no product polling",
+  "typing": "Supabase Realtime private Broadcast on authorized public channel",
+  "presence": "Supabase Realtime Presence on authorized public channel",
+  "authorization": "Postgres RLS for durable reads/push and realtime.messages RLS for private Broadcast/Presence join",
+  "logoutGlue": "application calls removeAllChannels after signOut",
+  "reconnect": "fresh PostgREST snapshot after native Realtime resubscribe"
+}

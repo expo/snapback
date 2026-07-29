@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "provider": "SpacetimeDB",
+  "targetProfile": "Maincloud managed database/module",
+  "status": "explicit-gap",
+  "classification": "unavailable-remote-dependency",
+  "reason": "No SpacetimeDB Maincloud credential was present in the user-authorized bakeoff credential sources.",
+  "localSubstitutionClaimedAsHosted": false,
+  "hostedUrl": null,
+  "hostedLogs": null,
+  "hostedRollbackOrExport": null,
+  "productFailureClaimed": false
+}

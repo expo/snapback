@@ -194,7 +194,7 @@ yet verify `PackageCapabilityAttestationV1`. Do not select it for a deployed
 package based on source-build code presence.
 
 The source-build local executor is not declaration-only:
-`node demos/backend-bakeoff/tests/snapback.mjs` exercises owner, invisible,
+`node demos/signal-desk/tests/snapback.mjs` exercises owner, invisible,
 missing, and inactive parents plus a two-page `sbbc1` traversal against the
 persisted server. That local proof is green; the remaining GAP is the Spec's
 publication lifecycle and cross-target evidence.

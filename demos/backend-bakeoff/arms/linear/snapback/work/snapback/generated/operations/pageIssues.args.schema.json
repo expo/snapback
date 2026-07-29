@@ -1,0 +1,22 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/pageIssues.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "afterSequence": {
+      "type": "integer"
+    },
+    "limit": {
+      "type": "integer"
+    },
+    "organizationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organizationId",
+    "limit"
+  ],
+  "title": "work:pageIssues arguments",
+  "type": "object"
+}

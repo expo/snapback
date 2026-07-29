@@ -1,0 +1,19 @@
+{
+  "attempt": 6,
+  "stage": "initial module build",
+  "classification": "CLI/toolchain ergonomics",
+  "subattempts": [
+    {
+      "exitCode": 2,
+      "symptom": "spacetime build rejected --project-path and --module-path.",
+      "remediation": "Use the documented short option: spacetime build -p spacetimedb."
+    },
+    {
+      "exitCode": 127,
+      "symptom": "The first correct build could not resolve node through /usr/bin/env.",
+      "remediation": "Preserve the machine's resolved Volta Node tool-image paths while prefixing the arm-local CLI directory."
+    }
+  ],
+  "samplesCounted": false,
+  "stopClass": false
+}

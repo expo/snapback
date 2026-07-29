@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/editTask.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assigneeId": {
+      "type": "string"
+    },
+    "completed": {
+      "type": "boolean"
+    },
+    "dueDate": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "work:editTask arguments",
+  "type": "object"
+}

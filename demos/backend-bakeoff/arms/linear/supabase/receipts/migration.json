@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T04:37:30.498Z",
+  "beforeCounts": {
+    "organizations": 2,
+    "teams": 3,
+    "projects": 4,
+    "labels": 20,
+    "issues": 500,
+    "issue_labels": 1000,
+    "comments": 1002,
+    "activities": 1007
+  },
+  "afterCounts": {
+    "organizations": 2,
+    "teams": 3,
+    "projects": 4,
+    "labels": 20,
+    "issues": 500,
+    "issue_labels": 1000,
+    "comments": 1002,
+    "activities": 1007
+  },
+  "migration": {
+    "path": "work/supabase/evolution/20260729042000_add_estimate_points.sql",
+    "sha256": "7b3db584286d029965c47d0de7c08c13fdb70da94dab7762aedd2fb325163ca2",
+    "command": {
+      "ok": true,
+      "projectId": "llp0102-linear-supabase-w3",
+      "migration": "supabase/evolution/20260729042000_add_estimate_points.sql"
+    }
+  },
+  "columnProof": [
+    "estimate_points:integer:NO"
+  ],
+  "indexProof": [
+    "issues_organization_estimate_idx:CREATE INDEX issues_organization_estimate_idx ON public.issues USING btree (organization_id, estimate_points, issue_number)"
+  ]
+}

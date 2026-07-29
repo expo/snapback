@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/createTask.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assigneeId": {
+      "type": "string"
+    },
+    "dueDate": {
+      "type": "string"
+    },
+    "listId": {
+      "type": "string"
+    },
+    "position": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    },
+    "workspaceId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspaceId",
+    "listId",
+    "title",
+    "assigneeId",
+    "dueDate",
+    "position"
+  ],
+  "title": "work:createTask arguments",
+  "type": "object"
+}

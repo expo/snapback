@@ -100,7 +100,7 @@
       "sha256": "sha256:8ee683224aa6088b4f883b8354da368e2a324f8000d8e96c48b5f8892dcecdb9"
     },
     {
-      "bytes": 18859,
+      "bytes": 19856,
       "consumer": "contract",
       "custody": "regenerable-cache",
       "logicalKind": "contract-data-manifest",
@@ -109,7 +109,7 @@
         "command": "snapback generate snapback --target-profile remote-service-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:506014ba47f9580084813188616f324d0eb6c6ab621c80331cc03c6ab34f7c22"
+      "sha256": "sha256:97ec5698c95aebcb91eb3d63f96249501046aa57ee15b546a1b3baa9c032749f"
     },
     {
       "bytes": 279,
@@ -484,7 +484,7 @@
       "sha256": "sha256:6f8c36884fe3a20dcd478801df5fa5613e6f8e19e0d6a4feec759dd878afae38"
     },
     {
-      "bytes": 2353,
+      "bytes": 2499,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -493,10 +493,10 @@
         "command": "snapback generate snapback --target-profile remote-service-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:ecc90dd91fc44f8f1eaba7b8abcdb16a786a4c7fc1fd87a4f6f39bbb4d367885"
+      "sha256": "sha256:19392b51cf7be749c3527478ef86d7f1da95b8b3ad4994392f34253ed3de17a3"
     },
     {
-      "bytes": 5037,
+      "bytes": 5199,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -505,10 +505,10 @@
         "command": "snapback generate snapback --target-profile remote-service-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:d6471b94987863a169952009f96511ba0da342c46959ad94da73e9e8f1def104"
+      "sha256": "sha256:485f8e10255870accb33735bd98cabe0e97288aab51be3eb7d7e6115ce8ed99d"
     },
     {
-      "bytes": 24138,
+      "bytes": 25209,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-introspection",
@@ -517,7 +517,7 @@
         "command": "snapback generate snapback --target-profile remote-service-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:83569b76cccac12b7af62f28f7c095c8d4a18e3d909abd7f1e588f031ac7a080"
+      "sha256": "sha256:1878dfd409617c7cac034c13fee8efa9266581498887afbc6cf08d88690f8b78"
     },
     {
       "bytes": 488,
@@ -652,7 +652,7 @@
         "total": 8
       },
       "tables": 1,
-      "warnings": 1
+      "warnings": 0
     },
     "degradedResults": [
       {

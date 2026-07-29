@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T22:05:58.654Z",
+  "ok": true,
+  "crud": {
+    "createObservedBySecondClient": true,
+    "editObservedBySecondClient": true,
+    "completeObservedBySecondClient": true,
+    "reopenObservedBySecondClient": true,
+    "reorderObservedBySecondClient": true,
+    "deleteObservedBySecondClient": true,
+    "authorityCheckedAfterEveryTransition": true
+  },
+  "realtime": {
+    "transport": "Supabase Realtime Phoenix WebSocket with Postgres Changes",
+    "nativeWebSocketObserved": true,
+    "secondClientPush": true
+  },
+  "conflict": {
+    "policy": "last committed PostgreSQL RPC update wins for title; revision increments atomically",
+    "converged": true,
+    "winningActorClass": "bob",
+    "authoritativeRevision": 13,
+    "twoCommitsCounted": true
+  },
+  "concurrentOrder": {
+    "validUniquePermutation": true,
+    "taskOrderLength": 25,
+    "uniqueTaskIds": 25,
+    "policy": "whole-array last PostgreSQL update wins"
+  },
+  "revocation": {
+    "beforeTaskCount": 100,
+    "clearedAfterMembershipDeleteEvent": true,
+    "taskCountBeforeExplicitReload": 0,
+    "futureWriteDelivered": false,
+    "regrantRestoredQueryAfterReload": true
+  },
+  "logout": {
+    "protectedUiRemoved": true,
+    "futureWriteDelivered": false,
+    "retainedStoreInventoryBefore": {
+      "indexedDbDatabaseCount": 0,
+      "indexedDbNameHashes": [],
+      "localStorageKeyHashes": [
+        "9bf00005d00c767458a8cbfbddc13112cdcb76b7ee1609ba9f6e184a2835cec1"
+      ]
+    },
+    "retainedStoreInventoryAfter": {
+      "indexedDbDatabaseCount": 0,
+      "indexedDbNameHashes": [],
+      "localStorageKeyHashes": []
+    },
+    "protectedValuesInspected": false,
+    "contract": "supabase-js persists the Auth session in localStorage but has no native durable PostgREST query cache; signOut removes the session and React state is discarded."
+  },
+  "authoritativeFinal": {
+    "workspaceCount": 1,
+    "membershipCount": 2,
+    "membershipPersonas": [
+      "alice",
+      "bob"
+    ],
+    "listCount": 4,
+    "taskCount": 100,
+    "uniqueTaskIds": 100,
+    "uniqueSeedKeys": 100,
+    "orderValid": true
+  },
+  "containsSecretValues": false
+}

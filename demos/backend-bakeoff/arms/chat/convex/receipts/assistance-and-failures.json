@@ -1,0 +1,66 @@
+{
+  "capturedAt": "2026-07-29T02:18:00Z",
+  "assistanceEvents": [
+    {
+      "type": "official-documentation",
+      "source": "Convex Local Deployments, Auth, Pagination, and API reference",
+      "effect": "Selected the anonymous local beta target, customJwt development identity integration, native cursor pagination, and ConvexReactClient.clearAuth logout path."
+    },
+    {
+      "type": "coordinator-stop-adjudication",
+      "effect": "The coordinator authorized one minimal mutation after read-only diagnosis and adjudicated the original CHAT-12 Stop candidate as a harness error."
+    }
+  ],
+  "failedAttempts": [
+    {
+      "classification": "builder-error",
+      "command": "initial rsync to remote mirror",
+      "exitStatus": 255,
+      "cause": "The rsync transport omitted the isolated known-hosts option.",
+      "resolution": "Used rsync -e with the exact SSH known-hosts file."
+    },
+    {
+      "classification": "builder-error",
+      "command": "initial convex dev push",
+      "exitStatus": 1,
+      "cause": "The generated JWKS file contained literal newline escapes, then used a hyphenated Convex module filename.",
+      "resolution": "Generated real newlines and renamed the module dev_jwks.ts."
+    },
+    {
+      "classification": "builder-error",
+      "command": "first acceptance attempt",
+      "exitStatus": 1,
+      "cause": "Used nonexistent ConvexClient.clearAuth().",
+      "resolution": "Tried a null token fetcher, which produced the separately retained false-positive Stop candidate."
+    },
+    {
+      "classification": "harness-error",
+      "command": "second acceptance attempt CHAT-12",
+      "exitStatus": 1,
+      "cause": "ConvexClient.setAuth(async () => null) was treated as an idiomatic logout barrier.",
+      "resolution": "Read-only and one-message diagnosis proved ConvexReactClient.clearAuth immediately invalidates the watch and denies fresh reads; the original Stop was a false positive."
+    },
+    {
+      "classification": "builder-error",
+      "command": "first production build performance sample",
+      "exitStatus": 2,
+      "cause": "The Vite ImportMeta type declaration was missing.",
+      "resolution": "Added src/vite-env.d.ts and restarted the clean acceptance attempt so all retained samples share one run."
+    },
+    {
+      "classification": "harness-error",
+      "command": "first exact cleanup process probe",
+      "exitStatus": 1,
+      "cause": "pgrep matched the probe command itself.",
+      "resolution": "A corrected ps/port/path probe proved that the exact process, ports, and paths were absent."
+    }
+  ],
+  "rawEvidence": [
+    "receipts/acceptance-error-original-harness.json",
+    "receipts/acceptance-error-build-harness.json",
+    "receipts/failed-attempt-recovery.json",
+    "receipts/logout-diagnosis-readonly.json",
+    "receipts/logout-diagnosis-delivery.json"
+  ],
+  "diagnosticErratum": "logout-diagnosis-delivery.json labels the method ConvexClient.clearAuth; the retained executed source and API both use ConvexReactClient.clearAuth. The raw receipt is intentionally unchanged."
+}

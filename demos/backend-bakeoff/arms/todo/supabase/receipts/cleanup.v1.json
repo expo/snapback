@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T22:18:43.661Z",
+  "ok": true,
+  "targetIdentityHash": "0823149e01fd3ed8d01405f27dc77756214957b660a251230c8f38e2bd8276ce",
+  "baselineReceiptPath": "receipts/baseline.v1.json",
+  "removed": [
+    "exact four llp0102_todo_sb01_ public relations and their dependent policies/indexes",
+    "exact four arm functions and four supabase_realtime publication entries",
+    "exact three Auth users after arm namespace-metadata verification",
+    "exact arm Vite process, disposable browser profiles, and ignored credential files"
+  ],
+  "retained": [
+    "all unrelated shared Supabase project relations, publication entries, identities, and data",
+    "installed arm dependencies and retained deterministic migration/seed source"
+  ],
+  "postCleanupNamespaceProbe": {
+    "matchingRelations": 0,
+    "matchingPublicationRelations": 0,
+    "matchingPolicies": 0,
+    "matchingPersonaUsers": 0
+  },
+  "probes": {
+    "port4182Closed": true,
+    "matchingRelationsRestored": true,
+    "matchingPublicationRelationsRestored": true,
+    "matchingPoliciesRestored": true,
+    "matchingPersonaUsersRestored": true,
+    "runtimeAbsent": true,
+    "armSecretsAbsent": true,
+    "publicEnvAbsent": true
+  },
+  "recovery": "Deleted arm namespace and personas are not recoverable; retained migration and deterministic seed recreate them. Unrelated shared-project state was not in cleanup scope.",
+  "containsSecretValues": false
+}

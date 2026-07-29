@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "targetBinding": {
+    "title": "llp0102-research-instantdb-w3-a1",
+    "idSha256": "2d8f64c5302204bb852a49b4308ffae281feb2714627504378453b2c1433e61a",
+    "freshByConstruction": true
+  },
+  "scope": "all and only records, objects, users, tokens, local processes/state, and target shell owned by this fresh arm target",
+  "preconditions": {
+    "unexpectedUsers": 0,
+    "unexpectedRooms": 0,
+    "unexpectedFiles": 0,
+    "exactIdentityMatched": true
+  },
+  "deleteOrder": [
+    "effectAttempts",
+    "answers",
+    "progress",
+    "questions",
+    "sources",
+    "$files",
+    "rooms",
+    "profiles",
+    "$users"
+  ],
+  "containsCredentialValues": false
+}

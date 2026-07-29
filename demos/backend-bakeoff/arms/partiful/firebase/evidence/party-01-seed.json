@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-01-SEED",
+  "capturedAt": "2026-07-29T05:17:18.583Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Admin Firestore collection counts and Auth emulator receipt",
+  "counts": {
+    "events": 20,
+    "publicEvents": 20,
+    "eventControls": 20,
+    "contendedInvitations": 51,
+    "contendedRsvps": 49,
+    "contendedAttendance": 49,
+    "scheduleDefinitions": 1,
+    "authUsers": 3
+  },
+  "principals": {
+    "alice": {
+      "principalIdHash": "6a814b7e9f4834af4dfbf4a4322e5aec1b1404078fc5ae5155b391eab8107396",
+      "role": "host"
+    },
+    "bob": {
+      "principalIdHash": "74a0350bd8368557564efb4786a6598b78aae7da82de914a40cfded8f80f9376",
+      "role": "cohost/guest"
+    },
+    "mallory": {
+      "principalIdHash": "9f78803c4e38fec37daa64c63f6a9f3f0952eea21e779d6145006b49dbb0ad17",
+      "role": "outsider/invitee-for-contention"
+    }
+  }
+}

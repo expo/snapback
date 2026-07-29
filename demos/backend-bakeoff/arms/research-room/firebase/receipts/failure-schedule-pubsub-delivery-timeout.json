@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "classification": "harness",
+  "phase": "RESEARCH-12-SCHEDULE",
+  "summary": "The corrected emulator Pub/Sub topic accepted a REST publish, but the scheduled handler did not execute within ten seconds.",
+  "observed": {
+    "topic": "firebase-schedule-scheduledRefresh",
+    "publishAccepted": true,
+    "durableRunObserved": false,
+    "timeoutMs": 10000,
+    "functionsEmulatorGeneratedIdentity": "us-central1-scheduledRefresh-0"
+  },
+  "impact": "Scenarios RESEARCH-01 through RESEARCH-11 passed again; no Stop-class defect occurred.",
+  "remediation": "Invoke the actual onSchedule definition through the Functions emulator's generated background-trigger endpoint and retain both scheduler and emulator function identities."
+}

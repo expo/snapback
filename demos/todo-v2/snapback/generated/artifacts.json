@@ -97,7 +97,7 @@
       "sha256": "sha256:082d55c32cf6e91842fcc80615dbbce0c3d24bceafab21311313fb03e06fff59"
     },
     {
-      "bytes": 18859,
+      "bytes": 19856,
       "consumer": "contract",
       "custody": "regenerable-cache",
       "logicalKind": "contract-data-manifest",
@@ -106,7 +106,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:edc9fbe1a7fd45b0c549ddcf88419eb32349fd3355aa271d1cd4be1fc9a95497"
+      "sha256": "sha256:6e97ba9b200245ae01888cbd17de6542971539e85d7b2a942e8440474236c112"
     },
     {
       "bytes": 279,
@@ -481,7 +481,7 @@
       "sha256": "sha256:78798fdef8900e20da590b979a10b9ed7d292785f184f3ee0b42191f3d04fc89"
     },
     {
-      "bytes": 2353,
+      "bytes": 2499,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -490,10 +490,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:ecc90dd91fc44f8f1eaba7b8abcdb16a786a4c7fc1fd87a4f6f39bbb4d367885"
+      "sha256": "sha256:19392b51cf7be749c3527478ef86d7f1da95b8b3ad4994392f34253ed3de17a3"
     },
     {
-      "bytes": 5037,
+      "bytes": 5199,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -502,10 +502,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:dd027585e7593b4611aa7ef709b84e6f6a61801857dcbe5e641bf28c1d45e4c5"
+      "sha256": "sha256:b964eab30d7da63e0feb27186d40d38eaa812797da7cb75857564aeee8d73031"
     },
     {
-      "bytes": 24138,
+      "bytes": 25209,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-introspection",
@@ -514,7 +514,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:bf51c6f21b8e6dc56151a6150f320f39958a962b453d8270fc990c42315cc3b9"
+      "sha256": "sha256:9b892f15008f06a9e8fc89c64da03fb73e4b34142fc52d618ea662ee114197eb"
     },
     {
       "bytes": 600,
@@ -613,7 +613,7 @@
         "total": 8
       },
       "tables": 1,
-      "warnings": 1
+      "warnings": 0
     },
     "degradedResults": [
       {

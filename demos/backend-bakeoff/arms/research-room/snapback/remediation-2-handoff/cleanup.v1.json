@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "targetIdentity": "536a3f0d90ed2a9ce9fe8face95d64f1643ff57b985cfce98200576e2bf801c4",
+  "namespace": "llp0102-research-snapback-remediation2-w1",
+  "removed": {
+    "runtimeRoot": true,
+    "publicRoot": true
+  },
+  "absent": {
+    "runtimeRoot": true,
+    "publicRoot": true
+  },
+  "portsClosed": {
+    "3351": true,
+    "4351": true,
+    "9351": true,
+    "20451": true
+  },
+  "cleanupErrors": [],
+  "unrelatedBaselinePreserved": true,
+  "completedAt": "2026-07-29T11:58:10.929Z"
+}

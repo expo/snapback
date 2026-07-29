@@ -1,0 +1,18 @@
+{
+  "id": "RESEARCH-10-RETRY",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:38.688Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "appwrite-function-and-unique-indexes",
+  "evidence": {
+    "executionIds": [
+      "6a69d995ae9c3509792a",
+      "6a69d9969387f9c7aece"
+    ],
+    "idempotencyKey": "retry-key",
+    "questionRows": 1,
+    "answerRows": 1,
+    "progressRows": 4
+  },
+  "note": "A second function execution converged on the existing question, answer, and four-step progress lineage."
+}

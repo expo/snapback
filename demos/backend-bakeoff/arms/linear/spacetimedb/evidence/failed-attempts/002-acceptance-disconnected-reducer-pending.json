@@ -1,0 +1,11 @@
+{
+  "attempt": 2,
+  "stage": "acceptance",
+  "classification": "harness defect",
+  "symptom": "The first acceptance run remained pending after the offline probe invoked a reducer on an explicitly disconnected SDK connection.",
+  "cause": "The harness awaited a promise for an operation the SDK neither accepted nor immediately rejected while disconnected.",
+  "retainedObservation": "Warm in-memory rows remained readable after disconnect; this does not establish persistent offline support.",
+  "remediation": "Bound the disconnected-operation observation to 250 ms, retain its exact outcome, and never treat a pending call as queued or accepted.",
+  "targetRecovery": "Delete and recreate only the exact isolated arm database because the interrupted run had already committed acceptance mutations.",
+  "stopClass": false
+}

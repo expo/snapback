@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-10-RETRY",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:04.958Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "Two callable invocations with one deterministic identity retained one question, one answer, and one effect-attempt ledger.",
+    "firstAttempt": {
+      "deduplicated": false,
+      "questionId": "question-idempotent-retry",
+      "status": "complete",
+      "progressCount": 4
+    },
+    "secondAttempt": {
+      "deduplicated": true,
+      "questionId": "question-idempotent-retry",
+      "status": "complete",
+      "progressCount": 4
+    },
+    "questionCount": 1,
+    "answerCount": 1,
+    "attemptCount": 1,
+    "dedupeKeyHash": "15a59a73337cf72addb2b1886e4f5933e18657709f19a023c13e139dedb8ac69"
+  },
+  "note": "Retry is idempotent without duplicate questions or answers."
+}

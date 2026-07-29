@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T04:43:07.683Z",
+  "exactWorkRoot": "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work",
+  "namespace": "llp0102-linear-appwrite-w2",
+  "sourceBaseCommit": "2a4472a44568a87d2a0373904b42562b52e8730b",
+  "frozenSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "dockerContext": "colima",
+  "ports": {
+    "4324": "closed",
+    "8091": "closed",
+    "8491": "closed",
+    "20081": "closed"
+  },
+  "matchingContainers": [],
+  "matchingVolumes": [],
+  "matchingNetworks": [],
+  "unrelatedSupabaseContainerHashes": [],
+  "composePaths": {
+    "composeFile": "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.arm-runtime/appwrite/docker-compose.yml",
+    "envFile": "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.arm-runtime/appwrite/.env"
+  },
+  "runtimeRoot": "/private/tmp/llp0102-linear-appwrite-w2/demos/backend-bakeoff/arms/linear/appwrite/work/.arm-runtime",
+  "status": "empty"
+}

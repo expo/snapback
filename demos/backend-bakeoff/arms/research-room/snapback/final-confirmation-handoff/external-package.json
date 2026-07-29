@@ -1,0 +1,32 @@
+{
+  "name": "llp0102-research-room-snapback",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "generate": "node node_modules/@snapback/codegen/index.mjs snapback",
+    "build": "tsc -b && vite build",
+    "acceptance": "node scripts/run-arm.mjs",
+    "finalize": "node scripts/finalize-capsule.mjs"
+  },
+  "dependencies": {
+    "@snapback/app-cli": "file:/private/tmp/llp0102-final-packages-darwin-4e5da63c/snapback-app-cli-0.1.1-llp0102.1.tgz",
+    "@snapback/cli": "file:/private/tmp/llp0102-final-packages-darwin-4e5da63c/snapback-cli-0.1.1-llp0102.1.tgz",
+    "@snapback/client": "file:/private/tmp/llp0102-final-packages-darwin-4e5da63c/snapback-client-0.1.1-llp0102.1.tgz",
+    "@snapback/codegen": "file:/private/tmp/llp0102-final-packages-darwin-4e5da63c/snapback-codegen-0.1.1-llp0102.1.tgz",
+    "@snapback/contract": "file:/private/tmp/llp0102-final-packages-darwin-4e5da63c/snapback-contract-0.1.1-llp0102.1.tgz",
+    "@snapback/react": "file:/private/tmp/llp0102-final-packages-darwin-4e5da63c/snapback-react-0.1.1-llp0102.1.tgz",
+    "@snapback/runtime-darwin-arm64": "file:/private/tmp/llp0102-final-packages-darwin-4e5da63c/snapback-runtime-darwin-arm64-0.1.1-llp0102.1.tgz",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "playwright-core": "1.62.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  }
+}

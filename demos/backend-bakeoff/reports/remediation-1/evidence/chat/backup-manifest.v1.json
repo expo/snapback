@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T03:55:01.965Z",
+  "kind": "pre-cleanup local SQLite content hash",
+  "bytes": 1003520,
+  "sha256": "241003b8085b10ec49e2f3b8eb7e93fde2f5717859bb671b61c8d0091a0cdac0",
+  "binaryRetained": false,
+  "recovery": "Regenerate artifacts, mint local sessions, and rerun deterministic Chat bootstrap."
+}

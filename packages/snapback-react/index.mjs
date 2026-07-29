@@ -23,10 +23,10 @@ import {
 } from '@snapback/client';
 export { bindSnapbackAppLifecycle } from '@snapback/client';
 
-// @ref LLP 0102#prepared-binding-and-provider-ownership — the provider owns
+// @ref LLP 0114#prepared-binding-and-provider-ownership — the provider owns
 // its registry and barrier participant while borrowing the prepared client's
 // transport.
-// @ref LLP 0102#exact-saturated-replacement-semantics — group admission is
+// @ref LLP 0114#exact-saturated-replacement-semantics — group admission is
 // transactional, with only unique one-for-one supersession at saturation.
 
 export const skip = Symbol.for('snapback.react.skip.v1');
@@ -1733,7 +1733,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ...(registeredRecovery === null ? [] : [registeredRecovery]),
         pendingRegisteredRetirement,
       ]);
-      // @ref LLP 0102#closed-connection-and-cancellation-protocol — adopted
+      // @ref LLP 0114#closed-connection-and-cancellation-protocol — adopted
       // and ordinary children retire through their own handle refcounts before
       // the provider conditionally releases its grant-owned connection. A
       // sibling's remaining socket demand keeps the shared connection live.

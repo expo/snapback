@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T04:33:56.013Z",
+  "projectId": "llp0102-linear-firebase-w2",
+  "exitStatus": 0,
+  "durationMs": 771.838,
+  "files": [
+    {
+      "path": "auth_export/accounts.json",
+      "bytes": 1761,
+      "sha256": "3ca9d621ca3269f23f328d316ddee4dfd588d447c4d64f179b1cf120a7461611"
+    },
+    {
+      "path": "auth_export/config.json",
+      "bytes": 99,
+      "sha256": "a06ad971dd56d46b5975ab34f3308384ff3231d81c70b82b7099fb9b3d312ca8"
+    },
+    {
+      "path": "firebase-export-metadata.json",
+      "bytes": 330,
+      "sha256": "553b55d7c517e361da2aa87d818a0a083a7169e211074a5679e924075fb9ac4f"
+    },
+    {
+      "path": "firestore_export/all_namespaces/all_kinds/all_namespaces_all_kinds.export_metadata",
+      "bytes": 52,
+      "sha256": "7f4fcf17d132ef4220918c54bfc6f752a992345010805d8701d3bd7d62e01cb9"
+    },
+    {
+      "path": "firestore_export/all_namespaces/all_kinds/output-0",
+      "bytes": 737334,
+      "sha256": "6440504a3c3dbfe5f0572a7bdc620120f14069128188c0f245ce73449715bdbb"
+    },
+    {
+      "path": "firestore_export/firestore_export.overall_export_metadata",
+      "bytes": 97,
+      "sha256": "2234512764ce3776371eeebc1d01f1c474347ada9cf27799af20b2779714872f"
+    },
+    {
+      "path": "storage_export/buckets.json",
+      "bytes": 87,
+      "sha256": "a984b16f7209d4853d85c4aa36c56069996bc39e6417e30c2930b41043223f27"
+    }
+  ],
+  "aggregateSha256": "a576703ab6122f0bb60e2364e1ca9b32ad8f400a3c0938c7e94f50af09d363a9"
+}

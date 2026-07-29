@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "provider": "spacetimedb",
+  "hostedProduct": "Maincloud",
+  "status": "UNAVAILABLE_REMOTE_DEPENDENCY",
+  "reason": "credential-unavailable in the frozen provider inventory",
+  "hostedUrl": null,
+  "hostedSecretProof": false,
+  "localStandaloneRelabeledAsHosted": false,
+  "containsSecretValues": false
+}

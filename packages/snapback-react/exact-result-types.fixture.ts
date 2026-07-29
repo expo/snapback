@@ -4,7 +4,7 @@ import type {
 } from '@snapback/client';
 import type {
   GeneratedQueryGroups as BackendBakeoffQueryGroups,
-} from '../../demos/backend-bakeoff/snapback/generated/api.d.ts';
+} from '../../demos/signal-desk/snapback/generated/api.d.ts';
 import {
   skip,
   useSnapbackMutation,

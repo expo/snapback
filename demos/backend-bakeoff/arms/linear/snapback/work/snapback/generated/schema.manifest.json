@@ -1,0 +1,465 @@
+{
+  "appId": "work",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:912d80fe96e960e94ff902f1c9fd7bd9ad19381d75311c3adce62c662cb5c624",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "organizations",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "owner",
+        "id": "organizationMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "organizationId",
+        "resourceTable": "organizations",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "organizationMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "key",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "organizationId",
+            "key"
+          ],
+          "name": "by_organization_key"
+        }
+      ],
+      "name": "teams",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "state",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "organizationId",
+            "name"
+          ],
+          "name": "by_organization_name"
+        }
+      ],
+      "name": "projects",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "color",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "organizationId",
+            "name"
+          ],
+          "name": "by_organization_name"
+        }
+      ],
+      "name": "labels",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "teams"
+            }
+          },
+          "name": "teamId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "projects"
+            }
+          },
+          "name": "projectId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "assigneeId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "identifier",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "description",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "priority",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "boardPosition",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "organizationId",
+            "sequence"
+          ],
+          "name": "by_organization_sequence"
+        },
+        {
+          "fields": [
+            "organizationId",
+            "status",
+            "sequence"
+          ],
+          "name": "by_organization_status"
+        },
+        {
+          "fields": [
+            "organizationId",
+            "assigneeId",
+            "sequence"
+          ],
+          "name": "by_organization_assignee"
+        },
+        {
+          "fields": [
+            "organizationId",
+            "projectId",
+            "sequence"
+          ],
+          "name": "by_organization_project"
+        }
+      ],
+      "name": "issues",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "issues"
+            }
+          },
+          "name": "issueId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "labels"
+            }
+          },
+          "name": "labelId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "issueId",
+            "labelId"
+          ],
+          "name": "by_issue_label"
+        },
+        {
+          "fields": [
+            "labelId",
+            "issueId"
+          ],
+          "name": "by_label_issue"
+        }
+      ],
+      "name": "issueLabels",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "issues"
+            }
+          },
+          "name": "issueId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "issueId",
+            "sequence"
+          ],
+          "name": "by_issue_sequence"
+        }
+      ],
+      "name": "comments",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "organizations"
+            }
+          },
+          "name": "organizationId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "issues"
+            }
+          },
+          "name": "issueId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "actorId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "issueId",
+            "sequence"
+          ],
+          "name": "by_issue_sequence"
+        }
+      ],
+      "name": "activities",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

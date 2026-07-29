@@ -9,7 +9,7 @@
 retirement without closing a demanded sibling connection). 2026-07-28 (unreviewed post-round-3 reconciliation: string-target
 register eligibility and provider-custody opacity; three-round review budget
 exhausted)
-**Related:** LLP 0012, LLP 0034, LLP 0053, LLP 0058, LLP 0059, LLP 0064, LLP 0090, LLP 0092, LLP 0108, LLP 0102
+**Related:** LLP 0012, LLP 0034, LLP 0053, LLP 0058, LLP 0059, LLP 0064, LLP 0090, LLP 0092, LLP 0108, LLP 0114
 
 ## Summary
 
@@ -24,11 +24,11 @@ experimental target capability and the two additive LLP 0092 bundle-request
 fields `authInvalidationProtocol` and `authorizationNamespaces`; it does not
 otherwise change bundle, transport, authorization, query, result-contract, or
 React external-store semantics. It exists because this generated-reference and
-register-mode composition was added after LLP 0102's terminal review and needs
-its own reviewable contract and evidence. This document supersedes LLP 0102's
+register-mode composition was added after LLP 0114's terminal review and needs
+its own reviewable contract and evidence. This document supersedes LLP 0114's
 "Bundle-primed generated query groups" extension only where that section
 previously allowed a broad `SNAPBACK_BUNDLE_*` fallback or left preparation
-ownership implicit. LLP 0102 continues to own provider stores, lazy child
+ownership implicit. LLP 0114 continues to own provider stores, lazy child
 demand, and React lifecycle.
 
 ## Goals and non-goals
@@ -173,7 +173,7 @@ Before network work, preparation verifies:
 10. no two children with the same canonical `(function-reference id,args)`.
     Repeated functions with different canonical args remain valid. Exact
     duplicates refuse `SNAPBACK_REACT_GROUP_DUPLICATE_CHILD` before I/O so
-    LLP 0102's canonical-store sharing never strands surplus positional
+    LLP 0114's canonical-store sharing never strands surplus positional
     registrations.
 
 `prepareQueryGroup` returns a promise. Admission failures reject that promise
@@ -440,6 +440,6 @@ Rollout is additive:
    evidence pass.
 
 Rollback removes route-group generation and preparation from new examples
-while preserving the existing LLP 0090 bundle endpoint and LLP 0102 React
+while preserving the existing LLP 0090 bundle endpoint and LLP 0114 React
 surface. Generated group artifacts carry a format version, so incompatible
 future changes require a new version rather than reinterpretation.

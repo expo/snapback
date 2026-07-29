@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-10-EFFECT-RETRY",
+  "capturedAt": "2026-07-29T05:17:26.490Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Function effect ledger plus local provider receipt state",
+  "transport": "callable-function-to-http-provider-boundary",
+  "first": {
+    "effectKey": "event-01:known-success-acceptance",
+    "deduped": false,
+    "attemptCount": 1,
+    "providerReceiptId": "local-receipt-ZXZlbnQtMDE6a25vd24tc3Vj"
+  },
+  "retry": {
+    "effectKey": "event-01:known-success-acceptance",
+    "deduped": true,
+    "terminal": true,
+    "attemptCount": 1,
+    "providerInvocationCount": 1
+  },
+  "effect": {
+    "mode": "known-success",
+    "eventId": "event-01",
+    "reason": "known-success acceptance",
+    "providerInvocationCount": 1,
+    "idempotencyKey": "event-01:known-success-acceptance",
+    "attemptCount": 1,
+    "effectKey": "event-01:known-success-acceptance",
+    "updatedAt": {
+      "_seconds": 1785302246,
+      "_nanoseconds": 463000000
+    },
+    "providerReceiptId": "local-receipt-ZXZlbnQtMDE6a25vd24tc3Vj",
+    "providerDeduped": false,
+    "status": "known_success",
+    "settledAt": {
+      "_seconds": 1785302246,
+      "_nanoseconds": 474000000
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:52:10Z",
+  "url": "http://127.0.0.1:4333/",
+  "httpStatus": 200,
+  "liveGeneratedBindingObserved": true,
+  "statusLabel": "LIVE ON SPACETIMEDB",
+  "screenshotPath": "evidence/ui-smoke.png",
+  "screenshotSha256": "ff2e55dbc842194b93781dc87a1a5fe9c4d30f00d49a2dbf6ed870d65cecebde",
+  "dimensions": [
+    1440,
+    1100
+  ]
+}

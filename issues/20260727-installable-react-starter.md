@@ -54,7 +54,7 @@ surface, managed `snapback dev` loop, web typecheck/build/live witness, and
 Expo iOS export witness are implemented. A disposable loopback registry
 installed the exact packed tarballs into a fresh directory with no sibling
 source checkout; the retained receipt is
-`demos/backend-bakeoff/acceptance/cold-install-react.v1.json`.
+`demos/signal-desk/acceptance/cold-install-react.v1.json`.
 
 That cold proof found and corrected a stale-native-runtime packaging hazard:
 the previously staged runtime binary predated the result-contract projection,

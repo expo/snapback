@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-07-29T07:00:45.329Z",
+  "code": "SNAPBACK_CAPABILITY_UNSUPPORTED",
+  "message": "snapback server exited before verified readiness (1):\nError: SNAPBACK_CAPABILITY_UNSUPPORTED: target does not support required capability bounded_response_stream_v1\n",
+  "stack": "Error: snapback server exited before verified readiness (1):\nError: SNAPBACK_CAPABILITY_UNSUPPORTED: target does not support required capability bounded_response_stream_v1\n\n    at launchServerAttempt (file:///private/tmp/llp0102-research-snapback-w1/demos/_kit/server-process.mjs:423:15)\n    at async startServerWithDeps (file:///private/tmp/llp0102-research-snapback-w1/demos/_kit/server-process.mjs:242:14)\n    at async file:///private/tmp/llp0102-research-snapback-w1/demos/backend-bakeoff/arms/research-room/snapback/work/scripts/run-arm.mjs:348:12",
+  "completedScenarios": []
+}

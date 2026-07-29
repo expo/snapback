@@ -1,0 +1,12 @@
+{
+  "id": "CHAT-07-PRESENCE",
+  "status": "gap",
+  "capturedAt": "2026-07-29T02:14:14.419Z",
+  "workaround": "application-authored durable heartbeat row with client-supplied TTL filtering",
+  "expiresAt": 1785291254293,
+  "activeCount": 1,
+  "expiredVisibleCount": 0,
+  "durableRowsAfterExpiry": 1,
+  "nativeEphemeralPath": false,
+  "reason": "Connect/disconnect expiry requires heartbeat and cleanup glue rather than a native ephemeral presence API."
+}

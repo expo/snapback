@@ -1,0 +1,115 @@
+{
+  "id": "LINEAR-13-PERFORMANCE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:13:28.394Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "mixed native paths",
+  "evidence": {
+    "claimScope": "Firebase local emulators on one isolated Mac; not production or hosted latency",
+    "dataset": {
+      "organizations": 2,
+      "teamsPerPrimaryOrg": 3,
+      "projectsPerPrimaryOrg": 4,
+      "issues": 500,
+      "comments": 1000,
+      "labels": 20,
+      "pageSize": 50,
+      "concurrentClients": 2
+    },
+    "warmupsPerPath": 2,
+    "recordedSamplesPerPath": 7,
+    "unit": "milliseconds",
+    "representativeRead": {
+      "samples": [
+        6.136,
+        5.993,
+        11.739,
+        7.272,
+        6.46,
+        7.129,
+        6.943
+      ],
+      "median": 6.943,
+      "nearestRankP95": 11.739
+    },
+    "representativeDetail": {
+      "samples": [
+        7.119,
+        7.397,
+        7.472,
+        7.414,
+        7.036,
+        6.782,
+        6.646
+      ],
+      "median": 7.119,
+      "nearestRankP95": 7.472
+    },
+    "representativeWrite": {
+      "samples": [
+        1.638,
+        1.449,
+        1.61,
+        1.642,
+        1.493,
+        1.526,
+        1.551
+      ],
+      "median": 1.551,
+      "nearestRankP95": 1.642
+    },
+    "realtimeDelivery": {
+      "samples": [
+        3.822,
+        3.871,
+        3.793,
+        3.854,
+        3.831,
+        3.555,
+        3.579
+      ],
+      "median": 3.822,
+      "nearestRankP95": 3.871
+    },
+    "reconnect": {
+      "samples": [
+        6.493,
+        7.674,
+        5.956,
+        5.802,
+        7.35,
+        7.771,
+        5.652
+      ],
+      "median": 6.493,
+      "nearestRankP95": 7.771
+    },
+    "buildOrDeploy": {
+      "samples": [
+        321.089,
+        312.128,
+        319.607,
+        313.068,
+        319.304,
+        314.7,
+        316.655
+      ],
+      "median": 316.655,
+      "nearestRankP95": 321.089
+    },
+    "machine": {
+      "model": "Mac17,3",
+      "architecture": "arm64",
+      "memory": "32 GiB",
+      "os": "macOS 26.5.2 (25F84)",
+      "node": "v24.14.0",
+      "java": "OpenJDK 21.0.10"
+    },
+    "costWindow": {
+      "measured": "$0 local emulator",
+      "hostedActualUsage": "unavailable",
+      "hostedListPriceEstimate": "not estimated without a deployed target workload"
+    }
+  },
+  "note": "Two warmups and seven raw samples retained for every frozen local path."
+}

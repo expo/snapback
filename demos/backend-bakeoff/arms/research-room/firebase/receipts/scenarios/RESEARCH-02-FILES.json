@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-02-FILES",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:01.764Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "Alice upload, Bob byte-for-byte delivery, owner metadata, and exact object/document deletion were independently verified.",
+    "objectPathHash": "bb3b4abe98fd9b7cb79324a3040467a980b87bd6f71f2a32250a2ec5958a8207",
+    "contentHash": "58625df39bbbb1ae17ad17bdf4b3825d012c2cea4ce5342db1eca949dc04f94b",
+    "byteLength": 65536,
+    "bobDeliveryHashMatched": true,
+    "malloryDenied": true,
+    "deletedObject": true,
+    "deletedMetadata": true
+  },
+  "note": "Storage Security Rules and Firestore Security Rules preserve room authority and source ownership."
+}

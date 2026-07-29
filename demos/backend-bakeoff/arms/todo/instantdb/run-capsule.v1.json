@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "todo",
+    "provider": "instantdb",
+    "round": "calibration",
+    "attemptId": "todo-instantdb-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "InstantDB",
+      "client": "1.0.52",
+      "cli": "1.0.52"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-28T20:24:13Z",
+    "finishedAt": "2026-07-28T20:55:53.589Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 1900589,
+    "toolCalls": 62,
+    "timedWindowFrozenAt": "2026-07-28T20:55:53.589Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "8e2429e9fdfeaa3001c674005c038fe4f78fb42efdb487d051f0d11b3fbd5834",
+      "role": "member"
+    },
+    "bob": {
+      "principalIdHash": "998fb5f5fd430bac05c5afa557ea0d2d3060b25c073041d66b4dd073c84c4690",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "55aac4c01fc40ebbea1ad8f6a4528ba7e7de5e99dafec366fedf6fa2fbc43ae0",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-todo-instantdb-calibration-todo-instantdb-calibration-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "37d1a13f7a11f47a775fcc37c846f210ba8739d87a786956279402783b3044fa",
+      "profile": "official self-host Docker Compose stack with CLI API override",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed Instant application",
+      "plan": "Pro",
+      "region": "provider-selected",
+      "gapReason": "Hosted evidence unavailable for this arm: shared credential probe failed. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 220000,
+    "firstAuthoritativeMutationMs": 1380000,
+    "firstRealtimeTransitionMs": 1417504,
+    "localAcceptanceMs": 1691008,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 1761228
+  },
+  "assistanceEvents": [],
+  "commands": [
+    {
+      "command": "git clone --depth 1 https://github.com/instantdb/instant.git runtime/instant",
+      "startedMonotonicMs": 226816000,
+      "finishedMonotonicMs": 226817220,
+      "exitStatus": 0,
+      "classification": "official-self-host-source"
+    },
+    {
+      "command": "docker compose up -d (full documented stack)",
+      "startedMonotonicMs": 226818000,
+      "finishedMonotonicMs": 226900000,
+      "exitStatus": 130,
+      "classification": "unneeded-dashboard-image-pull-interrupted"
+    },
+    {
+      "command": "docker compose up -d postgres minio createbuckets server",
+      "startedMonotonicMs": 226901000,
+      "finishedMonotonicMs": 227050000,
+      "exitStatus": 0,
+      "classification": "fresh-local-required-services"
+    },
+    {
+      "command": "npm create vite@latest work -- --template react-ts",
+      "startedMonotonicMs": 227051000,
+      "finishedMonotonicMs": 227051719,
+      "exitStatus": 0,
+      "classification": "provider-project-initialization"
+    },
+    {
+      "command": "npm install from parent directory (rejected by freeze)",
+      "startedMonotonicMs": 227052000,
+      "finishedMonotonicMs": 227057900,
+      "exitStatus": 0,
+      "classification": "accidental-frozen-harness-mutation"
+    },
+    {
+      "command": "restore clean protocol lock and npm test",
+      "startedMonotonicMs": 227058000,
+      "finishedMonotonicMs": 227059000,
+      "exitStatus": 0,
+      "classification": "stage0-byte-for-byte-restoration"
+    },
+    {
+      "command": "npm install @instantdb/react @instantdb/admin instant-cli playwright-core",
+      "startedMonotonicMs": 227060000,
+      "finishedMonotonicMs": 227065900,
+      "exitStatus": 0,
+      "classification": "arm-local-dependencies"
+    },
+    {
+      "command": "instant-cli init --temp --yes",
+      "startedMonotonicMs": 227070000,
+      "finishedMonotonicMs": 227132000,
+      "exitStatus": 130,
+      "classification": "silent-interactive-login-polling"
+    },
+    {
+      "command": "instant-cli init-without-files --temp",
+      "startedMonotonicMs": 227133000,
+      "finishedMonotonicMs": 227133700,
+      "exitStatus": 0,
+      "classification": "temporary-app-command-discovery"
+    },
+    {
+      "command": "node scripts/create-local-app.mjs",
+      "startedMonotonicMs": 227134000,
+      "finishedMonotonicMs": 227134100,
+      "exitStatus": 0,
+      "classification": "secret-safe-isolated-app-creation"
+    },
+    {
+      "command": "instant-cli push schema",
+      "startedMonotonicMs": 227200000,
+      "finishedMonotonicMs": 227201300,
+      "exitStatus": 0,
+      "classification": "typed-schema-and-index-push"
+    },
+    {
+      "command": "instant-cli push perms",
+      "startedMonotonicMs": 227202000,
+      "finishedMonotonicMs": 227202900,
+      "exitStatus": 0,
+      "classification": "relation-permission-push"
+    },
+    {
+      "command": "node scripts/provision-personas.mjs (first attempt)",
+      "startedMonotonicMs": 227700000,
+      "finishedMonotonicMs": 227730000,
+      "exitStatus": 1,
+      "classification": "guest-signup-blocked-by-user-create-rule"
+    },
+    {
+      "command": "instant-cli push perms (guest-signup correction)",
+      "startedMonotonicMs": 227731000,
+      "finishedMonotonicMs": 227731900,
+      "exitStatus": 0,
+      "classification": "native-guest-auth-permission-correction"
+    },
+    {
+      "command": "node scripts/provision-personas.mjs",
+      "startedMonotonicMs": 227732000,
+      "finishedMonotonicMs": 227736500,
+      "exitStatus": 0,
+      "classification": "three-native-personas-and-deterministic-seed"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs (first attempt)",
+      "startedMonotonicMs": 227900000,
+      "finishedMonotonicMs": 227944000,
+      "exitStatus": 1,
+      "classification": "accepted-rule-failed-at-runtime-newdata-ref"
+    },
+    {
+      "command": "instant-cli push perms (runtime-rule correction)",
+      "startedMonotonicMs": 227945000,
+      "finishedMonotonicMs": 227945900,
+      "exitStatus": 0,
+      "classification": "current-membership-update-policy"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs",
+      "startedMonotonicMs": 227946000,
+      "finishedMonotonicMs": 227953000,
+      "exitStatus": 0,
+      "classification": "crud-push-conflict-order-revocation-logout"
+    },
+    {
+      "command": "node scripts/offline-smoke.mjs",
+      "startedMonotonicMs": 228050000,
+      "finishedMonotonicMs": 228061000,
+      "exitStatus": 0,
+      "classification": "cold-cache-offline-queue-and-reconnect"
+    },
+    {
+      "command": "node scripts/performance-smoke.mjs",
+      "startedMonotonicMs": 228120000,
+      "finishedMonotonicMs": 228131000,
+      "exitStatus": 0,
+      "classification": "frozen-performance-sampling"
+    },
+    {
+      "command": "npm run build && npm audit",
+      "startedMonotonicMs": 228500000,
+      "finishedMonotonicMs": 228501600,
+      "exitStatus": 0,
+      "classification": "production-build-and-zero-vulnerability-audit"
+    },
+    {
+      "command": "node scripts/inventory.mjs && node scripts/finalize-evidence.mjs",
+      "startedMonotonicMs": 228502000,
+      "finishedMonotonicMs": 228503000,
+      "exitStatus": 0,
+      "classification": "artifact-and-target-evidence"
+    },
+    {
+      "command": "node scripts/cleanup-arm.mjs",
+      "startedMonotonicMs": 228714700,
+      "finishedMonotonicMs": 228716496,
+      "exitStatus": 0,
+      "classification": "target-bound-compose-and-runtime-cleanup"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "TODO-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The admin SDK query proved one workspace, two memberships, four lists, 100 unique tasks and seed keys, and four valid 25-task sequences.",
+      "note": ""
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Independent native guest profiles for Alice and Bob each received all 100 authorized tasks.",
+      "note": ""
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory was independently authenticated over a native subscription but received zero workspace or task rows and retained none.",
+      "note": ""
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "Alice created, edited, completed, reopened, reordered, and deleted while Bob observed every settled transition; authority returned to 100 tasks.",
+      "note": ""
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob observed Alice's change without refresh over a directly observed InstantDB WebSocket; seven raw push samples are retained.",
+      "note": ""
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "With the exact server container stopped and connection state closed, a closed-and-reopened Alice profile cold-booted all 100 rows from InstantDB IndexedDB.",
+      "note": ""
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "local-optimistic",
+      "authoritativeCheck": "The cold offline client optimistically showed one create and one update, reported Queued offline, and could not remotely commit while the exact server container was stopped.",
+      "note": ""
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "After restart, authority contained the updated title and exactly one created marker at count 101; cleanup restored count 100.",
+      "note": ""
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two clients crossed a title-edit barrier; an independent admin query identified the last committed whole-field winner and both optimistic clients reconciled to it.",
+      "note": ""
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Concurrent writes to one atomic list-owned taskOrder array converged to a unique 0-through-24 permutation and final authority validated every list.",
+      "note": ""
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Native sign-out removed the protected UI and stopped future delivery; only hashed retained-store inventory was recorded, with no protected values inspected.",
+      "note": ""
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Deleting Bob's linked membership cleared his already-connected protected query and blocked Alice's later marker until explicit regrant.",
+      "note": ""
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The receipt retains two warmups and seven raw samples for admin read, origin reconciliation, second-client push, browser resubscription, and production build.",
+      "note": ""
+    },
+    {
+      "id": "TODO-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/backup-manifest.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The guarded cleanup removed only the exact Compose project, its volumes, disposable runtime, and credential files; five ports, project label, and paths proved absent.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 12,
+      "bytes": 56315,
+      "lines": 454
+    },
+    "generated": null,
+    "tests": {
+      "files": 9,
+      "bytes": 49643,
+      "lines": 1355
+    },
+    "configuration": {
+      "files": 7,
+      "bytes": 2658,
+      "lines": 132
+    },
+    "policy": {
+      "files": 2,
+      "bytes": 3075,
+      "lines": 141
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 111749,
+      "lines": 3351
+    },
+    "installedDependencyBytes": 189312785,
+    "glue": [
+      "secret-safe ephemeral-app and admin-authority helpers",
+      "persistent-browser native guest persona provisioner",
+      "two-client correctness, full-process offline, and performance barriers",
+      "Compose-label and process guarded cleanup"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three stable native guest identities were exercised positively and negatively, including connected revocation and logout.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two-client barriers plus independent admin queries directly proved the authoritative title winner and order invariant.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Independent browsers opened native InstantDB WebSockets, and seven raw second-client push samples were retained.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "The exact owned server container was stopped, cold boot and queue state were inspected, then authority was queried after restart.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Online and offline writes were observed optimistically and after authority, including exactly one reconnect marker and restored baseline.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "The app, upstream commit, official image IDs, and Compose project were bound into one retained target hash.",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "A predeclared plan verified Compose labels and Vite ownership before removal, then proved every port, project, and path absent.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Typed schema, permissions, deterministic seed, build, zero-vulnerability audit, and category-separated inventory are retained.",
+      "evidencePaths": [
+        "receipts/backup-manifest.v1.json",
+        "receipts/inventory.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "Ports 4180, 8889, 8891, 9100, and 9101 were closed; the exact Compose project, runtime tree, and arm credential file were absent."
+  },
+  "result": "complete"
+}

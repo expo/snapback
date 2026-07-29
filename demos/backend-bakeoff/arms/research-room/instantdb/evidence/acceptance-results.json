@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "expectedCheckCount": 15,
+  "completedCheckCount": 15,
+  "summary": {
+    "pass": 11,
+    "gap": 4,
+    "fail": 0,
+    "stop": 0
+  },
+  "scenarios": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/target-identity.json",
+        "evidence/seed-receipt.json"
+      ],
+      "transport": "native-instaql",
+      "authoritativeCheck": "admin query counts and deterministic embedding dimensions",
+      "note": "Exact frozen dataset exists."
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/file-proof.json"
+      ],
+      "transport": "instant-storage-plus-instaql",
+      "authoritativeCheck": "user-scoped upload/query/delete and fetched-byte hash",
+      "note": "Ownership-preserving file lifecycle passed."
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/outsider-negative.json",
+        "evidence/file-proof.json"
+      ],
+      "transport": "native-instaql-and-eventsource",
+      "authoritativeCheck": "Mallory-scoped query and subscription return zero rows",
+      "note": "No outsider disclosure."
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/keyword-proof.json"
+      ],
+      "transport": "native-instaql",
+      "authoritativeCheck": "Alice-scoped indexed $ilike result equality",
+      "note": "Frozen expected set returned."
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/semantic-gap.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "explicit nonclaim",
+      "note": "InstantDB stores the embedding JSON, but the tested ordinary path has no native vector similarity query."
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/progress-collaboration-proof.json"
+      ],
+      "transport": "native-instaql-mutations-and-eventsource",
+      "authoritativeCheck": "admin query ordered durable rows before terminal",
+      "note": "Four durable progress rows precede completion."
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/citation-proof.json"
+      ],
+      "transport": "native-instaql",
+      "authoritativeCheck": "answer citations resolve to authoritative member-visible sources",
+      "note": "Citations are retained and valid."
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/progress-collaboration-proof.json"
+      ],
+      "transport": "native-eventsource-subscribeQuery",
+      "authoritativeCheck": "Bob-scoped second client observed four-row state and completion",
+      "note": "Native live query observation passed."
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/cancel-proof.json"
+      ],
+      "transport": "native-permissioned-transaction",
+      "authoritativeCheck": "cancelled status plus zero authoritative progress after injected late write",
+      "note": "Cancellation blocks late durable patches."
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/retry-proof.json"
+      ],
+      "transport": "native-atomic-upsert",
+      "authoritativeCheck": "authoritative unique-key counts after repeated transactions",
+      "note": "Retry remained idempotent."
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/outcomes-proof.json"
+      ],
+      "transport": "native-instaql",
+      "authoritativeCheck": "authoritative state-machine rows and settlement records",
+      "note": "All five outcomes remain distinct."
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/schedule-gap.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "explicit nonclaim",
+      "note": "No provider-native scheduled function path was available in the tested InstantDB product surface."
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/secrets-gap.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "explicit nonclaim",
+      "note": "Credential hygiene passed, but the required provider-hosted function/secret boundary is absent with the unavailable schedule path."
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/performance-samples.json",
+        "evidence/cost-window.json"
+      ],
+      "transport": "native-online-paths-plus-vite-build",
+      "authoritativeCheck": "all five paths retain exactly two warmups and seven samples",
+      "note": "Frozen performance and cost window retained."
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/cleanup-plan.json",
+        "evidence/cleanup-receipt.json",
+        "evidence/environment-cleanup.json"
+      ],
+      "transport": "native-admin-cleanup",
+      "authoritativeCheck": "explicit cleanup nonclaim: all authoritative namespace counts zero and actor tokens invalid, but empty shell awaits provider auto-expiry",
+      "note": "All data, objects, users, tokens, processes, and local state retired; the empty anonymous temporary shell cannot be deleted immediately and awaits documented provider auto-expiry."
+    }
+  ],
+  "containsCredentialValues": false
+}

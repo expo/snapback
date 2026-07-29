@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/keywordSearch.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "keyword": {
+      "type": "string"
+    },
+    "roomId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "roomId",
+    "keyword"
+  ],
+  "title": "work:keywordSearch arguments",
+  "type": "object"
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T10:35:00.283Z",
+  "provider": "instantdb",
+  "providerOrderGate": {
+    "predecessor": "research-room/appwrite",
+    "actualProvisioningBeganAt": "2026-07-29T10:33:35Z",
+    "releasedByCoordinator": true
+  },
+  "worktree": {
+    "path": "/private/tmp/llp0102-research-instantdb-w3",
+    "baseCommit": "0dc4b3ff6257edc2ee0fea869fca5142531d0ce5",
+    "cleanBeforeArm": true
+  },
+  "isolation": {
+    "namespace": "llp0102-research-instantdb-w3-a1",
+    "targetMode": "fresh-disposable-hosted",
+    "vitePort4347": "closed",
+    "browserDebugPort9347": "closed",
+    "runtimeStateBeforeProvision": "absent",
+    "cliAndXdgState": "worktree-local"
+  },
+  "capability": {
+    "pinnedCli": "1.0.52",
+    "temporaryAppProvisioning": "ready",
+    "sharedTargetCredential": "available-but-not-used"
+  },
+  "containsCredentialValues": false
+}

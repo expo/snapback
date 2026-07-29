@@ -16,7 +16,7 @@
 The prepared provider, generated-ref query/group/mutation hooks, aggregate
 connection projection, local managed presence, result-validated optimistic
 rebase/rollback, shared room/query ownership, and exact disposal inspection
-are implemented under LLP 0102/0106. Signal Desk uses the first-class surface.
+are implemented under LLP 0114/0106. Signal Desk uses the first-class surface.
 The package suites, web/Expo packed witnesses, guide, starter, and retained
 ten-check React receipt pass.
 

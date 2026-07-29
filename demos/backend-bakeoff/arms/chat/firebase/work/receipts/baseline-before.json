@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-28T18:46:00-07:00",
+  "mode": "fresh-local",
+  "projectId": "llp0102-chat-firebase-w1",
+  "projectIdHash": "a02f413cd1405c7e75227c5ec1c9d63d1b8e2d0400b5f382446fb9c95cfba3a1",
+  "preflight": {
+    "authPort9299": "absent",
+    "firestorePort8280": "absent",
+    "rtdbPort9280": "absent",
+    "functionsPort5287": "absent",
+    "vitePort4287": "absent",
+    "hubPort4501": "absent",
+    "loggingPort4502": "absent"
+  },
+  "unrelatedBaseline": "No shared target was used. No provider account or hosted project was mutated.",
+  "note": "Direct lsof preflight on the assigned Apartment Air returned no listener on every arm-bound port."
+}

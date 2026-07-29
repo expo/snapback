@@ -9,7 +9,7 @@
 **Systems:** Authoring, Security, React, Client integration, Developer experience, Acceptance testing  
 **Author:** Codex, directed by Charlie Cheever  
 **Date:** 2026-07-27  
-**Related:** `demos/backend-bakeoff/acceptance/results/bakeoff-first-rerun.v1.json`, LLP 0108, LLP 0102, LLP 0109, LLP 0110, LLP 0112
+**Related:** `demos/signal-desk/acceptance/results/bakeoff-first-rerun.v1.json`, LLP 0108, LLP 0114, LLP 0109, LLP 0110, LLP 0112
 **Marker:** backend-bakeoff, first-rerun-feedback
 
 The first full rerun deliberately stopped short of a revised ranking: the
@@ -62,12 +62,12 @@ contracts that must be corrected before rerunning.
 ## Official rerun checkpoint — 2026-07-28
 
 The first v2 aggregate receipt is retained at
-`demos/backend-bakeoff/acceptance/results/backend-bakeoff-run.87f231220e684164ec23a3d48a8b646cc141483205dc52d23597f2fd33f5d557.v2.json`.
+`demos/signal-desk/acceptance/results/backend-bakeoff-run.87f231220e684164ec23a3d48a8b646cc141483205dc52d23597f2fd33f5d557.v2.json`.
 It is intentionally and validly failed: seven of eight commands passed and
 Supabase Realtime alone timed out. Fable 5 independently reverified its
 content digest, all logs and child projections, the clean source binding, and
 the runtime identity; the complete review is retained under
-`demos/backend-bakeoff/acceptance/reviews/official-rerun-round1-fable-5.md`.
+`demos/signal-desk/acceptance/reviews/official-rerun-round1-fable-5.md`.
 
 The review found that the Convex arm could pass from a stale witness in the
 initial subscription snapshot while Supabase used a single shared deadline.
@@ -85,7 +85,7 @@ result allocation cannot be bounded until the host call returns.
 ## Resolution — 2026-07-28
 
 The final retained receipt is
-`demos/backend-bakeoff/acceptance/results/backend-bakeoff-run.43d6c570f7f3f752f61ca545a1d81ef1a1a6b3b4d34fbe0066a6becc95d3d989.v2.json`.
+`demos/signal-desk/acceptance/results/backend-bakeoff-run.43d6c570f7f3f752f61ca545a1d81ef1a1a6b3b4d34fbe0066a6becc95d3d989.v2.json`.
 It binds clean source revision `f789a143`, passes all eight required lanes with
 zero timeouts, and reopens every child/log digest. Its Convex lane proves a
 nonce traveled from a distinct actor to observer after subscription readiness;

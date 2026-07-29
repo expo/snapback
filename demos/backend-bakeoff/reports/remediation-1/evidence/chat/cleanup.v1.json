@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "cleanedAt": "2026-07-29T03:55:01.968Z",
+  "targetIdentity": "84c653c1d88ad56fdea9ff55f0724d05530656c2fdc0de69e3699529c5668eb7",
+  "removed": [
+    "/private/tmp/llp0102-remediation1-chat-runtime",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/chat/snapback/work/public/personas.json",
+    "/Users/ccheever/projects/snapback/demos/backend-bakeoff/arms/chat/snapback/work/dist/personas.json"
+  ],
+  "recoverable": false,
+  "recovery": "Reproducible from committed generated artifacts and deterministic authenticated bootstrap inputs.",
+  "exactTargetAbsent": true,
+  "personaCarrierAbsent": true,
+  "builtPersonaCarrierAbsent": true,
+  "unrelatedBaselinePreserved": true
+}

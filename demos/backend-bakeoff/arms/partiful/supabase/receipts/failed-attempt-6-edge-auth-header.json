@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-07-29T05:23:46.604Z",
+  "failedAt": "2026-07-29T05:23:55.667Z",
+  "results": {
+    "PARTY-01-SEED": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "targetIdentity": {
+          "projectId": "llp0102-partiful-supabase-coord",
+          "namespace": "llp0102-partiful-supabase-coord",
+          "apiUrlHash": "67a115ebdf116ef7a91e507a3697d92a2bc133dfb57cf208cd06e52cbe581c0c",
+          "dbUrlHash": "ef517433d12b750392aea38d3d5b10a31e6642e296001869687bb3731eedaa68",
+          "identityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+          "profile": "official Supabase CLI Docker stack",
+          "versions": {
+            "client": "2.111.0",
+            "cli": "2.110.0",
+            "postgres": "17"
+          }
+        },
+        "counts": {
+          "profiles": 6,
+          "events": 3,
+          "event_members": 7,
+          "invitations": 4,
+          "rsvps": 0,
+          "wall_posts": 0,
+          "reminder_schedules": 0,
+          "notification_attempts": 0,
+          "provider_deliveries": 0
+        },
+        "eventIds": {
+          "primary": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c",
+          "capacity": "43c58731c2eca6dac1b28768c2c2c6962b610879d590237f9d95de28e51e414d",
+          "private": "968926bf2686579a8f099c7268e98f33f193b9b8fc176d9deae76c3cbcc7b738"
+        },
+        "personas": {
+          "alice": {
+            "idHash": "307f2ae93c8dbae6d97c1f7f4db8045f4642ebb210c74f2db5875a722f166fa7",
+            "role": "host"
+          },
+          "bob": {
+            "idHash": "6a8c161c8131eea7fe6ed7ab8b32f5d9ebd65f97c746ee21a151c4bbff60c194",
+            "role": "guest"
+          },
+          "mallory": {
+            "idHash": "322210ff2212e176b8993936f61b0c588884300519e0232a99e7fc1565ca81b7",
+            "role": "outsider"
+          },
+          "carol": {
+            "idHash": "7a4d4dfefd52db358a0fbaa736972b76ee8006f704a8ad27358681a6bc51b8b6",
+            "role": "cohost"
+          },
+          "dave": {
+            "idHash": "803e1c42f720df7abc11579ca310b6b34c95345cf34bb67d3336924842cfb9e3",
+            "role": "guest"
+          },
+          "erin": {
+            "idHash": "f98b19543155b3949799517002a676be06a84b802657a9cc721d8a4415df7247",
+            "role": "guest"
+          }
+        }
+      }
+    },
+    "PARTY-02-PUBLIC-PRIVATE": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "anonymousRead": {
+          "slug": "summer-rooftop",
+          "idHash": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c"
+        },
+        "fieldBoundary": [
+          "art_path",
+          "id",
+          "slug",
+          "starts_at",
+          "summary",
+          "title",
+          "venue_public"
+        ],
+        "negativePrivateRead": {
+          "directTableRejected": true,
+          "privatePreviewRows": 0
+        }
+      }
+    },
+    "PARTY-03-INVITE-RSVP": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "invitationAttribution": {
+          "idHash": "89698c25ed7f76d28ced845ee7d794b0af601a2f93287b17a2cde1587fbc230b",
+          "createdByHash": "307f2ae93c8dbae6d97c1f7f4db8045f4642ebb210c74f2db5875a722f166fa7"
+        },
+        "transitions": [
+          {
+            "response": "yes",
+            "plusOne": 1,
+            "revision": 1
+          },
+          {
+            "response": "maybe",
+            "plusOne": 0,
+            "revision": 2
+          },
+          {
+            "response": "no",
+            "plusOne": 0,
+            "revision": 3
+          },
+          {
+            "response": "yes",
+            "plusOne": 1,
+            "revision": 4
+          }
+        ],
+        "authoritativeState": {
+          "response": "yes",
+          "plusOne": 1,
+          "revision": 4
+        }
+      }
+    },
+    "PARTY-04-ROLES": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "positiveRoleMatrix": {
+          "hostEdit": true,
+          "cohostEdit": true,
+          "guestRsvp": true
+        },
+        "negativeRoleMatrix": {
+          "guestHostControl": false,
+          "outsiderReadRows": 0,
+          "outsiderWriteRejected": true
+        }
+      }
+    },
+    "PARTY-05-GUEST-LIST": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "policyTransition": {
+          "from": true,
+          "to": false,
+          "restoredAfterProof": true
+        },
+        "actorSpecificReads": {
+          "before": 3,
+          "after": 1,
+          "publicPreview": 1
+        },
+        "alreadyConnectedClient": {
+          "attempts": [
+            {
+              "attempt": 1,
+              "delivered": true
+            }
+          ],
+          "transport": "Supabase Realtime Postgres Changes"
+        }
+      }
+    },
+    "PARTY-06-CAPACITY": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "twoActorBarrier": {
+          "actors": [
+            "dave",
+            "erin"
+          ],
+          "outcomes": [
+            "committed",
+            "rejected"
+          ]
+        },
+        "settlement": {
+          "loserCode": "P0001",
+          "loserMessage": "CAPACITY_EXCEEDED"
+        },
+        "authoritativeCount": {
+          "capacity": 1,
+          "occupiedSeats": 1
+        }
+      }
+    },
+    "PARTY-07-LIVE-BURST": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "secondClient": {
+          "wallDeliveries": 10,
+          "rsvpDeliveries": 2
+        },
+        "transportAttribution": "native Supabase Realtime WebSocket Postgres Changes; no polling",
+        "authoritativeCount": {
+          "wallPosts": 10,
+          "yesSeats": 2
+        }
+      }
+    },
+    "PARTY-08-ASSET": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "objectIdentity": {
+          "bucket": "event-art",
+          "pathHash": "f3d8bd055dac790a25b8b3a4078a082db92e1e9ea680713b7c345413f11549e6"
+        },
+        "authorization": {
+          "uploader": "alice",
+          "downloader": "bob",
+          "outsiderDenied": true,
+          "deleter": "alice"
+        },
+        "contentHash": "f602f263a00afe6911318218b9aeb30ffd75ab6553ef97d90a56dc2daac5c830",
+        "deleteProof": {
+          "remainingExactObjects": 0
+        }
+      }
+    },
+    "PARTY-09-SCHEDULE": {
+      "status": "pass",
+      "note": "",
+      "evidence": {
+        "scheduleIdentity": {
+          "idHash": "8bbe75414e56940083002ad8462f035157aa8525e652d54cd517e8cec9d43ef2",
+          "cronJob": {
+            "jobid": 1,
+            "jobname": "llp0102-partiful-supabase-reminders",
+            "schedule": "5 seconds",
+            "command": "select public.run_due_reminders()"
+          }
+        },
+        "runReceipt": {
+          "state": "succeeded",
+          "providerReceipt": "local-scheduler"
+        },
+        "dedupeKeyHash": "64f27397c1e7a219f031a44c61542b0c8b106964423c10539b760f1046b2d2bc",
+        "idempotentAttemptCount": 1
+      }
+    },
+    "PARTY-10-EFFECT-RETRY": {
+      "status": "fail",
+      "note": "Error: Edge Function returned a non-2xx status code: {\"error\":\"UNAUTHORIZED\"}",
+      "evidence": {}
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 1478,
+    "firstAuthoritativeMutationMs": 1492,
+    "firstRealtimeTransitionMs": 2200,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": null
+  }
+}

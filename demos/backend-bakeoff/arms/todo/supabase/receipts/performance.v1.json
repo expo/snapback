@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T22:10:31.297Z",
+  "ok": true,
+  "warmups": 2,
+  "recordedSamples": 7,
+  "measurements": {
+    "authoritativeReadAdmin": {
+      "rawMs": [
+        274.582,
+        272.906,
+        284.835,
+        309.687,
+        413.075,
+        476.084,
+        1038.963
+      ],
+      "medianMs": 309.687,
+      "nearestRankP95Ms": 1038.963
+    },
+    "mutationToOriginQuery": {
+      "rawMs": [
+        801.456,
+        802.203,
+        1814.349,
+        799.938,
+        299.475,
+        801.59,
+        1305.315
+      ],
+      "medianMs": 801.59,
+      "nearestRankP95Ms": 1814.349
+    },
+    "mutationToSecondClientPush": {
+      "rawMs": [
+        805.628,
+        804.531,
+        1818.096,
+        802.28,
+        591.522,
+        804.045,
+        1308.486
+      ],
+      "medianMs": 804.531,
+      "nearestRankP95Ms": 1818.096
+    },
+    "browserReconnectAndResubscribe": {
+      "rawMs": [
+        1179.205,
+        1190.457,
+        1200.148,
+        953.998,
+        1688.754,
+        1712.709,
+        1178.545
+      ],
+      "medianMs": 1190.457,
+      "nearestRankP95Ms": 1712.709
+    },
+    "productionClientBuild": {
+      "rawMs": [
+        164.517,
+        154.315,
+        164.93,
+        160.167,
+        160.512,
+        161.262,
+        156.658
+      ],
+      "medianMs": 160.512,
+      "nearestRankP95Ms": 164.93
+    }
+  },
+  "warmupSamplesMs": {
+    "authoritativeReadAdmin": [
+      302.75,
+      286.249
+    ],
+    "mutationToOriginQuery": [
+      301.546,
+      807.278
+    ],
+    "mutationToSecondClientPush": [
+      587.272,
+      810.959
+    ],
+    "browserReconnectAndResubscribe": [
+      1188.784,
+      696.554
+    ],
+    "productionClientBuild": [
+      186.781,
+      146.221
+    ]
+  },
+  "machineContext": {
+    "target": "namespace-isolated shared hosted Supabase project",
+    "client": "Chrome headless from the same macOS machine",
+    "dataset": "four lists and 100 tasks",
+    "network": "internet path from America/Los_Angeles; exact project region retained separately"
+  },
+  "scope": "shared hosted small-profile measurements; not a general Supabase benchmark",
+  "containsSecretValues": false
+}

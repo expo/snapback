@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-12-SCHEDULE",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:05.731Z",
+  "transport": "firebase-scheduled-function-emulator",
+  "evidence": {
+    "authoritativeCheck": "The Functions emulator's generated background-trigger endpoint invoked the actual onSchedule handler, fetched the deterministic Hosting source, and wrote one deduplicated durable run.",
+    "scheduleIdentity": "firebase-schedule-scheduledRefresh",
+    "emulatorFunctionIdentity": "us-central1-scheduledRefresh-0",
+    "triggerKind": "firebase-functions/v2/scheduler onSchedule",
+    "runId": "refresh-deterministic-v1",
+    "status": "complete",
+    "progress": [
+      "scheduled",
+      "fetch-started",
+      "response-validated",
+      "committed"
+    ],
+    "dedupeKey": "refresh-deterministic-v1",
+    "fetchedTitleHash": "1127b80c591f14de698d7961b1e0c08dd8d0901ab9c313fb311b3f5ca3ce8374",
+    "serverSecretHashRetained": true
+  },
+  "note": "The native scheduled-function emulator path records durable refresh progress once."
+}

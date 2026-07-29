@@ -115,6 +115,11 @@ asserts on delta kinds like this:
 Membership-gated live replacement does not make a query safe for offline
 retention. V1 refuses retained role-gated queries until an authorized lease can
 bind the exact membership declaration/resource dependency and expiry floor.
+For online live state, declaration-bound `requireRole` dependencies are
+revocation-active: resource- or app-scoped membership deletion/downgrade first
+blanks the established result, then a trusted denial terminally deletes it and
+ACKs the exact obligation. Fresh reads remain denied and later writes cannot
+repopulate that handle.
 
 ## Connection state an author can observe
 

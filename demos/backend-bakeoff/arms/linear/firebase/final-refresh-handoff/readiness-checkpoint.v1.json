@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "status": "ready-gated",
+  "providerOrderGate": "closed",
+  "sourceBase": "afdabefbba7106d857c39d05f5cbb2e14babd6a7",
+  "provider": "firebase",
+  "app": "linear",
+  "namespace": "llp0102-final-linear-firebase-w3",
+  "providerActivity": {
+    "emulatorStarted": false,
+    "providerTargetStarted": false,
+    "providerPreflightScriptRun": false,
+    "acceptanceScenariosRun": 0,
+    "performanceWarmupsRun": 0,
+    "performanceSamplesRun": 0,
+    "hostedMutationAttempted": false
+  },
+  "versions": {
+    "firebaseClient": "12.16.0",
+    "firebaseAdmin": "14.2.0",
+    "firebaseFunctions": "7.3.2",
+    "firebaseTools": "15.24.0",
+    "functionsRuntime": "nodejs22"
+  },
+  "officialPath": {
+    "adminImports": [
+      "firebase-admin/app",
+      "firebase-admin/firestore"
+    ],
+    "functionsImport": "firebase-functions/v2/https",
+    "adminReleaseNotes": "https://firebase.google.com/support/release-notes/admin/node",
+    "functionsGenerationGuide": "https://firebase.google.com/docs/functions/2nd-gen-upgrade",
+    "runtimeGuide": "https://firebase.google.com/docs/functions/manage-functions"
+  },
+  "staticVerification": {
+    "npmInstallRoot": "pass",
+    "npmInstallFunctions": "pass",
+    "typescriptAndViteBuild": "pass-with-existing-bundle-warnings",
+    "functionsSyntaxCheck": "pass",
+    "functionsLoadHostNode24": "pass",
+    "functionsLoadNode22_23_1": "pass",
+    "functionExports": [
+      "addComment",
+      "moveIssue"
+    ],
+    "proposedPortsClosedAtCheckpoint": true,
+    "providerProcessAbsentAtCheckpoint": true
+  },
+  "frozenSemantics": {
+    "uiAppTsx": "byte-identical",
+    "functionBusinessLogic": "byte-identical",
+    "firestoreRules": "byte-identical",
+    "storageRules": "byte-identical",
+    "firestoreIndexes": "byte-identical",
+    "scenarioIdsAndExpectedCount": "unchanged: LINEAR-01 through LINEAR-14",
+    "acceptanceChanges": "endpoint and target identity substitutions only"
+  },
+  "evidence": {
+    "copyTransformManifest": "copy-transform-manifest.v1.json",
+    "dependencyDiff": "dependency-diff.v1.json",
+    "sealedLineage": "sealed-evidence-lineage.v1.json",
+    "isolationMap": "isolation-map.v1.json",
+    "prepCommandLog": "prep-command-log.v1.json",
+    "dependencyAudit": "dependency-audit.v1.json"
+  },
+  "nextActionAfterExplicitRelease": "Run the prepared work/preflight script, start only the exact local target, then execute the frozen acceptance, browser, performance, export, and exact cleanup sequence while retaining every new failure.",
+  "nonclaims": [
+    "No Firebase 14.2.0/7.3.2 runtime or acceptance result exists yet.",
+    "Static module loading is not emulator compatibility evidence.",
+    "No prior result is relabeled as refreshed evidence.",
+    "No hosted Firebase result is claimed."
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "issueCount": 500,
+  "defaultedCount": 500,
+  "database": "llp0102-linear-spacetimedb-w1",
+  "databaseIdentity": "c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e",
+  "source": [
+    "evidence/migration-after-count.txt",
+    "evidence/migration-after-default-count.txt",
+    "evidence/schema-after-migration.json"
+  ]
+}

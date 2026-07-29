@@ -1,0 +1,649 @@
+{
+  "capturedAt": "2026-07-29T07:04:58.530Z",
+  "completedPaths": [
+    "contention-final-seat",
+    "burst-20-wall-posts",
+    "asset-262144-bytes",
+    "realtime-delivery",
+    "deploy-config-push"
+  ],
+  "paths": {
+    "contention-final-seat": {
+      "warmups": [
+        {
+          "phase": "warmup",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:27.263Z",
+          "durationMs": 514.026,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "a7c8b16668a6d3d794b09276c8be7d554f223aa6778e4874eccddbb4ee73d2b0"
+          }
+        },
+        {
+          "phase": "warmup",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:27.779Z",
+          "durationMs": 449.609,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "a7c8b16668a6d3d794b09276c8be7d554f223aa6778e4874eccddbb4ee73d2b0"
+          }
+        }
+      ],
+      "recorded": [
+        {
+          "phase": "recorded",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:28.229Z",
+          "durationMs": 342.947,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "ef5f392964923e2f55221513c16c29d3cd6e3f07ec96ad7769f2268e6309ceb2"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:28.573Z",
+          "durationMs": 421.381,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "ef5f392964923e2f55221513c16c29d3cd6e3f07ec96ad7769f2268e6309ceb2"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 3,
+          "startedAt": "2026-07-29T07:04:28.995Z",
+          "durationMs": 399.61,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "ef5f392964923e2f55221513c16c29d3cd6e3f07ec96ad7769f2268e6309ceb2"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 4,
+          "startedAt": "2026-07-29T07:04:29.396Z",
+          "durationMs": 355.477,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "ef5f392964923e2f55221513c16c29d3cd6e3f07ec96ad7769f2268e6309ceb2"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 5,
+          "startedAt": "2026-07-29T07:04:29.752Z",
+          "durationMs": 346.998,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "a7c8b16668a6d3d794b09276c8be7d554f223aa6778e4874eccddbb4ee73d2b0"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 6,
+          "startedAt": "2026-07-29T07:04:30.100Z",
+          "durationMs": 348.829,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "a7c8b16668a6d3d794b09276c8be7d554f223aa6778e4874eccddbb4ee73d2b0"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 7,
+          "startedAt": "2026-07-29T07:04:30.450Z",
+          "durationMs": 414.379,
+          "success": true,
+          "detail": {
+            "settlements": [
+              "fulfilled",
+              "fulfilled"
+            ],
+            "authoritativeOccupied": 50,
+            "winnerIdSha256": "ef5f392964923e2f55221513c16c29d3cd6e3f07ec96ad7769f2268e6309ceb2"
+          }
+        }
+      ],
+      "statistics": {
+        "unit": "ms",
+        "count": 7,
+        "raw": [
+          342.947,
+          421.381,
+          399.61,
+          355.477,
+          346.998,
+          348.829,
+          414.379
+        ],
+        "median": 355.477,
+        "nearestRankP95": 421.381
+      }
+    },
+    "burst-20-wall-posts": {
+      "warmups": [
+        {
+          "phase": "warmup",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:30.865Z",
+          "durationMs": 513.671,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        },
+        {
+          "phase": "warmup",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:31.379Z",
+          "durationMs": 416.676,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        }
+      ],
+      "recorded": [
+        {
+          "phase": "recorded",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:31.797Z",
+          "durationMs": 532.696,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:32.330Z",
+          "durationMs": 482.005,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 3,
+          "startedAt": "2026-07-29T07:04:32.813Z",
+          "durationMs": 412.996,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 4,
+          "startedAt": "2026-07-29T07:04:33.227Z",
+          "durationMs": 438.125,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 5,
+          "startedAt": "2026-07-29T07:04:33.666Z",
+          "durationMs": 545.582,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 6,
+          "startedAt": "2026-07-29T07:04:34.212Z",
+          "durationMs": 417.186,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 7,
+          "startedAt": "2026-07-29T07:04:34.630Z",
+          "durationMs": 546.95,
+          "success": true,
+          "detail": {
+            "authoritativeCount": 20
+          }
+        }
+      ],
+      "statistics": {
+        "unit": "ms",
+        "count": 7,
+        "raw": [
+          532.696,
+          482.005,
+          412.996,
+          438.125,
+          545.582,
+          417.186,
+          546.95
+        ],
+        "median": 482.005,
+        "nearestRankP95": 546.95
+      }
+    },
+    "asset-262144-bytes": {
+      "warmups": [
+        {
+          "phase": "warmup",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:35.177Z",
+          "durationMs": 1321.3,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "7a402120a630a601d0959242d1b8d3c08b595f10398a6b76a5aabf32fbeb0b1b"
+          }
+        },
+        {
+          "phase": "warmup",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:36.499Z",
+          "durationMs": 1140.995,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "0e596cfb8444d7b3d7e82abbda650e79fb0d1acd3cedcbcc51e91d7888eb9a6e"
+          }
+        }
+      ],
+      "recorded": [
+        {
+          "phase": "recorded",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:37.640Z",
+          "durationMs": 1185.949,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "6967add7dbe89d27261d7dd174fc236ebe14e1530f7b590e53095c1aac8065ac"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:38.827Z",
+          "durationMs": 1117.606,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "d41311c610658f9d573aa26d86bba0fecf1893807c8974ac09061a5a86d04157"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 3,
+          "startedAt": "2026-07-29T07:04:39.945Z",
+          "durationMs": 1087.05,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "1c212312202a56afba71ae6b086963295a7be0e9afb9dd2fbd4240b0bfc79627"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 4,
+          "startedAt": "2026-07-29T07:04:41.033Z",
+          "durationMs": 946.571,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "9802ab54670db789fd3e014b041a570b2f0fdb92448d21afb1116fe87d41b125"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 5,
+          "startedAt": "2026-07-29T07:04:41.980Z",
+          "durationMs": 1276.407,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "4935d8a38b2dfd16f682f83c63aa866b937af3b5bad794253ccc4763b1f6272c"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 6,
+          "startedAt": "2026-07-29T07:04:43.257Z",
+          "durationMs": 1292.899,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "157e78ba9db19fc8192fdc8788d1aa38df8c5e141aab9fa8e7f0bffa820a5c4b"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 7,
+          "startedAt": "2026-07-29T07:04:44.555Z",
+          "durationMs": 1032.566,
+          "success": true,
+          "detail": {
+            "bytes": 262144,
+            "fileIdSha256": "d903e19811214d55721b58ddac8d481141fbe82f590fd90503ba6fd7177b30c7"
+          }
+        }
+      ],
+      "statistics": {
+        "unit": "ms",
+        "count": 7,
+        "raw": [
+          1185.949,
+          1117.606,
+          1087.05,
+          946.571,
+          1276.407,
+          1292.899,
+          1032.566
+        ],
+        "median": 1117.606,
+        "nearestRankP95": 1292.899
+      }
+    },
+    "realtime-delivery": {
+      "warmups": [
+        {
+          "phase": "warmup",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:45.589Z",
+          "durationMs": 667.69,
+          "success": true,
+          "detail": {
+            "latencyMs": 257.25,
+            "count": 1
+          }
+        },
+        {
+          "phase": "warmup",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:46.257Z",
+          "durationMs": 509.624,
+          "success": true,
+          "detail": {
+            "latencyMs": 198.097,
+            "count": 1
+          }
+        }
+      ],
+      "recorded": [
+        {
+          "phase": "recorded",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:46.768Z",
+          "durationMs": 567.119,
+          "success": true,
+          "detail": {
+            "latencyMs": 257.384,
+            "count": 1
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:47.336Z",
+          "durationMs": 565.11,
+          "success": true,
+          "detail": {
+            "latencyMs": 239.776,
+            "count": 1
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 3,
+          "startedAt": "2026-07-29T07:04:47.902Z",
+          "durationMs": 741.281,
+          "success": true,
+          "detail": {
+            "latencyMs": 245.151,
+            "count": 1
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 4,
+          "startedAt": "2026-07-29T07:04:48.644Z",
+          "durationMs": 671.728,
+          "success": true,
+          "detail": {
+            "latencyMs": 329.992,
+            "count": 1
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 5,
+          "startedAt": "2026-07-29T07:04:49.315Z",
+          "durationMs": 636.489,
+          "success": true,
+          "detail": {
+            "latencyMs": 190.385,
+            "count": 1
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 6,
+          "startedAt": "2026-07-29T07:04:49.953Z",
+          "durationMs": 473.085,
+          "success": true,
+          "detail": {
+            "latencyMs": 183.443,
+            "count": 1
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 7,
+          "startedAt": "2026-07-29T07:04:50.426Z",
+          "durationMs": 569.623,
+          "success": true,
+          "detail": {
+            "latencyMs": 295.693,
+            "count": 1
+          }
+        }
+      ],
+      "statistics": {
+        "unit": "ms",
+        "count": 7,
+        "raw": [
+          567.119,
+          565.11,
+          741.281,
+          671.728,
+          636.489,
+          473.085,
+          569.623
+        ],
+        "median": 569.623,
+        "nearestRankP95": 741.281
+      }
+    },
+    "deploy-config-push": {
+      "warmups": [
+        {
+          "phase": "warmup",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:50.996Z",
+          "durationMs": 983.293,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 983.18,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        },
+        {
+          "phase": "warmup",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:51.980Z",
+          "durationMs": 1058.633,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 1058.544,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        }
+      ],
+      "recorded": [
+        {
+          "phase": "recorded",
+          "sample": 1,
+          "startedAt": "2026-07-29T07:04:53.039Z",
+          "durationMs": 1339.029,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 1338.985,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 2,
+          "startedAt": "2026-07-29T07:04:54.378Z",
+          "durationMs": 717.448,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 717.393,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 3,
+          "startedAt": "2026-07-29T07:04:55.096Z",
+          "durationMs": 683.275,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 683.242,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 4,
+          "startedAt": "2026-07-29T07:04:55.780Z",
+          "durationMs": 751.348,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 751.296,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 5,
+          "startedAt": "2026-07-29T07:04:56.531Z",
+          "durationMs": 679.816,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 679.764,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 6,
+          "startedAt": "2026-07-29T07:04:57.212Z",
+          "durationMs": 657.436,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 657.39,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        },
+        {
+          "phase": "recorded",
+          "sample": 7,
+          "startedAt": "2026-07-29T07:04:57.869Z",
+          "durationMs": 660.485,
+          "success": true,
+          "detail": {
+            "providerCommandDurationMs": 660.425,
+            "exitStatus": 0,
+            "outputSha256": "3f618e11adbd8b0cce02d52e3e2cc440d4812428d12fa6027e122cc8722217bc"
+          }
+        }
+      ],
+      "statistics": {
+        "unit": "ms",
+        "count": 7,
+        "raw": [
+          1339.029,
+          717.448,
+          683.275,
+          751.348,
+          679.816,
+          657.436,
+          660.485
+        ],
+        "median": 683.275,
+        "nearestRankP95": 1339.029
+      }
+    }
+  },
+  "failures": []
+}

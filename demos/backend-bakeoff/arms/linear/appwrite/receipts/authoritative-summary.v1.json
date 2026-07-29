@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T05:02:16.207Z",
+  "ok": true,
+  "targetIdentityHash": "a7d0605cfcf640d522163a87e832bb7133ea386e5a52caf4b845e1550bca06d5",
+  "targetIdentity": {
+    "endpointHash": "dac93ea845f3bbff78bfe830aa8241c6e7ae8fbe0e27c7f769e9168321370ff0",
+    "projectIdHash": "9b24d0c1a3a7842eda2f62fab80993af918a70a0e4aef3f9e039f394f6f81cd5",
+    "composeProject": "llp0102-linear-appwrite-w2",
+    "productVersion": "1.9.6",
+    "expectedProductVersion": "1.9.6",
+    "webClientVersion": "26.2.0",
+    "nodeClientVersion": "27.1.0",
+    "cliVersion": "23.2.0",
+    "database": "MongoDB in official Appwrite Compose stack",
+    "deployment": "official Appwrite web-installer Docker Compose",
+    "composeSha256": "e2ebfebb3679511e60df1d60c019135dd0e80fd694decf267dac9efda6953345",
+    "envSha256": "5557db729d2c990fbb3a5df18f97092fa85135914afa5ed1a820d8fb06c2be91"
+  },
+  "authoritative": {
+    "userCount": 3,
+    "teamCount": 2,
+    "tables": {
+      "organizations": {
+        "rows": 2,
+        "indexes": [
+          {
+            "key": "ordinal_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "teams": {
+        "rows": 3,
+        "indexes": [
+          {
+            "key": "org_ordinal_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "projects": {
+        "rows": 4,
+        "indexes": [
+          {
+            "key": "org_ordinal_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "team_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "members": {
+        "rows": 2,
+        "indexes": [
+          {
+            "key": "org_ordinal_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "org_user_idx",
+            "type": "unique",
+            "status": "available"
+          }
+        ]
+      },
+      "labels": {
+        "rows": 20,
+        "indexes": [
+          {
+            "key": "org_ordinal_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "issueLabels": {
+        "rows": 1000,
+        "indexes": [
+          {
+            "key": "org_label_sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "issue_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "issues": {
+        "rows": 500,
+        "indexes": [
+          {
+            "key": "org_sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "org_status_sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "org_assignee_sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "org_project_sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "search_text_idx",
+            "type": "fulltext",
+            "status": "available"
+          },
+          {
+            "key": "org_impact_sequence_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "comments": {
+        "rows": 1001,
+        "indexes": [
+          {
+            "key": "issue_sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "org_sequence_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      },
+      "activities": {
+        "rows": 501,
+        "indexes": [
+          {
+            "key": "issue_sequence_idx",
+            "type": "key",
+            "status": "available"
+          },
+          {
+            "key": "org_sequence_idx",
+            "type": "key",
+            "status": "available"
+          }
+        ]
+      }
+    },
+    "exactComposeResources": {
+      "containers": 29,
+      "volumes": 12,
+      "networks": 2
+    }
+  },
+  "containsSecretValues": false
+}

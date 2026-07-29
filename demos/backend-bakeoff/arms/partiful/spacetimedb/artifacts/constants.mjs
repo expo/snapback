@@ -1,0 +1,22 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export const armRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const stateRoot = path.resolve(armRoot, 'state');
+export const evidenceRoot = path.resolve(armRoot, 'evidence');
+export const cli = path.resolve(stateRoot, 'cli/spacetime');
+export const cliRoot = path.resolve(stateRoot, 'cli');
+export const configPath = path.resolve(stateRoot, 'config/cli.toml');
+export const dataRoot = path.resolve(stateRoot, 'data');
+export const logsRoot = path.resolve(stateRoot, 'logs');
+export const server = 'http://127.0.0.1:3332';
+export const websocket = 'ws://127.0.0.1:3332';
+export const vitePort = 4333;
+export const database = 'llp0102-partiful-spacetimedb-w2';
+export const databaseIdentity = 'c200c4e032ea0dd90c0cfc9263c44a1b9b5ec6269e9ad2270f67ba7f4ada6261';
+export const armBaseCommit = '4847b7ac53d084e6beeb143723243a65872052d8';
+export const frozenSnapbackCommit = '5f31cb6174daaefa04a1e05242acbbc22c725040';
+export const freezeAggregateSha256 = 'ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a';
+export const startedAt = '2026-07-29T05:10:38.256Z';
+export const startUptimeMs = 410_637_910;
+export const globalArgs = [`--root-dir=${cliRoot}`, `--config-path=${configPath}`];

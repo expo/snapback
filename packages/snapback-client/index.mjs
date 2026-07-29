@@ -303,6 +303,12 @@ const senderIndeterminateSuccessError = () => {
 const RESUBSCRIBE_AFTER_LOSS_DELAY_MS = 300;
 // Kit receipt ring bound — mirrors the server-side retention cap (LLP 0034 §3).
 const RECEIPT_RING_CAP = 256;
+// @ref LLP 0059#plan-begin-commit-finalize — authorization-reservation
+// contention is retryable only when the closed refusal proves no effect
+// committed. Keep the retry trace bounded alongside the receipt ring.
+const RESERVATION_RETRY_DIAGNOSTIC_RING_CAP = 256;
+const DEFAULT_RESERVATION_RETRY_MAX_ATTEMPTS = 40;
+const DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS = Object.freeze([20, 80]);
 // A subscription registers its lane consumer before dispatching the snapshot
 // request, then buffers deltas until that snapshot arrives. Keep a hung request
 // from turning the temporary queue into an unbounded client-memory sink.
@@ -1391,6 +1397,11 @@ export class SnapbackClient {
     // the diagnostic is recorded on `wireVersionDiagnostics` and emitted via
     // console.warn — a downgrade is never silent.
     onWireVersionDiagnostic = null,
+    // LLP 0059's effect-free authorization-reservation retry contract. A
+    // value of 1 disables retries while retaining the exact refusal.
+    reservationRetryMaxAttempts = DEFAULT_RESERVATION_RETRY_MAX_ATTEMPTS,
+    reservationRetryJitterMilliseconds = DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS,
+    onReservationRetryDiagnostic = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -1437,10 +1448,41 @@ export class SnapbackClient {
     if (onWireVersionDiagnostic !== null && typeof onWireVersionDiagnostic !== 'function') {
       throw new TypeError('onWireVersionDiagnostic must be a function');
     }
+    if (
+      !Number.isSafeInteger(reservationRetryMaxAttempts)
+      || reservationRetryMaxAttempts < 1
+      || reservationRetryMaxAttempts > 1_000
+    ) {
+      throw new TypeError('reservationRetryMaxAttempts must be a safe integer from 1 through 1000');
+    }
+    if (
+      !Array.isArray(reservationRetryJitterMilliseconds)
+      || reservationRetryJitterMilliseconds.length !== 2
+      || !reservationRetryJitterMilliseconds.every(
+        (value) => Number.isSafeInteger(value) && value >= 0,
+      )
+      || reservationRetryJitterMilliseconds[0] > reservationRetryJitterMilliseconds[1]
+    ) {
+      throw new TypeError(
+        'reservationRetryJitterMilliseconds must be an ascending pair of non-negative safe integers',
+      );
+    }
+    if (
+      onReservationRetryDiagnostic !== null
+      && typeof onReservationRetryDiagnostic !== 'function'
+    ) {
+      throw new TypeError('onReservationRetryDiagnostic must be a function');
+    }
     this.strictWireVersion = strictWireVersion;
     this.onWireVersionDiagnostic = onWireVersionDiagnostic;
     // §0B.6: the structured wire-version diagnostics this client surfaced.
     this.wireVersionDiagnostics = [];
+    this.reservationRetryMaxAttempts = reservationRetryMaxAttempts;
+    this.reservationRetryJitterMilliseconds = Object.freeze([
+      ...reservationRetryJitterMilliseconds,
+    ]);
+    this.onReservationRetryDiagnostic = onReservationRetryDiagnostic;
+    this.__reservationRetryDiagnostics = [];
     this.__liveQueryAllocator = allocatorForClientStore(clientStoreId);
     this.authProtocols = Object.freeze({
       authClient: authClientProtocol,
@@ -3309,6 +3351,52 @@ export class SnapbackClient {
     return () => this.__receiptListeners.delete(listener);
   }
 
+  /// Structured effect-free reservation retry evidence, oldest first.
+  reservationRetryDiagnostics() {
+    return [...this.__reservationRetryDiagnostics];
+  }
+
+  #recordReservationRetryDiagnostic(diagnostic) {
+    const frozen = Object.freeze({ ...diagnostic });
+    this.__reservationRetryDiagnostics.push(frozen);
+    while (
+      this.__reservationRetryDiagnostics.length
+      > RESERVATION_RETRY_DIAGNOSTIC_RING_CAP
+    ) this.__reservationRetryDiagnostics.shift();
+    if (this.onReservationRetryDiagnostic !== null) {
+      try {
+        this.onReservationRetryDiagnostic(frozen);
+      } catch {
+        // Observation cannot change mutation settlement or retry ownership.
+      }
+    }
+    return frozen;
+  }
+
+  #reservationRetryDelayMilliseconds() {
+    const [minimum, maximum] = this.reservationRetryJitterMilliseconds;
+    if (minimum === maximum) return minimum;
+    return minimum + Math.floor(Math.random() * (maximum - minimum + 1));
+  }
+
+  #isEffectFreeReservationStale(error) {
+    const details = error?.diagnostic?.details;
+    const detailKeys = details && typeof details === 'object' && !Array.isArray(details)
+      ? Object.keys(details).sort()
+      : [];
+    return error?.status === 409
+      && error?.diagnostic?.code === 'SNAPBACK_AUTH_RESERVATION_STALE'
+      && JSON.stringify(detailKeys) === JSON.stringify([
+        'effectCommitted',
+        'retryStrategy',
+        'retryable',
+      ])
+      && details?.retryable === true
+      && details?.retryStrategy === 'short-jitter'
+      && details?.effectCommitted === false
+      && error?.effectMayHaveCommitted !== true;
+  }
+
   #laneConsumersFor(connectionId) {
     let consumers = this.__laneConsumers.get(connectionId);
     if (!consumers) {
@@ -4689,24 +4777,110 @@ export class SnapbackClient {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
-    try {
-      const json = await this.#req(
-        'POST',
-        `/mutation/${encodeURIComponent(name)}`,
-        body,
-        undefined,
-        { expectedAuthorityCapture: authorityCapture },
-      );
-      if (json?.receipt) {
-        this.recordReceipt(json.receipt, json?.[AUTHORITY_CAPTURE] ?? null);
-      }
-      return json;
-    } catch (error) {
-      // A REJECTED mutation still produced its receipt (it rides the error
-      // envelope) — retain it before rethrowing.
-      if (error?.receipt) this.recordReceipt(error.receipt);
-      throw error;
+    let reservationRetryAuthorityCapture = authorityCapture;
+    let reservationRetryExternalBearer = null;
+    let reservationRetryExternalTransportGeneration = null;
+    if (!this.authorityFence && this.authProtocols.authClient === 1) {
+      // A call started during an explicit bearer transition belongs to the
+      // successor, but once its first attempt starts every automatic retry
+      // remains pinned to that exact carrier generation.
+      if (this.__externalBearerTransition) await this.__externalBearerTransition;
+      reservationRetryExternalBearer = this.bearerToken;
+      reservationRetryExternalTransportGeneration = this.__authTransportGeneration;
     }
+    const assertReservationRetryAuthority = () => {
+      if (reservationRetryAuthorityCapture !== null) {
+        const current = this.captureAuthority();
+        if (!sameAuthorityCapture(current, reservationRetryAuthorityCapture)) {
+          throw staleAuthorityError();
+        }
+      }
+      if (
+        reservationRetryExternalTransportGeneration !== null
+        && (
+          this.__externalBearerTransition !== null
+          || this.bearerToken !== reservationRetryExternalBearer
+          || this.__authTransportGeneration
+            !== reservationRetryExternalTransportGeneration
+        )
+      ) {
+        throw staleAuthorityError();
+      }
+    };
+    for (
+      let attempt = 1;
+      attempt <= this.reservationRetryMaxAttempts;
+      attempt += 1
+    ) {
+      assertReservationRetryAuthority();
+      try {
+        const json = await this.#req(
+          'POST',
+          `/mutation/${encodeURIComponent(name)}`,
+          body,
+          undefined,
+          { expectedAuthorityCapture: reservationRetryAuthorityCapture },
+        );
+        if (json?.receipt) {
+          this.recordReceipt(json.receipt, json?.[AUTHORITY_CAPTURE] ?? null);
+        }
+        if (attempt > 1) {
+          this.#recordReservationRetryDiagnostic({
+            code: 'SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED',
+            mutation: name,
+            outcome: 'settled',
+            attempts: attempt,
+          });
+        }
+        return json;
+      } catch (error) {
+        // A REJECTED mutation still produced its receipt (it rides the error
+        // envelope) — retain it before rethrowing.
+        if (error?.receipt) this.recordReceipt(error.receipt);
+        if (!this.#isEffectFreeReservationStale(error)) throw error;
+        if (this.authorityFence) {
+          const refusalCapture = this.authorityCaptureFor(error);
+          if (reservationRetryAuthorityCapture === null) {
+            if (refusalCapture === null) throw staleAuthorityError();
+            reservationRetryAuthorityCapture = refusalCapture;
+          } else if (
+            refusalCapture !== null
+            && !sameAuthorityCapture(
+              refusalCapture,
+              reservationRetryAuthorityCapture,
+            )
+          ) {
+            throw staleAuthorityError();
+          }
+        }
+        assertReservationRetryAuthority();
+        if (attempt >= this.reservationRetryMaxAttempts) {
+          this.#recordReservationRetryDiagnostic({
+            code: 'SNAPBACK_AUTH_RESERVATION_RETRY_EXHAUSTED',
+            mutation: name,
+            outcome: 'exhausted',
+            attempts: attempt,
+            effectCommitted: false,
+          });
+          throw error;
+        }
+        const delayMilliseconds = this.#reservationRetryDelayMilliseconds();
+        this.#recordReservationRetryDiagnostic({
+          code: 'SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED',
+          mutation: name,
+          outcome: 'effect-free-refusal',
+          attempt,
+          nextAttempt: attempt + 1,
+          maximumAttempts: this.reservationRetryMaxAttempts,
+          delayMilliseconds,
+          effectCommitted: false,
+        });
+        if (delayMilliseconds > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMilliseconds));
+        }
+      }
+    }
+    throw new Error('unreachable authorization reservation retry exhaustion');
   }
 
   subscribeLive(ref, options = {}) {
@@ -4830,8 +5004,38 @@ export class SnapbackClient {
     return response;
   }
 
-  async subscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
+  async subscribeEphemeral(ref, {
+    connectionId,
+    scope = {},
+    userId,
+    permissions = [],
+    transport = 'stream',
+    stream: streamOptions = {},
+  } = {}) {
     const collection = collectionName(ref);
+    if (transport !== 'stream' && transport !== 'poll') {
+      throw new TypeError(
+        `Snapback ephemeral transport must be "stream" or "poll", got ${JSON.stringify(transport)}`,
+      );
+    }
+    // An ephemeral subscription is live by default, so it owns managed-socket
+    // demand for exactly the overlay's lifetime. Readiness observation alone
+    // deliberately does not own demand (LLP 0034 §10.8); without this lease a
+    // fresh connection could take its HTTP snapshot successfully while no
+    // transport existed to deliver later room changes. `transport: 'poll'`
+    // preserves the explicit headless/manual-drain profile.
+    let releaseStreamDemand = null;
+    if (transport === 'stream') {
+      const manager = this.liveStreamManager(connectionId, streamOptions);
+      releaseStreamDemand = manager.acquireDemand();
+      try {
+        await manager.waitUntilReady();
+      } catch (error) {
+        releaseStreamDemand();
+        releaseStreamDemand = null;
+        throw error;
+      }
+    }
     // @ref LLP 0012#runtime-state — register before the snapshot request so a
     // shared socket cannot destructively drain and discard a post-snapshot
     // delta while the HTTP response is still in flight. The overlay buffers
@@ -4859,6 +5063,10 @@ export class SnapbackClient {
       );
       if (!committed.committed) throw staleAuthorityError();
       await this.#republishAfterAuthorityReplacement(collection, snapshot, overlay);
+      if (releaseStreamDemand) {
+        overlay.adoptStreamDemand(releaseStreamDemand);
+        releaseStreamDemand = null;
+      }
       return overlay;
     } catch (error) {
       overlay?.dispose();
@@ -4869,12 +5077,21 @@ export class SnapbackClient {
         // socket unsubscribe so the abandoned server registration does not
         // linger until connection reap. Cleanup must never mask or delay the
         // original subscribe diagnostic.
-        void this.unsubscribeEphemeral(ref, {
+        const cleanup = this.unsubscribeEphemeral(ref, {
           connectionId,
           scope,
           userId,
           permissions,
         }).catch(() => {});
+        // Keep the socket alive only for this best-effort cleanup attempt.
+        // The failed overlay is already detached, and cleanup never delays or
+        // replaces the original subscription error.
+        const releaseAfterCleanup = releaseStreamDemand;
+        releaseStreamDemand = null;
+        void cleanup.finally(() => releaseAfterCleanup?.());
+      } else {
+        releaseStreamDemand?.();
+        releaseStreamDemand = null;
       }
       throw error;
     }
@@ -5719,7 +5936,7 @@ export class SnapbackClient {
     return manager;
   }
 
-  // @ref LLP 0102#closed-connection-and-cancellation-protocol — registries
+  // @ref LLP 0114#closed-connection-and-cancellation-protocol — registries
   // receive a cancellation handle before asynchronous subscription admission.
   startLiveQuery(ref, options = {}) {
     let current = null;
@@ -5913,9 +6130,14 @@ export class SnapbackClient {
     let pauseReleasePromise = Promise.resolve();
     let initialSupersedes = supersedesSubscriptionId;
     let cleanupTail = Promise.resolve();
+    let currentSubscriptionId = null;
+    let knownRetiredSubscriptionId = null;
+    let disposalTask = null;
 
     const handle = {
-      subscriptionId: null,
+      get subscriptionId() {
+        return currentSubscriptionId;
+      },
       version: 0,
       rows: [],
       // Latest RQS resume object ({ token, meta }) for this subscription.
@@ -5944,6 +6166,25 @@ export class SnapbackClient {
         return authorizationFence?.snapshot?.() ?? null;
       },
     };
+    const markKnownSubscriptionRetired = (subscriptionId) => {
+      if (
+        typeof subscriptionId === 'string'
+        && subscriptionId.length > 0
+        && currentSubscriptionId === subscriptionId
+      ) {
+        knownRetiredSubscriptionId = subscriptionId;
+      }
+    };
+    const isKnownSubscriptionRetired = (subscriptionId) => (
+      typeof subscriptionId === 'string'
+      && subscriptionId === knownRetiredSubscriptionId
+    );
+    const alreadyRetiredResponse = (subscriptionId) => ({
+      subscription_id: subscriptionId,
+      disposed: false,
+      alreadyRetired: true,
+      retirementCode: 'SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED',
+    });
     const terminalQueryDeleted = () => (
       authorizationFence?.snapshot?.().terminalDeleted === true
     );
@@ -6828,6 +7069,18 @@ export class SnapbackClient {
       externalBearerTransitionPermit = null,
     ) => {
       if (!subscriptionId) return Promise.resolve();
+      // A query-scoped terminal invalidation has already destroyed this
+      // exact server subscription and its authorization fence. Unlike a
+      // whole-session terminal blank, it does not pass through the global
+      // auth-materialization callback below, so recognize it here before
+      // attempting a second retirement under an intentionally stale capture.
+      if (terminalQueryDeleted()) {
+        markKnownSubscriptionRetired(subscriptionId);
+        return Promise.resolve(alreadyRetiredResponse(subscriptionId));
+      }
+      if (isKnownSubscriptionRetired(subscriptionId)) {
+        return Promise.resolve(alreadyRetiredResponse(subscriptionId));
+      }
       const retiringFence = retirementState.authorizationFence;
       return Promise.resolve()
         .then(() => {
@@ -6841,7 +7094,24 @@ export class SnapbackClient {
             ? client.#unsubscribeLive(name, options, externalBearerTransitionPermit)
             : client.unsubscribeLive(name, options);
         })
+        .catch((error) => {
+          if (error?.diagnostic?.code !== 'SNAPBACK_UNKNOWN_SUBSCRIPTION') {
+            throw error;
+          }
+          // Only this handle's captured generation may translate
+          // server-confirmed absence into completed local retirement. The
+          // public unsubscribe API remains strict, so foreign ids and
+          // ownership/session mismatches still fail closed.
+          markKnownSubscriptionRetired(subscriptionId);
+          return alreadyRetiredResponse(subscriptionId);
+        })
         .then(async (response) => {
+          if (
+            response?.subscription_id === subscriptionId
+            && typeof response?.disposed === 'boolean'
+          ) {
+            markKnownSubscriptionRetired(subscriptionId);
+          }
           if (response?.scopeRetirement && authorizationFence !== null) {
             // Pause serializes resume behind this promise, so the current
             // active fence is still the exact released subscription's fence.
@@ -6866,6 +7136,7 @@ export class SnapbackClient {
           ) {
             await commitAuthorizationTask(retirementState, () => retiringFence.finishRetirement());
           }
+          return response;
         });
     };
 
@@ -7227,7 +7498,8 @@ export class SnapbackClient {
       try {
         const installed = await client.commitAuthorityPublication(responseCapture, () => {
           assertSubscribeLifecycle(lifecycle);
-          handle.subscriptionId = sub.subscription_id;
+          currentSubscriptionId = sub.subscription_id;
+          knownRetiredSubscriptionId = null;
           handleAuthorityCapture = responseCapture;
           if (!sub.authorizationScope) {
             if (sub.snapshot) {
@@ -7598,8 +7870,14 @@ export class SnapbackClient {
 
     const unregisterAuthMaterialization = client.registerAuthMaterialization({
       capture: () => handleAuthorityCapture,
-      blank: () => {
+      blank: (context = {}) => {
         if (disposed) return;
+        // @ref LLP 0059#typed-terminal-auth-error — terminal authority loss
+        // has an independent server cleanup owner. Record only this handle's
+        // exact generation so later unmount/dispose is local and idempotent.
+        if (context.terminal === true) {
+          markKnownSubscriptionRetired(handle.subscriptionId);
+        }
         paused = true;
         needsResubscribe = true;
         invalidateSubscribeLifecycle('authority-blanked');
@@ -7686,7 +7964,8 @@ export class SnapbackClient {
         // namespace. Their later recovery subscribe re-enters without one.
         queryNamespace = null;
       }
-      handle.subscriptionId = subscriptionId;
+      currentSubscriptionId = subscriptionId;
+      knownRetiredSubscriptionId = null;
       handle.rows = Array.isArray(rows) ? rows : [];
       handle.version = typeof version === 'number' ? version : 0;
       // Auth-scoped entries carry `resume: null` in both modes (LLP 0092
@@ -7944,7 +8223,7 @@ export class SnapbackClient {
       client.__registerExternalBearerHandle(handle);
 
     handle.dispose = () => {
-      if (disposed || disposing) return;
+      if (disposed || disposing) return disposalTask ?? Promise.resolve();
       disposing = true;
       const staleSubscriptionId = handle.subscriptionId;
       let firstCleanupError = null;
@@ -7990,13 +8269,20 @@ export class SnapbackClient {
         attempt(() => detachStream?.());
         detachStream = null;
         attempt(() => setConnection('disconnected'));
-        // Best-effort server-side disposal (ENG-22478 review fix F): without
+        // Unmount-safe server-side disposal (ENG-22478 review fix F): without
         // this, unmounting a handle while the connection lives leaves the
-        // §10.1 zombie fanning out until connection teardown.
-        bestEffortUnsubscribeLive(staleSubscriptionId);
+        // §10.1 zombie fanning out until connection teardown. Ignoring the
+        // returned task remains safe; awaiting it preserves typed failures.
+        disposalTask = unsubscribeLiveForLifecycle(staleSubscriptionId);
+        // UI unmount callbacks intentionally do not await cleanup. Attach an
+        // observation-only rejection handler so that use remains safe, while
+        // returning the original task lets explicit callers receive genuine
+        // ownership/session/network failures.
+        void disposalTask.catch(() => {});
         disposing = false;
       }
       if (firstCleanupError) throw firstCleanupError;
+      return disposalTask;
     };
 
     handle.settled = async () => {
@@ -8045,6 +8331,7 @@ class LiveStreamManager {
     this.readinessStateListeners = new Set();
     this.pendingRequests = new Map();
     this.settlementWaiters = new Set();
+    this.demandLeases = new Set();
 
     this.ws = null;
     this.open = false;
@@ -8074,7 +8361,10 @@ class LiveStreamManager {
   }
 
   #demand() {
-    return this.durableListeners.size + this.ephemeralListeners.size + this.stateListeners.size;
+    return this.durableListeners.size
+      + this.ephemeralListeners.size
+      + this.stateListeners.size
+      + this.demandLeases.size;
   }
 
   #listen(set, listener) {
@@ -8096,6 +8386,28 @@ class LiveStreamManager {
 
   onState(listener) {
     return this.#listen(this.stateListeners, listener);
+  }
+
+  /// Own managed-socket demand without registering an observational callback.
+  /// Used by subscriptions whose lane delivery routes through the client's
+  /// shared consumer registry rather than a manager listener.
+  acquireDemand() {
+    if (this.closed) {
+      throw liveStreamReadinessError(
+        'SNAPBACK_LIVE_STREAM_CLOSED',
+        `Snapback live stream for ${this.connectionId} is closed`,
+      );
+    }
+    const lease = {};
+    this.demandLeases.add(lease);
+    this.#ensureSocket();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.demandLeases.delete(lease);
+      if (this.#demand() === 0) this.close();
+    };
   }
 
   isOpen() {
@@ -8794,6 +9106,7 @@ class LiveStreamManager {
     this.ephemeralListeners.clear();
     this.stateListeners.clear();
     this.readinessStateListeners.clear();
+    this.demandLeases.clear();
     this.onRelease();
     for (const resolve of this.settlementWaiters) resolve();
     this.settlementWaiters.clear();
@@ -8985,6 +9298,7 @@ export class EphemeralOverlay {
     this.__preSnapshotOverflowed = false;
     this.__drainCaptures = new Set();
     this.__changeListeners = new Set();
+    this.__releaseStreamDemand = null;
     this.__unregisterAuthMaterialization = client.registerAuthMaterialization?.({
       capture: () => this.authorityCapture,
       blank: () => this.#blankForAuthority(),
@@ -9078,6 +9392,22 @@ export class EphemeralOverlay {
     this.__unregisterAuthMaterialization?.();
     this.__unregisterAuthMaterialization = null;
     this.__changeListeners.clear();
+    this.__releaseStreamDemand?.();
+    this.__releaseStreamDemand = null;
+  }
+
+  /// Transfer the subscription's managed-socket lease to this overlay after
+  /// its authoritative initial snapshot commits. Before that point the
+  /// subscribe operation retains ownership so failure cleanup can still use
+  /// the socket after detaching the abandoned overlay.
+  adoptStreamDemand(release) {
+    if (typeof release !== 'function') {
+      throw new TypeError('Snapback ephemeral stream demand release must be a function');
+    }
+    if (this.__releaseStreamDemand) {
+      throw new TypeError('Snapback ephemeral overlay already owns stream demand');
+    }
+    this.__releaseStreamDemand = release;
   }
 
   /// Observe state changes (applied snapshots/upserts/removes and resync

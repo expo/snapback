@@ -1,0 +1,15 @@
+{
+  "id": "LINEAR-02-AUTHORITY",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:28:46.967Z",
+  "target": "llp0102-final-linear-firebase-w3",
+  "transport": "Firestore Security Rules",
+  "evidence": {
+    "aliceRole": "owner",
+    "bobPageCount": 50,
+    "malloryRead": "permission-denied",
+    "malloryWrite": "permission-denied",
+    "ruleSource": "firestore.rules"
+  },
+  "note": "Three native Auth-emulator principals exercised owner/member positive and outsider negative paths."
+}

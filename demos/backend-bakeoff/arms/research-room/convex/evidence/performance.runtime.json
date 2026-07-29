@@ -1,0 +1,106 @@
+{
+  "dataset": {
+    "rooms": 2,
+    "sourcesPerPrimaryRoom": 20,
+    "sourceBytes": 65536,
+    "deterministicEmbeddingDimensions": 32,
+    "progressUpdates": 4,
+    "actors": 3,
+    "concurrentClients": 2
+  },
+  "protocol": {
+    "warmups": 2,
+    "recordedSamples": 7,
+    "p95": "nearest-rank"
+  },
+  "paths": [
+    {
+      "name": "representative-read",
+      "warmupsMs": [
+        4.578,
+        1.48
+      ],
+      "recorded": {
+        "rawMs": [
+          1.046,
+          0.909,
+          0.858,
+          0.849,
+          0.897,
+          0.958,
+          0.832
+        ],
+        "medianMs": 0.897,
+        "nearestRankP95Ms": 1.046
+      }
+    },
+    {
+      "name": "representative-write",
+      "warmupsMs": [
+        8.066,
+        8.291
+      ],
+      "recorded": {
+        "rawMs": [
+          8.256,
+          8.543,
+          6.682,
+          6.59,
+          8.323,
+          8.761,
+          6.759
+        ],
+        "medianMs": 8.256,
+        "nearestRankP95Ms": 8.761
+      }
+    },
+    {
+      "name": "realtime-delivery",
+      "warmupsMs": [
+        11.868,
+        11.489
+      ],
+      "recorded": {
+        "rawMs": [
+          11.773,
+          12.92,
+          11.519,
+          12.301,
+          15.597,
+          13.759,
+          13.722
+        ],
+        "medianMs": 12.92,
+        "nearestRankP95Ms": 15.597
+      }
+    },
+    {
+      "name": "reconnect",
+      "warmupsMs": [
+        8.871,
+        2.596
+      ],
+      "recorded": {
+        "rawMs": [
+          2.323,
+          2.549,
+          2.544,
+          2.151,
+          2.774,
+          2.117,
+          1.438
+        ],
+        "medianMs": 2.323,
+        "nearestRankP95Ms": 2.774
+      }
+    }
+  ],
+  "buildPath": "Vite production build sampled separately by scripts/run-build-samples.mjs",
+  "costWindow": {
+    "target": "anonymous local beta deployment",
+    "providerBilledUsage": "not available/local",
+    "providerListPriceEstimateUsd": 0,
+    "localResourceCostExcluded": true,
+    "productionScaleClaim": false
+  }
+}

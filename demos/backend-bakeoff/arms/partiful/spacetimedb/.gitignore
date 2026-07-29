@@ -1,0 +1,6 @@
+state/
+node_modules/
+dist/
+work/harness/module_bindings/
+work/client/.vite/
+*.tsbuildinfo

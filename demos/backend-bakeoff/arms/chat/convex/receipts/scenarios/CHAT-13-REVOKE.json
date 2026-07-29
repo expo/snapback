@@ -1,0 +1,19 @@
+{
+  "id": "CHAT-13-REVOKE",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:14:16.120Z",
+  "authorityChange": {
+    "revoked": "bob"
+  },
+  "subscriptionErrorAfterRevocation": true,
+  "freshRevokedRead": {
+    "rejected": true,
+    "classification": "UNAUTHORIZED_PRIVATE_CHANNEL"
+  },
+  "sentBody": "after-revoke-1785291255607",
+  "deliveredAfterRevocation": false,
+  "retainedStoreInspection": {
+    "priorJavaScriptValuesRemainApplicationOwned": true,
+    "providerPersistentOfflineStore": false
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/settleAnswer.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "type": "string"
+    },
+    "effectMayHaveExecuted": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "attemptId",
+    "status"
+  ],
+  "title": "work:settleAnswer arguments",
+  "type": "object"
+}

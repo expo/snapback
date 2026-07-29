@@ -1,0 +1,33 @@
+{
+  "id": "PARTY-01-SEED",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:31.805Z",
+  "finishedAt": "2026-07-29T06:45:31.837Z",
+  "durationMs": 31.806,
+  "evidence": {
+    "targetIdentity": {
+      "kind": "fresh-anonymous-local",
+      "namespace": "llp0102-partiful-convex-w2",
+      "deploymentName": "anonymous-agent",
+      "cloudPort": 3336,
+      "sitePort": 3337,
+      "backendVersion": "precompiled-2026-07-21-82d5e9f"
+    },
+    "seedReceipt": {
+      "alreadySeeded": false,
+      "capacity": 50,
+      "events": 20,
+      "guests": 49
+    },
+    "authoritativeCounts": {
+      "assets": 0,
+      "events": 20,
+      "memberships": 50,
+      "notificationAttempts": 0,
+      "personas": 4,
+      "reminders": 0,
+      "rsvps": 1,
+      "wallPosts": 1
+    }
+  }
+}

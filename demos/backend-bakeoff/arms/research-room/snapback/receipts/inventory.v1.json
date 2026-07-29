@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "authoredSource": {
+    "files": 10,
+    "lines": 1019,
+    "note": "Excludes the separately counted acceptance/evidence/cleanup harness, generated output, configuration, dependency manifest, and ignored TypeScript build info."
+  },
+  "generated": {
+    "files": 53,
+    "lines": 4715,
+    "artifactsSha256": "188e1b1755a03b7806638571744b344ccbc55138dbaf8f1e8f5951647e914420"
+  },
+  "tests": {
+    "files": 1,
+    "lines": 1022
+  },
+  "configuration": {
+    "files": 3,
+    "names": ["package.json", "tsconfig.json", "vite.config.ts"]
+  },
+  "dependencyManifests": {
+    "files": 1,
+    "names": ["package-lock.json"],
+    "lockSha256": "1fae6bfae0a089a6a8cab14db69a876b387024d0c05b38d4bf566e996b46d6c7"
+  },
+  "policy": {
+    "files": 0,
+    "note": "Authorization is expressed by Snapback sessions and the schema membership declaration."
+  },
+  "installedDependencyBytes": 78876423,
+  "productionBuildBytes": 199790,
+  "glue": [
+    "deterministic HTTP effect receiver",
+    "session persona minting harness",
+    "performance and exact cleanup harness",
+    "application-authored progress, citation, idempotency, and refresh ledgers"
+  ]
+}

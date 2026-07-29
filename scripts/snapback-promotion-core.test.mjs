@@ -819,7 +819,7 @@ test('latest proof plan cannot inject a local command or substitute GitHub ident
     workflow: 'public-package-proof.yml',
     ref: 'main',
     expectedHeadSha: '1'.repeat(40),
-    ledgerPath: 'demos/backend-bakeoff/candidate-ledger.json',
+    ledgerPath: 'demos/signal-desk/candidate-ledger.json',
     operationId: 'release-plan-test',
     helperSha256: '2'.repeat(64),
     darwinReceipt: 'proof/darwin.json',

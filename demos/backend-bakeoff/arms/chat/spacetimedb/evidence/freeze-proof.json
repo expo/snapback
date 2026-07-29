@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "frozenSourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "trackedSnapbackDiff": "clean",
+  "armOutputLocation": "demos/backend-bakeoff/arms/chat/spacetimedb",
+  "sharedDiaryOrReportEditedByWorker": false
+}

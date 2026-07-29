@@ -1,0 +1,429 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "research-room",
+    "provider": "convex",
+    "round": "untimed-extension",
+    "attemptId": "research-room-convex-deep-01-r2"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "coordinatorBaseCommit": "0dc4b3ff6257edc2ee0fea869fca5142531d0ce5",
+    "frozenSnapbackSourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "providerVersions": {
+      "product": "Convex",
+      "client": "1.42.3",
+      "cli": "1.42.3"
+    },
+    "machine": "ccheever-minisforum-AI-Series/x64/Ubuntu 25.10/6.17.0-40-generic",
+    "startedAt": "2026-07-29T10:25:06Z",
+    "finishedAt": "2026-07-29T10:58:37Z",
+    "providerDocumentationSnapshot": [
+      "https://docs.convex.dev/cli/local-deployments",
+      "https://docs.convex.dev/cli/agent-mode",
+      "https://docs.convex.dev/search/text-search",
+      "https://docs.convex.dev/search/vector-search",
+      "https://docs.convex.dev/file-storage/upload-files",
+      "https://docs.convex.dev/scheduling/scheduled-functions"
+    ]
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 836000,
+    "toolCalls": 0,
+    "toolCallCountAvailable": false,
+    "timedWindowFrozenAt": "2026-07-29T10:39:02Z",
+    "extension": true,
+    "note": "Timed window froze at the Stop defect before scenario work; all scenarios are untimed."
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "da581762ae8c77475ff914786ba7431c7f12a775409364bdf47b6f69eb970f84",
+      "role": "owner"
+    },
+    "bob": {
+      "principalIdHash": "1e9a59939305beca154b56c855f9728b7163ef27aacd2e6fc4483fa8ec85d72b",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "0e9565b7ac67900bc862fae63873c4c9d00c718f3e45fdbd252339ef411b1d9c",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-research-convex-w2",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "evidence/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "d01aeff7c01430a3fe0d377b7d3b9bdeee6378642e280461872f75ab525aa0f9",
+      "profile": "official anonymous local deployment (beta)",
+      "gapReason": "",
+      "receiptPaths": [
+        "evidence/isolation-and-command-receipts.json",
+        "evidence/cleanup-receipt.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "managed production deployment",
+      "plan": "Starter",
+      "region": "provider-selected US region",
+      "gapReason": "No isolated hosted credential was available; no hosted deployment/auth/operations/cost claim.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 10.365,
+    "firstAuthoritativeMutationMs": 47.871,
+    "firstRealtimeTransitionMs": 98.211,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": null,
+    "timingWindow": "untimed-extension"
+  },
+  "assistanceEvents": [
+    {
+      "kind": "provider-source-inspection",
+      "reason": "The pinned CLI rejected the frozen anonymous-local invocation and current help hid the assigned port flags.",
+      "informationUsed": "Pinned Convex CLI source confirmed that local-cloud-port and local-site-port remain accepted after local selection.",
+      "impact": "Preserved assigned ports 3345 and 3346 without a custom backend wrapper."
+    },
+    {
+      "kind": "cross-arm-knowledge",
+      "reason": "The fresh local target needed three attributable identities for headless native clients.",
+      "informationUsed": "A prior Convex arm suggested the CLI's native local admin acting-identity path; the capability was independently verified in the pinned client source.",
+      "impact": "Alice, Bob, and Mallory used distinct Convex development identities; no implementation code was copied."
+    }
+  ],
+  "commands": [],
+  "scenarioResults": [
+    {
+      "id": "RESEARCH-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Independent Bob Convex query read exact backend counts after Alice mutation.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-02-FILES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Bob read metadata and delivered bytes; backend query returned null after owner deletion.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-04-KEYWORD",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Convex query executed withSearchIndex over source searchText filtered by roomId.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-05-SEMANTIC",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Native vector-search action returned deterministic nearest source.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-06-PROGRESS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Four scheduler-driven mutations were queried independently before terminal complete.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-07-CITATIONS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Answer citation IDs were dereferenced through Bob-authorized backend queries.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-08-COLLABORATOR",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "A distinct Bob-authenticated ConvexClient observed Alice's scheduler-authored transitions.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-09-CANCEL",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Backend state after scheduled late attempts retained zero progress/answer patches.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-10-RETRY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Compound roomId+dedupeKey index returned one question and one answer with two attempt rows.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-11-OUTCOMES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Independent query returned distinct durable state-machine values.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-12-SCHEDULE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two scheduled effects with one dedupe key produced one durable run.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-13-SECRETS",
+      "status": "fail",
+      "evidencePaths": [
+        "evidence/acceptance.final.json",
+        "evidence/security-scan.precleanup.json",
+        "evidence/stop-defect.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Application canary stayed server-side, but the Convex local backend places its independent control secret in process argv.",
+      "note": "Application canary passed; provider-local control-secret argv behavior causes FAIL/Stop."
+    },
+    {
+      "id": "RESEARCH-03-OUTSIDER",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory-authenticated native clients received FORBIDDEN for every protected surface.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json",
+        "evidence/performance.runtime.json",
+        "evidence/performance.build.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two warmups and seven raw samples retained for read/write/realtime/reconnect; build samples join after Vite runs.",
+      "note": ""
+    },
+    {
+      "id": "RESEARCH-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance.final.json",
+        "evidence/cleanup-plan.v1.json",
+        "evidence/cleanup-receipt.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Provider mutation/probe reached zero rows before exact target process, listener, config, secret, and path removal.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "evidence/inventory.v1.json",
+    "authoredSource": {
+      "files": 11,
+      "lines": 1608,
+      "bytes": 55722,
+      "paths": [
+        "convex/http.ts",
+        "convex/research.ts",
+        "convex/schema.ts",
+        "index.html",
+        "scripts/capture-receipts.mjs",
+        "scripts/cleanup-arm.sh",
+        "scripts/finalize-evidence.mjs",
+        "scripts/precleanup-security.sh",
+        "scripts/run-build-samples.mjs",
+        "src/main.ts",
+        "src/style.css"
+      ]
+    },
+    "generated": {
+      "files": 5,
+      "lines": 370,
+      "bytes": 12514,
+      "paths": [
+        "convex/_generated/api.d.ts",
+        "convex/_generated/api.js",
+        "convex/_generated/dataModel.d.ts",
+        "convex/_generated/server.d.ts",
+        "convex/_generated/server.js"
+      ]
+    },
+    "tests": {
+      "files": 1,
+      "lines": 555,
+      "bytes": 21389,
+      "paths": [
+        "harness.ts"
+      ]
+    },
+    "configuration": {
+      "files": 4,
+      "lines": 2260,
+      "bytes": 68848,
+      "paths": [
+        ".gitignore",
+        "package-lock.json",
+        "package.json",
+        "tsconfig.json"
+      ]
+    },
+    "policy": {
+      "files": 0,
+      "lines": 0,
+      "bytes": 0,
+      "paths": []
+    },
+    "dependencyManifests": {
+      "files": 2,
+      "lines": 2240,
+      "bytes": 68414,
+      "paths": [
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "installedDependencyBytes": 104892922,
+    "glue": [
+      "harness.ts: local-only native acting-identity acceptance driver; never bundled",
+      "convex/http.ts: deterministic HTTP fixture for scheduled external fetch",
+      "scripts/run-build-samples.mjs: frozen Vite build sampler",
+      "scripts/precleanup-security.sh: exact-value security scan without value output",
+      "scripts/cleanup-arm.sh: exact target-bound cleanup"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three distinct native local acting identities exercised positive and negative backend paths.",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Cancellation and dedupe settlement were directly queried from indexed durable records.",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "A separate Bob ConvexClient observed native WebSocket updates.",
+      "evidencePaths": [
+        "evidence/acceptance.final.json",
+        "evidence/performance.runtime.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 1,
+      "reason": "Fresh-client reconnect was direct; no offline-retained-data claim was required or made.",
+      "evidencePaths": [
+        "evidence/performance.runtime.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Retry, cancellation, late rejection, schedule dedupe, and outcome states are direct.",
+      "evidencePaths": [
+        "evidence/acceptance.final.json"
+      ]
+    },
+    "target-identity": {
+      "score": 1,
+      "reason": "Fresh local identity and paths are direct; hosted identity is unavailable.",
+      "evidencePaths": [
+        "evidence/isolation-and-command-receipts.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "Provider zero-row probe preceded exact process/listener/path/secret absence proofs.",
+      "evidencePaths": [
+        "evidence/cleanup-receipt.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Pinned dependency lock, source, scripts, raw samples, digests, and deterministic fixtures are retained.",
+      "evidencePaths": [
+        "evidence/inventory.v1.json",
+        "evidence/isolation-and-command-receipts.json"
+      ]
+    }
+  },
+  "stopDefects": [
+    {
+      "id": "convex-local-control-secret-in-process-argv",
+      "classification": "provider",
+      "scenario": "RESEARCH-13-SECRETS",
+      "evidencePaths": [
+        "evidence/stop-defect.v1.json",
+        "evidence/security-scan.precleanup.json"
+      ]
+    },
+    {
+      "id": "builder-unredacted-process-proof",
+      "classification": "builder",
+      "scenario": "pre-scenario-isolation-proof",
+      "evidencePaths": [
+        "evidence/stop-defect.v1.json",
+        "evidence/cleanup-receipt.v1.json"
+      ]
+    }
+  ],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "evidence/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "evidence/cleanup-receipt.v1.json"
+    ],
+    "postCleanupProbe": "Zero application rows, listeners, recorded processes, target paths, and exact secret matches."
+  },
+  "result": "stopped"
+}

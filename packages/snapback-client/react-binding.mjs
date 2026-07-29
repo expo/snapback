@@ -7,7 +7,7 @@ import {
   rowsMatchDigest,
 } from './rqs.mjs';
 
-// @ref LLP 0102#prepared-binding-and-provider-ownership — asynchronous
+// @ref LLP 0114#prepared-binding-and-provider-ownership — asynchronous
 // deployment admission is completed before a synchronous React provider may
 // be constructed.
 
@@ -656,7 +656,7 @@ export function abandonConsumedReactQueryGroup(value) {
 // @ref LLP 0090#d12-snapshot-bundle-fetch — register mode creates every
 // closed child subscription at the same commit cut; React adopts those exact
 // registrations rather than racing a manual prime against later live work.
-// @ref LLP 0102#bundle-primed-generated-query-groups — bundle acquisition is
+// @ref LLP 0114#bundle-primed-generated-query-groups — bundle acquisition is
 // pre-mount and group-scoped; hooks never arm registrations in an effect.
 // @ref LLP 0112#preparation-and-admission — generated identity, exact route
 // parameters, capability admission, and one-shot ownership are all settled

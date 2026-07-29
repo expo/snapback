@@ -1,0 +1,26 @@
+{
+  "id": "PARTY-12-REVOCATION",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:59:10.275Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "appwrite-realtime",
+  "evidence": {
+    "authorityChange": {
+      "invitation": "revoked",
+      "protectedRowPermissions": "host-only"
+    },
+    "negativeDelivery": {
+      "directDenied": true,
+      "realtimeCounterBefore": 80,
+      "realtimeCounterAfter": 80,
+      "protectedIdPresent": false
+    },
+    "retainedStoreInspection": {
+      "beforeIds": "wall-seed,wall-live-01,wall-live-02,wall-live-03,wall-live-04,wall-live-05,wall-live-06,wall-live-07,wall-live-08,wall-live-09,wall-live-10,wall-live-11,wall-live-12,wall-live-13,wall-live-14,wall-live-15,wall-live-16,wall-live-17,wall-live-18,wall-live-19,wall-live-20",
+      "afterIds": "wall-seed,wall-live-01,wall-live-02,wall-live-03,wall-live-04,wall-live-05,wall-live-06,wall-live-07,wall-live-08,wall-live-09,wall-live-10,wall-live-11,wall-live-12,wall-live-13,wall-live-14,wall-live-15,wall-live-16,wall-live-17,wall-live-18,wall-live-19,wall-live-20",
+      "oldAuthorizedDataRetainedInReactMemory": true,
+      "durableOfflineStore": "none implemented"
+    }
+  },
+  "note": "Revocation stopped future protected reads and Realtime delivery; the UI honestly retained previously authorized in-memory data until refresh."
+}

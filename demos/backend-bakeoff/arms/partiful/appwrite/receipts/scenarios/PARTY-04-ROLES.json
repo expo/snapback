@@ -1,0 +1,21 @@
+{
+  "id": "PARTY-04-ROLES",
+  "status": "pass",
+  "checkedAt": "2026-07-29T05:56:15.627Z",
+  "projectId": "llp0102-partiful-appwrite-w3",
+  "transport": "not-applicable",
+  "evidence": {
+    "positive": {
+      "hostPrivateUpdate": true,
+      "cohostPublicUpdate": true,
+      "guestPrivateRead": true
+    },
+    "negative": {
+      "guestHostUpdateDenied": true,
+      "outsiderPrivateReadDenied": true,
+      "outsiderCohostUpdateDenied": true
+    },
+    "authority": "native Appwrite Auth sessions plus Team role and row permissions"
+  },
+  "note": "Host, cohost, guest, and outsider exercised distinct positive and negative authority paths."
+}

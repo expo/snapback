@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/sendNotification.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string"
+    },
+    "idempotencyKey": {
+      "type": "string"
+    },
+    "providerUrl": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "idempotencyKey",
+    "providerUrl"
+  ],
+  "title": "work:sendNotification arguments",
+  "type": "object"
+}

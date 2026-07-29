@@ -712,7 +712,7 @@ that revision fail-closed. Generated headless, React, and React Expo
 references carry the complete runtime reference; hook APIs infer `Args` and
 `Result` and do not expose a result-generic override. React evidence is
 mandatory because that package already ships; typed query-group evidence is
-conditional only until LLP 0102 lands.
+conditional only until LLP 0114 lands.
 
 Only `inline_handler_v1` and `result_contract_v1` may be added by this slice.
 They begin at experimental maturity under LLP 0058 and require its normal

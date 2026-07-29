@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "units": "milliseconds",
+  "machine": {
+    "label": "Minisforum AI Series",
+    "os": "Ubuntu 25.10",
+    "architecture": "x86_64"
+  },
+  "samples": {
+    "representative-list": {
+      "warmups": [
+        8.038,
+        8.219
+      ],
+      "recorded": [
+        8.494,
+        8.217,
+        10.754,
+        11.452,
+        11.152,
+        11.48,
+        12.289
+      ],
+      "median": 11.152,
+      "nearestRankP95": 12.289
+    },
+    "representative-detail": {
+      "warmups": [
+        0.331,
+        0.153
+      ],
+      "recorded": [
+        0.122,
+        0.133,
+        0.121,
+        0.118,
+        0.119,
+        0.135,
+        0.18
+      ],
+      "median": 0.122,
+      "nearestRankP95": 0.18
+    },
+    "representative-write": {
+      "warmups": [
+        48.515,
+        54.856
+      ],
+      "recorded": [
+        36.449,
+        35.3,
+        35.16,
+        39.101,
+        38.256,
+        37.445,
+        34.525
+      ],
+      "median": 36.449,
+      "nearestRankP95": 39.101
+    },
+    "realtime-delivery": {
+      "warmups": [
+        28.003,
+        48.078
+      ],
+      "recorded": [
+        48.661,
+        33.332,
+        51.926,
+        51.351,
+        29.218,
+        27.367,
+        47.315
+      ],
+      "median": 47.315,
+      "nearestRankP95": 51.926
+    },
+    "reconnect": {
+      "warmups": [
+        14.569,
+        7.155
+      ],
+      "recorded": [
+        7.688,
+        7.484,
+        6.385,
+        6.749,
+        8.137,
+        6.563,
+        8.328
+      ],
+      "median": 7.484,
+      "nearestRankP95": 8.328
+    },
+    "build-or-deploy": {
+      "warmups": [
+        646.216,
+        588.666
+      ],
+      "recorded": [
+        498.604,
+        491.78,
+        489.859,
+        532.08,
+        526.947,
+        497.12,
+        496.452
+      ],
+      "operation": "spacetime build -p spacetimedb",
+      "deploySampled": false,
+      "median": 497.12,
+      "nearestRankP95": 532.08
+    }
+  },
+  "costWindow": {
+    "start": "fresh isolated local target provisioning",
+    "end": "exact target and worktree-local runtime state cleanup",
+    "actualProviderChargeUsd": 0,
+    "reason": "Official standalone server on an arm-assigned machine; hosted credentials unavailable.",
+    "hostedListPriceEstimate": null,
+    "extrapolationCountedAsMeasured": false
+  }
+}

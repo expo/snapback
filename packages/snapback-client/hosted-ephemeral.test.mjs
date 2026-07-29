@@ -61,6 +61,7 @@ try {
   const first = await client.subscribeEphemeral('presence', {
     connectionId: 'app',
     scope: { roomId: 'lobby' },
+    transport: 'poll',
   });
   assert.deepEqual(values, [], 'initial authority establishment is not a restart');
   first.dispose();
@@ -68,6 +69,7 @@ try {
   const second = await client.subscribeEphemeral('presence', {
     connectionId: 'app',
     scope: { roomId: 'lobby' },
+    transport: 'poll',
   });
   assert.deepEqual(values, ['invoked']);
   assert.equal(requests.filter(({ path }) => path === '/ephemeral/publish').length, 1);

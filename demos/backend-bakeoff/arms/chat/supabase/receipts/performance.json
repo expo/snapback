@@ -1,0 +1,97 @@
+{
+  "claimScope": "small frozen local product workload; not production scale",
+  "warmups": 2,
+  "recordedSamples": 7,
+  "dataset": {
+    "channels": 4,
+    "seededMessagesPerChannel": 125,
+    "burstMessages": 20,
+    "pageSize": 25,
+    "clients": 2
+  },
+  "paths": {
+    "representative-read": {
+      "samplesMs": [
+        2.447166,
+        1.576042,
+        1.572417,
+        1.366625,
+        1.356375,
+        1.330916,
+        1.380541
+      ],
+      "medianMs": 1.380541,
+      "nearestRankP95Ms": 2.447166
+    },
+    "burst-write-20": {
+      "samplesMs": [
+        1.729208,
+        1.859833,
+        1.623709,
+        1.653792,
+        1.5595,
+        1.5715,
+        1.465125
+      ],
+      "medianMs": 1.623709,
+      "nearestRankP95Ms": 1.859833
+    },
+    "realtime-delivery": {
+      "samplesMs": [
+        504.333292,
+        526.5535,
+        523.954833,
+        525.819708,
+        507.552125,
+        523.1545,
+        531.183167
+      ],
+      "medianMs": 523.954833,
+      "nearestRankP95Ms": 531.183167
+    },
+    "reconnect": {
+      "samplesMs": [
+        3.861583,
+        3.429,
+        3.608292,
+        3.435625,
+        3.225084,
+        3.142417,
+        2.830417
+      ],
+      "medianMs": 3.429,
+      "nearestRankP95Ms": 3.861583
+    },
+    "build": {
+      "samplesMs": [
+        932.031417,
+        921.874375,
+        926.782625,
+        929.462709,
+        906.646417,
+        899.047833,
+        934.391375
+      ],
+      "medianMs": 926.782625,
+      "nearestRankP95Ms": 934.391375
+    }
+  },
+  "machine": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "memoryBytes": 34359738368,
+    "loadAverageAtFinish": [
+      2.7783203125,
+      13.79736328125,
+      34.50537109375
+    ]
+  },
+  "cost": {
+    "localProviderUsage": "$0 incremental provider charge",
+    "hostedListPrice": "not measured; hosted target not provisioned",
+    "extrapolated": false
+  }
+}

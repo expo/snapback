@@ -1,0 +1,28 @@
+{
+  "status": "gap",
+  "note": "The official isolated local CLI deployment is directly inspectable, but no hosted deployment was provisioned; hosted identity, region, billing, and rollback were not claimed.",
+  "evidence": {
+    "targetIdentity": {
+      "provider": "Supabase",
+      "topology": "official Supabase CLI Docker stack on isolated Colima project",
+      "projectId": "llp0102-linear-supabase-w3",
+      "identityHash": "ec76e6c27232919568adaa4cce1d62890351d4e502c18021185fd21c5b2688fe",
+      "apiOrigin": "http://127.0.0.1:56431",
+      "databasePort": 56432,
+      "studioOrigin": "http://127.0.0.1:56433",
+      "mailOrigin": "http://127.0.0.1:56434",
+      "viteOrigin": "http://127.0.0.1:4322",
+      "runtimeMirror": "2b84a28a129abdacfbf65f312163ebf26beffa9963a1e09ab59719e0f343ee6f",
+      "hosted": "unavailable; not provisioned and not claimed",
+      "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+      "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a"
+    },
+    "deploymentReceipt": "receipts/operations.json",
+    "operationsReceipts": [
+      "receipts/operations.json",
+      "receipts/pre-cleanup-public-schema.sql"
+    ],
+    "localOperations": true,
+    "hostedGap": "No fresh hosted Supabase project was assigned; the protocol permits a local-only arm when hosted access is unavailable."
+  }
+}

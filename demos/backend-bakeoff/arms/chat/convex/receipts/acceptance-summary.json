@@ -1,0 +1,96 @@
+{
+  "startedAt": "2026-07-28T23:47:26Z",
+  "finishedAt": "2026-07-29T02:14:38.793Z",
+  "url": "http://127.0.0.1:3310",
+  "namespace": "llp0102-chat-convex-w2",
+  "milestones": {
+    "firstLocalReadMs": 8807388,
+    "firstAuthoritativeMutationMs": 8807498,
+    "firstRealtimeTransitionMs": 8807626,
+    "localAcceptanceMs": 8832617,
+    "acceptanceCompletionMs": 8832617
+  },
+  "actors": {
+    "alice": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+    "bob": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+    "mallory": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac"
+  },
+  "scenarioResults": [
+    {
+      "id": "CHAT-01-SEED",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-01-SEED.json"
+    },
+    {
+      "id": "CHAT-02-AUTHORITY",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-02-AUTHORITY.json"
+    },
+    {
+      "id": "CHAT-03-SEND",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-03-SEND.json"
+    },
+    {
+      "id": "CHAT-04-PUSH",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-04-PUSH.json"
+    },
+    {
+      "id": "CHAT-05-PAGINATION",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-05-PAGINATION.json"
+    },
+    {
+      "id": "CHAT-06-TYPING",
+      "status": "gap",
+      "path": "receipts/scenarios/CHAT-06-TYPING.json"
+    },
+    {
+      "id": "CHAT-07-PRESENCE",
+      "status": "gap",
+      "path": "receipts/scenarios/CHAT-07-PRESENCE.json"
+    },
+    {
+      "id": "CHAT-08-RECONNECT",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-08-RECONNECT.json"
+    },
+    {
+      "id": "CHAT-09-OFFLINE-HISTORY",
+      "status": "gap",
+      "path": "receipts/scenarios/CHAT-09-OFFLINE-HISTORY.json"
+    },
+    {
+      "id": "CHAT-10-UNREAD",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-10-UNREAD.json"
+    },
+    {
+      "id": "CHAT-11-CONCURRENT-SEND",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-11-CONCURRENT-SEND.json"
+    },
+    {
+      "id": "CHAT-12-LOGOUT",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-12-LOGOUT.json"
+    },
+    {
+      "id": "CHAT-13-REVOKE",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-13-REVOKE.json"
+    },
+    {
+      "id": "CHAT-14-PERFORMANCE",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-14-PERFORMANCE.json"
+    },
+    {
+      "id": "CHAT-15-CLEANUP",
+      "status": "pass",
+      "path": "receipts/scenarios/CHAT-15-CLEANUP.json"
+    }
+  ],
+  "stopDefects": []
+}

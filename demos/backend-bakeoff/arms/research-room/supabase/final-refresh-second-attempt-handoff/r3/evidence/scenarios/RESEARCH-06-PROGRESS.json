@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-06-PROGRESS",
+  "status": "pass",
+  "checkedAt": "2026-07-29T13:01:24.010Z",
+  "evidence": {
+    "questionId": "74edeafc-b004-49ba-98f7-4e93e5fa6237",
+    "durable": [
+      {
+        "seq": 1,
+        "stage": "retrieving",
+        "created_at": "2026-07-29T13:01:22.525186+00:00"
+      },
+      {
+        "seq": 2,
+        "stage": "ranking",
+        "created_at": "2026-07-29T13:01:22.709434+00:00"
+      },
+      {
+        "seq": 3,
+        "stage": "drafting",
+        "created_at": "2026-07-29T13:01:22.892483+00:00"
+      },
+      {
+        "seq": 4,
+        "stage": "citing",
+        "created_at": "2026-07-29T13:01:23.077138+00:00"
+      }
+    ],
+    "count": 4,
+    "transport": "Supabase Realtime private Broadcast over Phoenix WebSocket, emitted by an AFTER INSERT database trigger",
+    "terminal": {
+      "state": "complete",
+      "settled_at": "2026-07-29T13:01:23.262163+00:00"
+    },
+    "terminalObservedAfterAllFour": true
+  }
+}

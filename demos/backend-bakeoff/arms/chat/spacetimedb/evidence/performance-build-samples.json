@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "path": "build-or-deploy",
+  "command": "spacetime build",
+  "units": "milliseconds",
+  "warmups": [
+    {
+      "phase": "warmup",
+      "sample": 1,
+      "elapsedMs": 356.106,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "phase": "warmup",
+      "sample": 2,
+      "elapsedMs": 289.563,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    }
+  ],
+  "recorded": [
+    {
+      "phase": "recorded",
+      "sample": 1,
+      "elapsedMs": 313.296,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "phase": "recorded",
+      "sample": 2,
+      "elapsedMs": 419.53,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "phase": "recorded",
+      "sample": 3,
+      "elapsedMs": 638.218,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "phase": "recorded",
+      "sample": 4,
+      "elapsedMs": 743.556,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "phase": "recorded",
+      "sample": 5,
+      "elapsedMs": 598.948,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "phase": "recorded",
+      "sample": 6,
+      "elapsedMs": 554.928,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    },
+    {
+      "phase": "recorded",
+      "sample": 7,
+      "elapsedMs": 497.973,
+      "exitCode": 0,
+      "stdoutTail": [
+        "Build finished successfully."
+      ],
+      "stderrTail": [
+        ""
+      ]
+    }
+  ]
+}

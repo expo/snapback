@@ -226,6 +226,20 @@ Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.
 
+For the exact HTTP 409 `SNAPBACK_AUTH_RESERVATION_STALE` refusal whose closed
+details say `retryable: true`, `retryStrategy: "short-jitter"`, and
+`effectCommitted: false`, `mutate()` retries the unchanged complete operation
+within its bounded client budget. Construction options
+`reservationRetryMaxAttempts` and
+`reservationRetryJitterMilliseconds: [minimum, maximum]` configure that
+budget. `reservationRetryDiagnostics()` and
+`onReservationRetryDiagnostic` expose structured scheduled, settled, and
+exhausted attempt evidence. No other status or ambiguous/committed outcome is
+automatically retried. The retry episode is pinned to the first attempt's
+authority/carrier generation: an overlapping logout, user switch, or bearer
+replacement fails with `SNAPBACK_CLIENT_AUTHORITY_STALE` and never replays the
+old arguments as the successor.
+
 ## Subscribe to durable state
 
 `liveQuery(ref, options)` is the author-facing composite. It performs the
@@ -241,6 +255,21 @@ Use `transport: 'stream'` for managed WebSocket push; the manager multiplexes
 all durable and ephemeral consumers sharing a `connectionId`. Consume
 `onUpdate`, `onConnectionChange`, subscription events, and authorization
 callbacks instead of reading socket internals. Always dispose the handle.
+High-level handle retirement is idempotent across ordinary disposal, repeated
+disposal, logout, and terminal authority loss. If the server confirms that
+this handle's exact subscription generation is already absent, lifecycle
+cleanup returns the typed
+`SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED` outcome and does not send another
+server effect. The same local-only outcome applies after this query's own
+terminal authorization deletion, whose exact server subscription and fence
+have already been retired. The low-level public `unsubscribeLive` method remains strict:
+foreign ids and ownership/session mismatches are errors, not idempotent
+success. `dispose()` performs local teardown synchronously and returns an
+awaitable cleanup task. UI unmount code may safely ignore it; acceptance and
+operations code should await it when typed server cleanup failures matter.
+`subscriptionId` is a read-only view of the handle's internally owned
+generation, so application code cannot substitute a foreign id into the
+idempotent path.
 
 The managed stream sends application ping frames every five seconds and forces
 reconnect only after its 15-second freshness budget is missed. A quiet socket
@@ -382,7 +411,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Acceptance inspection | `localResourceInspection` |
-| Receipts | `recordReceipt`, `receipts`, `onReceipt` |
+| Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
 The overlay returned by `subscribeEphemeral` and the live handle returned by

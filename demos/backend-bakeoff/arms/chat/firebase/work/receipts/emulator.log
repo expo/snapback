@@ -1,0 +1,230 @@
+⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI.
+i  emulators: Starting emulators: auth, functions, firestore, database, extensions
+⬢  extensions: Unable to look up project number for llp0102-chat-firebase-w1.
+ If this is a real project, ensure that you are logged in and have access to it.
+ If this is a fake project, please use a project ID starting with 'demo-' to skip production calls.
+ Continuing with a fake project number - secrets and other features that require production access may behave unexpectedly.
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+/bin/sh: lsof: command not found
+⚠  eventarc: Eventarc Emulator unable to start on port 9299, starting on 9300 instead.
+⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, hosting, pubsub, storage, dataconnect
+⚠  functions: Unable to fetch project Admin SDK configuration, Admin SDK behavior in Cloud Functions emulator may be incorrect.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  database: Database Emulator logging to database-debug.log
+⚠  emulators: The Emulator UI is not starting because none of the running emulators have a UI component.
+i  functions: Watching "/Users/ccheever/worktrees/llp0102-chat-firebase/demos/backend-bakeoff/arms/chat/firebase/work/functions" for Cloud Functions...
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+⚠  functions: Please note that there will be breaking changes when you upgrade.
+⚠  functions: Your requested "node" version "22" doesn't match your global version "24". Using node@24 from host.
+Serving at port 8963
+
+✔  functions: Loaded functions definitions from source: sendMessage.
+✔  functions[us-west1-sendMessage]: http function initialized (http://127.0.0.1:5287/llp0102-chat-firebase-w1/us-west1/sendMessage).
+
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+└─────────────────────────────────────────────────────────────┘
+
+┌────────────────┬────────────────┐
+│ Emulator       │ Host:Port      │
+├────────────────┼────────────────┤
+│ Authentication │ 127.0.0.1:9299 │
+├────────────────┼────────────────┤
+│ Functions      │ 127.0.0.1:5287 │
+├────────────────┼────────────────┤
+│ Firestore      │ 127.0.0.1:8280 │
+├────────────────┼────────────────┤
+│ Database       │ 127.0.0.1:9280 │
+├────────────────┼────────────────┤
+│ Extensions     │ 127.0.0.1:5287 │
+└────────────────┴────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4501
+  Other reserved ports: 4502, 9150
+┌─────────────────────────┬───────────────┐
+│ Extension Instance Name │ Extension Ref │
+└─────────────────────────┴───────────────┘
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 100.993917ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 12.838667ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.551417ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 10.625125ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 6.341667ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.850291ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 8.1225ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 11.292041ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.308459ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 6.981833ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 5.951125ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 5.733416ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 5.5715ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 4.7155ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 5.717083ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 5.247083ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 6.324292ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 8.898083ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.69225ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 8.897125ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.503083ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.43325ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.251625ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.6405ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.750375ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 7.138166ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 13.442958ms
+i  functions: Finished "us-west1-sendMessage" in 127.955ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2601.904667ms
+i  functions: Finished "us-west1-sendMessage" in 2720.666375ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2015.071125ms
+i  functions: Finished "us-west1-sendMessage" in 3392.558916ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2016.48325ms
+i  functions: Finished "us-west1-sendMessage" in 3028.279625ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2019.2965ms
+i  functions: Finished "us-west1-sendMessage" in 2899.6088330000002ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 3224.515834ms
+i  functions: Finished "us-west1-sendMessage" in 3535.759ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2022.327916ms
+i  functions: Finished "us-west1-sendMessage" in 2780.884959ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2021.062ms
+i  functions: Finished "us-west1-sendMessage" in 3383.435125ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2022.274834ms
+i  functions: Finished "us-west1-sendMessage" in 3267.036583ms
+i  functions: Beginning execution of "us-west1-sendMessage"
+i  functions: Beginning execution of "us-west1-sendMessage"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-west1-sendMessage" in 2017.55325ms
+i  functions: Finished "us-west1-sendMessage" in 3315.061166ms
+i  emulators: Received export request. Exporting data to /Users/ccheever/worktrees/llp0102-chat-firebase/demos/backend-bakeoff/arms/chat/firebase/work/.firebase-export.
+✔  emulators: Export complete.
+
+i  emulators: Received SIGTERM for the first time. Starting a clean shutdown.
+i  emulators: Please wait for a clean shutdown or send the SIGTERM signal again to stop right now.
+i  emulators: Shutting down emulators.
+i  extensions: Stopping Extensions Emulator
+i  functions: Stopping Functions Emulator
+i  database: Stopping Database Emulator
+⚠  database: Fatal error occurred:
+   Database Emulator has exited with code: 143,
+   stopping all running emulators
+i  database: Stopping Database Emulator
+i  firestore: Stopping Firestore Emulator
+i  firestore: Stopping Firestore Emulator
+⚠  firestore: Fatal error occurred:
+   Firestore Emulator has exited with code: 143,
+   stopping all running emulators
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  auth: Stopping Authentication Emulator
+i  auth: Stopping Authentication Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  hub: Stopping emulator hub
+i  hub: Stopping emulator hub
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+i  logging: Stopping Logging Emulator
+i  logging: Stopping Logging Emulator

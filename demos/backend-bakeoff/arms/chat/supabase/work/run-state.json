@@ -1,0 +1,8 @@
+{
+  "startedAt": "2026-07-29T01:09:14.731Z",
+  "startedMonotonicMs": 243916713,
+  "vitePort": 4289,
+  "projectId": "llp0102-chat-supabase-w3",
+  "namespace": "llp0102-chat-supabase-calibration-chat-supabase-calibration-01",
+  "runtimeMirrorReason": "Colima does not host-bind /private/tmp; exact isolated runtime config was mirrored under a unique /Users cache path so the official CLI stack could mount generated config files."
+}

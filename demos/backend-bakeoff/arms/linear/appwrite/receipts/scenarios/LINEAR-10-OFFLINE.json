@@ -1,0 +1,17 @@
+{
+  "id": "LINEAR-10-OFFLINE",
+  "status": "gap",
+  "checkedAt": "2026-07-29T04:55:49.984Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "unsupported",
+  "evidence": {
+    "warmLoadedRows": 50,
+    "coldOfflineReloadRows": 0,
+    "offlineWriteRejected": true,
+    "providerCacheDatabaseObserved": false,
+    "queuedMutationObserved": false,
+    "reconnectRows": 50,
+    "reconnectUniqueRows": 50
+  },
+  "note": "GAP: the Appwrite Web SDK retained the Auth session but supplied neither a TablesDB offline cache nor a mutation queue; reconnect refetched 50 authoritative rows."
+}

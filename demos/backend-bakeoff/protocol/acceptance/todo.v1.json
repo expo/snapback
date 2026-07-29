@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "app": "todo",
+  "expectedCheckCount": 14,
+  "scenarios": [
+    {
+      "id": "TODO-01-SEED",
+      "fact": "Exact deterministic dataset and three personas exist in the fresh target or arm-isolated namespace.",
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "fact": "Alice and Bob read the shared workspace.",
+      "evidence": ["actor-attribution", "authoritative-read"]
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "fact": "Mallory cannot read or subscribe to the workspace.",
+      "evidence": ["negative-read", "negative-subscription", "no-retained-row"]
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "fact": "A member creates, edits, completes, reopens, reorders, and deletes tasks.",
+      "evidence": ["authoritative-after-each-transition", "settlement"]
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "fact": "A second connected client observes a committed change without refresh.",
+      "evidence": ["transport-attribution", "second-client", "authority"]
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "fact": "A previously opened client boots with retained tasks while backend transport is unavailable.",
+      "evidence": ["cold-client", "transport-disabled", "retained-origin"]
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "fact": "The offline client queues one create and one update.",
+      "evidence": ["offline-proof", "queue-inspection", "no-remote-commit"]
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "fact": "Reconnect settles both queued writes exactly once.",
+      "evidence": ["settlement", "authoritative-counts", "no-duplicates"]
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "fact": "Concurrent title edits produce the documented deterministic outcome.",
+      "evidence": ["two-actor-barrier", "authoritative-winner", "client-reconciliation"]
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "fact": "Concurrent reorder preserves a valid unique stable ordering.",
+      "evidence": ["two-actor-barrier", "order-invariants"]
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "fact": "Logout stops delivery and handles protected retained data per the provider contract.",
+      "evidence": ["logout-barrier", "post-logout-probe", "retained-store-inspection"]
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "fact": "Membership removal stops Bob's future protected delivery.",
+      "evidence": ["authority-change", "already-connected-client", "negative-delivery"]
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "fact": "Frozen small-profile read, write, realtime, reconnect, and build/deploy samples are retained.",
+      "evidence": ["two-warmups", "seven-samples", "machine-context", "raw-samples"]
+    },
+    {
+      "id": "TODO-14-CLEANUP",
+      "fact": "Only the exact fresh targets or arm-owned shared-target namespace are cleaned up; unrelated baseline state is preserved.",
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

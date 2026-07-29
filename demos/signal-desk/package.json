@@ -1,0 +1,58 @@
+{
+  "name": "snapback-backend-bakeoff",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1 --port 5217",
+    "dev:configured": "node scripts/serve-dev.mjs",
+    "typecheck": "tsc --noEmit",
+    "snapback:dev": "snapback dev snapback",
+    "convex:dev": "convex dev --local",
+    "convex:once": "convex dev --local --once",
+    "supabase:migrate": "node scripts/migrate-supabase.mjs",
+    "bakeoff:run": "node scripts/run-bakeoff.mjs",
+    "bakeoff:verify": "node scripts/run-bakeoff.mjs --verify",
+    "test:bakeoff-runner": "node --test scripts/bakeoff-runner.test.mjs",
+    "test:contract": "node tests/contract.mjs",
+    "test:snapback": "bun run test:snapback:comparator && bun run test:snapback:extras",
+    "test:snapback:comparator": "snapback accept comparator --config ./snapback-comparator.config.mjs --receipt ./.snapback/comparator-receipt.json --timeout-ms 30000",
+    "test:snapback:extras": "node tests/snapback-extras.mjs",
+    "test": "bun run test:snapback && bun run test:react",
+    "test:react": "node tests/react.mjs && node tests/react-query-group.mjs && node tests/react-query-group-receipt.mjs",
+    "test:convex": "node tests/convex.mjs",
+    "test:supabase": "node tests/supabase.mjs"
+  },
+  "dependencies": {
+    "@snapback/cli": "file:../../packages/snapback-cli",
+    "@snapback/client": "file:../../packages/snapback-client",
+    "@snapback/codegen": "file:../../packages/snapback-codegen",
+    "@snapback/contract": "file:../../packages/snapback-contract",
+    "@snapback/react": "file:../../packages/snapback-react",
+    "@snapback/runtime-darwin-arm64": "file:../../packages/snapback-runtime-darwin-arm64",
+    "@snapback/runtime-linux-x64": "file:../../packages/snapback-runtime-linux-x64",
+    "@snapback/vite": "file:../../packages/snapback-vite",
+    "@supabase/supabase-js": "2.57.4",
+    "convex": "1.42.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "5.0.2",
+    "ajv": "8.20.0",
+    "postgres": "3.4.7",
+    "typescript": "5.9.3",
+    "vite": "7.1.7"
+  },
+  "overrides": {
+    "@snapback/cli": "file:../../packages/snapback-cli",
+    "@snapback/client": "file:../../packages/snapback-client",
+    "@snapback/codegen": "file:../../packages/snapback-codegen",
+    "@snapback/contract": "file:../../packages/snapback-contract",
+    "@snapback/runtime-darwin-arm64": "file:../../packages/snapback-runtime-darwin-arm64",
+    "@snapback/runtime-linux-x64": "file:../../packages/snapback-runtime-linux-x64"
+  }
+}

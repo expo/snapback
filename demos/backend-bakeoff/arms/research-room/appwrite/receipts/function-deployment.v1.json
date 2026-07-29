@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-07-29T10:44:07.677Z",
+  "functionId": "research-worker-v2",
+  "runtime": "node-16.0",
+  "deploymentId": "6a69d9748731776524e6",
+  "status": "ready",
+  "buildDuration": 3,
+  "secretValuePresent": false
+}

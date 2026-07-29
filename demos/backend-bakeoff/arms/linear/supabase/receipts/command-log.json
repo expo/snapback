@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "timingPrecision": "Monotonic intervals are retained at command/milestone precision; subprocess wall durations were directly observed and the longer authoring intervals are bounded by acceptance milestones.",
+  "commands": [
+    {
+      "command": "exact Docker-name and assigned-port preflight",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 1000,
+      "exitStatus": 0,
+      "classification": "pre-provision-isolation",
+      "note": "No exact-project container or listener on 4322/56431-56440 was present."
+    },
+    {
+      "command": "npm install --no-audit --no-fund",
+      "startedMonotonicMs": 600000,
+      "finishedMonotonicMs": 603500,
+      "exitStatus": 0,
+      "classification": "arm-local-provider-dependencies",
+      "note": "41 packages installed from the frozen package manifest."
+    },
+    {
+      "command": "node scripts/prepare-runtime.mjs && supabase start",
+      "startedMonotonicMs": 620000,
+      "finishedMonotonicMs": 645504,
+      "exitStatus": 0,
+      "classification": "fresh-local-provision",
+      "note": "Official CLI stack used exact project llp0102-linear-supabase-w3. Colima required an exact runtime-only /Users mirror."
+    },
+    {
+      "command": "npm run seed",
+      "startedMonotonicMs": 646000,
+      "finishedMonotonicMs": 647136,
+      "exitStatus": 0,
+      "classification": "seed-smoke",
+      "note": "Exact 2/3/4/500/1000/20 production-shaped counts passed."
+    },
+    {
+      "command": "supabase db reset && npm run acceptance (attempt 1)",
+      "startedMonotonicMs": 1600000,
+      "finishedMonotonicMs": 1666746,
+      "exitStatus": 1,
+      "classification": "retained-harness-failure",
+      "note": "10 pass, 2 GAP, cleanup pending; cold comment Realtime proof timed out while later measured issue Realtime succeeded."
+    },
+    {
+      "command": "supabase db reset && npm run acceptance (attempt 2)",
+      "startedMonotonicMs": 1700000,
+      "finishedMonotonicMs": 1765205,
+      "exitStatus": 0,
+      "classification": "harness-correction",
+      "note": "11 pass, 2 explicit GAP, cleanup pending. Exact-ID cold-start retry retained one missed warm attempt before native delivery."
+    },
+    {
+      "command": "supabase db reset && npm run acceptance (final)",
+      "startedMonotonicMs": 1780000,
+      "finishedMonotonicMs": 1838332,
+      "exitStatus": 0,
+      "classification": "acceptance",
+      "note": "Final reproducibility run: 11 pass, 2 explicit GAP, cleanup pending."
+    },
+    {
+      "command": "npm run build",
+      "startedMonotonicMs": 1839332,
+      "finishedMonotonicMs": 1841338,
+      "exitStatus": 0,
+      "classification": "production-build",
+      "note": "TypeScript and Vite production build passed; performance receipt independently retains two warmups and seven build samples."
+    },
+    {
+      "command": "node scripts/runtime-inventory.mjs && node scripts/collect-evidence.mjs",
+      "startedMonotonicMs": 1841339,
+      "finishedMonotonicMs": 1843532,
+      "exitStatus": 0,
+      "classification": "inventory-and-dependency-audit",
+      "note": "Exact target inventory and zero-vulnerability npm audit retained."
+    },
+    {
+      "command": "supabase stop --no-backup --workdir exact-runtime-project && node scripts/cleanup-probe.mjs",
+      "startedMonotonicMs": 2032372,
+      "finishedMonotonicMs": 2052372,
+      "exitStatus": 0,
+      "classification": "target-bound-cleanup",
+      "note": "Exact project resources and assigned ports absent; no unrelated resource selected."
+    }
+  ]
+}

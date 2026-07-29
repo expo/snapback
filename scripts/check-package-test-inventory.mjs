@@ -62,7 +62,9 @@ const inventories = [
       'external-store.test.mjs',
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
+      'lifecycle-disposal.test.mjs',
       'package.test.mjs',
+      'reservation-retry.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-native.test.mjs',
       'rqs-resume.test.mjs',
@@ -326,7 +328,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // refuses closed-schema mismatches before transport.
 // 121 -> 122 (LLP 0041 final publication hardening): the publication authority
 // client retains bounded response-stream and deadline refusal coverage.
-assert.equal(total, 122, 'reviewed package/admin test count changed');
+// 122 -> 123 (2026-07-28, SB-004): @snapback/client gains the maintained
+// effect-free authorization-reservation retry matrix.
+// 123 -> 124 (2026-07-28, SB-002): @snapback/client gains the maintained
+// live-handle authority-retirement disposal matrix.
+assert.equal(total, 124, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -3496,7 +3496,7 @@ fn gap_row_schemas_accept_representative_values() {
 #[test]
 fn hosted_product_journey_receipt_is_rust_owned_and_closed() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("demos/backend-bakeoff/hosted-product-journey.v1.json");
+        .join("demos/signal-desk/hosted-product-journey.v1.json");
     let bytes = fs::read(&path).expect("hosted product journey receipt");
     let value: Value = serde_json::from_slice(&bytes).expect("journey receipt JSON");
     assert_validates("hosted-product-journey-v1.schema.json", &value);

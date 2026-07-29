@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "namespace": "llp0102-final-linear-firebase-w3",
+  "worktree": "/private/tmp/llp0102-final-linear-firebase-w3-prep",
+  "workRoot": "demos/backend-bakeoff/arms/linear/firebase/final-refresh-handoff/work",
+  "ports": {
+    "emulatorHub": 46121,
+    "emulatorLogging": 46122,
+    "firestoreWebSocket": 46123,
+    "vite": 46124,
+    "functions": 56121,
+    "firestore": 58121,
+    "auth": 59121,
+    "storage": 60121,
+    "eventarc": 61121,
+    "tasks": 62121
+  },
+  "state": {
+    "home": "work/.state/home",
+    "xdgConfig": "work/.state/xdg-config",
+    "xdgCache": "work/.state/xdg-cache",
+    "xdgData": "work/.state/xdg-data",
+    "gcloud": "work/.state/gcloud",
+    "npmCache": "work/.state/npm-cache",
+    "browserProfile": "work/.state/browser-profile",
+    "firebaseExport": "work/.state/firebase-export",
+    "receipts": "work/receipts",
+    "logs": [
+      "work/receipts/emulator.log",
+      "work/receipts/vite.log"
+    ]
+  },
+  "cleanupBinding": {
+    "exactProjectId": "llp0102-final-linear-firebase-w3",
+    "exactWorkRootRequired": true,
+    "exactRootPidReceiptsRequired": true,
+    "allTenAssignedPortsVerifiedClosed": true,
+    "wildcardsForbidden": true,
+    "sharedOrHostedDeletionForbidden": true
+  },
+  "checkpoint": {
+    "allPortsClosed": true,
+    "providerProcessAbsent": true,
+    "providerStarted": true,
+    "providerCleaned": true,
+    "survivingProcesses": 0,
+    "note": "The final ten-port block was disjoint and explicitly included Eventarc and Tasks. The earlier implicit-default-port run is retained separately as an isolation-discovery attempt."
+  }
+}

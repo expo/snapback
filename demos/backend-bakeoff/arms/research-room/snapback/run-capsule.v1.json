@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "research-room",
+    "provider": "snapback",
+    "round": "deep",
+    "attemptId": "research-room-snapback-deep-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "providerVersions": {
+      "product": "0.1.0",
+      "client": "workspace at sourceCommit",
+      "cli": "workspace at sourceCommit"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-29T06:46:58Z",
+    "finishedAt": "2026-07-29T07:07:21Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 1222600,
+    "toolCalls": 47,
+    "timedWindowFrozenAt": "2026-07-29T07:07:21Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {"principalIdHash": "", "role": "intended-owner-not-minted"},
+    "bob": {"principalIdHash": "", "role": "intended-member-not-minted"},
+    "mallory": {"principalIdHash": "", "role": "intended-outsider-not-minted"}
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-research-snapback-w1",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "receipts/cleanup.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "6607b7cd23312f0b646df8894e7240be50ca34275c34c2edb703175cf1ed972b",
+      "profile": "packaged local SQLite + Ibex sessions deployment",
+      "gapReason": "Sessions cold-start preflight rejected bounded_response_stream_v1 before listener bind.",
+      "receiptPaths": [
+        "receipts/acceptance-failure.v1.json",
+        "receipts/sessions-stream-admission-defect.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "no honestly complete hosted profile at starting commit",
+      "plan": "GAP",
+      "region": "GAP",
+      "gapReason": "No honestly complete hosted profile exists at the frozen source commit; this product gap remains a scoring input.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": null,
+    "firstAuthoritativeMutationMs": null,
+    "firstRealtimeTransitionMs": null,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": null
+  },
+  "assistanceEvents": [
+    {
+      "kind": "source-inspection",
+      "reason": "The guide excerpt did not contain enough implementation detail for host-owned stream settlement.",
+      "sources": ["demos/competitive-checkpoint/snapback", "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs"]
+    },
+    {
+      "kind": "cross-arm-convention-inspection",
+      "reason": "Consulted the existing Snapback chat arm for sessions lifecycle/evidence conventions.",
+      "sources": ["demos/backend-bakeoff/arms/chat/snapback/work/scripts/run-arm.mjs"]
+    },
+    {
+      "kind": "source-inspection",
+      "reason": "The capability refusal persisted with both documented egress flags; source localized the sessions preflight composition defect.",
+      "sources": ["packages/snapback-codegen/index.mjs", "src/local.rs"]
+    }
+  ],
+  "commands": [
+    {"command":"npm install","exitStatus":0,"startedMonotonicMs":264180660,"finishedMonotonicMs":264206000},
+    {"command":"npm run generate","exitStatus":1,"classification":"environment-workspace-dependency","startedMonotonicMs":264206001,"finishedMonotonicMs":264210000},
+    {"command":"npm install (repository root)","exitStatus":1,"classification":"builder-package-manager","startedMonotonicMs":264210001,"finishedMonotonicMs":264211000},
+    {"command":"bun install --frozen-lockfile (repository root)","exitStatus":0,"startedMonotonicMs":264211001,"finishedMonotonicMs":264235000},
+    {"command":"npm run generate","exitStatus":1,"classification":"docs-dx-egress-generation-flag","startedMonotonicMs":264235001,"finishedMonotonicMs":264239000},
+    {"command":"SNAPBACK_OUTBOUND_ACTIONS=1 npm run generate","exitStatus":0,"startedMonotonicMs":264239001,"finishedMonotonicMs":264247000},
+    {"command":"npm run build","exitStatus":1,"classification":"builder-vite-css-type","startedMonotonicMs":264247001,"finishedMonotonicMs":264250000},
+    {"command":"npm run build","exitStatus":0,"startedMonotonicMs":264250001,"finishedMonotonicMs":264253000},
+    {"command":"npm run acceptance","exitStatus":1,"classification":"product-sessions-stream-capability-admission","startedMonotonicMs":264253001,"finishedMonotonicMs":264309000},
+    {"command":"canonical local-streaming control","exitStatus":0,"classification":"8-of-8-control-pass","startedMonotonicMs":264309001,"finishedMonotonicMs":265332000},
+    {"command":"sessions narrow-carrier hot-publication probe","exitStatus":1,"classification":"unsupported-workaround","startedMonotonicMs":265332001,"finishedMonotonicMs":265403261}
+  ],
+  "scenarioResults": [
+    {"id":"RESEARCH-01-SEED","status":"fail","evidencePaths":["receipts/acceptance.v1.json"],"transport":"unsupported","authoritativeCheck":"not run","note":"downstream test could not run because sessions deployment refused before bind"},
+    {"id":"RESEARCH-02-FILES","status":"gap","evidencePaths":["receipts/acceptance.v1.json"],"transport":"not-applicable","authoritativeCheck":"capability nonclaim","note":"no shipped asset byte path"},
+    {"id":"RESEARCH-03-OUTSIDER","status":"fail","evidencePaths":["receipts/acceptance.v1.json"],"transport":"unsupported","authoritativeCheck":"not run","note":"downstream test could not run because personas could not be minted"},
+    {"id":"RESEARCH-04-KEYWORD","status":"fail","evidencePaths":["receipts/acceptance.v1.json"],"transport":"unsupported","authoritativeCheck":"not run","note":"downstream test could not run because the target was unavailable"},
+    {"id":"RESEARCH-05-SEMANTIC","status":"gap","evidencePaths":["receipts/acceptance.v1.json"],"transport":"not-applicable","authoritativeCheck":"capability nonclaim","note":"no ordinary vector path"},
+    {"id":"RESEARCH-06-PROGRESS","status":"fail","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"],"transport":"unsupported","authoritativeCheck":"capability admission failure","note":"authenticated streamed progress cannot deploy"},
+    {"id":"RESEARCH-07-CITATIONS","status":"fail","evidencePaths":["receipts/acceptance.v1.json"],"transport":"unsupported","authoritativeCheck":"not run","note":"downstream test could not run because the answer action was unavailable"},
+    {"id":"RESEARCH-08-COLLABORATOR","status":"fail","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"],"transport":"unsupported","authoritativeCheck":"capability admission failure","note":"two-member streamed progress cannot deploy"},
+    {"id":"RESEARCH-09-CANCEL","status":"fail","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"],"transport":"unsupported","authoritativeCheck":"capability admission failure","note":"authenticated cancellation path cannot deploy"},
+    {"id":"RESEARCH-10-RETRY","status":"fail","evidencePaths":["receipts/acceptance.v1.json"],"transport":"unsupported","authoritativeCheck":"not run","note":"downstream test could not run because the target was unavailable"},
+    {"id":"RESEARCH-11-OUTCOMES","status":"fail","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"],"transport":"unsupported","authoritativeCheck":"capability admission failure","note":"authenticated settlement path cannot deploy"},
+    {"id":"RESEARCH-12-SCHEDULE","status":"fail","evidencePaths":["receipts/acceptance.v1.json"],"transport":"unsupported","authoritativeCheck":"not run","note":"downstream test could not run because the full manifest was rejected"},
+    {"id":"RESEARCH-13-SECRETS","status":"fail","evidencePaths":["receipts/acceptance.v1.json"],"transport":"unsupported","authoritativeCheck":"no secret persisted","note":"downstream test could not run; refusal preceded config set"},
+    {"id":"RESEARCH-14-PERFORMANCE","status":"fail","evidencePaths":["receipts/performance.v1.json"],"transport":"unsupported","authoritativeCheck":"no valid full target","note":"2+7 samples not fabricated because the target was unavailable"},
+    {"id":"RESEARCH-15-CLEANUP","status":"pass","evidencePaths":["receipts/cleanup.v1.json"],"transport":"not-applicable","authoritativeCheck":"paths absent and four ports closed","note":"fresh target cleanup exact"}
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {"files":10,"lines":1019},
+    "generated": {"files":53,"lines":4715},
+    "tests": {"files":1,"lines":1022},
+    "configuration": {"files":3},
+    "policy": {"files":0,"note":"membership declaration and sessions"},
+    "dependencyManifests": 1,
+    "installedDependencyBytes": 78876423,
+    "glue": ["deterministic effect receiver","session harness","progress/citation/refresh ledgers","evidence and cleanup harness"]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {"score":0,"reason":"sessions target never reached readiness","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"]},
+    "transaction-conflict": {"score":1,"reason":"authored/generated, not executed in this arm","evidencePaths":["work/snapback/generated/artifacts.json"]},
+    "transport": {"score":1,"reason":"canonical exact-binary control direct; app combination refused","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"]},
+    "offline-reconnect": {"score":0,"reason":"not reached","evidencePaths":[]},
+    "settlement": {"score":1,"reason":"canonical exact-binary control direct; sessions app unavailable","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"]},
+    "target-identity": {"score":2,"reason":"exact commit/artifact/profile/namespace identity retained","evidencePaths":["receipts/sessions-stream-admission-defect.v1.json"]},
+    "cleanup-isolation": {"score":1,"reason":"Exact runtime/public paths and all assigned ports are absent, but no separately timestamped pre-write baseline receipt was retained.","evidencePaths":["receipts/cleanup.v1.json"]},
+    "artifact-reproducibility": {"score":2,"reason":"source, lock, generated artifacts, hashes, and failed command retained","evidencePaths":["receipts/inventory.v1.json","receipts/commands-and-failures.v1.json"]}
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup.v1.json",
+    "receiptPaths": ["receipts/cleanup.v1.json"],
+    "postCleanupProbe": "work runtime/public paths absent; ports 3340, 4340, 20440, 9340 closed"
+  },
+  "result": "complete"
+}

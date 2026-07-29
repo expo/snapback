@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/startQuestion.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "idempotencyKey": {
+      "type": "string"
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "roomId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "roomId",
+    "prompt",
+    "idempotencyKey"
+  ],
+  "title": "work:startQuestion arguments",
+  "type": "object"
+}

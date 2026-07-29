@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "arm": "research-room/spacetimedb",
+  "result": "pass",
+  "checks": [
+    {
+      "command": "node demos/backend-bakeoff/scripts/run-capsule.mjs verify demos/backend-bakeoff/arms/research-room/spacetimedb/run-capsule.v1.json",
+      "exitStatus": 0,
+      "summary": "Frozen run-capsule schema accepted all fifteen scenario records and the complete cleanup state."
+    },
+    {
+      "command": "parse every arm JSON artifact with JSON.parse",
+      "exitStatus": 0,
+      "summary": "All capsule, receipt, generated-binding metadata, and package JSON files parse."
+    },
+    {
+      "command": "git diff --check",
+      "exitStatus": 0,
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "./ref-check --verbose",
+      "exitStatus": 0,
+      "summary": "107 LLP documents and 2300 refs checked with zero errors and zero unchecked."
+    },
+    {
+      "command": "node scripts/check-guide.mjs",
+      "exitStatus": 0,
+      "summary": "Guide check passed with 41 pages, 95 snippets, and the repository's existing informational freshness warnings."
+    },
+    {
+      "command": "node demos/backend-bakeoff/scripts/verify-stage0.mjs",
+      "exitStatus": 0,
+      "summary": "Frozen protocol remains valid and ready: seven providers, five apps, and 73 acceptance checks."
+    },
+    {
+      "command": "arm-scoped secret-shape scan",
+      "exitStatus": 0,
+      "summary": "No credential values or secret-shaped assignments found; the only matches are explicit false nonclaim fields for client secret use."
+    }
+  ],
+  "runtimeVerification": {
+    "moduleBuild": "pass",
+    "clientTypecheck": "pass",
+    "clientProductionBuild": "pass",
+    "acceptanceBeforeCleanup": {
+      "pass": 12,
+      "gap": 2,
+      "fail": 0,
+      "pendingCleanup": 1
+    },
+    "acceptanceAfterCleanup": {
+      "pass": 13,
+      "gap": 2,
+      "fail": 0
+    },
+    "cleanup": "complete"
+  },
+  "notes": [
+    "Runtime compilation, build, acceptance, benchmark, and cleanup checks ran on the assigned Apartment Air lane before isolated runtime dependencies were recoverably removed.",
+    "The first scheduled-HTTP attempt against localhost was correctly refused by the provider's private-address SSRF protection and remains retained as security evidence."
+  ]
+}

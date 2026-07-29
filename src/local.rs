@@ -3481,7 +3481,15 @@ impl LocalSnapback {
         .map_err(ephemeral_manifest_error)?;
 
         let deployment = artifacts.deployment_identity(requested_mode)?;
-        let target = CapabilityManifest::local_v0_declared();
+        // @ref LLP 0076#target-contract — cold-start capability admission
+        // composes the candidate pair with the exact process's live egress
+        // fact, just like `/inspect` and ordinary function loading. The
+        // conservative committed declaration is not authority for a process
+        // that explicitly enabled outbound actions.
+        let target = CapabilityManifest::local_v0_instance(
+            self.capability_gaps(),
+            crate::runtime::outbound_actions_enabled(),
+        );
         // @ref LLP 0058#capability-maturity — the artifact pair's
         // experimental acknowledgments (declared on the function manifest,
         // covering the pair) accompany every requirement, including the
@@ -17143,7 +17151,7 @@ mod tests {
     };
     use crate::auth::mode::{
         AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
-        INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
+        INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
     };
     use crate::manifest::{
         ActionPlan, AuthInput, AuthManifest, AuthMode, AuthorityDescriptor, ConfigEntryDefinition,
@@ -17555,6 +17563,120 @@ mod tests {
                 AuthModeStateRecord::initial_dev(None)
             );
             assert!(snapback.function_kind(export).is_none());
+        }
+    }
+
+    #[test]
+    fn sessions_cold_start_stream_preflight_tracks_process_egress() {
+        const CHILD_CASE: &str = "SNAPBACK_TEST_SESSIONS_STREAM_PREFLIGHT_CASE";
+
+        if let Ok(case) = std::env::var(CHILD_CASE) {
+            let outbound_enabled = case == "enabled";
+            assert_eq!(
+                crate::runtime::outbound_actions_enabled(),
+                outbound_enabled,
+                "child process must exercise its requested live egress fact"
+            );
+
+            let (schema, mut functions) = auth_artifact_pair(AuthMode::Sessions, 'd');
+            let mut stream_action = FunctionDefinition::new(
+                "streamRequiring",
+                FunctionKind::Action,
+                FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                    steps: Vec::new(),
+                    return_value: None,
+                })),
+            );
+            stream_action.required_capabilities =
+                vec!["bounded_response_stream_v1".to_owned()];
+            functions.functions.push(stream_action);
+            let artifacts = StartupArtifacts {
+                format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
+                schema,
+                functions,
+                seed: None,
+            };
+
+            let mut snapback = LocalSnapback::memory().expect("memory sessions preflight");
+            let before = snapback
+                .auth_database_mut()
+                .auth_mode_snapshot()
+                .expect("initial auth mode");
+            let result = snapback.preflight_auth_artifacts(&artifacts, AuthMode::Sessions);
+
+            if outbound_enabled {
+                result.expect(
+                    "an exact process with outbound actions enabled must admit the bounded stream requirement",
+                );
+            } else {
+                let error = result.expect_err(
+                    "an exact process with outbound actions disabled must refuse the bounded stream requirement",
+                );
+                assert_eq!(
+                    error.diagnostic.code,
+                    "SNAPBACK_CAPABILITY_UNSUPPORTED"
+                );
+                assert_eq!(
+                    error.diagnostic.details["capability"],
+                    "bounded_response_stream_v1"
+                );
+            }
+            assert_eq!(
+                snapback
+                    .auth_database_mut()
+                    .auth_mode_snapshot()
+                    .expect("post-preflight auth mode"),
+                before,
+                "preflight must remain effectless in both capability arms"
+            );
+            assert!(
+                snapback.function_kind("streamRequiring").is_none(),
+                "preflight must not publish the candidate function"
+            );
+            return;
+        }
+
+        // Environment mutation is process-global. Exercise each live process
+        // fact in its own child test process so this regression cannot race
+        // unrelated tests that require the default-deny egress posture.
+        //
+        // @ref LLP 0058#complete-candidate-pair-preflight — both children
+        // submit the same complete sessions pair before any effect.
+        // @ref LLP 0076#target-contract — support is true iff that exact
+        // child process enabled outbound actions.
+        for outbound_enabled in [false, true] {
+            let mut command =
+                std::process::Command::new(std::env::current_exe().expect("current test binary"));
+            command
+                .arg("sessions_cold_start_stream_preflight_tracks_process_egress")
+                .arg("--nocapture")
+                .arg("--test-threads=1")
+                .env(
+                    CHILD_CASE,
+                    if outbound_enabled {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    },
+                )
+                .env_remove("SNAPBACK_OUTBOUND_ACTIONS");
+            if outbound_enabled {
+                command.env("SNAPBACK_OUTBOUND_ACTIONS", "1");
+            }
+            let output = command.output().expect("run isolated child test");
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                output.status.success() && stdout.contains("1 passed"),
+                "{} child failed:\nstdout:\n{}\nstderr:\n{}",
+                if outbound_enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                },
+                stdout,
+                stderr,
+            );
         }
     }
 

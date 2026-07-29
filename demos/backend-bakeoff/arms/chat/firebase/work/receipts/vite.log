@@ -1,0 +1,9 @@
+
+> llp0102-chat-firebase-w1@0.0.0 dev
+> vite --host 127.0.0.1 --port 4287 --strictPort
+
+
+  VITE v7.1.4  ready in 94 ms
+
+  ➜  Local:   http://127.0.0.1:4287/
+7:20:23 PM [vite] (client) hmr update /src/App.tsx

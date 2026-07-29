@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d44e29e2e12d333393430566f0b54f828989bbc4"
+    "commit": "1e27a41828a744a9957af0e9c3b9f780f310f052"
   },
   "nav": {
     ".": [
@@ -338,7 +338,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "4d666c7b19cf8c66135c934d93f7fc1bdf8f87869cbc8f6393ba72f9c4e72def",
+      "sha256": "5842223234049e94996271dcf60f85ebe198023d48e241484278343e8e74b636",
       "snippets": [
         {
           "lang": "js",
@@ -379,6 +379,7 @@
         "packages/snapback-codegen/index.mjs",
         "src/manifest.rs",
         "src/membership_rules.rs",
+        "src/runtime.rs",
         "src/storage.rs",
         "demos/rbac/tests/acceptance/rbac.mjs"
       ],
@@ -386,9 +387,9 @@
         "demos/rbac",
         "packages/snapback-codegen/rbac-authoring.test.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "7d877da91b64d8b02e60109437317c57937219cc16a3443cfbdcf0866c6b83be",
+      "reviewed": "2026-07-29",
+      "reviewedCommit": "HEAD",
+      "sha256": "e6a53ce9ed790c0ecc72b2d977e3431cb992b7a8e382d8b560acc33f6916b5fb",
       "snippets": [
         {
           "lang": "js",
@@ -525,8 +526,7 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "backend.actions",
-        "backend.action-streams"
+        "backend.actions"
       ],
       "authorities": [
         "llp/0004-application-data-api.rfc.md",
@@ -535,6 +535,7 @@
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0076-bounded-streamed-actions.rfc.md",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
         "packages/snapback-harness/ctx-bootstrap.js",
         "src/server.rs",
         "demos/all-aboard/snapback/functions.mjs",
@@ -546,9 +547,9 @@
         "demos/all-aboard",
         "demos/competitive-checkpoint"
       ],
-      "reviewed": "2026-07-24",
-      "reviewedCommit": "a5ed6ebd05766b10607937a1c010352d79eea4b0",
-      "sha256": "5d3cfa515731a64839901bef5b51ed7b62e810111844689a86b0ae2e7f1d560b",
+      "reviewed": "2026-07-29",
+      "reviewedCommit": "HEAD",
+      "sha256": "64c4ef3340a0901f1b5db28467f440f86b5389a4e2489b90a8fcc10adac2ec79",
       "snippets": [
         {
           "lang": "js",
@@ -559,6 +560,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/all-aboard/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/authoring-validation.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs"
         },
         {
           "lang": "js",
@@ -633,22 +644,22 @@
         "src/result_contract.rs",
         "schemas/mutation.output.schema.json",
         "packages/snapback-codegen/define.mjs",
-        "demos/backend-bakeoff/snapback/functions.mjs",
+        "demos/signal-desk/snapback/functions.mjs",
         "demos/todo/tests/acceptance/headless.mjs"
       ],
       "examples": [
         "demos/todo",
         "demos/todo-v2",
-        "demos/backend-bakeoff"
+        "demos/signal-desk"
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "bd0ec6dbef6fc939902f66dad0b8cf1375db411cb90bf81f94d02a260a9e07fd",
+      "sha256": "f3b0e2a7eb68f52a993bc44dc1df19b71ee028cc6da4b1010378215c99eafcfd",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "demos/backend-bakeoff/snapback/functions.mjs"
+          "source": "demos/signal-desk/snapback/functions.mjs"
         },
         {
           "lang": "js",
@@ -689,16 +700,16 @@
         "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/result-contracts.mjs",
         "src/result_contract.rs",
-        "demos/backend-bakeoff/snapback/functions.mjs"
+        "demos/signal-desk/snapback/functions.mjs"
       ],
       "examples": [
         "demos/todo",
         "demos/todo-v2",
-        "demos/backend-bakeoff"
+        "demos/signal-desk"
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "50338c42c865aeffe8eed44f82a43497e59590cb4a7af5c04ab57efcd9d8e62c",
+      "sha256": "847907eb1ec2d439188961dbf8d315ff93ce3ffd04c80aead2cae9eec0014f9e",
       "snippets": [
         {
           "lang": "js",
@@ -708,7 +719,7 @@
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "demos/backend-bakeoff/snapback/functions.mjs"
+          "source": "demos/signal-desk/snapback/functions.mjs"
         }
       ]
     },
@@ -736,7 +747,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "c43d19b6aa4c8574bb56db1598e4aee262ac7b61d61eab43ceff9631b2cfd280",
+      "sha256": "9563a4859e10a31daed9aad7f8576f47d7cfe7f0f56ad512606d6075decf5f92",
       "snippets": [
         {
           "lang": "js",
@@ -870,21 +881,21 @@
         "packages/snapback-client/search.mjs"
       ],
       "examples": [
-        "demos/backend-bakeoff"
+        "demos/signal-desk"
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "655d89ab0b766809b1e42f7581bf60d3f07d86541a1a4216ce1d2783f8cfaa59",
+      "sha256": "343ddf967db08e59352116049acb04bd67e914eaecde6862f55ca7f5b8cd7dc8",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "demos/backend-bakeoff/snapback/schema.mjs"
+          "source": "demos/signal-desk/snapback/schema.mjs"
         },
         {
           "lang": "ts",
           "class": "transcluded",
-          "source": "demos/backend-bakeoff/src/backends/snapback.ts"
+          "source": "demos/signal-desk/src/backends/snapback.ts"
         }
       ]
     },
@@ -978,7 +989,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "c8b3bb65efaaaa90c336f632518b17d069c1cf8e4a19a0429d34263e52ef8261",
+      "sha256": "d17ba0498137ec97a06c433d6132745622989e002141eb1f3ea57f32671d9624",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1111,7 +1122,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "b1bec318a03efe0e01750dd2eca9f69ce121058dc3af1ecfa56601863911aa91",
+      "sha256": "da842af00cd99be1b72e92dee18ea37e6ca28f91e5295d04230eb0203e1f8e7e",
       "snippets": []
     },
     "clients.headless": {
@@ -1149,7 +1160,7 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "282653bde94e0cf9e35e4abf428b971dad6b982c14ec8264a7e984343c67eca7",
+      "sha256": "6104f44e8d8b07e2c478f9578bbfe13e781f119531a6bd9f3cd01a02475ba35b",
       "snippets": [
         {
           "lang": "js",
@@ -1219,7 +1230,7 @@
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
-        "llp/0102-first-class-react-and-query-groups.spec.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "llp/0112-generated-query-group-bundle-adoption.spec.md",
         "packages/snapback-client/canonical-client-value.mjs",
@@ -1231,9 +1242,9 @@
       ],
       "examples": [
         "packages/snapback-cli/templates/react",
-        "demos/backend-bakeoff/src/backends/snapback.ts",
-        "demos/backend-bakeoff/tests/react.mjs",
-        "demos/backend-bakeoff/acceptance/results/react-presence.v1.json",
+        "demos/signal-desk/src/backends/snapback.ts",
+        "demos/signal-desk/tests/react.mjs",
+        "demos/signal-desk/acceptance/results/react-presence.v1.json",
         "packages/snapback-react/package.test.mjs",
         "packages/snapback-react/optimistic.test.mjs",
         "packages/snapback-react/presence.test.mjs",
@@ -1241,7 +1252,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "364539304d43f0329090ee5ba1b36cb000f8d4d7bc53ae643960a5fbe9a3f3bf",
+      "sha256": "8798c9241b24d00c546baab7258b42fade716db4cf426ef218793f6568ef4c9b",
       "snippets": [
         {
           "lang": "ts",
@@ -1781,7 +1792,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "855a3f15621d1ac276eec2fdc5f0327e859cd702b807e982bc11e4e2eb5f1959",
+      "sha256": "54f22a33283e151963dde5fee681cea4d384f86cb30c52580beeead4f52c9871",
       "snippets": [
         {
           "lang": "js",
@@ -1828,7 +1839,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "7a2cb5249eb8f6fef63dcd7c94720bb2dbdf61c16908ce96519626493f9a7f77",
+      "sha256": "c19ce78bea4f4fdddca0930c4292635589792c46d69ce84b65b7a4bcbff65212",
       "snippets": [
         {
           "lang": "js",
@@ -1977,7 +1988,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "0fa0f117a4ec35d389b7af26f51480214bffbd7cdceb79e7b32fbc3fa3822242",
+      "sha256": "aaf3b280c7907378789cd241d6cee9ce12bac3e52466d21a0f719a115c5cf5f9",
       "snippets": [
         {
           "lang": "js",
@@ -2131,7 +2142,6 @@
       "auth.sender-constrained-browser",
       "auth.sessions",
       "auth.target-honesty",
-      "backend.action-streams",
       "backend.actions",
       "backend.codegen",
       "backend.cron",
@@ -2179,7 +2189,10 @@
       "testing.acceptance"
     ],
     "gaps": [
+      "backend.assets",
       "backend.bounded-children-v1",
+      "backend.notifications",
+      "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
       "clients.poll-hosted"
@@ -2189,5 +2202,5 @@
     "routes": 73,
     "hostOps": 19
   },
-  "contentHash": "e607eff1d888037a1a237bbbe55351587ecf563bac3568e2e5b595a63100cf68"
+  "contentHash": "0e4c1b798c1f1bf8fd83995933fc54c0f704392d1aaf82cc8ebf9a3184db0e5e"
 }

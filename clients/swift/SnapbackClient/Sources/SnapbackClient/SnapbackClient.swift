@@ -526,7 +526,13 @@ public actor SnapbackClient {
     }
 
     public func mutate(_ name: String, args: JSONValue = .null, userId: String? = nil) async throws -> MutationResponse {
-        let json = try await request(method: "POST", path: "/mutation/\(name)", body: handlerInput(args: args, userId: userId), connectionScoped: false)
+        let json = try await request(
+            method: "POST",
+            path: "/mutation/\(name)",
+            body: handlerInput(args: args, userId: userId),
+            connectionScoped: false,
+            allowsReservationRetry: true
+        )
         guard let response = MutationResponse.from(json) else {
             throw ClientError.undecodableResponse("mutation output")
         }
@@ -989,6 +995,7 @@ public actor SnapbackClient {
         path: String,
         body: JSONValue?,
         connectionScoped: Bool,
+        allowsReservationRetry: Bool = false,
         reservationAttempt: Int = 0
     ) async throws -> JSONValue {
         var urlRequest = URLRequest(url: configuration.baseURL.appending(path: path))
@@ -1039,9 +1046,9 @@ public actor SnapbackClient {
                 )
             }
             if let error = WireErrorResponse.from(json) {
-                if Self.shouldRetryReservation(
+                if allowsReservationRetry && Self.shouldRetryReservation(
                     status: http.statusCode,
-                    code: error.code,
+                    error: error,
                     attempt: reservationAttempt,
                     maximumAttempts: configuration.reservationRetryMaxAttempts
                 ) {
@@ -1049,12 +1056,13 @@ public actor SnapbackClient {
                     let jitter = range.lowerBound <= range.upperBound
                         ? UInt64.random(in: range)
                         : 0
-                    try? await Task.sleep(for: .milliseconds(jitter))
+                    try await Task.sleep(for: .milliseconds(jitter))
                     return try await request(
                         method: method,
                         path: path,
                         body: body,
                         connectionScoped: connectionScoped,
+                        allowsReservationRetry: allowsReservationRetry,
                         reservationAttempt: reservationAttempt + 1
                     )
                 }
@@ -1067,12 +1075,21 @@ public actor SnapbackClient {
 
     static func shouldRetryReservation(
         status: Int,
-        code: String,
+        error: WireErrorResponse,
         attempt: Int,
         maximumAttempts: Int
     ) -> Bool {
-        status == 409
-            && code == "SNAPBACK_AUTH_RESERVATION_STALE"
+        let expectedDetailKeys: Set<String> = [
+            "retryable", "retryStrategy", "effectCommitted",
+        ]
+        let detailKeys: Set<String> = error.details.objectValue
+            .map { Set($0.keys) } ?? []
+        return status == 409
+            && error.code == "SNAPBACK_AUTH_RESERVATION_STALE"
+            && detailKeys == expectedDetailKeys
+            && error.details["retryable"]?.boolValue == true
+            && error.details["retryStrategy"]?.stringValue == "short-jitter"
+            && error.details["effectCommitted"]?.boolValue == false
             && maximumAttempts > 0
             && attempt + 1 < maximumAttempts
     }

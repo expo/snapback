@@ -4,8 +4,8 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0102-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/backend-bakeoff/src/backends/snapback.ts, demos/backend-bakeoff/tests/react.mjs, demos/backend-bakeoff/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
@@ -240,7 +240,7 @@ durable offline queueing, or Parity merely because it can retain data while a
 connection is stale.
 
 The retained Signal Desk receipt at
-`demos/backend-bakeoff/acceptance/results/react-presence.v1.json` proves two
+`demos/signal-desk/acceptance/results/react-presence.v1.json` proves two
 independent WebSocket clients, TTL expiry, disconnect deletion, durable-version
 separation, optimistic rebase/matcher ordering, SSR zero demand, hosted
 no-work refusal, and exact provider/client/server cleanup with zero skips.

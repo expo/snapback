@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T10:52:08Z",
+  "mode": "fresh-local",
+  "namespace": "llp0102-research-appwrite-w1",
+  "identityHash": "c3fe43b8f6ae4fb0e68401b00b096f5860919037bb81e95093fc99729e1ef337",
+  "identityHashInputKind": "namespace + endpoint + product version + target mode",
+  "product": "Appwrite",
+  "version": "1.9.6",
+  "endpointKind": "loopback API on assigned port 8093",
+  "databaseId": "research-room",
+  "teamId": "research-members",
+  "actorPrincipalHashes": {
+    "alice": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+    "bob": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+    "mallory": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac"
+  },
+  "composeResourceSummary": {
+    "runningContainers": 29,
+    "volumes": 12,
+    "networks": 2
+  },
+  "hosted": {
+    "status": "explicit-gap",
+    "reason": "credential-unavailable",
+    "scoredAsProductFailure": false
+  },
+  "containsSecretValues": false
+}

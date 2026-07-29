@@ -1,0 +1,17 @@
+{
+  "id": "RESEARCH-09-CANCEL",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:37.743Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "appwrite-function-and-tablesdb",
+  "evidence": {
+    "asyncExecutionId": "6a69d9949442d0ba4a34",
+    "progressAtCancel": 2,
+    "progressAfterLateProbe": 2,
+    "terminalStatus": "cancelled",
+    "effectState": "terminal",
+    "lateProbeExecutionId": "6a69d99527a449c7db42",
+    "waitAfterProbeMs": 500
+  },
+  "note": "Confirmed cancellation persisted a terminal fence; a later function execution produced no durable patch."
+}

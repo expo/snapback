@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "arm": "linear/firebase",
+  "attempts": [
+    {
+      "sequence": 1,
+      "command": "npm run preflight",
+      "exitStatus": 1,
+      "classification": "builder-error",
+      "diagnostic": "ERR_MODULE_NOT_FOUND: pre-install preflight imported the Firebase-dependent shared helper.",
+      "targetMutation": false,
+      "resolution": "Made preflight dependency-free; exact assigned ports remained closed."
+    },
+    {
+      "sequence": 2,
+      "command": "npm run build",
+      "exitStatus": 1,
+      "classification": "builder-error",
+      "diagnostic": "TS2882: missing Vite CSS side-effect declarations.",
+      "targetMutation": false,
+      "resolution": "Added the standard vite/client declaration file."
+    },
+    {
+      "sequence": 3,
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "classification": "builder-error-and-provider-learning",
+      "diagnostic": "Firestore Security Rules could not prove resource.data.orgId for comments/activity list queries constrained only by issueId.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Added orgId equality to every protected subquery and reflected the compound shape in firestore.indexes.json; deterministic rerun reseeded the fresh target."
+    },
+    {
+      "sequence": 4,
+      "command": "npm run acceptance",
+      "exitStatus": 1,
+      "classification": "harness-error",
+      "diagnostic": "Admin SDK rejected a Web SDK Timestamp instance during test-state restoration.",
+      "targetMutation": true,
+      "stopClass": false,
+      "resolution": "Converted the client timestamp through epoch milliseconds into the Admin SDK Timestamp type; deterministic rerun reseeded the fresh target."
+    },
+    {
+      "sequence": 5,
+      "command": "npm run cleanup:arm",
+      "exitStatus": 1,
+      "classification": "harness-error",
+      "diagnostic": "Exact descendant validation rejected the Vite launcher's generic npm run dev intermediate process.",
+      "targetMutation": false,
+      "stopClass": false,
+      "resolution": "Allowed that exact command only inside the already-recorded Vite process group; the refusing attempt sent no signals and removed nothing."
+    }
+  ]
+}

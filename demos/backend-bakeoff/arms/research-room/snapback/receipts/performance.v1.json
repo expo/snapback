@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "status": "blocked",
+  "warmupsRequired": 2,
+  "recordedSamplesRequired": 7,
+  "samples": [],
+  "reason": "The required full sessions deployment was refused before listener bind. Measuring a dev-auth substitute would compare a different application and was not performed.",
+  "cost": {
+    "actualUsage": "$0 local",
+    "listPriceEstimate": "$0 local",
+    "hostedExtrapolation": null
+  }
+}

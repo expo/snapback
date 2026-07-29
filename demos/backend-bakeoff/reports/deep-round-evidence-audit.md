@@ -1,0 +1,1067 @@
+# LLP 0102 deep-round evidence audit
+
+**Owner:** Primary coordinator
+**Snapback product/source freeze:**
+`5f31cb6174daaefa04a1e05242acbbc22c725040`
+**Protocol freeze aggregate:**
+`ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a`
+
+This is the coordinator's serialized audit log. Worker self-checks are useful
+inputs but do not substitute for this review. Scores, adjudications, and final
+synthesis remain coordinator-owned.
+
+## Linear / Snapback
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 10 PASS, 4 GAP, 0 FAIL.
+- Evidence confidence: 14/16 after coordinator classification; protected
+  offline/reconnect is the only missing dimension.
+- Referenced evidence: every path resolves.
+- Authority/conflict/transport/settlement: direct native-session,
+  stale-read-set, polling-disabled second-client stream, and authoritative
+  readback evidence.
+- Target/cleanup: fresh local target identity, database hash, exact runtime,
+  reservation sidecar, and persona-carrier negative probes.
+- Secret audit: no runtime bearer or private credential retained; bearer-shaped
+  references occur only in source code and generated capability metadata.
+- Adjudication: complete. Search, protected offline editing, reviewed
+  migrations, and hosted operations remain honest product/profile gaps.
+
+## Linear / Firebase
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 1 GAP, 1 unavailable remote dependency.
+- Evidence confidence: 16/16.
+- Referenced evidence: every scenario and cleanup path resolves.
+- Authority/conflict/transport/settlement: direct Auth-emulator principals,
+  Security Rules denials, callable transactional revision CAS, second-client
+  server snapshot, and pending-write/readback evidence.
+- Offline: direct cold page in the isolated persistent browser profile,
+  transport disabled before query, 50 retained rows, queued optimistic edit,
+  unchanged pre-reconnect authority, and settled post-reconnect authority.
+- Migration: 500-row `BulkWriter` backfill, before/after counts, committed
+  compound index, and indexed query proof.
+- Target/cleanup: all assigned ports `4321/4521/4522/5321/8321/9321/9421`
+  and provider-issued ports `9150/9299/9499` independently observed closed;
+  exact process groups absent.
+- Secret audit: committed email/password and API-key-shaped values are explicit
+  fake emulator fixtures, not external credentials; no hosted credential or
+  session secret is retained in evidence.
+- Adjudication: complete. Native full-text search is a product GAP. Hosted
+  deployment is credential-unavailable and is not scored as a Firebase product
+  failure.
+
+## Linear / Supabase
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 2 GAP, 0 FAIL.
+- Evidence confidence: 14/16 under the arm's disclosed indirect
+  offline/reproducibility boundaries.
+- Referenced evidence: every repo-relative path resolves.
+- Authority/conflict/search/migration: direct Supabase Auth + PostgreSQL RLS,
+  row-locked RPC/activity ordering, generated weighted `tsvector` + GIN, and
+  separate additive SQL evolution evidence.
+- Transport: direct second-client Postgres Changes evidence retained together
+  with the first cold `SUBSCRIBED`-then-missed-write attempt. Seven measured
+  issue-update deliveries passed; coordinator accepts the pass and preserves
+  the readiness reliability negative.
+- Offline: direct negative proof that bare `supabase-js` retained no cold rows
+  and queued no edit. This remains a product GAP.
+- Target/cleanup: exact Compose/CLI project has zero matching containers,
+  volumes, or networks; Vite `4322` and target ports `56431–56440` were
+  independently observed closed.
+- Secret audit: no generated local key, hosted token, password, or other
+  credential appears in the committed capsule/receipts.
+- Adjudication: complete. Hosted operations remain an environment/profile GAP
+  and are not extrapolated from the local target.
+
+## Linear / Convex
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 1 GAP, 1 unavailable remote dependency.
+- Evidence confidence: 14/16; persistent offline/reconnect is the only missing
+  dimension.
+- Referenced evidence: every scenario and confidence path resolves.
+- Authority/conflict/search/transport: direct custom-JWT principals and
+  negative authority probes, transactional revision CAS, native search-index
+  results, and second-client reactive WebSocket delivery.
+- Performance: the coordinator rejected cached `ConvexClient` read timings,
+  recreated the target, and accepted only the clean `ConvexHttpClient`
+  list/detail samples. Two warmups and seven recorded samples are retained.
+- Migration: direct 501-document backfill and indexed read proof. It is
+  correctly described as an application-authored optional-field rollout, not
+  a first-class provider migration facility.
+- Target/cleanup: all exact namespace rows are zero; ports `3323/3324/4323`,
+  `.convex`, `.arm-runtime`, `.env.local`, private signing material, and public
+  persona carriers were independently observed absent. The final database hash
+  was retained before exact target removal.
+- Secret audit: generated local admin/instance secrets existed only inside the
+  ignored runtime target and were deleted with it; none appears in committed
+  source, capsule, or receipts.
+- Integrity correction: the coordinator found and fixed a stale hard-coded
+  Mallory hash in the capsule generator, then regenerated and reverified the
+  capsule against the direct seed receipt.
+- Adjudication: complete. Persistent offline capability is a product GAP.
+  Hosted deployment is credential-unavailable and is not scored as a Convex
+  product failure.
+
+## Linear / SpacetimeDB
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 11 PASS, 2 GAP, 1 unavailable remote dependency.
+- Evidence confidence: coordinator-adjusted to 14/16. Offline/reconnect is
+  partial, and cleanup isolation is indirect because the final database
+  negative probe failed on CLI syntax.
+- Referenced evidence: every capsule path resolves.
+- Authority/conflict/transport: direct hashed principals, caller-dependent
+  views and negative private access, two-client revision CAS, authoritative
+  convergence, and native second-client WebSocket row callbacks.
+- Pagination: deterministic but requires an identity-scoped durable
+  `page_result` table and reducer because parameterized views are unavailable.
+- Search/offline: explicit product GAPs. Warm disconnected memory is not
+  credited as persistent cold state, and a pending disconnected reducer call
+  is not credited as queued mutation.
+- Migration: direct V1→V2 plan and schema/count receipts prove a defaulted
+  indexed field added to all 500 issues without data deletion.
+- Target/cleanup: the exact-identity delete exited successfully, validated
+  processes stopped, ports `3320/4320` closed, runtime/credential state was
+  removed, and unrelated baseline state was preserved. The raw post-delete
+  `describe` exited on invalid argument ordering, so its claimed direct
+  database-absence proof is rejected and retained in a coordinator
+  adjudication.
+- Secret audit: committed evidence contains hashes rather than raw actor
+  identities or runtime JWTs; the exact ignored credential root was removed.
+- Adjudication: complete with cleanup-confidence correction. Hosted Maincloud
+  is credential-unavailable and is not extrapolated from standalone local
+  evidence.
+
+## Linear / Appwrite
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 1 GAP, 1 unavailable remote dependency.
+- Evidence confidence: 16/16. The offline dimension has direct negative
+  browser evidence plus authoritative reconnect, even though the capability
+  itself is a GAP.
+- Referenced evidence: every capsule path resolves.
+- Authority/conflict/search/transport: native Auth sessions and Team roles,
+  two independent native transactions yielding one commit plus one typed 409,
+  `Query.search` over a full-text index, and direct second-browser Realtime
+  payloads.
+- Offline: warm React memory, zero cold rows, rejected unqueued write, and
+  50-row unique authoritative reconnect are separated explicitly.
+- Migration: direct asynchronous attribute creation, 500-row backfill,
+  compound-index readiness, and indexed read proof; correctly not described as
+  one atomic migration.
+- Target/cleanup: empty baseline and exact target hash; ports
+  `4324/8091/8491/20081` closed; 29 exact containers, 12 volumes, two networks,
+  installer, and all worktree-local runtime/CLI/browser paths absent.
+- Secret audit: credentials were generated only into ignored arm runtime state
+  and were removed; committed source constructs random credentials but contains
+  no value.
+- Dependency/operations negative: the official stack's 29-container footprint,
+  installer-stream failure, and 16 npm audit findings remain retained evidence.
+- Adjudication: complete. TablesDB persistent offline/cache is a product GAP.
+  Hosted Appwrite Cloud is credential-unavailable and is not inferred from the
+  self-hosted target.
+
+## Linear / InstantDB
+
+- Capsule verifier: PASS after coordinator format correction.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 12 PASS, 2 GAP, 0 FAIL.
+- Evidence confidence: 16/16.
+- Referenced evidence: every capsule path resolves.
+- Capsule correction: the worker-delivered file used a non-frozen
+  `offline-reconnect` transport label and omitted six command intervals. The
+  generator now uses `local-optimistic` and explicitly labeled coarse bounds
+  from retained milestones. Raw receipts, outcomes, and confidence scores are
+  unchanged.
+- Authority/conflict/transport: three native guest principals with direct
+  positive/negative permissions, barrier-dispatched LWW transactions with one
+  converged whole-record winner, and direct second-client WebSocket query
+  delivery.
+- Offline: a newly launched Chrome process loaded 50 InstantDB IndexedDB rows
+  with provider HTTP/WebSocket disabled, showed a queued optimistic edit, then
+  reconciled and restored it against independent authority. The receipt does
+  not overclaim queue survival after terminating that browser process.
+- Search: explicit product GAP; `$like`/`$ilike` are not relabeled as
+  full-text search.
+- Migration: base/evolved schema pushes, indexed optional field, backfill, and
+  preserved counts are directly retained.
+- Target/cleanup: one fresh hosted temporary target identity; all product
+  entities and `$users` reduced to zero, Bob's old token invalidated, and raw
+  local credentials removed. The app itself cannot be deleted with its scoped
+  token; schema/permissions persist only until documented provider-managed
+  expiry after more than 24 hours.
+- Secret audit: committed source reads ignored runtime credentials but retains
+  no value; provision and push receipts are redacted.
+- Adjudication: complete. Native search and hosted logs/rollback/immediate
+  target deletion remain explicit gaps rather than inferred capabilities.
+
+## Partiful / Supabase
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 14 PASS, 1 unavailable remote dependency.
+- Evidence confidence: 14/16. Protected connected-client invalidation is
+  direct but the frozen app has no persistent-offline scenario; cleanup lacks
+  a separately timestamped empty pre-provision baseline.
+- Referenced evidence: every capsule, receipt, and confidence path resolves.
+- Public/private authority: direct anonymous preview field boundary, denied
+  table/private-event access, six native Auth personas, RLS host/cohost/guest
+  distinctions, and outsider negatives.
+- Contention: two authenticated RSVP RPCs raced against one locked event row;
+  exactly one committed and authoritative seats remained one.
+- Transport/revocation: cold `SUBSCRIBED` misses are retained. The corrected
+  policy transition, ten wall posts, two RSVP transitions, and post-revocation
+  negative delivery are direct Postgres Changes evidence.
+- Assets/scheduling: private Storage upload/download hash/outsider
+  denial/deletion are direct. A real five-second `pg_cron` job ran one due
+  reminder and remained deduplicated through a second interval.
+- Effects: one Edge Function called a separate deterministic provider Edge
+  Function over HTTP using server-only configuration. Known-success retry and
+  ambiguous-after-accept reconciliation each retained one provider delivery
+  and explicit attempt states.
+- Target/cleanup: exact project containers/volumes/network and
+  `4330/57431–57440` are absent; runtime/XDG state is removed; every
+  pre-existing unrelated container is preserved. The missing timestamped empty
+  baseline is disclosed and scored indirectly.
+- Secret/dependency audit: no generated local key or user token appears in
+  committed evidence; automatic Edge credentials remain server-side. npm audit
+  reports zero findings.
+- Adjudication: complete. Hosted deployment/config/logs/rollback/effect
+  delivery are credential-unavailable and are not inferred from local
+  evidence.
+
+## Partiful / Firebase
+
+- Capsule verifier: PASS.
+- Frozen identities: exact product/source commit and aggregate match.
+- Results: 14 PASS, 1 unavailable remote dependency.
+- Evidence confidence: 15/16. Seven dimensions are direct and reproducible;
+  offline/reconnect is indirect because nine cold reconnect samples exist but
+  the frozen Partiful app has no browser offline-write scenario.
+- Referenced evidence: all 26 unique capsule paths resolve. All 28 inventory
+  hashes and the retained screenshot hash match.
+- Evidence remediation: the primary target directly proved the 20-post native
+  push but its first PARTY-07 receipt omitted the simultaneous RSVP-total
+  transition. That receipt remains partial evidence. A separately named fresh
+  remediation project, with its own timestamped empty baseline and exact
+  cleanup, reran only the missing fact and observed both 20 posts and
+  attendance `0 → 2`. The two targets are not represented as one run.
+- Authority: three native Auth-emulator principals plus anonymous access
+  exercised positive and negative Firestore, Functions, and Storage paths.
+  Anonymous preview, protected event state, and host controls are separate
+  documents because Firestore Rules cannot redact fields.
+- Contention: two authenticated clients raced the last seat through one
+  callable Firestore transaction. One settled, one returned the typed capacity
+  refusal, and Admin reads retained the authoritative count of 50.
+- Transport/revocation: independent `onSnapshot` clients directly observed
+  native push. Already-connected protected listeners terminated on
+  rules-dependency changes, retained rows were cleared, and subsequent writes
+  were denied.
+- Assets/scheduling: Storage rules, byte-identical download, outsider denial,
+  and post-delete absence are direct. The real `onSchedule` export initialized
+  under Functions plus Pub/Sub; deterministic acceptance invoked its shared
+  reminder core through an authenticated test trigger.
+- Effects: Firestore transactions make effect and attempt ledgers durable, but
+  stable keys, provider dedupe, known-success retry, and
+  ambiguous-after-accept reconciliation are application-authored.
+- Performance: two warmups plus seven samples are retained for read, write,
+  realtime, reconnect, contention, burst, asset, and build paths. Measurements
+  are explicitly local-emulator-only; hosted latency and scale are not
+  inferred.
+- Target/cleanup: both the primary and remediation projects began empty and
+  ended with zero Firestore, Auth, and Storage state. All twelve exact
+  assigned/auxiliary ports are closed, no arm process survives, and runtime
+  state is absent.
+- Secret/dependency audit: secret-shaped regex hits are npm integrity strings,
+  not credentials; no private key, API key, refresh token, bearer token, or
+  JWT is retained. Frozen npm audit receipts report 22 findings for the UI
+  tree and 12 for Functions; these remain ecosystem evidence.
+- Reproducibility caveat: exact per-command monotonic intervals and tool-call
+  count were unavailable from the worker surface and use disclosed
+  missing-data sentinels. Retained source, lockfiles, raw receipts, hashes,
+  performance samples, and failed attempts otherwise reproduce the artifact.
+  A coordinator post-cleanup build replay was not used as evidence because
+  exact dependencies had already been removed; the in-window build samples
+  remain authoritative.
+- Adjudication: complete. Hosted deployment/config/logs/rollback and managed
+  effect delivery are credential-unavailable. No Stop-class defect is present.
+
+## Partiful / SpacetimeDB
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator identity and
+  confidence corrections.
+- Frozen identities: product/source commit and aggregate match. The worker
+  replaced the canonical attempt ID with `w2`; the coordinator restored
+  `partiful-spacetimedb-deep-01` in both capsule and generator. No raw scenario
+  evidence changed.
+- Results: 14 PASS, 1 unavailable remote dependency.
+- Evidence confidence: coordinator-adjusted to 15/16. Seven dimensions are
+  direct and reproducible. Seven reconnect samples are direct, but the frozen
+  Partiful app has no persistent browser-offline scenario, so
+  offline/reconnect is scored 1 consistently with the other Partiful arms.
+- Referenced evidence: all 17 unique capsule paths resolve; the UI screenshot
+  hash matches.
+- Inventory audit: the timed inventory contains 116 files. Ninety are retained
+  in the commit. Twenty-six are deliberately ignored harness-generated
+  bindings; 22 are byte-identical to committed client bindings and four are
+  harness-specific index/type variants. Their exact hashes were independently
+  matched against the still-isolated Minisforum worktree, while the pinned
+  generator inputs and committed client bindings preserve deterministic
+  regeneration. They are a build-time inventory, not falsely described as 116
+  committed files.
+- Authority: four distinct hashed native identities exercised host, cohost,
+  guest, contender, and outsider paths. Caller-dependent views exposed only
+  public preview to Mallory and directly removed protected rows from Bob's
+  established subscription on policy change/revocation.
+- Contention: two principals crossed one barrier for the final seat; one
+  transactional reducer committed, one rejected, and direct SQL proved the
+  authoritative capacity invariant. The generic SDK error remains an
+  ergonomics defect, not a correctness failure.
+- Transport: second-client generated-binding WebSocket callbacks directly
+  observed 20 wall posts, RSVP totals, policy, asset, and revocation changes
+  without product polling.
+- Assets/scheduling: the frozen 256 KiB asset used authorized inline native
+  bytes with independent hash and deletion proof. A native scheduled procedure
+  produced one inspectable run and one deduped attempt.
+- Effects: the procedure crossed an actual HTTP boundary. SpacetimeDB's SSRF
+  protection refused loopback correctly, so a readiness-gated Quick Tunnel was
+  disclosed. Known-success retry suppressed a second call; accepted-then-drop
+  surfaced as HTTP 502, remained `ambiguous`, and settled on same-key retry
+  with one unique delivery.
+- Performance: six application paths plus module build each retain two
+  warmups, seven samples, median, nearest-rank p95, fixture, machine, and local
+  cost scope.
+- Target/cleanup: exact immutable identity deletion succeeded. The final
+  positional `describe --json <database>` exited 1 with `No such database`,
+  `syntaxValid=true`, and no `Usage:` diagnostic. Validated PIDs/cwds, exact
+  runtime state, tunnel, and ports `3332/4333` are absent.
+- Secret/dependency audit: 92 tracked files contain no private key, bearer,
+  JWT, or token value. Raw credentials existed only in ignored mode-0600 state
+  and were removed. All three npm audit-high probes returned zero.
+- Reproducibility caveat: the worker surface again exposes no exact tool-call
+  count, so zero is treated as missing data rather than literal cost.
+- Adjudication: complete. Maincloud deployment/config/logs/rollback remain
+  credential-unavailable and are not inferred from standalone/tunnel evidence.
+  No Stop-class defect is present.
+
+## Partiful / Appwrite
+
+- Capsule verifier: PASS after coordinator outcome-class and confidence
+  calibration.
+- Frozen identities: exact product/source commit, aggregate, and canonical
+  attempt ID match.
+- Results: 14 PASS, 1 unavailable remote dependency. The worker labeled
+  PARTY-13 a GAP while its own transport and reason said credentials were
+  unavailable. The coordinator changed only the classification to
+  `unavailable-remote-dependency`, consistently with LLP 0102; no functional
+  evidence changed.
+- Evidence confidence: coordinator-adjusted to 15/16. Seven dimensions are
+  direct. Revocation inspected connected memory, but there is no persistent
+  browser-offline scenario or durable offline store, so offline/reconnect is
+  indirect rather than a perfect score.
+- Referenced evidence: all 26 unique capsule paths resolve.
+- Inventory audit: 34 timed files are recorded. Thirty-one retained source,
+  policy, config, test, and lockfile hashes match the final artifact after the
+  coordinator's two format-only source corrections. Three ignored `dist/`
+  files are explicitly build-time outputs; their hashes and 467.137 ms median
+  build remain retained in the inventory/performance evidence.
+- Authority: three native Auth sessions plus Team/row permissions directly
+  exercised host, cohost, guest, outsider, anonymous preview, and protected
+  negative paths. Public and private event facts use separate tables.
+- Contention: two actor-scoped native transactions staged writes at 49/50;
+  exactly one committed, one returned typed 409 `transaction_conflict`, and
+  authoritative state remained 50.
+- Transport/revocation: a persistent independent Chromium client observed the
+  20-post and RSVP-total burst over native Appwrite Realtime. Guest-list and
+  invitation revocation stopped future protected reads/delivery, while 21
+  previously authorized wall rows remained in React memory and were explicitly
+  disclosed until refresh.
+- Assets/scheduling: Storage retained authenticated upload, actor-specific
+  delivery, exact 262,144-byte hash, outsider denial, and deletion. A native
+  future `scheduledAt` Function execution completed with one deduped attempt;
+  bounded cron inspection failure remains retained.
+- Effects: a deployed Node 22 Function crossed a secret-authenticated
+  container boundary. Known-success retry retained one delivery.
+  Accepted-then-socket-drop remained `ambiguous`; same-key retry learned
+  duplicate success without a second logical delivery.
+- Performance: five frozen paths each retain two warmups, seven raw samples,
+  median, nearest-rank p95, local machine context, and non-hosted scope.
+- Target/cleanup: empty exact Compose baseline and unrelated container hashes
+  precede provisioning. Final proof removes 29 Compose containers, 12 volumes,
+  two networks, the effect sink, three validated Open Runtimes residues,
+  Vite, runtime directories, and ports `4334/8092/8492/20082`. The first
+  residue/probe failure remains retained.
+- Secret/dependency audit: the sole secret-shaped source hit is an environment
+  variable reference, not a value. Function and API credentials existed only
+  in ignored runtime state and were removed. npm audit retains 16 findings:
+  seven high, six moderate, three low.
+- Environment attribution: the failed Hetzner lane had no container runtime or
+  install authority and did not host a target. Reassignment to the isolated
+  control-plane Compose lane is disclosed and is not product blame.
+- Adjudication: complete. Appwrite Cloud identity, logs, rollback, latency, and
+  cost remain unavailable remote evidence. No Stop-class defect is present.
+
+## Partiful / Snapback
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator confidence and
+  generator/inventory corrections.
+- Frozen identities: exact repaired product/source commit, freeze aggregate,
+  and canonical attempt ID match.
+- Results: 12 PASS, 3 explicit product GAPs. PARTY-08 has no shipped
+  authenticated asset capability; PARTY-13 has no honestly complete hosted
+  profile; PARTY-14 cannot complete the frozen asset-dependent performance
+  scenario. None is represented as a credential-only failure or local pass.
+- Evidence confidence: coordinator-adjusted to 14/16. Actor authority,
+  contention, transport, settlement, target identity, and reproducibility are
+  direct. Reconnect is direct but persistent offline retention is unclaimed.
+  Exact cleanup is direct, but the missing separately timestamped pre-write
+  baseline limits cleanup-isolation to 1.
+- Referenced evidence: all 5 unique capsule paths resolve. All 83 inventory
+  records match the retained files after the finalizer's own corrected hash and
+  byte count were recorded. The public-preview screenshot hash matches and the
+  UI visibly labels event art as a product gap.
+- Authority: four distinct hashed native sessions exercised host, promoted
+  cohost, guest, outsider, and revoked behavior. The anonymous preview is a
+  closed projection; protected reads and writes derive identity from the
+  server session rather than caller arguments.
+- Contention: two session principals crossed one barrier for the final seat.
+  One mutation fulfilled, one rejected, and an independent protected audit
+  proved exactly 50 seats and 50 RSVP rows. The loser exposed only generic
+  `SNAPBACK_HANDLER_FAILED`, retained as an ergonomics defect.
+- Transport/revocation: established managed WebSocket handles directly
+  observed guest-list `3 → 0 → 3`, a 20-post burst, and revocation blanking
+  `20 → 0`; the later Bob write was refused. Protected JS-query writes also
+  caused a conservative quarantine-to-empty followed by a fresh authorized
+  snapshot, retained as safe but potentially flickery transport churn.
+- Scheduling/effects: a deterministic admin cron tick produced one ledger row
+  and deduped replay. The arm-local authenticated provider retained refusal,
+  known success, accepted-then-socket-drop ambiguity, same-key convergence, and
+  exactly one logical delivery. Reservation, certainty, retry, and settlement
+  remain application-authored rather than product primitives.
+- Assets/performance: the asset path is an honest GAP. Supported local
+  read/write/reconnect samples and two warmups plus seven production-build
+  samples are retained, but no synthetic asset timing or hosted performance is
+  inferred.
+- Target/cleanup: the exact SQLite/WAL, config, auth keyring, startup artifact,
+  reservation, restore-lock, persona, and listener carriers are absent; ports
+  `3335/4335` are closed. The missing independent baseline is disclosed rather
+  than upgraded through narrative.
+- Secret/dependency audit: the only secret-shaped values are deterministic
+  fixture text (`arm-local-notification-token`) and source-level access to
+  `server.adminToken`; neither is a real credential. No user bearer, mailbox
+  code, keyring, or generated local secret is retained.
+- Guide-gap audit: filesystem tickets cover assets/notifications capability
+  rows, codegen-time Action egress, anonymous public reads in sessions mode,
+  the incomplete mailbox fixture, and the missing runnable local config
+  automation shape.
+- Adjudication: complete. No Stop-class defect is present. Product gaps remain
+  scoring inputs and are not remediation inside the frozen deep-round arm.
+
+## Partiful / InstantDB
+
+- Capsule verifier: PASS after coordinator artifact-confidence calibration.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical third-attempt ID, and three redacted temporary-target hashes match.
+- Results: 9 PASS, 6 explicit product GAPs. PARTY-08 lacks complete asset
+  revocation; PARTY-09 lacks native scheduling; PARTY-10/11 lack conclusive
+  effect retry/ambiguity evidence; PARTY-12 lacks proven cancellation delivery;
+  PARTY-13 lacks a hosted function-secret boundary. These are not converted
+  into local or partial passes.
+- Evidence confidence: coordinator-adjusted to 13/16. Authority, contention,
+  transport, settlement, target identity, and cleanup are direct. No reconnect
+  or offline behavior was exercised, so that dimension is 0. Artifact
+  reproducibility is 1: pinned source and raw evidence are retained, but the
+  timed 28-file inventory predates substantive final acceptance/performance
+  edits, omits cleanup/finalizer scripts, and contains no content hashes.
+- Stream-invalidation adjudication: the original linked-rule attempt is
+  retained. Alice's false write was independently confirmed and a fresh Bob
+  query returned zero, but an already-connected 49-row invitation subscription
+  emitted neither replacement nor error for 12 seconds. No later protected
+  payload arrived. This is silent stale-state/provider invalidation friction,
+  not a Stop-class active disclosure.
+- Remediation lineage: the final fresh target denormalizes visibility onto
+  invitation rows and atomically changes the event plus 49 policy fields.
+  Bob's established native SSE query then moved from 49 to zero. The original
+  failure remains evidence and the workaround cost remains a scoring input.
+- Authority: three native users exercised host, guest/cohost, outsider,
+  field-level, row-level, write, and Core-client Storage boundaries. The Admin
+  SDK's `asUser` Storage bypass was explicitly rejected as proof.
+- Contention: two actor transactions targeted one prelinked unique final slot.
+  One authoritative row and attendance 50 remained, but both callers can
+  report success before last-write-wins settlement. Invariant safety is direct;
+  loser settlement ambiguity remains a correctness/ergonomics deduction.
+- Transport: native SSE directly observed the remediated visibility transition
+  and a 20-post wall plus RSVP `49 → 50` burst. No polling is counted.
+- Assets/effects/operations: upload, authorized delivery, outsider denial, and
+  metadata deletion passed, but signed delivery remained usable post-delete.
+  Webhook history/idempotency surfaces were inspectable, but receiver
+  provisioning did not prove the frozen known-success, ambiguity, or
+  cancellation facts. No scheduled-job surface was found in the pinned
+  SDK/CLI/docs.
+- Performance: five paths retain two warmups, seven successful raw samples,
+  medians, nearest-rank p95 values, and hosted-temporary-app scope. The UI
+  screenshot is a native-token login shell, not a false claim of a fully
+  rendered event workflow.
+- Target/cleanup: all entity, `$files`, `$users`, webhook, and actor-token
+  state is absent across three exact target hashes. Ports `4337/9337`, local
+  credentials, runtime state, and browser profile are absent. Empty
+  provider-owned shells plus schema/rules remain only for documented automatic
+  expiry and are disclosed.
+- Secret/dependency audit: retained artifact scanning found no app ID, admin
+  token, refresh token, bearer, JWT, or private key value. npm audit reports
+  one high finding, retained as ecosystem evidence.
+- Adjudication: complete. No Stop-class defect is present; the invalidation
+  failure and all ten failed attempts remain visible rather than rewritten.
+
+## Research Room / Snapback
+
+- Capsule verifier: PASS after coordinator cleanup-confidence and hosted-gap
+  wording corrections.
+- Frozen identities: exact repaired source commit, freeze aggregate, namespace,
+  generated artifact hash, lockfile hash, and target identity match.
+- Results: 1 PASS, 2 explicit product GAPs, 12 FAIL. RESEARCH-15 cleanup passes.
+  RESEARCH-02 asset bytes/upload and RESEARCH-05 semantic/vector retrieval are
+  honest capability GAPs. Four core sessions/streaming scenarios fail
+  directly; eight downstream checks fail because the full target never bound.
+- Product defect: a generated sessions artifact requiring
+  `bounded_response_stream_v1`, produced and served with outbound Actions
+  enabled, is rejected before readiness with
+  `SNAPBACK_CAPABILITY_UNSUPPORTED`. The generated manifest includes the
+  capability. Source inspection shows sessions cold-start preflight uses the
+  declared local manifest rather than process-live outbound facts.
+- Isolation control: the unchanged exact binary passes the canonical dev-auth
+  streamed-action suite 8/8. A narrow sessions carrier followed by
+  hot-publication was refused with
+  `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` and was not adopted. The defect is
+  capability composition at sessions admission, not a general stream-host
+  failure.
+- Evidence confidence: coordinator-adjusted to 8/16. Actor authority and
+  reconnect are missing. Authored conflict plus exact-binary transport and
+  settlement controls are indirect. Target identity and artifact
+  reproducibility are direct. Cleanup final state is exact, but the absent
+  separately timestamped pre-write baseline limits cleanup isolation to 1.
+- Evidence boundary: no data/UI outcome is upgraded from code review. Seed,
+  outsider, keyword, citation, retry, cron, secrets, and performance remain
+  downstream failures. No 2+7 samples were fabricated against a dev-auth
+  substitute.
+- Artifacts: the generated aggregate and npm lock hashes independently match.
+  The retained generated API/manifests, 1,019 authored-source lines, 1,022-line
+  harness, dependency inventory, failed command, control command, and defect
+  receipt make the refusal reproducible.
+- Target/cleanup: admission refused before bind. Runtime/public paths, startup
+  carrier, restore sidecars, and ports `3340/4340/20440/9340` are absent.
+  No application data or config secret was created. Hosted operation remains a
+  product GAP and scoring input.
+- Guide-gap audit: a filesystem ticket requires one executable
+  sessions-plus-streamed-actions witness and consistent process-live capability
+  evaluation across generation, cold-start preflight, publication, and
+  inspection. The existing codegen-time egress ticket also applies.
+- Stop audit: the refusal is fail-closed. No cross-user disclosure, secret
+  exposure, late patch, destructive cleanup, or false capability pass occurred.
+- Adjudication: complete for the frozen arm. The general defect is eligible for
+  the second Snapback remediation tranche; it must not be patched inside this
+  frozen deep-round evidence.
+
+## Partiful / Convex
+
+- Capsule verifier: PASS after coordinator hosted-outcome and confidence
+  calibration plus the separately retained PARTY-07 remediation.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical attempt ID, Convex client/CLI/backend versions, primary identity,
+  and remediation identity match.
+- Results: 14 PASS, 1 unavailable remote dependency. PARTY-13 is credential
+  unavailable, not a Convex product GAP; no shared hosted target was mutated.
+- Evidence confidence: coordinator-adjusted to 14/16. Six dimensions are
+  direct. Seven reconnect samples are direct, but persistent offline writes or
+  retained-offline boot are absent, so offline/reconnect is 1. Primary cleanup
+  is exact, but its baseline fields were serialized during cleanup rather than
+  in a separately timestamped pre-write receipt, so cleanup isolation is 1.
+- Referenced evidence: all 27 unique capsule paths resolve. Fifty-one of the
+  original 52 content-hashed artifacts match; the sole mismatch is the
+  arm-local diary draft's explicitly appended post-window PARTY-07 erratum.
+  Remediation source, receipts, manifest, and cleanup evidence are separately
+  retained.
+- PARTY-07 remediation: the original timed receipt proves two established
+  WebSocket clients observed wall `1 → 21` but omitted an RSVP transition. A
+  fresh untimed remediation target established both clients before writes;
+  both directly observed `yes/seats 0/0 → 2/2` and wall `1 → 21`, and an
+  independent authoritative query agreed. Original scenario/performance files
+  are unchanged.
+- Authority: four deterministic identities exercise positive and negative
+  native `ctx.auth` paths. The local-admin acting-identity method exists at
+  runtime but is omitted from public TypeScript declarations; the harness
+  centralizes one cast. This test ergonomics caveat remains a rating input.
+- Contention: two actors crossed one final-seat barrier; Convex OCC/transaction
+  retry yielded one success, one typed `PARTY_CAPACITY_EXCEEDED`, and exactly
+  50 occupied seats.
+- Transport: established native WebSocket query clients directly observed
+  guest-list false/true transitions, the wall burst, and—on the separate
+  remediation target—the RSVP/seat transition. No polling is counted.
+- Assets/scheduling: native Storage proves exact bytes, authorization,
+  deletion, and post-delete absence. `runAfter` returns a stable ID with a
+  successful `_scheduled_functions` row.
+- Effects: Actions cross a real HTTP boundary. The application-authored ledger
+  suppresses known-success retry. Accepted-then-disconnect remains ambiguous;
+  retry preserves state but can duplicate an externally accepted effect, so no
+  exactly-once claim is made.
+- Performance: seven paths retain two warmups, seven raw samples, median,
+  nearest-rank p95, local machine context, and zero billed-provider scope.
+- Cleanup: primary table counts are all zero; exact process groups, ports
+  `3336/3337/4336`, target, config, browser, and credential paths are absent.
+  Remediation tables are independently zero and exact ports `3356/3357` and
+  target/runtime paths are absent.
+- Secret/dependency audit: committed artifacts retain only secret key names and
+  hashes, not values. npm audit reports zero findings. Hidden CLI ports,
+  anonymous agent mode, and machine-global binary/dashboard cache remain
+  discoverability/hermeticity deductions.
+- Adjudication: complete. No Stop-class defect is present; hosted behavior is
+  unavailable and no local evidence is used to infer it.
+
+## Research Room / SpacetimeDB
+
+- Capsule verifier and Stage-0 verifier: PASS.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical attempt ID, SpacetimeDB product/client/CLI versions, fresh database
+  namespace, and hashed immutable target identity match.
+- Results: 13 PASS, 2 explicit product GAPs. RESEARCH-05 has no ordinary
+  vector index or semantic-nearest-neighbor query path in SpacetimeDB 2.7.
+  RESEARCH-13 has no native module secret injection or management surface.
+  Neither stores an application fallback and calls it a provider capability.
+- Evidence confidence: 15/16. Actor authority, transaction/conflict,
+  transport, settlement, target identity, cleanup isolation, and artifact
+  reproducibility are direct. Disconnect/reconnect has seven direct samples,
+  but the arm does not exercise a durable offline mutation queue, so
+  offline/reconnect is 1.
+- Referenced evidence: all seven unique capsule paths resolve. The retained
+  module, client, harness, lockfiles, generated client bindings, raw receipts,
+  command failures, and final inventory reproduce the committed artifact. The
+  count-and-size inventory is not represented as a per-file content-hash
+  manifest.
+- Authority: three independent native development identities exercise positive
+  member paths, five empty outsider views, and rejection of a direct private
+  source-table subscription. Private tables do not appear in generated client
+  bindings; caller-dependent views are the only readable product surface.
+- Files/search: transactional inline bytes preserve the exact 65,536-byte
+  payload hash, owner-only deletion, member delivery, and post-delete absence.
+  Keyword search is an application-authored authoritative reducer scan.
+  Deterministic embeddings are stored but explicitly do not count as native
+  semantic retrieval.
+- Streaming/cancellation: schedule-table jobs produce four separate durable
+  progress commits, and Bob's established generated-SDK WebSocket subscription
+  observes all four before terminal completion. Cancellation deletes future
+  jobs and fences an injected late patch; progress remains fixed and no late
+  answer appears.
+- Retry/outcomes: a unique idempotency key retains one question and one answer.
+  Complete, failed, cancelled, timed-out, and ambiguous rows keep distinct
+  effect states.
+- Scheduled effect: a native scheduled procedure crosses a real public HTTP
+  boundary and records one durable run. The first localhost fixture is
+  correctly refused by provider SSRF protection; a later non-200 public
+  fixture is also refused. Both failures remain authoring/security evidence,
+  while the successful public RFC 2606 response establishes only the tested
+  deterministic path.
+- Performance: read, write, realtime, reconnect, and module-build paths each
+  retain two warmups, seven raw samples, median, nearest-rank p95, local machine
+  context, and non-hosted cost scope.
+- Cleanup: exact immutable database deletion succeeds; independent SQL and HTTP
+  probes return `No such database`/404. Validated arm-owned standalone, Vite,
+  and failed-attempt effect processes are terminated, ports
+  `3344/4344/20444/9344` are closed, and isolated runtime/tool/dependency/build
+  state is moved to a recoverable arm-specific Trash path on Apartment Air.
+- Secret/dependency audit: raw identity tokens and credential values are not
+  retained. The secret scenario is an honest GAP rather than an environment
+  variable substitute. Hosted Maincloud evidence is credential-unavailable
+  and is not inferred from the standalone target.
+- Adjudication: complete. The SSRF refusal is a secure product behavior. No
+  Stop-class disclosure, secret leak, late durable patch, destructive cleanup,
+  or false capability pass occurred.
+
+## Research Room / Firebase
+
+- Capsule verifier, artifact verifier, and Stage-0 verifier: PASS after
+  coordinator offline-confidence calibration.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical attempt ID, Firebase Web/CLI/Admin/Functions versions, emulator
+  project hash, service manifest, and assigned ports agree across preflight,
+  seed, export, capsule, and cleanup.
+- Results: 15 PASS, 0 GAP, 0 FAIL. Hosted Firebase access remains
+  credential-unavailable and is not inferred from local evidence, but every
+  frozen product fact has a direct local-emulator witness.
+- Evidence confidence: coordinator-adjusted to 15/16. Seven dimensions are
+  direct. Five reconnect paths disable and restore the Firestore network before
+  an authoritative read, but the arm has no durable offline mutation queue or
+  retained-offline boot, so offline/reconnect is scored 1 consistently with
+  other deep arms.
+- Referenced evidence: all 23 unique capsule paths resolve. The arm verifier
+  confirms 15 exact scenario paths, 30 referenced artifacts, five performance
+  paths with two warmups and seven successful samples, matching target
+  identities, matching screenshot hash, and no secret-pattern hits.
+- UI evidence: the retained 1440×1000 headless-Chrome screenshot visibly shows
+  the expected Fieldnote Research sign-in shell and Alice entry action with no
+  error. It proves rendering only; it is not used as authority, transport, or
+  settlement evidence.
+- Authority: Alice, Bob, and Mallory are three native Auth-emulator principals.
+  Checked-in Firestore and Storage Rules enforce member reads/writes, exact
+  object delivery, and outsider denial. Mallory is denied the source document,
+  keyword query, question subscription, and file bytes before protected
+  delivery.
+- Files/search: Storage retains Alice upload/deletion, Bob's byte-identical
+  download, ownership metadata, and post-delete absence. Firestore indexed
+  keyword query returns the exact fixture set. The ordinary Admin SDK
+  `findNearest` path returns the deterministic 32-dimensional nearest source;
+  hosted index creation remains untested.
+- Streaming/cancellation: Bob's independent native snapshot listener observes
+  all four durable server-backed progress writes before terminal completion.
+  Cancellation commits a terminal fence, awaits the in-flight callable's
+  cancelled settlement, and transactionally rejects an injected late patch;
+  progress stays fixed and no answer appears.
+- Retry/outcomes: two same-identity callable invocations retain one question,
+  one answer, and one effect-attempt ledger. Complete, failed, cancelled,
+  timed-out, and ambiguous state/effect pairs remain distinct.
+- Scheduling: two failed harness paths remain retained. The first assumed the
+  hosted region-suffixed topic name; the corrected Pub/Sub publish was accepted
+  but did not invoke the handler within ten seconds. The final proof calls the
+  Functions emulator's generated `scheduledRefresh-0` background endpoint,
+  invokes the actual `onSchedule` definition, fetches the deterministic Hosting
+  source, and records one deduplicated four-phase durable run.
+- Secrets: the local Functions boundary receives the canary through
+  arm-private process environment, stores only its hash, and leaves no canary
+  in bundle, receipts, or diagnostics. This proves the frozen server-side
+  secrecy fact, not hosted Secret Manager configuration or production runtime
+  parity.
+- Performance: read, write, native push, reconnect, and build each retain two
+  warmups, seven raw samples, median, nearest-rank p95, local-emulator context,
+  and non-hosted cost scope.
+- Cleanup: exact data cleanup moves two rooms, twenty objects, and three
+  principals to zero and proves a deleted principal cannot sign in. All twelve
+  assigned ports are closed, no owned process remains, and runtime/secret/
+  export/browser/Firebase/Java/diagnostic state is absent. A screenshot command
+  left one exact Chrome PID after writing the image; its explicit termination
+  and empty post-termination process set are retained.
+- Dependency/diagnostic audit: pinned UI dependencies retain 11 npm findings
+  (five high, six moderate); Functions retain 12 (five high, seven moderate).
+  The emulator used host Node 24 while the deployable project declares Node 22,
+  weakening hosted/runtime-parity confidence without invalidating local facts.
+- Adjudication: complete. No Stop-class disclosure, secret exposure, late
+  durable patch, destructive cleanup, or false capability claim occurred.
+
+## Research Room / Supabase
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator frozen-identity
+  and evidence-confidence calibration.
+- Frozen identities: the worker used its coordinator integration base as
+  `sourceCommit` and added `-r2-extension` to the canonical attempt ID. The
+  coordinator restored the exact repaired Snapback source commit
+  `5f31cb6174daaefa04a1e05242acbbc22c725040` and canonical
+  `research-room-supabase-deep-01`, while retaining the integration base and r2
+  lineage separately. No functional evidence changed.
+- Results: the clean r2 extension has 15 PASS, 0 GAP, 0 FAIL. Hosted deployment
+  remains credential-unavailable because the shared keys lack a project-scoped
+  CLI access token; no shared target was mutated and no hosted result is
+  inferred.
+- Stop adjudication: the original timed target passed RESEARCH-01 through
+  RESEARCH-12. During a scoped restart, ordinary CLI output included its seven
+  usable generated local credentials and a builder-authored tail redaction
+  failed on the one-line JSON shape. This is a genuine execution Stop and
+  evidence-handling failure, not a Supabase cross-user authorization or
+  server-side secrecy defect. The timed window froze immediately. Exact
+  credential fingerprints and raw-log hashes—not values—are retained; the raw
+  logs and disposable target were destroyed. `stopDefects` correctly remains
+  empty so the builder incident does not falsely make the provider ineligible.
+- Prospective remediation: a fresh `llp0102-research-supabase-w2-r2` target
+  regenerated all credentials, reseeded, and reran every scenario as an
+  explicitly untimed extension. Secret-bearing CLI output went directly to
+  ignored mode-0600 files; only allowlisted status/count/hash summaries reached
+  diagnostics. No original credential was reused.
+- Evidence confidence: coordinator-adjusted to 14/16. Actor authority,
+  transaction/conflict, transport, settlement, target identity, and artifact
+  reproducibility are direct. Reconnect is direct but persistent offline writes
+  are untested, so offline/reconnect is 1. Both targets have exact cleanup
+  proof, but r2 lacks a separately timestamped empty pre-write baseline receipt,
+  so cleanup/isolation is 1.
+- Referenced evidence: all 21 unique capsule paths resolve. Sixty retained
+  manifest records match exactly. Two intentionally absent build-time records
+  are the ignored Supabase branch marker and a destroyed generated database
+  secret; neither is represented as committed or required for regeneration.
+  Pinned source, lockfile, migration, Edge Function, harness, receipts,
+  screenshot, and inventory directly reproduce the safe local artifact.
+- UI evidence: the retained screenshot visibly renders the Research Room shell
+  and explicitly says runtime credentials are injected only for local
+  acceptance. It proves the production build rendered, not authenticated
+  authority, live transport, or settlement.
+- Authority: three native Auth identities exercise member and outsider paths.
+  One room-membership policy protects table/RPC reads, private Storage, and the
+  private Realtime topic. Mallory observes zero protected rows, files, search
+  results, and progress events.
+- Files/search: private Storage retains byte hash, owner identity, member
+  delivery, deletion, and post-delete negatives. PostgreSQL generated tsvector
+  plus GIN returns the exact keyword set; pgvector `vector(32)` plus HNSW and
+  cosine distance returns the deterministic nearest source.
+- Streaming/cancellation: an `AFTER INSERT` trigger calls private
+  `realtime.broadcast_changes`, coupling each durable progress row to its push.
+  Bob receives exactly four authenticated Phoenix-channel payloads while
+  Mallory receives none. A transactional active-state guard rejects all three
+  injected late writes after cancellation and preserves the durable count.
+- Retry/outcomes: a unique idempotency constraint converges two attempts on one
+  question. Complete, failed, cancelled, timed-out, and ambiguous question/
+  attempt states remain distinct in authoritative rows.
+- Scheduling/secrets: an exact `pg_cron` job records one deduplicated refresh.
+  RLS denies client access to server-secret rows; the Edge Function loads the
+  server credential and returns no value. Post-cleanup exact-value and generic
+  credential scans are zero.
+- Performance: search, write, private Broadcast, authenticated reconnect, and
+  production build each retain two warmups, seven raw r2 samples, median,
+  nearest-rank p95, and local-only cost scope. The original roughly 50-minute
+  diagnostic window is frozen at the Stop; the similarly bounded r2 work is an
+  untimed extension and is not blended into a false first-hour completion
+  claim.
+- Operations/friction: Colima could not bind the `/private/tmp` worktree,
+  surfacing indirectly as pgsodium, Kong certificate, and Edge entrypoint
+  failures. A unique disposable `/Users` runtime mirror fixed it. A diagnostic
+  retry briefly selected generic Compose identity `supabase`; coordinator
+  preflight proved no owner, it was retired before app mutation, and every real
+  target thereafter used exact unique labels. Realtime also required explicit
+  auth and the recommended private Broadcast path; migration grants, Edge
+  manifest restart, and exact Auth reseeding added glue.
+- Cleanup/dependencies: original and r2 containers, volumes, networks, mirrors,
+  generated secrets, and assigned ports are absent. The pinned UI dependency
+  tree retains one high npm audit aggregate for Vite; it remains ecosystem
+  evidence rather than being silently upgraded.
+- Adjudication: complete. The builder Stop is contained, understood, and
+  prospectively remediated. No provider Stop-class disclosure, late durable
+  patch, destructive cleanup, or false capability pass occurred.
+
+## Research Room / InstantDB
+
+- Capsule verifier, artifact verifier, and Stage-0 verifier: PASS.
+- Frozen identities: exact repaired Snapback source commit, coordinator base,
+  freeze aggregate, canonical attempt ID, InstantDB client/Admin/CLI 1.0.52,
+  redacted fresh hosted target identity, namespace, and cleanup identity agree.
+- Results: 11 PASS, 4 explicit GAPs. RESEARCH-05 lacks an ordinary native
+  vector-similarity query. RESEARCH-12 lacks a first-party scheduler/cron path.
+  RESEARCH-13 therefore lacks the required provider-hosted scheduled Function
+  and secret boundary. RESEARCH-15 retires all mutable state but cannot
+  immediately delete the empty anonymous temporary app shell, which awaits
+  provider auto-expiry.
+- Evidence confidence: 13/16. Actor authority, transport, settlement, target
+  identity, and artifact reproducibility are direct. Stable-ID retry and
+  cancellation guards are direct, but no simultaneous/native transaction
+  conflict is exercised, so transaction/conflict is 1. Seven reconnect samples
+  omit durable offline queuing, so offline/reconnect is 1. Mutable cleanup is
+  direct but the surviving empty shell limits cleanup/isolation to 1.
+- Referenced evidence: all 22 unique capsule paths resolve. The arm verifier
+  confirms the exact 15-scenario set, five 2+7 performance paths, final cleanup
+  counts, zero exact secret-value matches, absent runtime, and zero Stop
+  defects. Pinned schema, permissions, source, locks, harnesses, raw samples,
+  screenshot, and cleanup scripts are retained.
+- UI evidence: the retained screenshot visibly renders two members, twenty
+  sources, four durable progress steps, Bob's live observation, citations, and
+  completion. It is a useful integration witness, but authoritative
+  provider-scoped queries and EventSource receipts—not the rendering—prove
+  authority and push.
+- Authority: Alice, Bob, and Mallory are three genuine hashed Instant
+  principals. Linked permission rules traverse room membership and question
+  state. Mallory's user-scoped query and subscription return zero protected
+  rows; member file paths and outsider negatives are direct.
+- Files/search: user-scoped Storage retains upload identity, exact fetched-byte
+  hash, ownership, deletion, and post-delete absence. Indexed `$ilike` returns
+  the exact keyword set. Embedding JSON is stored but not mislabeled as native
+  vector retrieval.
+- Streaming/cancellation: Bob's independent scoped client observes four durable
+  progress rows and terminal completion through native EventSource-backed
+  `subscribeQuery`. After cancellation, an injected user-scoped transaction is
+  rejected because its create rule follows the linked question status;
+  authoritative progress remains unchanged.
+- Retry/outcomes: stable-ID atomic upserts converge on one question/answer.
+  Complete, failed, cancelled, timed-out, and ambiguous rows remain distinct.
+  The workflow state machine is application-authored rather than a provider
+  effect primitive.
+- Scheduling/secrets: no ordinary scheduler, hosted Function, or provider
+  Function-secret path exists in the tested surface. Credential hygiene still
+  passes: exact scans find none of five target/canary values in client,
+  receipt, or evidence roots. The two gaps remain explicit rather than being
+  replaced by an external cron service.
+- Performance: hosted read, write, native realtime, reconnect, and local build
+  each retain two warmups, seven samples, median, nearest-rank p95, and a
+  small-workload scope. Medians are 156.864 ms read, 185.479 ms write,
+  252.457 ms realtime, 146.026 ms reconnect, and 425.330 ms build.
+- Cleanup: nine authoritative namespaces, twenty files, three users, and all
+  actor tokens are empty/invalid. Ports `4347/9347`, browser/CLI/runtime state,
+  and raw secret-bearing output are absent. The anonymous shell cannot be
+  listed/deleted immediately through the same temporary CLI identity and is
+  correctly a GAP pending documented auto-expiry.
+- Dependency/experience audit: the installed tree is about 163 MB and retains
+  one high plus one low npm advisory. Noninteractive config requires global
+  `--yes`; linked permission semantics (`data.ref` list shape, absent
+  `newData.ref`, and file-link bootstrap) plus nested Storage response shape
+  caused retained failed attempts.
+- Adjudication: complete. No Stop-class disclosure, late patch, destructive
+  cleanup, or false capability claim occurred.
+
+## Research Room / Appwrite
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator artifact-
+  reproducibility calibration.
+- Frozen identities: exact repaired Snapback source commit, coordinator base,
+  freeze aggregate, canonical attempt ID, Appwrite 1.9.6, web/Node SDK and CLI
+  versions, fresh namespace, pre-write empty baseline, target hash, and cleanup
+  identity agree.
+- Results: 14 PASS, 1 explicit product GAP. RESEARCH-05 stores the deterministic
+  32-dimensional vectors but Appwrite 1.9.6 has no ordinary native vector index
+  or nearest-neighbor query. No scan fallback is presented as provider
+  semantic retrieval. Appwrite Cloud remains credential-unavailable and is not
+  inferred from the local target.
+- Evidence confidence: coordinator-adjusted to 13/16. Actor authority,
+  transport, settlement, target identity, and cleanup are direct. Unique-index
+  idempotency and cancellation guards pass, but this workload does not exercise
+  the native transaction-conflict API, so transaction/conflict is 1. Seven
+  reconnect samples omit durable offline queuing, so offline/reconnect is 1.
+  Artifact reproducibility is 1 because the timed inventory predates eleven
+  retained final-file edits and three removed build outputs.
+- Referenced evidence: all 24 unique capsule paths resolve. Of 29 timed
+  inventory records, 15 retained hashes match, 11 retained source/config/test
+  hashes predate final edits, and three `dist/` records describe removed
+  build-time output. Final source, lockfile, Function, harnesses, raw receipts,
+  browser evidence, and cleanup scripts remain committed, but the inventory
+  drift is not upgraded through prose.
+- Authority: Alice, Bob, and Mallory are independent native Auth principals.
+  Alice and Bob share a native Team; Mallory does not. Team/row/file permissions
+  prove member reads, exact file delivery, outsider empty lists/direct refusals,
+  owner-only deletion, and Bob's refusal to delete Alice's object.
+- Files/search: Storage retains byte identity, ownership, authorization,
+  deletion, and post-delete absence. One full-text index plus `Query.search`
+  returns the exact authorized sources. Vector storage without a native query
+  remains a GAP.
+- Streaming/cancellation: Bob's independent browser session receives four
+  separately committed progress rows over native Appwrite Realtime WebSocket
+  before terminal completion. A confirmed cancellation fences a later Function
+  probe: progress and terminal state remain unchanged.
+- Retry/outcomes: unique question, answer, and progress indexes make same-key
+  retry converge on one question/answer and four progress rows. Complete,
+  failed, cancelled, timed-out, and ambiguous durable states remain distinct.
+  The workflow/effect state machine is application-authored Function logic.
+- Scheduling/secrets: a real one-off scheduled Function execution fetches a
+  stable RFC 2606 resource and retains inspectable execution plus refresh rows.
+  Secret Function variables are opaque through the management API; the Function
+  proves canary presence without returning the value.
+- Browser/performance: native email/password Auth, rendered authorized sources
+  and answer, and one Appwrite Realtime socket pass in a real browser. Read,
+  write, realtime, reconnect, and build each retain two warmups, seven samples,
+  median, and nearest-rank p95. Medians are 7.580 ms read, 10.912 ms write,
+  10.435 ms realtime, 386.780 ms reconnect, and 447.766 ms build.
+- Operations/friction: the installer event stream dropped after the stack was
+  healthy and required health-based idempotent recovery. The target advertised
+  Node 16 rather than Node 22; the Function needed low-level HTTP because that
+  runtime lacked built-in `fetch`. Delete/recreate under one Function ID left
+  variable-ID conflicts, requiring `research-worker-v2`. The Node Realtime
+  harness needed a browser-global heartbeat shim while the browser path itself
+  passed.
+- Footprint/dependencies: the local platform ran 29 Compose containers plus
+  runtime execution containers and 12 volumes. Installed JavaScript
+  dependencies occupied about 268 MB. The pinned graph retains 16 npm findings:
+  seven high, six moderate, and three low.
+- Cleanup: the exact empty baseline precedes provisioning. Final proof has zero
+  exact Compose containers/volumes/networks, installer, and runtime containers;
+  ports `8093/8493/20083/4346` are closed; six ignored runtime/build paths are
+  absent. Only allowlisted names/labels/PIDs/executables/ports/counts and output
+  hashes are retained after the cross-lane secret-safety amendment.
+- Adjudication: complete. No Stop-class disclosure, late durable patch,
+  destructive cleanup, or false capability claim occurred.
+
+## Research Room / Convex
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator correction of
+  the frozen product source/base-commit fields.
+- Frozen identities: exact repaired Snapback source commit, coordinator base,
+  freeze aggregate, canonical r2 attempt ID, Convex client/CLI 1.42.3, fresh
+  anonymous local target hash, namespace, and cleanup identity agree. Hosted
+  production evidence is unavailable and remains explicitly unclaimed.
+- Results: 14 PASS, 1 FAIL. The application canary remained server-side, but
+  RESEARCH-13 fails because the official local backend receives its independent
+  control credential in process argv. The same runtime also binds backend and
+  site listeners to wildcard addresses. This is a provider Stop-class defect,
+  so Convex is ineligible as the go-to Research Room choice at the tested
+  version despite passing every other scenario.
+- Incident separation: the first diagnostic printed the unredacted process
+  argv into orchestration output. That propagation is a distinct builder
+  Stop-class failure. It occurred before scenario work; the exact r1 target was
+  contained and deleted, its credential was rotated, and all retained r2
+  diagnostics record only hashes, flag names, PIDs, executables, owners, and
+  bind addresses. The provider behavior reproduced after rotation.
+- Evidence confidence: coordinator-confirmed 14/16. Actor authority,
+  transaction/settlement, native push, cleanup, and artifact reproducibility
+  are direct. Reconnect is direct but no durable offline claim is made, so
+  offline/reconnect is 1. Fresh local target identity is direct, but hosted
+  identity is unavailable, so target identity is 1.
+- Referenced evidence: all nine unique capsule paths resolve. Acceptance,
+  cleanup, inventory, and capsule hashes match the retained digest ledger after
+  the coordinator identity correction. Generic credential-shaped scans find no
+  retained values; only SHA-256 fingerprints and the affected argv flag name
+  remain.
+- Authority: three native local acting identities exercise member and outsider
+  paths. Mallory's query, action, and subscription surfaces all refuse
+  protected room data. This is strong local development-authority evidence,
+  not production Convex Auth evidence.
+- Files/search: native upload, delivery, ownership, deletion, and post-delete
+  probes cover the 64 KiB source. Declared full-text and vector indexes return
+  the deterministic authorized keyword and nearest-neighbor sets. Vector
+  retrieval requires action-to-internal-query composition, but no external
+  search service or scan fallback is used.
+- Streaming/cancellation: four scheduled mutations write separately committed
+  progress rows, observed by Bob's independent native WebSocket client.
+  Cancellation changes the durable state first; scheduled and injected late
+  attempts may record rejection but cannot patch progress or an answer.
+- Retry/outcomes: the compound room/dedupe index converges two attempts on one
+  question and answer while retaining attempt lineage. Complete, failed,
+  cancelled, timed-out, and ambiguous values remain distinct.
+- Scheduling/secrets: native scheduled functions and a deterministic HTTP
+  action cover refresh. The application-owned canary passes exact-value,
+  bundle, evidence, and log scans. That narrower pass cannot override the
+  separate platform control-credential exposure.
+- Performance: read, write, realtime, reconnect, and production build each
+  retain two warmups, seven raw samples, median, and nearest-rank p95. Medians
+  are 0.897 ms read, 8.256 ms write, 12.920 ms realtime, 2.323 ms reconnect,
+  and 172.361 ms build on the fresh local target. The timed window froze at the
+  Stop before scenario work; all scenario measurements are explicitly an
+  untimed extension.
+- Cleanup: authoritative provider deletion reaches zero for all application
+  tables before the exact target process tree, listeners, config, state paths,
+  and rotated credential are removed. Final probes show zero rows, listeners,
+  recorded processes, target paths, or exact credential/canary matches.
+- Dependency/experience audit: about 105 MB of installed dependencies; generated
+  APIs, lockfile, deterministic fixtures, samples, cleanup scripts, and hashes
+  are retained. Anonymous local provisioning documentation and CLI behavior
+  disagreed, and isolation-critical fixed-port flags were hidden.
+- Adjudication: stopped for a provider Stop-class defect, with the separate
+  builder propagation contained and recorded. No result is promoted from the
+  untimed extension into a false first-window claim, and no hosted conclusion
+  is inferred.
+
+## Cross-arm protocol completion audit
+
+- The custom capsule verifier passes all 35 arms.
+- Independent strict JSON Schema draft 2020-12 validation initially found four
+  redundant root extension fields forbidden by
+  `run-capsule.v1.schema.json`: `notes` on Linear/Snapback and Linear/Convex,
+  `resultSummary` on Partiful/Appwrite, and `builderIncidents` on Research
+  Room/Supabase. Each fact already existed in authoritative receipts or this
+  audit. The coordinator removed only those redundant extensions; no result,
+  timing, confidence score, incident attribution, or cleanup proof changed.
+- Research Room/Convex used `not-applicable-fresh-local` in a path-bearing
+  baseline field. The coordinator changed it to the same empty inapplicable
+  value used by other fresh targets and refreshed the capsule digest; the
+  direct fresh-target identity and cleanup receipts remain unchanged.
+- After correction, 35/35 capsules pass strict frozen-schema validation and
+  every declared evidence, cleanup-plan, and non-empty baseline path resolves.
+- The verifier/schema divergence is retained as
+  `issues/20260729-bakeoff-capsule-verifier-schema-divergence.md`; the frozen
+  protocol tool was not silently changed mid-round.

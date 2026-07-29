@@ -1,0 +1,11 @@
+{
+  "capturedAt": "2026-07-29T02:49:13.734Z",
+  "provider": "InstantDB",
+  "targetMode": "fresh-hosted-temporary",
+  "title": "llp0102-chat-instantdb-w2",
+  "appIdHash": "a64e8f69db5b3b2658afde3f88f7503ca6733b6d19d45e9e7fa4aa381aaf063f",
+  "adminTokenHash": "43e636c3b9ceeb676f3968b2b96fcea06e88f14f5beb51fe09f8038cc13d55ac",
+  "namespace": "llp0102-chat-instantdb-w2",
+  "credentialsPersistedOnlyAt": ".arm-runtime/target.json (0600, cleanup-bound)",
+  "containsCredentialValues": false
+}

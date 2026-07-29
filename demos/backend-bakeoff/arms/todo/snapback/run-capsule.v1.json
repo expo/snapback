@@ -1,0 +1,406 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "todo",
+    "provider": "snapback",
+    "round": "calibration",
+    "attemptId": "todo-snapback-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "0.1.0",
+      "client": "workspace at sourceCommit",
+      "cli": "workspace at sourceCommit"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-28T22:25:57.955Z",
+    "finishedAt": "2026-07-28T23:01:10.402Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 2112447,
+    "toolCalls": 80,
+    "timedWindowFrozenAt": "2026-07-28T23:01:10.402Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "ab0fe24761c1c904fcb5e36e5fda403e47bf22197681a192818216efdb594fc6",
+      "role": "owner"
+    },
+    "bob": {
+      "principalIdHash": "4b6c42fc52a8b289d90adedb82a0f87a1242d04be6b14ba41f32979261e9fd4c",
+      "role": "member-then-revoked"
+    },
+    "mallory": {
+      "principalIdHash": "8bc90863486f03979d2ef4b1a202f727bc29ef60c14239d9ffb232a93c2c51f8",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-local",
+      "namespace": "llp0102-todo-snapback-calibration-todo-snapback-calibration-01",
+      "baselineReceiptPath": "",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "cleaned",
+      "identityHash": "eba445349749dc4b881c8bee3a93094e5af84657775af5931d0c36a53352694d",
+      "profile": "packaged local SQLite + Ibex sessions deployment",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "hosted": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "no honestly complete hosted profile at starting commit",
+      "plan": "GAP",
+      "region": "GAP",
+      "gapReason": "Hosted evidence unavailable for this arm: product-gap. This is not scored as a product failure.",
+      "receiptPaths": []
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": 1050000,
+    "firstAuthoritativeMutationMs": 1040000,
+    "firstRealtimeTransitionMs": 1070000,
+    "localAcceptanceMs": 2107447,
+    "hostedUrlMs": null,
+    "acceptanceCompletionMs": 2112447
+  },
+  "assistanceEvents": [
+    {
+      "at": "2026-07-28T22:25:57.955Z",
+      "kind": "repository-example-inspection",
+      "reason": "The shipped Guide pointed to the RBAC, card-game, todo-v2, and React provider examples for sessions, scoped membership, authorized retention, and external-store composition.",
+      "informationSupplied": "Existing source examples and their governing LLP reference targets were inspected during required LLP orientation.",
+      "equivalentOpportunity": "Provider arms may use their official starter templates and documentation; this event discloses Snapback repository source knowledge beyond the neutral prompt."
+    }
+  ],
+  "commands": [
+    {
+      "command": "scripts/bootstrap-ibex-runtime",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 20000,
+      "exitStatus": 0,
+      "classification": "vendored-runtime-bootstrap-build-and-launch-proof"
+    },
+    {
+      "command": "npm install",
+      "startedMonotonicMs": 20001,
+      "finishedMonotonicMs": 30000,
+      "exitStatus": 0,
+      "classification": "arm-local-react-vite-playwright-dependencies"
+    },
+    {
+      "command": "npm run generate && npm run build",
+      "startedMonotonicMs": 30001,
+      "finishedMonotonicMs": 35000,
+      "exitStatus": 0,
+      "classification": "snapback-codegen-and-production-build"
+    },
+    {
+      "command": "npm run acceptance (reset-seed attempts)",
+      "startedMonotonicMs": 35001,
+      "finishedMonotonicMs": 420000,
+      "exitStatus": 1,
+      "classification": "session-reset-invalidation-and-principal-identity-discovery"
+    },
+    {
+      "command": "npm run acceptance (resource-scoped diagnostic attempts)",
+      "startedMonotonicMs": 420001,
+      "finishedMonotonicMs": 2007447,
+      "exitStatus": 1,
+      "classification": "reservation-conflict-live-lifecycle-and-revocation-diagnostics"
+    },
+    {
+      "command": "npm run acceptance",
+      "startedMonotonicMs": 2007447,
+      "finishedMonotonicMs": 2057447,
+      "exitStatus": 0,
+      "classification": "fourteen-scenario-local-acceptance-and-exact-target-cleanup"
+    },
+    {
+      "command": "npm run acceptance (built-persona cleanup proof)",
+      "startedMonotonicMs": 2057447,
+      "finishedMonotonicMs": 2107447,
+      "exitStatus": 0,
+      "classification": "credential-carrier-cleanup-regression-proof"
+    },
+    {
+      "command": "node scripts/finalize-capsule.mjs",
+      "startedMonotonicMs": 2107447,
+      "finishedMonotonicMs": 2112447,
+      "exitStatus": 0,
+      "classification": "inventory-dependency-audit-and-capsule-freeze"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "TODO-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Authenticated resource bootstrap created two server-owned workspaces, four ordered lists, and exactly 100 tasks.",
+      "note": ""
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/personas.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Independent native Alice and Bob sessions each read exactly 100 workspace-authorized tasks.",
+      "note": ""
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Mallory received exact permission denials for both snapshot query and live subscription, with zero retained rows.",
+      "note": ""
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Create, edit, complete, reopen, reorder, and delete settled authoritatively and restored the fixture to 100 tasks.",
+      "note": ""
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob received Alice’s committed edit over the durable WebSocket stream without polling or refresh.",
+      "note": ""
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "The shipped shared-workspace query is membership-gated; v1 refuses retained role-gated results and the React surface is Online-class."
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "The JS membership-protected mutations are not locally runnable; no durable outbox is exposed through the React Online surface."
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "Reconnect re-establishes an authoritative online view, but there was no native queued work to settle."
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "One concurrent stale baseline committed; the reservation loser was retried whole and received SNAPBACK_MUTATION_CONFLICT.",
+      "note": ""
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "One atomic reorder committed, the stale peer conflicted, and authority retained one unique 0-through-24 order.",
+      "note": ""
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bearer removal blanked all rows and blocked future delivery, while also surfacing a redundant-unsubscribe lifecycle diagnostic.",
+      "note": ""
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "status": "fail",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob’s self-removal denied a fresh read, but the established requireRole-gated live query retained 100 protected rows instead of blanking.",
+      "note": "A declared membership delete denied fresh reads but did not blank the established requireRole-gated JS live query before a future protected write."
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two warmups and seven raw samples cover read, write, second-client delivery, fresh subscription, and production build.",
+      "note": ""
+    },
+    {
+      "id": "TODO-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/backup-manifest.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Exact cleanup removed the SQLite target plus source and built bearer carriers, then proved all three absent.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 14,
+      "bytes": 72569,
+      "lines": 1913
+    },
+    "generated": {
+      "files": 39,
+      "bytes": 118773,
+      "lines": 2882
+    },
+    "tests": null,
+    "configuration": {
+      "files": 3,
+      "bytes": 1416,
+      "lines": 62
+    },
+    "policy": null,
+    "dependencyManifests": {
+      "files": 2,
+      "bytes": 34745,
+      "lines": 1079
+    },
+    "installedDependencyBytes": 81576033,
+    "glue": [
+      "native session minting through the admin-gated capture mailbox",
+      "authenticated resource bootstrap for deterministic fixture shape",
+      "React external-store adapter over generated Snapback references",
+      "two-client correctness, offline refusal, concurrency, lifecycle, and performance barriers",
+      "exact SQLite and bearer-carrier cleanup"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three distinct native principals were tested positively, negatively, after logout, and after membership removal.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Explicit stale read sets proved both the reservation retry boundary and final durable mutation conflict.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Direct stream handles and an independent browser surface proved native push without polling fallback.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "The server was fully stopped; cold query and mutation both failed, and restart proved authoritative state had no queued create.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 1,
+      "reason": "Online mutation receipts were captured, but native offline settlement is a measured GAP.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "The capsule binds app id, exact port, SQLite path, and generated inputs hash into one target identity hash.",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/cleanup-plan.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "The target-bound plan and negative probes cover the exact runtime plus both bearer-file copies.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "Generated manifests, package lock, source inventory, dependency audit, and pre-cleanup database hash are retained.",
+      "evidencePaths": [
+        "receipts/inventory.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/backup-manifest.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "runtime absent=true; source bearer absent=true; built bearer absent=true"
+  },
+  "result": "complete"
+}

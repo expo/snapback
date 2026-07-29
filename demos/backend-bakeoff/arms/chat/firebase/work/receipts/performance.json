@@ -1,0 +1,97 @@
+{
+  "claimScope": "Firebase local emulators; not production or hosted latency",
+  "dataset": {
+    "publicChannels": 2,
+    "privateChannels": 2,
+    "seededMessagesPerChannel": 125,
+    "pageSize": 25,
+    "burstMessages": 20,
+    "concurrentClients": 2
+  },
+  "warmupsPerPath": 2,
+  "recordedSamplesPerPath": 7,
+  "unit": "milliseconds",
+  "representativeRead": {
+    "samples": [
+      11.525,
+      8.17,
+      7.339,
+      7.276,
+      5.56,
+      6.798,
+      7.253
+    ],
+    "median": 7.276,
+    "nearestRankP95": 11.525
+  },
+  "representativeWrite": {
+    "samples": [
+      8.325,
+      8.015,
+      7.699,
+      6.875,
+      8.223,
+      7.524,
+      8.61
+    ],
+    "median": 8.015,
+    "nearestRankP95": 8.61
+  },
+  "realtimeDelivery": {
+    "samples": [
+      11.952,
+      10.597,
+      9.589,
+      10.44,
+      11.25,
+      10.948,
+      9.064
+    ],
+    "median": 10.597,
+    "nearestRankP95": 11.952
+  },
+  "reconnect": {
+    "samples": [
+      7.094,
+      7.786,
+      7.889,
+      6.233,
+      7.28,
+      6.729,
+      7.821
+    ],
+    "median": 7.28,
+    "nearestRankP95": 7.889
+  },
+  "build": {
+    "samples": [
+      2143.952,
+      2235.626,
+      2350.375,
+      2326.295,
+      2346.4,
+      2337.336,
+      2333.479
+    ],
+    "median": 2333.479,
+    "nearestRankP95": 2350.375
+  },
+  "burst": {
+    "durationMs": 28489.465,
+    "messageCount": 20,
+    "shape": "10 consecutive two-actor barriers (20 total messages, 2 concurrent clients)",
+    "minSequence": 126,
+    "maxSequence": 145
+  },
+  "machine": {
+    "hostname": "Mac.lightwellhotel.com",
+    "architecture": "arm64",
+    "os": "macOS 26.5.2",
+    "node": "v24.18.0",
+    "java": "OpenJDK 21 installed for emulator execution"
+  },
+  "cost": {
+    "measured": "$0 local emulator",
+    "hostedEstimate": "not measured; hosted credentials unavailable"
+  }
+}

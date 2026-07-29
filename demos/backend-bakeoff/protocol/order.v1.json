@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "ascending sha256(seed + ':' + app + ':' + provider)",
+  "seed": "llp-0102-stage0-2026-07-28-v1",
+  "orders": {
+    "todo": [
+      "spacetimedb",
+      "convex",
+      "instantdb",
+      "firebase",
+      "supabase",
+      "snapback",
+      "appwrite"
+    ],
+    "chat": [
+      "appwrite",
+      "firebase",
+      "convex",
+      "supabase",
+      "snapback",
+      "instantdb",
+      "spacetimedb"
+    ],
+    "linear": [
+      "spacetimedb",
+      "firebase",
+      "supabase",
+      "snapback",
+      "convex",
+      "appwrite",
+      "instantdb"
+    ],
+    "partiful": [
+      "supabase",
+      "firebase",
+      "spacetimedb",
+      "appwrite",
+      "snapback",
+      "convex",
+      "instantdb"
+    ],
+    "research-room": [
+      "snapback",
+      "supabase",
+      "firebase",
+      "spacetimedb",
+      "convex",
+      "appwrite",
+      "instantdb"
+    ]
+  }
+}

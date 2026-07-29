@@ -1,0 +1,50 @@
+{
+  "id": "LINEAR-11-MIGRATION",
+  "status": "pass",
+  "checkedAt": "2026-07-29T04:55:50.713Z",
+  "projectId": "llp0102-linear-appwrite-w2",
+  "transport": "not-applicable",
+  "evidence": {
+    "beforeCounts": {
+      "organizations": 2,
+      "teams": 3,
+      "projects": 4,
+      "members": 2,
+      "labels": 20,
+      "issueLabels": 1000,
+      "issues": 500,
+      "comments": 1001,
+      "activities": 501
+    },
+    "afterCounts": {
+      "organizations": 2,
+      "teams": 3,
+      "projects": 4,
+      "members": 2,
+      "labels": 20,
+      "issueLabels": 1000,
+      "issues": 500,
+      "comments": 1001,
+      "activities": 501
+    },
+    "backfilledRows": 500,
+    "queryPageSize": 50,
+    "index": {
+      "key": "org_impact_sequence_idx",
+      "type": "key",
+      "columns": [
+        "org_id",
+        "customer_impact",
+        "sequence"
+      ],
+      "orders": [
+        "ASC",
+        "ASC",
+        "DESC"
+      ],
+      "status": "available"
+    },
+    "schemaTransactionSupport": false
+  },
+  "note": "The new indexed field became available, all 500 issue rows were queryable through it, and production-shaped counts were preserved."
+}

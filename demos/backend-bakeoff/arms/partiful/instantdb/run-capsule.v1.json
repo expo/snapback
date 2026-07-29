@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "partiful",
+    "provider": "instantdb",
+    "round": "deep",
+    "attemptId": "partiful-instantdb-deep-03"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "snapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "coordinatorBaseCommit": "e7f22d65ba6c419b67557e88b4eab50f0fd44866",
+    "providerVersions": {
+      "product": "InstantDB hosted temporary app",
+      "client": "1.0.52",
+      "core": "1.0.52",
+      "admin": "1.0.52",
+      "cli": "1.0.52"
+    },
+    "machine": "Mac17,3 / arm64 / macOS 26.5.2 (25F84) / Node 24.14.0",
+    "executionShape": "Three fresh official hosted temporary apps across retained attempts; native Instant users, scoped admin authority, SSE subscriptions, client Storage, and CLI config deployment.",
+    "startedAt": "2026-07-29T06:32:56.448Z",
+    "finishedAt": "2026-07-29T07:09:17.160Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 480,
+    "toolCallLimit": 400,
+    "activeElapsedMs": 2180712,
+    "toolCalls": 100,
+    "toolCallCountBasis": "manual arm ledger; runtime did not expose an exact per-arm counter",
+    "timedWindowFrozenAt": "2026-07-29T07:09:11.284Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "ef5f392964923e2f55221513c16c29d3cd6e3f07ec96ad7769f2268e6309ceb2",
+      "authPath": "Instant native refresh-token principal",
+      "role": "host"
+    },
+    "bob": {
+      "principalIdHash": "a7c8b16668a6d3d794b09276c8be7d554f223aa6778e4874eccddbb4ee73d2b0",
+      "authPath": "Instant native refresh-token principal",
+      "role": "guest and cohost by scenario"
+    },
+    "mallory": {
+      "principalIdHash": "a74ae250b9b16e7fd86bc4d4fb3f7fc0fa3a3245d10bc4bb5c0eaab59a25b8b9",
+      "authPath": "Instant native refresh-token principal",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "fresh-hosted",
+      "namespace": "llp0102-partiful-instantdb-w3-a3",
+      "identityHash": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+      "baselineReceiptPath": "receipts/preflight.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.json",
+      "retainedAttemptTargetHashes": [
+        "b974b42de4044803f0440fb4a113ce7ccd292bfc0f67b54ae877e3f785b73082",
+        "2deddab673473b6465d75a1111e135aa0599a228bf5df506d4f0b758572b2af5",
+        "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb"
+      ]
+    },
+    "local": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "official self-host Docker Compose stack",
+      "gapReason": "This arm was bound to official fresh hosted temporary apps; local self-host parity was outside this run and is not claimed.",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "cleaned",
+      "identityHash": "b9b22e63de9fb84ea7f9d639aa0b377ecdae8ea354f7249bdec915f8756e3cfb",
+      "profile": "official hosted temporary app",
+      "plan": "official temporary/free app",
+      "region": "provider-selected; not exposed",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/target-provision-redacted.json",
+        "receipts/target-provision-attempt1-redacted.json",
+        "receipts/target-provision-attempt2-redacted.json",
+        "receipts/cleanup-final.json"
+      ],
+      "residualConfiguration": [
+        "schema attributes and links",
+        "permission rules",
+        "opaque temporary app shell"
+      ],
+      "providerShellLifecycle": "Each empty app shell is provider-scheduled for automatic deletion after more than 24 hours."
+    }
+  },
+  "milestones": {
+    "firstTargetProvisionedMs": 1277997,
+    "firstAuthoritativeMutationMs": 1282823,
+    "firstRealtimeTransitionMs": 1300000,
+    "hostedUrlMs": 1277997,
+    "acceptanceCompletionMs": 2174836,
+    "cleanupCompletionMs": 2180712
+  },
+  "assistanceEvents": [
+    {
+      "type": "official-documentation",
+      "note": "Used official Instant CLI, permissions, backend subscriptions, Storage, auth, writing-data, and webhook documentation."
+    },
+    {
+      "type": "provider-source-inspection",
+      "note": "Inspected pinned SDK/CLI types and implementation to distinguish admin Storage privilege from native client authority and to understand reverse-link permission checks."
+    },
+    {
+      "type": "cross-arm-provider-pattern-inspection",
+      "note": "Inspected prior Instant arm schema/permission shapes; no provider implementation code was copied."
+    },
+    {
+      "type": "coordinator-adjudication",
+      "note": "The PARTY-05 silent stale subscription was diagnosed as stream-only invalidation and adjudicated material friction but not Stop-class disclosure.",
+      "receiptPaths": [
+        "receipts/acceptance-failure-1785307478546.json",
+        "receipts/guest-list-revocation-diagnostic.json"
+      ]
+    },
+    {
+      "type": "retained-builder-failures",
+      "receiptPaths": [
+        "receipts/acceptance-failure-1785307478546.json",
+        "receipts/acceptance-failure-1785307947076.json",
+        "receipts/acceptance-failure-1785308063698.json",
+        "receipts/acceptance-failure-1785308111922.json",
+        "receipts/acceptance-failure-1785308168142.json",
+        "receipts/acceptance-failure-1785308311054.json",
+        "receipts/acceptance-failure-1785308367624.json",
+        "receipts/acceptance-failure-1785308404835.json",
+        "receipts/acceptance-failure-1785308454775.json",
+        "receipts/acceptance-failure-1785308498201.json",
+        "receipts/seed-attempt-1-failure.json"
+      ]
+    },
+    {
+      "type": "llp-maintain-pre-demo",
+      "note": "Propose-only corpus audit found no LLP/ref reconciliation required for arm-local provider evidence.",
+      "receiptPaths": [
+        "receipts/llp-maintain-audit.md"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "instant-cli init-without-files --title llp0102-partiful-instantdb-w3 --temp (three retained attempts)",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 900000,
+      "classification": "fresh official hosted temporary target provisioning",
+      "note": "Coarse interval; each redacted provision receipt retains authoritative wall time and identity hash."
+    },
+    {
+      "command": "instant-cli push all --app [REDACTED] --yes",
+      "exitStatus": 0,
+      "startedMonotonicMs": 900001,
+      "finishedMonotonicMs": 1200000,
+      "classification": "schema and permission deployment plus retained corrections",
+      "note": "Coarse interval; timestamped push receipts are authoritative."
+    },
+    {
+      "command": "node scripts/acceptance.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1200001,
+      "finishedMonotonicMs": 1700000,
+      "classification": "final functional acceptance after retained failed attempts",
+      "note": "Coarse interval bounded by receipts and final acceptance evidence."
+    },
+    {
+      "command": "node scripts/performance.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1700001,
+      "finishedMonotonicMs": 2000000,
+      "classification": "five frozen paths, two warmups and seven recorded samples each",
+      "note": "Raw per-sample wall durations are authoritative in evidence/performance.json."
+    },
+    {
+      "command": "node scripts/cleanup.mjs",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2000001,
+      "finishedMonotonicMs": 2180712,
+      "classification": "exact three-attempt cleanup and local secret/profile retirement",
+      "note": "Coarse interval ending at cleanup receipt time."
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Authoritative hosted query returned 20 events, 49 contended guests in 50 preallocated capacity slots, and three native users.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Guest-context query returned the public event without privateHostNote and filtered the private event entirely.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Bob’s native principal performed maybe/no/yes plus-one transitions and every state settled authoritatively.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Alice saw host-only data, Bob read as guest and wrote only as cohost, and Mallory’s private read/write attempts were denied.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/guest-list-revocation-diagnostic.json",
+        "receipts/acceptance-failure-1785307478546.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob’s existing native SSE subscription moved from 49 visible guests to zero after Alice atomically hid the event list and its invitation rows.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Two native actor transactions barrier-dispatched against one unique seat key; one authoritative row remained and total attendance was 50.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Bob’s second native SSE client observed the 20-post wall burst and RSVP total transition from 49 to 50.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/ui-smoke.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Upload, authorized delivery, outsider denial, and metadata deletion passed; at least one signed delivery path remained usable after deletion, so complete deletion is not claimed.",
+      "note": "Upload, authorized delivery, outsider denial, and metadata deletion passed; at least one signed delivery path remained usable after deletion, so complete deletion is not claimed."
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "InstantDB 1.0.52 exposes database, auth, storage, realtime, streams, and webhooks, but no first-party scheduled-job/cron authoring surface was present in the pinned SDK/CLI or official documentation.",
+      "note": "InstantDB 1.0.52 exposes database, auth, storage, realtime, streams, and webhooks, but no first-party scheduled-job/cron authoring surface was present in the pinned SDK/CLI or official documentation."
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "The native webhook manager rejected the deterministic HTTPS receiver during provisioning, so no external-effect retry pass is claimed.",
+      "note": "The native webhook manager rejected the deterministic HTTPS receiver during provisioning, so no external-effect retry pass is claimed."
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "The native webhook manager rejected the 20-second HTTPS fault receiver during provisioning, so no ambiguous-outcome pass is claimed.",
+      "note": "The native webhook manager rejected the 20-second HTTPS fault receiver during provisioning, so no ambiguous-outcome pass is claimed."
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "No revocation delivery was claimed because the deterministic HTTPS receiver could not be provisioned through the native webhook manager.",
+      "note": "No revocation delivery was claimed because the deterministic HTTPS receiver could not be provisioned through the native webhook manager."
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "gap",
+      "evidencePaths": [
+        "evidence/acceptance-results.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "The fresh hosted app, pushed schema/permissions, target identity, and native webhook history are inspectable; InstantDB has no pinned first-party hosted secret/function boundary for the requested notification code, so the complete deployment fact is not claimed.",
+      "note": "The fresh hosted app, pushed schema/permissions, target identity, and native webhook history are inspectable; InstantDB has no pinned first-party hosted secret/function boundary for the requested notification code, so the complete deployment fact is not claimed."
+    },
+    {
+      "id": "PARTY-14-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/performance.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "All frozen contention, burst, 262,144-byte asset, realtime, and deploy paths retain two warmups and seven successful raw samples.",
+      "note": ""
+    },
+    {
+      "id": "PARTY-15-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/cleanup-plan.json",
+        "receipts/cleanup-final.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "All exact rows, files, users, webhooks, actor tokens, local credentials, browser state, and bound ports across three fresh temporary attempts were retired; empty app shells remain only for provider automatic expiry.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.json",
+    "authoredSource": {
+      "files": 28,
+      "bytes": 211314,
+      "lines": 6069
+    },
+    "generated": {
+      "evidenceFilesAtInventory": 4,
+      "receiptFilesAtInventory": 30
+    },
+    "tests": [
+      {
+        "path": "scripts/acceptance.mjs",
+        "bytes": 30913,
+        "lines": 749
+      },
+      {
+        "path": "scripts/performance.mjs",
+        "bytes": 8617,
+        "lines": 229
+      }
+    ],
+    "configuration": [
+      {
+        "path": "index.html",
+        "bytes": 315,
+        "lines": 13
+      },
+      {
+        "path": "package-lock.json",
+        "bytes": 127110,
+        "lines": 3756
+      },
+      {
+        "path": "package.json",
+        "bytes": 1060,
+        "lines": 36
+      },
+      {
+        "path": "tsconfig.json",
+        "bytes": 549,
+        "lines": 23
+      },
+      {
+        "path": "vite.config.ts",
+        "bytes": 215,
+        "lines": 13
+      }
+    ],
+    "policy": [
+      {
+        "path": "instant.perms.ts",
+        "bytes": 3819,
+        "lines": 101
+      },
+      {
+        "path": "instant.schema.ts",
+        "bytes": 3460,
+        "lines": 107
+      }
+    ],
+    "dependencyManifests": [
+      "work/package.json",
+      "work/package-lock.json"
+    ],
+    "installedDependencyBytes": 191758336,
+    "productionBuildBytes": 364544,
+    "glue": [
+      "native @instantdb/react UI queries/auth",
+      "native @instantdb/admin authority/subscription/webhook operations",
+      "native @instantdb/core actor-scoped Storage clients",
+      "instant-cli schema/permission deployment"
+    ],
+    "npmAuditReceiptPath": "receipts/npm-audit.json"
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Native principals exercised positive and negative row/field/write/storage checks; fresh post-revocation Bob query returned zero.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/guest-list-revocation-diagnostic.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two actor transactions targeted one prelinked final slot and converged on one occupied row without exceeding capacity.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/performance.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Native SSE subscriptions directly observed remediated guest-list revocation and the wall/RSVP burst; the silent linked-rule invalidation failure is retained.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "receipts/guest-list-revocation-diagnostic.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 0,
+      "reason": "The Partiful frozen manifest does not require offline/reconnect behavior and this arm makes no claim.",
+      "evidencePaths": []
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Authoritative admin reads followed every stateful acceptance path and all performance samples.",
+      "evidencePaths": [
+        "evidence/acceptance-results.json",
+        "evidence/performance.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "All three fresh opaque targets have redacted provision receipts and matching cleanup hashes.",
+      "evidencePaths": [
+        "receipts/target-provision-redacted.json",
+        "receipts/cleanup-final.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "Fresh-target cleanup proved zero entities/files/users/webhooks and invalid actor tokens for each attempt; only documented empty-shell expiry remains.",
+      "evidencePaths": [
+        "receipts/cleanup-plan.json",
+        "receipts/cleanup-final.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 1,
+      "reason": "Pinned dependencies, schema/perms, executable harnesses, raw samples, screenshot, and retained failures are committed, but the timed inventory predates substantive final acceptance/performance edits and omits the cleanup/finalizer scripts.",
+      "evidencePaths": [
+        "receipts/inventory.json",
+        "receipts/ui-smoke.json",
+        "evidence/performance.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.json",
+    "receiptPaths": [
+      "receipts/cleanup-final.json",
+      "receipts/pre-cleanup-export-attempt1.json",
+      "receipts/pre-cleanup-export-attempt2.json",
+      "receipts/pre-cleanup-export-attempt3.json"
+    ],
+    "postCleanupProbe": "All nine resource counts (including $files/$users) plus webhooks were zero on all three target identities; every actor token failed verification; local runtime state was removed.",
+    "residualProviderLifecycle": "Each empty app shell is provider-scheduled for automatic deletion after more than 24 hours."
+  },
+  "result": "complete"
+}

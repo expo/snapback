@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "targetBoundPlan": "/Users/ccheever/worktrees/llp0102-chat-spacetimedb/evidence/cleanup-plan.json",
+  "exactTarget": {
+    "server": "http://127.0.0.1:3312",
+    "databaseName": "llp0102-chat-spacetimedb-w1",
+    "databaseIdentity": "c2004eb2f79972743b2d2188d5169fabbe879a6453dd3d11653ef3530bcdb4c8"
+  },
+  "preCleanup": {
+    "describeExitCode": 0,
+    "schemaSha256": "71fc8fc06b6a5521c8f0d4afb3537fcf2ca26da42c79a83064745fc44c39fab6",
+    "targetExisted": true
+  },
+  "delete": {
+    "command": "spacetime delete llp0102-chat-spacetimedb-w1 --server llp0102-local --yes",
+    "exitCode": 1,
+    "stdout": [
+      "Skipping confirmation due to --yes",
+      "We have logged in directly to your target server.",
+      "WARNING: This login will NOT work for any other servers.",
+      "Logged in with identity c2003e7951ba31587f7d95f6403bcd2aae6779e13517e919bc202c9ddd3973a7"
+    ],
+    "stderr": [
+      "Saving config to /Users/ccheever/worktrees/llp0102-chat-spacetimedb/state/cli/cli.toml.",
+      "Error: HTTP status client error (403 Forbidden) for url (http://127.0.0.1:3312/v1/database/c2004eb2f79972743b2d2188d5169fabbe879a6453dd3d11653ef3530bcdb4c8)"
+    ]
+  },
+  "postCleanup": {
+    "describeExitCode": 0,
+    "targetAbsent": false,
+    "diagnostic": [
+      "WARNING: This command is UNSTABLE and subject to breaking changes."
+    ]
+  },
+  "unrelatedBaselinePreserved": true,
+  "pass": false
+}

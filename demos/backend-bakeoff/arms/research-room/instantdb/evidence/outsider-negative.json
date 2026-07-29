@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "queryCounts": {
+    "rooms": 0,
+    "sources": 0,
+    "questions": 0,
+    "answers": 0,
+    "progress": 0
+  },
+  "subscription": {
+    "transport": "InstantDB admin subscribeQuery/EventSource",
+    "rows": 0
+  },
+  "fileMetadataRows": 0,
+  "containsCredentialValues": false
+}

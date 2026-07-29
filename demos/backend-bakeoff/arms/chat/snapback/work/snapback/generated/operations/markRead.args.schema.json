@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/markRead.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "channelId": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "channelId",
+    "sequence"
+  ],
+  "title": "work:markRead arguments",
+  "type": "object"
+}

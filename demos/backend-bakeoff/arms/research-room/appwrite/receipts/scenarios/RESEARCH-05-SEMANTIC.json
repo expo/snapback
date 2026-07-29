@@ -1,0 +1,14 @@
+{
+  "id": "RESEARCH-05-SEMANTIC",
+  "status": "gap",
+  "checkedAt": "2026-07-29T10:44:34.243Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "not-applicable",
+  "evidence": {
+    "storedEmbeddingDimensions": 32,
+    "nativeVectorIndex": false,
+    "fallbackUsed": false,
+    "nonclaim": true
+  },
+  "note": "Appwrite 1.9.6 stores the frozen vectors but exposes no ordinary native vector index or nearest-neighbor query path."
+}

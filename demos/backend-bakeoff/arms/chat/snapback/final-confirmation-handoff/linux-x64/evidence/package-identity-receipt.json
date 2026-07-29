@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "snapback.llp0102.external-package-identity.v1",
+  "expectedCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+  "packageTreeRoot": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules",
+  "starts": [
+    {
+      "ordinal": 1,
+      "port": 33102,
+      "cliLink": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/.bin/snapback",
+      "cliRealPath": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/@snapback/cli/cli.mjs",
+      "cliPackage": {
+        "name": "@ccheever/snapback-cli",
+        "version": "0.1.1-llp0102.1",
+        "type": "module",
+        "description": "Installable Snapback developer loop and native server launcher.",
+        "files": [
+          "cli.mjs",
+          "deployment-control.mjs",
+          "hosted-admission-producer.mjs",
+          "index.mjs",
+          "mcp-control.mjs",
+          "templates"
+        ],
+        "bin": {
+          "snapback": "./cli.mjs"
+        },
+        "exports": {
+          ".": "./index.mjs",
+          "./deployment-control": "./deployment-control.mjs",
+          "./hosted-admission-producer": "./hosted-admission-producer.mjs",
+          "./package.json": "./package.json"
+        },
+        "dependencies": {
+          "@snapback/client": "npm:@ccheever/snapback-client@0.1.1-llp0102.1",
+          "@snapback/codegen": "npm:@ccheever/snapback-codegen@0.1.1-llp0102.1"
+        },
+        "optionalDependencies": {
+          "@snapback/runtime-darwin-arm64": "npm:@ccheever/snapback-runtime-darwin-arm64@0.1.1-llp0102.1",
+          "@snapback/runtime-linux-x64": "npm:@ccheever/snapback-runtime-linux-x64@0.1.1-llp0102.1"
+        },
+        "engines": {
+          "node": ">=24.0.0"
+        },
+        "publishConfig": {
+          "access": "public"
+        }
+      },
+      "runtime": {
+        "binary": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/@snapback/runtime-linux-x64/bin/snapback",
+        "source": "@snapback/runtime-linux-x64",
+        "platform": "linux-x64",
+        "package": {
+          "name": "@ccheever/snapback-runtime-linux-x64",
+          "version": "0.1.1-llp0102.1",
+          "type": "module",
+          "description": "Prebuilt Snapback server and Hermes runtime for x86-64 Linux.",
+          "files": [
+            "bin",
+            "lib"
+          ],
+          "exports": {
+            "./package.json": "./package.json"
+          },
+          "os": [
+            "linux"
+          ],
+          "cpu": [
+            "x64"
+          ],
+          "publishConfig": {
+            "access": "public"
+          }
+        }
+      },
+      "binaryIdentity": {
+        "crateVersion": "0.1.0",
+        "gitCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+        "gitDirty": false,
+        "buildProfile": "release",
+        "startupNonce": "019fadf3-9a06-7f33-85bc-2f8bcae1b537"
+      },
+      "startupNonce": "019fadf3-9a06-7f33-85bc-2f8bcae1b537",
+      "appId": "llp0102-stage5-chat-snapback-external",
+      "bundleHash": "snapback.v1:sessions:function:sha256:08de1fd50c52d723195e5699a31dc606c6dbc76537983a772e77dc550b558cf7",
+      "lifecycleFiles": [
+        "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json",
+        "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.secret-read-root",
+        "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.impersonation"
+      ],
+      "launch": {
+        "executable": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/.bin/snapback",
+        "args": [
+          "start",
+          "--port",
+          "33102",
+          "--ready-file",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json",
+          "--db",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/chat.sqlite",
+          "--startup-artifacts",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/startup-artifacts.json"
+        ],
+        "cwd": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external",
+        "cargoFallback": false,
+        "sourceBinaryFallback": false
+      },
+      "stopped": true,
+      "cleanup": {
+        "command": [
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/.bin/snapback",
+          "stop",
+          "--ready-file",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json"
+        ],
+        "readyAndAdvertisedCapabilityFilesAbsent": true,
+        "stopCommandResiduals": [
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.secret-read-root"
+        ],
+        "outerArmCleanupRequired": true,
+        "portClosed": true,
+        "exactTargets": [
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.secret-read-root",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.impersonation"
+        ]
+      }
+    },
+    {
+      "ordinal": 2,
+      "port": 33102,
+      "cliLink": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/.bin/snapback",
+      "cliRealPath": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/@snapback/cli/cli.mjs",
+      "cliPackage": {
+        "name": "@ccheever/snapback-cli",
+        "version": "0.1.1-llp0102.1",
+        "type": "module",
+        "description": "Installable Snapback developer loop and native server launcher.",
+        "files": [
+          "cli.mjs",
+          "deployment-control.mjs",
+          "hosted-admission-producer.mjs",
+          "index.mjs",
+          "mcp-control.mjs",
+          "templates"
+        ],
+        "bin": {
+          "snapback": "./cli.mjs"
+        },
+        "exports": {
+          ".": "./index.mjs",
+          "./deployment-control": "./deployment-control.mjs",
+          "./hosted-admission-producer": "./hosted-admission-producer.mjs",
+          "./package.json": "./package.json"
+        },
+        "dependencies": {
+          "@snapback/client": "npm:@ccheever/snapback-client@0.1.1-llp0102.1",
+          "@snapback/codegen": "npm:@ccheever/snapback-codegen@0.1.1-llp0102.1"
+        },
+        "optionalDependencies": {
+          "@snapback/runtime-darwin-arm64": "npm:@ccheever/snapback-runtime-darwin-arm64@0.1.1-llp0102.1",
+          "@snapback/runtime-linux-x64": "npm:@ccheever/snapback-runtime-linux-x64@0.1.1-llp0102.1"
+        },
+        "engines": {
+          "node": ">=24.0.0"
+        },
+        "publishConfig": {
+          "access": "public"
+        }
+      },
+      "runtime": {
+        "binary": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/@snapback/runtime-linux-x64/bin/snapback",
+        "source": "@snapback/runtime-linux-x64",
+        "platform": "linux-x64",
+        "package": {
+          "name": "@ccheever/snapback-runtime-linux-x64",
+          "version": "0.1.1-llp0102.1",
+          "type": "module",
+          "description": "Prebuilt Snapback server and Hermes runtime for x86-64 Linux.",
+          "files": [
+            "bin",
+            "lib"
+          ],
+          "exports": {
+            "./package.json": "./package.json"
+          },
+          "os": [
+            "linux"
+          ],
+          "cpu": [
+            "x64"
+          ],
+          "publishConfig": {
+            "access": "public"
+          }
+        }
+      },
+      "binaryIdentity": {
+        "crateVersion": "0.1.0",
+        "gitCommit": "4e5da63c33064082c73359f0ee02efcd11e360ff",
+        "gitDirty": false,
+        "buildProfile": "release",
+        "startupNonce": "019fadf3-cee6-7640-a3b0-a9aa0513712c"
+      },
+      "startupNonce": "019fadf3-cee6-7640-a3b0-a9aa0513712c",
+      "appId": "llp0102-stage5-chat-snapback-external",
+      "bundleHash": "snapback.v1:sessions:function:sha256:08de1fd50c52d723195e5699a31dc606c6dbc76537983a772e77dc550b558cf7",
+      "lifecycleFiles": [
+        "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json",
+        "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.secret-read-root",
+        "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.impersonation"
+      ],
+      "launch": {
+        "executable": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/.bin/snapback",
+        "args": [
+          "start",
+          "--port",
+          "33102",
+          "--ready-file",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json",
+          "--db",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/chat.sqlite",
+          "--startup-artifacts",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/startup-artifacts.json"
+        ],
+        "cwd": "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external",
+        "cargoFallback": false,
+        "sourceBinaryFallback": false
+      },
+      "stopped": true,
+      "cleanup": {
+        "command": [
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/node_modules/.bin/snapback",
+          "stop",
+          "--ready-file",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json"
+        ],
+        "readyAndAdvertisedCapabilityFilesAbsent": true,
+        "stopCommandResiduals": [
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.secret-read-root"
+        ],
+        "outerArmCleanupRequired": true,
+        "portClosed": true,
+        "exactTargets": [
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.secret-read-root",
+          "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.impersonation"
+        ]
+      }
+    }
+  ],
+  "allStartsInstalledCli": true,
+  "allStartsInstalledRuntime": true,
+  "cargoFallbackUsed": false,
+  "sourceBinaryFallbackUsed": false,
+  "finalCleanup": {
+    "checkedAtProcessBoundary": true,
+    "exactTargets": [
+      "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json",
+      "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.secret-read-root",
+      "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime/.installed-snapback-33102.ready.json.impersonation"
+    ],
+    "exactTargetsAbsent": true,
+    "remnants": []
+  }
+}

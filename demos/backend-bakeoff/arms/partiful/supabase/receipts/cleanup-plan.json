@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T05:44:26.529Z",
+  "targetIdentityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+  "exactProjectId": "llp0102-partiful-supabase-coord",
+  "exactRuntimeProjectDir": "/Users/ccheever/.cache/llp0102-partiful-supabase-coord-runtime",
+  "exactWorktreeState": [
+    "/private/tmp/llp0102-partiful-supabase-coord/demos/backend-bakeoff/arms/partiful/supabase/work/.xdg"
+  ],
+  "exactPorts": [
+    4330,
+    57431,
+    57432,
+    57433,
+    57434,
+    57435,
+    57436,
+    57437,
+    57438,
+    57439,
+    57440
+  ],
+  "selection": "Supabase CLI --workdir exact runtime mirror plus exact project-id Docker filters",
+  "baselineBoundary": "No separately timestamped empty baseline receipt was captured before provisioning; unique project/ports were assigned and start created a fresh stack. Cleanup confidence must preserve this evidence limitation.",
+  "unrelatedResources": "Preserve and compare hashed container identity set; never select by broad Supabase name.",
+  "steps": [
+    "Retain target identity, counts, schema hash, exact resources, cron and storage state.",
+    "Run supabase stop --no-backup against the exact runtime workdir.",
+    "Remove only the exact runtime mirror and worktree-local XDG state.",
+    "Verify exact project containers, volumes, networks, assigned ports, and credential-bearing runtime are absent.",
+    "Compare unrelated container identity set."
+  ],
+  "recovery": "Local data is not recoverable after --no-backup; retained schema/functions/seed source recreates the target.",
+  "containsSecretValues": false
+}

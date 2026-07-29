@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/listProjects.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "organizationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organizationId"
+  ],
+  "title": "work:listProjects arguments",
+  "type": "object"
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T13:01:02.595Z",
+  "targetIdentity": "15f2bfd3b7092dc19be544ca3219f77d394aece127fa6048524e93f4c7ac61e9",
+  "exactTargets": [
+    "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/.final-runtime",
+    "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/public/personas.json",
+    "/home/ccheever/tmp/llp0102-stage5-chat-snapback-external/dist/personas.json"
+  ],
+  "broadGlobs": false,
+  "unrelatedBaseline": "repository and every other bakeoff arm remain untouched"
+}

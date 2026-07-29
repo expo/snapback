@@ -1,0 +1,679 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "/private/tmp/llp0102-chat-spacetimedb/demos/backend-bakeoff/arms/chat/spacetimedb",
+  "generatedAt": "2026-07-29T02:57:35.937Z",
+  "totals": {
+    "authored-source": {
+      "files": 20,
+      "bytes": 136203,
+      "lines": 3608
+    },
+    "configuration": {
+      "files": 25,
+      "bytes": 38513,
+      "lines": 1333
+    },
+    "dependency-manifest": {
+      "files": 3,
+      "bytes": 75487,
+      "lines": 2382
+    },
+    "generated": {
+      "files": 40,
+      "bytes": 38200,
+      "lines": 1200
+    },
+    "policy": {
+      "files": 4,
+      "bytes": 30365,
+      "lines": 976
+    }
+  },
+  "installedDependencyBytes": 0,
+  "files": [
+    {
+      "path": "artifacts/build-capsule.mjs",
+      "category": "authored-source",
+      "bytes": 10873,
+      "lines": 217,
+      "sha256": "1ecdef9d2dbf480ba3591699b4749f09b58bf64c415c1cb2541706157f493c90"
+    },
+    {
+      "path": "diary-entry-draft.md",
+      "category": "authored-source",
+      "bytes": 7293,
+      "lines": 137,
+      "sha256": "a5828beaed16e7a8a0a685c48670c890f13b442386a1f146617c5a3337f3366c"
+    },
+    {
+      "path": "evidence/acceptance-results.json",
+      "category": "configuration",
+      "bytes": 8600,
+      "lines": 278,
+      "sha256": "f104df43a17b2767536f3c05e693b602969a99f0740b5e0ddc5bfa308bf0d08a"
+    },
+    {
+      "path": "evidence/actor-identity-receipt.json",
+      "category": "configuration",
+      "bytes": 456,
+      "lines": 12,
+      "sha256": "2af6aa8b514a26fc6820440786b555132c056c0f474093a4564ca855965fd8e5"
+    },
+    {
+      "path": "evidence/cleanup-plan.json",
+      "category": "configuration",
+      "bytes": 693,
+      "lines": 20,
+      "sha256": "d9a323b33557187205d218e9e0d21b6cf088ea87fd4137b4da8d6d8ebaba2c86"
+    },
+    {
+      "path": "evidence/cleanup-receipt.failed.json",
+      "category": "configuration",
+      "bytes": 1433,
+      "lines": 38,
+      "sha256": "c1d7b08a285d21450f3e65d17cd490420bd15d79cb1973e4b8b22746b8a44e85"
+    },
+    {
+      "path": "evidence/cleanup-receipt.json",
+      "category": "configuration",
+      "bytes": 1626,
+      "lines": 44,
+      "sha256": "c8b62f08ee53423de3ebb55a4a98d931d0f2a79e8dff2aac6c7b2f3b8d7ffbe6"
+    },
+    {
+      "path": "evidence/cleanup-remediation-plan.json",
+      "category": "configuration",
+      "bytes": 887,
+      "lines": 20,
+      "sha256": "e428b76007211e58089a6bfb1c42aa393c45c5b02734670ffd08b43ef3824606"
+    },
+    {
+      "path": "evidence/dependency-footprint.json",
+      "category": "configuration",
+      "bytes": 361,
+      "lines": 12,
+      "sha256": "b40e864de909ea812b89cda097389c94865a0e2cb8dc9cae980d098759d431e8"
+    },
+    {
+      "path": "evidence/environment-cleanup.json",
+      "category": "configuration",
+      "bytes": 215,
+      "lines": 18,
+      "sha256": "02a58cdc627abebed419970076b7b3572f7a4330e076e0431aa1998fce6c5ce2"
+    },
+    {
+      "path": "evidence/evidence-audit.md",
+      "category": "authored-source",
+      "bytes": 968,
+      "lines": 22,
+      "sha256": "63a13d4dfad956e6c5dcec66b1b3542c90ae80be9368c8a9e9e1e8d626e1f276"
+    },
+    {
+      "path": "evidence/freeze-proof.json",
+      "category": "configuration",
+      "bytes": 338,
+      "lines": 9,
+      "sha256": "977bcf8d455ffb9e02a7c0692a89a6b74db0c3b8ea51f8a7d873fef0c7bf078c"
+    },
+    {
+      "path": "evidence/hosted-gap.json",
+      "category": "configuration",
+      "bytes": 382,
+      "lines": 9,
+      "sha256": "01d2bd41e2bacbd3604dea6b8f9a9adcb065cc55ab573c6c550229f2f317919d"
+    },
+    {
+      "path": "evidence/llp-maintain-audit.md",
+      "category": "authored-source",
+      "bytes": 1168,
+      "lines": 30,
+      "sha256": "b6804c6296db154b4838d8ab249b645527d29e069a5cb5f78975ce681c8e4d58"
+    },
+    {
+      "path": "evidence/performance-build-samples.json",
+      "category": "configuration",
+      "bytes": 2118,
+      "lines": 119,
+      "sha256": "e647a8b2e0d22fd3b4fbfbba0ca8fdbfd82ab0dfbd196a8b73d023226224700d"
+    },
+    {
+      "path": "evidence/performance-samples.json",
+      "category": "configuration",
+      "bytes": 1598,
+      "lines": 97,
+      "sha256": "cfb1094e238cf118e815740417baf21940ca04381462b5af45da2483b5b30fe5"
+    },
+    {
+      "path": "evidence/performance-samples.partial.json",
+      "category": "configuration",
+      "bytes": 1078,
+      "lines": 72,
+      "sha256": "c29d1f8be44a4c9be74dc0b63fbfbae57bdf6c3b61646790a40ed4810e7733e4"
+    },
+    {
+      "path": "evidence/target-identity.json",
+      "category": "configuration",
+      "bytes": 637,
+      "lines": 20,
+      "sha256": "e43a1f1d8348b7dfad945eeb2ab0d07e352d455851f66a5647985fbf03cd7913"
+    },
+    {
+      "path": "evidence/tooling-friction.json",
+      "category": "configuration",
+      "bytes": 785,
+      "lines": 25,
+      "sha256": "c8d5ad33d810dc285d6505a3e99dcee5b82c51e5e428326000a0e67e16c52cf5"
+    },
+    {
+      "path": "evidence/ui-http-body.html",
+      "category": "authored-source",
+      "bytes": 620,
+      "lines": 21,
+      "sha256": "73b437f952cc80791a60e01e00b641fb425d0b0ad3471051916bb0ea183cd769"
+    },
+    {
+      "path": "implementation-notes.md",
+      "category": "authored-source",
+      "bytes": 1855,
+      "lines": 42,
+      "sha256": "c06d9722799e553374e8c2a51c40ea50e3001553ebec0157cdd341d1a56f8dbe"
+    },
+    {
+      "path": "README.md",
+      "category": "authored-source",
+      "bytes": 949,
+      "lines": 22,
+      "sha256": "5566310d285d6c9d0cdab959df14a55b377bfe292a3115f51ba6c24492999d50"
+    },
+    {
+      "path": "run-capsule.v1.json",
+      "category": "configuration",
+      "bytes": 14614,
+      "lines": 412,
+      "sha256": "06ccd9a769a45575aba91f3bb408562285c46fde1b92cd95093e863a954791a9"
+    },
+    {
+      "path": "work/client/index.html",
+      "category": "authored-source",
+      "bytes": 365,
+      "lines": 14,
+      "sha256": "592421e80af90854348c74e4cf43798e190d51640a0372f761c7046f6f082279"
+    },
+    {
+      "path": "work/client/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 49791,
+      "lines": 1548,
+      "sha256": "977311f24108aa201030f300a9cd64e585f33856188bf7e16ebe4deed3b3265a"
+    },
+    {
+      "path": "work/client/package.json",
+      "category": "configuration",
+      "bytes": 458,
+      "lines": 23,
+      "sha256": "9de0eed5344a16b17a06178a7ec3941077c92be734b1b71806bb7ec5524c7cb2"
+    },
+    {
+      "path": "work/client/src/App.tsx",
+      "category": "authored-source",
+      "bytes": 15253,
+      "lines": 377,
+      "sha256": "7a2c336d453d869cb7005df4735304c8d46415f0bb1d7607712c97d07e4f7974"
+    },
+    {
+      "path": "work/client/src/main.tsx",
+      "category": "authored-source",
+      "bytes": 236,
+      "lines": 11,
+      "sha256": "a6bcae9c4f04d6ff36406b2966379834342b41b08b83ba7bd0334712d6cf87f0"
+    },
+    {
+      "path": "work/client/src/module_bindings/clear_fixture_reducer.ts",
+      "category": "generated",
+      "bytes": 359,
+      "lines": 14,
+      "sha256": "d03a53c3e6123d4b3a9a6e1ca930b65c8fdd34f0c216fb81fb9862120ca98ea6"
+    },
+    {
+      "path": "work/client/src/module_bindings/clear_typing_reducer.ts",
+      "category": "generated",
+      "bytes": 387,
+      "lines": 16,
+      "sha256": "ab0b3281afb0085ca17860b23177660046470dea7fdba5f55f08f1b2efacc974"
+    },
+    {
+      "path": "work/client/src/module_bindings/index.ts",
+      "category": "generated",
+      "bytes": 7197,
+      "lines": 177,
+      "sha256": "404abeec8fe4261f5e9ca42134ba19e2bc1ae025177b8d5255cfc471a452328c"
+    },
+    {
+      "path": "work/client/src/module_bindings/mark_read_reducer.ts",
+      "category": "generated",
+      "bytes": 412,
+      "lines": 17,
+      "sha256": "6a65b64ecc1f39d05845784d05dd3f1bcc4beb4a66598981d0f92a28b813326c"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_channels_table.ts",
+      "category": "generated",
+      "bytes": 468,
+      "lines": 18,
+      "sha256": "73003f1781c8399040e24d10ae933e432d6011f092409a400ade7e955509d8b6"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_messages_table.ts",
+      "category": "generated",
+      "bytes": 590,
+      "lines": 21,
+      "sha256": "374b9489fb8ea43eb4f78c79fb57916a107ba093f5a0f99e7ebabc5c498083e4"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_page_results_table.ts",
+      "category": "generated",
+      "bytes": 681,
+      "lines": 23,
+      "sha256": "e5368550ee52d3c1c5bb22d792e7044f8a13380d94f850de86f917f9e2c2db25"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_read_markers_table.ts",
+      "category": "generated",
+      "bytes": 522,
+      "lines": 19,
+      "sha256": "ab90c53f6d449f5ef2a970837b16497f5d1d1c3caa933dba5714d914ac4515c9"
+    },
+    {
+      "path": "work/client/src/module_bindings/my_typing_table.ts",
+      "category": "generated",
+      "bytes": 547,
+      "lines": 20,
+      "sha256": "35919faee5c0016bfeae974b48925866b3ca002b1d48de968a5d570edb7371ca"
+    },
+    {
+      "path": "work/client/src/module_bindings/register_persona_reducer.ts",
+      "category": "generated",
+      "bytes": 382,
+      "lines": 16,
+      "sha256": "b8b245e5d36097a2ce01131d4b722ac7c03d17a200e494a2105534d188ce9a0a"
+    },
+    {
+      "path": "work/client/src/module_bindings/request_page_reducer.ts",
+      "category": "generated",
+      "bytes": 444,
+      "lines": 18,
+      "sha256": "c0f9a8fd6209f6b49da3c256c7502a271b0cde9572a1db19eca2ead580b6c7c6"
+    },
+    {
+      "path": "work/client/src/module_bindings/restore_member_reducer.ts",
+      "category": "generated",
+      "bytes": 415,
+      "lines": 17,
+      "sha256": "63eb921a460551781140f725e080b9681ed9d87a59ba90f9582b6188bf6f855c"
+    },
+    {
+      "path": "work/client/src/module_bindings/revoke_member_reducer.ts",
+      "category": "generated",
+      "bytes": 415,
+      "lines": 17,
+      "sha256": "63eb921a460551781140f725e080b9681ed9d87a59ba90f9582b6188bf6f855c"
+    },
+    {
+      "path": "work/client/src/module_bindings/seed_fixtures_reducer.ts",
+      "category": "generated",
+      "bytes": 359,
+      "lines": 14,
+      "sha256": "d03a53c3e6123d4b3a9a6e1ca930b65c8fdd34f0c216fb81fb9862120ca98ea6"
+    },
+    {
+      "path": "work/client/src/module_bindings/send_message_reducer.ts",
+      "category": "generated",
+      "bytes": 409,
+      "lines": 17,
+      "sha256": "b55892267b812247a0d59b301e7c462139755d9ea3b986c7344ee0980f6cfe4f"
+    },
+    {
+      "path": "work/client/src/module_bindings/set_typing_reducer.ts",
+      "category": "generated",
+      "bytes": 412,
+      "lines": 17,
+      "sha256": "6ffb9e57de99461fc9ec40d4f5c76706bd9c6478e93074a09fc0cd221e7d7007"
+    },
+    {
+      "path": "work/client/src/module_bindings/types.ts",
+      "category": "generated",
+      "bytes": 2781,
+      "lines": 99,
+      "sha256": "87dce709c76e391b3f4c1f43d883bece8ad53376bb402d59ec6456f06d3fa315"
+    },
+    {
+      "path": "work/client/src/module_bindings/types/procedures.ts",
+      "category": "generated",
+      "bytes": 282,
+      "lines": 11,
+      "sha256": "e91691c4d61824f5a9e3ad46be93c1f741d29fdba976b6e11f43da0d8af52903"
+    },
+    {
+      "path": "work/client/src/module_bindings/types/reducers.ts",
+      "category": "generated",
+      "bytes": 1556,
+      "lines": 31,
+      "sha256": "a7e9fc549487ad3f5d6303fb51ceddf90d71d005f979a199904582f01cc8bca3"
+    },
+    {
+      "path": "work/client/src/module_bindings/visible_presence_table.ts",
+      "category": "generated",
+      "bytes": 482,
+      "lines": 18,
+      "sha256": "61a060a85c81a5e970fab0c7041ffce49f0cbf5e6bb2073f2eb82fc18ece51d2"
+    },
+    {
+      "path": "work/client/src/styles.css",
+      "category": "authored-source",
+      "bytes": 6719,
+      "lines": 92,
+      "sha256": "9238a4bf23ab15df5c580309cd1c4b68b597220e92c98ec156417e53af53910b"
+    },
+    {
+      "path": "work/client/src/vite-env.d.ts",
+      "category": "authored-source",
+      "bytes": 38,
+      "lines": 2,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "work/client/tsconfig.json",
+      "category": "configuration",
+      "bytes": 598,
+      "lines": 23,
+      "sha256": "e099becb02a63f70fa79dc3f7e2a8385e7b34c84e3e7c3777024a15a3f924d5a"
+    },
+    {
+      "path": "work/client/vite.config.ts",
+      "category": "configuration",
+      "bytes": 136,
+      "lines": 7,
+      "sha256": "eca485c281977125366d4800553256e419f364984e615f75a2d2bae54f7857fd"
+    },
+    {
+      "path": "work/harness/build-samples.mjs",
+      "category": "authored-source",
+      "bytes": 1406,
+      "lines": 46,
+      "sha256": "b9f548052880f65953bc85e1d8e0631498cced154cf4633cce75ac8b53c84a38"
+    },
+    {
+      "path": "work/harness/cleanup-remediation.mjs",
+      "category": "authored-source",
+      "bytes": 5281,
+      "lines": 158,
+      "sha256": "960abc767d5d3b54bd10a453e3bb9e85d6d6f6b1dd30e1d53fc9dedd75cb6991"
+    },
+    {
+      "path": "work/harness/finalize-and-cleanup.mjs",
+      "category": "authored-source",
+      "bytes": 3952,
+      "lines": 124,
+      "sha256": "d76ff77297ef8fb149236238a5885fc01f13da0c4c1adeb4875712d0a3101623"
+    },
+    {
+      "path": "work/harness/module_bindings/clear_fixture_reducer.ts",
+      "category": "generated",
+      "bytes": 359,
+      "lines": 14,
+      "sha256": "d03a53c3e6123d4b3a9a6e1ca930b65c8fdd34f0c216fb81fb9862120ca98ea6"
+    },
+    {
+      "path": "work/harness/module_bindings/clear_typing_reducer.ts",
+      "category": "generated",
+      "bytes": 387,
+      "lines": 16,
+      "sha256": "ab0b3281afb0085ca17860b23177660046470dea7fdba5f55f08f1b2efacc974"
+    },
+    {
+      "path": "work/harness/module_bindings/index.ts",
+      "category": "generated",
+      "bytes": 7197,
+      "lines": 177,
+      "sha256": "404abeec8fe4261f5e9ca42134ba19e2bc1ae025177b8d5255cfc471a452328c"
+    },
+    {
+      "path": "work/harness/module_bindings/mark_read_reducer.ts",
+      "category": "generated",
+      "bytes": 412,
+      "lines": 17,
+      "sha256": "6a65b64ecc1f39d05845784d05dd3f1bcc4beb4a66598981d0f92a28b813326c"
+    },
+    {
+      "path": "work/harness/module_bindings/my_channels_table.ts",
+      "category": "generated",
+      "bytes": 468,
+      "lines": 18,
+      "sha256": "73003f1781c8399040e24d10ae933e432d6011f092409a400ade7e955509d8b6"
+    },
+    {
+      "path": "work/harness/module_bindings/my_messages_table.ts",
+      "category": "generated",
+      "bytes": 590,
+      "lines": 21,
+      "sha256": "374b9489fb8ea43eb4f78c79fb57916a107ba093f5a0f99e7ebabc5c498083e4"
+    },
+    {
+      "path": "work/harness/module_bindings/my_page_results_table.ts",
+      "category": "generated",
+      "bytes": 681,
+      "lines": 23,
+      "sha256": "e5368550ee52d3c1c5bb22d792e7044f8a13380d94f850de86f917f9e2c2db25"
+    },
+    {
+      "path": "work/harness/module_bindings/my_read_markers_table.ts",
+      "category": "generated",
+      "bytes": 522,
+      "lines": 19,
+      "sha256": "ab90c53f6d449f5ef2a970837b16497f5d1d1c3caa933dba5714d914ac4515c9"
+    },
+    {
+      "path": "work/harness/module_bindings/my_typing_table.ts",
+      "category": "generated",
+      "bytes": 547,
+      "lines": 20,
+      "sha256": "35919faee5c0016bfeae974b48925866b3ca002b1d48de968a5d570edb7371ca"
+    },
+    {
+      "path": "work/harness/module_bindings/register_persona_reducer.ts",
+      "category": "generated",
+      "bytes": 382,
+      "lines": 16,
+      "sha256": "b8b245e5d36097a2ce01131d4b722ac7c03d17a200e494a2105534d188ce9a0a"
+    },
+    {
+      "path": "work/harness/module_bindings/request_page_reducer.ts",
+      "category": "generated",
+      "bytes": 444,
+      "lines": 18,
+      "sha256": "c0f9a8fd6209f6b49da3c256c7502a271b0cde9572a1db19eca2ead580b6c7c6"
+    },
+    {
+      "path": "work/harness/module_bindings/restore_member_reducer.ts",
+      "category": "generated",
+      "bytes": 415,
+      "lines": 17,
+      "sha256": "63eb921a460551781140f725e080b9681ed9d87a59ba90f9582b6188bf6f855c"
+    },
+    {
+      "path": "work/harness/module_bindings/revoke_member_reducer.ts",
+      "category": "generated",
+      "bytes": 415,
+      "lines": 17,
+      "sha256": "63eb921a460551781140f725e080b9681ed9d87a59ba90f9582b6188bf6f855c"
+    },
+    {
+      "path": "work/harness/module_bindings/seed_fixtures_reducer.ts",
+      "category": "generated",
+      "bytes": 359,
+      "lines": 14,
+      "sha256": "d03a53c3e6123d4b3a9a6e1ca930b65c8fdd34f0c216fb81fb9862120ca98ea6"
+    },
+    {
+      "path": "work/harness/module_bindings/send_message_reducer.ts",
+      "category": "generated",
+      "bytes": 409,
+      "lines": 17,
+      "sha256": "b55892267b812247a0d59b301e7c462139755d9ea3b986c7344ee0980f6cfe4f"
+    },
+    {
+      "path": "work/harness/module_bindings/set_typing_reducer.ts",
+      "category": "generated",
+      "bytes": 412,
+      "lines": 17,
+      "sha256": "6ffb9e57de99461fc9ec40d4f5c76706bd9c6478e93074a09fc0cd221e7d7007"
+    },
+    {
+      "path": "work/harness/module_bindings/types.ts",
+      "category": "generated",
+      "bytes": 2781,
+      "lines": 99,
+      "sha256": "87dce709c76e391b3f4c1f43d883bece8ad53376bb402d59ec6456f06d3fa315"
+    },
+    {
+      "path": "work/harness/module_bindings/types/procedures.ts",
+      "category": "generated",
+      "bytes": 282,
+      "lines": 11,
+      "sha256": "e91691c4d61824f5a9e3ad46be93c1f741d29fdba976b6e11f43da0d8af52903"
+    },
+    {
+      "path": "work/harness/module_bindings/types/reducers.ts",
+      "category": "generated",
+      "bytes": 1556,
+      "lines": 31,
+      "sha256": "a7e9fc549487ad3f5d6303fb51ceddf90d71d005f979a199904582f01cc8bca3"
+    },
+    {
+      "path": "work/harness/module_bindings/visible_presence_table.ts",
+      "category": "generated",
+      "bytes": 482,
+      "lines": 18,
+      "sha256": "61a060a85c81a5e970fab0c7041ffce49f0cbf5e6bb2073f2eb82fc18ece51d2"
+    },
+    {
+      "path": "work/harness/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 20150,
+      "lines": 659,
+      "sha256": "5b5f80de82b5f5b5b14327f4472b6817af4a947c073c0732a7de3d4c417d7d36"
+    },
+    {
+      "path": "work/harness/package.json",
+      "category": "configuration",
+      "bytes": 240,
+      "lines": 14,
+      "sha256": "210144bf93161c250d35e90815e6d1c8f846fba99a3bd2212675d034c38431ad"
+    },
+    {
+      "path": "work/harness/tsconfig.json",
+      "category": "configuration",
+      "bytes": 237,
+      "lines": 12,
+      "sha256": "7a2b3ce7e8fe569e851bb339d22a392f14a9b2fa13b53b9f9ff3379452ae1403"
+    },
+    {
+      "path": "work/harness/verify.ts",
+      "category": "authored-source",
+      "bytes": 20942,
+      "lines": 450,
+      "sha256": "cb873edac0a77ebc13d8ec60e95cfb03e5313b1ee4dfa87f8762b0275a3244c2"
+    },
+    {
+      "path": "work/server/.cursor/rules/cli.mdc",
+      "category": "policy",
+      "bytes": 4129,
+      "lines": 170,
+      "sha256": "027c640ba1d226281f4ba503b2f85a830650f72aa2e7945e9d3500df8284ea4b"
+    },
+    {
+      "path": "work/server/.cursor/rules/concepts.mdc",
+      "category": "policy",
+      "bytes": 4179,
+      "lines": 102,
+      "sha256": "0340a126d7940ddbdee083f082ec5f14f14b16bf38835bccd459b41ee7bc333b"
+    },
+    {
+      "path": "work/server/.cursor/rules/typescript-server.mdc",
+      "category": "policy",
+      "bytes": 7139,
+      "lines": 224,
+      "sha256": "678443e01886803a824e04505829e51e055663756ae40ed799717c689f76a70b"
+    },
+    {
+      "path": "work/server/.github/copilot-instructions.md",
+      "category": "authored-source",
+      "bytes": 14918,
+      "lines": 480,
+      "sha256": "2cbb7efbeb31b8dbf35677b048091f9d1c6922d0ff502c068bb69d30650b6aed"
+    },
+    {
+      "path": "work/server/.windsurfrules",
+      "category": "policy",
+      "bytes": 14918,
+      "lines": 480,
+      "sha256": "2cbb7efbeb31b8dbf35677b048091f9d1c6922d0ff502c068bb69d30650b6aed"
+    },
+    {
+      "path": "work/server/AGENTS.md",
+      "category": "authored-source",
+      "bytes": 14918,
+      "lines": 480,
+      "sha256": "2cbb7efbeb31b8dbf35677b048091f9d1c6922d0ff502c068bb69d30650b6aed"
+    },
+    {
+      "path": "work/server/CLAUDE.md",
+      "category": "authored-source",
+      "bytes": 14918,
+      "lines": 480,
+      "sha256": "2cbb7efbeb31b8dbf35677b048091f9d1c6922d0ff502c068bb69d30650b6aed"
+    },
+    {
+      "path": "work/server/spacetime.json",
+      "category": "configuration",
+      "bytes": 61,
+      "lines": 4,
+      "sha256": "ed02f9f74b55b8704e2d28b59140135346a237120c76937774f9dedab486e6a9"
+    },
+    {
+      "path": "work/server/spacetime.local.json",
+      "category": "configuration",
+      "bytes": 42,
+      "lines": 3,
+      "sha256": "fca96001a7787f4cba5f8fa0741038e4e3ad05b99313a228a634f57640f2578a"
+    },
+    {
+      "path": "work/server/spacetimedb/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 5546,
+      "lines": 175,
+      "sha256": "c9ab3fca2651b8711977c6390431943672af5e56a58f13c14fb1c9b73a61d407"
+    },
+    {
+      "path": "work/server/spacetimedb/package.json",
+      "category": "configuration",
+      "bytes": 323,
+      "lines": 18,
+      "sha256": "1e314a8f5153413d1a5c3b72f2e8731389717bc698a3919580b537d58e389634"
+    },
+    {
+      "path": "work/server/spacetimedb/src/index.ts",
+      "category": "authored-source",
+      "bytes": 13531,
+      "lines": 403,
+      "sha256": "acc4abbf35f5bfb231d04ccfaed045165a806d2291f9ebcd6bb17d983a5aca90"
+    },
+    {
+      "path": "work/server/spacetimedb/tsconfig.json",
+      "category": "configuration",
+      "bytes": 597,
+      "lines": 24,
+      "sha256": "932f19d5f09b978424ac66817e0ca5e047d067a27f2973f841d5f672c9122726"
+    }
+  ]
+}

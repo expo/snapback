@@ -9,7 +9,7 @@ import {
 // @ref LLP 0107#resync-authority-and-lifecycle — React must project the
 // headless room's stale/resyncing/ready transitions without retaining a
 // predecessor-authority snapshot or creating a second reconnect owner.
-// @ref LLP 0102#strict-mode-hmr-replacement-and-late-work — provider
+// @ref LLP 0114#strict-mode-hmr-replacement-and-late-work — provider
 // replacement must leave exactly the successor room/barrier alive.
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));

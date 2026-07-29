@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T10:56:07.930Z",
+  "baseCommit": "0dc4b3ff6257edc2ee0fea869fca5142531d0ce5",
+  "frozenSnapbackSourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "namespace": "llp0102-research-convex-w2",
+  "timestamps": {
+    "timedStart": "2026-07-29T10:25:06Z",
+    "provisioningStart": "2026-07-29T10:31:16Z",
+    "r2ProvisioningStart": "2026-07-29T10:39:14Z"
+  },
+  "machine": {
+    "hostname": "ccheever-minisforum-AI-Series",
+    "architecture": "x64",
+    "os": "Ubuntu 25.10",
+    "kernel": "6.17.0-40-generic",
+    "logicalCpuCount": 24,
+    "memoryBytes": 63826722816,
+    "node": "v24.15.0"
+  },
+  "isolation": {
+    "r1ContainmentProof": "r1_port_listener_count=0\nr1_recorded_process_count=0\nr1_target_path_count=0",
+    "r2IsolationProof": "base=0dc4b3ff6257edc2ee0fea869fca5142531d0ce5\nworktree=/home/ccheever/worktrees/llp0102-research-convex-w2\nnamespace=llp0102-research-convex-w2\nbackend_port=3345\nsite_port=3346\nvite_port=4345\nr2_secret_rotated=true\nr2_exact_value_file_matches=0\nr2_secret_bearing_raw_logs_destroyed=0\nlisteners:\nLISTEN 0      256          0.0.0.0:3345      0.0.0.0:*   \nLISTEN 0      256          0.0.0.0:3346      0.0.0.0:*   \nprocess_allowlist:\nowner=ccheever pid=367942 ppid=1 exe=/home/ccheever/.volta/bin/volta-shim flags=--local-cloud-port,--local-site-port\nowner=ccheever pid=367947 ppid=367942 exe=/home/ccheever/.volta/tools/image/node/24.15.0/bin/node flags=--local-cloud-port,--local-site-port\nowner=ccheever pid=367963 ppid=367947 exe=/home/ccheever/.cache/convex/binaries/precompiled-2026-07-21-82d5e9f/convex-local-backend flags=--port,--site-proxy-port,--sentry-identifier,--instance-name,--instance-secret,--local-storage,--beacon-tag\nowner=ccheever pid=368023 ppid=367947 exe=/home/ccheever/worktrees/llp0102-research-convex-w2/demos/backend-bakeoff/arms/research-room/convex/node_modules/@esbuild/linux-x64/bin/esbuild flags=--service=0.27.0,--ping\nenv_key_hashes:\nCONVEX_DEPLOYMENT sha256=d5cff9e038d3cfc20f89a8875277149db33d0d3097add3bfbf30eb3fcd4de3e3\nVITE_CONVEX_URL sha256=d01aeff7c01430a3fe0d377b7d3b9bdeee6378642e280461872f75ab525aa0f9\nVITE_CONVEX_SITE_URL sha256=fa2d404ed92953525f5c5f5cb00b240a1d633e459cd869b83addc174e2e1cab7\nstate_roots=/home/ccheever/worktrees/llp0102-research-convex-w2/.arm-state/cli,/home/ccheever/worktrees/llp0102-research-convex-w2/.arm-state/xdg/config,/home/ccheever/worktrees/llp0102-research-convex-w2/.arm-state/xdg/cache,/home/ccheever/worktrees/llp0102-research-convex-w2/.arm-state/xdg/data,/home/ccheever/worktrees/llp0102-research-convex-w2/.arm-state/browser\nprovider_state=/home/ccheever/worktrees/llp0102-research-convex-w2/demos/backend-bakeoff/arms/research-room/convex/.convex\nforeign_state_match_count=0",
+    "backendPort": 3345,
+    "sitePort": 3346,
+    "vitePort": 4345,
+    "processProofPolicy": "PID, owner, executable, bind address, and argv flag names only; never argv values"
+  },
+  "commandLogs": [
+    {
+      "name": "acceptance-adjudicated.raw.log",
+      "sha256": "5c664472a1882eb60abc55f78bc4f8abccf09240aeaec76768c85f1b65a5a038",
+      "bytes": 67
+    },
+    {
+      "name": "acceptance-first.raw.log",
+      "sha256": "5c664472a1882eb60abc55f78bc4f8abccf09240aeaec76768c85f1b65a5a038",
+      "bytes": 67
+    },
+    {
+      "name": "convex-anonymous-dev-once.raw.log",
+      "sha256": "4e9cd90db9edff856b919cc1c3198ba0cf6e569f2fcb918881d08454ef47579c",
+      "bytes": 1099
+    },
+    {
+      "name": "convex-dev-live.raw.log",
+      "sha256": "bcc26da073e8db02a9e8a4eb274bfbc68930eb3d912f6660b55f94b4f93682ca",
+      "bytes": 372
+    },
+    {
+      "name": "convex-env-set.raw.log",
+      "sha256": "b83713cbaabdd22b37f46e438380a08eb264cb803ad82d48b5d035972ff3a624",
+      "bytes": 80
+    },
+    {
+      "name": "convex-provision.raw.log",
+      "sha256": "f8fec1c396a5abf0bf6355ca949474886a7e591e1fa32dc53fc29d0c9c9936a6",
+      "bytes": 149
+    },
+    {
+      "name": "deployment-create.raw.log",
+      "sha256": "312a5f0d88ec251165b07c917a57c83acaddf915edfd6536610279247aed2ca9",
+      "bytes": 83
+    },
+    {
+      "name": "deployment-select.raw.log",
+      "sha256": "9700b1e831d8f77d6ff1806a5a1eaf332e6f5006327a2f16a0cfebcb604e4a97",
+      "bytes": 85
+    },
+    {
+      "name": "npm-refresh.raw.log",
+      "sha256": "f38c1c9dd0b7f225919374c6ce3ff1ec22e67c0307baf1d6929787b8a5387af9",
+      "bytes": 221
+    },
+    {
+      "name": "performance-build.raw.log",
+      "sha256": "227cfd81b455f312cf27078341c5337adbf3daa3ffbddc605c78b45f2afda6b0",
+      "bytes": 94
+    },
+    {
+      "name": "r2-convex-dev-live.raw.log",
+      "sha256": "efce3522ef0a00d5c77bb0634eab7113546363f66760beb8aeddf868211961b9",
+      "bytes": 3474
+    },
+    {
+      "name": "r2-convex-dev-once.raw.log",
+      "sha256": "1542852c5c3442d682d3e0a718814f42256c6cb25d8dc76eb56538173fe257fc",
+      "bytes": 607
+    },
+    {
+      "name": "vite-build-first.raw.log",
+      "sha256": "40a268ce035225bbf5cf2bb5a18e498b1f58206ab9a00a2a314f20fbe058e3ec",
+      "bytes": 375
+    },
+    {
+      "name": "vite-live.raw.log",
+      "sha256": "253658d0f564bd40b8e502b58390645862584282f8fda8fac8cf4b3d77553f52",
+      "bytes": 150
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "PARTY-02-PUBLIC-PRIVATE",
+  "checkedAt": "2026-07-29T05:41:04.801Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "anonymousRead": {
+      "slug": "summer-rooftop",
+      "idHash": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c"
+    },
+    "fieldBoundary": [
+      "art_path",
+      "id",
+      "slug",
+      "starts_at",
+      "summary",
+      "title",
+      "venue_public"
+    ],
+    "negativePrivateRead": {
+      "directTableRejected": true,
+      "privatePreviewRows": 0
+    }
+  }
+}

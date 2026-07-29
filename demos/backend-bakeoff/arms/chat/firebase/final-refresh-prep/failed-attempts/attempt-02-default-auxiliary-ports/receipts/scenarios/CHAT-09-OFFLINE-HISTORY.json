@@ -1,0 +1,23 @@
+{
+  "id": "CHAT-09-OFFLINE-HISTORY",
+  "status": "pass",
+  "capturedAt": "2026-07-29T13:22:14.185Z",
+  "target": "llp0102-final-chat-firebase-w2",
+  "transport": "Firestore IndexedDB persistent cache with Firestore network disabled",
+  "evidence": {
+    "online": {
+      "auth": "bob@example.test",
+      "source": "server",
+      "count": 25
+    },
+    "offline": {
+      "newPageColdBoot": true,
+      "firestoreNetworkDisabledBeforeHistoryListener": true,
+      "auth": "bob@example.test",
+      "source": "cache",
+      "count": 25,
+      "retainedOrigin": "Firestore persistentLocalCache / browser IndexedDB"
+    }
+  },
+  "note": "A new browser page in the same persistent profile cold-booted with Firestore transport disabled and rendered 25 previously loaded private messages from native persistent cache."
+}

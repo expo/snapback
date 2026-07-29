@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "cleanedAt": "2026-07-29T12:57:11.354Z",
+  "targetIdentity": "8da06348b7c8e316d96b7590b46efbf773c4bd1f1ec65e6bf4f8a067a80a5103",
+  "removed": [
+    "/home/ccheever/tmp/llp0102-stage5-todo-snapback-external/.final-runtime",
+    "/home/ccheever/tmp/llp0102-stage5-todo-snapback-external/public/personas.json",
+    "/home/ccheever/tmp/llp0102-stage5-todo-snapback-external/dist/personas.json"
+  ],
+  "recoverable": false,
+  "recovery": "Reproducible from committed generated artifacts and deterministic authenticated bootstrap inputs.",
+  "exactTargetAbsent": true,
+  "personaCarrierAbsent": true,
+  "builtPersonaCarrierAbsent": true,
+  "unrelatedBaselinePreserved": true
+}

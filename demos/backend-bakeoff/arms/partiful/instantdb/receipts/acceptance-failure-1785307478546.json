@@ -1,0 +1,9 @@
+{
+  "id": "PARTY-05-GUEST-LIST",
+  "result": "FAIL",
+  "summary": "Guest-list policy changes reach an already-connected guest.",
+  "startedAt": "2026-07-29T06:44:25.910Z",
+  "finishedAt": "2026-07-29T06:44:38.546Z",
+  "errorType": "Error",
+  "errorMessage": "timed out after 12000ms; last=false"
+}

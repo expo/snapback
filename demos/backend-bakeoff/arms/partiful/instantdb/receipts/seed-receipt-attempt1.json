@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-07-29T06:38:32.422Z",
+  "authoritativeCounts": {
+    "wallPosts": 0,
+    "reminderJobs": 0,
+    "$users": 3,
+    "profiles": 3,
+    "invitations": 49,
+    "events": 20,
+    "seatClaims": 49,
+    "notificationAttempts": 0,
+    "$files": 0
+  },
+  "fixture": {
+    "events": 20,
+    "guestsOnContendedEvent": 49,
+    "contendedCapacity": 50,
+    "simultaneousRsvpAttempts": 2,
+    "wallBurstPosts": 20,
+    "assetBytes": 262144,
+    "actors": 3,
+    "concurrentClients": 2
+  },
+  "contendedEventIdSha256": "ffdad4c7f01c611a144d310c2155b780aec54e578b624af6e0f7fb1e1544e7fb",
+  "actorPrincipals": {
+    "alice": {
+      "idSha256": "db6db107720b3760516ee481d47663ccaf5b25d1390f40897de3b4da2c37c6fa",
+      "emailSha256": "21ddb3eecc7136c8bb8bb4930e309e9665f3af03c71a5470fa024395caee2d9c",
+      "tokenSha256": "7bae0fb89ccb50d7a57d7485e46e94db2ad5314403512c304c94fffdf220c423"
+    },
+    "bob": {
+      "idSha256": "1ce21dca170908876f8bdef2a12517b171b4f71afba6cd8d1e13bec50aefaa30",
+      "emailSha256": "5b64183c93b27c39b20ead4b13d9b22e0d9e61aa89682bd4b48f7d73f8cca174",
+      "tokenSha256": "068d525cfee7898f507c7fa1509ca742f37b39df1a1a9954ee5d6002c59bc9f3"
+    },
+    "mallory": {
+      "idSha256": "532627ec8521f9752a98d8b129ec99c0131c81f9b4382ec97763b77a60f83712",
+      "emailSha256": "aa117959ee71d8c0bbb9ca8284e11d798eddba827c386896dfcd49ae6497af92",
+      "tokenSha256": "77de60966ba702d525a338795f66d60d4e08859519f26a49c861f2685df13133"
+    }
+  },
+  "targetIdentityPath": "receipts/target-provision-redacted.json",
+  "containsCredentialValues": false
+}

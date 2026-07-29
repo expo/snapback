@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "answerKey": "answer-live-001",
+  "citationIdHashes": [
+    "2fb24caf16d06b292b8fb3e762275d464232ce97f7be436e8296096048a414fd",
+    "5784e480204719964a3496c7eed307d82f0a08c3eb522aedc08c25ea072e8d6d",
+    "7fea9dc5ad04d6d91fdf0e4bbb7a9a3eb348c33286bd65024a63a67ecd652abc"
+  ],
+  "authorizedSourceValidation": [
+    {
+      "idSha256": "2fb24caf16d06b292b8fb3e762275d464232ce97f7be436e8296096048a414fd",
+      "existsInRoom": true
+    },
+    {
+      "idSha256": "5784e480204719964a3496c7eed307d82f0a08c3eb522aedc08c25ea072e8d6d",
+      "existsInRoom": true
+    },
+    {
+      "idSha256": "7fea9dc5ad04d6d91fdf0e4bbb7a9a3eb348c33286bd65024a63a67ecd652abc",
+      "existsInRoom": true
+    }
+  ],
+  "containsCredentialValues": false
+}

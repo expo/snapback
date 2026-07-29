@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/revokeGuest.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "userId"
+  ],
+  "title": "work:revokeGuest arguments",
+  "type": "object"
+}

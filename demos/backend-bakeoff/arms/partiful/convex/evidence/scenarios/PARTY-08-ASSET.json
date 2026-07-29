@@ -1,0 +1,27 @@
+{
+  "id": "PARTY-08-ASSET",
+  "status": "PASS",
+  "startedAt": "2026-07-29T06:45:32.473Z",
+  "finishedAt": "2026-07-29T06:45:32.532Z",
+  "durationMs": 59.202,
+  "evidence": {
+    "objectIdentity": {
+      "storageIdSha256": "d5aea2ce81cfd2ebbccd2c067672e52da07831b21903af8a997e73fff1f4a4e0",
+      "assetKey": "hero-art",
+      "byteLength": 262144
+    },
+    "authorization": {
+      "cohostUpload": true,
+      "outsider": {
+        "rejected": true,
+        "code": "PARTY_MEMBER_REQUIRED"
+      }
+    },
+    "contentHash": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+    "deliveredHash": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+    "deleteProof": {
+      "priorUrlStatus": 404,
+      "metadataRows": 0
+    }
+  }
+}

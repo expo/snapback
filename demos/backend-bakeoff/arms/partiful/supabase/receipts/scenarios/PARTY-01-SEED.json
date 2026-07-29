@@ -1,0 +1,63 @@
+{
+  "id": "PARTY-01-SEED",
+  "checkedAt": "2026-07-29T05:41:04.797Z",
+  "status": "pass",
+  "note": "",
+  "evidence": {
+    "targetIdentity": {
+      "projectId": "llp0102-partiful-supabase-coord",
+      "namespace": "llp0102-partiful-supabase-coord",
+      "apiUrlHash": "67a115ebdf116ef7a91e507a3697d92a2bc133dfb57cf208cd06e52cbe581c0c",
+      "dbUrlHash": "ef517433d12b750392aea38d3d5b10a31e6642e296001869687bb3731eedaa68",
+      "identityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+      "profile": "official Supabase CLI Docker stack",
+      "versions": {
+        "client": "2.111.0",
+        "cli": "2.110.0",
+        "postgres": "17"
+      }
+    },
+    "counts": {
+      "profiles": 6,
+      "events": 3,
+      "event_members": 7,
+      "invitations": 4,
+      "rsvps": 0,
+      "wall_posts": 0,
+      "reminder_schedules": 0,
+      "notification_attempts": 0,
+      "provider_deliveries": 0
+    },
+    "eventIds": {
+      "primary": "a6068c677b4ea079e54bb6a19d76b46914d661dbc0be87806e5ccfa8ea99b93c",
+      "capacity": "43c58731c2eca6dac1b28768c2c2c6962b610879d590237f9d95de28e51e414d",
+      "private": "968926bf2686579a8f099c7268e98f33f193b9b8fc176d9deae76c3cbcc7b738"
+    },
+    "personas": {
+      "alice": {
+        "idHash": "a712036d34ae14daf70ecffb7ae6e344404fe47ac653ada5077f00355f52b2da",
+        "role": "host"
+      },
+      "bob": {
+        "idHash": "3c058b4be980bde7a72c55a5fed5a1299938a8c8440b87cbb24c5c09eaea9625",
+        "role": "guest"
+      },
+      "mallory": {
+        "idHash": "5abda7283e56d4cc25363ccd9a522d8c8627df088c71a989e4540c6216ffcf39",
+        "role": "outsider"
+      },
+      "carol": {
+        "idHash": "ca1c8f3532c8a20182b22b4aa02add229ecfafc1a6cb750c755bd02a7b09b9bc",
+        "role": "cohost"
+      },
+      "dave": {
+        "idHash": "6b99f84f3a1f68f7b49c778e735c7b1b7b7a1307b6de1b3962986cbd74c0a071",
+        "role": "guest"
+      },
+      "erin": {
+        "idHash": "6084f53bb76ab6704d71268e953a160e9ee5fc2784f5a81a884ff2acf2df2b6d",
+        "role": "guest"
+      }
+    }
+  }
+}

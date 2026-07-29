@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-29T11:06:03.417Z",
+  "checks": {
+    "acceptance": "15/15 final; 11 pass, 4 gap, 0 fail, 0 stop",
+    "evidencePaths": "all scenario paths exist",
+    "performance": "five paths, each exactly two warmups plus seven samples",
+    "cleanup": "all authoritative counts zero and all actor tokens invalid",
+    "secretScan": "passed with zero exact-value matches",
+    "localRuntime": "absent",
+    "capsule": "final with zero Stop defects"
+  },
+  "problems": [],
+  "ok": true,
+  "containsCredentialValues": false
+}

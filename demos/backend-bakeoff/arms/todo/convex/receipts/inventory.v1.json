@@ -1,0 +1,313 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T20:21:45.129Z",
+  "armRoot": "arms/todo/convex/work",
+  "totals": {
+    "authored-source": {
+      "files": 16,
+      "bytes": 64728,
+      "lines": 923
+    },
+    "generated": {
+      "files": 5,
+      "bytes": 12560,
+      "lines": 377
+    },
+    "policy": {
+      "files": 4,
+      "bytes": 1511,
+      "lines": 58
+    },
+    "configuration": {
+      "files": 4,
+      "bytes": 1790,
+      "lines": 79
+    },
+    "dependency-manifest": {
+      "files": 1,
+      "bytes": 70450,
+      "lines": 2211
+    },
+    "test": {
+      "files": 8,
+      "bytes": 38472,
+      "lines": 1085
+    }
+  },
+  "installedDependencyBytes": 177310474,
+  "files": [
+    {
+      "path": ".gitignore",
+      "category": "authored-source",
+      "bytes": 271,
+      "lines": 26,
+      "sha256": "7bbcd85a8f15ca147a5260134dcf2224e00c2358be47db00d1ecf48e25c3d23b"
+    },
+    {
+      "path": ".oxlintrc.json",
+      "category": "authored-source",
+      "bytes": 245,
+      "lines": 9,
+      "sha256": "b4d344818a1e1bf43997e4744a9153c8eef770c98b58229cd86363dabb85ded4"
+    },
+    {
+      "path": "convex/_generated/api.d.ts",
+      "category": "generated",
+      "bytes": 1048,
+      "lines": 54,
+      "sha256": "1d89c1546292a5abcab3810f93fdc367be83f7c216d6b2c34897185e5204efbc"
+    },
+    {
+      "path": "convex/_generated/api.js",
+      "category": "generated",
+      "bytes": 480,
+      "lines": 24,
+      "sha256": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70"
+    },
+    {
+      "path": "convex/_generated/dataModel.d.ts",
+      "category": "generated",
+      "bytes": 1736,
+      "lines": 61,
+      "sha256": "db177073d16a4393c7a96bcdc3a2a904e88c2432d54d138ca7715cc431982c17"
+    },
+    {
+      "path": "convex/_generated/server.d.ts",
+      "category": "generated",
+      "bytes": 5600,
+      "lines": 144,
+      "sha256": "b0c8d708aaa165b10633bb6181dea1af4b9976a71ad001d75f42785ddfbca458"
+    },
+    {
+      "path": "convex/_generated/server.js",
+      "category": "generated",
+      "bytes": 3696,
+      "lines": 94,
+      "sha256": "aea87b3ee367e0e870f3da81ffce8babd8ea1aea695a1e38689841aebc09a1e8"
+    },
+    {
+      "path": "convex/auth.config.ts",
+      "category": "policy",
+      "bytes": 127,
+      "lines": 9,
+      "sha256": "3fd31060734a38e5eaa3ea6d134ced4810f436aceda5eb8c2d0347ea3f410813"
+    },
+    {
+      "path": "convex/auth.ts",
+      "category": "policy",
+      "bytes": 229,
+      "lines": 7,
+      "sha256": "282d3078e264270f4b311d2b60ced3f3342b05de9352854c52765e4fada562e4"
+    },
+    {
+      "path": "convex/http.ts",
+      "category": "policy",
+      "bytes": 151,
+      "lines": 8,
+      "sha256": "2fba2200e868a07eef9974a0141c15e568c5708441b0b0d7eb2a37187bcbe874"
+    },
+    {
+      "path": "convex/schema.ts",
+      "category": "policy",
+      "bytes": 1004,
+      "lines": 34,
+      "sha256": "f3b0e13842cb60835a13670f956d636f759dd8894e57db7e442ee1000dce155b"
+    },
+    {
+      "path": "convex/todo.ts",
+      "category": "authored-source",
+      "bytes": 11815,
+      "lines": 363,
+      "sha256": "98c7235cb889d8752a6fc92d10bdb0b4eade914e63111fced3201bcfb3c5d0a4"
+    },
+    {
+      "path": "convex/tsconfig.json",
+      "category": "configuration",
+      "bytes": 450,
+      "lines": 20,
+      "sha256": "8bc9d44f415f61816960156812847d4348e1e9a7a37b74091fde160d49b90ced"
+    },
+    {
+      "path": "index.html",
+      "category": "authored-source",
+      "bytes": 356,
+      "lines": 14,
+      "sha256": "4d701cf3b31a4d8b47bbabcffc29bbacc1b795938bf886ec18ffcaca69dbc11d"
+    },
+    {
+      "path": "package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 70450,
+      "lines": 2211,
+      "sha256": "2b31818095dae3d8a13fa6e1f7cea010eba206493c6cb27ed0bf06a992b1f4f9"
+    },
+    {
+      "path": "package.json",
+      "category": "authored-source",
+      "bytes": 705,
+      "lines": 31,
+      "sha256": "9934ffcb3c9f793f799956228f7d254b92178f596b1b4ff8cfc64d89d17d5597"
+    },
+    {
+      "path": "public/favicon.svg",
+      "category": "authored-source",
+      "bytes": 9522,
+      "lines": 1,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+    },
+    {
+      "path": "public/icons.svg",
+      "category": "authored-source",
+      "bytes": 5031,
+      "lines": 25,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+    },
+    {
+      "path": "README.md",
+      "category": "authored-source",
+      "bytes": 1278,
+      "lines": 33,
+      "sha256": "fa8aac78b8be1993010b57f41000a243ecba006f6731513fe4ec91e788bf2517"
+    },
+    {
+      "path": "scripts/admin-cli.mjs",
+      "category": "test",
+      "bytes": 3136,
+      "lines": 92,
+      "sha256": "38ded7a76ae8649d32901fd5aecaa3cd24150f82d533816a95c5b52ca0a04423"
+    },
+    {
+      "path": "scripts/browser-smoke.mjs",
+      "category": "test",
+      "bytes": 3634,
+      "lines": 96,
+      "sha256": "6be3c3504a50ee0275ad6d103d6274e9e425a2e57c84a0459488efdcd6a21a12"
+    },
+    {
+      "path": "scripts/cleanup-arm.mjs",
+      "category": "test",
+      "bytes": 3630,
+      "lines": 116,
+      "sha256": "112c1729615a24fa7e0b7aa63c4b5a3b71a84c46121dea48df2b75ef7f8ef5b9"
+    },
+    {
+      "path": "scripts/correctness-smoke.mjs",
+      "category": "test",
+      "bytes": 10013,
+      "lines": 254,
+      "sha256": "ed0bc08a07a08291fd6f7fc9d5951ce5d4b09d54fd31b135f45c0eb81b9d6382"
+    },
+    {
+      "path": "scripts/inventory.mjs",
+      "category": "test",
+      "bytes": 3099,
+      "lines": 95,
+      "sha256": "cec1f39e30d300cb81b6f1d29f0b010d12084f1767eb9a2cc2842725d188c922"
+    },
+    {
+      "path": "scripts/offline-smoke.mjs",
+      "category": "test",
+      "bytes": 6020,
+      "lines": 167,
+      "sha256": "f1fb067de03bb840fc92c4910551815fd941f7335b575e98b5198ef88087ab2e"
+    },
+    {
+      "path": "scripts/performance-smoke.mjs",
+      "category": "test",
+      "bytes": 5168,
+      "lines": 158,
+      "sha256": "3803ddec128e88503676475ede23ded126e811124224f23d40e5fc7cf3a58c85"
+    },
+    {
+      "path": "scripts/provision-personas.mjs",
+      "category": "test",
+      "bytes": 3772,
+      "lines": 107,
+      "sha256": "7b6d107bf8ecfc6efa65c62649cd7b888485f004b843199764bcc56cbf83455e"
+    },
+    {
+      "path": "src/App.css",
+      "category": "authored-source",
+      "bytes": 2381,
+      "lines": 178,
+      "sha256": "bd0aed087e8e71d5886eee0fb12845d3ff4ab9551d0a67cf62a814beea075375"
+    },
+    {
+      "path": "src/App.tsx",
+      "category": "authored-source",
+      "bytes": 6451,
+      "lines": 210,
+      "sha256": "b88f502f95897f3a295060d6f65c64cdb732b846f63e091b8474321e60d14492"
+    },
+    {
+      "path": "src/assets/hero.png",
+      "category": "authored-source",
+      "bytes": 13057,
+      "lines": null,
+      "sha256": "881ffbcaafc212e49addad08846a5b82761355fa20624253af3477ba33262c5c"
+    },
+    {
+      "path": "src/assets/react.svg",
+      "category": "authored-source",
+      "bytes": 4126,
+      "lines": 1,
+      "sha256": "35ef61ed53b323ae94a16a8ec659b3d0af3880698791133f23b084085ab1c2e5"
+    },
+    {
+      "path": "src/assets/vite.svg",
+      "category": "authored-source",
+      "bytes": 8709,
+      "lines": 2,
+      "sha256": "5be21acd42eb7b896e517f4e0f0f11eb5c5d9e54fbbcebe9453f033008fcca6f"
+    },
+    {
+      "path": "src/index.css",
+      "category": "authored-source",
+      "bytes": 32,
+      "lines": 4,
+      "sha256": "87469f36270b0d473a08df5e35a1976b5e4505c220a3d55789935971a162da64"
+    },
+    {
+      "path": "src/main.tsx",
+      "category": "authored-source",
+      "bytes": 588,
+      "lines": 18,
+      "sha256": "7a8cda01792ea26301a5af9c97e6ffa054e49ccbf37f9f556cfd08c780e41273"
+    },
+    {
+      "path": "tsconfig.app.json",
+      "category": "configuration",
+      "bytes": 663,
+      "lines": 27,
+      "sha256": "2804b10bdf9413b5f36f9ec640fdbe2a538f802ad60014dd94fd6f8b5f63f07e"
+    },
+    {
+      "path": "tsconfig.json",
+      "category": "configuration",
+      "bytes": 119,
+      "lines": 8,
+      "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808"
+    },
+    {
+      "path": "tsconfig.node.json",
+      "category": "configuration",
+      "bytes": 558,
+      "lines": 24,
+      "sha256": "d366cc0827139db39c61815f22491bbfda56c654354a42ad7795143d314e45e8"
+    },
+    {
+      "path": "vite.config.ts",
+      "category": "authored-source",
+      "bytes": 161,
+      "lines": 8,
+      "sha256": "4d36db3522a7b2dd10e0936e1004373c7ee65f10f7cd7920cd76410459c15a45"
+    }
+  ],
+  "ignoredRuntime": [
+    ".convex",
+    ".env.local",
+    ".arm-secrets.json",
+    "dist"
+  ],
+  "containsSecretValues": false
+}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "targetBoundPlan": "evidence/cleanup-plan.json",
+  "exactTarget": {
+    "server": "http://127.0.0.1:3320",
+    "databaseName": "llp0102-linear-spacetimedb-w1",
+    "databaseIdentity": "c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e"
+  },
+  "preCleanup": {
+    "targetExisted": true,
+    "describeExitCode": 0,
+    "schemaSha256": "49baa3157927d5a4a25502f2295a140bea85194abc96464332fc975639dc68a4",
+    "authoritativeCountOutput": "issue_count \n-------------\n 501"
+  },
+  "databaseDelete": {
+    "exitCode": 0,
+    "command": "spacetime delete --server http://127.0.0.1:3320 --yes c200cfc7c1035bed89fec857cfdc6519c0f53bfeacced3ab8eb2b2bb623a7a6e",
+    "outputTail": [
+      "Skipping confirmation due to --yes"
+    ]
+  },
+  "postCleanup": {
+    "describeExitCode": 2,
+    "exactTargetAbsent": true,
+    "diagnostic": [
+      "  --json",
+      "",
+      "Usage: spacetime describe --json --server <server> [describe_parts]...",
+      "",
+      "For more information, try '--help'."
+    ],
+    "assignedPortListeners": {
+      "3320": [],
+      "4320": []
+    }
+  },
+  "stoppedProcesses": {
+    "vite": [
+      {
+        "pid": 336903,
+        "command": "npm run dev"
+      },
+      {
+        "pid": 336923,
+        "command": "node /home/ccheever/worktrees/llp0102-linear-spacetimedb-w1/demos/backend-bakeoff/arms/linear/spacetimedb/work/client/node_modules/.bin/vite --host 127.0.0.1 --port 4320"
+      },
+      {
+        "pid": 336922,
+        "command": "sh -c vite --host 127.0.0.1 --port 4320"
+      },
+      {
+        "pid": 336911,
+        "command": "npm run dev"
+      },
+      {
+        "pid": 336906,
+        "command": "/bin/sh /home/ccheever/.volta/tools/image/npm/11.13.0/bin/npm run dev"
+      }
+    ],
+    "server": {
+      "pid": 331759,
+      "command": "/home/ccheever/worktrees/llp0102-linear-spacetimedb-w1/demos/backend-bakeoff/arms/linear/spacetimedb/state/cli/bin/2.7.0/spacetimedb-standalone start --data-dir /home/ccheever/worktrees/llp0102-linear-spacetimedb-w1/demos/backend-bakeoff/arms/linear/spacetimedb/state/cli/data --jwt-key-dir /home/ccheever/worktrees/llp0102-linear-spacetimedb-w1/demos/backend-bakeoff/arms/linear/spacetimedb/state/cli/config --listen-addr=127.0.0.1:3320 --data-dir=/home/ccheever/worktrees/llp0102-linear-spacetimedb-w1/demos/backend-bakeoff/arms/linear/spacetimedb/state/data --non-interactive"
+    }
+  },
+  "unrelatedBaselinePreserved": true,
+  "pass": true
+}

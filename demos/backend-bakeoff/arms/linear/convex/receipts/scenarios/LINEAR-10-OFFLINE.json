@@ -1,0 +1,13 @@
+{
+  "id": "LINEAR-10-OFFLINE",
+  "status": "gap",
+  "capturedAt": "2026-07-29T04:51:40.419Z",
+  "target": "llp0102-linear-convex-coord",
+  "transport": "unsupported",
+  "evidence": {
+    "capability": "persistent cold retained query plus queued mutation",
+    "testedClient": "Convex 1.42.3 browser client",
+    "nonClaim": true
+  },
+  "note": "The ordinary Convex browser client does not provide persistent cold query retention and an offline mutation queue."
+}

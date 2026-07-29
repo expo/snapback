@@ -1,0 +1,9 @@
+{
+  "attempt": 3,
+  "result": "failed",
+  "phase": "CHAT-13-REVOKE",
+  "failureClass": "permission-rule-denial",
+  "summary": "A native allowedUsers unlink updates both the channel and reverse $users relationship; the initial $users policy denied the reverse relationship update.",
+  "remediation": "Permit only owner-attributed allowedChannels relationship removals while continuing to deny $users attribute edits, verify through an actor-scoped probe, reset the frozen fixture, and rerun.",
+  "stopClass": false
+}

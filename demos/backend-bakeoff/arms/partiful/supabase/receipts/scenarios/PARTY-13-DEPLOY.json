@@ -1,0 +1,15 @@
+{
+  "id": "PARTY-13-DEPLOY",
+  "checkedAt": "2026-07-29T05:41:20.099Z",
+  "status": "unavailable-remote-dependency",
+  "note": "No isolated hosted Supabase project credential was available; local secret/config, Edge Function boundary, logs, and target identity were inspected without claiming hosted delivery.",
+  "evidence": {
+    "localTargetIdentityHash": "f871c44b7dfdd25b52233ce606eff4f21d6814f4b11d59ccb0ee3a128cb72bdb",
+    "localSecretBoundary": "Edge Runtime received automatic server-side service credential; UI received only anon key.",
+    "localEffectBoundary": "notify Edge Function -> provider-fake HTTP Edge Function -> Postgres attempt/provider ledgers",
+    "hostedUrl": null,
+    "hostedRegion": null,
+    "hostedLogs": null,
+    "hostedRollback": null
+  }
+}

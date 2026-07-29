@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-02-PUBLIC-PRIVATE",
+  "capturedAt": "2026-07-29T05:17:23.248Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Anonymous SDK reads plus Admin Firestore split-document check",
+  "anonymousPublicFields": [
+    "artPath",
+    "location",
+    "published",
+    "startsAt",
+    "title",
+    "updatedAt"
+  ],
+  "anonymousPrivateDenial": {
+    "name": "FirebaseError",
+    "code": "permission-denied",
+    "message": "\nfalse for 'get' @ L45, false for 'get' @ L113"
+  },
+  "anonymousControlDenial": {
+    "name": "FirebaseError",
+    "code": "permission-denied",
+    "message": "\nfalse for 'get' @ L88, false for 'get' @ L113"
+  },
+  "created": {
+    "revision": 2,
+    "title": "Moonlight Potluck — Updated",
+    "publicFields": [
+      "artPath",
+      "location",
+      "published",
+      "startsAt",
+      "title",
+      "updatedAt"
+    ],
+    "privateDoorCode": "MOON-43"
+  },
+  "note": "Firestore rules cannot redact individual fields; public preview, protected event, and host controls use separate documents."
+}

@@ -1,0 +1,15 @@
+{
+  "id": "CHAT-04-PUSH",
+  "status": "pass",
+  "capturedAt": "2026-07-29T02:21:04.547Z",
+  "target": "llp0102-chat-firebase-w1",
+  "transport": "Firestore onSnapshot/WebChannel push",
+  "evidence": {
+    "messageId": "eBGz9idWc0t0AxmFhuJG",
+    "sequence": 127,
+    "latencyMs": 22.735,
+    "snapshotFromCache": false,
+    "polling": false
+  },
+  "note": "Second authenticated client observed a server snapshot; no product polling."
+}

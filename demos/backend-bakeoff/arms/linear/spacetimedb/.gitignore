@@ -1,0 +1,4 @@
+state/
+work/**/node_modules/
+work/**/.vite/
+work/client/.env.local

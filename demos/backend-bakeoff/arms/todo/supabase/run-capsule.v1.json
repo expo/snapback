@@ -1,0 +1,431 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0102-backend-bakeoff-v1",
+  "arm": {
+    "app": "todo",
+    "provider": "supabase",
+    "round": "calibration",
+    "attemptId": "todo-supabase-calibration-01"
+  },
+  "environment": {
+    "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "providerVersions": {
+      "product": "Supabase",
+      "client": "2.111.0",
+      "cli": "2.110.0"
+    },
+    "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
+    "startedAt": "2026-07-28T21:49:15Z",
+    "finishedAt": "2026-07-28T22:18:43.684Z"
+  },
+  "budget": {
+    "activeLimitMinutes": 240,
+    "toolCallLimit": 200,
+    "activeElapsedMs": 1768684,
+    "toolCalls": 58,
+    "timedWindowFrozenAt": "2026-07-28T22:18:43.684Z",
+    "extension": false
+  },
+  "actors": {
+    "alice": {
+      "principalIdHash": "4ecb8b99dbcb08ce3f6f0a791d4a54739a42a211a1f26de7593423fa0bd88a89",
+      "role": "member"
+    },
+    "bob": {
+      "principalIdHash": "dbcfc665a02f23f392ade6195495320c850c89f9205591757a5c5dc5b15cdc57",
+      "role": "member"
+    },
+    "mallory": {
+      "principalIdHash": "4a2015947b30204d19e32b5a0531e0118544c6d0ab970ce50dac595360921d89",
+      "role": "outsider"
+    }
+  },
+  "targets": {
+    "binding": {
+      "mode": "namespace-isolated-shared-hosted",
+      "namespace": "llp0102-todo-supabase-calibration-todo-supabase-calibration-01",
+      "baselineReceiptPath": "receipts/baseline.v1.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
+    },
+    "local": {
+      "status": "explicit-gap",
+      "identityHash": "",
+      "profile": "official Supabase CLI Docker stack",
+      "gapReason": "The frozen namespace-isolated shared-hosted target was eligible and used, so a second local target was not provisioned. This is not scored as a product failure.",
+      "receiptPaths": []
+    },
+    "hosted": {
+      "status": "cleaned",
+      "identityHash": "0823149e01fd3ed8d01405f27dc77756214957b660a251230c8f38e2bd8276ce",
+      "profile": "managed Postgres, Auth, Realtime, and PostgREST in a shared project",
+      "plan": "shared target; billing plan not independently observed",
+      "region": "us-east-1 pooler hostname hint; dashboard identifier unavailable",
+      "gapReason": "",
+      "receiptPaths": [
+        "receipts/baseline.v1.json",
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json",
+        "receipts/performance.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    }
+  },
+  "milestones": {
+    "firstLocalReadMs": null,
+    "firstAuthoritativeMutationMs": 365000,
+    "firstRealtimeTransitionMs": 615000,
+    "localAcceptanceMs": null,
+    "hostedUrlMs": 15000,
+    "acceptanceCompletionMs": 1265000
+  },
+  "assistanceEvents": [],
+  "commands": [
+    {
+      "command": "node scripts/capture-baseline.mjs",
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 3500,
+      "exitStatus": 0,
+      "classification": "redacted-zero-namespace-shared-target-baseline"
+    },
+    {
+      "command": "npm install @supabase/supabase-js@2.111.0 playwright-core@1.62.0",
+      "startedMonotonicMs": 4000,
+      "finishedMonotonicMs": 10000,
+      "exitStatus": 0,
+      "classification": "arm-local-provider-dependencies"
+    },
+    {
+      "command": "node scripts/admin-cli.mjs migrate && node scripts/admin-cli.mjs seed",
+      "startedMonotonicMs": 300000,
+      "finishedMonotonicMs": 370000,
+      "exitStatus": 0,
+      "classification": "prefix-isolated-hosted-migration-native-auth-and-seed"
+    },
+    {
+      "command": "node scripts/provision-personas.mjs",
+      "startedMonotonicMs": 550000,
+      "finishedMonotonicMs": 620000,
+      "exitStatus": 0,
+      "classification": "rls-personas-and-native-realtime-attribution"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs (three diagnostic attempts)",
+      "startedMonotonicMs": 700000,
+      "finishedMonotonicMs": 920000,
+      "exitStatus": 1,
+      "classification": "remote-checkbox-exact-label-and-refetch-race-harness-corrections"
+    },
+    {
+      "command": "node scripts/correctness-smoke.mjs",
+      "startedMonotonicMs": 921000,
+      "finishedMonotonicMs": 950000,
+      "exitStatus": 0,
+      "classification": "crud-push-conflict-order-revocation-and-logout"
+    },
+    {
+      "command": "node scripts/offline-smoke.mjs",
+      "startedMonotonicMs": 975000,
+      "finishedMonotonicMs": 990000,
+      "exitStatus": 0,
+      "classification": "native-offline-nonclaim-and-reconnect-gap-proof"
+    },
+    {
+      "command": "node scripts/performance-smoke.mjs",
+      "startedMonotonicMs": 1010000,
+      "finishedMonotonicMs": 1065000,
+      "exitStatus": 0,
+      "classification": "frozen-hosted-performance-sampling"
+    },
+    {
+      "command": "npm run lint && npm run build",
+      "startedMonotonicMs": 1080000,
+      "finishedMonotonicMs": 1084000,
+      "exitStatus": 0,
+      "classification": "static-check-and-production-build"
+    },
+    {
+      "command": "node scripts/inventory.mjs && node scripts/finalize-evidence.mjs",
+      "startedMonotonicMs": 1100000,
+      "finishedMonotonicMs": 1110000,
+      "exitStatus": 0,
+      "classification": "artifact-target-baseline-and-dependency-evidence"
+    },
+    {
+      "command": "node scripts/cleanup-arm.mjs",
+      "startedMonotonicMs": 1240000,
+      "finishedMonotonicMs": 1265000,
+      "exitStatus": 0,
+      "classification": "baseline-restoring-shared-namespace-and-local-runtime-cleanup"
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "TODO-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/authoritative-summary.v1.json",
+        "receipts/personas.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "The clean baseline preceded an isolated SQL migration and Admin authority proved one workspace, two memberships, four lists, 100 unique tasks and valid orders.",
+      "note": ""
+    },
+    {
+      "id": "TODO-02-MEMBER-READ",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Stable native Supabase Auth users Alice and Bob each queried exactly 100 RLS-authorized tasks.",
+      "note": ""
+    },
+    {
+      "id": "TODO-03-OUTSIDER-REFUSAL",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Native Auth outsider Mallory opened a Realtime socket but RLS returned zero protected rows and no query cache existed.",
+      "note": ""
+    },
+    {
+      "id": "TODO-04-CRUD",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "PostgreSQL RPCs and RLS-authorized updates covered create, edit, complete, reopen, reorder, and delete; Bob observed every committed transition.",
+      "note": ""
+    },
+    {
+      "id": "TODO-05-PUSH",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json",
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Directly observed Supabase Realtime Phoenix WebSockets delivered Postgres Changes that refetched Bob without refresh; seven samples are retained.",
+      "note": ""
+    },
+    {
+      "id": "TODO-06-OFFLINE-BOOT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "supabase-js retained the Auth session but cold boot with the exact project transport blocked returned zero tasks because it has no native durable PostgREST query cache."
+    },
+    {
+      "id": "TODO-07-OFFLINE-WRITES",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "Blocked create and update RPCs returned transport errors, produced no optimistic task state or SDK queue, and left authority unchanged."
+    },
+    {
+      "id": "TODO-08-RECONNECT",
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ],
+      "transport": "unsupported",
+      "authoritativeCheck": "",
+      "note": "Online reconnect and resubscription worked, but no create or update had been queued, so the required exact queued-write settlement is unsupported natively."
+    },
+    {
+      "id": "TODO-09-CONFLICT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Two clients crossed an RPC title barrier; atomic revision increments counted both commits, Admin authority identified the last commit, and both clients converged.",
+      "note": ""
+    },
+    {
+      "id": "TODO-10-ORDER",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Concurrent whole-array PostgreSQL updates converged by last commit to a valid 25-ID unique task order.",
+      "note": ""
+    },
+    {
+      "id": "TODO-11-LOGOUT",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Supabase Auth signOut removed the protected UI and stopped delivery; no native query cache existed and retained-store names were hashed without inspecting values.",
+      "note": ""
+    },
+    {
+      "id": "TODO-12-REVOKE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "Deleting Bob's membership emitted a Realtime change, immediately refetched his RLS view to zero, and blocked the next protected task update.",
+      "note": ""
+    },
+    {
+      "id": "TODO-13-PERFORMANCE",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/performance.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "The hosted receipt retains two warmups and seven raw samples for Admin read, origin settlement, second-client push, browser resubscription, and production build.",
+      "note": ""
+    },
+    {
+      "id": "TODO-14-CLEANUP",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/cleanup-plan.v1.json",
+        "receipts/backup-manifest.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Guarded cleanup removed only four prefixed relations/publication entries/functions and three metadata-bound users, then proved the zero-object redacted baseline restored.",
+      "note": ""
+    }
+  ],
+  "inventory": {
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 12,
+      "bytes": 58457,
+      "lines": 514
+    },
+    "generated": null,
+    "tests": {
+      "files": 11,
+      "bytes": 84157,
+      "lines": 2203
+    },
+    "configuration": {
+      "files": 7,
+      "bytes": 2631,
+      "lines": 132
+    },
+    "policy": {
+      "files": 2,
+      "bytes": 8186,
+      "lines": 229
+    },
+    "dependencyManifests": {
+      "files": 1,
+      "bytes": 50230,
+      "lines": 1566
+    },
+    "installedDependencyBytes": 106160848,
+    "glue": [
+      "redacted shared-target baseline and exact prefix/persona lifecycle",
+      "Postgres schema, constraints, RLS, grants, transaction RPCs, and Realtime publication",
+      "native Auth browser personas and push-triggered PostgREST refetch",
+      "explicit native-offline GAP barrier and baseline-restoring cleanup"
+    ]
+  },
+  "evidenceConfidence": {
+    "actor-authority": {
+      "score": 2,
+      "reason": "Three stable native Auth users exercised positive RLS access, outsider refusal, immediate revocation, and logout.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/correctness-smoke.v1.json"
+      ]
+    },
+    "transaction-conflict": {
+      "score": 2,
+      "reason": "Two-client barriers, atomic server revision increments, and service-role queries proved title and order outcomes.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ]
+    },
+    "transport": {
+      "score": 2,
+      "reason": "Each independent client opened a native Supabase Realtime WebSocket and seven hosted second-client samples were retained.",
+      "evidencePaths": [
+        "receipts/personas.v1.json",
+        "receipts/performance.v1.json"
+      ]
+    },
+    "offline-reconnect": {
+      "score": 2,
+      "reason": "An exact project-host barrier directly proved zero cold rows, failed unqueued writes, unchanged authority, and ordinary online resubscription.",
+      "evidencePaths": [
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "settlement": {
+      "score": 2,
+      "reason": "Every online transition was checked in both clients and authority; offline non-settlement was also directly proved.",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/offline-smoke.v1.json"
+      ]
+    },
+    "target-identity": {
+      "score": 2,
+      "reason": "Hashed project/pooler hosts, server/client versions, region hint, namespace prefix, and object counts bind the shared target without credentials.",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ]
+    },
+    "cleanup-isolation": {
+      "score": 2,
+      "reason": "A zero-object baseline and predeclared exact relations, functions, publication members, and persona hashes matched the post-cleanup zero probe.",
+      "evidencePaths": [
+        "receipts/baseline.v1.json",
+        "receipts/cleanup-plan.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
+    },
+    "artifact-reproducibility": {
+      "score": 2,
+      "reason": "SQL migration/cleanup, deterministic seed, RLS, RPCs, zero-finding audit, build, and category-separated inventory are retained.",
+      "evidencePaths": [
+        "receipts/backup-manifest.v1.json",
+        "receipts/dependency-audit.v1.json",
+        "receipts/inventory.v1.json"
+      ]
+    }
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/baseline.v1.json",
+      "receipts/backup-manifest.v1.json",
+      "receipts/cleanup.v1.json"
+    ],
+    "postCleanupProbe": "The shared project returned to zero matching relations, policies, Realtime publication entries, and persona users; port 4182 and both disposable credential/runtime paths were absent."
+  },
+  "result": "complete"
+}

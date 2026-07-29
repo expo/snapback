@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-07-CITATIONS",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:02.859Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "The durable answer cites two existing room source records, and Bob can read it as a member.",
+    "answerId": "answer-question-progress-live",
+    "citationProof": [
+      {
+        "sourceId": "source-001",
+        "exists": true
+      },
+      {
+        "sourceId": "source-005",
+        "exists": true
+      }
+    ],
+    "bobAuthorized": true
+  },
+  "note": "Citations retain source-record identity and room authority."
+}

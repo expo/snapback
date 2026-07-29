@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-09-CANCEL",
+  "status": "PASS",
+  "observedAt": "2026-07-29T08:00:04.783Z",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeCheck": "After cancellation confirmation, the in-flight worker settled cancelled, an injected late patch was transactionally blocked, progress count stayed fixed, and no answer exists.",
+    "cancellation": {
+      "confirmed": true,
+      "status": "cancelled"
+    },
+    "workerSettlement": {
+      "deduplicated": false,
+      "questionId": "question-cancel-late",
+      "status": "cancelled"
+    },
+    "lateInjection": {
+      "blocked": true,
+      "persisted": false
+    },
+    "progressBefore": 2,
+    "progressAfter": 2,
+    "answerExists": false
+  },
+  "note": "Confirmed cancellation prevents every late durable patch."
+}

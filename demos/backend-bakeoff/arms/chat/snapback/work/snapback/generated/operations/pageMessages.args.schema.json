@@ -1,0 +1,22 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/pageMessages.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "beforeSequence": {
+      "type": "integer"
+    },
+    "channelId": {
+      "type": "string"
+    },
+    "limit": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "channelId",
+    "limit"
+  ],
+  "title": "work:pageMessages arguments",
+  "type": "object"
+}

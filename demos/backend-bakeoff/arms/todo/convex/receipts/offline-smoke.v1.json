@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-28T20:16:31.386Z",
+  "ok": true,
+  "warmRowsWhileOffline": 100,
+  "coldBoot": {
+    "shellAppeared": false,
+    "retainedRows": 0
+  },
+  "queuedUiProof": {
+    "createFormCleared": true,
+    "updateInputContainsOfflineValue": true,
+    "remoteCountUnchanged": true
+  },
+  "reconnect": {
+    "settledCount": 101,
+    "markerCopies": 1,
+    "coldClientResubscribed": true,
+    "createAndUpdateVisible": true
+  },
+  "finding": "warm in-memory query data survives transport loss and mutation calls queue for retry; a closed-and-reopened client has no durable retained query result",
+  "containsSecretValues": false
+}

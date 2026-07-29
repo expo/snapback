@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    {"command":"isolated install script","exitStatus":1,"classification":"builder path assumption: installer placed spacetime at CLI root, not bin/"},
+    {"command":"spacetime --root-dir=<isolated> version install 2.7.0","exitStatus":1,"classification":"CLI parsing: separated --root-dir value was not forwarded"},
+    {"command":"spacetime --root-dir=<isolated> version install 2.7.0 (equals form)","exitStatus":0},
+    {"command":"spacetime init --server-only --lang typescript","exitStatus":0},
+    {"command":"spacetime build","exitStatus":1,"classification":"builder TypeScript inference in generic view helper"},
+    {"command":"spacetime build (explicit typed views)","exitStatus":0},
+    {"command":"spacetime server add local-w1 ... -y","exitStatus":2,"classification":"CLI drift: server add rejects documented/common -y convention"},
+    {"command":"spacetime server add local-w1","exitStatus":0},
+    {"command":"spacetime publish ... -c always <database>","exitStatus":2,"classification":"CLI optional-value parsing consumed positional database"},
+    {"command":"spacetime publish <database> --delete-data=always --yes=all","exitStatus":0},
+    {"command":"spacetime generate (harness and client)","exitStatus":0},
+    {"command":"bunx tsc --noEmit","exitStatus":1,"classification":"builder harness Node types and Uint8Array typing"},
+    {"command":"bunx tsc --noEmit (corrected)","exitStatus":0},
+    {"command":"bun run build (client)","exitStatus":0},
+    {"command":"bun run verify (localhost scheduled HTTP attempt)","exitStatus":1,"classification":"secure product refusal of private-address procedure fetch"},
+    {"command":"bun run verify (httpbin fixed-response attempt)","exitStatus":1,"classification":"remote endpoint returned non-200 and harness correctly refused pass"},
+    {"command":"bun run verify (stable RFC 2606 endpoint)","exitStatus":0,"classification":"12 pass, 2 GAP before cleanup"},
+    {"command":"spacetime delete exact database","exitStatus":0},
+    {"command":"post-delete SQL probe","exitStatus":1,"classification":"expected 404 / No such database"}
+  ],
+  "assistanceEvents": [
+    {
+      "kind": "official-documentation",
+      "sources": [
+        "https://spacetimedb.com/docs/clients/typescript/",
+        "https://spacetimedb.com/docs/tables/file-storage/",
+        "https://spacetimedb.com/docs/tables/access-permissions/",
+        "https://spacetimedb.com/docs/tables/schedule-tables/",
+        "https://spacetimedb.com/docs/functions/procedures/",
+        "https://spacetimedb.com/docs/cli-reference/"
+      ]
+    },
+    {
+      "kind": "cross-arm-convention-inspection",
+      "source": "demos/backend-bakeoff/arms/chat/spacetimedb",
+      "reason": "Consulted generated 2.7 client lifecycle and caller-dependent view conventions."
+    }
+  ],
+  "stopDefects": []
+}
