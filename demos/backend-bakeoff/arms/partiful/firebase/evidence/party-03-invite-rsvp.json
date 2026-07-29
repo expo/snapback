@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-03-INVITE-RSVP",
+  "capturedAt": "2026-07-29T05:17:23.752Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Callable transaction responses plus Admin Firestore RSVP and event reads",
+  "transitions": [
+    {
+      "eventId": "event-02",
+      "response": "maybe",
+      "plusOneCount": 0,
+      "attendanceCount": 0
+    },
+    {
+      "eventId": "event-02",
+      "response": "yes",
+      "plusOneCount": 1,
+      "attendanceCount": 2
+    },
+    {
+      "eventId": "event-02",
+      "response": "no",
+      "plusOneCount": 0,
+      "attendanceCount": 0
+    },
+    {
+      "eventId": "event-02",
+      "response": "maybe",
+      "plusOneCount": 0,
+      "attendanceCount": 0
+    }
+  ],
+  "finalRsvp": {
+    "eventId": "event-02",
+    "uid": "bob-partiful-firebase-w1",
+    "displayName": "Bob",
+    "response": "maybe",
+    "plusOneCount": 0,
+    "seats": 0,
+    "revision": 4,
+    "updatedAt": {
+      "_seconds": 1785302243,
+      "_nanoseconds": 745000000
+    }
+  },
+  "finalAttendance": 0
+}

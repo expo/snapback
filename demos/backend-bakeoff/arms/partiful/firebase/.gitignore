@@ -1,0 +1,13 @@
+state/
+work/node_modules/
+work/functions/node_modules/
+work/dist/
+work/tsconfig.tsbuildinfo
+work/.firebase/
+work/.npm-cache/
+work/.xdg/
+work/demos/
+work/firebase-debug.log
+work/*-debug.log
+work/client/.env.local
+work/functions/.env.local

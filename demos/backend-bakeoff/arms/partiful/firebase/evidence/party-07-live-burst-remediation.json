@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-07-LIVE-BURST",
+  "capturedAt": "2026-07-29T05:39:40.799Z",
+  "projectId": "llp0102-partiful-firebase-w1-party07-remediation",
+  "targetMode": "fresh-local-remediation",
+  "originalPartialReceipt": "evidence/party-07-live-burst.json",
+  "transport": "native Firestore onSnapshot push on a second authenticated client",
+  "polling": false,
+  "observed": {
+    "postIds": [
+      "remediation-burst-1",
+      "remediation-burst-10",
+      "remediation-burst-11",
+      "remediation-burst-12",
+      "remediation-burst-13",
+      "remediation-burst-14",
+      "remediation-burst-15",
+      "remediation-burst-16",
+      "remediation-burst-17",
+      "remediation-burst-18",
+      "remediation-burst-19",
+      "remediation-burst-2",
+      "remediation-burst-20",
+      "remediation-burst-3",
+      "remediation-burst-4",
+      "remediation-burst-5",
+      "remediation-burst-6",
+      "remediation-burst-7",
+      "remediation-burst-8",
+      "remediation-burst-9"
+    ],
+    "attendanceCounts": [
+      0,
+      2
+    ]
+  },
+  "authoritative": {
+    "postCount": 20,
+    "attendanceCount": 2
+  },
+  "cleanup": {
+    "before": {
+      "topLevelCollections": [
+        "events"
+      ],
+      "authUsers": 2
+    },
+    "after": {
+      "topLevelCollections": [],
+      "authUsers": 0
+    },
+    "status": "data-plane-complete"
+  }
+}

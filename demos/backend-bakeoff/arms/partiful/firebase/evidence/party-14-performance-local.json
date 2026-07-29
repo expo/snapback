@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-14-PERFORMANCE",
+  "capturedAt": "2026-07-29T05:20:31.235Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "environment": "local Firebase Emulator Suite; debug-only and not comparable to hosted performance",
+  "warmup": "The functional acceptance run warmed SDK connections and emulator processes before sampling.",
+  "samplePolicy": "Two warmups followed by seven recorded sequential samples per path.",
+  "summary": {
+    "representative-read": {
+      "warmupsMs": [
+        130.528,
+        6.628
+      ],
+      "recordedSamplesMs": [
+        3.941,
+        6.913,
+        6.597,
+        3.99,
+        3.603,
+        2.455,
+        3.741
+      ],
+      "medianMs": 3.941,
+      "nearestRankP95Ms": 6.913,
+      "recordedSampleCount": 7
+    },
+    "representative-write": {
+      "warmupsMs": [
+        20.023,
+        5.099
+      ],
+      "recordedSamplesMs": [
+        2.801,
+        6.348,
+        6.516,
+        2.79,
+        2.563,
+        2.501,
+        2.184
+      ],
+      "medianMs": 2.79,
+      "nearestRankP95Ms": 6.516,
+      "recordedSampleCount": 7
+    },
+    "realtime-delivery": {
+      "warmupsMs": [
+        2.155,
+        0.703
+      ],
+      "recordedSamplesMs": [
+        0.726,
+        1.573,
+        1.923,
+        0.972,
+        1.559,
+        1.427,
+        0.518
+      ],
+      "medianMs": 1.427,
+      "nearestRankP95Ms": 1.923,
+      "recordedSampleCount": 7
+    },
+    "reconnect": {
+      "warmupsMs": [
+        46.68,
+        21.219
+      ],
+      "recordedSamplesMs": [
+        12.746,
+        35.465,
+        37.563,
+        13.662,
+        13.686,
+        14.683,
+        11.566
+      ],
+      "medianMs": 13.686,
+      "nearestRankP95Ms": 37.563,
+      "recordedSampleCount": 7
+    },
+    "capacity-contention": {
+      "warmupsMs": [
+        87.883,
+        3019.261
+      ],
+      "recordedSamplesMs": [
+        3468.763,
+        3455.258,
+        3432.132,
+        3057.395,
+        3287.632,
+        2626.235,
+        3492.119
+      ],
+      "medianMs": 3432.132,
+      "nearestRankP95Ms": 3492.119,
+      "recordedSampleCount": 7
+    },
+    "wall-burst-20": {
+      "warmupsMs": [
+        59.851,
+        46.586
+      ],
+      "recordedSamplesMs": [
+        44.125,
+        41.623,
+        30.836,
+        31.347,
+        15.849,
+        28.968,
+        29.173
+      ],
+      "medianMs": 30.836,
+      "nearestRankP95Ms": 44.125,
+      "recordedSampleCount": 7
+    },
+    "asset-256k-roundtrip": {
+      "warmupsMs": [
+        42.814,
+        38.825
+      ],
+      "recordedSamplesMs": [
+        43.73,
+        44.497,
+        40.529,
+        39.856,
+        40.27,
+        39.726,
+        39.676
+      ],
+      "medianMs": 40.27,
+      "nearestRankP95Ms": 44.497,
+      "recordedSampleCount": 7
+    }
+  },
+  "costWindow": {
+    "begins": "fresh isolated emulator target preflight/provisioning",
+    "ends": "scoped target cleanup and listener shutdown",
+    "actualProviderUsage": "Firebase emulator instrumentation does not expose billable managed usage.",
+    "listPriceEstimate": "Local Emulator Suite: USD 0.00. No hosted extrapolation is claimed because hosted credentials were unavailable."
+  }
+}

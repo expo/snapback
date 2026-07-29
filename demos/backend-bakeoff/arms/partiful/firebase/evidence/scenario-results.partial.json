@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:17:27.986Z",
+  "results": [
+    {
+      "id": "PARTY-01-SEED",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-01-seed.json"
+      ],
+      "transport": "authoritative-read-after-write",
+      "authoritativeCheck": "Admin Firestore collection counts and Auth emulator receipt",
+      "note": ""
+    },
+    {
+      "id": "PARTY-02-PUBLIC-PRIVATE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-02-public-private.json"
+      ],
+      "transport": "authoritative-read-after-write",
+      "authoritativeCheck": "Anonymous SDK reads plus Admin Firestore split-document check",
+      "note": "Firestore rules cannot redact individual fields; public preview, protected event, and host controls use separate documents."
+    },
+    {
+      "id": "PARTY-03-INVITE-RSVP",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-03-invite-rsvp.json"
+      ],
+      "transport": "authoritative-read-after-write",
+      "authoritativeCheck": "Callable transaction responses plus Admin Firestore RSVP and event reads",
+      "note": ""
+    },
+    {
+      "id": "PARTY-04-ROLES",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-04-roles.json"
+      ],
+      "transport": "authoritative-read-after-write",
+      "authoritativeCheck": "Rules-enforced Web SDK positive and negative operations",
+      "note": ""
+    },
+    {
+      "id": "PARTY-05-GUEST-LIST",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-05-guest-list.json"
+      ],
+      "transport": "firestore-listen-stream",
+      "authoritativeCheck": "Already-connected onSnapshot invalidated after rules dependency changed; retained rows cleared",
+      "note": ""
+    },
+    {
+      "id": "PARTY-06-CAPACITY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-06-capacity.json"
+      ],
+      "transport": "authoritative-read-after-write",
+      "authoritativeCheck": "Two concurrent callable transactions plus Admin invariant reads",
+      "note": ""
+    },
+    {
+      "id": "PARTY-07-LIVE-BURST",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-07-live-burst.json"
+      ],
+      "transport": "firestore-listen-stream",
+      "authoritativeCheck": "Second authenticated client native onSnapshot plus Admin collection read",
+      "note": ""
+    },
+    {
+      "id": "PARTY-08-ASSET",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-08-asset.json"
+      ],
+      "transport": "firebase-storage-emulator",
+      "authoritativeCheck": "Storage emulator rules, two SDK downloads with SHA-256 equality, denied outsider operations, post-delete failure",
+      "note": "Storage Rules cannot consult Firestore; host ownership is bound in immutable object metadata."
+    },
+    {
+      "id": "PARTY-09-SCHEDULE",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-09-schedule.json"
+      ],
+      "transport": "firebase-functions-scheduler-plus-callable-test-trigger",
+      "authoritativeCheck": "Firebase onSchedule export initialized by Functions+Pub/Sub emulators; shared reminder core invoked twice and ledgers read via Admin",
+      "note": "The emulator initializes the real scheduled function; deterministic acceptance invokes the same core through an authenticated callable test trigger."
+    },
+    {
+      "id": "PARTY-10-EFFECT-RETRY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-10-effect-retry.json"
+      ],
+      "transport": "callable-function-to-http-provider-boundary",
+      "authoritativeCheck": "Function effect ledger plus local provider receipt state",
+      "note": ""
+    },
+    {
+      "id": "PARTY-11-EFFECT-AMBIGUOUS",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-11-effect-ambiguous.json"
+      ],
+      "transport": "callable-function-to-http-provider-boundary-with-dropped-socket",
+      "authoritativeCheck": "Intermediate and terminal effect ledger reads plus fake provider idempotency ledger",
+      "note": ""
+    },
+    {
+      "id": "PARTY-12-REVOCATION",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-12-revocation.json"
+      ],
+      "transport": "firestore-listen-stream",
+      "authoritativeCheck": "Already-connected protected listener terminated, retained state cleared, subsequent write denied, Admin invitation state checked",
+      "note": ""
+    },
+    {
+      "id": "PARTY-13-DEPLOY",
+      "status": "pass",
+      "evidencePaths": [
+        "evidence/party-13-deploy.json"
+      ],
+      "transport": "not-applicable",
+      "authoritativeCheck": "Credential preflight found no Firebase account in isolated CLI state",
+      "note": "No hosted claim is made and this is not a Firebase product failure."
+    }
+  ],
+  "milestones": {
+    "firstRealtimeTransitionMs": 767925,
+    "localAcceptanceMs": 770564
+  }
+}

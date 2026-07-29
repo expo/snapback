@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:24:00Z",
+  "command": "npm run cleanup:target",
+  "exitStatus": 1,
+  "failure": "Unauthenticated Storage emulator object-list request returned HTTP 403.",
+  "mutationBeforeFailure": "none; cleanup gathers all before-state before deleting any resource",
+  "remediation": "Use the Storage emulator owner bearer identity for exact-project list and delete requests.",
+  "classification": "harness/tooling correction; not a Firebase product defect"
+}

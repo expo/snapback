@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-09-SCHEDULE",
+  "capturedAt": "2026-07-29T05:17:26.006Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Firebase onSchedule export initialized by Functions+Pub/Sub emulators; shared reminder core invoked twice and ledgers read via Admin",
+  "transport": "firebase-functions-scheduler-plus-callable-test-trigger",
+  "definition": {
+    "eventId": "event-01",
+    "functionName": "scheduledReminder",
+    "schedule": "0 9 * * *",
+    "timeZone": "America/Los_Angeles",
+    "retryCount": 3,
+    "enabled": true
+  },
+  "first": {
+    "runId": "event-reminder-event-01-2026-07-29",
+    "deduped": false,
+    "effectKey": "reminder:event-reminder-event-01-2026-07-29"
+  },
+  "second": {
+    "runId": "event-reminder-event-01-2026-07-29",
+    "deduped": true
+  },
+  "reminderRunCount": 1,
+  "reminderEffectCount": 1,
+  "note": "The emulator initializes the real scheduled function; deterministic acceptance invokes the same core through an authenticated callable test trigger."
+}

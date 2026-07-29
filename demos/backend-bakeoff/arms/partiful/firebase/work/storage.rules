@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /event-art/{eventId}/{fileName} {
+      allow read: if resource.metadata.public == "true";
+      allow create: if request.auth != null
+        && request.resource.size == 262144
+        && request.resource.contentType.matches("image/.*")
+        && request.resource.metadata.hostUid == request.auth.uid
+        && request.resource.metadata.eventId == eventId
+        && request.resource.metadata.public == "true";
+      allow update, delete: if request.auth != null
+        && resource.metadata.hostUid == request.auth.uid;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

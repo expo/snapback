@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:43:37.648Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "mode": "fresh-local",
+  "services": {
+    "auth": 9331,
+    "firestore": 8331,
+    "functions": 5331,
+    "storage": 9431,
+    "ui": 4331,
+    "fakeProviderOrVite": 4332,
+    "hub": 4531,
+    "logging": 4532,
+    "eventarc": 4533,
+    "tasks": 4534,
+    "firestoreWebsocket": 4535,
+    "pubsub": 4536
+  },
+  "remediationProjectId": "llp0102-partiful-firebase-w1-party07-remediation",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "snapbackFrozenSourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "armBaseCommit": "0ec5d5f2fdb6f16f8314a3d8ac46f3aa1f2a3068",
+  "identityHash": "5dc891e5fa02e4dc8a62d167bb8a27dc3819e3ad14311c56780990a6874cebe1"
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-08-ASSET",
+  "capturedAt": "2026-07-29T05:17:25.498Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Storage emulator rules, two SDK downloads with SHA-256 equality, denied outsider operations, post-delete failure",
+  "transport": "firebase-storage-emulator",
+  "bytes": 262144,
+  "sha256": "31a1f9dea0169551092d05e8bf4a446228c8c3eb4c9b713c66adcb7fd53c89be",
+  "bobHashEqual": true,
+  "anonymousHashEqual": true,
+  "outsiderUploadDenial": {
+    "name": "FirebaseError",
+    "code": "storage/unauthorized",
+    "message": "Firebase Storage: User does not have permission to access 'event-art/event-01/mallory.bin'. (storage/unauthorized)"
+  },
+  "outsiderDeleteDenial": {
+    "name": "FirebaseError",
+    "code": "storage/unauthorized",
+    "message": "Firebase Storage: User does not have permission to access 'event-art/event-01/acceptance-art.bin'. (storage/unauthorized)"
+  },
+  "postDeleteError": {
+    "name": "FirebaseError",
+    "code": "storage/unauthorized",
+    "message": "Firebase Storage: User does not have permission to access 'event-art/event-01/acceptance-art.bin'. (storage/unauthorized)"
+  },
+  "note": "Storage Rules cannot consult Firestore; host ownership is bound in immutable object metadata."
+}

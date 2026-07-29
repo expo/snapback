@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "armRoot": "/private/tmp/llp0102-partiful-firebase-w1/demos/backend-bakeoff/arms/partiful/firebase/work",
+  "generatedAt": "2026-07-29T05:44:19.592Z",
+  "totals": {
+    "authored-source": {
+      "files": 17,
+      "bytes": 78414,
+      "lines": 2068
+    },
+    "configuration": {
+      "files": 6,
+      "bytes": 3400,
+      "lines": 167
+    },
+    "policy": {
+      "files": 2,
+      "bytes": 4034,
+      "lines": 139
+    },
+    "dependency-manifest": {
+      "files": 2,
+      "bytes": 557870,
+      "lines": 15837
+    },
+    "test": {
+      "files": 1,
+      "bytes": 24560,
+      "lines": 597
+    }
+  },
+  "installedDependencyBytes": 513787410,
+  "files": [
+    {
+      "path": ".firebaserc",
+      "category": "authored-source",
+      "bytes": 70,
+      "lines": 6,
+      "sha256": "8747075f0c9226181b657eea400609dd07531edca9e0aa93a605e55cef9d97ba"
+    },
+    {
+      "path": "firebase.json",
+      "category": "configuration",
+      "bytes": 1015,
+      "lines": 59,
+      "sha256": "7a082c559c38ece1452726e78813a73b6115eaaa16f961b818e85442dddd7ff5"
+    },
+    {
+      "path": "firestore.indexes.json",
+      "category": "configuration",
+      "bytes": 330,
+      "lines": 20,
+      "sha256": "c88853f5e2c3359ed9c98b7a547a4a4d033787c870f71c7f9f84df8b016a9cae"
+    },
+    {
+      "path": "firestore.rules",
+      "category": "policy",
+      "bytes": 3346,
+      "lines": 117,
+      "sha256": "443c9fa9411e5861858b65204b70c51a855d0ad53cc51df2549324499b216fa8"
+    },
+    {
+      "path": "functions/index.mjs",
+      "category": "authored-source",
+      "bytes": 14260,
+      "lines": 377,
+      "sha256": "2fb626c2542d57547c0776c58fcf7578ef88585e012972cdf282438239718229"
+    },
+    {
+      "path": "functions/package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 127699,
+      "lines": 3486,
+      "sha256": "20496ef5b16ef77837e55e26218db7b055e67de73c9ee010653aadd6a2aa7259"
+    },
+    {
+      "path": "functions/package.json",
+      "category": "configuration",
+      "bytes": 267,
+      "lines": 15,
+      "sha256": "b78228dcfeb5315575c17cb522562cda90bcaef8195189e51bee4728878bd397"
+    },
+    {
+      "path": "harness/acceptance.ts",
+      "category": "test",
+      "bytes": 24560,
+      "lines": 597,
+      "sha256": "10502f50afd35be849da9e422b216fbc40cf5e85db85a9ae9bda1fbe0150c170"
+    },
+    {
+      "path": "harness/build-samples.mjs",
+      "category": "authored-source",
+      "bytes": 1403,
+      "lines": 38,
+      "sha256": "ed79118303ab3bf82b55c29c1799f55b053285091d1f2060521ea61185cd1680"
+    },
+    {
+      "path": "harness/cleanup-target.ts",
+      "category": "authored-source",
+      "bytes": 4340,
+      "lines": 108,
+      "sha256": "4bd5124f7660145528cab02d98626e1bc08a2e57bf58d952b106bd9edeb746f1"
+    },
+    {
+      "path": "harness/constants.ts",
+      "category": "authored-source",
+      "bytes": 1051,
+      "lines": 26,
+      "sha256": "0f15cb4d096fa95ef1b6eb7d183705c671d8cd0409d57987554e89dcfc212fb1"
+    },
+    {
+      "path": "harness/fake-provider.mjs",
+      "category": "authored-source",
+      "bytes": 2306,
+      "lines": 78,
+      "sha256": "ef8bb49c07a38e09dd51bc8cae0627d1b3043861fd8dcea2b8b5f345040d8957"
+    },
+    {
+      "path": "harness/finalize-capsule.mjs",
+      "category": "authored-source",
+      "bytes": 14217,
+      "lines": 299,
+      "sha256": "30d15be4871a28959c2b6569a2d029fbe6f874cb7b6c71e894d6ee21e29ec2c1"
+    },
+    {
+      "path": "harness/finalize-performance.mjs",
+      "category": "authored-source",
+      "bytes": 1958,
+      "lines": 46,
+      "sha256": "b5a9d0f94e5d05c5e399f6518325f9aff1d3e45687e3cd7dd0614e4625b7e5d4"
+    },
+    {
+      "path": "harness/firebase-client.ts",
+      "category": "authored-source",
+      "bytes": 2193,
+      "lines": 79,
+      "sha256": "9715971ce4b0db9898b8212aaba784bafecd6fb281e33626e89be37edc4e1e5d"
+    },
+    {
+      "path": "harness/performance.ts",
+      "category": "authored-source",
+      "bytes": 8692,
+      "lines": 222,
+      "sha256": "8749474321881d00fbfaad63ec088eb087efdd36209504492308dfae514d4be3"
+    },
+    {
+      "path": "harness/post-cleanup-probe.mjs",
+      "category": "authored-source",
+      "bytes": 2452,
+      "lines": 66,
+      "sha256": "424974dc0688319f3d8b3c3f4555a7cbf05d3f7c37cd7f6d3347f4427270bf31"
+    },
+    {
+      "path": "harness/remediate-live-burst.ts",
+      "category": "authored-source",
+      "bytes": 6950,
+      "lines": 188,
+      "sha256": "a59957a30602f2eea7428a44772821843d5357ac052ee7e0261b2a4d5b72ad96"
+    },
+    {
+      "path": "harness/seed.ts",
+      "category": "authored-source",
+      "bytes": 8613,
+      "lines": 243,
+      "sha256": "2b48db3dd1e0f8199e50ceb8aa76dd11da87802f251a1b4d1ee1e8878198ac03"
+    },
+    {
+      "path": "index.html",
+      "category": "authored-source",
+      "bytes": 318,
+      "lines": 13,
+      "sha256": "e3c45c4a509c0b025d92d329ef9c9e9025cf488601c4a429482714bd58a9f429"
+    },
+    {
+      "path": "package-lock.json",
+      "category": "dependency-manifest",
+      "bytes": 430171,
+      "lines": 12351,
+      "sha256": "6d7657a8fedcfb0bc3f74a94bab206666f4758743ff75d018aa9dce671171a1e"
+    },
+    {
+      "path": "package.json",
+      "category": "configuration",
+      "bytes": 958,
+      "lines": 34,
+      "sha256": "86fe9ea6f53d0af346b696ddb818ef8b061954ca3bd79217a1c76468fd192cb1"
+    },
+    {
+      "path": "src/App.tsx",
+      "category": "authored-source",
+      "bytes": 6329,
+      "lines": 191,
+      "sha256": "3b9bef3bccc01ea281cfd202932fe58beb06a3570d6d435e9b3c86c0bc32859e"
+    },
+    {
+      "path": "src/main.tsx",
+      "category": "authored-source",
+      "bytes": 236,
+      "lines": 11,
+      "sha256": "a6bcae9c4f04d6ff36406b2966379834342b41b08b83ba7bd0334712d6cf87f0"
+    },
+    {
+      "path": "src/styles.css",
+      "category": "authored-source",
+      "bytes": 3026,
+      "lines": 77,
+      "sha256": "679e0e89952456b082310e0d5124836d47a802d8f5e06714c12e876b6adfcc33"
+    },
+    {
+      "path": "storage.rules",
+      "category": "policy",
+      "bytes": 688,
+      "lines": 22,
+      "sha256": "749e39507032ad244611c537436375e94482a421d5aaae59c8d21b7d3a5b59cb"
+    },
+    {
+      "path": "tsconfig.json",
+      "category": "configuration",
+      "bytes": 557,
+      "lines": 23,
+      "sha256": "b45a78ffcf4b6ed30089d7a2a814c8f54d1fb6214d485e20d26713c954f5bb34"
+    },
+    {
+      "path": "vite.config.ts",
+      "category": "configuration",
+      "bytes": 273,
+      "lines": 16,
+      "sha256": "a1f55218e653274fb538000a37a03c1d20f2a04c1a54be577957406bb93d2fc0"
+    }
+  ]
+}

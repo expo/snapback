@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-06-CAPACITY",
+  "capturedAt": "2026-07-29T05:17:25.269Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Two concurrent callable transactions plus Admin invariant reads",
+  "contenders": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "eventId": "event-capacity",
+        "response": "yes",
+        "plusOneCount": 0,
+        "attendanceCount": 50
+      }
+    },
+    {
+      "status": "rejected",
+      "reason": {
+        "name": "FirebaseError",
+        "code": "functions/resource-exhausted",
+        "message": "PARTY_CAPACITY_REACHED"
+      }
+    }
+  ],
+  "attendanceCount": 50,
+  "capacity": 50,
+  "persistedRsvpCount": 50
+}

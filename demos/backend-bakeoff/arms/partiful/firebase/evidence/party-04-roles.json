@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-04-ROLES",
+  "capturedAt": "2026-07-29T05:17:24.278Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Rules-enforced Web SDK positive and negative operations",
+  "host": "Alice callable mutations passed in PARTY-02",
+  "cohost": {
+    "controlRead": true
+  },
+  "guest": {
+    "eventRead": true,
+    "postId": "09CFuINm2FlRAceSabb6"
+  },
+  "denials": {
+    "bobGuestControlDenial": {
+      "name": "FirebaseError",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L88:22 for 'get' @ L88, false for 'get' @ L113, false for 'get' @ L88, false for 'get' @ L113"
+    },
+    "bobGuestRoleDenial": {
+      "name": "FirebaseError",
+      "code": "functions/permission-denied",
+      "message": "PARTY_NOT_AUTHORIZED"
+    },
+    "malloryPrivateDenial": {
+      "name": "FirebaseError",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L45:22 for 'get' @ L45, false for 'get' @ L113, false for 'get' @ L45, false for 'get' @ L113"
+    },
+    "malloryPostDenial": {
+      "name": "FirebaseError",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L67:26 for 'create' @ L67, false for 'create' @ L113, evaluation error at L82:34 for 'update' @ L82, false for 'update' @ L113, false for 'create' @ L67, false for 'create' @ L113"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-13-DEPLOY",
+  "capturedAt": "2026-07-29T05:17:27.986Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "status": "unavailable-remote-dependency",
+  "authoritativeCheck": "Credential preflight found no Firebase account in isolated CLI state",
+  "transport": "not-applicable",
+  "hostedStatus": "UNAVAILABLE_REMOTE_DEPENDENCY",
+  "note": "No hosted claim is made and this is not a Firebase product failure."
+}

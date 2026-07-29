@@ -1,0 +1,58 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs24"
+  },
+  "emulators": {
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9331
+    },
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8331,
+      "websocketPort": 4535
+    },
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 5331
+    },
+    "eventarc": {
+      "host": "127.0.0.1",
+      "port": 4533
+    },
+    "tasks": {
+      "host": "127.0.0.1",
+      "port": 4534
+    },
+    "storage": {
+      "host": "127.0.0.1",
+      "port": 9431
+    },
+    "pubsub": {
+      "host": "127.0.0.1",
+      "port": 4536
+    },
+    "ui": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 4331
+    },
+    "hub": {
+      "host": "127.0.0.1",
+      "port": 4531
+    },
+    "logging": {
+      "host": "127.0.0.1",
+      "port": 4532
+    },
+    "singleProjectMode": true
+  }
+}

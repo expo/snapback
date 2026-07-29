@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-14-PERFORMANCE",
+  "path": "build-or-deploy",
+  "command": "vite build",
+  "environment": "local production UI build; no hosted deploy claim",
+  "medianMs": 161.835,
+  "builtFiles": true,
+  "warmupsMs": [
+    206.974,
+    163.952
+  ],
+  "recordedSamplesMs": [
+    158.274,
+    159.363,
+    162.776,
+    161.835,
+    160.043,
+    162.28,
+    163.958
+  ],
+  "nearestRankP95Ms": 163.958,
+  "recordedSampleCount": 7
+}

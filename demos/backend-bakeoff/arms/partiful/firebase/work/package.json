@@ -1,0 +1,33 @@
+{
+  "name": "llp0102-partiful-firebase-w1",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b && vite build",
+    "dev": "vite --host 127.0.0.1 --port 4332 --strictPort",
+    "acceptance": "tsx harness/acceptance.ts",
+    "performance": "tsx harness/performance.ts",
+    "seed": "tsx harness/seed.ts",
+    "fake-provider": "node harness/fake-provider.mjs",
+    "build-samples": "node harness/build-samples.mjs"
+    ,"cleanup:target": "tsx harness/cleanup-target.ts"
+  },
+  "dependencies": {
+    "firebase": "12.16.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "firebase-admin": "14.2.0",
+    "firebase-tools": "15.24.0",
+    "tsx": "4.20.3",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

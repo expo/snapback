@@ -1,0 +1,14 @@
+{
+  "name": "llp0102-partiful-firebase-w1-functions",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "firebase-admin": "14.2.0",
+    "firebase-functions": "7.3.2"
+  }
+}

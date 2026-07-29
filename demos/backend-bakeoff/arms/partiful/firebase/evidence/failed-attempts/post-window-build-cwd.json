@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T05:42:22Z",
+  "phase": "post-window verification",
+  "command": "npm run build",
+  "exitStatus": 1,
+  "failure": "The verification command was invoked from repository root, whose package has no build script.",
+  "remediation": "Rerun from the arm work directory.",
+  "classification": "operator cwd error after the timed arm window; not a provider or product defect"
+}

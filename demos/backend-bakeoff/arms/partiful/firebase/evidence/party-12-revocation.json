@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "scenario": "PARTY-12-REVOCATION",
+  "capturedAt": "2026-07-29T05:17:27.986Z",
+  "projectId": "llp0102-partiful-firebase-w1",
+  "authoritativeCheck": "Already-connected protected listener terminated, retained state cleared, subsequent write denied, Admin invitation state checked",
+  "transport": "firestore-listen-stream",
+  "listenerError": {
+    "name": "FirebaseError",
+    "code": "permission-denied",
+    "message": "\nevaluation error at L88:22 for 'get' @ L88, false for 'get' @ L113, false for 'get' @ L88, false for 'get' @ L113"
+  },
+  "retainedControlSnapshots": 0,
+  "revokedPostDenial": {
+    "name": "FirebaseError",
+    "code": "permission-denied",
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L67:26 for 'create' @ L67, false for 'create' @ L113, evaluation error at L82:34 for 'update' @ L82, false for 'update' @ L113, false for 'create' @ L67, false for 'create' @ L113"
+  },
+  "invitationStatus": "revoked",
+  "anonymousPublicStillReadable": true
+}
