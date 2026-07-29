@@ -598,3 +598,119 @@ journey, and a paved anonymous-read path. Snapback's transactional authority,
 fail-closed live revocation, deterministic codegen, and exact cleanup remain
 real differentiators worth preserving while those product outcomes are filled
 in.
+
+## 2026-07-28 to 2026-07-29 — InstantDB, deep round, complete with gaps
+
+### Environment and outcome
+
+The arm used three fresh official hosted temporary Instant apps with client,
+Core, Admin, and CLI version 1.0.52. Nine frozen scenarios passed. Complete
+asset deletion, scheduled jobs, known-success effect retry, ambiguous effect
+settlement, cancellation/revocation delivery, and the complete hosted
+function-secret boundary are explicit GAPs.
+
+Coordinator evidence confidence is 13/16. Native actor authority, convergent
+contention, SSE transport, settlement, target identity, and three-target
+cleanup are direct. No reconnect/offline fact was exercised. The retained
+artifact set is reproducible in broad shape, but the timed inventory preceded
+substantive final acceptance/performance edits and omitted cleanup/finalizer
+scripts, so artifact reproducibility is indirect.
+
+### What felt good
+
+Disposable target provisioning was excellent. One noninteractive
+`instant-cli init-without-files --temp` command returned a fresh app and
+machine-usable authority without account login or billing setup, and the empty
+shells enter automatic expiry. This is close to an ideal agent-dogfood path.
+
+`instant-cli push all --yes` made schema and permission diffs visible and
+deployed quickly. The same TypeScript model drove the React, Core, and Admin
+SDKs. Atomic transaction chunks, unique attributes, links, nested queries, and
+native backend subscriptions covered most of the event model without an
+application server.
+
+Native refresh-token principals made Alice, Bob, and Mallory easy to automate.
+Storage shares the same rule language, and the permission debugger was
+genuinely useful: `debugTransact` exposed evaluated bindings, modified fields,
+and why reverse links caused a transaction denial.
+
+### What felt bad or surprising
+
+The most important finding was linked permission invalidation. Bob had
+legitimately received 49 invitation rows. Alice then set the related event's
+`guestListVisible` flag false. An independent host read confirmed false and a
+fresh Bob query correctly returned zero, but the already-connected SSE query
+emitted neither a replacement result nor an error for 12 seconds. A UI would
+silently retain stale protected state.
+
+This was not classified as an active cross-user disclosure: the rows were
+authorized when delivered, the false-state fresh read was filtered, and no new
+protected payload arrived. It is still serious provider friction. The final
+model denormalized visibility onto every invitation and atomically updated the
+event plus 49 invitation rows so the subscribed namespace itself invalidated.
+
+Links became ceremony under permissions. Creating a wall post also modified
+the reverse `events.wallPosts` field, so the event rule had to permit that
+link-only change. The first capacity model could not establish eligibility
+through a relation created in the same transaction; preallocating an empty
+final-seat row made the relation exist before contention.
+
+Capacity was convergent rather than a clean serializable conflict. Both actor
+transactions can report success against the same unique slot, with
+last-write-wins settling one row and preserving the total at 50. The invariant
+holds, but the losing client needs a later observation to know it lost.
+
+Storage testing had a trap: Admin SDK `asUser` still bypassed Storage policy,
+so the real boundary required independent Core clients. Upload, outsider
+denial, and metadata deletion passed, but an issued signed URL—and even a newly
+issued delivery path—remained usable during the observation window. Complete
+deletion is therefore a GAP.
+
+Native webhooks expose useful delivery history and stable idempotency keys, but
+the deterministic receiver URLs were rejected during provisioning. The arm
+could not prove known-success dedupe, a conclusive timeout ambiguity, or
+post-cancellation delivery. The pinned product also exposed no first-party
+scheduled-job surface or hosted function-secret boundary.
+
+The UI evidence is only a polished native-token login shell, not the complete
+event surface. The Node acceptance harness needed a memory store, network
+listener, and explicit client environment because the Core client is
+browser-oriented.
+
+### Performance and cleanup
+
+Each of contention, burst, 262,144-byte asset, realtime, and config-push paths
+retains two warmups plus seven successful samples. Local-client medians were
+355.477 ms for contention, 482.005 ms for the burst, 1,117.606 ms for the
+asset path, 569.623 ms for realtime, and 683.275 ms for config push. These are
+hosted temporary-app measurements, not production scale claims.
+
+All rows, files, users, webhooks, and actor tokens across three temporary
+targets were retired or invalidated. Ports `4337/9337`, browser/runtime state,
+and local credentials are absent. Only empty provider-owned app shells with
+schema/rules remain until automatic expiry.
+
+### Would I choose it?
+
+InstantDB is compelling for disposable hosted setup, typed schema/policy,
+realtime queries, and very small application code. I would choose it
+conditionally for connected collaborative apps whose invariants tolerate its
+transaction model.
+
+I would not choose it as the default Partiful backend today. Cross-link live
+authorization requires defensive denormalization; capacity settlement is
+ambiguous to the loser; asset revocation is weak; and scheduling, hosted
+effects, and secrets do not form a complete operational backend.
+
+### Lessons for Snapback
+
+Match InstantDB's one-command disposable target, typed schema/policy,
+permission debugger, and first-class actor testing. Preserve and amplify
+Snapback's stronger reactive-authorization dependency model: every authority
+change should invalidate dependent live results explicitly and inspectably.
+
+Keep direct serializable conditional mutations with unambiguous loser
+settlement. Define asset capability revocation precisely, including already
+issued URLs. A coherent schedule/effect/secret/log lifecycle remains a major
+opportunity to beat a lightweight data platform without copying its
+last-write-wins or linked-permission semantics.

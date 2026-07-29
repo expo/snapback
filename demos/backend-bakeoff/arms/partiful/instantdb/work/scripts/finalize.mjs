@@ -320,8 +320,8 @@ const capsule = {
       evidencePaths: ['receipts/cleanup-plan.json', 'receipts/cleanup-final.json'],
     },
     'artifact-reproducibility': {
-      score: 2,
-      reason: 'Pinned dependencies, authored inventory, schema/perms, executable harnesses, raw samples, screenshot, and retained failures are committed.',
+      score: 1,
+      reason: 'Pinned dependencies, schema/perms, executable harnesses, raw samples, screenshot, and retained failures are committed, but the timed inventory predates substantive final acceptance/performance edits and omits the cleanup/finalizer scripts.',
       evidencePaths: ['receipts/inventory.json', 'receipts/ui-smoke.json', 'evidence/performance.json'],
     },
   },

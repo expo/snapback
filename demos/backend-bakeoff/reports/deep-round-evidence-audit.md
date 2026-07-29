@@ -465,3 +465,59 @@ synthesis remain coordinator-owned.
   automation shape.
 - Adjudication: complete. No Stop-class defect is present. Product gaps remain
   scoring inputs and are not remediation inside the frozen deep-round arm.
+
+## Partiful / InstantDB
+
+- Capsule verifier: PASS after coordinator artifact-confidence calibration.
+- Frozen identities: exact repaired Snapback source commit, freeze aggregate,
+  canonical third-attempt ID, and three redacted temporary-target hashes match.
+- Results: 9 PASS, 6 explicit product GAPs. PARTY-08 lacks complete asset
+  revocation; PARTY-09 lacks native scheduling; PARTY-10/11 lack conclusive
+  effect retry/ambiguity evidence; PARTY-12 lacks proven cancellation delivery;
+  PARTY-13 lacks a hosted function-secret boundary. These are not converted
+  into local or partial passes.
+- Evidence confidence: coordinator-adjusted to 13/16. Authority, contention,
+  transport, settlement, target identity, and cleanup are direct. No reconnect
+  or offline behavior was exercised, so that dimension is 0. Artifact
+  reproducibility is 1: pinned source and raw evidence are retained, but the
+  timed 28-file inventory predates substantive final acceptance/performance
+  edits, omits cleanup/finalizer scripts, and contains no content hashes.
+- Stream-invalidation adjudication: the original linked-rule attempt is
+  retained. Alice's false write was independently confirmed and a fresh Bob
+  query returned zero, but an already-connected 49-row invitation subscription
+  emitted neither replacement nor error for 12 seconds. No later protected
+  payload arrived. This is silent stale-state/provider invalidation friction,
+  not a Stop-class active disclosure.
+- Remediation lineage: the final fresh target denormalizes visibility onto
+  invitation rows and atomically changes the event plus 49 policy fields.
+  Bob's established native SSE query then moved from 49 to zero. The original
+  failure remains evidence and the workaround cost remains a scoring input.
+- Authority: three native users exercised host, guest/cohost, outsider,
+  field-level, row-level, write, and Core-client Storage boundaries. The Admin
+  SDK's `asUser` Storage bypass was explicitly rejected as proof.
+- Contention: two actor transactions targeted one prelinked unique final slot.
+  One authoritative row and attendance 50 remained, but both callers can
+  report success before last-write-wins settlement. Invariant safety is direct;
+  loser settlement ambiguity remains a correctness/ergonomics deduction.
+- Transport: native SSE directly observed the remediated visibility transition
+  and a 20-post wall plus RSVP `49 → 50` burst. No polling is counted.
+- Assets/effects/operations: upload, authorized delivery, outsider denial, and
+  metadata deletion passed, but signed delivery remained usable post-delete.
+  Webhook history/idempotency surfaces were inspectable, but receiver
+  provisioning did not prove the frozen known-success, ambiguity, or
+  cancellation facts. No scheduled-job surface was found in the pinned
+  SDK/CLI/docs.
+- Performance: five paths retain two warmups, seven successful raw samples,
+  medians, nearest-rank p95 values, and hosted-temporary-app scope. The UI
+  screenshot is a native-token login shell, not a false claim of a fully
+  rendered event workflow.
+- Target/cleanup: all entity, `$files`, `$users`, webhook, and actor-token
+  state is absent across three exact target hashes. Ports `4337/9337`, local
+  credentials, runtime state, and browser profile are absent. Empty
+  provider-owned shells plus schema/rules remain only for documented automatic
+  expiry and are disclosed.
+- Secret/dependency audit: retained artifact scanning found no app ID, admin
+  token, refresh token, bearer, JWT, or private key value. npm audit reports
+  one high finding, retained as ecosystem evidence.
+- Adjudication: complete. No Stop-class defect is present; the invalidation
+  failure and all ten failed attempts remain visible rather than rewritten.

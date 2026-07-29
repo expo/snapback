@@ -120,7 +120,7 @@ All seven Partiful arms have now been assigned in exact frozen order.
 | Partiful / Appwrite | Complete | 14 PASS, hosted unavailable; calibrated 15/16 confidence, capsule, diary, central audit, retained Realtime/schedule/cleanup failures, and exact 29-container cleanup integrated |
 | Partiful / Snapback | Complete | 12 PASS, three explicit product GAPs; capsule, diary, central evidence audit, calibrated 14/16 confidence, five guide-gap tickets, and exact cleanup integrated |
 | Partiful / Convex | Assigned | Worker 2 reserved on isolated Minisforum worktree/ports after SpacetimeDB cleanup |
-| Partiful / InstantDB | Assigned | Worker 3 reserved on isolated control-plane target/browser lane after exact Appwrite cleanup |
+| Partiful / InstantDB | Complete | 9 PASS, six explicit product GAPs; retained linked-rule stream-invalidation failure, remediated fresh-target model, calibrated 13/16 confidence, three-target cleanup, diary, and central audit integrated |
 
 ### Research Room first wave
 
