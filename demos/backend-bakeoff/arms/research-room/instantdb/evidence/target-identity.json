@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "title": "llp0102-research-instantdb-w3-a1",
+    "idSha256": "2d8f64c5302204bb852a49b4308ffae281feb2714627504378453b2c1433e61a",
+    "profile": "official hosted temporary Instant app",
+    "freshByConstruction": true
+  },
+  "actors": {
+    "alice": {
+      "principalIdSha256": "262e54912a197885f503a7726795ebc22e074a4b7ace868d63ca45ce82a20dd1",
+      "role": "room-member"
+    },
+    "bob": {
+      "principalIdSha256": "783331143e825c1024c9df6bf1cf2e96eb87522d13724d9cd6ee32f6ec421e26",
+      "role": "room-member"
+    },
+    "mallory": {
+      "principalIdSha256": "06f92a1277b17a3733eb201fd62eb4c2c0427c03ebccf34c027696bfec3e4715",
+      "role": "outsider"
+    }
+  },
+  "containsCredentialValues": false
+}

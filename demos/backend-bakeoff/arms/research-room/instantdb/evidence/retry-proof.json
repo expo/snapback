@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "dedupeKey": "dedupe-retry-001",
+  "repeatedIdenticalTransactions": 2,
+  "authoritativeQuestionCount": 1,
+  "authoritativeAnswerCount": 1,
+  "mechanism": "stable entity ids plus unique indexed dedupe/question keys",
+  "containsCredentialValues": false
+}

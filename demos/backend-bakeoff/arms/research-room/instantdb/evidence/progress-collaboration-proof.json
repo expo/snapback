@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "questionKey": "q-live-001",
+  "authoritativeSequence": [
+    {
+      "ordinal": 1,
+      "durable": true,
+      "message": "reading"
+    },
+    {
+      "ordinal": 2,
+      "durable": true,
+      "message": "retrieving"
+    },
+    {
+      "ordinal": 3,
+      "durable": true,
+      "message": "citing"
+    },
+    {
+      "ordinal": 4,
+      "durable": true,
+      "message": "synthesizing"
+    }
+  ],
+  "terminalStatus": "complete",
+  "terminalObservedAfterFour": true,
+  "bobSecondClient": {
+    "transport": "InstantDB admin subscribeQuery over provider EventSource",
+    "transitionCount": 7,
+    "observations": [
+      {
+        "at": 1785322189246,
+        "status": "running",
+        "ordinals": [],
+        "answerCount": 0
+      },
+      {
+        "at": 1785322189836,
+        "status": "running",
+        "ordinals": [
+          1
+        ],
+        "answerCount": 0
+      },
+      {
+        "at": 1785322190130,
+        "status": "running",
+        "ordinals": [
+          1,
+          2
+        ],
+        "answerCount": 0
+      },
+      {
+        "at": 1785322190428,
+        "status": "running",
+        "ordinals": [
+          1,
+          2,
+          3
+        ],
+        "answerCount": 0
+      },
+      {
+        "at": 1785322190733,
+        "status": "running",
+        "ordinals": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "answerCount": 0
+      },
+      {
+        "at": 1785322191129,
+        "status": "running",
+        "ordinals": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "answerCount": 1
+      },
+      {
+        "at": 1785322191330,
+        "status": "complete",
+        "ordinals": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "answerCount": 1
+      }
+    ]
+  },
+  "containsCredentialValues": false
+}

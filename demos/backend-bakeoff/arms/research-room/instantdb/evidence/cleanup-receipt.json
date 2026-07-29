@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "cleanedAt": "2026-07-29T10:53:05.444Z",
+  "targetIdSha256": "2d8f64c5302204bb852a49b4308ffae281feb2714627504378453b2c1433e61a",
+  "exactIdentityGuard": true,
+  "countsBefore": {
+    "effectAttempts": 14,
+    "answers": 2,
+    "progress": 13,
+    "questions": 9,
+    "sources": 20,
+    "$files": 20,
+    "rooms": 2,
+    "profiles": 3,
+    "$users": 3
+  },
+  "countsAfter": {
+    "effectAttempts": 0,
+    "answers": 0,
+    "progress": 0,
+    "questions": 0,
+    "sources": 0,
+    "$files": 0,
+    "rooms": 0,
+    "profiles": 0,
+    "$users": 0
+  },
+  "deletedUserTokensInvalid": {
+    "alice": true,
+    "bob": true,
+    "mallory": true
+  },
+  "schedulesFoundAndDeleted": 0,
+  "webhooksFoundAndDeleted": 0,
+  "providerSecretsFoundAndDeleted": 0,
+  "immediateTargetShellDelete": "unsupported-for-anonymous-temp-target",
+  "shellDeleteExitCode": 1,
+  "residualShellLifecycle": "provider auto-deletes temporary app after >24 hours",
+  "rawDeleteOutput": "ignored mode-0600 runtime file removed with local state",
+  "unrelatedBaselinePreserved": true,
+  "postCleanupNegative": true,
+  "cleanupScenarioStatus": "gap",
+  "cleanupGapReason": "The anonymous temporary app shell is empty but cannot be immediately deleted through the tested CLI account path; provider auto-expiry remains pending.",
+  "containsCredentialValues": false
+}

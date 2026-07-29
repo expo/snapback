@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-07-29T10:35:27Z",
+  "startedEpochMs": 1785321327074,
+  "activeLimitMinutes": 480,
+  "toolCallLimit": 400,
+  "trigger": "The first provider-specific target provisioning command follows this receipt.",
+  "namespace": "llp0102-research-instantdb-w3-a1",
+  "targetMode": "fresh-disposable-hosted",
+  "snapbackFrozenSourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "coordinatorBaseCommit": "0dc4b3ff6257edc2ee0fea869fca5142531d0ce5"
+}

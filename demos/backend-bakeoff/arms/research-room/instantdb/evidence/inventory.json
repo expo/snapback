@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T10:55:00.000Z",
+  "armRoot": "demos/backend-bakeoff/arms/research-room/instantdb",
+  "totals": {
+    "authoredSource": {
+      "files": 12,
+      "description": "React UI plus provisioning, seed, acceptance, performance, secret-scan, and cleanup scripts"
+    },
+    "configuration": {
+      "files": 4,
+      "description": "package manifest/lock, schema, and permissions"
+    },
+    "generated": {
+      "files": 0
+    },
+    "tests": {
+      "files": 1,
+      "description": "15-scenario executable acceptance harness"
+    },
+    "policy": {
+      "files": 1,
+      "description": "InstantDB linked-data permission rules"
+    },
+    "dependencyManifests": {
+      "files": 2
+    }
+  },
+  "installedDependencyBytes": 162983936,
+  "glue": [
+    "work/scripts/lib.mjs",
+    "work/scripts/push-config.mjs",
+    "work/scripts/provision-target.mjs"
+  ],
+  "containsCredentialValues": false
+}

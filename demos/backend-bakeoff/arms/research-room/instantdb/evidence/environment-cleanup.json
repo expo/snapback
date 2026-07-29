@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T10:53:05.442Z",
+  "allowlistedFields": [
+    "ports",
+    "listenerCounts"
+  ],
+  "ports": [
+    4347,
+    9347
+  ],
+  "listenerCounts": {
+    "4347": 0,
+    "9347": 0
+  },
+  "rawProcessArgumentsInspected": false,
+  "worktreeLocalXdgRemoved": true,
+  "browserProfileRemoved": true,
+  "containsCredentialValues": false
+}

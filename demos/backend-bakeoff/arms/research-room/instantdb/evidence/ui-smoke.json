@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "url": "http://127.0.0.1:4347/",
+  "browser": "Google Chrome headless",
+  "debugPort": 9347,
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "assertion": {
+    "h1": "Research room",
+    "passed": true
+  },
+  "screenshot": "evidence/ui-smoke.png",
+  "browserStorageInspected": false,
+  "containsCredentialValues": false
+}

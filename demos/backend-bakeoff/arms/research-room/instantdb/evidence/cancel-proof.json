@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "settlement": "confirmed-cancelled",
+  "lateAttemptInjected": true,
+  "lateAttemptRejectedBy": "InstantDB permission reads linked question.status",
+  "authoritativeLateProgressRows": 0,
+  "containsCredentialValues": false
+}

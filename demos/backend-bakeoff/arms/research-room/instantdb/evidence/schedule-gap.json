@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "status": "explicit-gap",
+  "providerNativeSchedulerFound": false,
+  "nonclaim": "No first-party scheduler/cron execution surface was available in the tested InstantDB application path; no local timer is misrepresented as provider scheduling.",
+  "containsCredentialValues": false
+}

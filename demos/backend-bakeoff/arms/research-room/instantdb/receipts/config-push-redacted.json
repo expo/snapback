@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "pushedAt": "2026-07-29T10:48:47.602Z",
+  "exitCode": 0,
+  "commandShape": "instant-cli --yes --token <redacted> push all --app <redacted>",
+  "targetIdSha256": "2d8f64c5302204bb852a49b4308ffae281feb2714627504378453b2c1433e61a",
+  "rawOutputLocation": "ignored mode-0600 runtime file",
+  "containsCredentialValues": false
+}

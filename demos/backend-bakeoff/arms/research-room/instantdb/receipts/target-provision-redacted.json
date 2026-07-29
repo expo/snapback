@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "provisioningBeganAt": "2026-07-29T10:36:10.952Z",
+  "provisionedAt": "2026-07-29T10:36:12.174Z",
+  "command": "instant-cli@1.0.52 init-without-files --title <exact-arm-title> --temp",
+  "exitCode": 0,
+  "target": {
+    "title": "llp0102-research-instantdb-w3-a1",
+    "appIdSha256": "2d8f64c5302204bb852a49b4308ffae281feb2714627504378453b2c1433e61a",
+    "adminTokenSha256": "36177251747e05932f5a4122e631b08d07ae649eb49174f43cae216db3297695",
+    "profile": "official hosted temporary app",
+    "lifecycle": "provider automatically deletes after more than 24 hours",
+    "freshByConstruction": true
+  },
+  "localState": {
+    "targetCredentials": "work/.arm-runtime/target.json mode 0600",
+    "xdgRoots": "work/.arm-runtime/xdg",
+    "retainedAfterCleanup": false
+  },
+  "containsCredentialValues": false
+}

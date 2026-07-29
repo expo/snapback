@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "claimScope": "small repeatable product workload; not production scale",
+  "path": "build-or-deploy",
+  "commandShape": "npm run build",
+  "warmups": [
+    1299.346,
+    423.585
+  ],
+  "samples": [
+    418.394,
+    421.156,
+    423.285,
+    425.507,
+    425.33,
+    454.474,
+    425.419
+  ],
+  "medianMs": 425.33,
+  "nearestRankP95Ms": 454.474,
+  "output": "Vite production client bundle",
+  "rawLogs": "ignored mode-0600 runtime only",
+  "containsCredentialValues": false
+}
