@@ -1045,3 +1045,23 @@ synthesis remain coordinator-owned.
   builder propagation contained and recorded. No result is promoted from the
   untimed extension into a false first-window claim, and no hosted conclusion
   is inferred.
+
+## Cross-arm protocol completion audit
+
+- The custom capsule verifier passes all 35 arms.
+- Independent strict JSON Schema draft 2020-12 validation initially found four
+  redundant root extension fields forbidden by
+  `run-capsule.v1.schema.json`: `notes` on Linear/Snapback and Linear/Convex,
+  `resultSummary` on Partiful/Appwrite, and `builderIncidents` on Research
+  Room/Supabase. Each fact already existed in authoritative receipts or this
+  audit. The coordinator removed only those redundant extensions; no result,
+  timing, confidence score, incident attribution, or cleanup proof changed.
+- Research Room/Convex used `not-applicable-fresh-local` in a path-bearing
+  baseline field. The coordinator changed it to the same empty inapplicable
+  value used by other fresh targets and refreshed the capsule digest; the
+  direct fresh-target identity and cleanup receipts remain unchanged.
+- After correction, 35/35 capsules pass strict frozen-schema validation and
+  every declared evidence, cleanup-plan, and non-empty baseline path resolves.
+- The verifier/schema divergence is retained as
+  `issues/20260729-bakeoff-capsule-verifier-schema-divergence.md`; the frozen
+  protocol tool was not silently changed mid-round.

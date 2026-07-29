@@ -57,7 +57,7 @@
     "binding": {
       "mode": "fresh-local",
       "namespace": "llp0102-research-convex-w2",
-      "baselineReceiptPath": "not-applicable-fresh-local",
+      "baselineReceiptPath": "",
       "scopedCleanupPlanPath": "evidence/cleanup-plan.v1.json"
     },
     "local": {

@@ -88,7 +88,6 @@
     "artifact-reproducibility":{"score":2,"reason":"Pinned source, lockfile, migration, Edge Function, harness, raw receipts, screenshot, and 62-file content-hash manifest directly reproduce the local artifact; hosted unavailability is reported separately.","evidencePaths":["evidence-r2/inventory.json","evidence-r2/manifest.sha256","evidence-r2/official-docs.md"]}
   },
   "stopDefects": [],
-  "builderIncidents": [{"classification":"stop-class-evidence-handling","attribution":"builder-redaction-failure","receiptPath":"evidence/stop-class-secret-exposure.v1.json","providerProductStopDefect":false}],
   "cleanup": {"status":"complete","targetBoundPlanPath":"evidence-r2/cleanup.json","receiptPaths":["evidence-r2/cleanup.json","evidence-r2/scenarios/RESEARCH-15-CLEANUP.json"],"postCleanupProbe":"r2 and original containers/volumes/networks zero; mirror absent; assigned ports closed; exact-value and pattern scans zero"},
   "result": "complete"
 }
