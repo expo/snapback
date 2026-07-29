@@ -100,14 +100,14 @@ capsule.inventory = {
 };
 await writeFile(join(receiptsRoot, 'inventory.v1.json'), `${JSON.stringify(capsule.inventory, null, 2)}\n`);
 const confidence = {
-  'actor-authority': [1, 'native sessions and positive/negative owner/member/outsider checks'],
-  'transaction-conflict': [1, 'two-actor stale read-set barrier and authoritative reconciliation'],
-  transport: [1, 'second-client native stream with polling disabled'],
+  'actor-authority': [2, 'native sessions and positive/negative owner/member/outsider checks'],
+  'transaction-conflict': [2, 'two-actor stale read-set barrier and authoritative reconciliation'],
+  transport: [2, 'second-client native stream with polling disabled'],
   'offline-reconnect': [0, 'explicit frozen product gap; no substitute claimed'],
-  settlement: [1, 'optimistic attribution and authoritative readback'],
-  'target-identity': [1, 'fresh local app/database identity hash'],
-  'cleanup-isolation': [1, 'exact target-bound plan and negative probe'],
-  'artifact-reproducibility': [1, 'generated input hash, lockfile, inventory, and deterministic bootstrap'],
+  settlement: [2, 'optimistic attribution and authoritative readback'],
+  'target-identity': [2, 'fresh local app/database identity hash'],
+  'cleanup-isolation': [2, 'exact target-bound plan and negative probe'],
+  'artifact-reproducibility': [2, 'generated input hash, lockfile, inventory, and deterministic bootstrap'],
 };
 for (const [key, [score, reason]] of Object.entries(confidence)) {
   capsule.evidenceConfidence[key] = {

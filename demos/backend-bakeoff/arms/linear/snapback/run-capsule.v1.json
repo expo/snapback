@@ -304,21 +304,21 @@
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": 1,
+      "score": 2,
       "reason": "native sessions and positive/negative owner/member/outsider checks",
       "evidencePaths": [
         "receipts/authoritative-summary.v1.json"
       ]
     },
     "transaction-conflict": {
-      "score": 1,
+      "score": 2,
       "reason": "two-actor stale read-set barrier and authoritative reconciliation",
       "evidencePaths": [
         "receipts/authoritative-summary.v1.json"
       ]
     },
     "transport": {
-      "score": 1,
+      "score": 2,
       "reason": "second-client native stream with polling disabled",
       "evidencePaths": [
         "receipts/authoritative-summary.v1.json"
@@ -332,28 +332,28 @@
       ]
     },
     "settlement": {
-      "score": 1,
+      "score": 2,
       "reason": "optimistic attribution and authoritative readback",
       "evidencePaths": [
         "receipts/authoritative-summary.v1.json"
       ]
     },
     "target-identity": {
-      "score": 1,
+      "score": 2,
       "reason": "fresh local app/database identity hash",
       "evidencePaths": [
         "receipts/authoritative-summary.v1.json"
       ]
     },
     "cleanup-isolation": {
-      "score": 1,
+      "score": 2,
       "reason": "exact target-bound plan and negative probe",
       "evidencePaths": [
         "receipts/authoritative-summary.v1.json"
       ]
     },
     "artifact-reproducibility": {
-      "score": 1,
+      "score": 2,
       "reason": "generated input hash, lockfile, inventory, and deterministic bootstrap",
       "evidencePaths": [
         "receipts/authoritative-summary.v1.json"
