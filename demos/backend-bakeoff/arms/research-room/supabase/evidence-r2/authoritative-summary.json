@@ -1,0 +1,20 @@
+{
+  "rooms": 2,
+  "members": 3,
+  "sources": 20,
+  "questions": 15,
+  "progressUpdates": 14,
+  "answers": 1,
+  "citations": 2,
+  "scheduledRefreshes": 1,
+  "serverSecretRows": 1,
+  "cronJobs": 1,
+  "questionStates": {
+    "active": 10,
+    "complete": 1,
+    "failed": 1,
+    "cancelled": 1,
+    "timed_out": 1,
+    "ambiguous": 1
+  }
+}

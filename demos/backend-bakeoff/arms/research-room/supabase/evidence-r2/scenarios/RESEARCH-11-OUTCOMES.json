@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-11-OUTCOMES",
+  "status": "pass",
+  "checkedAt": "2026-07-29T08:54:55.577Z",
+  "evidence": {
+    "faultInjection": [
+      "failed",
+      "timed_out",
+      "ambiguous"
+    ],
+    "records": [
+      {
+        "id": "9c65887a-4c6b-4241-a8b9-cb617fe93daf",
+        "state": "complete",
+        "dedupe_key": "main-progress",
+        "settled_at": "2026-07-29T08:54:54.815856+00:00"
+      },
+      {
+        "id": "d3741854-3b89-407d-a987-6b19605a08cb",
+        "state": "cancelled",
+        "dedupe_key": "cancelled-question",
+        "settled_at": "2026-07-29T08:54:55.605143+00:00"
+      },
+      {
+        "id": "793ed310-29b8-445c-8ab3-63bb2042a070",
+        "state": "failed",
+        "dedupe_key": "failed",
+        "settled_at": "2026-07-29T08:54:55.629418+00:00"
+      },
+      {
+        "id": "63435716-a614-4730-9ae2-380d9652b195",
+        "state": "timed_out",
+        "dedupe_key": "timed",
+        "settled_at": "2026-07-29T08:54:55.6315+00:00"
+      },
+      {
+        "id": "de91be2e-ed5a-46c8-b913-6ae7cec3ec61",
+        "state": "ambiguous",
+        "dedupe_key": "ambiguous",
+        "settled_at": "2026-07-29T08:54:55.633212+00:00"
+      }
+    ],
+    "distinctStates": [
+      "ambiguous",
+      "cancelled",
+      "complete",
+      "failed",
+      "timed_out"
+    ]
+  }
+}

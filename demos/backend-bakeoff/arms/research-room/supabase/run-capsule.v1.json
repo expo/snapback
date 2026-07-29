@@ -1,261 +1,93 @@
 {
   "schemaVersion": 1,
   "protocolId": "llp-0102-backend-bakeoff-v1",
-  "arm": {
-    "app": "research-room",
-    "provider": "supabase",
-    "round": "deep",
-    "attemptId": "research-room-supabase-deep-01"
-  },
+  "arm": {"app":"research-room","provider":"supabase","round":"deep","attemptId":"research-room-supabase-deep-01-r2-extension"},
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
-    "providerVersions": {
-      "product": "Supabase",
-      "client": "2.111.0",
-      "cli": "2.110.0"
-    },
+    "sourceCommit": "ef7db00e250e401867c4486380969c7638c8fd32",
+    "providerVersions": {"product":"Supabase local stack","client":"2.57.4","cli":"2.110.0"},
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "startedAt": "2026-07-29T07:54:59Z",
+    "finishedAt": "2026-07-29T09:35:36Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
-    "toolCalls": 0,
-    "timedWindowFrozenAt": "",
-    "extension": false
+    "activeElapsedMs": 3000000,
+    "toolCalls": 118,
+    "timedWindowFrozenAt": "2026-07-29T08:45:00Z",
+    "extension": true,
+    "extensionReason": "Coordinator-authorized fresh-target remediation after a builder evidence-redaction Stop."
   },
   "actors": {
-    "alice": {
-      "principalIdHash": "",
-      "role": ""
-    },
-    "bob": {
-      "principalIdHash": "",
-      "role": ""
-    },
-    "mallory": {
-      "principalIdHash": "",
-      "role": "outsider"
-    }
+    "alice": {"principalIdHash":"sha256:39973f243276b13bc14ad1e60825d279954add3a57aa281f44af3dccbdea0484","role":"owner"},
+    "bob": {"principalIdHash":"sha256:f0e4f4d07996651076a611112da8ec4e28df78285d7d583734e35269092799d5","role":"member"},
+    "mallory": {"principalIdHash":"sha256:eab89522b22625c24d86f414827455e7f84e783d102261ede2172e7e79f96739","role":"outsider"}
   },
   "targets": {
-    "binding": {
-      "mode": "namespace-isolated-shared-hosted",
-      "namespace": "llp0102-research-room-supabase-deep-research-room-supabase-deep-01",
-      "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
-    },
-    "local": {
-      "status": "pending",
-      "identityHash": "",
-      "profile": "official Supabase CLI Docker stack",
-      "gapReason": "",
-      "receiptPaths": []
-    },
-    "hosted": {
-      "status": "pending",
-      "identityHash": "",
-      "profile": "managed Postgres, Auth, Realtime, Storage, Edge Functions",
-      "plan": "Pro with Micro compute",
-      "region": "West US (exact dashboard identifier captured with target)",
-      "gapReason": "",
-      "receiptPaths": []
-    }
+    "binding": {"mode":"fresh-local","namespace":"llp0102-research-supabase-w2-r2","baselineReceiptPath":"","scopedCleanupPlanPath":"evidence-r2/cleanup.json"},
+    "local": {"status":"cleaned","identityHash":"sha256:da8e8180624f156a575c05ec74204a8822e8201c2e65ba2b7162ae277e5fbb05","profile":"official Supabase CLI Docker stack","gapReason":"","receiptPaths":["evidence-r2/cleanup.json","evidence-r2/acceptance-results.json"]},
+    "hosted": {"status":"explicit-gap","identityHash":"","profile":"managed Supabase","plan":"shared target not mutated","region":"unknown","gapReason":"Available shared keys lacked a project-scoped CLI access token; no safe hosted deployment was attempted.","receiptPaths":[]}
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "firstLocalReadMs": 750000,
+    "firstAuthoritativeMutationMs": 1800000,
+    "firstRealtimeTransitionMs": 2500000,
+    "localAcceptanceMs": 2900000,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 3000000
   },
-  "assistanceEvents": [],
-  "commands": [],
+  "assistanceEvents": [
+    {"type":"community-provider-issue-inspection","receiptPath":"evidence-r2/assistance-and-failures.json"},
+    {"type":"human-coordinator-adjudication","receiptPath":"evidence/stop-class-secret-exposure.v1.json"}
+  ],
+  "commands": [
+    {"command":"supabase start (original timed target)","startedMonotonicMs":268257312,"finishedMonotonicMs":268310000,"exitStatus":1,"classification":"environment-bind-failure"},
+    {"command":"supabase start (Docker-visible mirror)","startedMonotonicMs":268311000,"finishedMonotonicMs":268340000,"exitStatus":0,"classification":"local-target-provision"},
+    {"command":"original target containment","startedMonotonicMs":271250000,"finishedMonotonicMs":271265000,"exitStatus":0,"classification":"builder-stop-containment"},
+    {"command":"r2 acceptance and performance extension","startedMonotonicMs":271300000,"finishedMonotonicMs":271500000,"exitStatus":0,"classification":"untimed-remediation-extension"},
+    {"command":"r2 exact cleanup","startedMonotonicMs":271501000,"finishedMonotonicMs":271515000,"exitStatus":0,"classification":"exact-cleanup"}
+  ],
   "scenarioResults": [
-    {
-      "id": "RESEARCH-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-02-FILES",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-03-OUTSIDER",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-04-KEYWORD",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-05-SEMANTIC",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-06-PROGRESS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-07-CITATIONS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-08-COLLABORATOR",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-09-CANCEL",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-10-RETRY",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-11-OUTCOMES",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-12-SCHEDULE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-13-SECRETS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-14-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    },
-    {
-      "id": "RESEARCH-15-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
-    }
+    {"id":"RESEARCH-01-SEED","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-01-SEED.json"],"transport":"not-applicable","authoritativeCheck":"Exact database counts and deterministic fixture dimensions match.","note":""},
+    {"id":"RESEARCH-02-FILES","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-02-FILES.json"],"transport":"not-applicable","authoritativeCheck":"Storage bytes, metadata owner, hashes, deletion, and negative probes agree.","note":""},
+    {"id":"RESEARCH-03-OUTSIDER","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-03-OUTSIDER.json"],"transport":"push","authoritativeCheck":"Mallory sees zero protected rows, files, search results, and progress events.","note":""},
+    {"id":"RESEARCH-04-KEYWORD","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-04-KEYWORD.json"],"transport":"not-applicable","authoritativeCheck":"FTS RPC returns exactly the frozen three-source set.","note":""},
+    {"id":"RESEARCH-05-SEMANTIC","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-05-SEMANTIC.json"],"transport":"not-applicable","authoritativeCheck":"pgvector 32D cosine path returns the deterministic zero-distance source first.","note":""},
+    {"id":"RESEARCH-06-PROGRESS","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-06-PROGRESS.json"],"transport":"push","authoritativeCheck":"Four durable rows precede terminal completion.","note":""},
+    {"id":"RESEARCH-07-CITATIONS","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-07-CITATIONS.json"],"transport":"not-applicable","authoritativeCheck":"Both answer citations resolve to authorized source rows.","note":""},
+    {"id":"RESEARCH-08-COLLABORATOR","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-08-COLLABORATOR.json"],"transport":"push","authoritativeCheck":"Distinct Bob client receives exactly four private Broadcast payloads.","note":""},
+    {"id":"RESEARCH-09-CANCEL","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-09-CANCEL.json"],"transport":"not-applicable","authoritativeCheck":"All three late injections return false and durable count stays unchanged.","note":""},
+    {"id":"RESEARCH-10-RETRY","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-10-RETRY.json"],"transport":"not-applicable","authoritativeCheck":"Two attempts retain one deduped question and no duplicate answer.","note":""},
+    {"id":"RESEARCH-11-OUTCOMES","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-11-OUTCOMES.json"],"transport":"not-applicable","authoritativeCheck":"Five requested outcomes remain five distinct authoritative states.","note":""},
+    {"id":"RESEARCH-12-SCHEDULE","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-12-SCHEDULE.json"],"transport":"not-applicable","authoritativeCheck":"Exact pg_cron job records one deduped refresh.","note":""},
+    {"id":"RESEARCH-13-SECRETS","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-13-SECRETS.json","evidence-r2/cleanup.json"],"transport":"not-applicable","authoritativeCheck":"RLS denies client secret rows; Edge returns no value; post-cleanup scans are zero.","note":""},
+    {"id":"RESEARCH-14-PERFORMANCE","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-14-PERFORMANCE.json","evidence-r2/performance.json"],"transport":"push","authoritativeCheck":"Each local path retains two warmups and seven samples plus a local cost window.","note":"Hosted deploy is an environment GAP and not included in local confidence."},
+    {"id":"RESEARCH-15-CLEANUP","status":"pass","evidencePaths":["evidence-r2/scenarios/RESEARCH-15-CLEANUP.json","evidence-r2/cleanup.json"],"transport":"not-applicable","authoritativeCheck":"Exact containers, volumes, network, mirror, ports, and credential values are absent.","note":""}
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath":"evidence-r2/inventory.json",
+    "authoredSource":{"lines":742,"bytes":42678},
+    "generated":{"evidenceFiles":40},
+    "tests":{"lines":435},
+    "configuration":{"lines":446},
+    "policy":{"migrationLines":263},
+    "dependencyManifests":{"count":2},
+    "installedDependencyBytes":51826688,
+    "glue":["Docker-visible runtime mirror","explicit Realtime auth","private Broadcast trigger","exact actor reseed cleanup"]
   },
   "evidenceConfidence": {
-    "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    },
-    "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    },
-    "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    },
-    "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    },
-    "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    },
-    "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    },
-    "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    },
-    "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
-    }
+    "actor-authority":{"score":2,"reason":"Direct Auth/RLS/Storage/Realtime positive and negative evidence.","evidencePaths":["evidence-r2/scenarios/RESEARCH-03-OUTSIDER.json"]},
+    "transaction-conflict":{"score":2,"reason":"Database constraints and RPC receipts prove dedupe and cancellation guards.","evidencePaths":["evidence-r2/scenarios/RESEARCH-09-CANCEL.json","evidence-r2/scenarios/RESEARCH-10-RETRY.json"]},
+    "transport":{"score":2,"reason":"Distinct client receives database-triggered private Broadcast payloads.","evidencePaths":["evidence-r2/scenarios/RESEARCH-08-COLLABORATOR.json"]},
+    "offline-reconnect":{"score":1,"reason":"Fresh authenticated Realtime reconnect sampled locally; offline write merge not required by this app.","evidencePaths":["evidence-r2/performance.json"]},
+    "settlement":{"score":2,"reason":"Authoritative rows distinguish all outcomes and terminal ordering.","evidencePaths":["evidence-r2/scenarios/RESEARCH-11-OUTCOMES.json"]},
+    "target-identity":{"score":2,"reason":"Unique CLI and Compose labels, ports, and clean target receipts retained.","evidencePaths":["evidence-r2/cleanup.json"]},
+    "cleanup-isolation":{"score":2,"reason":"Exact project cleanup and post-cleanup negatives are complete.","evidencePaths":["evidence-r2/cleanup.json"]},
+    "artifact-reproducibility":{"score":1,"reason":"Pinned source and lockfile reproduce local artifacts; hosted deployment unavailable.","evidencePaths":["evidence-r2/inventory.json","evidence-r2/official-docs.md"]}
   },
   "stopDefects": [],
-  "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
-  },
-  "result": "pending"
+  "builderIncidents": [{"classification":"stop-class-evidence-handling","attribution":"builder-redaction-failure","receiptPath":"evidence/stop-class-secret-exposure.v1.json","providerProductStopDefect":false}],
+  "cleanup": {"status":"complete","targetBoundPlanPath":"evidence-r2/cleanup.json","receiptPaths":["evidence-r2/cleanup.json","evidence-r2/scenarios/RESEARCH-15-CLEANUP.json"],"postCleanupProbe":"r2 and original containers/volumes/networks zero; mirror absent; assigned ports closed; exact-value and pattern scans zero"},
+  "result": "complete"
 }

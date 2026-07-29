@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-02-FILES",
+  "status": "pass",
+  "checkedAt": "2026-07-29T08:54:48.979Z",
+  "evidence": {
+    "bucket": "research-sources",
+    "object": "10000000-0000-4000-8000-000000000001/alice-frozen-source.txt",
+    "ownerHash": "39973f243276b13bc14ad1e60825d279954add3a57aa281f44af3dccbdea0484",
+    "bytes": 65534,
+    "contentHash": "2c082f83a9093ef9eaec528b44830476c6f6375a954b06b3722b052089abfbdf",
+    "deliveredHash": "2c082f83a9093ef9eaec528b44830476c6f6375a954b06b3722b052089abfbdf",
+    "objectAbsent": true,
+    "metadataAbsent": true
+  }
+}

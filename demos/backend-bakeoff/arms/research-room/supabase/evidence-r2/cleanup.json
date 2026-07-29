@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "target": "llp0102-research-supabase-w2-r2",
+  "extension": true,
+  "scope": {
+    "cliProject": "llp0102-research-supabase-w2-r2",
+    "composeProject": "llp0102-research-supabase-w2-r2",
+    "runtimeMirror": "/Users/ccheever/.cache/llp0102-research-supabase-w2-r2",
+    "ports": [58530,58531,58532,58533,58534,58536,58537,58539,4342]
+  },
+  "commandClass": "supabase stop --no-backup --project-id <exact-r2-id>",
+  "result": {
+    "exitCode": 0,
+    "containersRemaining": 0,
+    "volumesRemaining": 0,
+    "networksRemaining": 0,
+    "runtimeMirrorRemaining": false,
+    "assignedPortsOpen": [],
+    "originalTargetContainersRemaining": 0
+  },
+  "secretCleanup": {
+    "credentialCategoriesScanned": [
+      "PUBLISHABLE_KEY",
+      "SECRET_KEY",
+      "JWT_SECRET",
+      "ANON_KEY",
+      "SERVICE_ROLE_KEY",
+      "S3_PROTOCOL_ACCESS_KEY_ID",
+      "S3_PROTOCOL_ACCESS_KEY_SECRET"
+    ],
+    "exactValueFileHitsAfterCleanup": 0,
+    "genericCredentialPatternFileHitsAfterCleanup": 0,
+    "secretBearingFilesDestroyedAfterHashing": true,
+    "credentialsEnvSha256": "a291303a6a9a6c3decfe026847b4ec1d34eae0aa3dd5eb7aa646279a1499d5c5",
+    "startOutputSha256": "f3ea6508aed30920b5d71d48b046d20fd57d60560c4a56931a63360ffcb9a72d"
+  },
+  "unrelatedStateMutation": false
+}

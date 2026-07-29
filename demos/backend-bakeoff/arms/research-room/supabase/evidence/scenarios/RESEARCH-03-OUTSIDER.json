@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-03-OUTSIDER",
+  "status": "pass",
+  "checkedAt": "2026-07-29T08:43:48.845Z",
+  "evidence": {
+    "sources": 0,
+    "searchResults": 0,
+    "questions": 0,
+    "answers": 0,
+    "progressRows": 0,
+    "storageDenied": true,
+    "realtimeEvents": 0,
+    "rlsApplied": true
+  }
+}

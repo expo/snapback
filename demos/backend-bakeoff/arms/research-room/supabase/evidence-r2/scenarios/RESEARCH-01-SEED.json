@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "RESEARCH-01-SEED",
+  "status": "pass",
+  "checkedAt": "2026-07-29T08:54:48.749Z",
+  "evidence": {
+    "target": "llp0102-research-supabase-w2-r2",
+    "extension": true,
+    "rooms": 2,
+    "primarySources": 20,
+    "sourceBytes": {},
+    "embeddingDimensions": 32,
+    "actors": 3,
+    "userIds": {
+      "alice": "39973f243276b13bc14ad1e60825d279954add3a57aa281f44af3dccbdea0484",
+      "bob": "f0e4f4d07996651076a611112da8ec4e28df78285d7d583734e35269092799d5",
+      "mallory": "eab89522b22625c24d86f414827455e7f84e783d102261ede2172e7e79f96739"
+    }
+  }
+}
