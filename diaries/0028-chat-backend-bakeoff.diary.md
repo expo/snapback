@@ -930,3 +930,42 @@ presence did not become durable rows, and authorization stayed part of the
 backend contract. Package typing, lifecycle orchestration, Linux preparation,
 burst throughput, and offline retained history all need to become boring
 before Snapback can be the default choice.
+
+## 2026-07-29 — Firebase current-major refresh
+
+A fresh additive project upgraded `firebase-admin` 13.5.0 to 14.2.0 and
+`firebase-functions` 6.4.0 to 7.3.2 while leaving the sealed arm unchanged.
+The existing modular Admin and Functions v2 callable source needed no
+application migration. The final fresh local target completed **15 PASS, zero
+GAP, zero FAIL**, with 16/16 local evidence confidence. Hosted deployment
+remains explicitly untested.
+
+Firebase remained unusually strong for Chat. Firestore `onSnapshot` delivered
+authoritative messages, Realtime Database supplied native typing, presence,
+and `onDisconnect`, native Auth identities exercised both policy systems, and
+persistent Firestore cache rendered 25 rows in a cold page with networking
+disabled. A callable Firestore transaction preserved both concurrent sends
+with deterministic adjacent sequence numbers.
+
+The composition cost is real: Auth, Firestore, Functions, and Realtime Database
+mean two data models and two policy languages. Firebase Tools initially used
+host Node 24 despite the Functions package requesting Node 22; putting exact
+Node 22.23.1 first on `PATH` fixed it. A complete semantic attempt also exposed
+implicit Eventarc and Tasks listeners on default ports `9299` and `9499`.
+Although cleanup proved exact ownership, I invalidated that run and repeated
+the full suite with those auxiliaries explicitly assigned inside the lane.
+
+The roughly 1.13 MB production chunk and retained dependency audits—24 root
+findings and 13 Functions findings, including 25 high-severity paths and zero
+critical findings—remain operational caveats. The frozen performance receipt
+also carried stale machine labels, so the separately observed macOS arm64
+machine context is authoritative.
+
+Persistent cache deserves a nuanced result. Future reads and delivery failed
+closed after revocation, and the app cleared protected rendered state on
+listener/auth errors, but previously authorized SDK cache bytes remain an
+application lifecycle responsibility. Firebase nevertheless sets the
+strongest outcome target for cold-page offline history. Snapback should match
+that end result while preserving one coherent authority, settlement, durable
+realtime, and ephemeral-state model rather than requiring authors to bridge
+two databases.
