@@ -164,3 +164,11 @@ commit `c42feb250` and cannot rewrite any frozen arm evidence.
 
 Workers may finish out of order. No worker may alter the shared diary, evidence
 audit, remediation ledger, deep report, ratings, scoring, or final report.
+
+After the read-only Guide review completed, Worker 2 received a second,
+non-overlapping implementation lane: a new detached worktree at coordinator
+commit `4a671974c`, limited to `guide/backend/actions-and-fetch.md`,
+`guide/backend/mutations.md`, `guide/capabilities.md`, directly governed
+Guide-generated projections, and filesystem issue disposition. It must avoid
+the sessions/streamed-actions pages owned by Worker 1 and still returns a
+scoped commit for coordinator merge.
