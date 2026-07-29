@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T11:11:36.360Z",
+  "authoredSource": {
+    "files": 11,
+    "lines": 1608,
+    "bytes": 55722,
+    "paths": [
+      "convex/http.ts",
+      "convex/research.ts",
+      "convex/schema.ts",
+      "index.html",
+      "scripts/capture-receipts.mjs",
+      "scripts/cleanup-arm.sh",
+      "scripts/finalize-evidence.mjs",
+      "scripts/precleanup-security.sh",
+      "scripts/run-build-samples.mjs",
+      "src/main.ts",
+      "src/style.css"
+    ]
+  },
+  "generated": {
+    "files": 5,
+    "lines": 370,
+    "bytes": 12514,
+    "paths": [
+      "convex/_generated/api.d.ts",
+      "convex/_generated/api.js",
+      "convex/_generated/dataModel.d.ts",
+      "convex/_generated/server.d.ts",
+      "convex/_generated/server.js"
+    ]
+  },
+  "tests": {
+    "files": 1,
+    "lines": 555,
+    "bytes": 21389,
+    "paths": [
+      "harness.ts"
+    ]
+  },
+  "configuration": {
+    "files": 4,
+    "lines": 2260,
+    "bytes": 68848,
+    "paths": [
+      ".gitignore",
+      "package-lock.json",
+      "package.json",
+      "tsconfig.json"
+    ]
+  },
+  "documentation": {
+    "files": 2,
+    "lines": 113,
+    "bytes": 10031,
+    "paths": [
+      "README.md",
+      "diary-entry-draft.md"
+    ]
+  },
+  "evidence": {
+    "files": 14,
+    "lines": 1365,
+    "bytes": 46507,
+    "paths": [
+      "evidence/acceptance-report.md",
+      "evidence/acceptance.final.json",
+      "evidence/acceptance.untimed.json",
+      "evidence/artifact-digests.v1.json",
+      "evidence/assistance-and-failures.json",
+      "evidence/cleanup-plan.v1.json",
+      "evidence/cleanup-receipt.v1.json",
+      "evidence/inventory.v1.json",
+      "evidence/isolation-and-command-receipts.json",
+      "evidence/llp-maintain-pre-pr.md",
+      "evidence/performance.build.json",
+      "evidence/performance.runtime.json",
+      "evidence/security-scan.precleanup.json",
+      "evidence/stop-defect.v1.json"
+    ]
+  },
+  "policy": {
+    "files": 0,
+    "lines": 0,
+    "bytes": 0,
+    "paths": []
+  },
+  "dependencyManifests": {
+    "files": 2,
+    "lines": 2240,
+    "bytes": 68414,
+    "paths": [
+      "package-lock.json",
+      "package.json"
+    ]
+  },
+  "installedDependencyBytes": 104892922,
+  "glue": [
+    "harness.ts: local-only native acting-identity acceptance driver; never bundled",
+    "convex/http.ts: deterministic HTTP fixture for scheduled external fetch",
+    "scripts/run-build-samples.mjs: frozen Vite build sampler",
+    "scripts/precleanup-security.sh: exact-value security scan without value output",
+    "scripts/cleanup-arm.sh: exact target-bound cleanup"
+  ]
+}

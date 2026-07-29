@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "scannedAt": "2026-07-29T10:53:23Z",
+  "r1ExposedControlSecret": {
+    "sha256": "974ed2e42c27289243909ad73889b2893c492083309de6b8d9a10af2d765d6db",
+    "postContainmentExactValueMatches": 0
+  },
+  "r2ControlSecret": {
+    "sha256": "d3846f18e217fd39ad6cb1709ccd7e94caf45c7a59659d581e37bc056a9d80f4",
+    "rotatedFromR1": true,
+    "allArmAndStateFileMatches": 0,
+    "prohibitedArtifactMatches": 0,
+    "clientBundleMatches": 0,
+    "argvFlagName": "--instance-secret"
+  },
+  "applicationCanary": {
+    "sha256": "ca6c169ed3aade3e6bbe9835dc27c7ae76ee96ae910d105e5c84d01ad0aa4122",
+    "allArmAndStateFileMatches": 1,
+    "prohibitedArtifactMatches": 0,
+    "clientBundleMatches": 0
+  },
+  "interpretation": {
+    "allowedStores": [
+      "r2 .convex local target state",
+      "worktree-local 0600 canary input"
+    ],
+    "prohibitedScopes": [
+      "source",
+      "generated client bundle",
+      "evidence",
+      "logs",
+      "browser state"
+    ],
+    "providerStopDefectPersists": true
+  }
+}

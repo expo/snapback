@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "classification": "Stop",
+  "provider": "convex",
+  "app": "research-room",
+  "providerDefect": {
+    "id": "convex-local-control-secret-in-process-argv",
+    "affectedVersion": "1.42.3",
+    "firstObservedAt": "2026-07-29T10:31:16Z",
+    "description": "The official anonymous local backend receives its generated instance control secret as the value following the --instance-secret argv flag.",
+    "exposureChannels": [
+      "same-host process inspection",
+      "diagnostics that print unredacted process argv"
+    ],
+    "bindAddresses": [
+      "0.0.0.0:3345",
+      "0.0.0.0:3346"
+    ],
+    "reproducedAfterRotation": true,
+    "scenarioImpact": "RESEARCH-13-SECRETS fails and the provider is ineligible as the go-to choice for this app/version."
+  },
+  "builderPropagation": {
+    "id": "builder-unredacted-process-proof",
+    "description": "The first isolation proof printed full backend argv and propagated the generated value into orchestration output.",
+    "scenarioWorkHadStarted": false,
+    "contained": true,
+    "remediation": "The exact r1 target was stopped and deleted, r2 rotated the secret, and subsequent proofs emitted only PID, executable, owner, bind address, and argv flag names."
+  },
+  "retainedSecretMaterial": "SHA-256 fingerprints only; no values",
+  "metricWindow": "Frozen before scenario work; all scenario results are an untimed extension."
+}

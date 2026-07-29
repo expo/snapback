@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "provider": "convex",
+  "app": "research-room",
+  "assistanceEvents": [
+    {
+      "kind": "provider-source-inspection",
+      "reason": "The pinned CLI rejected the frozen anonymous-local invocation and current help hid the assigned port flags.",
+      "informationUsed": "Pinned Convex CLI source confirmed that local-cloud-port and local-site-port remain accepted after local selection.",
+      "impact": "Preserved assigned ports 3345 and 3346 without a custom backend wrapper."
+    },
+    {
+      "kind": "cross-arm-knowledge",
+      "reason": "The fresh local target needed three attributable identities for headless native clients.",
+      "informationUsed": "A prior Convex arm suggested the CLI's native local admin acting-identity path; the capability was independently verified in the pinned client source.",
+      "impact": "Alice, Bob, and Mallory used distinct Convex development identities; no implementation code was copied."
+    }
+  ],
+  "humanInterventions": [],
+  "failures": [
+    {
+      "classification": "environment",
+      "command": "Initial remote bootstrap in a non-login SSH shell",
+      "result": "Node and npm were absent from PATH; no provider target or state was created.",
+      "resolution": "Used the machine fleet's Volta installation through an explicit worktree-local environment."
+    },
+    {
+      "classification": "documentation-product",
+      "command": "convex dev --local --once --configure new with fixed ports",
+      "result": "Pinned CLI rejected --local as deprecated.",
+      "resolution": "Followed current official anonymous-agent documentation."
+    },
+    {
+      "classification": "documentation",
+      "command": "convex deployment select local",
+      "result": "Failed because no local target existed.",
+      "resolution": "Attempted the documented create path."
+    },
+    {
+      "classification": "credential-product",
+      "command": "convex deployment create local --select",
+      "result": "Required account login despite the local-agent documentation describing login-free anonymous development.",
+      "resolution": "A fresh non-interactive convex dev --once provisioned anonymously."
+    },
+    {
+      "classification": "provider-security-stop",
+      "command": "Anonymous local backend launch",
+      "result": "A generated control secret was present in process argv and the backend/site ports bound to wildcard addresses.",
+      "resolution": "Paused metrics, contained and deleted r1, rotated to r2, reproduced the provider defect, and continued only as an untimed extension."
+    },
+    {
+      "classification": "builder-security-propagation",
+      "command": "Initial isolation-proof process inspection",
+      "result": "Printing full child argv propagated the provider-local control secret into orchestration output.",
+      "resolution": "Rotated the target and changed every later process proof to PID, executable, and redacted flag names only."
+    },
+    {
+      "classification": "builder",
+      "command": "First combined build/acceptance summary command",
+      "result": "Nested jq quoting caused a shell syntax error before either build or acceptance ran.",
+      "resolution": "Reran the command with a simpler quoted jq expression."
+    },
+    {
+      "classification": "environment",
+      "command": "git commit in the fresh remote repository",
+      "result": "Git refused because the isolated repository had no author name or email configured; the index was unchanged.",
+      "resolution": "Configured repository-local author identity from the assigned base commit and retried without changing global machine state."
+    }
+  ]
+}
