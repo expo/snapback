@@ -488,6 +488,12 @@ Registry ambiguity, cache disagreement, lease-head drift, or any unrelated tag
 change stops promotion before the next mutation. The publisher records both
 registry observations, the lease observation, request result, and resulting
 vector; it never treats an npm command's exit status alone as proof.
+Because npm's mutation endpoint can commit before its metadata reads converge,
+the post-write observation is a bounded lease-current loop. It retries only
+while the complete vector is still exactly the preceding checkpoint, accepts
+only the exact intended next vector, and refuses immediately if any unrelated
+member differs. Forward promotion and reverse rollback use the same rule and
+retain the number of official-registry observations in their ordered events.
 
 Every head request supplies a fresh 256-bit challenge. The authority includes
 that challenge in the v3 head signature while excluding it from the stable

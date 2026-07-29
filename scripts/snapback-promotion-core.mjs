@@ -483,6 +483,9 @@ export async function promoteDefaultVector({
   removeTag,
   record = () => {},
   now = () => Date.now(),
+  wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  registryConvergenceAttempts = 12,
+  registryConvergenceDelayMs = 2_500,
   afterPromotion = async () => null,
 }) {
   const names = lease.packages.map((row) => row.name);
@@ -492,6 +495,26 @@ export async function promoteDefaultVector({
   const emit = (event) => {
     events.push(event);
     record(event);
+  };
+  const readConvergedVector = async ({ before, intended, label }) => {
+    let observed = null;
+    for (let attempt = 1; attempt <= registryConvergenceAttempts; attempt += 1) {
+      requireCurrentLease(lease, now());
+      // A refused observation proves nothing about the complete vector. Only
+      // an observed preceding checkpoint permits another convergence read.
+      observed = await readVector(names);
+      if (vectorsEqual(observed, intended, names)) {
+        requireCurrentLease(lease, now());
+        return { vector: observed, attempts: attempt };
+      }
+      if (!vectorsEqual(observed, before, names)) {
+        throw new Error(`${label} observed unrelated default-tag drift`);
+      }
+      if (attempt < registryConvergenceAttempts) {
+        await wait(registryConvergenceDelayMs);
+      }
+    }
+    return { vector: observed, attempts: registryConvergenceAttempts };
   };
 
   try {
@@ -522,6 +545,7 @@ export async function promoteDefaultVector({
           afterLeaseHead,
           commandReportedError: null,
           alreadyAtNewVersion: true,
+          registryConvergenceAttempts: 1,
         });
         continue;
       }
@@ -532,8 +556,13 @@ export async function promoteDefaultVector({
       } catch (cause) {
         mutationError = cause;
       }
-      const after = await readVector(names);
       const next = { ...expected, [row.name]: row.newVersion };
+      const convergence = await readConvergedVector({
+        before,
+        intended: next,
+        label: `promotion of ${row.name}`,
+      });
+      const after = convergence.vector;
       const changedNow = changedNames(before, after, names);
       if (changedNow.length !== 1 || changedNow[0] !== row.name
           || !vectorsEqual(after, next, names)) {
@@ -563,6 +592,7 @@ export async function promoteDefaultVector({
           after,
           afterLeaseHead,
           commandReportedError: mutationError?.message ?? null,
+          registryConvergenceAttempts: convergence.attempts,
           postMutationAuthorityError: {
             code: 'SNAPBACK_PUBLICATION_POST_MUTATION_AUTHORITY_REFUSED',
             message: postMutationAuthorityCause.message,
@@ -578,6 +608,7 @@ export async function promoteDefaultVector({
         after,
         afterLeaseHead,
         commandReportedError: mutationError?.message ?? null,
+        registryConvergenceAttempts: convergence.attempts,
       });
       if (mutationError) throw mutationError;
     }
@@ -607,6 +638,7 @@ export async function promoteDefaultVector({
       let before = null;
       let after = null;
       let mutationError = null;
+      let registryAttempts = null;
       try {
         beforeLeaseHead = await readLeaseHead();
         const beforeAuthorityTime = now();
@@ -627,7 +659,13 @@ export async function promoteDefaultVector({
         // A command can apply remotely and then lose its response. Registry
         // truth, not the transport status, decides whether the reverse
         // checkpoint advanced.
-        after = await readVector(names);
+        const convergence = await readConvergedVector({
+          before,
+          intended: intendedNext,
+          label: `rollback of ${row.name}`,
+        });
+        after = convergence.vector;
+        registryAttempts = convergence.attempts;
         const changedNow = changedNames(before, after, names);
         if (changedNow.length !== 1 || changedNow[0] !== row.name
             || !vectorsEqual(after, intendedNext, names)) {
@@ -652,6 +690,7 @@ export async function promoteDefaultVector({
           after,
           afterLeaseHead,
           commandReportedError: mutationError?.message ?? null,
+          registryConvergenceAttempts: registryAttempts,
         };
         rollback.push(event);
         emit(event);
@@ -686,6 +725,7 @@ export async function promoteDefaultVector({
           beforeLeaseHead,
           before,
           commandReportedError: mutationError?.message ?? null,
+          registryConvergenceAttempts: registryAttempts,
           observed: observation.value,
           observationError: observation.error,
           checkpointAdvanced: vectorsEqual(

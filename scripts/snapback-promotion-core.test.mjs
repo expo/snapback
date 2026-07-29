@@ -201,6 +201,82 @@ test('a first-publication package already on the new version is a verified no-op
   assert.deepEqual(Object.values(result.vector), Array(9).fill('0.1.1'));
 });
 
+test('promotion tolerates bounded official-registry propagation lag', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const visible = vectorFromLease(lease, 'prior');
+  const actual = structuredClone(visible);
+  const staleReads = new Map();
+  const head = acquiredHead(lease, privateKey);
+  const result = await promoteDefaultVector({
+    lease,
+    authorityPublicKey: publicKey,
+    readVector: async () => {
+      for (const [name, remaining] of staleReads) {
+        if (remaining > 0) {
+          staleReads.set(name, remaining - 1);
+          return structuredClone(visible);
+        }
+        visible[name] = actual[name];
+        staleReads.delete(name);
+      }
+      return structuredClone(visible);
+    },
+    readLeaseHead: async () => structuredClone(head),
+    setTag: async (name, version) => {
+      actual[name] = version;
+      staleReads.set(name, 2);
+    },
+    removeTag: async (name) => {
+      actual[name] = null;
+      staleReads.set(name, 2);
+    },
+    wait: async () => {},
+    registryConvergenceDelayMs: 0,
+    now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.vector, actual);
+  assert.ok(
+    result.events.every((event) => event.registryConvergenceAttempts === 3),
+  );
+});
+
+test('promotion fails closed on a refused convergence observation', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const prior = vectorFromLease(lease, 'prior');
+  const head = acquiredHead(lease, privateKey);
+  let reads = 0;
+  let waitCalls = 0;
+  await assert.rejects(
+    promoteDefaultVector({
+      lease,
+      authorityPublicKey: publicKey,
+      readVector: async () => {
+        reads += 1;
+        if (reads === 2) {
+          throw new Error('simulated registry read refusal');
+        }
+        return structuredClone(prior);
+      },
+      readLeaseHead: async () => structuredClone(head),
+      // Model an ambiguous command whose write cannot be proven.
+      setTag: async () => {},
+      removeTag: async () => {},
+      wait: async () => { waitCalls += 1; },
+      registryConvergenceAttempts: 3,
+      registryConvergenceDelayMs: 0,
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+    }),
+    (error) => {
+      assert.match(error.message, /simulated registry read refusal/u);
+      assert.deepEqual(error.result.vector, prior);
+      assert.deepEqual(error.result.rollback, []);
+      return true;
+    },
+  );
+  assert.equal(waitCalls, 0);
+});
+
 test('only an already-candidate prior package may bind aliases to the new vector', () => {
   const base = fixture();
   const unsigned = unsignedLease(base.lease);
@@ -259,6 +335,7 @@ test('failure rolls back every changed tag in reverse order', async () => {
         vector[name] = version;
       },
       removeTag: async (name) => { vector[name] = null; },
+      registryConvergenceAttempts: 1,
       now: () => Date.parse('2026-07-28T19:05:00.000Z'),
     }),
     (error) => {
@@ -462,6 +539,7 @@ test('rollback advances after one bounded retry proves an apply-then-throw rever
         rollbackWrites += 1;
         vector[name] = null;
       },
+      registryConvergenceAttempts: 1,
       now: () => Date.parse('2026-07-28T19:05:00.000Z'),
       afterPromotion: async () => {
         throw new Error('force complete-vector rollback');
@@ -519,6 +597,7 @@ test('rollback refuses earlier writes when both bounded observations fail', asyn
         rollbackWrites += 1;
         vector[name] = null;
       },
+      registryConvergenceAttempts: 1,
       now: () => Date.parse('2026-07-28T19:05:00.000Z'),
       afterPromotion: async () => {
         throw new Error('force complete-vector rollback');
