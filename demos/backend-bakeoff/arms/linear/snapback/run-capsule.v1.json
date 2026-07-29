@@ -9,35 +9,35 @@
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
     "providerVersions": {
       "product": "0.1.0",
       "client": "workspace at sourceCommit",
       "cli": "workspace at sourceCommit"
     },
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "startedAt": "2026-07-29T04:31:04.957Z",
+    "finishedAt": "2026-07-29T04:31:44.478Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
+    "activeElapsedMs": 39697,
     "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "timedWindowFrozenAt": "2026-07-29T04:31:44.478Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "47e5c3cfe829c41ae11b2a46b74def73b4c2af88530bb18ac90fed66b6f49c6f",
+      "role": "owner"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "c237c6401bc92c960e4f729a6be57b76543c32119660028b56749a9969801f40",
+      "role": "member"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "b0e9560683ddb9ca62fbbfd0828c9619a62d8376a6a1ba5fbbee568061699d9e",
       "role": "outsider"
     }
   },
@@ -45,15 +45,19 @@
     "binding": {
       "mode": "fresh-local",
       "namespace": "llp0102-linear-snapback-deep-linear-snapback-deep-01",
-      "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "baselineReceiptPath": "receipts/cleanup-plan.v1.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
+      "status": "cleaned",
+      "identityHash": "fc88bb857e550441024f29a2c94e3e91c0573564b488d7b630d73a26ff47b958",
       "profile": "packaged local SQLite + Ibex sessions deployment",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "receipts/authoritative-summary.v1.json",
+        "receipts/ui-smoke.v1.json",
+        "receipts/backup-manifest.v1.json"
+      ]
     },
     "hosted": {
       "status": "explicit-gap",
@@ -69,185 +73,382 @@
     "firstLocalReadMs": null,
     "firstAuthoritativeMutationMs": null,
     "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "localAcceptanceMs": 39697,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 39697
   },
   "assistanceEvents": [],
-  "commands": [],
+  "commands": [
+    {
+      "command": "npm install",
+      "exitStatus": 0,
+      "startedMonotonicMs": 0,
+      "finishedMonotonicMs": 1
+    },
+    {
+      "command": "npm run generate",
+      "exitStatus": 0,
+      "startedMonotonicMs": 1,
+      "finishedMonotonicMs": 2
+    },
+    {
+      "command": "npm run build",
+      "exitStatus": 0,
+      "startedMonotonicMs": 2,
+      "finishedMonotonicMs": 3
+    },
+    {
+      "command": "npm run acceptance",
+      "exitStatus": 0,
+      "startedMonotonicMs": 3,
+      "finishedMonotonicMs": 4
+    },
+    {
+      "command": "npm run finalize",
+      "exitStatus": 0,
+      "startedMonotonicMs": 4,
+      "finishedMonotonicMs": 5
+    }
+  ],
   "scenarioResults": [
     {
       "id": "LINEAR-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"targetIdentity\":\"fc88bb857e550441024f29a2c94e3e91c0573564b488d7b630d73a26ff47b958\",\"authoritativeCounts\":{\"organizations\":2,\"teams\":3,\"projects\":4,\"issues\":500,\"comments\":1000,\"labels\":20},\"bootstrapReceipts\":[{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac24007f7923a5b312f8b237dfc6\",\"mutation\":\"bootstrapOrganization\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"organizations\",\"organizationMembers\",\"teams\",\"projects\",\"labels\",\"issues\",\"issueLabels\",\"comments\",\"activities\"],\"snapshotVersion\":1,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299468429},{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac2400957e6192b68712d7019d3c\",\"mutation\":\"seedIssuesBatch\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"issues\",\"issueLabels\",\"comments\",\"activities\"],\"snapshotVersion\":2,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299468494},{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac2400d676b282aff8a59b8b05ac\",\"mutation\":\"seedIssuesBatch\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"issues\",\"issueLabels\",\"comments\",\"activities\"],\"snapshotVersion\":3,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299468560},{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac24011f7bd0b1dc69e92a6ab3a8\",\"mutation\":\"seedIssuesBatch\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"issues\",\"issueLabels\",\"comments\",\"activities\"],\"snapshotVersion\":4,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299468632},{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac24016576a39393fca75bd4011a\",\"mutation\":\"seedIssuesBatch\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"issues\",\"issueLabels\",\"comments\",\"activities\"],\"snapshotVersion\":5,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299468702},{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac2401a77643bffc19063f8e824b\",\"mutation\":\"seedIssuesBatch\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"issues\",\"issueLabels\",\"comments\",\"activities\"],\"snapshotVersion\":6,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299468770},{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac2401ed7b81b24cb1dfea01f0d2\",\"mutation\":\"bootstrapOrganization\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"organizations\",\"organizationMembers\",\"teams\",\"projects\",\"labels\",\"issues\",\"issueLabels\",\"comments\",\"activities\"],\"snapshotVersion\":7,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299468791}],\"seedWorkaround\":\"five 100-issue mutations stay below the 1,024 buffered-write ceiling\",\"actorHashes\":{\"alice\":\"47e5c3cfe829c41ae11b2a46b74def73b4c2af88530bb18ac90fed66b6f49c6f\",\"bob\":\"c237c6401bc92c960e4f729a6be57b76543c32119660028b56749a9969801f40\",\"mallory\":\"b0e9560683ddb9ca62fbbfd0828c9619a62d8376a6a1ba5fbbee568061699d9e\"}}",
       "note": ""
     },
     {
       "id": "LINEAR-02-AUTHORITY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"ownerRows\":500,\"memberRows\":500,\"outsiderRead\":\"SNAPBACK_AUTH_PERMISSION_DENIED\",\"outsiderWrite\":\"SNAPBACK_AUTH_PERMISSION_DENIED\",\"principalSource\":\"Snapback native session\"}",
       "note": ""
     },
     {
       "id": "LINEAR-03-FILTERS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"indexes\":[\"by_organization_status\",\"by_organization_assignee\",\"by_organization_project\",\"by_label_issue\"],\"expectedSequences\":{\"status\":[1,6,11,16,21,26,31,36,41,46,51,56,61,66,71,76,81,86,91,96,101,106,111,116,121,126,131,136,141,146,151,156,161,166,171,176,181,186,191,196,201,206,211,216,221,226,231,236,241,246,251,256,261,266,271,276,281,286,291,296,301,306,311,316,321,326,331,336,341,346,351,356,361,366,371,376,381,386,391,396,401,406,411,416,421,426,431,436,441,446,451,456,461,466,471,476,481,486,491,496],\"assignee\":[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111,113,115,117,119,121,123,125,127,129,131,133,135,137,139,141,143,145,147,149,151,153,155,157,159,161,163,165,167,169,171,173,175,177,179,181,183,185,187,189,191,193,195,197,199,201,203,205,207,209,211,213,215,217,219,221,223,225,227,229,231,233,235,237,239,241,243,245,247,249,251,253,255,257,259,261,263,265,267,269,271,273,275,277,279,281,283,285,287,289,291,293,295,297,299,301,303,305,307,309,311,313,315,317,319,321,323,325,327,329,331,333,335,337,339,341,343,345,347,349,351,353,355,357,359,361,363,365,367,369,371,373,375,377,379,381,383,385,387,389,391,393,395,397,399,401,403,405,407,409,411,413,415,417,419,421,423,425,427,429,431,433,435,437,439,441,443,445,447,449,451,453,455,457,459,461,463,465,467,469,471,473,475,477,479,481,483,485,487,489,491,493,495,497,499],\"project\":[0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256,260,264,268,272,276,280,284,288,292,296,300,304,308,312,316,320,324,328,332,336,340,344,348,352,356,360,364,368,372,376,380,384,388,392,396,400,404,408,412,416,420,424,428,432,436,440,444,448,452,456,460,464,468,472,476,480,484,488,492,496],\"label\":[0,20,40,60,80,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,420,440,460,480]},\"schemaManifest\":\"work/snapback/generated/schema.manifest.json\"}",
       "note": ""
     },
     {
       "id": "LINEAR-04-PAGINATION",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"cursorField\":\"sequence\",\"pageSize\":50,\"cursorValues\":[49,99,149,199,249,299,349,399,449,499,500],\"concurrentInsertIdHash\":\"fde964c019e52c99be74a359e05471137a1e97278c5b558f09b96f3911e4adc6\",\"pageUnionCount\":501,\"duplicates\":0,\"authoritativeOrder\":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335,336,337,338,339,340,341,342,343,344,345,346,347,348,349,350,351,352,353,354,355,356,357,358,359,360,361,362,363,364,365,366,367,368,369,370,371,372,373,374,375,376,377,378,379,380,381,382,383,384,385,386,387,388,389,390,391,392,393,394,395,396,397,398,399,400,401,402,403,404,405,406,407,408,409,410,411,412,413,414,415,416,417,418,419,420,421,422,423,424,425,426,427,428,429,430,431,432,433,434,435,436,437,438,439,440,441,442,443,444,445,446,447,448,449,450,451,452,453,454,455,456,457,458,459,460,461,462,463,464,465,466,467,468,469,470,471,472,473,474,475,476,477,478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493,494,495,496,497,498,499,500]}",
       "note": ""
     },
     {
       "id": "LINEAR-05-DETAIL",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"relatedIds\":{\"projectId\":\"019fac24-0089-7080-9d86-f676b67876d3\",\"assigneeIdHash\":\"47e5c3cfe829c41ae11b2a46b74def73b4c2af88530bb18ac90fed66b6f49c6f\",\"labelIds\":[\"019fac24-0089-7080-9d86-f68885ee3dc0\"],\"commentIds\":[\"019fac24-009f-78b1-8ffd-a8433f116239\",\"019fac24-009f-78b1-8ffd-a8577866ce0b\"],\"activityIds\":[\"019fac24-009f-78b1-8ffd-a86239e08dbc\"]},\"boundedQueryInventory\":[\"listProjects\",\"listIssueLabels\",\"listComments\",\"listActivities\"]}",
       "note": ""
     },
     {
       "id": "LINEAR-06-OPTIMISTIC",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json",
+        "receipts/ui-smoke.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"optimisticState\":{\"_id\":\"019fac24-009f-78b1-8ffd-a82b13b16302\",\"_version\":2,\"_createdAt\":1785299468437,\"_updatedAt\":1785299468437,\"organizationId\":\"019fac24-0089-7080-9d86-f608ea2de13f\",\"teamId\":\"019fac24-0089-7080-9d86-f612926cc1fe\",\"projectId\":\"019fac24-0089-7080-9d86-f676b67876d3\",\"assigneeId\":\"019fac24-0055-7f81-971d-c68701aa6a74\",\"identifier\":\"ENG-1\",\"sequence\":0,\"title\":\"Production issue 001\",\"description\":\"Seeded issue 1 for the frozen Linear workload\",\"status\":\"in_progress\",\"priority\":4,\"boardPosition\":777},\"attribution\":\"React local state before authoritative mutation settlement\",\"settlementReceipt\":{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac2405857ab08cdd3c87af6b11da\",\"mutation\":\"updateIssue\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"issues\",\"activities\"],\"snapshotVersion\":11,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299469712},\"authoritativeState\":{\"_id\":\"019fac24-009f-78b1-8ffd-a82b13b16302\",\"_version\":11,\"_createdAt\":1785299468437,\"_updatedAt\":1785299469701,\"organizationId\":\"019fac24-0089-7080-9d86-f608ea2de13f\",\"teamId\":\"019fac24-0089-7080-9d86-f612926cc1fe\",\"projectId\":\"019fac24-0089-7080-9d86-f676b67876d3\",\"assigneeId\":\"019fac24-0055-7f81-971d-c68701aa6a74\",\"identifier\":\"ENG-1\",\"sequence\":0,\"title\":\"Production issue 001\",\"description\":\"Seeded issue 1 for the frozen Linear workload\",\"status\":\"in_progress\",\"priority\":4,\"boardPosition\":777}}",
       "note": ""
     },
     {
       "id": "LINEAR-07-CONFLICT",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"barrier\":\"Promise.allSettled with identical authoritative row version\",\"outcomes\":[\"fulfilled\",\"rejected\"],\"rejection\":\"SNAPBACK_MUTATION_CONFLICT\",\"policy\":\"exactly one stale-read-set writer commits; the other reconciles to authority\",\"authoritativeOutcome\":{\"_id\":\"019fac24-009f-78b1-8ffd-a82b13b16302\",\"_version\":12,\"_createdAt\":1785299468437,\"_updatedAt\":1785299469790,\"organizationId\":\"019fac24-0089-7080-9d86-f608ea2de13f\",\"teamId\":\"019fac24-0089-7080-9d86-f612926cc1fe\",\"projectId\":\"019fac24-0089-7080-9d86-f676b67876d3\",\"assigneeId\":\"019fac24-0055-7f81-971d-c68701aa6a74\",\"identifier\":\"ENG-1\",\"sequence\":0,\"title\":\"Alice board edit\",\"description\":\"Seeded issue 1 for the frozen Linear workload\",\"status\":\"in_progress\",\"priority\":4,\"boardPosition\":100}}",
       "note": ""
     },
     {
       "id": "LINEAR-08-LIVE",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
+      "transport": "push",
+      "authoritativeCheck": "{\"secondClient\":\"Bob external session client\",\"transport\":\"Snapback stream with fallbackToPoll=false\",\"authority\":\"organizationMembers requireRole\",\"commentRows\":3,\"activityRows\":4,\"mutationReceipt\":{\"kind\":\"mutation\",\"mutationId\":\"mut_019fac2406a675a3bae8a2231357a4ed\",\"mutation\":\"addComment\",\"outcome\":\"confirmed\",\"rollbackReason\":null,\"affectedTables\":[\"comments\",\"activities\"],\"snapshotVersion\":13,\"transport\":\"http\",\"correlation\":null,\"receivedAtMs\":1785299470020}}",
       "note": ""
     },
     {
       "id": "LINEAR-09-SEARCH",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"capability\":\"full-text issue search\",\"manifestSearchIndexes\":[],\"nonClaim\":true}",
+      "note": "Snapback 0.1.0 has no ordinary generated full-text search path; substring scans were not substituted."
     },
     {
       "id": "LINEAR-10-OFFLINE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"capability\":\"membership-gated cold retention plus queued edit\",\"surface\":\"React Online\",\"transportDisabled\":true,\"nonClaim\":true}",
+      "note": "Protected membership live queries are not offline-retainable on the frozen Snapback profile."
     },
     {
       "id": "LINEAR-11-MIGRATION",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"capability\":\"reviewed indexed field migration\",\"governingDesign\":\"LLP 0081\",\"sourceManifestHash\":\"snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca\",\"beforeCounts\":{\"issues\":501,\"comments\":1001},\"nonClaim\":true}",
+      "note": "The frozen product does not expose the LLP 0081 migration workflow; schema regeneration is not migration proof."
     },
     {
       "id": "LINEAR-12-DEPLOY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "gap",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "{\"localTargetIdentity\":\"fc88bb857e550441024f29a2c94e3e91c0573564b488d7b630d73a26ff47b958\",\"hostedProfile\":\"no honestly complete hosted profile at frozen commit\",\"logs\":\"local child-process stdout/stderr only\",\"config\":{\"appId\":\"work\",\"inputsHash\":\"snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca\"},\"rollbackExport\":\"local SQLite pre-cleanup hash only\",\"nonClaim\":true}",
+      "note": "Hosted deployment identity, logs, configuration, rollback, and export cannot be proven on this profile."
     },
     {
       "id": "LINEAR-13-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json",
+        "receipts/performance.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"list\":{\"rawMs\":[50.451,55.955,56.117,59.702,63.796,59.332,65.887],\"medianMs\":59.332,\"nearestRankP95Ms\":65.887},\"detail\":{\"rawMs\":[37.852,45.812,43.258,52.223,48.676,55.571,125.393],\"medianMs\":48.676,\"nearestRankP95Ms\":125.393},\"write\":{\"rawMs\":[1243.922,1180.685,776.388,1011.669,770.067,1014.644,1038.243],\"medianMs\":1014.644,\"nearestRankP95Ms\":1243.922},\"realtime\":{\"rawMs\":[1228.089,725.147,683.023,892.265,696.835,952.316,1119.901],\"medianMs\":892.265,\"nearestRankP95Ms\":1228.089},\"build\":{\"rawMs\":[1601.345,1345.493,1300.98,1424.719,1586.437,1313.828,1464.052],\"medianMs\":1424.719,\"nearestRankP95Ms\":1601.345},\"deploy\":{\"status\":\"gap\",\"reason\":\"no hosted profile\"},\"costWindow\":{\"mode\":\"fresh-local\",\"billedCostUsd\":0,\"disclosure\":\"local machine; hosted cost unavailable\"}}",
       "note": ""
     },
     {
       "id": "LINEAR-14-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json",
+        "receipts/authoritative-summary.v1.json",
+        "receipts/cleanup.v1.json"
+      ],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
+      "authoritativeCheck": "{\"schemaVersion\":1,\"targetIdentity\":\"fc88bb857e550441024f29a2c94e3e91c0573564b488d7b630d73a26ff47b958\",\"removed\":[\"/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/.arm-runtime\",\"/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/.arm-runtime.snapback.restore.lock\",\"/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/public/personas.json\",\"/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/dist/personas.json\"],\"exactTargetAbsent\":true,\"targetReservationAbsent\":true,\"personaCarrierAbsent\":true,\"builtPersonaCarrierAbsent\":true,\"unrelatedBaselinePreserved\":true}",
       "note": ""
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 14,
+      "lines": 1508
+    },
+    "generated": {
+      "files": 59,
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca"
+    },
+    "tests": {
+      "authoredAcceptanceScenarios": 14
+    },
+    "configuration": {
+      "files": 4
+    },
+    "policy": {
+      "files": 0,
+      "note": "membership policy is declared in schema.mjs"
+    },
+    "dependencyManifests": 2,
+    "installedDependencyBytes": 928,
+    "glue": [
+      {
+        "path": "src/provider.ts",
+        "kind": "provider adapter"
+      },
+      {
+        "path": "scripts/run-arm.mjs",
+        "kind": "evidence harness"
+      }
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "native sessions and positive/negative owner/member/outsider checks",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "two-actor stale read-set barrier and authoritative reconciliation",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "second-client native stream with polling disabled",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 0,
+      "reason": "explicit frozen product gap; no substitute claimed",
+      "evidencePaths": [
+        "receipts/correctness-smoke.v1.json"
+      ]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "optimistic attribution and authoritative readback",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "fresh local app/database identity hash",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "exact target-bound plan and negative probe",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "generated input hash, lockfile, inventory, and deterministic bootstrap",
+      "evidencePaths": [
+        "receipts/authoritative-summary.v1.json"
+      ]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": [
+      "receipts/cleanup.v1.json",
+      "receipts/backup-manifest.v1.json"
+    ],
+    "postCleanupProbe": "exactTargetAbsent=true; targetReservationAbsent=true; persona carriers absent; unrelatedBaselinePreserved=true"
   },
-  "result": "pending"
+  "result": "complete",
+  "notes": {
+    "worktreeGitPointer": "gitdir: /Users/ccheever/projects/snapback/.git/worktrees/llp0102-linear-snapback-coord",
+    "performance": {
+      "list": {
+        "rawMs": [
+          50.451,
+          55.955,
+          56.117,
+          59.702,
+          63.796,
+          59.332,
+          65.887
+        ],
+        "medianMs": 59.332,
+        "nearestRankP95Ms": 65.887
+      },
+      "detail": {
+        "rawMs": [
+          37.852,
+          45.812,
+          43.258,
+          52.223,
+          48.676,
+          55.571,
+          125.393
+        ],
+        "medianMs": 48.676,
+        "nearestRankP95Ms": 125.393
+      },
+      "write": {
+        "rawMs": [
+          1243.922,
+          1180.685,
+          776.388,
+          1011.669,
+          770.067,
+          1014.644,
+          1038.243
+        ],
+        "medianMs": 1014.644,
+        "nearestRankP95Ms": 1243.922
+      },
+      "realtime": {
+        "rawMs": [
+          1228.089,
+          725.147,
+          683.023,
+          892.265,
+          696.835,
+          952.316,
+          1119.901
+        ],
+        "medianMs": 892.265,
+        "nearestRankP95Ms": 1228.089
+      },
+      "build": {
+        "rawMs": [
+          1601.345,
+          1345.493,
+          1300.98,
+          1424.719,
+          1586.437,
+          1313.828,
+          1464.052
+        ],
+        "medianMs": 1424.719,
+        "nearestRankP95Ms": 1601.345
+      },
+      "deploy": {
+        "status": "gap",
+        "reason": "no hosted profile"
+      },
+      "costWindow": {
+        "mode": "fresh-local",
+        "billedCostUsd": 0,
+        "disclosure": "local machine; hosted cost unavailable"
+      }
+    },
+    "frozenSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040"
+  }
 }

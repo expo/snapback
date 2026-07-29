@@ -1,0 +1,30 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/updateIssue.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assigneeId": {
+      "type": "string"
+    },
+    "boardPosition": {
+      "type": "integer"
+    },
+    "id": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "integer"
+    },
+    "status": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "work:updateIssue arguments",
+  "type": "object"
+}

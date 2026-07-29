@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/bootstrapOrganization.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bobId": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "seedPrimary": {
+      "type": "boolean"
+    },
+    "slug": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "slug",
+    "seedPrimary",
+    "bobId"
+  ],
+  "title": "work:bootstrapOrganization arguments",
+  "type": "object"
+}

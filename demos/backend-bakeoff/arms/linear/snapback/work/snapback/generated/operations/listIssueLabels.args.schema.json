@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/work/listIssueLabels.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "issueId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "issueId"
+  ],
+  "title": "work:listIssueLabels arguments",
+  "type": "object"
+}

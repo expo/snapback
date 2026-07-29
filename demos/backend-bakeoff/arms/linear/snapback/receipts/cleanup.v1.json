@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "targetIdentity": "fc88bb857e550441024f29a2c94e3e91c0573564b488d7b630d73a26ff47b958",
+  "removed": [
+    "/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/.arm-runtime",
+    "/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/.arm-runtime.snapback.restore.lock",
+    "/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/public/personas.json",
+    "/private/tmp/llp0102-linear-snapback-coord/demos/backend-bakeoff/arms/linear/snapback/work/dist/personas.json"
+  ],
+  "exactTargetAbsent": true,
+  "targetReservationAbsent": true,
+  "personaCarrierAbsent": true,
+  "builtPersonaCarrierAbsent": true,
+  "unrelatedBaselinePreserved": true
+}

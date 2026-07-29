@@ -1,0 +1,1215 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "issueId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "issueId",
+            "body",
+            "sequence"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "comments",
+            "activities"
+          ],
+          "writes": [
+            "comments",
+            "activities"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "addComment",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId",
+            "userId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "organizationMembers"
+          ],
+          "writes": [
+            "organizationMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "bobId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "seedPrimary": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "name",
+            "slug",
+            "seedPrimary",
+            "bobId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "organizations",
+            "organizationMembers",
+            "teams",
+            "projects",
+            "labels",
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ],
+          "writes": [
+            "organizations",
+            "organizationMembers",
+            "teams",
+            "projects",
+            "labels",
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "bootstrapOrganization",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assigneeId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "projectId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "teamId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId",
+            "teamId",
+            "projectId",
+            "assigneeId",
+            "title",
+            "sequence"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "issues",
+            "activities"
+          ],
+          "writes": [
+            "issues",
+            "activities"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createIssue",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "bobId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "count": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "startSequence": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId",
+            "bobId",
+            "startSequence",
+            "count"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ],
+          "writes": [
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "seedIssuesBatch",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assigneeId": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "boardPosition": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "priority": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "id",
+            "status",
+            "priority",
+            "assigneeId",
+            "boardPosition",
+            "title"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "issues",
+            "activities"
+          ],
+          "writes": [
+            "issues",
+            "activities"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "updateIssue",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "issueId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "issueId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "issues",
+            "organizationMembers",
+            "activities"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listActivities",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "actorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "body": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "issueId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "kind": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "issueId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "issueId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "issues",
+            "organizationMembers",
+            "comments"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listComments",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "authorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "body": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "issueId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "issueId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "issueId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "issues",
+            "organizationMembers",
+            "issueLabels"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listIssueLabels",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "issueId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "labelId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assigneeId": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "labelId": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "projectId": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId",
+            "status",
+            "assigneeId",
+            "projectId",
+            "labelId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "issues",
+            "issueLabels"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listIssues",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "assigneeId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "boardPosition": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "description": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "identifier": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "priority": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "projectId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "status": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "teamId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "labels"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listLabels",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "color": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "name": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "activities"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listOrganizationActivities",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "actorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "body": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "issueId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "kind": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "comments"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listOrganizationComments",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "authorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "body": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "issueId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "projects"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listProjects",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "name": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "state": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "teams"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listTeams",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "key": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "name": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "afterSequence": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "limit": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "organizationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "organizationId",
+            "afterSequence",
+            "limit"
+          ]
+        },
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "organizationMembers",
+            "issues"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "pageIssues",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "assigneeId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "boardPosition": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "description": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "identifier": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "organizationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "priority": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "projectId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "status": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "teamId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "snapback.v1:sessions:function:sha256:874ceece43e817c431221cae84c778d21a84e8f89c8bc3322fa5e54bf2b2c44b",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:8c61b796391b6a00abff641a6440421403e2b457e05634468330c2a26d6b61ca",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:912d80fe96e960e94ff902f1c9fd7bd9ad19381d75311c3adce62c662cb5c624"
+  }
+}
