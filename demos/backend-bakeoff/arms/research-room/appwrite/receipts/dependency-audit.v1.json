@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T10:51:31Z",
+  "command": "npm audit --json",
+  "exitStatus": 1,
+  "auditReportVersion": 2,
+  "dependencyCount": 399,
+  "vulnerabilities": {
+    "info": 0,
+    "low": 3,
+    "moderate": 6,
+    "high": 7,
+    "critical": 0,
+    "total": 16
+  },
+  "rawReport": "ignored mode-0600 arm runtime file; removed during cleanup",
+  "interpretation": "Dependency-health evidence, not an acceptance failure; no automatic breaking upgrade was applied.",
+  "containsSecretValues": false
+}

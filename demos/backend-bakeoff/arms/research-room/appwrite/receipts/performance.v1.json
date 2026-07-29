@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T10:48:04.806Z",
+  "warmupsMs": {
+    "representativeRead": [
+      20.888,
+      12.943
+    ],
+    "representativeWrite": [
+      16.292,
+      11.701
+    ],
+    "realtimeDelivery": [
+      11.913,
+      10.324
+    ],
+    "reconnect": [
+      386.826,
+      374.246
+    ],
+    "build": [
+      536.113,
+      447.606
+    ]
+  },
+  "recorded": {
+    "representativeRead": {
+      "samplesMs": [
+        10.501,
+        8.731,
+        7.739,
+        7.58,
+        7.102,
+        6.685,
+        6.137
+      ],
+      "medianMs": 7.58,
+      "p95NearestRankMs": 10.501
+    },
+    "representativeWrite": {
+      "samplesMs": [
+        11.385,
+        11.037,
+        11.016,
+        10.062,
+        10.697,
+        10.829,
+        10.912
+      ],
+      "medianMs": 10.912,
+      "p95NearestRankMs": 11.385
+    },
+    "realtimeDelivery": {
+      "samplesMs": [
+        10.435,
+        10.742,
+        10.301,
+        10.309,
+        10.763,
+        11.074,
+        10.208
+      ],
+      "medianMs": 10.435,
+      "p95NearestRankMs": 11.074
+    },
+    "reconnect": {
+      "samplesMs": [
+        386.166,
+        390.943,
+        389.103,
+        375.105,
+        387.176,
+        375.862,
+        386.78
+      ],
+      "medianMs": 386.78,
+      "p95NearestRankMs": 390.943
+    },
+    "build": {
+      "samplesMs": [
+        433.434,
+        495.542,
+        451.405,
+        446.24,
+        447.766,
+        446.387,
+        451.065
+      ],
+      "medianMs": 447.766,
+      "p95NearestRankMs": 495.542
+    }
+  },
+  "workload": {
+    "representativeRead": "authorized full-text search returning two rows",
+    "representativeWrite": "native-session question create then delete",
+    "realtimeDelivery": "authoritative progress-row create to Bob Realtime callback",
+    "reconnect": "fresh Bob Realtime client subscription through first authoritative callback",
+    "build": "TypeScript check plus Vite production build",
+    "warmupsPerPath": 2,
+    "recordedPerPath": 7,
+    "claimScope": "small repeatable product workload; not production scale"
+  },
+  "machineContext": {
+    "composeContainerCount": 29,
+    "allowlistedContainerStats": [
+      {
+        "name": "appwrite-traefik",
+        "memory": "24.28MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-stats-usage",
+        "memory": "63.55MiB / 7.737GiB",
+        "cpu": "0.03%"
+      },
+      {
+        "name": "appwrite-worker-builds",
+        "memory": "64.37MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-deletes",
+        "memory": "63.16MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-task-scheduler-functions",
+        "memory": "73.98MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite",
+        "memory": "306.3MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-certificates",
+        "memory": "59.09MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-databases",
+        "memory": "59.06MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-webhooks",
+        "memory": "62.38MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-task-scheduler-messages",
+        "memory": "74.05MiB / 7.737GiB",
+        "cpu": "0.30%"
+      },
+      {
+        "name": "appwrite-realtime",
+        "memory": "98.16MiB / 7.737GiB",
+        "cpu": "0.13%"
+      },
+      {
+        "name": "appwrite-task-scheduler-executions",
+        "memory": "74.25MiB / 7.737GiB",
+        "cpu": "0.20%"
+      },
+      {
+        "name": "appwrite-worker-audits",
+        "memory": "63.14MiB / 7.737GiB",
+        "cpu": "0.03%"
+      },
+      {
+        "name": "appwrite-worker-mails",
+        "memory": "59.06MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-stats-resources",
+        "memory": "59.06MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-task-stats-resources",
+        "memory": "73.95MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-executions",
+        "memory": "63.54MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-task-maintenance",
+        "memory": "73.93MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-screenshots",
+        "memory": "59.03MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-functions",
+        "memory": "63.6MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-worker-migrations",
+        "memory": "59.11MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "appwrite-task-interval",
+        "memory": "74.04MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-worker-messaging",
+        "memory": "59.04MiB / 7.737GiB",
+        "cpu": "0.01%"
+      },
+      {
+        "name": "exc1",
+        "memory": "35.52MiB / 7.737GiB",
+        "cpu": "0.02%"
+      },
+      {
+        "name": "appwrite-redis",
+        "memory": "9.125MiB / 7.737GiB",
+        "cpu": "0.84%"
+      },
+      {
+        "name": "appwrite-mongodb",
+        "memory": "204.2MiB / 7.737GiB",
+        "cpu": "1.64%"
+      },
+      {
+        "name": "appwrite-browser",
+        "memory": "145.8MiB / 7.737GiB",
+        "cpu": "0.03%"
+      },
+      {
+        "name": "appwrite-console",
+        "memory": "6.684MiB / 7.737GiB",
+        "cpu": "0.00%"
+      },
+      {
+        "name": "appwrite-embedding",
+        "memory": "857.9MiB / 7.737GiB",
+        "cpu": "0.00%"
+      }
+    ]
+  },
+  "containsSecretValues": false
+}

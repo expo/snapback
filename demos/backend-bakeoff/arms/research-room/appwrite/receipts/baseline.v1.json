@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-29T10:33:34Z",
+  "exactWorkRoot": "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work",
+  "namespace": "llp0102-research-appwrite-w1",
+  "sourceBaseCommit": "0dc4b3ff6257edc2ee0fea869fca5142531d0ce5",
+  "frozenSnapbackCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+  "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
+  "ports": {
+    "8093": "closed",
+    "8493": "closed",
+    "20083": "closed",
+    "4346": "closed"
+  },
+  "matchingComposeContainers": 0,
+  "matchingComposeVolumes": 0,
+  "matchingComposeNetworks": 0,
+  "matchingInstallerContainers": 0,
+  "status": "empty",
+  "evidenceHandling": "allowlisted resource names, labels, ports, and counts only",
+  "containsSecretValues": false
+}

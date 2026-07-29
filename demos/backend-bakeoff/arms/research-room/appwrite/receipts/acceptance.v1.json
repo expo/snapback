@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "expectedCheckCount": 15,
+  "result": "pass-with-gap",
+  "summary": {
+    "pass": 14,
+    "gap": 1,
+    "fail": 0
+  },
+  "scenarioEvidence": {
+    "RESEARCH-01-SEED": "receipts/scenarios/RESEARCH-01-SEED.json",
+    "RESEARCH-02-FILES": "receipts/scenarios/RESEARCH-02-FILES.json",
+    "RESEARCH-03-OUTSIDER": "receipts/scenarios/RESEARCH-03-OUTSIDER.json",
+    "RESEARCH-04-KEYWORD": "receipts/scenarios/RESEARCH-04-KEYWORD.json",
+    "RESEARCH-05-SEMANTIC": "receipts/scenarios/RESEARCH-05-SEMANTIC.json",
+    "RESEARCH-06-PROGRESS": "receipts/scenarios/RESEARCH-06-PROGRESS.json",
+    "RESEARCH-07-CITATIONS": "receipts/scenarios/RESEARCH-07-CITATIONS.json",
+    "RESEARCH-08-COLLABORATOR": "receipts/scenarios/RESEARCH-08-COLLABORATOR.json",
+    "RESEARCH-09-CANCEL": "receipts/scenarios/RESEARCH-09-CANCEL.json",
+    "RESEARCH-10-RETRY": "receipts/scenarios/RESEARCH-10-RETRY.json",
+    "RESEARCH-11-OUTCOMES": "receipts/scenarios/RESEARCH-11-OUTCOMES.json",
+    "RESEARCH-12-SCHEDULE": "receipts/scenarios/RESEARCH-12-SCHEDULE.json",
+    "RESEARCH-13-SECRETS": "receipts/scenarios/RESEARCH-13-SECRETS.json",
+    "RESEARCH-14-PERFORMANCE": "receipts/scenario-14-performance.v1.json",
+    "RESEARCH-15-CLEANUP": "receipts/cleanup.v1.json"
+  },
+  "gap": {
+    "scenario": "RESEARCH-05-SEMANTIC",
+    "reason": "Appwrite 1.9.6 has no ordinary native vector index or nearest-neighbor query path.",
+    "fallbackUsed": false
+  },
+  "stopDefects": [],
+  "containsSecretValues": false
+}

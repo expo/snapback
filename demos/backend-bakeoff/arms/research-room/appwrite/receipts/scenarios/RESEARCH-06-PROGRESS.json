@@ -1,0 +1,35 @@
+{
+  "id": "RESEARCH-06-PROGRESS",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:36.636Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "appwrite-realtime-websocket",
+  "evidence": {
+    "sequences": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "labels": [
+      "retrieving",
+      "ranking",
+      "drafting",
+      "citing"
+    ],
+    "authoritativeCommitIds": [
+      "p-question-progress-1",
+      "p-question-progress-2",
+      "p-question-progress-3",
+      "p-question-progress-4"
+    ],
+    "callbackOrder": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "completionAfterCallbacks": true
+  },
+  "note": "Four separately committed Appwrite rows arrived over native Realtime before the terminal answer."
+}

@@ -1,0 +1,28 @@
+{
+  "id": "RESEARCH-14-PERFORMANCE",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:48:42Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "not-applicable",
+  "evidence": {
+    "receiptPath": "receipts/performance.v1.json",
+    "warmupsPerPath": 2,
+    "recordedPerPath": 7,
+    "medianMs": {
+      "representativeRead": 7.58,
+      "representativeWrite": 10.912,
+      "realtimeDelivery": 10.435,
+      "reconnect": 386.78,
+      "build": 447.766
+    },
+    "p95NearestRankMs": {
+      "representativeRead": 10.501,
+      "representativeWrite": 11.385,
+      "realtimeDelivery": 11.074,
+      "reconnect": 390.943,
+      "build": 495.542
+    }
+  },
+  "note": "Two warmups and seven retained samples cover native full-text read, native-session write, Realtime delivery, reconnect, and production build.",
+  "containsSecretValues": false
+}

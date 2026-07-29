@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-29T10:33:34Z",
+  "baselineWasEmpty": true,
+  "namespace": "llp0102-research-appwrite-w1",
+  "exactWorkRoot": "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work",
+  "exactComposeFile": "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/.arm-runtime/appwrite/docker-compose.yml",
+  "exactEnvFile": "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/.arm-runtime/appwrite/.env",
+  "exactInstallerName": "llp0102-research-appwrite-w1-installer",
+  "exactPorts": [8093, 8493, 20083, 4346],
+  "exactRuntimePaths": [
+    "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/.arm-runtime",
+    "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/.cli-home",
+    "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/.browser-state",
+    "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/node_modules",
+    "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/dist",
+    "/private/tmp/llp0102-research-appwrite-w1/demos/backend-bakeoff/arms/research-room/appwrite/work/tsconfig.tsbuildinfo"
+  ],
+  "guard": "Only the exact Compose project, exact arm-labeled installer, recorded Vite PID, and exact ignored arm-local paths may be removed.",
+  "unrelatedResourceAction": "preserve; never address by cleanup command",
+  "containsSecretValues": false
+}

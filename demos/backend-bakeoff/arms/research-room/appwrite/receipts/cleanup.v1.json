@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-07-29T10:56:19.584Z",
+  "ok": true,
+  "targetIdentityHash": "c3fe43b8f6ae4fb0e68401b00b096f5860919037bb81e95093fc99729e1ef337",
+  "baselineReceiptPath": "receipts/baseline.v1.json",
+  "removed": [
+    "exact Compose project llp0102-research-appwrite-w1 and its labeled containers, volumes, and networks",
+    "exact arm-labeled installer llp0102-research-appwrite-w1-installer if present",
+    "exact namespace-matching Open Runtimes containers",
+    "recorded Vite process after PID, executable, and port proof"
+  ],
+  "recoverablyMoved": {
+    "trashRoot": "/Users/ccheever/.Trash/llp0102-research-appwrite-w1-20260729T105618500Z",
+    "pathBasenames": [
+      ".arm-runtime",
+      ".cli-home",
+      ".browser-state",
+      "node_modules",
+      "dist",
+      "tsconfig.tsbuildinfo"
+    ]
+  },
+  "retained": [
+    "Docker images",
+    "source, lockfile, receipts, and every resource without the exact arm identity"
+  ],
+  "composeCommand": {
+    "exitStatus": 0,
+    "outputSha256": "779a2c6adb381496b762b83dd34a6f7581c8433dc8c25d3dfbd66ae5a427f9ce",
+    "rawOutputRetained": false
+  },
+  "probes": {
+    "port8093Closed": true,
+    "port8493Closed": true,
+    "port20083Closed": true,
+    "port4346Closed": true,
+    "exactComposeContainersAbsent": true,
+    "exactComposeVolumesAbsent": true,
+    "exactComposeNetworksAbsent": true,
+    "exactInstallerAbsent": true,
+    "exactRuntimeContainersAbsent": true,
+    "runtimePathsAbsent": {
+      ".arm-runtime": true,
+      ".cli-home": true,
+      ".browser-state": true,
+      "node_modules": true,
+      "dist": true,
+      "tsconfig.tsbuildinfo": true
+    }
+  },
+  "recovery": "Local Appwrite database volumes are not recoverable; source recreates them. Arm-local CLI, browser, dependency, build, and runtime paths were moved to Trash.",
+  "unrelatedBaselineAction": "none",
+  "evidenceHandling": "allowlisted PID, executable basename, resource counts/names/labels, ports, and output hashes only",
+  "containsSecretValues": false
+}

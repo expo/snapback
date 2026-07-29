@@ -1,0 +1,37 @@
+{
+  "id": "RESEARCH-01-SEED",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:33.837Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "not-applicable",
+  "evidence": {
+    "authoritativeAdminCounts": {
+      "rooms": 2,
+      "memberships": 3,
+      "sources": 20,
+      "questions": 0,
+      "answers": 0,
+      "progress": 0,
+      "refreshRuns": 0,
+      "outcomes": 5
+    },
+    "fixedDataset": {
+      "rooms": 2,
+      "primarySources": 20,
+      "sourceBytes": 65536,
+      "embeddingDimensions": 32,
+      "actors": 3
+    },
+    "actorIdentityHashes": {
+      "alice": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "bob": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "mallory": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac"
+    },
+    "targetIdentity": {
+      "endpointHash": "7e8ad8b6153920e7fdc22398693d6293a098add4a64edb05854382ec0966d2cd",
+      "projectIdHash": "2c3e9c4ef47630ea89b49b1a2a4560031e5a60d9a14218f8b8bd3e6caf77f66a",
+      "version": "1.9.6"
+    }
+  },
+  "note": "The fresh project seed and three native Auth principals were independently counted through Appwrite authority."
+}

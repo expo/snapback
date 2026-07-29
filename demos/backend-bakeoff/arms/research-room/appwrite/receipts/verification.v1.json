@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "arm": "research-room/appwrite",
+  "result": "pass",
+  "checks": [
+    {
+      "command": "node demos/backend-bakeoff/scripts/run-capsule.mjs verify demos/backend-bakeoff/arms/research-room/appwrite/run-capsule.v1.json",
+      "exitStatus": 0,
+      "summary": "Frozen capsule schema accepted all fifteen final scenarios, target binding, evidence-confidence dimensions, and complete cleanup."
+    },
+    {
+      "command": "parse every arm JSON artifact with JSON.parse",
+      "exitStatus": 0,
+      "summary": "All capsule, receipt, scenario, package, configuration, and inventory JSON files parse."
+    },
+    {
+      "command": "git diff --check",
+      "exitStatus": 0,
+      "summary": "No tracked whitespace errors before staging."
+    },
+    {
+      "command": "./ref-check --verbose",
+      "exitStatus": 0,
+      "summary": "107 LLP documents and 2306 refs checked with zero errors and zero unchecked."
+    },
+    {
+      "command": "node scripts/check-guide.mjs",
+      "exitStatus": 0,
+      "summary": "Guide check passed with 41 pages, 95 snippets, and repository-level informational freshness warnings."
+    },
+    {
+      "command": "node demos/backend-bakeoff/scripts/verify-stage0.mjs",
+      "exitStatus": 0,
+      "summary": "Frozen protocol remains valid and ready: seven providers, five apps, and 73 acceptance checks."
+    },
+    {
+      "command": "arm-scoped credential-value and high-entropy staged-content audit",
+      "exitStatus": 0,
+      "summary": "Only source-level variable/key names and explicit nonclaim evidence were present; no credential value, runtime owner state, CLI session, Docker environment/configuration, or raw process command line is retained."
+    }
+  ],
+  "runtimeVerification": {
+    "appwriteHealthVersion": "1.9.6",
+    "functionDeployment": "ready",
+    "clientTypecheck": "pass",
+    "clientProductionBuild": "pass",
+    "browserAuthDataRealtimeIntegration": "pass",
+    "acceptance": {
+      "pass": 14,
+      "gap": 1,
+      "fail": 0
+    },
+    "performance": "two warmups plus seven retained samples for five paths",
+    "cleanup": "complete"
+  },
+  "notes": [
+    "The sole GAP is Appwrite 1.9.6 native semantic vector retrieval; no fallback was used.",
+    "No Stop-class defect occurred.",
+    "Runtime compilation, build, acceptance, browser, benchmark, and cleanup checks completed before dependencies and ignored runtime state were moved recoverably to Trash."
+  ]
+}

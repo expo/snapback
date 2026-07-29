@@ -9,253 +9,387 @@
   },
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ed31c1dd428298dc7ab4734ee2e3c2354112ba1a",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
     "providerVersions": {
-      "product": "Appwrite",
-      "client": "26.2.0",
-      "cli": "23.2.0"
+      "product": "Appwrite 1.9.6",
+      "client": "appwrite 26.2.0 / node-appwrite 27.1.0",
+      "cli": "23.2.0",
+      "functionRuntime": "node-16.0"
     },
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
-    "startedAt": "",
-    "finishedAt": ""
+    "startedAt": "2026-07-29T10:33:35Z",
+    "finishedAt": "2026-07-29T10:56:19.584Z"
   },
   "budget": {
     "activeLimitMinutes": 480,
     "toolCallLimit": 400,
-    "activeElapsedMs": 0,
-    "toolCalls": 0,
-    "timedWindowFrozenAt": "",
+    "activeElapsedMs": 1364584,
+    "toolCalls": 82,
+    "timedWindowFrozenAt": "2026-07-29T10:56:19.584Z",
     "extension": false
   },
   "actors": {
     "alice": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+      "role": "owner"
     },
     "bob": {
-      "principalIdHash": "",
-      "role": ""
+      "principalIdHash": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+      "role": "member"
     },
     "mallory": {
-      "principalIdHash": "",
+      "principalIdHash": "c0a497761b175379ed63397cc980546559faa84ca9cbeede773117c31508b6ac",
       "role": "outsider"
     }
   },
   "targets": {
     "binding": {
       "mode": "fresh-local",
-      "namespace": "llp0102-research-room-appwrite-deep-research-room-appwrite-deep-01",
-      "baselineReceiptPath": "",
-      "scopedCleanupPlanPath": ""
+      "namespace": "llp0102-research-appwrite-w1",
+      "baselineReceiptPath": "receipts/baseline.v1.json",
+      "scopedCleanupPlanPath": "receipts/cleanup-plan.v1.json"
     },
     "local": {
-      "status": "pending",
-      "identityHash": "",
-      "profile": "official self-host Docker stack",
+      "status": "cleaned",
+      "identityHash": "c3fe43b8f6ae4fb0e68401b00b096f5860919037bb81e95093fc99729e1ef337",
+      "profile": "official Appwrite 1.9.6 self-hosted container stack",
       "gapReason": "",
-      "receiptPaths": []
+      "receiptPaths": [
+        "receipts/target-identity.v1.json",
+        "receipts/cleanup.v1.json"
+      ]
     },
     "hosted": {
       "status": "explicit-gap",
       "identityHash": "",
       "profile": "Appwrite Cloud project",
-      "plan": "Pro",
-      "region": "nearest selectable US-West region; exact identifier captured with target",
+      "plan": "GAP",
+      "region": "GAP",
       "gapReason": "Hosted evidence unavailable for this arm: credential-unavailable. This is not scored as a product failure.",
       "receiptPaths": []
     }
   },
   "milestones": {
-    "firstLocalReadMs": null,
-    "firstAuthoritativeMutationMs": null,
-    "firstRealtimeTransitionMs": null,
-    "localAcceptanceMs": null,
+    "firstLocalReadMs": 658837,
+    "firstAuthoritativeMutationMs": 659196,
+    "firstRealtimeTransitionMs": 660776,
+    "localAcceptanceMs": 746218,
     "hostedUrlMs": null,
-    "acceptanceCompletionMs": null
+    "acceptanceCompletionMs": 1364584
   },
-  "assistanceEvents": [],
-  "commands": [],
+  "assistanceEvents": [
+    {
+      "kind": "official-documentation",
+      "reason": "Verified current native paths for TablesDB, transactions, Storage, Realtime, Functions, scheduled executions, and secret variables.",
+      "sources": [
+        "https://appwrite.io/docs/products/databases",
+        "https://appwrite.io/docs/products/databases/transactions",
+        "https://appwrite.io/docs/products/storage",
+        "https://appwrite.io/docs/apis/realtime",
+        "https://appwrite.io/docs/products/functions/functions",
+        "https://appwrite.io/docs/products/functions/execute"
+      ]
+    },
+    {
+      "kind": "cross-arm-convention-inspection",
+      "reason": "Consulted the Partiful/Appwrite arm only for isolated installer, console bootstrap, API-key, and cleanup lifecycle conventions.",
+      "sources": [
+        "demos/backend-bakeoff/arms/partiful/appwrite/work/scripts"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "command": "official Appwrite web-installer container and generated Compose stack",
+      "exitStatus": 1,
+      "classification": "installer-event-stream-disconnect-after-healthy-start",
+      "startedMonotonicMs": 277790000,
+      "finishedMonotonicMs": 277827800
+    },
+    {
+      "command": "idempotent installer health recovery and Compose-file capture",
+      "exitStatus": 0,
+      "startedMonotonicMs": 277827801,
+      "finishedMonotonicMs": 277827914
+    },
+    {
+      "command": "npm install",
+      "exitStatus": 0,
+      "startedMonotonicMs": 277930000,
+      "finishedMonotonicMs": 277937033
+    },
+    {
+      "command": "Appwrite CLI organization, project, platform, and scoped-key bootstrap",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278030000,
+      "finishedMonotonicMs": 278032160
+    },
+    {
+      "command": "native Auth, Team, TablesDB, Storage, and deterministic seed",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278180000,
+      "finishedMonotonicMs": 278180903
+    },
+    {
+      "command": "Function deployment with node-22 runtime identifier",
+      "exitStatus": 1,
+      "classification": "product-local-runtime-inventory",
+      "startedMonotonicMs": 278280000,
+      "finishedMonotonicMs": 278280289
+    },
+    {
+      "command": "Function deployment using advertised node-16.0 runtime",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278360000,
+      "finishedMonotonicMs": 278363270
+    },
+    {
+      "command": "Function delete/recreate with original variable identifiers",
+      "exitStatus": 1,
+      "classification": "product-function-variable-lifecycle",
+      "startedMonotonicMs": 278470000,
+      "finishedMonotonicMs": 278470105
+    },
+    {
+      "command": "replacement Function deployment under fresh Function namespace",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278480000,
+      "finishedMonotonicMs": 278483619
+    },
+    {
+      "command": "acceptance attempt with browser-oriented Realtime SDK in Node",
+      "exitStatus": 1,
+      "classification": "harness-browser-global",
+      "startedMonotonicMs": 278483620,
+      "finishedMonotonicMs": 278484002
+    },
+    {
+      "command": "frozen acceptance scenarios 01 through 13",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278500000,
+      "finishedMonotonicMs": 278746218
+    },
+    {
+      "command": "two warmups plus seven recorded samples for five workload paths",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278760000,
+      "finishedMonotonicMs": 278774563
+    },
+    {
+      "command": "browser UI integration and production build",
+      "exitStatus": 0,
+      "startedMonotonicMs": 278820000,
+      "finishedMonotonicMs": 278824000
+    },
+    {
+      "command": "exact Compose, runtime, process, port, and path cleanup",
+      "exitStatus": 0,
+      "startedMonotonicMs": 279124000,
+      "finishedMonotonicMs": 279136584
+    }
+  ],
   "scenarioResults": [
     {
       "id": "RESEARCH-01-SEED",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-01-SEED.json", "receipts/seed.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "TablesDB counts prove two rooms, twenty 64 KiB sources, 32-dimensional embeddings, and three native Auth principals",
+      "note": "fresh local project"
     },
     {
       "id": "RESEARCH-02-FILES",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-02-FILES.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "native-session upload/download hash matched; outsider and Bob deletion were refused; Alice deletion removed file and metadata",
+      "note": "Appwrite Storage plus TablesDB metadata"
     },
     {
       "id": "RESEARCH-03-OUTSIDER",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-03-OUTSIDER.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "Mallory lists returned zero protected rows and direct source/file reads were denied",
+      "note": "native Auth session and row/file security"
     },
     {
       "id": "RESEARCH-04-KEYWORD",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-04-KEYWORD.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "native full-text index plus Query.search returned source-01 and source-02",
+      "note": "ordinary provider-supported search path"
     },
     {
       "id": "RESEARCH-05-SEMANTIC",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "gap",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-05-SEMANTIC.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "capability nonclaim",
+      "note": "Appwrite 1.9.6 stores vectors but exposes no ordinary native vector index or nearest-neighbor query path; no fallback was used"
     },
     {
       "id": "RESEARCH-06-PROGRESS",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-06-PROGRESS.json"],
+      "transport": "push",
+      "authoritativeCheck": "four distinct committed progress rows arrived before the terminal answer",
+      "note": "native Appwrite Realtime WebSocket"
     },
     {
       "id": "RESEARCH-07-CITATIONS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-07-CITATIONS.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "completed answer retained two citations resolvable through Bob's room authority",
+      "note": "source IDs and filenames retained"
     },
     {
       "id": "RESEARCH-08-COLLABORATOR",
-      "status": "pending",
-      "evidencePaths": [],
-      "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-08-COLLABORATOR.json"],
+      "transport": "push",
+      "authoritativeCheck": "Bob's independent native Auth session received four progress callbacks",
+      "note": "no product-state polling"
     },
     {
       "id": "RESEARCH-09-CANCEL",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-09-CANCEL.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "confirmed cancellation persisted terminal state and a later Function probe produced no progress or completion patch",
+      "note": "500 ms post-probe observation"
     },
     {
       "id": "RESEARCH-10-RETRY",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-10-RETRY.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "two Function executions retained one question, one answer, and four progress rows",
+      "note": "unique indexes plus idempotent Function logic"
     },
     {
       "id": "RESEARCH-11-OUTCOMES",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-11-OUTCOMES.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "five durable rows preserve complete, failed, cancelled, timed-out, and ambiguous outcome/effect pairs",
+      "note": "distinct server-authoritative states"
     },
     {
       "id": "RESEARCH-12-SCHEDULE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-12-SCHEDULE.json", "receipts/function-deployment.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "one-off scheduled Function execution fetched a stable RFC 2606 document and retained an inspectable execution plus durable refresh row",
+      "note": "native Appwrite scheduled-execution API"
     },
     {
       "id": "RESEARCH-13-SECRETS",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-13-SECRETS.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "secret Function variable was present at runtime while its value was not readable through management API or evidence",
+      "note": "no canary value printed or retained"
     },
     {
       "id": "RESEARCH-14-PERFORMANCE",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/performance.v1.json", "receipts/scenario-14-performance.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "two warmups and seven retained samples cover read, write, Realtime delivery, reconnect, and build",
+      "note": "small repeatable product workload; not production scale"
     },
     {
       "id": "RESEARCH-15-CLEANUP",
-      "status": "pending",
-      "evidencePaths": [],
+      "status": "pass",
+      "evidencePaths": ["receipts/cleanup.v1.json"],
       "transport": "not-applicable",
-      "authoritativeCheck": "",
-      "note": ""
+      "authoritativeCheck": "zero exact containers, volumes, networks, installer, or runtime containers; four ports closed; six runtime paths absent",
+      "note": "arm-local ignored paths moved recoverably to Trash"
     }
   ],
   "inventory": {
-    "receiptPath": "",
-    "authoredSource": null,
-    "generated": null,
-    "tests": null,
-    "configuration": null,
-    "policy": null,
-    "dependencyManifests": null,
-    "installedDependencyBytes": null,
-    "glue": []
+    "receiptPath": "receipts/inventory.v1.json",
+    "authoredSource": {
+      "files": 8,
+      "lines": 377
+    },
+    "generated": {
+      "files": 3,
+      "lines": 33
+    },
+    "tests": {
+      "files": 12,
+      "lines": 1995
+    },
+    "configuration": {
+      "files": 4
+    },
+    "policy": {
+      "files": 1,
+      "note": "Appwrite project binding; authorization is expressed in Teams, table permissions, row permissions, file permissions, and Function execute access"
+    },
+    "dependencyManifests": 1,
+    "installedDependencyBytes": 267801039,
+    "glue": [
+      "official-installer health recovery",
+      "console and CLI project bootstrap",
+      "deterministic schema, seed, acceptance, performance, browser, and cleanup harnesses",
+      "application-authored Function progress/cancellation/idempotency state machine",
+      "Node 16 HTTP helper",
+      "Node acceptance browser-global shim"
+    ]
   },
   "evidenceConfidence": {
     "actor-authority": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "three native identities, Team membership, member positives, outsider empty lists/direct refusals, and member-delete refusal executed",
+      "evidencePaths": ["receipts/seed.v1.json", "receipts/scenarios/RESEARCH-02-FILES.json", "receipts/scenarios/RESEARCH-03-OUTSIDER.json"]
     },
     "transaction-conflict": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "unique-index idempotency and cancellation guards executed directly, but this app did not exercise Appwrite's transaction conflict API",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-09-CANCEL.json", "receipts/scenarios/RESEARCH-10-RETRY.json"]
     },
     "transport": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "native Appwrite Realtime WebSocket callbacks directly observed four authoritative row commits",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-06-PROGRESS.json", "receipts/ui-integration.v1.json"]
     },
     "offline-reconnect": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 1,
+      "reason": "fresh-client reconnect through an authoritative callback was measured, but no durable offline mutation queue is claimed",
+      "evidencePaths": ["receipts/performance.v1.json"]
     },
     "settlement": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "terminal answer, confirmed cancellation, late-probe refusal, retry, five outcomes, and scheduled Function settlement were directly observed",
+      "evidencePaths": ["receipts/scenarios/RESEARCH-09-CANCEL.json", "receipts/scenarios/RESEARCH-10-RETRY.json", "receipts/scenarios/RESEARCH-11-OUTCOMES.json", "receipts/scenarios/RESEARCH-12-SCHEDULE.json"]
     },
     "target-identity": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "fresh namespace, exact source/base, product health version, target hash, resource counts, and cleanup identity are retained",
+      "evidencePaths": ["receipts/baseline.v1.json", "receipts/target-identity.v1.json"]
     },
     "cleanup-isolation": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "exact label/name/PID/executable/port/path guards and negative post-cleanup probes all passed",
+      "evidencePaths": ["receipts/cleanup-plan.v1.json", "receipts/cleanup.v1.json"]
     },
     "artifact-reproducibility": {
-      "score": null,
-      "reason": "",
-      "evidencePaths": []
+      "score": 2,
+      "reason": "source, lockfile, schema, Function, UI, commands, inventory, acceptance, performance, browser, and cleanup evidence are retained",
+      "evidencePaths": ["receipts/inventory.v1.json", "receipts/commands-and-failures.v1.json", "receipts/ui-integration.v1.json"]
     }
   },
   "stopDefects": [],
   "cleanup": {
-    "status": "pending",
-    "targetBoundPlanPath": "",
-    "receiptPaths": [],
-    "postCleanupProbe": ""
+    "status": "complete",
+    "targetBoundPlanPath": "receipts/cleanup-plan.v1.json",
+    "receiptPaths": ["receipts/cleanup.v1.json"],
+    "postCleanupProbe": "zero exact Compose containers/volumes/networks, installer, or runtime containers; ports 8093, 8493, 20083, and 4346 closed; six ignored runtime paths absent"
   },
-  "result": "pending"
+  "result": "complete"
 }

@@ -1,0 +1,16 @@
+{
+  "id": "RESEARCH-04-KEYWORD",
+  "status": "pass",
+  "checkedAt": "2026-07-29T10:44:34.243Z",
+  "projectId": "llp0102-research-appwrite-w1",
+  "transport": "not-applicable",
+  "evidence": {
+    "query": "cancellation",
+    "resultIds": [
+      "source-01",
+      "source-02"
+    ],
+    "path": "Appwrite fulltext index plus native Query.search"
+  },
+  "note": "The ordinary Appwrite full-text index returned the two expected authorized sources."
+}
