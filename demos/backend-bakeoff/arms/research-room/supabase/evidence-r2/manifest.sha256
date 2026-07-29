@@ -9,7 +9,7 @@ c50f90003589bba23a40b82c730387c9d250e2e3884c0f099b56003fc8c2e214  demos/backend-
 8e0268fa05754e69b851ff95d09913c89b972684b8c7b19bcfdc12d708d27e57  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/diagnostics/container-stats.json
 d982975d1fc60008ea03839add237f5c99c0ce72e959478ec4b7306b84204f95  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/diagnostics/pre-cleanup-containers.txt
 e81f331334903f2863fd18bbf9a9a576c231fe42af65bcebe49feb4de58d9345  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/evidence-audit.md
-3b0f3c10767686c93e782316a7e6e01a5dfd7bde61b9e767a2a8c3329f3b1564  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/inventory.json
+98c448509488dcadcc12a6b19ce4faae514c8706ac791cb07b3180b8b641fee7  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/inventory.json
 c5181dd67e3345f4a37b3aafb2e642cc978a0dbdc40daa180d63e3054fec36d6  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/llp-maintain-audit.md
 6d7d5dea7ab2b4d7e3a561bab218e7420cd33135a74a04840bdb48eed6a54c98  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/official-docs.md
 75b3953505e304ff0c4f96f8c580205bc7514a929d138a0f547875e955fd98b0  demos/backend-bakeoff/arms/research-room/supabase/evidence-r2/performance.json
@@ -47,7 +47,7 @@ e5cb03f1198eabd7b0ff7526459f4c447138b9099ea777eedc7e4dbc7b02002f  demos/backend-
 a0cfcfa2cd093291607691b100a970e4e7ea4e6db9d4b9912d49637707f567d7  demos/backend-bakeoff/arms/research-room/supabase/index.html
 dcf26ae3b5b856e886851a32cb52a2c650b7a7e3d2a802f1c3908d7f9d30b22d  demos/backend-bakeoff/arms/research-room/supabase/package-lock.json
 920524cf366f87561381911de4fbd4e8d6b9829f778ce7e3313dce4630dd2090  demos/backend-bakeoff/arms/research-room/supabase/package.json
-cb5d6facdbd72852f83ea8a97c9fb16c77214bb6ae8b4a074673cc2fef739792  demos/backend-bakeoff/arms/research-room/supabase/run-capsule.v1.json
+04a294ce39d8badfbc5ec2755ad9591b3f730e9d62b4edf880ec73e1cc3f3ee1  demos/backend-bakeoff/arms/research-room/supabase/run-capsule.v1.json
 cce5b18e81e83fae68f9893fce5c22cedf9543507c80545135211735f4a0e520  demos/backend-bakeoff/arms/research-room/supabase/src.ts
 f68e3d2345a6d2e9c89bf22984792c13c048f1a1bf6311d9e1a48f678d0a7d41  demos/backend-bakeoff/arms/research-room/supabase/style.css
 0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605  demos/backend-bakeoff/arms/research-room/supabase/supabase/.branches/_current_branch

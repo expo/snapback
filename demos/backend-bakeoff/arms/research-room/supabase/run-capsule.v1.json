@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
   "protocolId": "llp-0102-backend-bakeoff-v1",
-  "arm": {"app":"research-room","provider":"supabase","round":"deep","attemptId":"research-room-supabase-deep-01-r2-extension"},
+  "arm": {"app":"research-room","provider":"supabase","round":"deep","attemptId":"research-room-supabase-deep-01"},
   "environment": {
     "freezeAggregateSha256": "ab95cd3099b7dde29810046ba495884e3bc641a3bdfb811ab828db10c6b7f72a",
-    "sourceCommit": "ef7db00e250e401867c4486380969c7638c8fd32",
+    "sourceCommit": "5f31cb6174daaefa04a1e05242acbbc22c725040",
+    "coordinatorBaseCommit": "ef7db00e250e401867c4486380969c7638c8fd32",
     "providerVersions": {"product":"Supabase local stack","client":"2.57.4","cli":"2.110.0"},
     "machine": "Mac17,3/arm64/macOS 26.5.2/25F84",
     "startedAt": "2026-07-29T07:54:59Z",
@@ -83,8 +84,8 @@
     "offline-reconnect":{"score":1,"reason":"Fresh authenticated Realtime reconnect sampled locally; offline write merge not required by this app.","evidencePaths":["evidence-r2/performance.json"]},
     "settlement":{"score":2,"reason":"Authoritative rows distinguish all outcomes and terminal ordering.","evidencePaths":["evidence-r2/scenarios/RESEARCH-11-OUTCOMES.json"]},
     "target-identity":{"score":2,"reason":"Unique CLI and Compose labels, ports, and clean target receipts retained.","evidencePaths":["evidence-r2/cleanup.json"]},
-    "cleanup-isolation":{"score":2,"reason":"Exact project cleanup and post-cleanup negatives are complete.","evidencePaths":["evidence-r2/cleanup.json"]},
-    "artifact-reproducibility":{"score":1,"reason":"Pinned source and lockfile reproduce local artifacts; hosted deployment unavailable.","evidencePaths":["evidence-r2/inventory.json","evidence-r2/official-docs.md"]}
+    "cleanup-isolation":{"score":1,"reason":"Exact project cleanup and post-cleanup negatives are complete, but no separately timestamped empty pre-write baseline receipt was retained for r2.","evidencePaths":["evidence-r2/cleanup.json"]},
+    "artifact-reproducibility":{"score":2,"reason":"Pinned source, lockfile, migration, Edge Function, harness, raw receipts, screenshot, and 62-file content-hash manifest directly reproduce the local artifact; hosted unavailability is reported separately.","evidencePaths":["evidence-r2/inventory.json","evidence-r2/manifest.sha256","evidence-r2/official-docs.md"]}
   },
   "stopDefects": [],
   "builderIncidents": [{"classification":"stop-class-evidence-handling","attribution":"builder-redaction-failure","receiptPath":"evidence/stop-class-secret-exposure.v1.json","providerProductStopDefect":false}],

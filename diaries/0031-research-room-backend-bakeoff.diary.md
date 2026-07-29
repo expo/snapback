@@ -349,3 +349,131 @@ Firebase's ordinary local vector path raises the capability bar. Snapback does
 not need to copy Firestore indexes, but semantic retrieval needs a deterministic
 local story, authoritative source identity, an explicit deployment path, and
 diagnostics that never let a client-side fake masquerade as native retrieval.
+
+## 2026-07-29 — Supabase, deep round, local pass after remediated evidence incident
+
+### Environment and outcome
+
+The arm used Supabase CLI 2.110.0, supabase-js 2.57.4, and the official local
+Docker stack under arm64 Colima. The frozen timed attempt stopped after a
+builder redaction failure exposed disposable local credentials in tool
+diagnostics. The exact original target was destroyed and its point-in-time
+evidence retained. A fresh `llp0102-research-supabase-w2-r2` target then passed
+all 15 scenarios as an explicitly untimed extension.
+
+No shared/user/provider credential was exposed, and the event did not reveal a
+Supabase authorization defect. It was nevertheless a genuine protocol Stop.
+The raw credential-bearing logs were hashed and destroyed, the exact local
+target was retired, and post-destruction scans were zero. The r2 run generated
+new credentials and sent secret-bearing CLI output only to ignored mode-0600
+files.
+
+Hosted access was preflighted read-only. The shared keys did not include the
+project-scoped CLI token needed for safe deployment, so no hosted mutation was
+attempted.
+
+Coordinator evidence confidence is 14/16. Actor authority,
+transaction/conflict, transport, settlement, target identity, and artifact
+reproducibility are direct. Reconnect has direct measurements but no persistent
+offline-write evidence. Exact cleanup is direct for both targets, but r2 lacks
+a separately timestamped empty pre-write baseline receipt.
+
+### What felt good
+
+Supabase covered almost every requirement with first-party, composable pieces.
+Postgres full-text search and pgvector made keyword and semantic retrieval feel
+like ordinary schema work rather than separate infrastructure.
+
+RLS was the strongest part of the experience. The same room-membership rule
+protected table and RPC reads, Storage objects, and private Realtime topics.
+Mallory's negatives were concrete and easy to inspect.
+
+Private Broadcast from an `AFTER INSERT` trigger was excellent once reached:
+the durable progress row and live event share one database transition. Bob
+received exactly four events while Mallory received none. Transactional SQL
+functions also made cancellation and dedupe crisp. The active-state guard
+rejected every injected late patch, and a uniqueness constraint made retries
+converge on one question.
+
+The local stack is impressively complete. Auth, Storage, Realtime, Edge
+Runtime, vector search, Studio, and Cron all ran without a hosted account.
+
+### What felt bad or frustrating
+
+The local stack is heavy: roughly a dozen containers and multi-gigabyte images.
+Startup and reset were much slower and more failure-prone than the app itself.
+
+Colima could not mount `/private/tmp`, and the CLI's file binds failed in
+confusing downstream ways: first pgsodium, then Kong certificates, then the
+Edge entrypoint. Nothing in the health error pointed back to the host-path
+boundary. A unique disposable `/Users` mirror fixed it, but that was
+substantial incidental machinery.
+
+Realtime had two sharp edges. The local image rejected a UUID server filter
+because the WebSocket initially carried the wrong role, and `SUBSCRIBED`
+preceded reliable CDC readiness after reset. Explicit `realtime.setAuth`
+helped. Switching to the recommended private Broadcast path was both more
+reliable and better aligned with authorization.
+
+SQL migrations require explicit grants as well as RLS policies. The first
+migration looked right but authenticated and service-role table access failed
+until grants were added. The Edge manifest is also snapshotted at stack start,
+so adding a Function later required an easy-to-miss scoped restart.
+
+`db reset` did not make Auth actor creation deterministic. Setup had to delete
+only the three exact actor emails before recreating them. A diagnostic retry
+also briefly selected generic Compose identity `supabase`; the coordinator
+confirmed no existing owner or resources, and it was retired before app
+mutation.
+
+CLI start/status output contains working local secrets. That is convenient at
+a terminal but hazardous in automated evidence collection. The first
+tail-based redaction failed on JSON and correctly triggered the Stop. The
+lesson is to redirect sensitive output first and emit allowlisted summaries,
+not to hope an ever-growing regex catches every representation.
+
+The pinned Vite dependency retained one high npm audit aggregate. It does not
+change the backend result, but it is real supply-chain friction.
+
+### Performance and cleanup
+
+Each of search, write, private Broadcast, authenticated reconnect, and
+production build retains two warmups plus seven r2 samples. Medians were
+2.333 ms search, 2.081 ms write, 2.252 ms Broadcast, 3.589 ms reconnect, and
+252.798 ms build. These are local-stack measurements, not hosted latency or
+production scale.
+
+The original roughly 50-minute diagnostic window remains frozen at the Stop.
+The r2 work is reported separately as an untimed extension rather than blended
+into a false first-hour completion metric.
+
+Original and r2 containers, volumes, networks, runtime mirrors, generated
+secrets, and assigned ports are absent. Sixty retained artifact-manifest hashes
+match; the two absent records are an ignored branch marker and the deliberately
+destroyed generated database secret.
+
+### Would I choose it?
+
+Supabase is one of the strongest choices for this workload: powerful,
+transparent, security-capable, and unusually complete. The tradeoff is
+operational weight and many seams between otherwise excellent components.
+
+Compared with Convex, it required much more schema, grants, and policy SQL, but
+exposed more familiar and powerful database primitives. Compared with Snapback
+at the frozen commit, it could compose auth, durable progress, files, semantic
+search, scheduling, and cancellation in one runnable target.
+
+### Lessons for Snapback
+
+Match the end result of one authorization rule spanning records, assets,
+functions, and live topics. Also provide a durable mutation-to-live-event
+primitive so authors do not choose between database truth and push delivery.
+
+Supabase's observability is broad, but failure explanations are indirect.
+Snapback can win by making bind/config/capability failures causal and safe by
+default. Diagnostic output should never print usable secrets unless explicitly
+requested, and automated modes should emit structured allowlisted summaries.
+
+Most importantly, Snapback needs an admission path where sessions, durable
+progress, files, semantic retrieval, scheduling, and cancellation can coexist
+before fine-grained ergonomics comparisons matter.

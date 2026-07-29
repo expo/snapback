@@ -143,7 +143,7 @@ violate that order.
 | Arm | State | Coordinator integration |
 | --- | --- | --- |
 | Research Room / Snapback | Complete | Product-blocked: 1 PASS, two capability GAPs, 12 FAIL; sessions-plus-streaming admission defect, 8/16 calibrated confidence, diary, guide-gap issue, central audit, and exact cleanup integrated |
-| Research Room / Supabase | Assigned | Worker 2 queued on an isolated control-plane Supabase namespace after exact Partiful/Convex cleanup |
+| Research Room / Supabase | Complete | 15 PASS on a fresh prospective r2 target after a contained builder Stop; 14/16 calibrated confidence, diary, central audit, and exact two-target cleanup integrated |
 | Research Room / Firebase | Complete | 15 PASS, 15/16 coordinator-calibrated confidence, diary, central audit, screenshot/hash proof, and exact data/process/port cleanup integrated |
 | Research Room / SpacetimeDB | Complete | 13 PASS, two product GAPs, 15/16 calibrated confidence, diary, central audit, and exact database/process/port cleanup integrated |
 | Research Room / Convex | Assigned | Worker 2 queued on a fresh Minisforum anonymous deployment after Research/Supabase cleanup |

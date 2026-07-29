@@ -753,3 +753,89 @@ synthesis remain coordinator-owned.
   weakening hosted/runtime-parity confidence without invalidating local facts.
 - Adjudication: complete. No Stop-class disclosure, secret exposure, late
   durable patch, destructive cleanup, or false capability claim occurred.
+
+## Research Room / Supabase
+
+- Capsule verifier and Stage-0 verifier: PASS after coordinator frozen-identity
+  and evidence-confidence calibration.
+- Frozen identities: the worker used its coordinator integration base as
+  `sourceCommit` and added `-r2-extension` to the canonical attempt ID. The
+  coordinator restored the exact repaired Snapback source commit
+  `5f31cb6174daaefa04a1e05242acbbc22c725040` and canonical
+  `research-room-supabase-deep-01`, while retaining the integration base and r2
+  lineage separately. No functional evidence changed.
+- Results: the clean r2 extension has 15 PASS, 0 GAP, 0 FAIL. Hosted deployment
+  remains credential-unavailable because the shared keys lack a project-scoped
+  CLI access token; no shared target was mutated and no hosted result is
+  inferred.
+- Stop adjudication: the original timed target passed RESEARCH-01 through
+  RESEARCH-12. During a scoped restart, ordinary CLI output included its seven
+  usable generated local credentials and a builder-authored tail redaction
+  failed on the one-line JSON shape. This is a genuine execution Stop and
+  evidence-handling failure, not a Supabase cross-user authorization or
+  server-side secrecy defect. The timed window froze immediately. Exact
+  credential fingerprints and raw-log hashes—not values—are retained; the raw
+  logs and disposable target were destroyed. `stopDefects` correctly remains
+  empty so the builder incident does not falsely make the provider ineligible.
+- Prospective remediation: a fresh `llp0102-research-supabase-w2-r2` target
+  regenerated all credentials, reseeded, and reran every scenario as an
+  explicitly untimed extension. Secret-bearing CLI output went directly to
+  ignored mode-0600 files; only allowlisted status/count/hash summaries reached
+  diagnostics. No original credential was reused.
+- Evidence confidence: coordinator-adjusted to 14/16. Actor authority,
+  transaction/conflict, transport, settlement, target identity, and artifact
+  reproducibility are direct. Reconnect is direct but persistent offline writes
+  are untested, so offline/reconnect is 1. Both targets have exact cleanup
+  proof, but r2 lacks a separately timestamped empty pre-write baseline receipt,
+  so cleanup/isolation is 1.
+- Referenced evidence: all 21 unique capsule paths resolve. Sixty retained
+  manifest records match exactly. Two intentionally absent build-time records
+  are the ignored Supabase branch marker and a destroyed generated database
+  secret; neither is represented as committed or required for regeneration.
+  Pinned source, lockfile, migration, Edge Function, harness, receipts,
+  screenshot, and inventory directly reproduce the safe local artifact.
+- UI evidence: the retained screenshot visibly renders the Research Room shell
+  and explicitly says runtime credentials are injected only for local
+  acceptance. It proves the production build rendered, not authenticated
+  authority, live transport, or settlement.
+- Authority: three native Auth identities exercise member and outsider paths.
+  One room-membership policy protects table/RPC reads, private Storage, and the
+  private Realtime topic. Mallory observes zero protected rows, files, search
+  results, and progress events.
+- Files/search: private Storage retains byte hash, owner identity, member
+  delivery, deletion, and post-delete negatives. PostgreSQL generated tsvector
+  plus GIN returns the exact keyword set; pgvector `vector(32)` plus HNSW and
+  cosine distance returns the deterministic nearest source.
+- Streaming/cancellation: an `AFTER INSERT` trigger calls private
+  `realtime.broadcast_changes`, coupling each durable progress row to its push.
+  Bob receives exactly four authenticated Phoenix-channel payloads while
+  Mallory receives none. A transactional active-state guard rejects all three
+  injected late writes after cancellation and preserves the durable count.
+- Retry/outcomes: a unique idempotency constraint converges two attempts on one
+  question. Complete, failed, cancelled, timed-out, and ambiguous question/
+  attempt states remain distinct in authoritative rows.
+- Scheduling/secrets: an exact `pg_cron` job records one deduplicated refresh.
+  RLS denies client access to server-secret rows; the Edge Function loads the
+  server credential and returns no value. Post-cleanup exact-value and generic
+  credential scans are zero.
+- Performance: search, write, private Broadcast, authenticated reconnect, and
+  production build each retain two warmups, seven raw r2 samples, median,
+  nearest-rank p95, and local-only cost scope. The original roughly 50-minute
+  diagnostic window is frozen at the Stop; the similarly bounded r2 work is an
+  untimed extension and is not blended into a false first-hour completion
+  claim.
+- Operations/friction: Colima could not bind the `/private/tmp` worktree,
+  surfacing indirectly as pgsodium, Kong certificate, and Edge entrypoint
+  failures. A unique disposable `/Users` runtime mirror fixed it. A diagnostic
+  retry briefly selected generic Compose identity `supabase`; coordinator
+  preflight proved no owner, it was retired before app mutation, and every real
+  target thereafter used exact unique labels. Realtime also required explicit
+  auth and the recommended private Broadcast path; migration grants, Edge
+  manifest restart, and exact Auth reseeding added glue.
+- Cleanup/dependencies: original and r2 containers, volumes, networks, mirrors,
+  generated secrets, and assigned ports are absent. The pinned UI dependency
+  tree retains one high npm audit aggregate for Vite; it remains ecosystem
+  evidence rather than being silently upgraded.
+- Adjudication: complete. The builder Stop is contained, understood, and
+  prospectively remediated. No provider Stop-class disclosure, late durable
+  patch, destructive cleanup, or false capability pass occurred.
