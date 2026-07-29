@@ -2037,13 +2037,12 @@ impl HostedProductJourneyV1 {
         let value = serde_json::to_value(self).expect("hosted journey receipt serializes");
         collect_private_material(&value, "$", &mut errors);
 
-        if self.status == HostedJourneyStatus::Failed {
-            if self.claim_boundary.hosted_product_journey_passed
+        if self.status == HostedJourneyStatus::Failed
+            && (self.claim_boundary.hosted_product_journey_passed
                 || self.claim_boundary.hosted_ephemeral_capability_advertised
-                || self.comparator.hosted_parity_claimed
-            {
-                errors.push("failedReceipt.claimBoundary".to_owned());
-            }
+                || self.comparator.hosted_parity_claimed)
+        {
+            errors.push("failedReceipt.claimBoundary".to_owned());
         }
 
         for (index, command) in self.commands.iter().enumerate() {

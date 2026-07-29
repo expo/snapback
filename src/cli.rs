@@ -4278,8 +4278,8 @@ mod tests {
             Some(HostCommand::HostedJourneyVerify {
                 receipt,
                 artifacts: Some(artifacts),
-            }) if receipt == PathBuf::from("journey.json")
-                && artifacts == PathBuf::from("artifacts.json")
+            }) if receipt == Path::new("journey.json")
+                && artifacts == Path::new("artifacts.json")
         ));
     }
 

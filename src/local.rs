@@ -14738,17 +14738,17 @@ fn validate_write_activity_schema_plan(
                     )));
                 }
             }
-            MutationStep::Patch { id, .. } | MutationStep::Delete { id, .. } => {
+            MutationStep::Patch { id, .. } | MutationStep::Delete { id, .. }
                 if !index
                     .checked_sub(1)
                     .and_then(|assertion| plan.mutation.steps.get(assertion))
-                    .is_some_and(|step| relation_assertion(Some(step), id, relation))
-                {
-                    return Err(invalid(format!(
-                        "{name} write must be preceded by a matching current-relation assertion"
-                    )));
-                }
+                    .is_some_and(|step| relation_assertion(Some(step), id, relation)) =>
+            {
+                return Err(invalid(format!(
+                    "{name} write must be preceded by a matching current-relation assertion"
+                )));
             }
+            MutationStep::Patch { .. } | MutationStep::Delete { .. } => {}
             _ => {}
         }
     }
