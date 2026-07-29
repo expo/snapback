@@ -118,6 +118,27 @@ All seven Partiful arms have now been assigned in exact frozen order.
 | Partiful / Firebase | Complete | 14 PASS, hosted unavailable; capsule, separate PARTY-07 remediation lineage, diary, central evidence audit, hashes, and exact two-target cleanup integrated |
 | Partiful / SpacetimeDB | Complete | 14 PASS, hosted unavailable; canonical attempt ID, 15/16 calibrated confidence, capsule, diary, inventory audit, exact identity deletion, and closed-port proof integrated |
 | Partiful / Appwrite | Complete | 14 PASS, hosted unavailable; calibrated 15/16 confidence, capsule, diary, central audit, retained Realtime/schedule/cleanup failures, and exact 29-container cleanup integrated |
-| Partiful / Snapback | Running | Exact repaired product/source commit and isolated runtime target |
+| Partiful / Snapback | Returned | Worker reports 12 PASS, three explicit GAPs, capsule/acceptance/ref/guide verification, guide-gap draft, and exact target cleanup; awaiting coordinator import/audit |
 | Partiful / Convex | Assigned | Worker 2 reserved on isolated Minisforum worktree/ports after SpacetimeDB cleanup |
 | Partiful / InstantDB | Assigned | Worker 3 reserved on isolated control-plane target/browser lane after exact Appwrite cleanup |
+
+### Research Room first wave
+
+| Frozen start order | Arm | Worker / machine | Isolation | Merge ownership |
+| ---: | --- | --- | --- | --- |
+| 1 | Research Room / Snapback | Worker 1 / control-plane Mac, exact frozen product worktree | Detached worktree `/private/tmp/llp0102-research-snapback-w1` at product/source commit `5f31cb6174daaefa04a1e05242acbbc22c725040`; arm-owned SQLite target/runtime/sessions/persona carriers; server `3340`, Vite `4340`, effect receiver `20440`, browser-debug `9340`; exact namespace `llp0102-research-snapback-w1`; no hosted claim without direct evidence | Worker returns only the arm commit/artifacts, diary draft, and guide-gap drafts; coordinator imports, audits, scores, files guide gaps, and serializes shared files |
+
+Research Room/Supabase through InstantDB remain pending. They will be assigned
+in exact frozen order as isolated capacity opens.
+
+## Research Room live progress
+
+| Arm | State | Coordinator integration |
+| --- | --- | --- |
+| Research Room / Snapback | Assigned | Worker 1 reserved on isolated frozen-commit local target after exact Partiful/Snapback cleanup |
+| Research Room / Supabase | Pending | Not yet assigned |
+| Research Room / Firebase | Pending | Not yet assigned |
+| Research Room / SpacetimeDB | Pending | Not yet assigned |
+| Research Room / Convex | Pending | Not yet assigned |
+| Research Room / Appwrite | Pending | Not yet assigned |
+| Research Room / InstantDB | Pending | Not yet assigned |
