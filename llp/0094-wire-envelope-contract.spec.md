@@ -5,7 +5,11 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-28 (unreviewed post-corrective-round reconciliation:
+**Revised:** 2026-07-30 (operational: the shared Cloudflare deployment was
+redeployed with the 2026-07-27 wire landings — B1 negotiation echo/refusal
+verified live and the §0C.6 pre-convergence-bytes caveat retired; see
+`issues/closed/20260727-cloudflare-redeploy-wire-landings.md`).
+2026-07-28 (unreviewed post-corrective-round reconciliation:
 use-only live qualification transport, carrier-stripped sender binding, and
 the exact hosted-ephemeral per-boundary/refusal contract; the status remains
 Review). 2026-07-28 (LLP 0113 corrective addendum: complete
@@ -341,7 +345,8 @@ adds no envelope changes; it makes the negotiation enforceable.
 **Superseded 2026-07-27 by the B1–B3 landing (§0B.5).** The bullets below
 are kept as the audited **pre-B1** state: it is exactly what §0B.6's
 legacy-server detection still detects in deployed pre-B1 servers (the
-shared Cloudflare deployment until its post-B1 redeploy).
+shared Cloudflare deployment until its post-B1 redeploy, executed
+2026-07-30).
 
 - **Local socket lane:** `stream_live` calls
   `.protocols([LIVE_STREAM_SUBPROTOCOL])` (`src/server.rs`, constant at
@@ -538,7 +543,11 @@ the other:
   caveat itself — a pre-B1 hosted open decoder ignores the member and
   answers bytes identical to an offerless open — so the kit offer lands
   with B1 and the shared-deployment redeploy remains the operational
-  step that turns the echo on there.
+  step that turns the echo on there. (That redeploy executed 2026-07-30:
+  a `wireVersion: "snapback.v1"` open against the shared deployment now
+  returns the exact echo, and a bogus offer refuses
+  `SNAPBACK_WIRE_VERSION_UNSUPPORTED` — probed live, recorded in
+  `issues/closed/20260727-cloudflare-redeploy-wire-landings.md`.)
 - **B3** — the absent-class socket refusal is **on** (both arms), after
   re-running the §0B.7 enumeration at enablement (record appended
   there). The hosted `/live/stream` proof socket keeps its exemption,
@@ -596,7 +605,8 @@ legacy server (or a pre-echo B1 build, which B1 excludes by shipping the
 echo). Until the shared deployment carries B1, hosted version posture is
 a deployment-gating fact, not a runtime-detectable one — which is
 precisely why B2 gates on B1 deployment rather than on runtime
-detection.
+detection. (The shared deployment carries B1 as of the 2026-07-30
+redeploy; the echo is live there.)
 
 ### 0B.7 Blast-radius record (audited at `6fe11376`, refreshed at `137dee8c`)
 
@@ -795,9 +805,10 @@ former caveat — clients targeting the hosted arm MUST tolerate the
 enumerated shapes, and conformance claims on affected tuples carry this
 ledger by reference — is **retired for the converged items**: served
 bytes on those lanes are the committed schemas, and no tolerance license
-remains. (The shared Cloudflare deployment serves the converged shapes
-only after its next redeploy; until then a client of that specific
-deployment still observes the pre-convergence bytes.)
+remains. (The shared Cloudflare deployment was redeployed 2026-07-30 and
+serves the converged shapes; verified by the remote acceptance run and
+wire-version probes recorded in
+`issues/closed/20260727-cloudflare-redeploy-wire-landings.md`.)
 
 1. **Hosted `/mutation/{name}`** (`kitMutation`, `coordinator.js`)
    returned `{version, changed_count, result}` — no `receipt`, which

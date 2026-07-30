@@ -31,3 +31,31 @@ Steps: coordinate a window (no concurrent matrix runs or demo reruns),
 the hosted acceptance checks against the live origin and record the result
 here. After the redeploy, delete the LLP 0094 §0C.6 "shared deployment
 serves pre-convergence bytes" caveat.
+
+## Resolution (2026-07-30)
+
+**Executed.** Coordinated window verified (no concurrent wrangler/acceptance
+processes; no competing deploy landings on origin/main), then
+`SNAPBACK_CF_APP=all-aboard SNAPBACK_DEPLOY_RESET_ON_STALE=1
+./cloudflare/deploy.sh` from the integrated main tree (`dace1119` lineage):
+
+- The expected stale-hash refusal fired (deployment identity files changed);
+  the authenticated `/_snapback/api/app/reset` landed on the new version,
+  health re-probed green, and the final gateway activation bound healthy.
+- The reset cleared the config pool; both secret pools were re-set via
+  `config-set.mjs --entries-stdin` and attest `state: "set"`
+  (caltrainFeed poolMembers 2, directions poolMembers 1).
+- **Wire-version negotiation (landing 1) verified live:**
+  `POST /connection/open` with `wireVersion: "snapback.v1"` returns the
+  exact echo in the grant; a bogus `snapback.v999` offer refuses
+  `SNAPBACK_WIRE_VERSION_UNSUPPORTED`.
+- **Remote acceptance: 22/22 checks passed** against
+  `https://snapback-all-aboard-proof.ccheever-0f6.workers.dev`
+  (including the openrouteservice routeEstimate leg on the restored pool).
+- The LLP 0094 §0C.6 pre-convergence-bytes caveat and the §0B.5/§0B.6
+  not-yet-redeployed caveats are retired with dated notes in the same
+  commit.
+
+Out of scope, stated explicitly: the separate `snapback-notes-proof`
+billing-proof deployment was not redeployed by this ticket; it is not "the
+shared deployment" the wire caveats referenced.
