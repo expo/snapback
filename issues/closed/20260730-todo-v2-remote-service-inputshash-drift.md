@@ -1,6 +1,6 @@
 # todo-v2 remote-service codegen inputsHash drifts from committed baseline in fresh worktrees
 
-**Status:** Open
+**Status:** Resolved (2026-07-30)
 **Severity:** P3
 **Systems:** Codegen, Proof infrastructure
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -53,3 +53,42 @@ committing the churn.
 
 Not verified: whether the primary checkout regenerates cleanly (left
 untouched because it is shared with live sessions).
+
+## Resolution (2026-07-30)
+
+**Root cause: the committed baseline was stale, not environment-dependent.**
+Commit `00f1f218` ("feat(attribution): land the LLP 0062 attribution wire
+seams", landed 2026-07-30 14:21 PT) added the establishment-metadata blocks
+(+37 lines each) to `schemas/live.subscribe.output.schema.json` and
+`schemas/live.resume.output.schema.json`. Both files are
+`REMOTE_SERVICE_WIRE_SCHEMAS` identity inputs for the
+`remote-service-sqlite-ibex` target profile
+(`loadRemoteServiceInputs` in `packages/snapback-codegen/index.mjs`), but
+that commit did not regenerate
+`demos/todo-v2/snapback/generated-remote-service`. Every fresh worktree
+fetched after 14:21 therefore correctly regenerated to
+`4bdc9be16bb7…` against a committed `36622e1f6d2f…` baseline. This ticket
+was filed at 14:29 — eight minutes after the schema change landed — which
+is why two independent worktrees "reproduced" it and why node 25 vs 24.18.0
+made no difference: the regeneration is deterministic, and the local-dev
+profile (which does not admit the wire schemas) stayed byte-identical.
+
+Causality proof: restoring only those two schema files to their
+`00f1f218^` bytes and regenerating reproduces the committed
+`36622e1f6d2f…` exactly. Diffing the two cache graphs shows the only
+member-byte differences are (a) the embedded `inputsHash` in each manifest
+and (b) the recorded `sha256` references for the two wire schemas in
+`remote-data-capability.manifest.json` (old `8c9beaae…`/`4fc1ea64…` →
+current `80d00ae9…`/`6a1e6145…`, which match `shasum -a 256` of the
+committed schemas). No path, ordering, or environment value leaks into the
+hash; no exclusion or normalization change is warranted.
+
+**Fix:** regenerate and commit the
+`demos/todo-v2/snapback/generated-remote-service/artifacts.json` baseline
+(inputsHash `4bdc9be16bb780b33aeee1548a771c0d5e70a085cddb501275059509a45b0875`).
+`scripts/check-generated-artifacts` passes with zero diffs in a fresh
+worktree afterwards. The gate itself worked as designed — it only runs in
+`scripts/verify-local-proof`, which the `00f1f218` landing evidently
+skipped; any change to `schemas/*.schema.json` wire files must re-run it.
+The earlier "stranded baseline" comparison in this ticket was a
+misdiagnosis: no machine-local input is involved.
