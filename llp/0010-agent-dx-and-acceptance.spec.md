@@ -5,7 +5,12 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-27 (LLP 0108 amendment: generated review evidence covers
+**Revised:** 2026-07-30 (dated gap note: the Diary 0039 rerun proved the
+bootstrap link+launch smoke is satisfiable by a binary that cannot create the
+handler VM — see §Dated note: runtime readiness gap below; the VM-qualifying
+extension and the persisted readiness receipt are tracked as LLP 0115
+CV-2/CV-3 and will amend this Spec's bootstrap contract when they land);
+2026-07-27 (LLP 0108 amendment: generated review evidence covers
 inline-handler admission, effective result contracts, exact client inference,
 and pre-publication/pre-commit validation); 2026-07-23 (dated pointer note: LLP 0089 proposes the agent provisioning acceptance gate under this Spec's bar); 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterminism are unavailable by construction, including indirect locale-sensitive intrinsic methods; evaluated output must be strict JSON data rather than values `JSON.stringify` would silently coerce or drop; every privileged input read is an fd-attested, root-contained capability and handler paths are canonical backend-relative identities; the cache-busting generation worker pins an empty exec-argument set, repository cwd, minimal environment, disconnected data stdio, and one IPC result so caller `--eval`/preload/debug authority cannot contaminate it; node_modules package scopes stop at their boundary; canonical evaluated values join artifact identity, and every identity domain/item is byte-length-framed so source-legal NUL bytes cannot alias path/source boundaries; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024, LLP 0108
@@ -790,6 +795,47 @@ must prove invalid output rolls back its writes and settlement, while
 query/live/action evidence proves invalid output is not published. The
 maintained backend bakeoff is the repository fixture for deleting the separate
 handler registry without restoring casts at its client boundary.
+
+## Dated note: runtime readiness gap (2026-07-30)
+
+The Diary 0039 rerun exposed the boundary of this Spec's bootstrap contract:
+`SNAPBACK_IBEX_RUNTIME_LINK_OK` proves compile, final link, launch with
+`DYLD_*` scrubbed, and dyld load of `hermesvm.framework` — but the smoke
+never executes JavaScript, and the handler VM is created only at first
+invocation (`RuntimeGuard::create` → `ex_hermes_create_no_eval()`), whose
+promise-rejection-checkpoint prerequisite is an ABI/behavior contract dyld
+symbol resolution does not test. In the incident, doctor and bootstrap were
+both green while every JS invocation failed with
+`SNAPBACK_RUNTIME_CREATE_FAILED`
+(`issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md` has
+the mechanism trace, including the `rsync -a` mtime-preservation candidate
+root cause for the missed relink).
+
+Three standing facts this note records for the coming amendment (LLP 0115
+CV-2/CV-3):
+
+- **Doctor's fresh-disposable-target design is structurally blind to a stale
+  served binary** — its from-scratch build is coherent with the current
+  framework precisely when `target/debug/snapback` is not. This Spec
+  documents that behavior as deliberate; the incident prices it.
+- **The three tools already share** one probe module
+  (`scripts/runtime-link-smoke.mjs`), this Spec's diagnostic registry, and
+  the `snapback.runtime-recovery.v1` record — but nothing is persisted, the
+  captured framework/binary digests are never compared, the harness probe
+  runs only on its `cargo` rung, and `scripts/verify-local-proof` disables
+  the smoke by default (`SNAPBACK_BOOTSTRAP_CHECK=0`).
+- **Receipt prior art exists in-tree**: the recovery record's
+  `producerInputs` digests, and
+  `packages/snapback-runtime-linux-x64/artifact-attestation.mjs`
+  (`snapback.runtime-artifact-attestation.v1`), a complete binary+Hermes
+  digest attestation with validate-against-actual-files checking, currently
+  Linux-packaging-only. `bench_runtime_create_us` already creates and
+  destroys handler VMs in-process.
+
+The contract change itself (VM creation and one trivial execution after
+final framework selection, digest-bound readiness receipt, new bootstrap
+diagnostic code, invalidation on framework refresh) lands with the CV-2
+amendment, not this note.
 
 ## Open Questions
 

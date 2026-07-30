@@ -5,7 +5,26 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-27 (generated result-contract closure: search operations
+**Revised:** 2026-07-30 (Diary 0039 absorption, per LLP 0115 CV-5/10/11/12:
+(a) numeric canonicalization pin — stored/filter scalar bytes at the
+source-content digest and authoritative-release recheck boundary use RFC 8785
+number spelling, matching LLP 0080's portable scalar semantics; the Pantry
+rerun's `SNAPBACK_SEARCH_INDEX_CORRUPT` on integral `v.number()` values was
+an implementation defect, not a contract change — the canonical digests
+agreed and a representation-sensitive struct equality at the release recheck
+(a strengthening beyond this RFC's specified version+partition+predicate
+recheck) compared an unnormalized insert-path in-memory document against the
+SQLite-reloaded row; the fix is code plus this one-sentence pin
+(issues/20260730-search-real-integral-digest-corruption.md has the trace).
+(b) Open question 11 added: bounded range filters, the rerun's first
+practical filter gap. (c) Open question 12 added: which projection surfaces
+are bound by the byte-for-byte carrier-agreement acceptance bullet — the
+rerun found the provider/contract projection publishing the search argument
+as `unknown` while the client carrier names `SearchQueryAstV1`. (d) The
+non-live posture and its `SNAPBACK_FUNCTION_NOT_LIVE` refusal are reaffirmed
+as pinned contract; the rerun scored reactive search as a Convex advantage,
+and a live path remains a separate future design under its own capability id
+per §Implementation state.) 2026-07-27 (generated result-contract closure: search operations
 now derive a closed runtime contract and operation-specific TypeScript page
 from the index's exact stored-field projection, including present-null storage
 optionals and the source-table row-id brand; the Signal Desk review summary no
@@ -862,3 +881,19 @@ maintainer acceptance and executable target-specific evidence.
 10. **Resolved:** Rust-owned `Search*V1` artifacts, a non-live ordinary query
     plan/reference, existing query dispatch, and capability id
     `full_text_search_v1` are the v1 public carrier.
+11. **Open (2026-07-30, Diary 0039):** bounded range filters. The Pantry arm
+    needed a client-side numeric projection because v1 filters are
+    equality-only; ranges are the first practical extension. Any design must
+    respect the version-binding rule (a new operator vocabulary is a new
+    parser profile and semantic index version), the positive-anchor
+    invariant (complement scans stay inexpressible), and the cursor
+    query-core hash. Tracked as LLP 0115 CV-12a; null tests remain the only
+    other queued filter extension.
+12. **Open (2026-07-30, Diary 0039):** carrier scope of the byte-for-byte
+    agreement bullet. The client carrier names `SearchQueryAstV1` concretely,
+    but the provider/contract projection emitted the search argument as
+    `unknown` in the rerun. Decide whether that projection is one of this
+    RFC's byte-for-byte carriers (making the `unknown` a violated acceptance
+    bullet) or a Contract-owned surface (making it a cross-document wiring
+    item). Either way the repair is propagation of the existing LLP
+    0037-owned schema, not new type design. Tracked as LLP 0115 CV-5.

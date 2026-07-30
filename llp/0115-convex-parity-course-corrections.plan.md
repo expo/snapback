@@ -152,8 +152,15 @@ tarball cold installs, fresh-machine registry installs, and a comparator
 receipt that runs a real product fixture with semantic checks. LLP 0111
 incorporates that closure by reference and adds the packaged-CLI product
 journey from a clean temporary project; LLP 0114 adds the React starter with a
-packed cold-install gate. None of this machinery has ever fired against the
-real registry — every 0041 revision to date disclaims actual npm mutation.
+packed cold-install gate. Publication state (corrected 2026-07-30 against
+0041's own headers — the v0.2 audit's "never fired" claim was wrong): the
+eight-package `0.1.0` closure has been public under `latest` since 2026-07-26
+with a ledger-bound publication receipt, and the nine-package `0.1.1`
+candidate promotion is in active flight as of 2026-07-29 (propagation-barrier
+epochs; no completed promotion claimed). The rerun arms nevertheless consumed
+none of it — the matrix ran on sibling-checkout imports three days after the
+closure went public, which sharpens P0-1 from "publish" to "make the
+published closure actually usable and used."
 
 **Named gaps the owners do not cover.** (1) The **admin client**
 (`packages/snapback-admin-client`) is inventoried by 0041 but excluded from
@@ -172,8 +179,8 @@ pre-hosted under 0111 steps 1–2, but a pinned candidate tag is not the boring
 default install P0-1 describes. This is open question 5, and it is an author
 decision, not a work item.
 
-**Work.** Execute the 0041 publication machinery for real (candidate tags
-first); close the two artifact gaps; then rebuild at least one full workout
+**Work.** Complete the in-flight nine-package promotion under 0041's own
+gates; close the two artifact gaps; then rebuild at least one full workout
 arm in a clean external repository from published artifacts only, and give the
 matrix harness an install-from-published-channel mode so future runs exercise
 the public path.
@@ -625,6 +632,9 @@ distribution) remains LLP 0074's and is not re-scored here.
 5. **npm default-channel gating (new in v0.2).** LLP 0111 serializes `latest`
    promotion of the nine-package closure behind the full hosted Fly
    qualification journey; LLP 0074 makes npm publication a parallel gate.
-   These cannot both govern CV-1. Decide: amend 0111 to decouple the local
-   closure's default channel from hosted qualification, or scope CV-1's exit
-   to exact-version candidate-tag installs until the hosted journey lands.
+   These cannot both govern CV-1. (The eight-package `0.1.0` closure reached
+   `latest` on 2026-07-26, the day before 0111's gate was written, so the
+   conflict is live for the nine-package promotion and every closure after
+   it.) Decide: amend 0111 to decouple the local closure's default channel
+   from hosted qualification, or scope CV-1's exit to exact-version
+   candidate-tag installs until the hosted journey lands.

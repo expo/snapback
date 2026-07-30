@@ -36,7 +36,11 @@ public npm and independent-machine gates remain open.)
 **Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-24 (the clean-Ubuntu lane now records platform,
+**Revised:** 2026-07-30 (Diary 0039 external-adoption evidence: the rerun
+ran on sibling-checkout imports three days after `0.1.0` went public; the
+admin client and `demos/_kit` helpers every arm imports sit outside the
+nine-package closure — see the new §Open Questions entry and LLP 0115
+CV-1). 2026-07-24 (the clean-Ubuntu lane now records platform,
 architecture, kernel, Node, exact runtime package, and GitHub-hosted clean-VM
 status in the cold-install receipt, then retains that receipt, the publication
 ledger, and immutable tarballs through a commit-pinned artifact uploader. The
@@ -920,6 +924,14 @@ outside the root workspace and exercise independent consumer setups.
   CLI, published as a package, or served by the running server.
 - Which platforms does the first prebuilt-binary matrix cover, and is a
   from-source fallback acceptable for the rest?
+- **(2026-07-30, Diary 0039)** How do external acceptance consumers get the
+  admin client and the test-harness helpers? Options per artifact: admit
+  `@snapback/admin-client` to the closure, fold it into the client/CLI, or
+  endorse the served `/_snapback/admin/client.mjs` path for external use; and
+  publish a test-helper package (server lifecycle + vacuous-pass-guarded
+  harness), fold server lifecycle into the CLI, or endorse vendoring. Until
+  both are decided, a clean external repository cannot run a workout-arm-
+  grade acceptance suite against published artifacts (LLP 0115 CV-1).
 
 ## Status
 

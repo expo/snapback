@@ -36,7 +36,11 @@ not gate 1 closure: public packages and the hosted profile remain open.)
 **Systems:** Product strategy, Developer experience, Runtime, Actions, Codegen, Client integration, React/Expo, Contract/Exact, Deployment, Control plane, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-26 (candidate-only instrument correction: runtime
+**Revised:** 2026-07-30 (Diary 0039 head-to-head checkpoint: the seven-app
+current-main rerun scored roughly 55/45 for Convex; §Dated checkpoint: Diary
+0039 head-to-head records the result, the retired gaps, the LLP 0115
+execution plan, and the 0111-vs-0074 npm-gate conflict flag. Checkpoint
+only; no strategy change.) 2026-07-26 (candidate-only instrument correction: runtime
 projection now rejects unknown sample outcomes and malformed command identity/
 authorship, while gate evaluation rejects missing or unknown categories and
 malformed run identity. The exact candidate locks were refreshed; they remain
@@ -319,6 +323,27 @@ witnesses:
 Until a gate's authorities are accepted, work toward it may proceed but its
 competitive claim may only be stated as "evidence satisfies the proposed
 criteria," never as a closed capability.
+
+## Dated checkpoint: Diary 0039 head-to-head (2026-07-30)
+
+The seven-app current-main rerun (Diary 0039, evidence commit `45d2455d`)
+scored the local-development comparison roughly **55/45 for Convex** — four
+slight Convex wins, one large Snapback win, two near ties — a major move
+from the lopsided first bakeoff. The first-hour catch-up work this RFC
+prioritized largely landed and measured: indexed full-text search, colocated
+inline handlers, exact result contracts, indexed pagination, and
+manifest-only custody are retired gaps, and authored code size is now
+effectively tied.
+
+The rerun confirms this RFC's differentiator bets: the ephemeral-state lane
+was the single decisive win, and evidence/fail-closed boundaries scored as
+real advantages. The remaining Convex levers it names are the installed
+product loop (the matrix still ran on sibling-checkout imports despite the
+public `0.1.0` closure), nested input typing, reactive-by-default queries
+and search, and transactional one-off scheduling. LLP 0115 is the execution
+plan sequencing those levers. One gating conflict surfaced — this RFC's
+parallel npm gate vs. LLP 0111's hosted-gated default-channel promotion —
+and awaits author decision as LLP 0115 open question 5.
 
 ## Evidence behind the strategy
 

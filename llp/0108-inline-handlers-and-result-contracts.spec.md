@@ -5,7 +5,16 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (adversarial follow-up: dynamic computed binding and
+**Revised:** 2026-07-30 (dated evidence note, Diary 0039 / LLP 0115 audit —
+see §Diary 0039 field evidence at the end of this document: the info-severity
+degraded-result diagnostic demonstrably failed to prevent two real apps from
+shipping degraded contracts, making the strictness decision (LLP 0115 OQ3) a
+real product gap rather than polish; and the superseded §Bounded static
+bundling is designated the blueprint for the helper-reuse follow-on, whose
+concrete costs — a v2 content-hash format carrying the dependency graph, the
+group-bundle warm-pool model, and re-proving the adversarial-closure rules
+across module boundaries — are recorded there. No normative v1 change.)
+2026-07-28 (adversarial follow-up: dynamic computed binding and
 assignment-pattern destructuring fail closed). 2026-07-28 (adversarial closure: constant-alias and destructuring
 reflection refusal, default-deny dynamic computed member access, runtime
 constructor-walk probes, stored optional JSON normalization, and exact record
@@ -758,3 +767,39 @@ invalid union. Other stored optionals remain required `null | Scalar` keys.
 Records may now carry an optional closed row-count bound. The LLP 0110
 one-envelope profile uses exactly `{ minItems: 1, maxItems: 1 }`; both the Rust
 publication boundary and shared JavaScript validator refuse zero or two rows.
+
+## Diary 0039 field evidence — 2026-07-30
+
+The seven-app Snapback × Convex rerun (Diary 0039) exercised this Spec's
+shipped v1 across five arms and produced two findings, absorbed here as dated
+evidence without changing v1 normative text. Both are tracked in LLP 0115
+(CV-6, CV-7).
+
+**The degraded-result diagnostic is correct but too quiet to do its job.**
+`SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED` ships today with a
+table-interpolating remediation, at `severity: 'info'` — and two real arms
+(Cursor Garden's `updateNote`, Pantry Search's `addRecipe`) shipped degraded
+`unknown` contracts anyway. This Spec deliberately specifies no strictness
+mechanism; the field evidence says the omission-is-admitted posture needs a
+decision, not more mechanism: raise the severity, or gate refusal behind a
+per-app strictness toggle (LLP 0115 open question 3, an amendment to this
+Spec either way). One boundary stands regardless of that decision: a
+field-level paste-ready suggested contract would require inspecting handler
+behavior, which this Spec's no-inference invariants forbid — the suggestion
+stays at the shipped template level.
+
+**Self-contained v1 reproduces helper duplication by design, and the fix is
+already drafted above.** Streak Lab duplicated its calendar helper between
+query and mutation, and Campfire its indexed-read helpers — exactly the "no
+imported or sibling helper … no transitive source graph" exclusion of the
+round-3 reconciliation. The superseded §Bounded static bundling is the
+designated blueprint for the follow-on (it was demoted because the review
+loop reached its round limit, not because the design was refuted). The
+follow-on must own three consequences that section already implies: the v1
+content hash carries no dependency graph, so helper imports are a v2 hash
+format, not an extractor tweak; shared helpers effectively require the
+group-bundle model and therefore reopen the warm-pool-key question and the
+DK-4 benchmark gate; and every 2026-07-28 adversarial-closure refusal rule
+must be re-proved across module boundaries. The non-negotiables are
+unchanged: closed content-addressed graph, no `Function.prototype.toString()`
+authority, no runtime capture inference, no ambient checkout access.

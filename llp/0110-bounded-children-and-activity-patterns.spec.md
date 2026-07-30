@@ -5,7 +5,10 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (unreviewed post-round correction: device-bound
+**Revised:** 2026-07-30 (Diary 0039 evidence annotations on the open
+questions, per LLP 0115 CV-8 — concrete field instances now attached to open
+questions 2 and 4, plus the observed adoption-cost note; no normative
+change). 2026-07-28 (unreviewed post-round correction: device-bound
 qualification, schema-identical activation, provisional observation, and
 code-owned experimental maturity). 2026-07-28 (LLP 0113 corrective reconciliation: isolated
 qualification data, complete use protocol, self-expiring family epochs, and
@@ -912,12 +915,36 @@ every claimed target/profile version.
 2. Should a later multi-parent profile return one independently bounded page
    per parent, or require separate generated invocations to keep work and cursor
    identity obvious?
+   *Diary 0039 instance (2026-07-30):* Relay Board's `boardView` is one
+   parent point-read plus three flat child fan-outs (columns, cards,
+   activity — cards denormalize `boardId`) assembled into one
+   snapshot-consistent nested result. Under v1 that becomes three separate
+   live queries composed client-side, losing the single-snapshot property.
+   The binding constraint the rerun exposed is one-child-collection-per-
+   invocation, not nesting depth. Aggregates (Relay's `boardSummary`
+   per-column counts, Split Ledger's four-table derivation) remain Non-goals
+   of both this Spec and LLP 0080; whether they get a third bounded profile
+   or an endorsed imperative pattern is the load-bearing decision tracked as
+   LLP 0115 CV-8.
 3. Does activity provenance eventually warrant a framework-owned system
    envelope instead of explicit application-table fields, and how would that
    remain exportable?
 4. Which measured Signal Desk mutation, if any, needs a primary-plan construct
    beyond LLP 0051's closed vocabulary rather than staying in the explicit
    handler tier?
+   *Diary 0039 instance (2026-07-30):* Relay's `moveCard` — otherwise the
+   exact `write-with-activity.v1` shape (one patch, one activity insert, one
+   commit version) — derives its `nextSequence` by collecting the board's
+   whole activity range, which the point-operation-only primary plan
+   refuses. Fitting the profile means redesigning ordering (e.g.
+   `occurredAt`/row-id order from provenance) or staying imperative. A
+   related adoption-cost observation from the same rerun: the anonymous
+   workout arms cannot use the write profile at all
+   (`SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED`, `existing-owner.v1` only),
+   and adoption requires owner fields, incarnation stamps with reviewed
+   backfill, and the ten provenance fields — the explicit-contract cost the
+   diary scores against Snapback, worth stating up front in any adoption
+   guide.
 
 ## Final author reconciliation after round 2
 

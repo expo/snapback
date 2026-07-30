@@ -5,7 +5,10 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-27 (LLP 0108 amendment: JS handlers may be colocated as
+**Revised:** 2026-07-30 (Diary 0039 dated alignment: structured collection
+validators for arguments and stored fields are a named spec hole to be filled
+by a new owned Spec under this RFC's portability rules, per LLP 0115 CV-4 —
+see §Dated alignment: structured collection validators); 2026-07-27 (LLP 0108 amendment: JS handlers may be colocated as
 direct self-contained expressions; explicit result contracts flow through
 generated references and runtime egress validation); 2026-07-26 (stable codegen identity now takes `appId` from the
 nearest ancestor `demo.snapback.json` explicit `id`, so nesting a backend below
@@ -593,6 +596,39 @@ generated reference. Runtime validation occurs on the post-JSON image before
 query/live/action publication and before mutation commit. Omission is the
 explicit degraded `Unknown` contract, not result inference from handler code.
 LLP 0108's final author reconciliation governs the exact grammar and bounds.
+
+## Dated alignment: structured collection validators (2026-07-30)
+
+The Diary 0039 rerun repeatedly hit the boundary of this RFC's first-slice
+validator set, and the LLP 0115 audit mapped it precisely. Current state,
+code-verified: nested `v.object` **arguments already work end-to-end**
+(typed descriptors plus a closed JSON Schema with
+`additionalProperties: false`); `v.array` and `v.union` are result-contract-
+only — the authoring gate's closed primitive map rejects them fail-closed at
+argument (`FUNCTION_INVALID_VALIDATOR`) and stored-field
+(`SCHEMA_INVALID_VALIDATOR`) boundaries, and the `v.json()` escape hatch is
+already loud. So Split Ledger's split vector — Convex's clearest input-typing
+win in the rerun — needs specifically array/union admission, not a general
+structured-inputs overhaul. (Implementation note: the `resultOnly` flag on
+those builders is dead metadata; the primitive map is the actual gate.)
+
+The extension is deliberately not designed here. Per the 0108/0080/0081
+precedent and this RFC's own split-into-Spec status note, it lands as a new
+owned Spec with this dated pointer (LLP 0115 CV-4; its open question 1 is
+answered accordingly). Two scope facts that Spec must own, recorded so they
+are not rediscovered:
+
+- **Arguments first.** The result-side machinery (vocabulary spellings,
+  recursive Rust validation, type/schema projection, hashing, bounds) is
+  reusable prior art, but no server-side per-invocation args-shape
+  validation seam exists today even for scalars — argument admission
+  requires building runtime ingress validation, not just widening the
+  authoring gate. Host-plan mutations add an interaction with the
+  value-expression IR, which operates over scalar arg references.
+- **Stored fields are a separate, larger design**: a `FieldType` extension,
+  a SQLite/Postgres representation decision under §Portability Rules,
+  index/`arrayContains`/live-matcher semantics, and LLP 0081 migration
+  interaction. Nothing in the result-contract lane de-risks it.
 
 ## Status
 

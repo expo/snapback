@@ -5,7 +5,21 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (author-side review application: v1 now separates
+**Revised:** 2026-07-30 (Diary 0039 competitive evidence and first-slice
+designation, per LLP 0115 CV-9: the Snapback × Convex rerun scored Convex's
+`ctx.scheduler.runAfter(0, ...)` as the better everyday primitive — a
+transactional one-off durable scheduler composing with mutations — and the
+LLP 0115 coverage audit found this RFC already specifies that primitive's
+semantics (same-transaction enqueue, rollback-schedules-nothing,
+`availableAt` delays, job+attempt receipts) while neither the diary nor the
+plan's first draft cited it. The `runAfter` case — default queue,
+`availableAt = now + delay`, transactional enqueue, host-plan action callee —
+is therefore the designated first implementation slice of
+`durable-work-single-process-sqlite-v1`, giving this Draft the executable
+evidence it needs. Two gaps the slice must close are recorded in §Decisions
+still requiring ratification: a deterministic injected-clock drain seam, and
+the callee-class admission question for the Dispatch-style action→mutation
+shape.) 2026-07-26 (author-side review application: v1 now separates
 immutable jobs from append-only attempts, makes operator replay create a
 successor job, pins cancellation/ambiguity and atomic terminal publication,
 defines claim supersession, queue/deploy admission and artifact custody,
@@ -522,3 +536,21 @@ single-process SQLite and Postgres tuples, with SQLite first. These choices are
 not accepted merely because they are written here. Independent storage/fault
 review and maintainer ratification remain prerequisites before implementation
 can satisfy LLP 0063.
+
+Two additions from the 2026-07-30 Diary 0039 absorption (LLP 0115 CV-9):
+
+- **Deterministic drive seam.** The admin surface (list/show/pause/resume/
+  cancel/replay/drain) has no injected-clock manual-drive operation, and the
+  acceptance corpus never requires frozen-clock determinism — yet the
+  matrix's Dispatch arm proved recurring work without sleeping only because
+  LLP 0028 has exactly that seam (`SNAPBACK_CRON_DISABLED` + admin manual
+  tick). The first slice must add the sibling: an injected-clock forced
+  drain that claims due jobs, so one-off work is provable without wall-clock
+  waits. LLP 0028's pattern is the donor; the cron run ledger's identity
+  model is not (runtime-created entries have no nominal slot or schedule
+  hash).
+- **Callee-class admission.** V1 admits generated host-plan actions only.
+  Whether the Dispatch-style one-off shape (action performing egress, then a
+  nested atomic mutation) fits that admission or requires the later
+  broader-action capability must be named before the slice claims the
+  Convex-parity use case rather than a narrower one.

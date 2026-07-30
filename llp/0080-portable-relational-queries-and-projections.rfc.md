@@ -5,7 +5,10 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (Implemented: every §Acceptance item is witnessed — the
+**Revised:** 2026-07-30 (Diary 0039 evidence annotation on open question 1
+and a new open question 7 — the rerun's Relay/Split aggregate shapes are the
+concrete demand for whatever profile comes after v1; tracked as LLP 0115
+CV-8; no normative change). 2026-07-26 (Implemented: every §Acceptance item is witnessed — the
 RELATIONAL_MIGRATION_COUPLED_SUITE_V1 and relational corpora are green, the
 retention lease class, obligation-fault recovery, and examined-entries
 instrumentation landed 2026-07-25, and the final item closed when
@@ -687,6 +690,10 @@ above does not open LLP 0063 Step 5.
 1. Should the next profile admit a bounded one-to-many relation by requiring a
    per-parent limit and compound unique cursor, or should that remain a direct
    child query plus client composition?
+   *Diary 0039 note (2026-07-30):* LLP 0110's `bounded-children.v1` answers
+   the single-parent case; the Relay Board shape (one parent, N columns,
+   one bounded page per column) is the multi-parent variant 0110 defers in
+   its own open question 2.
 2. Which bounded fields should the separately authorized audit channel retain
    for an invisible joined row while application diagnostics preserve
    existence secrecy?
@@ -699,3 +706,14 @@ above does not open LLP 0063 Step 5.
    spread?
 6. What total work and downtime bounds make LLP 0081's exclusive rebuild
    barrier an admitted target profile for large output tables?
+7. **(2026-07-30, Diary 0039)** Should bounded aggregation get a third
+   generated profile, or is the imperative handler the endorsed answer? The
+   rerun's two concrete demands: Relay Board's `boardSummary` (bounded
+   per-column counts over one board's cards) and Split Ledger's ledger
+   derivation (per-participant net cents plus a group total across four
+   tables — currently an N+1 handler whose sort also uses `localeCompare`,
+   a locale-sensitive collation this RFC's portable value model deliberately
+   excludes, so a generated profile would change observable ordering).
+   Aggregation is a Non-goal of v1 and of LLP 0110; this question is the
+   load-bearing half of LLP 0115 CV-8 and must be decided in this RFC's
+   frame, not inferred.

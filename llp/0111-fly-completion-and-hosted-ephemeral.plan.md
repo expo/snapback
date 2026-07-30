@@ -5,7 +5,16 @@
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-28 (corrective implementation addendum: canonical pending
+**Revised:** 2026-07-30 (dated conflict flag, decision pending — no semantic
+change: this Plan serializes default-channel (`latest`) promotion of the
+nine-package closure behind the complete hosted Fly qualification journey,
+while LLP 0074 makes public npm publication a parallel gate independent of
+hosted milestones, and the eight-package `0.1.0` closure in fact reached
+`latest` on 2026-07-26, the day before this Plan's gate was written. The
+Diary 0039 rerun ranks a boring public install as the top P0 lever, which
+the hosted-gated ordering delays. Which document governs the next promotion
+is an author decision recorded as LLP 0115 open question 5; until it is
+made, this Plan's ordering stands as written.) 2026-07-28 (corrective implementation addendum: canonical pending
 request reservation, registry-owned response class, supervisor-owned control
 head, exact credential/grant/digest gates, bounded canonical reads, and all
 lifecycle effects disabled pending a reviewed carrier/custody closure).
