@@ -5,7 +5,9 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-30 (fixture-format v3: `client_to_server` and
+**Revised:** 2026-07-30 (Swift harness adopts format v3: all four §2.1
+judgment rules implemented, T-AUTH-TERM/T-GRANT-LOSS client transitions
+aligned to the corpus dispositions); 2026-07-30 (fixture-format v3: `client_to_server` and
 `client_lifecycle` directions with request/refusal fixtures, virtual-time and
 lifecycle-event steps, and the §2.4 deferred rows seeded — negotiation/offer
 refusals, drain-cancel duplicate tolerance, arm-mismatch, grant-loss,
@@ -390,11 +392,12 @@ and asserts the `expect` obligations against the §1 model. The corpus is
 **normative for clients** (LLP 0093 D1 precedence) — complete over the
 specified behavior classes, not exhaustive over all valid schema values.
 
-**Judgment rules** (pinned 2026-07-25 from the P-2 clean-room defect
-ledger — without them two independent harnesses could pass the same corpus
-under different judgments; the Swift harness,
-`clients/swift/SnapbackClient`, `FixtureHarness.swift`, is the first
-consumer implementing all three):
+**Judgment rules** (rules 1–3 pinned 2026-07-25 from the P-2 clean-room
+defect ledger, rule 4 with format v3 — without them two independent
+harnesses could pass the same corpus under different judgments; the Swift
+harness, `clients/swift/SnapbackClient`, `FixtureHarness.swift`, is the
+first consumer implementing all four, with the rule-4 virtual clock in
+`VirtualTransportSupervisor`, `TransportTiming.swift`):
 
 1. **Actions are an exact, unordered set.** A client's emitted actions for
    a fixture must equal `expect.actions` as a set — no omissions, no
@@ -602,10 +605,14 @@ expected-operation tuple or compatibility-policy transition.
 - ~~The §2.4 deferred rows, wrapped-vs-unwrapped parity, and the
   heartbeat/backoff timing fixtures~~ — landed 2026-07-30 as fixture-format
   v3 (`issues/closed/20260725-0093-p1-fixture-corpus-coverage.md`).
-- The per-client conformance harness that replays the corpus against a real
-  client (the Swift P-2 client is its first non-JS consumer); until it
-  exists, corpus fixtures bind via this spec's normative force and the
-  kit's regression suites cover the seeded classes piecewise. The Swift
-  harness (`FixtureHarness.swift`) accepts formatVersions 1–2 only and
-  must adopt v3 before it can load the current corpus:
-  `issues/20260730-swift-fixture-harness-format-v3.md`.
+- ~~The per-client conformance harness that replays the corpus against a
+  real client~~ — the Swift harness (`FixtureHarness.swift`) adopted
+  format v3 on 2026-07-30
+  (`issues/closed/20260730-swift-fixture-harness-format-v3.md`): it
+  implements all four §2.1 judgment rules (the rule-4 virtual clock lives
+  in `VirtualTransportSupervisor`, `TransportTiming.swift`) and evaluates
+  every fixture the corpus routes to the claimed `poll/local`/`live/local`
+  tuples (77 per-tuple evaluations across all 49 fixtures; the only skips
+  are the two `live/hosted`-only fixtures under §2.2 tuple routing). The
+  JS kit still binds via this spec's normative force and its regression
+  suites; a kit-side corpus replay remains open.

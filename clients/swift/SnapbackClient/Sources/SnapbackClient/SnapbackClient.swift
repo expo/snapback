@@ -270,9 +270,19 @@ public actor SnapbackClient {
             throw ClientError.undecodableResponse("live subscribe output")
         }
         // @ref LLP 0059#typed-terminal-auth-error — durable authority deletion is a terminal publication fence, including across actor reentrancy.
-        // The request above is an actor reentrancy point. A durable terminal
-        // invalidation may retire the namespace while the subscribe is in
-        // flight, so validate custody again before admitting its response.
+        // The request above is an actor reentrancy point. Terminal authority
+        // loss (T-AUTH-TERM) may land while the subscribe is in flight; the
+        // terminal connection is never usable with the presented credential,
+        // so its late subscribe response must not be admitted.
+        if machine.phase == .terminalAuth {
+            machine.removeSubscription(id: output.subscriptionId)
+            throw ClientError.invalidState(
+                "terminal authority loss: in-flight subscribe response discarded"
+            )
+        }
+        // A durable terminal invalidation may likewise retire the namespace
+        // while the subscribe is in flight, so validate custody again before
+        // admitting its response.
         if let namespace,
            machine.hasTerminalRetiredNamespace(namespace) {
             _ = try? await unsubscribe(

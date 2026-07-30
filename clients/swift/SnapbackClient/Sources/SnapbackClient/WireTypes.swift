@@ -663,6 +663,9 @@ public struct ConnectionGrant: Sendable {
     public var connectionId: String
     public var connectionToken: String
     public var authorizationInvalidation: AuthorizationInvalidationConnection?
+    /// The open-time-bound wire version a B1 server echoes
+    /// (LLP 0094 §0B.3); `nil` on a legacy (implicitly v1-bound) open.
+    public var boundWireVersion: String?
 
     public static func from(_ json: JSONValue) -> ConnectionGrant? {
         guard let id = json["connectionId"]?.stringValue,
@@ -677,7 +680,12 @@ public struct ConnectionGrant: Sendable {
             AuthorizationInvalidationConnection.from
         )
         if invalidationValue != nil && invalidation == nil { return nil }
-        return ConnectionGrant(connectionId: id, connectionToken: token, authorizationInvalidation: invalidation)
+        return ConnectionGrant(
+            connectionId: id,
+            connectionToken: token,
+            authorizationInvalidation: invalidation,
+            boundWireVersion: json["wireVersion"]?.stringValue
+        )
     }
 }
 

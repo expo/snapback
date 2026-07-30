@@ -170,27 +170,67 @@ final class FixtureConformanceTests: XCTestCase {
         let harness = FixtureHarness(claimedTuples: ["poll/local", "live/local"])
         let result = try harness.run(corpusData: data)
         let corpus = try JSONValue.parse(data)
-        let expectedEvaluations = corpus["fixtures"]?.arrayValue?
-            .reduce(into: 0) { count, fixture in
-                count += fixture["tuples"]?.arrayValue?.compactMap(
-                    \.stringValue
-                ).filter {
-                    ["poll/local", "live/local"].contains($0)
-                }.count ?? 0
-            } ?? 0
-        XCTAssertEqual(result.formatVersion, 2)
+        var expectedEvaluations = 0
+        // Fixtures whose tuples never intersect the claim set (today: the
+        // live/hosted-only arm fixtures) are §2.2 routing skips, not
+        // unimplemented-judgment skips; everything routed to a claimed tuple
+        // must be genuinely evaluated — never reported as an
+        // `evaluated: false` pass-by-omission.
+        var expectedRoutingSkips = 0
+        for fixture in corpus["fixtures"]?.arrayValue ?? [] {
+            let claimed = fixture["tuples"]?.arrayValue?.compactMap(
+                \.stringValue
+            ).filter {
+                ["poll/local", "live/local"].contains($0)
+            }.count ?? 0
+            expectedEvaluations += claimed
+            if claimed == 0 { expectedRoutingSkips += 1 }
+        }
+        XCTAssertEqual(result.formatVersion, 3)
         XCTAssertEqual(result.wireVersion, "snapback.v1")
         XCTAssertEqual(
             result.judgedAgainst,
             "LLP 0095 §1 (abstract client state machine)"
         )
         XCTAssertEqual(result.evaluatedCount, expectedEvaluations)
-        XCTAssertEqual(result.skippedCount, 0)
+        XCTAssertEqual(result.skippedCount, expectedRoutingSkips)
+        for skipped in result.results.filter({ !$0.evaluated }) {
+            XCTAssertTrue(
+                skipped.detail.hasPrefix("skipped: no claimed tuple"),
+                "\(skipped.name): only §2.2 tuple routing may skip, got \(skipped.detail)"
+            )
+        }
         XCTAssertTrue(result.failures.isEmpty)
         for fixture in result.results {
             XCTAssertTrue(
                 fixture.passed,
                 "\(fixture.name) [\(fixture.tuple ?? "unrouted")]: \(fixture.detail)"
+            )
+        }
+        // The v3-only classes must be genuinely evaluated on the claimed
+        // tuples, not silently skipped.
+        let evaluatedNames = Set(
+            result.results.filter(\.evaluated).map(\.name)
+        )
+        for required in [
+            "negotiation.open.unknown_wire_version_refused",
+            "grant.connection_token_invalid_reopens_everything",
+            "arm.socket_loss_mid_subscribe",
+            "timing.heartbeat.ping_and_pong_freshness",
+            "timing.freshness.budget_exhausted_forces_loss",
+            "timing.reconnect.backoff_bounds",
+            "auth.rr.offer_refusal_surfaced",
+            "auth.live.ack_requires_negotiated_connection",
+            "auth.live.terminal_auth_carrier_disposition",
+            "auth.live.terminal_auth_durable_delete_disposition",
+            "auth.replay.duplicate_settlement_idempotent",
+            "auth.replay.predecessor_queue_suspends",
+            "auth.lease.expiry_fences_retained_rows",
+            "poll.wrapped_authorization_invalidation.apply_then_ack",
+        ] {
+            XCTAssertTrue(
+                evaluatedNames.contains(required),
+                "\(required) was not evaluated"
             )
         }
     }
@@ -240,6 +280,137 @@ final class FixtureConformanceTests: XCTestCase {
                 corpusData: corpus("[]")
             )
         )
+        // The three-direction enum is a format-v3 grant: a v2 corpus
+        // carrying the new directions is refused rather than misjudged —
+        // exactly why the format version bumped instead of drifting.
+        XCTAssertThrowsError(
+            try harness.run(corpusData: corpus(
+                #"[{"name":"v2-c2s","tuples":["live/local"],"direction":"client_to_server","schemaValid":true,"lane":"core","request":{"method":"POST","route":"/connection/open"},"refusal":{"status":400,"code":"SNAPBACK_WIRE_VERSION_UNSUPPORTED"},"expect":{"actions":[],"transitions":[]}}]"#
+            ))
+        )
+    }
+}
+
+/// The §2.1 judgments must genuinely discriminate: for each v3 fixture
+/// class, a corpus pinning NON-conformant expectations must fail against
+/// this client. These are the vacuous-pass regression guards for the
+/// format-v3 harness adoption
+/// (issues/20260730-swift-fixture-harness-format-v3.md).
+final class FixtureJudgmentDiscriminationTests: XCTestCase {
+    private func corpus(_ fixtures: String) -> Data {
+        Data(
+            """
+            {
+              "artifactKind":"liveWireFixtureCorpus",
+              "formatVersion":3,
+              "wireVersion":"snapback.v1",
+              "judgedAgainst":"LLP 0095 §1 (abstract client state machine)",
+              "fixtures":\(fixtures)
+            }
+            """.utf8
+        )
+    }
+
+    private func soleResult(
+        _ fixtures: String
+    ) throws -> FixtureHarness.FixtureResult {
+        let result = try FixtureHarness(
+            claimedTuples: ["poll/local", "live/local"]
+        ).run(corpusData: corpus(fixtures))
+        XCTAssertEqual(result.results.count, 1)
+        return result.results[0]
+    }
+
+    func testReconnectBeforeBackoffFloorIsNotEmitted() throws {
+        // Expecting an attempt before the 250 ms floor must fail: the
+        // client's first attempt is at the floor.
+        let result = try soleResult(
+            #"[{"name":"neg.backoff.floor","tuples":["live/local"],"direction":"client_lifecycle","schemaValid":false,"lane":"live","clock":"virtual","given":{"connection":{"state":"recovering","socketLostAtVirtualMs":0},"subscriptions":[{"id":"s1","state":"dropped","version":42}]},"steps":[{"advanceVirtualTimeMs":249,"expect":{"actions":["attempt_reconnect"],"transitions":[]}}]}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+    }
+
+    func testBackoffPacingBoundIsEnforced() throws {
+        // A 100 ms pacing bound is tighter than the real geometric backoff;
+        // the pacing judgment must catch the wider spacing.
+        let result = try soleResult(
+            #"[{"name":"neg.backoff.pacing","tuples":["live/local"],"direction":"client_lifecycle","schemaValid":false,"lane":"live","clock":"virtual","given":{"connection":{"state":"recovering","socketLostAtVirtualMs":0},"subscriptions":[{"id":"s1","state":"dropped","version":42}]},"steps":[{"advanceVirtualTimeMs":60000,"expect":{"actions":["attempt_reconnect"],"pacing":{"action":"attempt_reconnect","maxIntervalMs":100},"transitions":[]}}]}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+        XCTAssertTrue(result.detail.contains("pacing"), result.detail)
+    }
+
+    func testHeartbeatPingIsAnExactSetObligation() throws {
+        // Expecting silence across the 5 s heartbeat deadline must fail:
+        // send_ping is emitted and rule 1 forbids extras.
+        let result = try soleResult(
+            #"[{"name":"neg.hb.silent","tuples":["live/local"],"direction":"client_lifecycle","schemaValid":false,"lane":"live","clock":"virtual","given":{"connection":{"state":"attached","lastServerActivityVirtualMs":0},"subscriptions":[{"id":"s1","state":"live","version":1}]},"steps":[{"advanceVirtualTimeMs":5000,"expect":{"actions":[],"transitions":[]}}]}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+    }
+
+    func testFreshnessExhaustionForcesTheLossPath() throws {
+        // Expecting pings only across an exhausted freshness budget must
+        // fail: the client forces the loss path and drops the population.
+        let result = try soleResult(
+            #"[{"name":"neg.hb.no_loss","tuples":["live/local"],"direction":"client_lifecycle","schemaValid":false,"lane":"live","clock":"virtual","given":{"connection":{"state":"attached","lastServerActivityVirtualMs":0},"subscriptions":[{"id":"s1","state":"live","version":1}]},"steps":[{"advanceVirtualTimeMs":15001,"expect":{"actions":["send_ping"],"transitions":[]}}]}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+    }
+
+    func testSupersessionClassificationIsJudgedFromEstablishment() throws {
+        // A never-established (pending at loss) subscription must not be
+        // classified as re-entering with `supersedes`.
+        let result = try soleResult(
+            #"[{"name":"neg.supersession","tuples":["live/local"],"direction":"client_lifecycle","schemaValid":false,"lane":"live","given":{"connection":{"state":"attached"},"subscriptions":[{"id":"s_pending","state":"pending"}]},"steps":[{"event":{"kind":"socket_lost"},"expect":{"actions":[],"transitions":[{"connection":"state","to":"recovering"},{"subscription":"s_pending","to":"dropped"}]}}],"expect":{"actions":["attempt_reconnect","resubscribe_all"],"supersession":{"s_pending":"fresh_subscribe_with_supersedes"},"transitions":[]}}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+        XCTAssertTrue(result.detail.contains("supersession"), result.detail)
+    }
+
+    func testDuplicateSettlementIsNeverReapplied() throws {
+        // Expecting a second settle_client_mutation for the same
+        // clientMutationId must fail: the queue entry resolves exactly once.
+        let result = try soleResult(
+            #"[{"name":"neg.settlement","tuples":["live/local"],"direction":"client_to_server","schemaValid":false,"lane":"core","steps":[{"request":{"method":"POST","route":"/mutation/add","body":{"clientMutationId":"m1"}},"response":{"status":200},"expect":{"actions":["settle_client_mutation"],"transitions":[]}},{"request":{"method":"POST","route":"/mutation/add","body":{"clientMutationId":"m1"}},"response":{"status":200},"expect":{"actions":["settle_client_mutation"],"transitions":[]}}]}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+    }
+
+    func testGrantLossCannotBeExpectedAway() throws {
+        // SNAPBACK_CONNECTION_TOKEN_INVALID must produce the full §4.4
+        // recovery; a fixture expecting quiet acceptance fails.
+        let result = try soleResult(
+            #"[{"name":"neg.grant","tuples":["live/local"],"direction":"client_to_server","schemaValid":false,"lane":"core","given":{"connection":{"state":"attached"},"subscriptions":[{"id":"s1","state":"live","version":1}]},"request":{"method":"GET","route":"/outbox/c1"},"refusal":{"status":403,"code":"SNAPBACK_CONNECTION_TOKEN_INVALID"},"expect":{"actions":[],"transitions":[]}}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+    }
+
+    func testLeaseExpiryFenceCannotBeExpectedAway() throws {
+        // Rows past expiresAtServerMs must fence with no wire event; a
+        // fixture expecting continued retention fails.
+        let result = try soleResult(
+            #"[{"name":"neg.lease","tuples":["live/local"],"direction":"client_lifecycle","schemaValid":false,"lane":"core","clock":"virtual","given":{"retainedRead":{"queryKey":"q:{}","queryInstanceId":1,"rows":[{"_id":"r"}],"lease":{"authorizedLeaseProtocol":1,"expiresAtServerMs":1000}},"virtualNowServerMs":0},"steps":[{"advanceVirtualTimeMs":2000,"expect":{"actions":[],"transitions":[]}}]}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
+    }
+
+    func testPredecessorQueueSuspensionIsJudged() throws {
+        // Expecting the queue to stay active across an authority-instance
+        // change must fail: the predecessor queue suspends.
+        let result = try soleResult(
+            #"[{"name":"neg.replay","tuples":["live/local"],"direction":"client_lifecycle","schemaValid":false,"lane":"core","given":{"replayQueue":{"authorityInstance":"a","pending":[{"clientMutationId":"m9"}]}},"steps":[{"event":{"kind":"authority_instance_changed","from":"a","to":"b"},"expect":{"actions":[],"transitions":[]}}]}]"#
+        )
+        XCTAssertTrue(result.evaluated)
+        XCTAssertFalse(result.passed)
     }
 }
 

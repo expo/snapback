@@ -29,6 +29,20 @@ public enum ClientAction: String, Sendable, Hashable {
     case applyInvalidationTerminalDelete = "apply_invalidation_terminal_delete"
     case acknowledgeObligation = "acknowledge_obligation"
     case surfaceProtocolDiagnostic = "surface_protocol_diagnostic"
+    // Format-v3 additions (LLP 0095 §1.5). `retry_unchanged` and
+    // `replay_queued_mutations` are forbidden-only anti-obligations: they
+    // deliberately have no case here because a conformant client never
+    // emits them.
+    case surfaceCapabilityDiagnostic = "surface_capability_diagnostic"
+    case establishLiveSocket = "establish_live_socket"
+    case sendPing = "send_ping"
+    case forceSocketLoss = "force_socket_loss"
+    case attemptReconnect = "attempt_reconnect"
+    case deleteLocalDurableAuthority = "delete_local_durable_authority"
+    case settleClientMutation = "settle_client_mutation"
+    case discardDuplicateSettlement = "discard_duplicate_settlement"
+    case suspendPredecessorQueue = "suspend_predecessor_queue"
+    case fenceRetainedRows = "fence_retained_rows"
 }
 
 /// Per-subscription states (LLP 0095 §1.3).
@@ -131,6 +145,34 @@ public struct MachineEvent: Sendable {
     }
 }
 
+/// The client's replayable queued-mutation state (LLP 0096 §2.3): retained
+/// under the exact authority instance that accepted its entries.
+public struct ReplayQueueState: Equatable, Sendable {
+    public var authorityInstance: String
+    public var pendingClientMutationIds: [String]
+    public var suspended: Bool
+}
+
+/// An authorized retained read held under a signed lease (LLP 0059 via
+/// LLP 0096 §2.4): retention exists only while the exact lease is current.
+public struct RetainedReadEntry: Sendable {
+    public var queryKey: String
+    public var queryInstanceId: UInt64
+    public var rows: [JSONValue]
+    public var leaseExpiresAtServerMs: UInt64
+    public var fenced: Bool
+}
+
+/// The client's standing recovery obligations while `RECOVERING`
+/// (T-RECONNECT): bounded-backoff reconnect, then per-subscription fresh
+/// subscribe. An established predecessor re-enters with `supersedes`; a
+/// never-established (in-flight at loss) subscription re-enters with no
+/// supersession assumption (LLP 0095 §1.4 T-LOSS).
+public struct RecoveryPlan: Sendable {
+    public var actions: [ClientAction]
+    public var supersession: [String: String]
+}
+
 public final class ClientStateMachine {
     public private(set) var phase: ConnectionPhase = .idle
     public private(set) var subscriptions: [String: SubscriptionEntry] = [:]
@@ -139,6 +181,16 @@ public final class ClientStateMachine {
     public private(set) var retainedOverlaysCleared = false
     public private(set) var authorizationInvalidationConnection:
         AuthorizationInvalidationConnection?
+    /// Set by a `durableDelete` terminal authority disposition: local durable
+    /// authority state has been deleted (`LiveAuthorityDisposition`,
+    /// `src/live_wire.rs`).
+    public private(set) var localDurableAuthorityDeleted = false
+    /// Settled client mutations by `clientMutationId`: the durable ordered
+    /// queue redelivers idempotently (LLP 0043), so a settlement applies to
+    /// the client's queue entry exactly once.
+    public private(set) var clientMutationSettlements: [String: UInt64] = [:]
+    public private(set) var replayQueue: ReplayQueueState?
+    public private(set) var retainedReads: [String: RetainedReadEntry] = [:]
     /// An ACK token is bound to one exact committed ticket. Retaining that
     /// binding prevents a later scope or revision from reusing the token.
     private var appliedAuthorizationInvalidationsByAckToken:
@@ -157,14 +209,29 @@ public final class ClientStateMachine {
     }
     public func noteAttached(poll: Bool) { phase = poll ? .attachedPoll : .attachedLive }
     public func noteClosed() { phase = .closed }
-    public func noteGrantLost() {
-        // T-GRANT-LOSS (§4.4): recovery re-opens and re-establishes every
-        // subscription; retained overlays are void.
+    /// T-GRANT-LOSS (LLP 0095 §1.4/§4.4): a refused grant's server state —
+    /// subscriptions, outbox, retained continuity — is gone. Recovery
+    /// re-opens the connection and re-establishes EVERY subscription;
+    /// retained overlays are void. Grant-refresh-only recovery would
+    /// resurrect the fake-healthy-handle defect class.
+    @discardableResult
+    public func noteGrantLost() -> MachineEvent {
         phase = .grantLost
+        var changed: [String] = []
         for (id, entry) in subscriptions
         where entry.state != .released && entry.state != .terminalDeleted {
-            subscriptions[id]?.state = .dropped
+            subscriptions[id]?.state = .resyncPending
+            changed.append(id)
         }
+        retainedOverlaysCleared = true
+        return MachineEvent(
+            actions: [
+                .reopenConnection, .resubscribeAll, .clearRetainedOverlays,
+            ],
+            resubscribe: changed,
+            diagnostics: [],
+            materializationChanges: changed
+        )
     }
 
     /// T-LOSS: socket loss drops the connection's durable subscriptions
@@ -1109,10 +1176,18 @@ public final class ClientStateMachine {
         return nil
     }
 
-    // @ref LLP 0059#typed-terminal-auth-error — carrier loss quarantines while durableDelete destroys matching authority state; neither generically reconnects.
-    /// Terminal auth is a publication fence, not just a diagnostic. A carrier
-    /// loss blanks and drops the captured live scopes pending a fresh
-    /// handshake; a durable authority deletion installs terminal fences.
+    // @ref LLP 0059#typed-terminal-auth-error — carrier ends only the presented credential (durable authority survives) while durableDelete compare-and-deletes local durable authority state; neither is reconnectable with the presented credential.
+    /// Terminal authority loss (T-AUTH-TERM): the connection enters
+    /// `TERMINAL_AUTH` and is never reconnectable with the presented
+    /// credential. The `authorityDisposition` axis is independent of the
+    /// diagnostic reason: `carrier` retains local durable authority state (a
+    /// fresh credential may open a fresh connection); `durableDelete`
+    /// additionally deletes matching local durable authority state.
+    /// Subscription materializations do not transition here — the terminal
+    /// connection phase already fences every use of this connection
+    /// (fixtures `auth.live.terminal_auth_carrier_disposition` /
+    /// `auth.live.terminal_auth_durable_delete_disposition`).
+    @discardableResult
     public func noteTerminalAuth(
         code: String,
         reason: String,
@@ -1120,17 +1195,12 @@ public final class ClientStateMachine {
     ) -> MachineEvent {
         phase = .terminalAuth
         let durableDelete = disposition == "durableDelete"
-        var changed: [String] = []
-        for (id, var entry) in subscriptions
-        where entry.state != .released && entry.state != .terminalDeleted {
-            entry.rows.removeAll()
-            entry.rowOrder.removeAll()
-            entry.state = durableDelete ? .terminalDeleted : .dropped
-            if durableDelete {
-                entry.pendingAuthorizationObligation = nil
-            }
-            subscriptions[id] = entry
-            changed.append(id)
+        var actions: [ClientAction] = [.surfaceTerminalAuth]
+        if durableDelete {
+            localDurableAuthorityDeleted = true
+            authorizationInvalidationConnection = nil
+            appliedAuthorizationInvalidationsByAckToken = [:]
+            actions.append(.deleteLocalDurableAuthority)
         }
         let recognized = ["carrier", "durableDelete"].contains(disposition)
         let effectiveDisposition = durableDelete ? "durableDelete" : "carrier"
@@ -1163,11 +1233,208 @@ public final class ClientStateMachine {
             )
         }
         return MachineEvent(
-            actions: [.surfaceTerminalAuth, .quarantineRows],
+            actions: actions,
             resubscribe: [],
-            diagnostics: diagnostics,
-            materializationChanges: changed
+            diagnostics: diagnostics
         )
+    }
+
+    // MARK: format-v3 lifecycle surface (requests, replay queue, leases)
+
+    /// The refusal codes that classify as a structured capability diagnostic
+    /// (LLP 0064-style): the repair is changing the offer/preconditions,
+    /// never blind unchanged retry.
+    private static let capabilityRefusalCodes: Set<String> = [
+        "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+        "SNAPBACK_WIRE_VERSION_REQUIRED",
+        "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+        "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "SNAPBACK_CONNECTION_SOCKET_REQUIRED",
+    ]
+
+    // @ref LLP 0095#21-artifact-and-format — client_to_server judgment: the client's obligations on processing the server's answer to its own request.
+    /// Process the server's answer (refusal or acceptance) to a request this
+    /// client sent. This is the client half the format-v3 `client_to_server`
+    /// fixtures judge.
+    public func processRequestAnswer(
+        method: String,
+        route: String,
+        body: JSONValue?,
+        refusalCode: String?,
+        responseStatus: UInt64?
+    ) -> MachineEvent {
+        if let refusalCode {
+            if refusalCode == "SNAPBACK_CONNECTION_TOKEN_INVALID" {
+                var event = noteGrantLost()
+                event.diagnostics.append(
+                    "\(refusalCode) on \(method) \(route): re-open and re-establish everything (T-GRANT-LOSS)"
+                )
+                return event
+            }
+            if Self.capabilityRefusalCodes.contains(refusalCode) {
+                var actions: [ClientAction] = [.surfaceCapabilityDiagnostic]
+                if refusalCode == "SNAPBACK_CONNECTION_SOCKET_REQUIRED" {
+                    // T-SUB on the hosted arm: socketless HTTP cannot arm
+                    // hosted demand; the repair is establishing the managed
+                    // socket first (LLP 0090).
+                    actions.append(.establishLiveSocket)
+                }
+                if refusalCode == "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                   route.hasSuffix("/authorization-invalidation/acknowledge") {
+                    // The acknowledge routes consult the OPEN-TIME binding
+                    // (LLP 0096 §2.2): the per-request header cannot
+                    // substitute, so discharge requires re-opening a
+                    // correctly negotiated connection.
+                    actions.append(.reopenConnection)
+                }
+                return MachineEvent(
+                    actions: actions,
+                    resubscribe: [],
+                    diagnostics: [
+                        "\(refusalCode) refused \(method) \(route); unchanged retry cannot succeed",
+                    ]
+                )
+            }
+            return MachineEvent(
+                actions: [.surfaceProtocolDiagnostic],
+                resubscribe: [],
+                diagnostics: [
+                    "unclassified refusal \(refusalCode) for \(method) \(route)",
+                ]
+            )
+        }
+        if let responseStatus, (200..<300).contains(responseStatus),
+           let clientMutationId = body?["clientMutationId"]?.stringValue {
+            return noteMutationSettled(clientMutationId: clientMutationId)
+        }
+        return MachineEvent(actions: [], resubscribe: [], diagnostics: [])
+    }
+
+    /// LLP 0043 settlement idempotence: the durable ordered queue redelivers
+    /// under the retained `clientMutationId`; the client resolves its queue
+    /// entry exactly once and discards duplicate settlements.
+    @discardableResult
+    public func noteMutationSettled(clientMutationId: String) -> MachineEvent {
+        if clientMutationSettlements[clientMutationId] != nil {
+            return MachineEvent(
+                actions: [.discardDuplicateSettlement],
+                resubscribe: [],
+                diagnostics: [
+                    "duplicate settlement for \(clientMutationId) discarded; queue entry already resolved",
+                ]
+            )
+        }
+        clientMutationSettlements[clientMutationId] = 1
+        return MachineEvent(
+            actions: [.settleClientMutation],
+            resubscribe: [],
+            diagnostics: []
+        )
+    }
+
+    public func seedReplayQueue(
+        authorityInstance: String,
+        pendingClientMutationIds: [String]
+    ) {
+        replayQueue = ReplayQueueState(
+            authorityInstance: authorityInstance,
+            pendingClientMutationIds: pendingClientMutationIds,
+            suspended: false
+        )
+    }
+
+    // @ref LLP 0096#23-authreplay--authority-descriptors--queued-replay — a queue retained under a predecessor authority instance suspends and is never replayed under successor authority.
+    /// LLP 0096 §2.3: on authority-instance mismatch the predecessor's
+    /// retained replay queue suspends. Resumption requires re-establishing
+    /// the original authority or explicit user-mediated abandonment; silent
+    /// replay under the new principal is the defect class this fences.
+    @discardableResult
+    public func noteAuthorityInstanceChanged(to successor: String) -> MachineEvent {
+        guard var queue = replayQueue,
+              queue.authorityInstance != successor,
+              !queue.suspended
+        else {
+            return MachineEvent(actions: [], resubscribe: [], diagnostics: [])
+        }
+        queue.suspended = true
+        replayQueue = queue
+        return MachineEvent(
+            actions: [.suspendPredecessorQueue],
+            resubscribe: [],
+            diagnostics: [
+                "replay queue retained under predecessor authority \(queue.authorityInstance) suspended; never replayed under \(successor)",
+            ]
+        )
+    }
+
+    public func seedRetainedRead(
+        queryKey: String,
+        queryInstanceId: UInt64,
+        rows: [JSONValue],
+        leaseExpiresAtServerMs: UInt64
+    ) {
+        retainedReads[queryKey] = RetainedReadEntry(
+            queryKey: queryKey,
+            queryInstanceId: queryInstanceId,
+            rows: rows,
+            leaseExpiresAtServerMs: leaseExpiresAtServerMs,
+            fenced: false
+        )
+    }
+
+    /// The earliest virtual instant at which an unfenced retained read is
+    /// past its lease (`expiresAtServerMs + 1`).
+    public var nextRetainedReadFenceDeadlineMs: UInt64? {
+        retainedReads.values
+            .filter { !$0.fenced }
+            .map { $0.leaseExpiresAtServerMs + 1 }
+            .min()
+    }
+
+    /// LLP 0059's transition table (cited by LLP 0096 §2.4): retention
+    /// exists only under a current exact signed lease. At expiry — with no
+    /// wire event — the retained material is fenced; rows are unreadable at
+    /// any instant past `expiresAtServerMs`.
+    @discardableResult
+    public func fenceExpiredRetainedReads(nowServerMs: UInt64) -> MachineEvent {
+        var fencedKeys: [String] = []
+        for (key, var entry) in retainedReads
+        where !entry.fenced && nowServerMs > entry.leaseExpiresAtServerMs {
+            entry.rows.removeAll()
+            entry.fenced = true
+            retainedReads[key] = entry
+            fencedKeys.append(key)
+        }
+        guard !fencedKeys.isEmpty else {
+            return MachineEvent(actions: [], resubscribe: [], diagnostics: [])
+        }
+        return MachineEvent(
+            actions: [.fenceRetainedRows],
+            resubscribe: [],
+            diagnostics: fencedKeys.sorted().map {
+                "authorized lease expired for \($0); retained rows fenced"
+            }
+        )
+    }
+
+    /// The standing recovery obligations while `RECOVERING`, including the
+    /// per-subscription supersession classification T-RECONNECT requires.
+    public func standingRecoveryPlan() -> RecoveryPlan? {
+        guard phase == .recovering else { return nil }
+        var supersession: [String: String] = [:]
+        for (id, entry) in subscriptions where entry.state == .dropped {
+            // A subscription that never established (still in flight at the
+            // loss) resolves DROPPED without a supersession assumption; an
+            // established one re-enters with `supersedes`.
+            supersession[id] = entry.dataVersionHighWater != nil
+                ? "fresh_subscribe_with_supersedes"
+                : "fresh_subscribe_without_supersession_assumption"
+        }
+        var actions: [ClientAction] = [.attemptReconnect]
+        if !supersession.isEmpty { actions.append(.resubscribeAll) }
+        return RecoveryPlan(actions: actions, supersession: supersession)
     }
 
     private func merge(_ event: MachineEvent, into actions: inout [ClientAction], _ resubscribe: inout [String], _ diagnostics: inout [String]) {

@@ -112,10 +112,16 @@ do {
     let client = SnapbackClient(configuration: .init(baseURL: baseURL))
     let grant = try await client.openConnection()
     check(!grant.connectionToken.isEmpty, "poll/local: connection opened (grant carried by header thereafter)")
+    // LLP 0094 §0B.3/§0B.6: a B1 server binds and echoes the offered wire
+    // version; a pre-B1 server rejects the offer as a body-decode failure
+    // and the client re-opens offerless with a structured downgrade
+    // diagnostic. Exactly one of the two must have happened.
     let downgrades = await client.diagnostics.filter { $0.contains("WIRE_VERSION_DOWNGRADE") }
-    // Pre-B1 servers reject the wireVersion offer as a body-decode failure;
-    // LLP 0094 §0B.6 pins offerless re-open + structured diagnostic.
-    check(!downgrades.isEmpty, "poll/local: legacy-server detection surfaced a structured downgrade diagnostic (pre-B1 server)")
+    if grant.boundWireVersion == "snapback.v1" {
+        check(downgrades.isEmpty, "poll/local: B1 server bound and echoed wireVersion snapback.v1 at open (no downgrade)")
+    } else {
+        check(!downgrades.isEmpty, "poll/local: legacy-server detection surfaced a structured downgrade diagnostic (pre-B1 server)")
+    }
 
     let subscription = try await client.subscribe(function: "listTodos", userId: ada)
     let snapshotRows = subscription.snapshot?.rows.count ?? -1

@@ -1069,7 +1069,12 @@ final class ClientBehaviorTests: XCTestCase {
         XCTAssertNil(subscriptions["sub_pending_new"])
     }
 
-    func testTerminalAuthFrameBlanksAndInvalidatesGrant() async throws {
+    // T-AUTH-TERM (LLP 0095 §1.4; fixtures
+    // `auth.live.terminal_auth_*_disposition`): the connection enters
+    // TERMINAL_AUTH and is fenced whole; subscription materializations do
+    // not transition. `carrier` retains local durable authority state;
+    // `durableDelete` additionally deletes it.
+    func testTerminalAuthDispositionsFenceConnectionNotMaterializations() async throws {
         ResponseQueueStubProtocol.configure([
             .init(status: 200, body: custodyGrant),
         ])
@@ -1096,10 +1101,16 @@ final class ClientBehaviorTests: XCTestCase {
         let phase = await subject.machine.phase
         XCTAssertNil(connectionId)
         XCTAssertEqual(phase, .terminalAuth)
+        // Carrier disposition: only the presented credential ended; local
+        // durable authority state (and the held materialization) is
+        // retained, fenced by the terminal connection phase.
         let carrierEntry =
             await subject.machine.subscriptions["sub_terminal_auth"]
-        XCTAssertEqual(carrierEntry?.state, .dropped)
-        XCTAssertTrue(carrierEntry?.rows.isEmpty == true)
+        XCTAssertEqual(carrierEntry?.state, .live(version: 1))
+        XCTAssertEqual(carrierEntry?.rows.count, 1)
+        let carrierDeleted =
+            await subject.machine.localDurableAuthorityDeleted
+        XCTAssertFalse(carrierDeleted)
 
         let durable = ClientStateMachine()
         durable.applySnapshot(
@@ -1120,15 +1131,17 @@ final class ClientBehaviorTests: XCTestCase {
             ),
             postOwnershipCut: true
         )
-        XCTAssertTrue(event.actions.contains(.surfaceTerminalAuth))
+        XCTAssertEqual(
+            event.actions,
+            [.surfaceTerminalAuth, .deleteLocalDurableAuthority]
+        )
+        XCTAssertEqual(durable.phase, .terminalAuth)
+        XCTAssertTrue(durable.localDurableAuthorityDeleted)
+        XCTAssertNil(durable.authorizationInvalidationConnection)
         XCTAssertEqual(
             durable.subscriptions["sub_durable_delete"]?.state,
-            .terminalDeleted
+            .live(version: 1)
         )
-        XCTAssertTrue(
-            durable.subscriptions["sub_durable_delete"]?.rows.isEmpty == true
-        )
-        XCTAssertTrue(durable.hasTerminalRetiredNamespace(custodyNamespace))
 
         let malformed = ClientStateMachine()
         malformed.applySnapshot(
@@ -1148,14 +1161,9 @@ final class ClientBehaviorTests: XCTestCase {
             ),
             postOwnershipCut: true
         )
-        XCTAssertEqual(
-            malformed.subscriptions["sub_malformed_terminal"]?.state,
-            .dropped
-        )
-        XCTAssertTrue(
-            malformed.subscriptions["sub_malformed_terminal"]?.rows.isEmpty
-                == true
-        )
+        XCTAssertEqual(malformed.phase, .terminalAuth)
+        XCTAssertEqual(malformedEvent.actions, [.surfaceTerminalAuth])
+        XCTAssertFalse(malformed.localDurableAuthorityDeleted)
         XCTAssertTrue(
             malformedEvent.diagnostics.contains {
                 $0.contains("classified as carrier")
@@ -1215,40 +1223,31 @@ final class ClientBehaviorTests: XCTestCase {
             reason: "reset",
             disposition: "durableDelete"
         )
-        let retired =
-            await subject.machine.subscriptions["sub_held_old"]
-        XCTAssertEqual(retired?.state, .terminalDeleted)
-        XCTAssertTrue(retired?.rows.isEmpty == true)
+        let terminalPhase = await subject.machine.phase
+        XCTAssertEqual(terminalPhase, .terminalAuth)
+        let authorityDeleted =
+            await subject.machine.localDurableAuthorityDeleted
+        XCTAssertTrue(authorityDeleted)
 
         HeldSubscribeStubProtocol.releaseSubscribe()
         do {
             _ = try await subscribe.value
-            XCTFail("in-flight subscribe crossed terminal retirement")
+            XCTFail("in-flight subscribe crossed terminal authority loss")
         } catch let SnapbackClient.ClientError.invalidState(detail) {
-            XCTAssertTrue(detail.contains("terminally retired"))
+            XCTAssertTrue(detail.contains("terminal authority loss"))
         } catch {
             XCTFail("unexpected error: \(error)")
         }
 
+        // The late response was never admitted: no successor subscription
+        // exists, and the predecessor entry is untouched by the terminal
+        // fence (the terminal connection phase gates every use of it).
         let subscriptions = await subject.machine.subscriptions
         XCTAssertEqual(
             subscriptions["sub_held_old"]?.state,
-            .terminalDeleted
-        )
-        XCTAssertTrue(
-            subscriptions["sub_held_old"]?.rows.isEmpty == true
+            .live(version: 1)
         )
         XCTAssertNil(subscriptions["sub_held_new"])
-        let terminalNamespace =
-            await subject.machine.hasTerminalRetiredNamespace(
-                custodyNamespace
-            )
-        XCTAssertTrue(terminalNamespace)
-        XCTAssertTrue(
-            HeldSubscribeStubProtocol.paths.contains(
-                "/live/listPrivate/unsubscribe"
-            )
-        )
     }
 
     func testReservationStaleEventuallySucceedsWithinBudget() async throws {

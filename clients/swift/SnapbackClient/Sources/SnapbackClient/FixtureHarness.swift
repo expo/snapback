@@ -1,9 +1,10 @@
 import Foundation
 
 /// The per-client conformance harness LLP 0095 §6 anticipates: replays
-/// `schemas/live.wire-fixtures.v1.json` against the §1 abstract state
-/// machine as implemented by `ClientStateMachine`, honoring arm × lane tuple
-/// routing (§2.2).
+/// `schemas/live.wire-fixtures.v1.json` (format v3) against the §1 abstract
+/// state machine as implemented by `ClientStateMachine`, honoring arm × lane
+/// tuple routing (§2.2) and the §2.1 judgment rules 1–4, including the
+/// rule-4 virtual-time interval judgment via `VirtualTransportSupervisor`.
 public struct FixtureHarness {
     public struct FixtureResult: Sendable {
         public var name: String
@@ -43,7 +44,7 @@ public struct FixtureHarness {
         let corpus = try JSONValue.parse(corpusData)
         guard corpus["artifactKind"]?.stringValue == "liveWireFixtureCorpus",
               let formatVersion = corpus["formatVersion"]?.uint64Value,
-              (1...2).contains(formatVersion),
+              (1...3).contains(formatVersion),
               let wireVersion = corpus["wireVersion"]?.stringValue,
               !wireVersion.isEmpty,
               let judgedAgainst = corpus["judgedAgainst"]?.stringValue,
@@ -52,20 +53,26 @@ public struct FixtureHarness {
         else {
             throw SnapbackClient.ClientError.undecodableResponse("fixture corpus header")
         }
+        // Format v3 grows a three-direction enum; a v2 corpus stays
+        // server_to_client-only (the version bump exists precisely so a v2
+        // judgment is never applied to the new classes).
+        let allowedDirections: Set<String> = formatVersion >= 3
+            ? ["server_to_client", "client_to_server", "client_lifecycle"]
+            : ["server_to_client"]
         var results: [FixtureResult] = []
         var seenNames = Set<String>()
         for fixture in fixtures {
             guard let name = fixture["name"]?.stringValue, !name.isEmpty else {
                 if formatVersion >= 2 {
                     throw SnapbackClient.ClientError.undecodableResponse(
-                        "format-v2 fixture has no non-empty name"
+                        "format-v\(formatVersion) fixture has no non-empty name"
                     )
                 }
                 continue
             }
             if formatVersion >= 2, !seenNames.insert(name).inserted {
                 throw SnapbackClient.ClientError.undecodableResponse(
-                    "format-v2 fixture name is duplicated: \(name)"
+                    "format-v\(formatVersion) fixture name is duplicated: \(name)"
                 )
             }
             guard let rawTuples = fixture["tuples"]?.arrayValue,
@@ -77,7 +84,7 @@ public struct FixtureHarness {
             else {
                 if formatVersion >= 2 {
                     throw SnapbackClient.ClientError.undecodableResponse(
-                        "format-v2 fixture \(name) has no valid tuples"
+                        "format-v\(formatVersion) fixture \(name) has no valid tuples"
                     )
                 }
                 continue
@@ -86,8 +93,8 @@ public struct FixtureHarness {
             if formatVersion >= 2 {
                 guard Set(tuples).count == tuples.count,
                       tuples.allSatisfy({ claimableTuples.contains($0) }),
-                      fixture["direction"]?.stringValue
-                        == "server_to_client",
+                      let direction = fixture["direction"]?.stringValue,
+                      allowedDirections.contains(direction),
                       fixture["schemaValid"]?.boolValue != nil,
                       let lane = fixture["lane"]?.stringValue,
                       ["core", "poll", "live"].contains(lane),
@@ -97,7 +104,7 @@ public struct FixtureHarness {
                         || tuples.allSatisfy({ $0.hasPrefix("live/") })
                 else {
                     throw SnapbackClient.ClientError.undecodableResponse(
-                        "format-v2 fixture \(name) has invalid evidence or tuple routing"
+                        "format-v\(formatVersion) fixture \(name) has invalid evidence or tuple routing"
                     )
                 }
             }
@@ -134,8 +141,18 @@ public struct FixtureHarness {
         fixture: JSONValue
     ) -> FixtureResult {
         let lane = fixture["lane"]?.stringValue ?? "core"
+        let direction = fixture["direction"]?.stringValue ?? "server_to_client"
         let machine = ClientStateMachine()
         var trackedSubscriptions: Set<String> = []
+
+        func fail(_ detail: String) -> FixtureResult {
+            FixtureResult(name: name, tuple: tuple, passed: false, detail: detail, evaluated: true)
+        }
+        // Honest-interim rule (issues/20260730-swift-fixture-harness-format-v3.md):
+        // a fixture whose judgment is not implemented is a skip, never a pass.
+        func skip(_ detail: String) -> FixtureResult {
+            FixtureResult(name: name, tuple: tuple, passed: true, detail: "skipped: \(detail)", evaluated: false)
+        }
 
         if let problem = seedGiven(
             fixture["given"],
@@ -144,7 +161,22 @@ public struct FixtureHarness {
             machine: machine,
             trackedSubscriptions: &trackedSubscriptions
         ) {
-            return FixtureResult(name: name, tuple: tuple, passed: false, detail: problem, evaluated: true)
+            return fail(problem)
+        }
+
+        // §2.1 rule 4: a `clock: "virtual"` fixture's harness holds a
+        // virtual clock starting at 0; timer state seeds from `given`.
+        var supervisor: VirtualTransportSupervisor?
+        if fixture["clock"]?.stringValue == "virtual" {
+            supervisor = VirtualTransportSupervisor(
+                machine: machine,
+                lastServerActivityMs: fixture["given"]?["connection"]?[
+                    "lastServerActivityVirtualMs"
+                ]?.uint64Value,
+                socketLostAtMs: fixture["given"]?["connection"]?[
+                    "socketLostAtVirtualMs"
+                ]?.uint64Value
+            )
         }
 
         let initialRows = rowsBySubscription(machine, trackedSubscriptions)
@@ -153,36 +185,104 @@ public struct FixtureHarness {
 
         if let steps = fixture["steps"]?.arrayValue {
             guard !steps.isEmpty else {
-                return FixtureResult(name: name, tuple: tuple, passed: false, detail: "fixture has empty steps", evaluated: true)
+                return fail("fixture has empty steps")
             }
             for (index, step) in steps.enumerated() {
-                guard let frame = step["frame"], let expected = step["expect"] else {
-                    return FixtureResult(name: name, tuple: tuple, passed: false, detail: "step \(index + 1) has no frame or expect", evaluated: true)
+                let label = "step \(index + 1)"
+                guard let expected = step["expect"] else {
+                    return fail("\(label) has no expect")
                 }
                 let before = statesBySubscription(machine, trackedSubscriptions)
-                let event = ingest(
-                    frame: frame,
-                    batchContext: step["batchContext"] ?? fixture["batchContext"],
-                    lane: lane,
-                    machine: machine
-                )
+                let phaseBefore = machine.phase
+                var emissions: [VirtualTransportSupervisor.TimedAction]?
+                let event: MachineEvent
+                if let frame = step["frame"] {
+                    guard direction == "server_to_client" else {
+                        return fail("\(label) carries a frame outside server_to_client")
+                    }
+                    event = ingest(
+                        frame: frame,
+                        batchContext: step["batchContext"] ?? fixture["batchContext"],
+                        lane: lane,
+                        machine: machine
+                    )
+                    // Any server frame is liveness evidence for the
+                    // freshness budget (the pong is the guaranteed one).
+                    supervisor?.noteServerActivity()
+                } else if step["request"] != nil {
+                    guard direction == "client_to_server" else {
+                        return fail("\(label) carries a request outside client_to_server")
+                    }
+                    switch processRequestUnit(step, machine: machine) {
+                    case .malformed(let detail):
+                        return fail("\(label): \(detail)")
+                    case .event(let requestEvent):
+                        event = requestEvent
+                    }
+                } else if let advance = step["advanceVirtualTimeMs"]?.uint64Value {
+                    guard let supervisor, advance > 0 else {
+                        return fail("\(label) advances virtual time without a positive amount and clock: virtual")
+                    }
+                    let outcome = supervisor.advance(byMs: advance)
+                    emissions = outcome.emissions
+                    event = outcome.event
+                } else if let lifecycleEvent = step["event"] {
+                    switch lifecycleEvent["kind"]?.stringValue {
+                    case "socket_lost":
+                        // T-LOSS: the loss itself emits no actions; the
+                        // transitions and the standing recovery plan are the
+                        // judged obligations.
+                        let dropped = machine.noteSocketLost()
+                        event = MachineEvent(
+                            actions: [],
+                            resubscribe: dropped,
+                            diagnostics: []
+                        )
+                    case "authority_instance_changed":
+                        guard let successor = lifecycleEvent["to"]?.stringValue
+                        else {
+                            return fail("\(label) authority_instance_changed without a successor")
+                        }
+                        event = machine.noteAuthorityInstanceChanged(
+                            to: successor
+                        )
+                    default:
+                        return skip("unimplemented lifecycle event kind \(lifecycleEvent["kind"]?.stringValue ?? "?")")
+                    }
+                } else {
+                    return fail("\(label) carries none of frame/request/advanceVirtualTimeMs/event")
+                }
                 if let mismatch = judge(
                     expected: expected,
                     event: event,
                     machine: machine,
                     trackedSubscriptions: trackedSubscriptions,
                     statesBefore: before,
+                    phaseBefore: phaseBefore,
                     initialRows: initialRows,
-                    label: "step \(index + 1)"
+                    emissions: emissions,
+                    label: label
                 ) {
-                    return FixtureResult(name: name, tuple: tuple, passed: false, detail: mismatch, evaluated: true)
+                    return fail(mismatch)
                 }
                 cumulativeActions.append(contentsOf: event.actions)
                 cumulativeAcknowledgements.append(contentsOf: event.acknowledgements)
             }
             if let expected = fixture["expect"] {
+                // The top-level expect is the cumulative/final judgment after
+                // all steps (§2.1 rule 1). A clockless fixture that finishes
+                // RECOVERING has had no clock under which to run its timers,
+                // so its standing recovery plan (T-RECONNECT: bounded-backoff
+                // reconnect, then fresh subscribes) is judged as the final
+                // obligations; under a virtual clock the timers themselves
+                // own recovery pacing and only emitted actions are judged.
+                var planActions: [ClientAction] = []
+                if supervisor == nil, machine.phase == .recovering,
+                   let plan = machine.standingRecoveryPlan() {
+                    planActions = plan.actions
+                }
                 let aggregate = MachineEvent(
-                    actions: cumulativeActions,
+                    actions: cumulativeActions + planActions,
                     resubscribe: [],
                     diagnostics: [],
                     acknowledgements: cumulativeAcknowledgements
@@ -193,17 +293,50 @@ public struct FixtureHarness {
                     machine: machine,
                     trackedSubscriptions: trackedSubscriptions,
                     statesBefore: nil,
+                    phaseBefore: nil,
                     initialRows: initialRows,
+                    emissions: nil,
                     label: "cumulative"
                 ) {
-                    return FixtureResult(name: name, tuple: tuple, passed: false, detail: mismatch, evaluated: true)
+                    return fail(mismatch)
+                }
+            }
+        } else if fixture["request"] != nil {
+            guard direction == "client_to_server" else {
+                return fail("fixture carries a request outside client_to_server")
+            }
+            guard let expected = fixture["expect"] else {
+                return fail("fixture has no expect")
+            }
+            let before = statesBySubscription(machine, trackedSubscriptions)
+            let phaseBefore = machine.phase
+            switch processRequestUnit(fixture, machine: machine) {
+            case .malformed(let detail):
+                return fail(detail)
+            case .event(let event):
+                if let mismatch = judge(
+                    expected: expected,
+                    event: event,
+                    machine: machine,
+                    trackedSubscriptions: trackedSubscriptions,
+                    statesBefore: before,
+                    phaseBefore: phaseBefore,
+                    initialRows: initialRows,
+                    emissions: nil,
+                    label: "fixture"
+                ) {
+                    return fail(mismatch)
                 }
             }
         } else {
             guard let frame = fixture["frame"], let expected = fixture["expect"] else {
-                return FixtureResult(name: name, tuple: tuple, passed: false, detail: "fixture has no frame or expect", evaluated: true)
+                return fail("fixture has no frame or expect")
+            }
+            guard direction == "server_to_client" else {
+                return fail("fixture carries a frame outside server_to_client")
             }
             let before = statesBySubscription(machine, trackedSubscriptions)
+            let phaseBefore = machine.phase
             let event = ingest(
                 frame: frame,
                 batchContext: fixture["batchContext"],
@@ -216,14 +349,70 @@ public struct FixtureHarness {
                 machine: machine,
                 trackedSubscriptions: trackedSubscriptions,
                 statesBefore: before,
+                phaseBefore: phaseBefore,
                 initialRows: initialRows,
+                emissions: nil,
                 label: "fixture"
             ) {
-                return FixtureResult(name: name, tuple: tuple, passed: false, detail: mismatch, evaluated: true)
+                return fail(mismatch)
             }
         }
 
         return FixtureResult(name: name, tuple: tuple, passed: true, detail: "ok", evaluated: true)
+    }
+
+    private enum RequestOutcome {
+        case event(MachineEvent)
+        case malformed(String)
+    }
+
+    /// A `client_to_server` unit (fixture or step): the harness plays the
+    /// server, answering the pinned request with its pinned refusal or
+    /// response, and the client's processing of that answer is judged.
+    private func processRequestUnit(
+        _ container: JSONValue,
+        machine: ClientStateMachine
+    ) -> RequestOutcome {
+        guard let request = container["request"],
+              let method = request["method"]?.stringValue,
+              let route = request["route"]?.stringValue
+        else {
+            return .malformed("client_to_server unit lacks request method/route")
+        }
+        let refusal = container["refusal"]
+        let response = container["response"]
+        guard (refusal != nil) != (response != nil) else {
+            return .malformed("client_to_server unit must pin exactly one of refusal/response")
+        }
+        if let refusal {
+            guard refusal["status"]?.uint64Value != nil,
+                  let code = refusal["code"]?.stringValue,
+                  code.hasPrefix("SNAPBACK_")
+            else {
+                return .malformed("refusal lacks a status and SNAPBACK_* code")
+            }
+            return .event(
+                machine.processRequestAnswer(
+                    method: method,
+                    route: route,
+                    body: request["body"],
+                    refusalCode: code,
+                    responseStatus: nil
+                )
+            )
+        }
+        guard let status = response?["status"]?.uint64Value else {
+            return .malformed("response lacks a status")
+        }
+        return .event(
+            machine.processRequestAnswer(
+                method: method,
+                route: route,
+                body: request["body"],
+                refusalCode: nil,
+                responseStatus: status
+            )
+        )
     }
 
     private func seedGiven(
@@ -248,23 +437,55 @@ public struct FixtureHarness {
             connectionExpectation = parsed
             machine.noteGranted(authorizationInvalidation: parsed)
         }
+        if let queue = given?["replayQueue"] {
+            guard let authorityInstance =
+                    queue["authorityInstance"]?.stringValue
+            else {
+                return "replayQueue without an authorityInstance"
+            }
+            machine.seedReplayQueue(
+                authorityInstance: authorityInstance,
+                pendingClientMutationIds: queue["pending"]?.arrayValue?
+                    .compactMap { $0["clientMutationId"]?.stringValue } ?? []
+            )
+        }
+        if let retained = given?["retainedRead"] {
+            guard let queryKey = retained["queryKey"]?.stringValue,
+                  let expires =
+                    retained["lease"]?["expiresAtServerMs"]?.uint64Value
+            else {
+                return "retainedRead without a queryKey and lease expiry"
+            }
+            machine.seedRetainedRead(
+                queryKey: queryKey,
+                queryInstanceId:
+                    retained["queryInstanceId"]?.uint64Value ?? 0,
+                rows: retained["rows"]?.arrayValue ?? [],
+                leaseExpiresAtServerMs: expires
+            )
+        }
+        let connectionState = given?["connection"] != nil
+            ? (given?["connection"]?["state"]?.stringValue ?? "attached")
+            : nil
         var seeds = given?["subscriptions"]?.arrayValue ?? []
         if seeds.isEmpty, let single = given?["subscription"] {
             seeds = [single]
         }
         // Format v1 represented attached connection-wide preconditions
-        // without an explicit subscription population. Keep that corpus
-        // replayable while format v2 always names the exact population.
-        if seeds.isEmpty, given?["connection"] != nil,
-           formatVersion < 2 {
+        // without an explicit subscription population. Format v2+ names the
+        // exact population for the populated connection states; the v3
+        // pre-population states (idle/granted) have no subscriptions to pin
+        // by construction (§2.1 rule 3).
+        if seeds.isEmpty, connectionState != nil, formatVersion < 2 {
             seeds = [
                 .object(["id": .string("sub_a"), "state": .string("live"), "version": .int(1)]),
                 .object(["id": .string("sub_b"), "state": .string("live"), "version": .int(1)]),
             ]
         }
-        if seeds.isEmpty, given?["connection"] != nil,
+        if seeds.isEmpty, let connectionState,
+           ["attached", "recovering"].contains(connectionState),
            formatVersion >= 2 {
-            return "format-v2 attached connection has no explicit subscription population"
+            return "format-v\(formatVersion) populated connection has no explicit subscription population"
         }
         for seed in seeds {
             guard let id = seed["id"]?.stringValue,
@@ -317,9 +538,9 @@ public struct FixtureHarness {
             switch state {
             case "pending":
                 break
-            case "live":
+            case "live", "dropped", "resync_pending":
                 guard let version = seed["version"]?.uint64Value else {
-                    return "\(id): live given is missing version"
+                    return "\(id): \(state) given is missing version"
                 }
                 machine.applySnapshot(
                     subscriptionId: id,
@@ -331,13 +552,46 @@ public struct FixtureHarness {
                     authorizationVersionStream:
                         connectionExpectation?.versionStream
                 )
+                if state == "dropped" {
+                    // Dropped populations exist only behind a lost socket;
+                    // the RECOVERING connection handler below performs the
+                    // organic T-LOSS drop.
+                    guard connectionState == "recovering" else {
+                        return "\(id): dropped given outside a recovering connection"
+                    }
+                }
+                if state == "resync_pending" {
+                    // Enter the resync obligation through the real ingest
+                    // path rather than poking internal state.
+                    _ = machine.ingestFrame(
+                        .object([
+                            "kind": .string("resync_required"),
+                            "subscription_id": .string(id),
+                            "reason": .string("fixture_given_seed"),
+                            "clear_retained": .bool(false),
+                        ]),
+                        postOwnershipCut: true
+                    )
+                }
             default:
                 return "\(id): unsupported given state \(state)"
             }
             trackedSubscriptions.insert(id)
         }
-        if given?["connection"] != nil {
-            machine.noteAttached(poll: lane == "poll")
+        if let connectionState {
+            switch connectionState {
+            case "idle":
+                break
+            case "granted":
+                if machine.phase == .idle { machine.noteGranted() }
+            case "attached":
+                machine.noteAttached(poll: lane == "poll")
+            case "recovering":
+                machine.noteAttached(poll: false)
+                _ = machine.noteSocketLost()
+            default:
+                return "unsupported given connection state \(connectionState)"
+            }
         }
         return nil
     }
@@ -362,9 +616,14 @@ public struct FixtureHarness {
         machine: ClientStateMachine,
         trackedSubscriptions: Set<String>,
         statesBefore: [String: SubscriptionState]?,
+        phaseBefore: ConnectionPhase?,
         initialRows: [String: [JSONValue]],
+        emissions: [VirtualTransportSupervisor.TimedAction]?,
         label: String
     ) -> String? {
+        // §2.1 rule 1 (and rule 4 over an advance interval): actions are an
+        // exact, unordered set — no omissions, no extras; timer actions may
+        // repeat within an interval without changing the set.
         let expectedActions = Set(expected["actions"]?.arrayValue?.compactMap(\.stringValue) ?? [])
         let actualActions = Set(event.actions.map(\.rawValue))
         if expectedActions != actualActions {
@@ -381,6 +640,25 @@ public struct FixtureHarness {
         let forbiddenSeen = forbidden.intersection(actualActions)
         if !forbiddenSeen.isEmpty {
             return "\(label) emitted forbidden actions \(forbiddenSeen.sorted())"
+        }
+        // §2.1 rule 4: expect.pacing bounds the spacing of consecutive
+        // emissions of the named action inside the advance interval.
+        if let pacing = expected["pacing"] {
+            guard let action = pacing["action"]?.stringValue,
+                  let maxIntervalMs = pacing["maxIntervalMs"]?.uint64Value
+            else {
+                return "\(label) malformed pacing expectation"
+            }
+            guard let emissions else {
+                return "\(label) pacing expectation outside a virtual-time advance step"
+            }
+            let times = emissions
+                .filter { $0.action.rawValue == action }
+                .map(\.atMs)
+            for (earlier, later) in zip(times, times.dropFirst())
+            where later - earlier > maxIntervalMs {
+                return "\(label) pacing violation for \(action): consecutive emissions \(later - earlier) ms apart exceed \(maxIntervalMs) ms"
+            }
         }
         if let ackToken = expected["ackToken"]?.stringValue,
            event.acknowledgements != [ackToken] {
@@ -449,19 +727,53 @@ public struct FixtureHarness {
                        !entry.rows.isEmpty {
                         return "\(label) \(subscriptionId): terminal-deleted rows were not destroyed"
                     }
+                case "dropped":
+                    guard entry.state == .dropped else {
+                        return "\(label) \(subscriptionId): expected dropped got \(entry.state)"
+                    }
                 default:
                     return "\(label) unhandled transition target \(target)"
                 }
             } else if transition["connection"]?.stringValue == "all_subscriptions" {
-                guard target == "resync_pending" else {
+                switch target {
+                case "resync_pending":
+                    for id in trackedSubscriptions where machine.subscriptions[id]?.state != .resyncPending {
+                        return "\(label) connection-wide: \(id) not resync_pending"
+                    }
+                    if expectedActions.contains("clear_retained_overlays"),
+                       !machine.retainedOverlaysCleared {
+                        return "\(label) retained overlays were not cleared"
+                    }
+                case "dropped":
+                    for id in trackedSubscriptions where machine.subscriptions[id]?.state != .dropped {
+                        return "\(label) connection-wide: \(id) not dropped"
+                    }
+                default:
                     return "\(label) unhandled connection transition target \(target)"
                 }
-                for id in trackedSubscriptions where machine.subscriptions[id]?.state != .resyncPending {
-                    return "\(label) connection-wide: \(id) not resync_pending"
+            } else if transition["connection"]?.stringValue == "state" {
+                guard phaseMatches(target, machine.phase) else {
+                    return "\(label) expected connection state \(target) got \(machine.phase)"
                 }
-                if expectedActions.contains("clear_retained_overlays"),
-                   !machine.retainedOverlaysCleared {
-                    return "\(label) retained overlays were not cleared"
+            } else if let authorityInstance = transition["replayQueue"]?.stringValue {
+                guard target == "suspended" else {
+                    return "\(label) unhandled replayQueue transition target \(target)"
+                }
+                guard let queue = machine.replayQueue,
+                      queue.authorityInstance == authorityInstance,
+                      queue.suspended
+                else {
+                    return "\(label) replay queue \(authorityInstance) is not suspended"
+                }
+            } else if let queryKey = transition["retainedRead"]?.stringValue {
+                guard target == "fenced" else {
+                    return "\(label) unhandled retainedRead transition target \(target)"
+                }
+                guard let retained = machine.retainedReads[queryKey],
+                      retained.fenced,
+                      retained.rows.isEmpty
+                else {
+                    return "\(label) retained read \(queryKey) is not fenced with unreadable rows"
                 }
             } else {
                 return "\(label) unhandled transition shape"
@@ -491,6 +803,14 @@ public struct FixtureHarness {
                 return "\(label) changed subscription state without an expected transition"
             }
         }
+        if let phaseBefore {
+            let expectsPhaseChange = transitions.contains {
+                $0["connection"]?.stringValue == "state"
+            }
+            if !expectsPhaseChange, machine.phase != phaseBefore {
+                return "\(label) changed connection phase to \(machine.phase) without an expected transition"
+            }
+        }
         if expected["rows"]?.stringValue == "unchanged",
            rowsBySubscription(machine, trackedSubscriptions) != initialRows {
             return "\(label) changed rows that were required to remain unchanged"
@@ -513,7 +833,50 @@ public struct FixtureHarness {
                 return "\(label) final row ids do not exactly match \(finalIds.sorted())"
             }
         }
+        // T-RECONNECT supersession plan: the established predecessor
+        // re-enters with `supersedes`; a never-established one re-enters
+        // without a supersession assumption.
+        if let supersession = expected["supersession"]?.objectValue {
+            guard let plan = machine.standingRecoveryPlan() else {
+                return "\(label) expected a supersession plan but the client is not recovering"
+            }
+            var expectedPlan: [String: String] = [:]
+            for (id, value) in supersession {
+                guard let kind = value.stringValue else {
+                    return "\(label) malformed supersession expectation for \(id)"
+                }
+                expectedPlan[id] = kind
+            }
+            if plan.supersession != expectedPlan {
+                return "\(label) supersession plan mismatch: expected \(expectedPlan) got \(plan.supersession)"
+            }
+        }
+        // LLP 0043 settlement idempotence witness.
+        if let settlement = expected["settlement"] {
+            guard let clientMutationId =
+                    settlement["clientMutationId"]?.stringValue
+            else {
+                return "\(label) malformed settlement expectation"
+            }
+            if settlement["appliedOnce"]?.boolValue == true,
+               machine.clientMutationSettlements[clientMutationId] != 1 {
+                return "\(label) settlement for \(clientMutationId) was not applied exactly once"
+            }
+        }
         return nil
+    }
+
+    private func phaseMatches(_ target: String, _ phase: ConnectionPhase) -> Bool {
+        switch target {
+        case "idle": return phase == .idle
+        case "granted": return phase == .granted
+        case "attached": return phase == .attachedLive || phase == .attachedPoll
+        case "recovering": return phase == .recovering
+        case "terminal_auth": return phase == .terminalAuth
+        case "grant_lost": return phase == .grantLost
+        case "closed": return phase == .closed
+        default: return false
+        }
     }
 
     private func statesBySubscription(
