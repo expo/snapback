@@ -5,7 +5,22 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2, delegated-owner coverage audit: every work item
+**Revised:** 2026-07-30 (v0.3, Codex pre-implementation review corrections —
+verbatim review in `reviews/0115-convex-parity-course-corrections.codex.md`,
+13 findings, all verified claims spot-checked: CV-1's evidence corrected
+(seven Snapback arms, not fourteen; the admin client is Dispatch-specific,
+not every-arm — the same correction applies to the LLP 0041 amendment);
+CV-5 re-scoped from one-emitter wiring to schema-export-plus-carrier
+alignment (`defineSearchQuery` authors `query: v.json()`, the client
+hand-authors the AST interfaces, and no Rust search schema is exported);
+the earlier v0.2 publication-state correction is versioned here. The
+review's structural findings — LLP 0063 delegation authority, falsifiable
+exits and a post-D rerun, the second exact closure before any
+published-channel rerun, the receipt-authority definition, ingress
+validation as a trust-boundary prerequisite, CV-7's accepted-but-unclosed
+findings, the CV-8 five-way split, the CV-9 capability cutline, and the
+CV-10 tamper-safe recheck shape — are recorded in the artifact and await
+author adjudication before the tranches start.) 2026-07-30 (v0.2, delegated-owner coverage audit: every work item
 was checked against what its owning documents and the current code actually
 contain. Major corrections — CV-1 gains LLP 0041 as lead owner plus two named
 unpublished-artifact gaps and the 0111-vs-0074 npm-gating conflict; CV-3's
@@ -111,7 +126,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 0010, 0030, 0031 | M | Open |
 | CV-4a | Structured collection validators for arguments | B (P1) | new Spec + 0004 alignment | M | Open |
 | CV-4b | Structured collection stored fields | B (P1) | new Spec + 0004/0007/0081 | L | Open |
-| CV-5 | Typed portable search AST in provider projection | B (P1) | 0073 (wiring only) | S | Open |
+| CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 0073, 0037 | M | Open (re-scoped v0.3) |
 | CV-6 | Precise mutation results as the paved default | B (P1) | 0108 amendment, guide | S | Open (severity/strictness decision, OQ3) |
 | CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 0108 follow-on | L | Open (design exists in 0108's superseded sections) |
 | CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 0110, 0080, 0113 | L | In flight (0110 in Review; stable-promotion design does not exist yet) |
@@ -138,10 +153,11 @@ untrustworthy.
 
 #### CV-1. Prove the public external package/starter loop
 
-**Evidence.** All fourteen rerun arms import codegen, clients, admin clients,
-and test helpers through paths into a sibling Snapback checkout and invoke its
-binary directly (Diary 0039 P0-1). Convex's arms install from the public
-ecosystem.
+**Evidence.** All seven Snapback rerun arms import codegen, clients, and the
+acceptance test helpers through paths into a sibling Snapback checkout and
+invoke its binary directly, and Dispatch's acceptance additionally imports
+the admin client (Diary 0039 P0-1; Diary 0038 §External consumption).
+Convex's arms install from the public ecosystem.
 
 **What the owners already cover.** The load-bearing owner is **LLP 0041**
 (packaged dev loop): it enumerates the nine-package public closure
@@ -164,10 +180,11 @@ published closure actually usable and used."
 
 **Named gaps the owners do not cover.** (1) The **admin client**
 (`packages/snapback-admin-client`) is inventoried by 0041 but excluded from
-the nine-package closure, and every arm's acceptance imports it for
-authenticated inspection; either add it to the closure, fold it into the
-client/CLI, or endorse the served `/_snapback/admin/client.mjs` path for
-external consumers. (2) The **acceptance test helpers**
+the nine-package closure; Dispatch's acceptance imports it for authenticated
+cron inspection, so any arm proving the admin surface externally needs a
+decision: add it to the closure, fold it into the client/CLI, or endorse the
+served `/_snapback/admin/client.mjs` path. (2) The **acceptance test
+helpers**
 (`demos/_kit/server-process.mjs`, `demos/_kit/harness.mjs` — server lifecycle
 and vacuous-pass-guarded checks) are published by no document; decide publish
 vs. fold vs. endorse-vendoring. Without both decisions this item's exit is
@@ -187,7 +204,8 @@ the public path.
 
 **Exit.** (1) At least one full workout arm (Campfire or Streak Lab) rebuilt
 in a clean external repository using only published artifacts — including its
-acceptance's admin-client and test-helper needs — acceptance green. (2) The
+acceptance's test-helper needs; the admin-client proof rides Dispatch or a
+separate fixture — acceptance green. (2) The
 matrix harness gains a published-channel mode. (3) No checkout-relative
 import remains in that arm's authored code. The genuinely new content here is
 the workout-arm-level external rebuild and the harness mode; the fixture- and
@@ -298,21 +316,33 @@ semantics, and LLP 0081 migration interaction. None of this is de-risked by
 0108. Exit: Pantry's structured stored fields expressed natively with defined
 index and sync behavior.
 
-#### CV-5. Type the portable search query AST (wiring, not design)
+#### CV-5. Type the portable search query AST (schema export + carrier alignment)
 
-**Evidence, sharpened from v0.1.** The typed AST already exists by design and
-in the client carrier: LLP 0073 makes `SearchQueryAstV1` (with its LLP
-0037-owned JSON Schema) the public request authority and requires all
-carriers to agree byte-for-byte. The `unknown` the diary saw comes from one
-emitter — the provider/contract projection's `typeForGeneratedValidator`
-fallback in `packages/snapback-codegen` — not from a missing type.
+**Evidence, corrected in v0.3 (Codex review finding 6, code-verified).** The
+v0.2 "one-emitter wiring" framing was wrong. The `unknown` is honest
+projection, not an emitter fallback: `defineSearchQuery` itself authors
+`query: v.json()`, and the contract projection faithfully emits what was
+declared. The Rust types derive `JsonSchema`, but `src/schema_export.rs`
+exports no search schema, and the generated client's `SearchQueryAstV1`/
+`SearchRequestV1` interfaces are hand-authored special cases rather than
+derived from a shared artifact. So the exported, drift-gated schema CV-5
+needs does not exist yet.
 
-**Work.** Propagate the existing schema into the contract emitter and
-provider projection, and decide explicitly whether that projection is one of
-0073's byte-for-byte carriers or a Contract-owned surface. No new type design.
+**Work.** Export one Rust-owned search request schema through the existing
+schema-export lane; carry a schema reference or closed descriptor through the
+operation contract and provider projection (replacing the authored
+`v.json()`); align the hand-authored client declarations with the exported
+artifact; and resolve LLP 0073 open question 12 (is the provider projection
+a byte-for-byte carrier or a Contract-owned surface). Prove accepted and
+rejected AST fixtures agree across Rust deserialization, the exported
+schema, introspection, and generated client types. This should be sequenced
+as the first conformance fixture for CV-4a's argument-contract carrier — or
+explicitly justify a separate path.
 
-**Exit.** Introspection and generated client types agree with the AST
-fixtures; no `unknown` remains at the search argument boundary.
+**Exit.** One exported, drift-gated search request schema; introspection,
+operation contract, and generated client types all derive from or verify
+against it; accepted/rejected AST fixtures agree across all carriers; no
+`unknown` remains at the search argument boundary.
 
 #### CV-6. Make precise mutation results the paved default
 

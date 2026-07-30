@@ -38,9 +38,9 @@ public npm and independent-machine gates remain open.)
 **Date:** 2026-07-07
 **Revised:** 2026-07-30 (Diary 0039 external-adoption evidence: the rerun
 ran on sibling-checkout imports three days after `0.1.0` went public; the
-admin client and `demos/_kit` helpers every arm imports sit outside the
-nine-package closure — see the new §Open Questions entry and LLP 0115
-CV-1). 2026-07-24 (the clean-Ubuntu lane now records platform,
+`demos/_kit` helpers every arm imports, and the admin client Dispatch's
+acceptance imports, sit outside the nine-package closure — see the new
+§Open Questions entry and LLP 0115 CV-1). 2026-07-24 (the clean-Ubuntu lane now records platform,
 architecture, kernel, Node, exact runtime package, and GitHub-hosted clean-VM
 status in the cold-install receipt, then retains that receipt, the publication
 ledger, and immutable tarballs through a commit-pinned artifact uploader. The
@@ -925,13 +925,18 @@ outside the root workspace and exercise independent consumer setups.
 - Which platforms does the first prebuilt-binary matrix cover, and is a
   from-source fallback acceptable for the rest?
 - **(2026-07-30, Diary 0039)** How do external acceptance consumers get the
-  admin client and the test-harness helpers? Options per artifact: admit
-  `@snapback/admin-client` to the closure, fold it into the client/CLI, or
-  endorse the served `/_snapback/admin/client.mjs` path for external use; and
-  publish a test-helper package (server lifecycle + vacuous-pass-guarded
-  harness), fold server lifecycle into the CLI, or endorse vendoring. Until
-  both are decided, a clean external repository cannot run a workout-arm-
-  grade acceptance suite against published artifacts (LLP 0115 CV-1).
+  admin client and the test-harness helpers? Every arm's acceptance imports
+  the `demos/_kit` helpers; Dispatch's acceptance additionally imports the
+  admin client for authenticated cron inspection. Options per artifact:
+  admit `@snapback/admin-client` to the closure, fold it into the
+  client/CLI, or endorse the served `/_snapback/admin/client.mjs` path for
+  external use; and publish a test-helper package (server lifecycle +
+  vacuous-pass-guarded harness), fold server lifecycle into the CLI, or
+  endorse vendoring — the Codex pre-implementation review also proposes
+  keeping the helpers a digest-pinned evaluation instrument rather than
+  supported public API. Until both are decided, a clean external repository
+  cannot run a workout-arm-grade acceptance suite against published
+  artifacts (LLP 0115 CV-1).
 
 ## Status
 
