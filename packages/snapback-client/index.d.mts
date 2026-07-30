@@ -119,12 +119,21 @@ export interface QueryOutput<Result> {
   readonly cursor?: string | null;
 }
 
+/** LLP 0055 §Audit server-derived attribution block, copied verbatim. */
+export interface FunctionAttribution {
+  readonly actorUserId: string;
+  readonly effectiveUserId: string | null;
+  readonly grantId: string;
+  readonly dryRun: boolean;
+}
+
 export interface MutationOutput<Result> {
   readonly version: number;
   readonly changed_count: number;
   readonly result: Result;
   readonly ctx_ledger?: unknown;
   readonly receipt: Readonly<Record<string, unknown>>;
+  readonly attribution?: FunctionAttribution;
 }
 
 export interface ActionOutput<Result> {

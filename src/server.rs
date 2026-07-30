@@ -29960,6 +29960,9 @@ globalThis.__snapbackHandlers = {
         assert!(subscribed_values.contains("predecessor-visible"));
         assert!(subscribed_values.contains("queued-agent-visible"));
         assert!(subscribed["authorizationScope"].is_object());
+        // Live establishment carries the same server-derived block as the
+        // finite lanes (LLP 0055 §Audit; the LLP 0062 live wire seam).
+        assert_eq!(subscribed["attribution"], queued["attribution"]);
 
         let wrong_open = connection_router
             .clone()
@@ -30187,6 +30190,302 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             response_json(hosted).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED"
+        );
+    }
+
+    /// The LLP 0062 live attribution wire seam over the real routes:
+    /// establishment answers the server-derived block, a renewal resume
+    /// re-answers the establishment block byte-identically, credential
+    /// rotation terminates the old watch, and a subscription restarted fresh
+    /// under the successor generation carries that generation's
+    /// server-derived block.
+    ///
+    /// @ref LLP 0055#audit — attribution is server-derived and identical
+    ///   across projections of the same function; wrappers never synthesize.
+    #[tokio::test]
+    async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rotation() {
+        fn live_request(path: &str, connection_token: &str, body: Value) -> Request<Body> {
+            Request::builder()
+                .method("POST")
+                .uri(path)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                .header("x-snapback-auth-client-protocol", "1")
+                .header("x-snapback-auth-invalidation-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                .unwrap()
+        }
+        async fn open_service_connection(router: &SnapbackApp, bearer: &str) -> (String, String) {
+            let opened = router
+                .clone()
+                .oneshot(connection_open_request(
+                    Some(bearer),
+                    json!({ "authInvalidationProtocol": 1 }),
+                ))
+                .await
+                .unwrap();
+            assert_eq!(opened.status(), StatusCode::OK);
+            let opened = response_json(opened).await;
+            (
+                opened["connectionId"].as_str().unwrap().to_owned(),
+                opened["connectionToken"].as_str().unwrap().to_owned(),
+            )
+        }
+        async fn subscribe_live_items(
+            router: &SnapbackApp,
+            connection_id: &str,
+            connection_token: &str,
+            query_instance_id: u64,
+        ) -> Value {
+            let subscribed = router
+                .clone()
+                .oneshot(live_request(
+                    "/live/liveItems/subscribe",
+                    connection_token,
+                    json!({
+                        "connection_id": connection_id,
+                        "input": { "args": {} },
+                        "authorizationNamespace": {
+                            "clientStoreId": "attribution-store",
+                            "queryKey": "liveItems:{}",
+                            "queryInstanceId": query_instance_id,
+                        },
+                    }),
+                ))
+                .await
+                .unwrap();
+            let status = subscribed.status();
+            let subscribed = response_json(subscribed).await;
+            assert_eq!(status, StatusCode::OK, "live subscribe: {subscribed}");
+            subscribed
+        }
+
+        let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899";
+        let agent_user_id = "018f0d90-7b31-7a22-8c33-445566778899";
+        let grant_id = "018f0d90-7b32-7a22-8c33-445566778899";
+        let state = sessions_activation_server_fixture_async().await;
+        let provider = state.auth_provider.clone().unwrap();
+        let now_ms = provider.now_ms();
+        let seed_provider = provider.clone();
+        let (token, agent_credential) = with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, operator_contact,
+                       registration_provenance, deactivated_at_ms, owner_user_id
+                     ) VALUES('018f0d90-7b30-7a22-8c33-445566778899', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                    rusqlite::params![now_ms as i64],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:liveItems', 'liveQuery', 0, 1, 0)",
+                    [],
+                )?;
+                Ok(())
+            })?;
+            db.create_agent_principal(
+                "018f0d90-7b31-7a22-8c33-445566778899",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: None,
+                    operator_contact: None,
+                    registration_provenance: "live-attribution-test".to_owned(),
+                    owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
+                },
+            )?;
+            let credential = db.issue_initial_agent_credential(
+                "018f0d90-7b31-7a22-8c33-445566778899",
+                now_ms,
+                seed_provider.agent_random_source(),
+            )?;
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES('018f0d90-7b32-7a22-8c33-445566778899',
+                              '018f0d90-7b31-7a22-8c33-445566778899',
+                              '018f0d90-7b30-7a22-8c33-445566778899', ?1, ?2, ?3,
+                              NULL, 'test', NULL, NULL, ?2)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        (now_ms + 60 * 60 * 1_000) as i64,
+                    ],
+                )?;
+                Ok(())
+            })?;
+            let issued = db.mint_scoped_token(
+                &credential.secret,
+                "018f0d90-7b32-7a22-8c33-445566778899",
+                None,
+                now_ms,
+                seed_provider.agent_random_source(),
+            )?;
+            Ok::<_, SnapbackError>((
+                issued.secret.expose_secret().to_owned(),
+                credential.secret.expose_secret().to_owned(),
+            ))
+        })
+        .await
+        .unwrap();
+        let router = super::app(state.clone());
+        let expected_attribution = json!({
+            "actorUserId": agent_user_id,
+            "effectiveUserId": effective_user_id,
+            "grantId": grant_id,
+            "dryRun": false,
+        });
+
+        let (connection_id, connection_token) = open_service_connection(&router, &token).await;
+        let subscribed = subscribe_live_items(&router, &connection_id, &connection_token, 1).await;
+        assert_eq!(subscribed["attribution"], expected_attribution);
+        let subscription_id = subscribed["subscription_id"].as_str().unwrap().to_owned();
+
+        // Renewal resubscribe: the resume answers the establishment block
+        // unchanged — immutable subscription metadata, byte-identical.
+        let resumed = router
+            .clone()
+            .oneshot(live_request(
+                "/live/liveItems/resume",
+                &connection_token,
+                json!({
+                    "subscription_id": subscription_id,
+                    "connection_id": connection_id,
+                }),
+            ))
+            .await
+            .unwrap();
+        let resumed_status = resumed.status();
+        let resumed = response_json(resumed).await;
+        assert_eq!(resumed_status, StatusCode::OK, "live resume: {resumed}");
+        assert_eq!(
+            serde_json::to_string(&resumed["attribution"]).unwrap(),
+            serde_json::to_string(&subscribed["attribution"]).unwrap(),
+            "renewal must carry the establishment attribution verbatim"
+        );
+
+        // Rotation terminates the old watch (LLP 0055 item-6 fences): the
+        // exact bound carrier receives a durable-delete terminal and the
+        // auth-scoped live topology for the connection is purged.
+        let bound_grant_id = state
+            .connections
+            .lock()
+            .grants
+            .get(&connection_id)
+            .expect("service connection grant")
+            .grant_id
+            .clone();
+        let notifier = state.ephemeral.delivery_notifier();
+        let (registration, waker) = notifier
+            .register_bound(&connection_id, bound_grant_id)
+            .expect("register exact service socket");
+        with_snapback(&state.snapback, move |snapback| {
+            snapback.auth_database_mut().with_auth_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _auth_agent_credentials SET rotated_at_ms = 0
+                     WHERE user_id = ?1 AND revoked_at_ms IS NULL",
+                    rusqlite::params![agent_user_id],
+                )?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+        let mut rotate = auth_http_request(
+            "POST",
+            "/auth/agents/rotate",
+            serde_json::to_vec(&json!({ "credential": agent_credential })).unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut rotate);
+        let rotated = router.clone().oneshot(rotate).await.unwrap();
+        assert_eq!(rotated.status(), StatusCode::OK);
+        let successor_credential = response_json(rotated).await["credential"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        tokio::time::timeout(Duration::from_secs(1), waker.notified())
+            .await
+            .expect("credential rotation wakes the exact service socket");
+        let terminal = notifier
+            .terminal_if_current(&connection_id, registration)
+            .expect("credential rotation installs a terminal frame");
+        assert_eq!(
+            terminal.code,
+            crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid
+        );
+        assert_eq!(
+            terminal.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete
+        );
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while state.read.connection_has_auth_scoped_live(&connection_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("rotation purges the old watch's subscription topology");
+
+        // A fresh subscription restarted under the successor generation
+        // carries the new generation's server-derived block; the terminated
+        // predecessor watch is gone, not resumable.
+        let mut mint = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": successor_credential,
+                "grantId": grant_id,
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut mint);
+        let minted = router.clone().oneshot(mint).await.unwrap();
+        assert_eq!(minted.status(), StatusCode::OK);
+        let successor_token = response_json(minted).await["token"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let (successor_connection_id, successor_connection_token) =
+            open_service_connection(&router, &successor_token).await;
+        let stale_resume = router
+            .clone()
+            .oneshot(live_request(
+                "/live/liveItems/resume",
+                &successor_connection_token,
+                json!({
+                    "subscription_id": subscription_id,
+                    "connection_id": successor_connection_id,
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_ne!(
+            stale_resume.status(),
+            StatusCode::OK,
+            "the rotated-away watch must not be resumable"
+        );
+        let restarted = subscribe_live_items(
+            &router,
+            &successor_connection_id,
+            &successor_connection_token,
+            2,
+        )
+        .await;
+        assert_eq!(restarted["attribution"], expected_attribution);
+        assert_ne!(
+            restarted["subscription_id"].as_str().unwrap(),
+            subscription_id,
+            "the successor watch is a fresh establishment, not the old one"
         );
     }
 

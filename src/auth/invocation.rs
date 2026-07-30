@@ -352,6 +352,26 @@ impl ResolvedGrantScope {
 }
 
 impl ResolvedAppAuthority {
+    /// The one derivation of the LLP 0055 §Audit attribution block. Only a
+    /// resolved service principal has authority to attribute; every other
+    /// class answers `None` and the wire omits the member entirely.
+    pub(crate) fn function_attribution(&self) -> Option<FunctionAttribution> {
+        match self {
+            Self::ServicePrincipal {
+                actor_user_id,
+                effective_user_id,
+                grant_id,
+                ..
+            } => Some(FunctionAttribution {
+                actor_user_id: actor_user_id.clone(),
+                effective_user_id: effective_user_id.clone(),
+                grant_id: grant_id.clone(),
+                dry_run: false,
+            }),
+            _ => None,
+        }
+    }
+
     pub fn from_session(session: ResolvedSession) -> Self {
         Self::Session {
             user_id: session.user_id,
@@ -920,20 +940,7 @@ impl PreparedAuthority {
     }
 
     pub fn function_attribution(&self) -> Option<FunctionAttribution> {
-        match &self.resolved {
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                effective_user_id,
-                grant_id,
-                ..
-            } => Some(FunctionAttribution {
-                actor_user_id: actor_user_id.clone(),
-                effective_user_id: effective_user_id.clone(),
-                grant_id: grant_id.clone(),
-                dry_run: false,
-            }),
-            _ => None,
-        }
+        self.resolved.function_attribution()
     }
 
     pub fn audit(&self) -> &AuthorityAuditFact {
@@ -1133,6 +1140,18 @@ impl PreparedAuthority {
 impl RetainedLiveAuthority {
     pub(crate) fn resolved(&self) -> &ResolvedAppAuthority {
         &self.resolved
+    }
+
+    /// Attribution for the authority that ESTABLISHED this subscription.
+    /// `resolved` is cloned once at establishment and never rewritten, so the
+    /// block a renewal resubscribe carries is byte-identical to the one the
+    /// establishment answered with — immutable subscription metadata, never
+    /// re-derived from the caller presenting the resume.
+    ///
+    /// @ref LLP 0055#audit — server-derived attribution; wrappers copy it
+    ///   verbatim and can never synthesize it.
+    pub(crate) fn function_attribution(&self) -> Option<FunctionAttribution> {
+        self.resolved.function_attribution()
     }
 
     pub(crate) fn matches(&self, authority: &PreparedAuthority) -> bool {

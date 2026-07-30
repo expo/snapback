@@ -22,6 +22,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs"
+    "test": "node package.test.mjs && node attribution.test.mjs"
   }
 }

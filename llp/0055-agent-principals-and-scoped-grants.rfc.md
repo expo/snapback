@@ -5,7 +5,11 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (bounded filesystem-helper identity: request, session,
+**Revised:** 2026-07-30 (§Audit extended to the live wire: subscription
+establishment/renewal carries the server-derived block as immutable
+subscription metadata, and client/CLI non-2xx retention is byte-preserving;
+landed under `issues/closed/20260717-app-cli-attribution-seams.md`).
+2026-07-17 (bounded filesystem-helper identity: request, session,
 and hook correlation allocators consume the last safe integer once and then
 permanently close their capability lineage with a typed refusal). 2026-07-17 (structured custody ownership: returning or throwing
 from an ownership callback closes its owner to new work, joins every operation
@@ -1306,7 +1310,17 @@ response-sensitivity classified. CLI and MCP projections copy that block
 verbatim; an envelope a wrapper synthesizes without it carries no attribution
 authority. Denials *after a service-principal authority resolved* carry the
 same attribution (denials *before* resolution have no authority to attribute —
-scoped honestly). Dry-run: v1 has no scoped-token dry-run surface
+scoped honestly). **Live surfaces (2026-07-30, the LLP 0062 wire seams):**
+live-subscription establishment carries the same block on
+`LiveSubscribeOutput.attribution` as immutable subscription metadata —
+derived once from the retained establishing authority — and a renewal
+resubscribe (`/live/{name}/resume`) re-answers that establishment block
+unchanged rather than re-deriving from the presenting caller; rotation
+terminates the watch, and a restarted subscription under the successor
+carries that generation's freshly derived block. The finite client core and
+generated CLI retain the block verbatim on non-2xx envelopes too
+(byte-preserving pass-through; per-principal-class parity tested). Dry-run:
+v1 has no scoped-token dry-run surface
 (`function.explain` is host-ops), so `dryRun` is `false` for agents until that
 changes. A durable, queryable audit **log** is LLP 0019 F8's follow-on — and a
 **precondition for hosted mutation authority**; the 0024/0042 amendment text

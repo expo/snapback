@@ -57,6 +57,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'argument-validation.test.mjs',
+      'attribution.test.mjs',
       'bundle.test.mjs',
       'ephemeral-room.test.mjs',
       'external-store.test.mjs',
@@ -120,7 +121,7 @@ const inventories = [
     packageDir: 'packages/snapback-app-cli',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['package.test.mjs'],
+    expectedFiles: ['attribution.test.mjs', 'package.test.mjs'],
   },
   {
     id: '@snapback/codegen',
@@ -332,7 +333,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // effect-free authorization-reservation retry matrix.
 // 123 -> 124 (2026-07-28, SB-002): @snapback/client gains the maintained
 // live-handle authority-retirement disposal matrix.
-assert.equal(total, 124, 'reviewed package/admin test count changed');
+// 124 -> 126 (2026-07-30, attribution wire seams): @snapback/client gains the
+// byte-level non-2xx attribution pass-through matrix and @snapback/app-cli
+// gains the HTTP/client/CLI per-principal-class attribution parity matrix.
+assert.equal(total, 126, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

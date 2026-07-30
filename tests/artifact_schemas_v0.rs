@@ -2886,8 +2886,36 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             authorization_scope: None,
             authorization_invalidation: None,
             scope_retirements: Vec::new(),
+            attribution: None,
         })
         .unwrap(),
+    );
+    // The live establishment/renewal seam admits the LLP 0055 §Audit block:
+    // a service-principal establishment answers with `attribution`, and the
+    // committed schemas must accept exactly its four registered members.
+    let live_attribution = json!({
+        "actorUserId": "018f0d90-7b31-7a22-8c33-445566778899",
+        "effectiveUserId": "018f0d90-7b30-7a22-8c33-445566778899",
+        "grantId": "018f0d90-7b32-7a22-8c33-445566778899",
+        "dryRun": false
+    });
+    assert_validates(
+        "live.subscribe.output.schema.json",
+        &json!({
+            "subscription_id": "sub_1",
+            "snapshot": { "version": 7, "rows": [] },
+            "permission_epochs": {},
+            "attribution": live_attribution
+        }),
+    );
+    assert_validates(
+        "live.resume.output.schema.json",
+        &json!({
+            "subscription_id": "sub_1",
+            "mode": "retained",
+            "permission_epochs": {},
+            "attribution": live_attribution
+        }),
     );
     let input = HandlerInput {
         args: json!({ "listId": "l1" }),
@@ -2951,6 +2979,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             authorization_scope: None,
             authorization_invalidation: None,
             scope_retirements: Vec::new(),
+            attribution: None,
         })
         .unwrap(),
     );

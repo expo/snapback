@@ -68,7 +68,12 @@ witnesses); 2026-07-27 (the remaining §0F item-2 residual landed: the converged
 kit-socket reply grammar now has the `KitSocketReplyFrame` Rust authority,
 the committed `live.kit-socket-reply.schema.json`, positive/negative schema
 instances, and real served-frame validation for all four reply variants;
-the §0A.1 conformance caveat is retired)
+the §0A.1 conformance caveat is retired); 2026-07-30 (live attribution
+seam: `LiveSubscribeOutput`/`LiveResumeOutput` gained the optional
+`attribution` member — the sanctioned additive-optional evolution the
+§0C.2 open-family row licenses — carrying the LLP 0055 §Audit block as
+immutable establishment metadata; both live output schemas regenerated;
+see `issues/closed/20260717-app-cli-attribution-seams.md`)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0108, LLP 0110, LLP 0113
@@ -705,7 +710,7 @@ clients are not proven tolerant needs capability gating or a new token
 | `Receipt` (`receipt.schema.json`) | closed variants | §0D ratifies its appearance on subscribe/unsubscribe outputs as typed |
 | `AuthorizationInvalidationSnapshot` (`src/live_wire.rs:128-136`) | **closed** (`additionalProperties: false`) | additions need gating per the rule above |
 | `AuthorizationInvalidationAckOutput` (`src/local.rs:790-794`) | **closed** | same |
-| `LiveSubscribeOutput` / `LiveUnsubscribeOutput` / `LiveResumeOutput` | open objects | additive optional fields are the sanctioned in-v1 evolution (server→client direction) |
+| `LiveSubscribeOutput` / `LiveUnsubscribeOutput` / `LiveResumeOutput` | open objects | additive optional fields are the sanctioned in-v1 evolution (server→client direction). Exercised 2026-07-30: subscribe/resume outputs gained optional `attribution` (the LLP 0055 §Audit block, same `FunctionAttribution` type as the finite envelopes) — establishment-derived, immutable subscription metadata re-answered unchanged on resume; schemas regenerated under the LLP 0051 §D4 drift gates |
 | `RealtimeEnvelope` drain wrapper (`realtime.envelope.schema.json`) | closed | lane-P framing only |
 | `RealtimeEnvelope::EphemeralAck` | nominally closed variant with a flattened ack payload | deliberate unknown-field-detection exception: serde `flatten` consumes extra top-level members into the ack payload, so a generic closed-envelope decoder cannot distinguish a future wrapper field. Do not seed an unknown-field tolerance fixture for this variant until the payload is typed or flattening is removed |
 | `ConnectionGrant` (`connection.grant.schema.json`) | open object | the §0B.3 `wireVersion` echo lands here as the sanctioned additive member |

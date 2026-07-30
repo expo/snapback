@@ -96,6 +96,11 @@ const requestJson = async (baseUrl, path, body) => {
     };
     const error = diagnosticError(diagnostic.code, diagnostic.message, diagnostic.details);
     error.status = response.status;
+    // @ref LLP 0055#audit — retain the server's attribution sibling verbatim;
+    // the CLI lane never reshapes or synthesizes the block.
+    if (payload && typeof payload === 'object' && payload.attribution !== undefined) {
+      error.attribution = payload.attribution;
+    }
     throw error;
   }
   return payload;

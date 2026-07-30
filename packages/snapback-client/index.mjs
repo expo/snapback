@@ -620,6 +620,14 @@ const sanitizeTransportError = (error, secrets) => {
   if (error?.receipt !== undefined) {
     safe.receipt = sanitizeProtocolErrorValue(error.receipt, secrets);
   }
+  // @ref LLP 0055#audit — the server-derived attribution block survives
+  // re-wrapping untouched: it is ids-only and bearer-free by construction,
+  // and the wrapper contract is byte-preserving copy — running it through
+  // the redaction reshape would be client-side mutation of a block this
+  // client has no authority to alter (and could never re-synthesize).
+  if (error?.attribution !== undefined) {
+    safe.attribution = error.attribution;
+  }
   return safe;
 };
 
@@ -3864,6 +3872,14 @@ export class SnapbackClient {
       if (authorityDisposition !== null) error.authorityDisposition = authorityDisposition;
       if (json?.receipt) {
         error.receipt = sanitizeProtocolErrorValue(json.receipt, requestSecrets);
+      }
+      // @ref LLP 0055#audit — a non-2xx envelope's `attribution` sibling is
+      // retained verbatim (byte-preserving pass-through): it is server-derived
+      // and ids-only, and a wrapper that reshaped or redacted it would be
+      // mutating an attribution block it cannot re-synthesize. Absent stays
+      // absent — this client never fabricates the member.
+      if (json && typeof json === 'object' && json.attribution !== undefined) {
+        error.attribution = json.attribution;
       }
       throw error;
     }

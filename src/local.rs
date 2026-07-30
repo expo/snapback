@@ -11,8 +11,8 @@ use crate::auth::invalidation::{
     RetryReservation, RetryReservationKind, ScopeId, ScopeRetirement, ScopeRetirementCandidate,
 };
 use crate::auth::invocation::{
-    InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
-    RetainedLiveAuthority, WireAuthorityFields,
+    FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
+    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -720,6 +720,18 @@ pub struct LiveSubscribeOutput {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub scope_retirements: Vec<ScopeRetirement>,
+    /// Server-derived attribution for the authority that established this
+    /// subscription (LLP 0055 §Audit): present exactly when a service
+    /// principal resolved, absent otherwise. It is immutable subscription
+    /// metadata — a renewal resubscribe answers with this same block, and a
+    /// wrapper that did not receive it carries no attribution authority.
+    ///
+    /// @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — the live establishment/renewal seam admits
+    ///   `attribution` explicitly, like the mutation envelope's item-4
+    ///   convergence; hosted (which refuses `servicePrincipal`) never emits
+    ///   it and never synthesizes one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<FunctionAttribution>,
 }
 
 #[derive(Clone, Debug)]
@@ -772,6 +784,12 @@ pub struct LiveResumeOutput {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub scope_retirements: Vec<ScopeRetirement>,
+    /// The establishment attribution block, carried unchanged across
+    /// renew/resubscribe (see [`LiveSubscribeOutput::attribution`]). Derived
+    /// from the subscription's retained establishment authority, never from
+    /// the caller presenting the resume.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<FunctionAttribution>,
 }
 
 fn portable_permission_epoch_map_schema(
@@ -7691,6 +7709,10 @@ impl LocalSnapback {
         }
         let prepared_invocation = InvocationGate::prepare_function(authority.clone(), &function)?;
         let retained_authority = prepared_invocation.retain_live_owner()?;
+        // @ref LLP 0055#audit — establishment derives the block once from the
+        // retained (immutable) authority; renew/resubscribe re-answers this
+        // exact block rather than re-deriving from the presenting caller.
+        let attribution = retained_authority.function_attribution();
         self.prepare_live_rerun_authority(
             &retained_authority,
             authority.admission_lease().clone(),
@@ -8259,6 +8281,7 @@ impl LocalSnapback {
             authorization_scope,
             authorization_invalidation,
             scope_retirements,
+            attribution,
         })
     }
 
@@ -8874,6 +8897,10 @@ impl LocalSnapback {
         if !subscription.is_owned_by(&authority, invalidation.effect_fence.as_ref()) {
             return Err(live_owner_mismatch(&subscription.id, &authority));
         }
+        // The establishment block, not the presenting caller's: a renewal
+        // resubscribe carries the subscription's immutable metadata.
+        // @ref LLP 0055#audit — attribution is copied, never re-synthesized.
+        let attribution = subscription.authority.function_attribution();
         let predecessor_subscription = subscription.clone();
 
         // @ref LLP 0059#durable-and-ephemeral-outboxes — reconnect stages the
@@ -9238,6 +9265,7 @@ impl LocalSnapback {
                 authorization_scope: Some(authorization.scope_id.clone()),
                 authorization_invalidation: Some(authorization_invalidation),
                 scope_retirements: retirement.into_iter().collect(),
+                attribution,
             });
         }
 
@@ -9283,6 +9311,7 @@ impl LocalSnapback {
                 authorization_scope: None,
                 authorization_invalidation: None,
                 scope_retirements: Vec::new(),
+                attribution,
             });
         }
 
@@ -9305,6 +9334,7 @@ impl LocalSnapback {
             authorization_scope: None,
             authorization_invalidation: None,
             scope_retirements: Vec::new(),
+            attribution,
         })
     }
 
