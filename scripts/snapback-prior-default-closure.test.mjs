@@ -298,4 +298,14 @@ test('request and promoter preserve the no-lease qualification sequence', () => 
     promoterSource.indexOf('const preAcquireVector = await readVector(')
       < promoterSource.indexOf("'/v1/leases/acquire'"),
   );
+  assert.ok(
+    promoterSource.indexOf('const reopenedPlan = loadLatestProofPlan();')
+      < promoterSource.indexOf(
+        'requireLatestProofDispatchBudget(reopenedPlan, mode);',
+      ),
+  );
+  assert.ok(
+    promoterSource.indexOf('requireLatestProofDispatchBudget(reopenedPlan, mode);')
+      < promoterSource.indexOf('const result = spawnSync(process.execPath'),
+  );
 });

@@ -110,8 +110,15 @@ digest, or any substituted identity before acquiring the authority lease, then
 reopens the frozen plan immediately before dispatch. After all tags converge,
 promotion also requires a fresh-cache, scripts-disabled npm alias install to
 resolve the candidate CLI and complete package closure. That publisher-region
-probe preserves the hosted-proof timeout plus rollback lease reserve but is
-not cross-host authority. The helper then dispatches the pinned workflow; each
+barrier requires two complete candidate closures separated by 30 seconds and
+preserves both probe bounds, the hosted-proof timeout, and rollback lease
+reserve. Its v2 evidence retains that full policy, including the maximum
+attempt ceiling. The release plan uses a 400-second dispatch bound: with
+30-second verification, 120-second rollback, and the 120-second stability
+window, 670 seconds of the 900-second lease remain reserved. It is still not
+cross-host authority. Fresh-clock gates run after each retained success and
+immediately before dispatch. The helper then dispatches the
+pinned workflow; each
 hosted platform uses distinct empty caches to retry only a structurally valid
 signed-prior root under one package-owned wall bound before running the full
 proof once. Receipts retain the closed retry policy and lease-bound attempt

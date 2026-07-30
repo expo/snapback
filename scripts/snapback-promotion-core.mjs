@@ -207,11 +207,15 @@ export async function waitForPromotedInstallability({
   delayMs = 10_000,
   probeBoundMs = 45_000,
   requiredRemainingMs = 0,
+  requiredSuccessfulAttempts = 1,
 }) {
   if (
     !Number.isSafeInteger(attempts)
     || attempts < 1
     || attempts > 12
+    || !Number.isSafeInteger(requiredSuccessfulAttempts)
+    || requiredSuccessfulAttempts < 1
+    || requiredSuccessfulAttempts > attempts
     || !Number.isSafeInteger(delayMs)
     || delayMs < 0
     || delayMs > 60_000
@@ -230,13 +234,30 @@ export async function waitForPromotedInstallability({
     throw new TypeError('promoted installability barrier expected vector is invalid');
   }
   const evidence = {
-    schemaVersion: 'snapback.promoted-installability-barrier.v1',
+    schemaVersion: 'snapback.promoted-installability-barrier.v2',
     status: 'running',
     package: cliRow.name,
     expectedVersion: cliRow.newVersion,
     requiredRemainingMs,
     probeBoundMs,
+    delayMs,
+    requiredSuccessfulAttempts,
+    mandatoryStabilityReserveMs:
+      requiredSuccessfulAttempts * probeBoundMs
+      + (requiredSuccessfulAttempts - 1) * delayMs,
+    maximumAttempts: attempts,
     attempts: [],
+  };
+  let consecutiveSuccessfulAttempts = 0;
+  const requiredReserve = ({ includeWait = false } = {}) => {
+    const remainingSuccesses =
+      requiredSuccessfulAttempts - consecutiveSuccessfulAttempts;
+    return (
+      requiredRemainingMs
+      + remainingSuccesses * probeBoundMs
+      + Math.max(0, remainingSuccesses - 1) * delayMs
+      + (includeWait ? delayMs : 0)
+    );
   };
   const retain = () => record(structuredClone(evidence));
   const fail = (cause) => {
@@ -255,7 +276,7 @@ export async function waitForPromotedInstallability({
       requireLeaseBudget(
         lease,
         startedAtMs,
-        requiredRemainingMs + probeBoundMs,
+        requiredReserve(),
       );
       const beforeHead = await readLeaseHead();
       const beforeVector = await readVector(names);
@@ -270,7 +291,7 @@ export async function waitForPromotedInstallability({
       requireLeaseBudget(
         lease,
         now(),
-        requiredRemainingMs + probeBoundMs,
+        requiredReserve(),
       );
 
       let observation;
@@ -339,14 +360,36 @@ export async function waitForPromotedInstallability({
         ) {
           throw new Error('public latest-root probe accepted an incomplete closure');
         }
-        requireLeaseBudget(lease, completedAtMs, requiredRemainingMs);
-        evidence.status = 'passed';
-        evidence.completedAt = new Date(completedAtMs).toISOString();
-        evidence.resolution = structuredClone(observation.closure);
+        consecutiveSuccessfulAttempts += 1;
+        if (consecutiveSuccessfulAttempts >= requiredSuccessfulAttempts) {
+          requireLeaseBudget(lease, completedAtMs, requiredRemainingMs);
+          evidence.status = 'passed';
+          evidence.completedAt = new Date(completedAtMs).toISOString();
+          evidence.resolution = structuredClone(observation.closure);
+          retain();
+          const afterRetainMs = now();
+          requireCurrentLease(lease, afterRetainMs);
+          requireLeaseBudget(lease, afterRetainMs, requiredRemainingMs);
+          return evidence;
+        }
         retain();
-        return evidence;
+        if (attempt === attempts) {
+          throw new Error(
+            'public latest-root installability lacked stable candidate observations',
+          );
+        }
+        const beforeWaitMs = now();
+        requireCurrentLease(lease, beforeWaitMs);
+        requireLeaseBudget(
+          lease,
+          beforeWaitMs,
+          requiredReserve({ includeWait: true }),
+        );
+        await wait(delayMs);
+        continue;
       }
 
+      consecutiveSuccessfulAttempts = 0;
       if (
         !observation.retryablePriorRoot
         || cliRow.expectedPriorVersion === cliRow.newVersion
@@ -367,7 +410,7 @@ export async function waitForPromotedInstallability({
       requireLeaseBudget(
         lease,
         beforeWaitMs,
-        requiredRemainingMs + delayMs + probeBoundMs,
+        requiredReserve({ includeWait: true }),
       );
       await wait(delayMs);
     }

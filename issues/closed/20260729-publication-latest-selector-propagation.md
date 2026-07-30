@@ -65,6 +65,17 @@ signal, not an adequate global stability window.
   convergence consumed 193 seconds, leaving less than the fixed proof/probe/
   rollback reserve; the promoter reversed all eight changed tags, restored the
   exact prior vector, and closed the epoch as rolled back.
+- Epoch 13 reached the candidate vector and passed the first publisher cold
+  closure, but both hosted regions then saw a mixed vector with app-cli still
+  prior. Preserve mixed-vector refusal and require two publisher candidate
+  closures separated by 30 seconds before dispatch, with that delay and both
+  probes included in the lease-budget fence.
+- Close the barrier evidence as v2 with the attempt ceiling and full stability
+  policy. Epoch 13 used 187.425 seconds before its first barrier attempt; a
+  400-second dispatch, 30-second verification, 120-second rollback, and
+  120-second stability reserve total 670 seconds, leaving 230 seconds for the
+  measured pre-barrier path. Successful hosted runs completed in 163–185
+  seconds.
 
 Promotion-core, cold-install, latest-proof, authority, syntax, and diff checks
 cover the correction. The next real promotion is the end-to-end acceptance

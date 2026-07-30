@@ -47,8 +47,9 @@ import {
 
 const registry = 'https://registry.npmjs.org';
 const LATEST_ROOT_PROBE_ATTEMPTS = 6;
-const LATEST_ROOT_PROBE_DELAY_MS = 10_000;
+const LATEST_ROOT_PROBE_DELAY_MS = 30_000;
 const LATEST_ROOT_PROBE_TIMEOUT_MS = 45_000;
+const LATEST_ROOT_REQUIRED_SUCCESSES = 2;
 const PROMOTION_ROLLBACK_RESERVE_MS = 120_000;
 let promotionRegistryCacheRoot = null;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -531,6 +532,7 @@ function executeLatestProofPlan(plan) {
     ['dispatch', plan.dispatchTimeoutMs],
     ['verify-collection', plan.verifyTimeoutMs],
   ]) {
+    requireLatestProofDispatchBudget(reopenedPlan, mode);
     const result = spawnSync(process.execPath, [
       latestProofHelper,
       mode,
@@ -577,6 +579,28 @@ function executeLatestProofPlan(plan) {
     expectedAuthorizedLeaseSha256: plan.authorizedLeaseSha256,
     expectedPublicationEpoch: plan.publicationEpoch,
   });
+}
+
+function requireLatestProofDispatchBudget(plan, mode) {
+  if (!['dispatch', 'verify-collection'].includes(mode)) {
+    throw new Error('latest-root proof execution mode is invalid');
+  }
+  validatePublicationLease({
+    lease,
+    publicKey: authorityPublicKey,
+    authorityOrigin: options.authorityUrl,
+    candidateLedgerSha256,
+    candidateTag: ledger.tag,
+    publisherInstanceId: options.publisherInstanceId,
+    priorDefaultClosureReceiptSha256: priorDefaultClosure.receiptSha256,
+  });
+  const requiredRemainingMs =
+    (mode === 'dispatch' ? plan.dispatchTimeoutMs : 0)
+    + plan.verifyTimeoutMs
+    + PROMOTION_ROLLBACK_RESERVE_MS;
+  if (Date.parse(lease.expiresAt) - Date.now() < requiredRemainingMs) {
+    throw new Error('publication lease lacks the reserved proof and rollback budget');
+  }
 }
 
 async function setTag(name, version) {
@@ -665,6 +689,7 @@ try {
         attempts: LATEST_ROOT_PROBE_ATTEMPTS,
         delayMs: LATEST_ROOT_PROBE_DELAY_MS,
         probeBoundMs: LATEST_ROOT_PROBE_TIMEOUT_MS,
+        requiredSuccessfulAttempts: LATEST_ROOT_REQUIRED_SUCCESSES,
         requiredRemainingMs:
           latestProofPlan.dispatchTimeoutMs
           + latestProofPlan.verifyTimeoutMs

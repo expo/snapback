@@ -1090,13 +1090,136 @@ test('promoted installability retries only the prior CLI root and retains the cl
     requiredRemainingMs: 60_000,
   });
   assert.equal(result.status, 'passed');
+  assert.equal(result.schemaVersion, 'snapback.promoted-installability-barrier.v2');
   assert.equal(result.attempts.length, 2);
+  assert.equal(result.maximumAttempts, 6);
   assert.equal(result.attempts[0].observation.rootVersion, '0.1.0');
   assert.equal(result.resolution.selected, '0.1.1');
   assert.deepEqual(waits, [2_500]);
   assert.equal(retained.at(-1).status, 'passed');
   assert.match(result.attempts[0].beforeVectorSha256, /^[0-9a-f]{64}$/u);
   assert.equal(result.attempts[0].publicationEpoch, lease.publicationEpoch);
+});
+
+test('promoted installability can require separated stable candidate closures', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let clock = Date.parse('2026-07-28T19:05:00.000Z');
+  let probes = 0;
+  const waits = [];
+  const result = await waitForPromotedInstallability({
+    lease,
+    authorityPublicKey: publicKey,
+    expectedVector: vector,
+    readVector: async () => structuredClone(vector),
+    readLeaseHead: async () => structuredClone(head),
+    observeInstallability: async () => {
+      probes += 1;
+      return {
+        ok: true,
+        rootVersion: '0.1.1',
+        closure: { root: '@snapback/cli', selected: '0.1.1', probe: probes },
+        error: null,
+        retryablePriorRoot: false,
+      };
+    },
+    now: () => clock,
+    wait: async (milliseconds) => {
+      waits.push(milliseconds);
+      clock += milliseconds;
+    },
+    attempts: 3,
+    delayMs: 30_000,
+    probeBoundMs: 1_000,
+    requiredRemainingMs: 60_000,
+    requiredSuccessfulAttempts: 2,
+  });
+  assert.equal(result.status, 'passed');
+  assert.equal(result.attempts.length, 2);
+  assert.equal(result.requiredSuccessfulAttempts, 2);
+  assert.equal(result.maximumAttempts, 3);
+  assert.equal(result.delayMs, 30_000);
+  assert.equal(result.mandatoryStabilityReserveMs, 32_000);
+  assert.deepEqual(waits, [30_000]);
+  assert.equal(result.resolution.probe, 2);
+});
+
+test('stable candidate observations must be consecutive and mixed states stay terminal', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  const candidate = (probe) => ({
+    ok: true,
+    rootVersion: '0.1.1',
+    closure: { root: '@snapback/cli', selected: '0.1.1', probe },
+    error: null,
+    retryablePriorRoot: false,
+  });
+  const prior = {
+    ok: false,
+    rootVersion: '0.1.0',
+    closure: null,
+    error: 'uniform signed prior closure',
+    retryablePriorRoot: true,
+  };
+  let probes = 0;
+  let waits = 0;
+  const result = await waitForPromotedInstallability({
+    lease,
+    authorityPublicKey: publicKey,
+    expectedVector: vector,
+    readVector: async () => structuredClone(vector),
+    readLeaseHead: async () => structuredClone(head),
+    observeInstallability: async () => {
+      probes += 1;
+      return probes === 2 ? prior : candidate(probes);
+    },
+    now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+    wait: async () => { waits += 1; },
+    attempts: 4,
+    delayMs: 1,
+    probeBoundMs: 1_000,
+    requiredRemainingMs: 60_000,
+    requiredSuccessfulAttempts: 2,
+  });
+  assert.equal(probes, 4);
+  assert.equal(waits, 3);
+  assert.equal(result.attempts.length, 4);
+  assert.equal(result.resolution.probe, 4);
+
+  probes = 0;
+  waits = 0;
+  await assert.rejects(
+    waitForPromotedInstallability({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      observeInstallability: async () => {
+        probes += 1;
+        if (probes === 1) return candidate(probes);
+        return {
+          ok: false,
+          rootVersion: '0.1.1',
+          closure: null,
+          error: 'mixed or incomplete candidate closure',
+          retryablePriorRoot: false,
+        };
+      },
+      now: () => Date.parse('2026-07-28T19:05:00.000Z'),
+      wait: async () => { waits += 1; },
+      attempts: 4,
+      delayMs: 1,
+      probeBoundMs: 1_000,
+      requiredRemainingMs: 60_000,
+      requiredSuccessfulAttempts: 2,
+    }),
+    /outside the retryable prior-root state/u,
+  );
+  assert.equal(probes, 2);
+  assert.equal(waits, 1);
 });
 
 test('promoted installability refuses probe errors and third states without retry', async () => {
@@ -1232,6 +1355,138 @@ test('promoted installability preserves hosted-proof and rollback lease budget',
   );
   assert.equal(probes, 0);
   assert.equal(retained.at(-1).status, 'failed');
+  assert.match(retained.at(-1).error, /reserved proof and rollback budget/u);
+});
+
+test('stable candidate barrier reserves both probes and their separating delay', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let probes = 0;
+  await assert.rejects(
+    waitForPromotedInstallability({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      observeInstallability: async () => {
+        probes += 1;
+        return {
+          ok: true,
+          rootVersion: '0.1.1',
+          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          error: null,
+          retryablePriorRoot: false,
+        };
+      },
+      now: () => Date.parse('2026-07-28T19:13:55.000Z'),
+      attempts: 2,
+      delayMs: 30_000,
+      probeBoundMs: 10_000,
+      requiredRemainingMs: 20_000,
+      requiredSuccessfulAttempts: 2,
+    }),
+    /reserved proof and rollback budget/u,
+  );
+  assert.equal(probes, 0);
+});
+
+test('stable candidate barrier rechecks reserve after its first successful probe', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let clock = Date.parse('2026-07-28T19:13:49.000Z');
+  let probes = 0;
+  let waits = 0;
+  const retained = [];
+  await assert.rejects(
+    waitForPromotedInstallability({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      observeInstallability: async () => {
+        probes += 1;
+        return {
+          ok: true,
+          rootVersion: '0.1.1',
+          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          error: null,
+          retryablePriorRoot: false,
+        };
+      },
+      record: (evidence) => {
+        retained.push(evidence);
+        if (evidence.status === 'running' && evidence.attempts.length === 1) {
+          clock += 12_000;
+        }
+      },
+      now: () => clock,
+      wait: async () => { waits += 1; },
+      attempts: 2,
+      delayMs: 30_000,
+      probeBoundMs: 10_000,
+      requiredRemainingMs: 20_000,
+      requiredSuccessfulAttempts: 2,
+    }),
+    /reserved proof and rollback budget/u,
+  );
+  assert.equal(probes, 1);
+  assert.equal(waits, 0);
+  assert.equal(retained.at(-1).status, 'failed');
+  assert.equal(retained.at(-1).attempts.length, 1);
+  assert.equal(retained.at(-1).attempts[0].observation.ok, true);
+  assert.match(retained.at(-1).error, /reserved proof and rollback budget/u);
+});
+
+test('stable candidate barrier rechecks downstream reserve after final evidence retention', async () => {
+  const { lease, privateKey, publicKey } = fixture();
+  const vector = vectorFromLease(lease, 'new');
+  const head = acquiredHead(lease, privateKey);
+  let clock = Date.parse('2026-07-28T19:14:10.000Z');
+  let probes = 0;
+  let waits = 0;
+  const retained = [];
+  await assert.rejects(
+    waitForPromotedInstallability({
+      lease,
+      authorityPublicKey: publicKey,
+      expectedVector: vector,
+      readVector: async () => structuredClone(vector),
+      readLeaseHead: async () => structuredClone(head),
+      observeInstallability: async () => {
+        probes += 1;
+        return {
+          ok: true,
+          rootVersion: '0.1.1',
+          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          error: null,
+          retryablePriorRoot: false,
+        };
+      },
+      record: (evidence) => {
+        retained.push(evidence);
+        if (evidence.status === 'passed') clock += 30_000;
+      },
+      now: () => clock,
+      wait: async (milliseconds) => {
+        waits += 1;
+        clock += milliseconds;
+      },
+      attempts: 2,
+      delayMs: 1_000,
+      probeBoundMs: 1_000,
+      requiredRemainingMs: 20_000,
+      requiredSuccessfulAttempts: 2,
+    }),
+    /reserved proof and rollback budget/u,
+  );
+  assert.equal(probes, 2);
+  assert.equal(waits, 1);
+  assert.equal(retained.at(-1).status, 'failed');
+  assert.equal(retained.at(-1).attempts.length, 2);
   assert.match(retained.at(-1).error, /reserved proof and rollback budget/u);
 });
 

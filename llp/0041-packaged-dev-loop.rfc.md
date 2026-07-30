@@ -74,6 +74,24 @@ digest, and publication epoch. Only a structurally valid, uniform prior
 closure may wait; the candidate root with an incomplete closure, a missing or
 third root, resolver error, vector/head drift, or insufficient hosted-proof
 plus rollback lease budget refuses and enters the existing full rollback.
+Run `30488914818` then showed both hosted regions observing a mixed vector
+(`@ccheever/snapback-app-cli` still prior) roughly 15 seconds after the first
+publisher-region candidate closure. Mixed vectors remain terminal. Before
+dispatch, the publisher must instead prove **two** complete candidate-root
+cold closures separated by 30 seconds; both observations are vector/head
+fenced, and the lease budget must reserve that delay plus both probes, hosted
+proof, and rollback. The barrier's v2 evidence retains the maximum attempt
+ceiling, required consecutive successes, delay, probe bound, mandatory
+stability reserve, and every observation. Epoch 13 consumed 187.425 seconds
+from issue to its first barrier attempt. The next closed plan therefore uses a
+400-second hosted dispatch bound plus 30-second verification, 120-second
+rollback, and 120-second two-probe stability reserve: 670 seconds total,
+leaving 230 seconds before the barrier (42.575 seconds above that measured
+path). Earlier successful hosted runs completed in 163–185 seconds. Exceeding
+the 230-second pre-barrier budget still refuses before a probe. The barrier
+rechecks at a fresh clock after retaining each success, and the promoter
+revalidates the lease and downstream reserve once more immediately before
+hosted dispatch.
 This is a corrective instrument and does not itself claim a completed
 promotion.)
 
