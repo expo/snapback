@@ -1,13 +1,13 @@
 # Upgrade required demo surfaces to portable Exact artifacts
 
-**Status:** Open
+**Status:** Resolved (2026-07-30)
 **Impact:** 4
 **Urgency:** 2
 **Ease:** 1
 **Confidence:** 5
 **Score reviewed:** 2026-07-26
 **Score rationale:** The ticket evidence for “Upgrade required demo surfaces to portable Exact artifacts” shows the issue materially affects a supported product or engineering path; it can wait behind current correctness blockers, while delivery is a dependency-heavy, multi-stage program, with a direct reproduction or current implementation proof.
-**Progress:** Blocked
+**Progress:** Done
 **Severity:** P2
 **Systems:** Exact integration, Required demo surfaces, Generated artifacts, CI
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -121,3 +121,64 @@ acceptance above.
 7. Only after both pins are upgraded, delete the pre-portability allowlist,
    replace its skip regression with a rollback-fails regression, update the
    affected demo diaries, and close this ticket with the proof results.
+
+## Resolution (2026-07-30)
+
+The blocker cleared: ENG-25463 published a coherent Exact `0.1.7` suite to the
+public npm registry on 2026-07-27 whose production runtime entry exports the
+symbols the 0.1.6 attempt found missing (`defineCapability`, `onFlush`,
+`signal`, `registerNativeContractKeyBinding`). `getContractDataflowSnapshot`
+is deliberately NOT in the production entry; the supported pattern (exact repo
+`docs/contract-web-paved-road.md`) is a dev-only observer module behind an
+`import.meta.env.DEV` dynamic import.
+
+Executed per the safe resume steps, registry-only (no local tarballs, no
+source aliases, per LLP 0015's published-package acceptance rule):
+
+- Pinned all direct `@exact/*` aliases in both surface manifests to
+  `@ccheever/*@0.1.7` and regenerated each `bun.lock` from the public
+  registry; `bun install --frozen-lockfile` verifies clean in both surfaces
+  and the locks carry no `file:` specs.
+- Applied the 0.1.7 pager `value=` migration in All Aboard
+  (`value=station.id` on the station header pager, `value=board.hero.id` on
+  the hero pager). The surface's `test:types` and `test:url-open` suites pass.
+- Split Cursors' `getContractDataflowSnapshot` acceptance facts into
+  `contract-dataflow-observer.ts`, loaded behind `import.meta.env.DEV` per the
+  documented pattern. Verified: the dev server resolves the observer to the
+  full runtime (acceptance `channels()`/`receipts()` preserved) and the
+  production bundle contains zero occurrences of the symbol.
+- Rebuilt both production `dist/` trees; the tracked cursors-web dist was
+  reviewed and is byte-stable across rebuilds (identical hashed asset name on
+  consecutive builds). All 157 cursors sourcemap `sources` are relative;
+  neither dist contains any absolute checkout path (`rg` for `/Users/`,
+  `/home/`, tmp/var roots, and the worktree root: no matches). The Exact-side
+  ENG-24452/ENG-25004 normalization is real in 0.1.7.
+- `node scripts/check-required-surface-builds.mjs`:
+  REQUIRED-SURFACE-BUILDS PASS (both surfaces, registry installs).
+- `node scripts/check-artifact-path-hygiene.mjs`: both surfaces scanned, no
+  finding, no skip — ARTIFACT-PATH-HYGIENE PASS.
+- Deleted the pre-portability allowlist
+  (`PRE_PORTABLE_ARTIFACT_EXACT_CONTRACT_VERSIONS` and the skip path) from
+  `scripts/check-artifact-path-hygiene.mjs`; every dist tree on disk is now
+  scanned unconditionally. `tests/artifact_path_hygiene_v0.mjs` replaces the
+  skip regression with a rollback-fails regression: a surface rolled back to
+  a 0.1.0–0.1.4 pin with a leaky dist produces findings, never a skip.
+
+One gate correction surfaced by the first honest full scan: the
+`windows-drive-root` marker matched escaped source text embedded in 0.1.7's
+bundles — `case N:\n` (literal backslash-n in stringified source) and the
+regex source `[\s:"]` serialized as `[\\s:\"]` both begin
+`<letter>:<backslash>` without being paths. These were verified false
+positives (the same bytes are identical across checkouts and disclose no
+host path). The marker now requires a real path segment plus a second
+separator (`D:\a\exact\...` still matches; escape sequences do not), with
+regression tests for both classes. This is a marker-precision fix, not an
+allowlist: genuine leaks in any scanned artifact still fail the gate.
+
+Diary entries: `diaries/0008-all-aboard.diary.md` and
+`diaries/0007-cursors-web.diary.md` (2026-07-30). Fresh-worktree note for
+future runs: the surface builds consume the demos' ignored codegen caches;
+regenerate with `SNAPBACK_OUTBOUND_ACTIONS=1 node
+packages/snapback-codegen/index.mjs demos/all-aboard/snapback` and
+`node packages/snapback-codegen/index.mjs demos/cursors-web/snapback` if
+`SNAPBACK_CODEGEN_CACHE_INVALID` appears.

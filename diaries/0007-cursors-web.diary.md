@@ -312,3 +312,38 @@ surface typecheck and production build passed; provider live conformance passed
 14/14 with forced label/grant divergence; and the cross-room overlay regression
 passed 1/1. The kit client error suite passed 73/73, including the opaque-grant
 refresh request and successful-overlay identity proof.
+
+## 2026-07-30 — Exact 0.1.7 and the dev-only dataflow observer split
+
+Upgraded the Contract surface from the registry 0.1.2 pins to
+`@ccheever/exact-*@0.1.7`, regenerated `bun.lock` from the public registry,
+and regenerated the tracked production `dist/`
+(issues/closed/20260716-upgrade-exact-portable-artifact-pins.md).
+
+Exact observations. The 0.1.6 production-build failure here —
+`getContractDataflowSnapshot` missing from the narrowed production runtime
+entry — is resolved in 0.1.7 not by re-exporting the inspector but by
+documenting the boundary: rich dataflow inspection is dev-only machinery, and
+the paved road (exact `docs/contract-web-paved-road.md`) prescribes a
+dev-only observer module loaded behind `import.meta.env.DEV`. `main.ts` now
+keeps the acceptance facts object production-clean (identity, connection,
+forced-map controls) and grows `channels()`/`receipts()` only in dev via a
+dynamic import of `contract-dataflow-observer.ts`. Verified both directions:
+the dev server resolves the observer's `@exact/contract/runtime` import to
+the full `src/runtime/index.ts`, so the browser acceptance suite's
+`window.cursorsWeb.channels()` reads keep working; the production bundle
+contains zero occurrences of `getContractDataflowSnapshot` and Vite's
+compile-time guard drops the module from the graph entirely. The split cost
+about fifteen lines and made the dev/prod boundary explicit where it used to
+be accidental — better than 0.1.2, where the inspector silently rode into the
+shipped bundle.
+
+Portability: the regenerated tracked dist is byte-stable across rebuilds
+(same content hash twice in a row) and free of absolute checkout paths — all
+157 sourcemap `sources` entries are relative. That retired the last
+pre-portability allowlist entry in `scripts/check-artifact-path-hygiene.mjs`;
+the gate now scans every dist tree unconditionally and a rollback to a 0.1.x
+pre-portability pin fails on its leaked bytes instead of being skipped. The
+new dist also gained `assets/exact-contract/app.contract.*.witness.json` — a
+0.1.7 witness artifact with relative provenance paths, exactly the shape the
+hygiene gate wants.

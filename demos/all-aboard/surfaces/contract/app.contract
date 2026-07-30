@@ -355,7 +355,7 @@ component StationHeader
     // safe-area inset); the pager strip starts below the inset so the
     // station identity and chevrons stay clear of the notch/clock.
     column position="absolute" top=0 left=0 right=0 height=headerHeight background="#C8102E" overflow="hidden" testId="station-header"
-      pager axis="horizontal" keys="vertical" claim="station-header" prev=goToStation(prevStationId) next=goToStation(nextStationId) fallbackPrev="prev-station" fallbackNext="next-station" position="absolute" top=topInset left=0 right=0 bottom=0 testId="station-pager"
+      pager axis="horizontal" keys="vertical" claim="station-header" value=station.id prev=goToStation(prevStationId) next=goToStation(nextStationId) fallbackPrev="prev-station" fallbackNext="next-station" position="absolute" top=topInset left=0 right=0 bottom=0 testId="station-pager"
         when prevStationId != station.id
           cell side="prev"
             column justify="center" height="100%" testId="header-cell-prev"
@@ -475,7 +475,7 @@ component DirectionBoard
 
           // The selected train: a framework-owned clipped 3-cell pager.
           column width="100%" overflow="hidden" position="relative"
-            pager axis="horizontal" keys="horizontal" claim="board-content" prev=selectTrain(board.offset - 1) next=selectTrain(board.offset + 1) fallbackPrev="train-prev" fallbackNext="train-next" width="100%" testId="hero-pager"
+            pager axis="horizontal" keys="horizontal" claim="board-content" value=board.hero.id prev=selectTrain(board.offset - 1) next=selectTrain(board.offset + 1) fallbackPrev="train-prev" fallbackNext="train-next" width="100%" testId="hero-pager"
               when board.heroPrev
                 cell side="prev"
                   column width="100%" testId="hero-cell-prev"

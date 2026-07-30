@@ -2234,3 +2234,42 @@ app-reachable mutation, byte-audited against the committed fixture. Remaining
 step: mirror the byte-identical `handlers.mjs` change into the
 `expo-jam-allaboard` copy (shared with live sessions, deliberately not touched
 here) so its second-port `/reseed` seam can be retired.
+
+## 2026-07-30 — Exact 0.1.7: the portable-artifact pin finally lands
+
+Upgraded the Contract surface's whole lockstep Exact suite from the registry
+0.1.4 pins to `@ccheever/exact-*@0.1.7` (aliased as `@exact/*`), regenerated
+`bun.lock` from the public registry, and production-rebuilt the dist in place
+through `scripts/check-required-surface-builds.mjs`
+(issues/closed/20260716-upgrade-exact-portable-artifact-pins.md).
+
+Exact observations, separate from Snapback. The 0.1.6 attempt's two blockers
+are really gone in 0.1.7: the narrowed `@exact/contract/runtime/production`
+entry now exports `defineCapability`/`onFlush`/`signal`/
+`registerNativeContractKeyBinding`, so `@exact/router/contract` production-
+builds from the registry package without any alias or shim. The only source
+migration the new grammar demanded was the one the 0.1.6 attempt predicted:
+each `pager` needs a stable scalar `value=` identity — `value=station.id` on
+the station header strip and `value=board.hero.id` on the hero pager. Two
+attributes, no behavioral rework; the surface's own typecheck and URL-open
+tests passed unchanged on the first try. That is what a good breaking change
+looks like: the error at build time named the missing symbol, and the
+documented migration was exactly sufficient.
+
+The portability claim itself held up under the byte-level scan: the rebuilt
+dist (25 MB including the static native startup bundles) contains no absolute
+checkout path — sourcemap `sources` are all relative, workspace imports use
+the `/__exact_workspace__/` token. The one surprise was on the Snapback gate
+side, not Exact's: the `windows-drive-root` marker misfired on escaped source
+text (`case N:\n`, the regex source `[\s:"]`) that 0.1.7's richer bundles now
+embed. Real leaks always carry a directory segment, so the marker now requires
+one; regression tests cover both the false-positive and true-positive classes.
+
+One fresh-worktree trap worth recording: the surface's Vite build consumes the
+demo's ignored codegen cache, so a clean worktree fails with
+`SNAPBACK_CODEGEN_CACHE_INVALID` until
+`SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs
+demos/all-aboard/snapback` regenerates it — the error's own remediation line
+points at the CLI, but running codegen directly needs the outbound-actions env
+var that `scripts/check-generated-artifacts` knows about and the error does
+not mention.

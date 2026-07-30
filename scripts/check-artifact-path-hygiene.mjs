@@ -23,17 +23,12 @@
 // @ref LLP 0015#acceptance-rules — required surfaces build from their own
 // committed registry locks and may not silently skip.
 //
-// PRE-PORTABILITY ALLOWLIST — delete with the 0.1.5 pin/regen: a surface
-// whose package.json still pins @exact/contract to a version that PREDATES
-// the Exact portable-artifact fixes is reported and skipped instead of
-// failing, because rebuilding it reproduces the leak by construction until
-// the fixed package is published and the pin + tracked dist are regenerated.
-// The gate arms itself the moment a surface's pin moves past this list; no
-// manual flip is needed at regen time (but remove the list once every
-// surface pin has moved past it, so it cannot mask a reintroduction via a
-// version rollback). Exact publishes its packages as one versioned suite, so
-// the @exact/contract alias is the release sentinel even though ENG-25004's
-// workspace-token implementation lives in @exact/devtools.
+// NO ALLOWLIST (issues/closed/20260716-upgrade-exact-portable-artifact-pins):
+// both required surfaces now pin the @exact/* 0.1.7 registry suite, whose
+// production builds are location-independent, so every dist tree present on
+// disk is scanned unconditionally. A version rollback to a pre-portability
+// pin (0.1.0–0.1.4) is NOT silenced — its rebuilt dist reproduces the leak
+// and this gate fails on the leaked bytes themselves.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -43,17 +38,6 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEMOS_DIR = join(ROOT, 'demos');
 const EXCERPT_RADIUS = 60;
 const MAX_FINDINGS_PER_FILE = 5;
-
-// @exact/contract versions published BEFORE the combined ENG-24452/ENG-25004
-// portable-artifact release. Their production builds can embed absolute
-// checkout paths by construction.
-export const PRE_PORTABLE_ARTIFACT_EXACT_CONTRACT_VERSIONS = new Set([
-  '0.1.0',
-  '0.1.1',
-  '0.1.2',
-  '0.1.3',
-  '0.1.4',
-]);
 
 // Markers, not an exhaustive grammar: each one is a byte pattern that only
 // plausibly appears in an artifact because an absolute checkout/workstation
@@ -74,7 +58,17 @@ export const ABSOLUTE_PATH_MARKERS = [
   { id: 'windows-home', pattern: /[A-Za-z]:[\\/]+Users[\\/]+/ },
   // A drive root must start at a token boundary. Without the guard, the
   // trailing `s:/` in ordinary `https://` URLs is misclassified as a drive.
-  { id: 'windows-drive-root', pattern: /(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]+/ },
+  // It must also continue with a path segment and a second separator: in
+  // string/JSON-escaped artifact bytes (sourcemap `sourcesContent`, embedded
+  // source text) a lone `\` after `X:` is usually the start of an escape
+  // sequence — `case N:\n` and the regex source `[\s:"]` (as `[\\s:\"]`)
+  // both begin with `<letter>:<backslash>` without being paths. A leaked
+  // checkout path always carries at least one directory segment
+  // (`D:\a\exact\...`, `C:/ci/build/...`), which escape sequences never do.
+  {
+    id: 'windows-drive-root',
+    pattern: /(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]+[^\s\\/:*?"'`<>|]+[\\/]/,
+  },
 ];
 
 function log(msg) {
@@ -103,19 +97,6 @@ export function collectSurfaceDistTrees({ demosDir = DEMOS_DIR } = {}) {
     }
   }
   return trees;
-}
-
-/** The npm-alias-pinned @exact/contract version of a surface, or null. */
-export function pinnedExactContractVersion(surfaceDir) {
-  let pkg;
-  try {
-    pkg = JSON.parse(readFileSync(join(surfaceDir, 'package.json'), 'utf8'));
-  } catch {
-    return null;
-  }
-  const spec = pkg?.dependencies?.['@exact/contract'];
-  const match = typeof spec === 'string' ? /^npm:.+@([^@]+)$/.exec(spec) : null;
-  return match ? match[1] : null;
 }
 
 function listFilesRecursively(dir) {
@@ -160,25 +141,19 @@ export function scanArtifactBytes(content, { extraMarkers = [] } = {}) {
 export function auditSurfaceDistTrees({
   demosDir = DEMOS_DIR,
   checkoutRoot = ROOT,
-  prePortableArtifactVersions = PRE_PORTABLE_ARTIFACT_EXACT_CONTRACT_VERSIONS,
 } = {}) {
   const escapedRoot = checkoutRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const extraMarkers = [{ id: 'checkout-root', pattern: new RegExp(escapedRoot) }];
   const results = [];
   for (const tree of collectSurfaceDistTrees({ demosDir })) {
     const id = `${tree.demoId}/${tree.surfaceName}`;
-    const pinnedVersion = pinnedExactContractVersion(tree.surfaceDir);
-    if (pinnedVersion !== null && prePortableArtifactVersions.has(pinnedVersion)) {
-      results.push({ id, ...tree, pinnedVersion, skipped: true, findings: [] });
-      continue;
-    }
     const findings = [];
     for (const file of listFilesRecursively(tree.distDir)) {
       for (const finding of scanArtifactBytes(readFileSync(file, 'latin1'), { extraMarkers })) {
         findings.push({ file: relative(demosDir, file), ...finding });
       }
     }
-    results.push({ id, ...tree, pinnedVersion, skipped: false, findings });
+    results.push({ id, ...tree, findings });
   }
   return results;
 }
@@ -194,14 +169,6 @@ function main() {
 
   let failures = 0;
   for (const result of results) {
-    if (result.skipped) {
-      log(
-        `SKIP ${result.id}: @exact/contract pin ${result.pinnedVersion} predates the ` +
-        'Exact 0.1.5 portable-artifact fixes; its dist can embed checkout paths by construction. ' +
-        'This allowlist entry disappears when the pin and tracked dist are regenerated.',
-      );
-      continue;
-    }
     if (result.findings.length === 0) {
       log(`OK ${result.id}: no absolute checkout-path markers in dist/`);
       continue;
@@ -218,8 +185,8 @@ function main() {
   if (failures > 0) {
     fail(
       `${failures} surface dist tree(s) embed absolute checkout paths. Production artifacts must be ` +
-      'location-independent: rebuild with the @exact/* 0.1.5-or-newer portable-artifact suite, ' +
-      'and never hand-edit dist bytes.',
+      'location-independent: rebuild with the @exact/* 0.1.7-or-newer portable-artifact suite ' +
+      '(0.1.5/0.1.6 could not production-build the required surfaces), and never hand-edit dist bytes.',
     );
   }
   log('ARTIFACT-PATH-HYGIENE PASS');

@@ -7,9 +7,9 @@
     "build": "bun --bun node_modules/.bin/vite build --config vite.config.ts"
   },
   "dependencies": {
-    "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-    "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-    "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2"
+    "@exact/contract": "npm:@ccheever/exact-contract@0.1.7",
+    "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.7",
+    "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.7"
   },
   "devDependencies": {
     "vite": "^8.0.0"

@@ -12,7 +12,7 @@
 // D4-shaped: inspect-first ensure, provision-if-missing, never reset
 // (LLP 0034 §5; the LLP 0025 second-window rule holds).
 
-import { getContractDataflowSnapshot, mount, reset } from '@exact/contract/runtime';
+import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
@@ -93,17 +93,18 @@ async function boot() {
   // Test/debug facts: the acceptance suite drives the forced-map proof
   // (LOCAL-ONLY + dispose-restores) and reads the channel/publish facts
   // through the same dataflow snapshot the agent surface serves
-  // (LLP 0281 §3.5 — live-observable, never replay-asserted).
+  // (LLP 0281 §3.5 — live-observable, never replay-asserted). The snapshot
+  // reader is dev-only machinery: `getContractDataflowSnapshot` is not in
+  // the production runtime entry, so the accessors live in a dev-only
+  // observer module loaded behind Vite's compile-time DEV guard (the
+  // documented Exact 0.1.7 paved-road split). Production builds keep the
+  // rest of the debug facts and simply never grow `channels`/`receipts`.
   let ghostHandle: { dispose(): void } | null = null;
-  (globalThis as { cursorsWeb?: unknown }).cursorsWeb = {
+  const cursorsWebFacts: Record<string, unknown> = {
     room: ROOM,
     identity,
     connection: surface.connectionId,
     surface,
-    channels: () =>
-      getContractDataflowSnapshot({ component: 'CursorRoom', include: ['channels'] }),
-    receipts: () =>
-      getContractDataflowSnapshot({ component: 'CursorRoom', include: ['receipts'] }),
     forceGhost: () => {
       ghostHandle?.dispose();
       ghostHandle = surface.provider.forceEphemeralState?.('webCursors', {
@@ -123,6 +124,14 @@ async function boot() {
       ghostHandle = null;
     },
   };
+  if (import.meta.env.DEV) {
+    // Awaited so the acceptance suite can read channels()/receipts() as soon
+    // as `cursorsWebReady` resolves; Vite eliminates this branch (and the
+    // observer module) from the production graph at compile time.
+    const { attachDataflowFacts } = await import('./contract-dataflow-observer');
+    attachDataflowFacts(cursorsWebFacts);
+  }
+  (globalThis as { cursorsWeb?: unknown }).cursorsWeb = cursorsWebFacts;
   return surface;
 }
 
