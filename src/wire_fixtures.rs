@@ -51,7 +51,8 @@ use crate::auth::invalidation::{
 };
 use crate::ephemeral::{DurableMessage, RealtimeEnvelope};
 use crate::live_wire::{
-    AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
+    AuthorizationInvalidationSnapshot, LiveAuthErrorCode, LiveAuthErrorReason,
+    LiveAuthorityDisposition, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
     LiveSocketServerFrame, ResumeMeta, ResumeWire,
 };
 use crate::storage::AuthorizationVersion;
@@ -302,14 +303,18 @@ pub fn wire_fixture_corpus() -> Value {
         payload: vec![0xff, 0xfe],
     });
     let current_as_of = wire(&current_as_of_envelope());
-    let authorization_invalidation = wire(&invalidation_envelope(
+    let invalidation_for_wrap = invalidation_envelope(
         "sub_fixture_1",
         43,
         1,
         InvalidationDisposition::Quarantine,
         Some((ResolutionKind::Snapshot, "ack_fixture_1")),
         Some("authorized row"),
-    ));
+    );
+    let authorization_invalidation = wire(&invalidation_for_wrap);
+    // Lane-P framing of the exact core invalidation envelope (parity is
+    // gate-enforced byte-exact in tests/wire_fixtures_v1.rs).
+    let wrapped_authorization_invalidation = wrapped(&invalidation_for_wrap);
     let authorization_invalidation_without_snapshot = wire(&invalidation_envelope(
         "sub_fixture_1",
         43,
@@ -429,6 +434,18 @@ pub fn wire_fixture_corpus() -> Value {
     let pong = wire(&LiveSocketServerFrame::Pong {
         request_id: Some("ping_fixture_1".to_owned()),
         server_time_ms: 5_000,
+    });
+    // T-AUTH-TERM frames: the identifier-free typed terminal closure with
+    // its authorityDisposition distinction (LLP 0059; src/live_wire.rs).
+    let auth_error_carrier = wire(&LiveSocketServerFrame::AuthError {
+        code: LiveAuthErrorCode::SessionExpired,
+        reason: LiveAuthErrorReason::Expired,
+        authority_disposition: LiveAuthorityDisposition::Carrier,
+    });
+    let auth_error_durable_delete = wire(&LiveSocketServerFrame::AuthError {
+        code: LiveAuthErrorCode::ScopedTokenInvalid,
+        reason: LiveAuthErrorReason::Revoked,
+        authority_disposition: LiveAuthorityDisposition::DurableDelete,
     });
 
     let seeded = json!([
@@ -1664,6 +1681,532 @@ pub fn wire_fixture_corpus() -> Value {
         },
     ]);
 
+    // ---- Format-v3 P-3 extensions: the LLP 0096 auth-profile fixture
+    // classes. Every profile fixture is a local-arm tuple (LLP 0096 §2.6 —
+    // no hosted sessions surface exists; gate-enforced in
+    // tests/wire_fixtures_v1.rs). `auth/sender` is deliberately absent
+    // until the off-browser custody story exists (LLP 0096 §5): the corpus
+    // must not encode browser-custody obligations as if they bound native
+    // clients.
+    // @ref LLP 0096#2-per-profile-contract — carriers, refusal codes, and
+    //   the conformance obligations each profile claim takes on.
+    let p3_extensions = json!([
+        {
+            "name": "auth.rr.offer_refusal_surfaced",
+            "family": "query.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/rr"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "request": {
+                        "method": "POST",
+                        "route": "/query/listTodos",
+                        "headers": { "x-snapback-auth-client-protocol": "1" },
+                        "body": { "args": {} }
+                    },
+                    "refusal": {
+                        "status": 503,
+                        "code": "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "details": { "capability": "onlineRequestResponse" }
+                    },
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_capability_diagnostic"]
+                    }
+                },
+                {
+                    "request": {
+                        "method": "POST",
+                        "route": "/query/listTodos",
+                        "headers": {},
+                        "body": { "args": {} }
+                    },
+                    "refusal": {
+                        "status": 400,
+                        "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+                        "details": {
+                            "capability": "onlineRequestResponse",
+                            "minimumAuthClientProtocol": 1
+                        }
+                    },
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_capability_diagnostic"],
+                        "forbiddenActions": ["retry_unchanged"]
+                    }
+                },
+                {
+                    "request": {
+                        "method": "POST",
+                        "route": "/query/listTodos",
+                        "headers": { "x-snapback-auth-client-protocol": "2" },
+                        "body": { "args": {} }
+                    },
+                    "refusal": {
+                        "status": 400,
+                        "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+                        "details": {
+                            "capability": "onlineRequestResponse",
+                            "minimumAuthClientProtocol": 1
+                        }
+                    },
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_capability_diagnostic"],
+                        "forbiddenActions": ["retry_unchanged"]
+                    }
+                }
+            ],
+            "given": { "authMode": "sessions" },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"]
+            },
+            "notes": "LLP 0096 §2.1: per-request gating for auth/rr. Step 1 is the readiness refusal (503 — a structured capability diagnostic; bounded readiness backoff is permitted, a retry storm is not). Steps 2-3 are the malformed-offer negatives: a missing offer and an unknown integer both refuse 400 non-retryably — an unknown integer is no valid offer, never silent degradation, and a malformed header never falls through to the subprotocol carrier."
+        },
+        {
+            "name": "auth.live.subscribe_missing_invalidation_offer_refused",
+            "family": "live.subscribe.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "request": {
+                "method": "POST",
+                "route": "/live/listTodos/subscribe",
+                "headers": { "x-snapback-auth-client-protocol": "1" },
+                "body": {
+                    "connection_id": "conn_fixture_1",
+                    "authorizationNamespace": {
+                        "clientStoreId": "store-fixture",
+                        "queryKey": "listTodos:{}",
+                        "queryInstanceId": 1
+                    },
+                    "input": { "args": {} }
+                }
+            },
+            "refusal": {
+                "status": 400,
+                "code": "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                "details": {
+                    "capability": "authScopedLive",
+                    "minimumAuthInvalidationProtocol": 1
+                }
+            },
+            "given": { "authMode": "sessions", "connection": { "state": "granted" } },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "LLP 0096 §2.2 carrier 2 (the live-lifecycle half): every sessions-mode subscribe/unsubscribe repeats `x-snapback-auth-invalidation-protocol: 1`. Authority independence is a compiled server fact not projected to clients, so always offering is the conformant rule; a missing offer refuses non-retryably."
+        },
+        {
+            "name": "auth.live.ack_requires_negotiated_connection",
+            "family": "authorization-invalidation.ack.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "request": {
+                "method": "POST",
+                "route": "/live/authorization-invalidation/acknowledge",
+                "headers": { "x-snapback-auth-invalidation-protocol": "1" },
+                "body": {
+                    "connectionId": "conn_fixture_legacy_1",
+                    "ackToken": "ack_fixture_unnegotiated_1"
+                }
+            },
+            "refusal": {
+                "status": 400,
+                "code": "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+            },
+            "given": {
+                "connection": { "state": "attached", "authInvalidationNegotiated": false },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "resync_pending", "version": 42 }
+                ]
+            },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic", "reopen_connection"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "LLP 0096 §2.2: the acknowledge routes consult the OPEN-TIME binding — a connection opened without `authInvalidationProtocol: 1` is legacy, and the per-request header cannot substitute for the missing open-time half. Unchanged retry cannot succeed; the obligation stays held (level-triggered) and discharge requires re-opening a correctly negotiated connection and re-establishing the subscription."
+        },
+        {
+            "name": "auth.live.ack_needs_no_descriptor_offer",
+            "family": "authorization-invalidation.ack.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "request": {
+                "method": "POST",
+                "route": "/live/authorization-invalidation/acknowledge",
+                "headers": { "x-snapback-auth-invalidation-protocol": "1" },
+                "body": {
+                    "connectionId": "conn_fixture_1",
+                    "ackToken": "ack_fixture_1"
+                }
+            },
+            "response": { "status": 200 },
+            "given": {
+                "connection": { "state": "attached", "authInvalidationNegotiated": true },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 43 }
+                ]
+            },
+            "expect": {
+                "transitions": [],
+                "actions": []
+            },
+            "notes": "Descriptor independence, ratified 2026-07-25 (LLP 0096 §2.2/§8.1; issues/closed/20260725-0093-p3-invalidation-ack-descriptor-coupling.md): the invalidation-ack routes classify InvocationSource::InvalidationAcknowledgement, outside the queued-replay fence — a client claiming only auth/live discharges obligations without ever sending `x-snapback-authority-descriptor-protocol`. A descriptor offer sent anyway is ignored, not required."
+        },
+        {
+            "name": "auth.live.terminal_auth_carrier_disposition",
+            "family": "live.socket-server.schema.json",
+            "lane": "live",
+            "tuples": ["live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": auth_error_carrier,
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_1,
+                "connection": { "state": "attached" },
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    }
+                }]
+            },
+            "expect": {
+                "transitions": [{ "connection": "state", "to": "terminal_auth" }],
+                "actions": ["surface_terminal_auth"],
+                "forbiddenActions": ["attempt_reconnect"]
+            },
+            "notes": "T-AUTH-TERM (LLP 0095 §1.4; LLP 0059's typed terminal closure): auth_error / close 4401 is terminal, never reconnectable with the presented credential. `authorityDisposition: carrier` means only the presented carrier ended — the client may obtain a fresh credential and open a fresh connection, and local durable authority state is retained."
+        },
+        {
+            "name": "auth.live.terminal_auth_durable_delete_disposition",
+            "family": "live.socket-server.schema.json",
+            "lane": "live",
+            "tuples": ["live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": auth_error_durable_delete,
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_1,
+                "connection": { "state": "attached" },
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    }
+                }]
+            },
+            "expect": {
+                "transitions": [{ "connection": "state", "to": "terminal_auth" }],
+                "actions": ["surface_terminal_auth", "delete_local_durable_authority"],
+                "forbiddenActions": ["attempt_reconnect"]
+            },
+            "notes": "T-AUTH-TERM's durable half: `authorityDisposition: durableDelete` reflects a durable authority deletion, not mere carrier loss — the client must additionally delete local durable authority state (src/live_wire.rs LiveAuthorityDisposition doc). The disposition distinction is the whole reason this frame is not just a close code."
+        },
+        {
+            "name": "auth.replay.descriptor_offer_required",
+            "family": "mutation.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/replay"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "request": {
+                        "method": "POST",
+                        "route": "/mutation/addTodo",
+                        "headers": { "x-snapback-auth-client-protocol": "1" },
+                        "body": {
+                            "args": { "title": "fixture todo" },
+                            "clientMutationId": "cmid_fixture_1"
+                        }
+                    },
+                    "refusal": {
+                        "status": 400,
+                        "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+                        "details": {
+                            "capability": "queuedReplay",
+                            "minimumAuthorityDescriptorProtocol": 1
+                        }
+                    },
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_capability_diagnostic"],
+                        "forbiddenActions": ["retry_unchanged"]
+                    }
+                },
+                {
+                    "family": "client-mutation.ack.input.schema.json",
+                    "request": {
+                        "method": "POST",
+                        "route": "/client-mutations/acknowledge",
+                        "headers": { "x-snapback-auth-client-protocol": "1" },
+                        "body": {
+                            "auth": {},
+                            "clientMutationIds": ["cmid_fixture_1"]
+                        }
+                    },
+                    "refusal": {
+                        "status": 400,
+                        "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+                        "details": {
+                            "capability": "queuedReplay",
+                            "minimumAuthorityDescriptorProtocol": 1
+                        }
+                    },
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_capability_diagnostic"],
+                        "forbiddenActions": ["retry_unchanged"]
+                    }
+                }
+            ],
+            "given": { "authMode": "sessions" },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"]
+            },
+            "notes": "LLP 0096 §2.3: the descriptor gate binds exactly the replay-requesting surfaces — a mutation body carrying clientMutationId/acknowledgedClientMutationIds and the standalone settlement acknowledgement (InvocationSource::MutationSettlementAcknowledgement, the deliberate half of the §8.1 split). Post-split it does NOT bind the invalidation-ack routes: see auth.live.ack_needs_no_descriptor_offer."
+        },
+        {
+            "name": "auth.replay.duplicate_settlement_idempotent",
+            "family": "mutation.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/replay"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "request": {
+                        "method": "POST",
+                        "route": "/mutation/addTodo",
+                        "headers": {
+                            "x-snapback-auth-client-protocol": "1",
+                            "x-snapback-authority-descriptor-protocol": "1"
+                        },
+                        "body": {
+                            "args": { "title": "fixture todo" },
+                            "clientMutationId": "cmid_fixture_2"
+                        }
+                    },
+                    "response": { "status": 200 },
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["settle_client_mutation"]
+                    }
+                },
+                {
+                    "request": {
+                        "method": "POST",
+                        "route": "/mutation/addTodo",
+                        "headers": {
+                            "x-snapback-auth-client-protocol": "1",
+                            "x-snapback-authority-descriptor-protocol": "1"
+                        },
+                        "body": {
+                            "args": { "title": "fixture todo" },
+                            "clientMutationId": "cmid_fixture_2"
+                        }
+                    },
+                    "response": { "status": 200 },
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["discard_duplicate_settlement"],
+                        "forbiddenActions": ["settle_client_mutation"]
+                    }
+                }
+            ],
+            "given": { "authMode": "sessions" },
+            "expect": {
+                "transitions": [],
+                "actions": ["settle_client_mutation", "discard_duplicate_settlement"],
+                "settlement": { "clientMutationId": "cmid_fixture_2", "appliedOnce": true }
+            },
+            "notes": "LLP 0043 (via LLP 0096 §2.3): the durable ordered queue redelivers idempotently under the retained clientMutationId — step 2 is the exact same request after a crash/redelivery, and the server settles the retained result rather than re-executing. The client resolves its queue entry exactly once; re-applying the duplicate settlement is non-conformant."
+        },
+        {
+            "name": "auth.replay.predecessor_queue_suspends",
+            "family": null,
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/replay"],
+            "direction": "client_lifecycle",
+            "schemaValid": false,
+            "steps": [
+                {
+                    "event": {
+                        "kind": "authority_instance_changed",
+                        "from": "authinst_fixture_a",
+                        "to": "authinst_fixture_b"
+                    },
+                    "expect": {
+                        "transitions": [{ "replayQueue": "authinst_fixture_a", "to": "suspended" }],
+                        "actions": ["suspend_predecessor_queue"],
+                        "forbiddenActions": ["replay_queued_mutations"]
+                    }
+                }
+            ],
+            "given": {
+                "replayQueue": {
+                    "authorityInstance": "authinst_fixture_a",
+                    "pending": [{ "clientMutationId": "cmid_fixture_9" }]
+                }
+            },
+            "expect": {
+                "transitions": [{ "replayQueue": "authinst_fixture_a", "to": "suspended" }],
+                "actions": ["suspend_predecessor_queue"],
+                "forbiddenActions": ["replay_queued_mutations"]
+            },
+            "notes": "LLP 0064 §4 (via LLP 0096 §2.3): a queue retained under a predecessor authority instance suspends on authority-instance mismatch and is NEVER replayed under successor authority. Resumption requires re-establishing the original authority or explicit user-mediated abandonment — silent replay under the new principal is the defect class this fixture pins out."
+        },
+        {
+            "name": "auth.lease.offer_pair_required",
+            "family": "authorized-lease.query.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/lease"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "request": {
+                "method": "POST",
+                "route": "/query/listTodos/authorized-lease",
+                "headers": {
+                    "x-snapback-auth-client-protocol": "1",
+                    "x-snapback-authorized-lease-protocol": "1"
+                },
+                "body": {
+                    "leaseRequestId": "lease_req_fixture_1",
+                    "clientStoreId": "store-fixture",
+                    "queryKey": "listTodos:{}",
+                    "queryInstanceId": 1,
+                    "args": {}
+                }
+            },
+            "refusal": {
+                "status": 400,
+                "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+            },
+            "given": { "authMode": "sessions" },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "LLP 0096 §1.2/§2.4 declared composition: authorized retained reads require the lease offer AND the invalidation offer together (`RetainedReadAvailability` carries both minima). This request offers only the lease half, so it refuses exactly like an offerless request. Offers ride the decimal headers on the HTTP-only parser (the §8.2 divergence is fixed); readiness failure is the separate 503 SNAPBACK_AUTH_POLICY_UNAVAILABLE."
+        },
+        {
+            "name": "auth.lease.expiry_fences_retained_rows",
+            "family": null,
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/lease"],
+            "direction": "client_lifecycle",
+            "clock": "virtual",
+            "schemaValid": false,
+            "steps": [
+                {
+                    "advanceVirtualTimeMs": 59999,
+                    "expect": { "transitions": [], "actions": [] }
+                },
+                {
+                    "advanceVirtualTimeMs": 2,
+                    "expect": {
+                        "transitions": [{ "retainedRead": "listTodos:{}", "to": "fenced" }],
+                        "actions": ["fence_retained_rows"]
+                    }
+                }
+            ],
+            "given": {
+                "virtualNowServerMs": 0,
+                "retainedRead": {
+                    "queryKey": "listTodos:{}",
+                    "queryInstanceId": 1,
+                    "rows": [{ "_id": "todo_1", "title": "retained row" }],
+                    "lease": { "authorizedLeaseProtocol": 1, "expiresAtServerMs": 60000 }
+                }
+            },
+            "expect": {
+                "transitions": [{ "retainedRead": "listTodos:{}", "to": "fenced" }],
+                "actions": ["fence_retained_rows"]
+            },
+            "notes": "LLP 0059's transition table owns the semantics (cited, not restated): retention exists only under a current exact signed lease. At expiry — with NO wire event — the retained material is fenced/deleted; rows must not be readable at any virtual instant past expiresAtServerMs. Retention is never inferred from a matching user id or from being online (the axis-independence rule)."
+        },
+        {
+            "name": "poll.wrapped_authorization_invalidation.apply_then_ack",
+            "family": "realtime.envelope.schema.json",
+            "lane": "poll",
+            "tuples": ["poll/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": wrapped_authorization_invalidation,
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_1,
+                "subscriptions": [
+                    {
+                        "id": "sub_fixture_1",
+                        "state": "live",
+                        "version": 42,
+                        "authorizationScope": held_authorization_scope,
+                        "authorizationNamespace": held_authorization_namespace,
+                        "acceptedAuthorization": {
+                            "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                            "epoch": 1
+                        },
+                        "rows": [{ "_id": "todo_1", "title": "pre-invalidation row" }]
+                    }
+                ]
+            },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 43 }],
+                "actions": [
+                    "unwrap_durable",
+                    "quarantine_rows",
+                    "apply_invalidation_snapshot",
+                    "acknowledge_obligation"
+                ],
+                "orderedActions": [
+                    "unwrap_durable",
+                    "quarantine_rows",
+                    "apply_invalidation_snapshot",
+                    "acknowledge_obligation"
+                ],
+                "acknowledgeAfter": "apply_invalidation_snapshot"
+            },
+            "notes": "Wrapped/unwrapped parity for the authorization_invalidation family: the byte-exact envelope of auth.live.invalidation_snapshot_apply_then_ack step 1 in Lane-P framing. Unwrapping precedes the T-AUTH-INVALIDATION judgment, which is framing-independent — quarantine, atomic apply, then release the exact ackToken."
+        },
+    ]);
+
     let mut fixtures = seeded
         .as_array()
         .expect("seeded fixtures are an array")
@@ -1675,13 +2218,20 @@ pub fn wire_fixture_corpus() -> Value {
             .iter()
             .cloned(),
     );
+    fixtures.extend(
+        p3_extensions
+            .as_array()
+            .expect("P-3 extension fixtures are an array")
+            .iter()
+            .cloned(),
+    );
 
     json!({
         "artifactKind": "liveWireFixtureCorpus",
         "formatVersion": WIRE_FIXTURES_FORMAT_VERSION,
         "wireVersion": "snapback.v1",
         "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
-        "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, and virtual-time heartbeat/freshness/backoff",
+        "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, virtual-time heartbeat/freshness/backoff, and the LLP 0096 auth-profile classes (auth/rr, auth/live incl. terminal dispositions, auth/replay incl. the post-split descriptor fence, auth/lease; auth/sender deliberately deferred per LLP 0096 §5)",
         "fixtures": fixtures,
     })
 }

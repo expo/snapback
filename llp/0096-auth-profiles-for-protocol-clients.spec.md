@@ -5,7 +5,14 @@
 **Systems:** Auth, Wire Protocol, Client SDK, Native Clients, Realtime, Live Queries, HTTP surface
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-26 (external session-bearer adoption and the trusted
+**Revised:** 2026-07-30 (the §8.4 fixture obligations landed: every §2
+profile fixture class is seeded in the format-v3 corpus — auth/rr refusal
+surfacing and malformed-offer negatives, the auth/live open-time/subscribe
+offer halves, descriptor independence, terminal `authorityDisposition`
+fixtures and wrapped invalidation parity, the auth/replay triple reflecting
+the §8.1 InvocationSource split, and the auth/lease pair; `auth/sender`
+stays deliberately unseeded per §5). 2026-07-26 (external session-bearer
+adoption and the trusted
 local identity-broker seam are pinned separately from browser/native sender
 constraint). 2026-07-25 (initial draft; §7 hosted floor decided —
 LLP 0093 OQ5 ratified as recommended; §8.1 decided as defect and fixed —
@@ -188,10 +195,13 @@ all**, so no profile is negotiable there.
   0064's compatibility-refusal discipline), never a blind retry; run the
   refresh/logout lifecycle through §6's routes; never place a bearer in
   a URL (LLP 0031 §Token transports).
-- **Fixture classes added** (0095 corpus, ticketed §8.4):
-  `auth.rr.offer_refusal_surfaced` (per-request refusal → structured
-  diagnostic, no retry storm), plus the malformed-capability-offer
-  negatives already deferred in LLP 0095 §2.4.
+- **Fixture classes** (0095 corpus — **seeded 2026-07-30**):
+  `auth.rr.offer_refusal_surfaced`, a three-step `client_to_server`
+  fixture: the 503 readiness refusal surfaced as a structured capability
+  diagnostic (no retry storm), then the two malformed-offer negatives
+  (missing offer; unknown integer `2`) refusing 400 non-retryably. The
+  wire-version/open-time malformed-offer negatives live beside it as the
+  `negotiation.*` fixtures (LLP 0095 §2.4).
 
 ### 2.2 `auth/live` — auth-scoped live + invalidation acknowledge
 
@@ -332,9 +342,17 @@ never-reused `queryInstanceId` and performs a fresh subscribe.
   `auth.live.invalidation_invalid_resolution_never_acknowledged`,
   `auth.live.invalidation_without_snapshot_quarantines`, and
   `auth.live.foreign_obligation_never_acknowledged` are seeded in the
-  format-v2 corpus. `auth.live.ack_requires_negotiated_connection` and
-  `auth.live.terminal_auth_disposition` remain in the P-3 profile-fixture
-  follow-up.
+  format-v2 corpus. Seeded 2026-07-30 (format v3):
+  `auth.live.subscribe_missing_invalidation_offer_refused` (the lifecycle
+  carrier half), `auth.live.ack_requires_negotiated_connection` (the
+  open-time half — the per-request header cannot substitute),
+  `auth.live.ack_needs_no_descriptor_offer` (descriptor independence,
+  below), the terminal-disposition pair
+  `auth.live.terminal_auth_carrier_disposition` /
+  `auth.live.terminal_auth_durable_delete_disposition` (T-AUTH-TERM with
+  the `authorityDisposition` distinction), and
+  `poll.wrapped_authorization_invalidation.apply_then_ack` (Lane-P
+  framing parity for the invalidation family).
 - **Descriptor independence (ratified 2026-07-25):** the acknowledge
   routes require **only** this profile's offers — they never demand the
   `auth/replay` (`x-snapback-authority-descriptor-protocol`) offer. The
@@ -376,9 +394,16 @@ never-reused `queryInstanceId` and performs a fresh subscribe.
   — handler doc, `src/server.rs:16253-16256`); suspend a
   predecessor-authority queue on authority-instance mismatch, never
   replay it under successor authority (LLP 0064 §4).
-- **Fixture classes added:** `auth.replay.descriptor_offer_required`,
-  `auth.replay.duplicate_settlement_idempotent`,
-  `auth.replay.predecessor_queue_suspends`.
+- **Fixture classes** (**seeded 2026-07-30**):
+  `auth.replay.descriptor_offer_required` (two steps — the
+  replay-requesting mutation body and `/client-mutations/acknowledge`,
+  reflecting the §8.1 split: the settlement acknowledgement stays
+  descriptor-fenced, the invalidation acks do not),
+  `auth.replay.duplicate_settlement_idempotent` (exact-request
+  redelivery settles once; re-applying is non-conformant), and
+  `auth.replay.predecessor_queue_suspends` (a `client_lifecycle`
+  authority-instance-changed event; the predecessor queue suspends and is
+  never replayed under successor authority).
 
 ### 2.4 `auth/lease` — authorized leases / retained reads
 
@@ -402,8 +427,12 @@ never-reused `queryInstanceId` and performs a fresh subscribe.
   table's events (session loss, principal change, incarnation change);
   never infer retention from a matching user id or from being online
   (LLP 0059's axis-independence rule).
-- **Fixture classes added:** `auth.lease.offer_pair_required`,
-  `auth.lease.expiry_fences_retained_rows`.
+- **Fixture classes** (**seeded 2026-07-30**):
+  `auth.lease.offer_pair_required` (only the lease half offered refuses
+  exactly like an offerless request — the §1.2 declared composition) and
+  `auth.lease.expiry_fences_retained_rows` (virtual-time: the retained
+  rows fence at `expiresAtServerMs` with no wire event; LLP 0059's
+  transition table owns the semantics).
 - **Verified parser divergence on this route:** §8.2.
 
 ### 2.5 `auth/sender` — sender-constrained custody (browser-class)
@@ -802,11 +831,16 @@ exist yet.
 
 The §2 fixture classes extend LLP 0095's corpus (§2.4's deferred
 "malformed capability offers" row was the placeholder for this
-cluster). Ticket:
-`issues/20260725-0093-p3-profile-fixture-classes.md`, coordinated with
-`issues/20260725-0093-p1-fixture-corpus-coverage.md` (the corpus's
-multi-step fixture-format need is shared: snapshot-then-ack sequences
-need the same `steps` shape as cancelled-drain fixtures).
+cluster). **Landed 2026-07-30** with fixture-format v3 (the
+`client_to_server` request/refusal direction and the
+advance/event step forms — LLP 0095 §2.1): every §2.1-§2.4 class above is
+seeded, gate-checked by `tests/wire_fixtures_v1.rs`
+(`auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules`,
+plus the census and the LLP 0096 §2.6 local-arm tuple gate). `auth/sender`
+remains deliberately unseeded until §5's off-browser custody story
+exists. Tickets closed:
+`issues/closed/20260725-0093-p3-profile-fixture-classes.md`,
+`issues/closed/20260725-0093-p1-fixture-corpus-coverage.md`.
 
 ## Open questions
 

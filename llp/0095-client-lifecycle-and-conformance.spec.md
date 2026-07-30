@@ -299,6 +299,8 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
 - **T-AUTH-TERM** (`→ TERMINAL_AUTH`): `auth_error` frame / close code
   4401. The `authorityDisposition` distinguishes carrier loss from durable
   authority deletion (`LiveAuthorityDisposition`, `src/live_wire.rs`).
+  Fixtures: `auth.live.terminal_auth_carrier_disposition`,
+  `auth.live.terminal_auth_durable_delete_disposition`.
 - **T-GRANT-LOSS** (`→ GRANT_LOST → IDLE`): on
   `SNAPBACK_CONNECTION_TOKEN_INVALID`, recovery **re-opens the connection
   and re-establishes every subscription** (§4.4): a reaped/expired grant's
@@ -331,7 +333,12 @@ Format v3 adds, for the refusal/lifecycle/timing classes:
 refusal surfaced to the caller), `retry_unchanged` (appears only in
 `forbiddenActions` — the blind-retry anti-obligation),
 `establish_live_socket`, `send_ping`, `force_socket_loss`, and
-`attempt_reconnect` (the two timer actions of §2.1 rule 4).
+`attempt_reconnect` (the two timer actions of §2.1 rule 4); and for the
+LLP 0096 profile classes: `delete_local_durable_authority` (T-AUTH-TERM's
+`durableDelete` disposition), `settle_client_mutation`,
+`discard_duplicate_settlement`, `suspend_predecessor_queue`,
+`replay_queued_mutations` (forbidden-only), and `fence_retained_rows`
+(lease expiry, LLP 0059's transition table).
 
 ## 2. The conformance fixture corpus contract
 

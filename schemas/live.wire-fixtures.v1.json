@@ -1,6 +1,6 @@
 {
   "artifactKind": "liveWireFixtureCorpus",
-  "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, and virtual-time heartbeat/freshness/backoff",
+  "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, virtual-time heartbeat/freshness/backoff, and the LLP 0096 auth-profile classes (auth/rr, auth/live incl. terminal dispositions, auth/replay incl. the post-split descriptor fence, auth/lease; auth/sender deliberately deferred per LLP 0096 §5)",
   "fixtures": [
     {
       "direction": "server_to_client",
@@ -5086,6 +5086,2335 @@
       "tuples": [
         "live/local",
         "live/hosted"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "transitions": []
+      },
+      "family": "query.input.schema.json",
+      "given": {
+        "authMode": "sessions"
+      },
+      "lane": "core",
+      "name": "auth.rr.offer_refusal_surfaced",
+      "notes": "LLP 0096 §2.1: per-request gating for auth/rr. Step 1 is the readiness refusal (503 — a structured capability diagnostic; bounded readiness backoff is permitted, a retry storm is not). Steps 2-3 are the malformed-offer negatives: a missing offer and an unknown integer both refuse 400 non-retryably — an unknown integer is no valid offer, never silent degradation, and a malformed header never falls through to the subprotocol carrier.",
+      "profiles": [
+        "auth/rr"
+      ],
+      "schemaValid": true,
+      "steps": [
+        {
+          "expect": {
+            "actions": [
+              "surface_capability_diagnostic"
+            ],
+            "transitions": []
+          },
+          "refusal": {
+            "code": "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "details": {
+              "capability": "onlineRequestResponse"
+            },
+            "status": 503
+          },
+          "request": {
+            "body": {
+              "args": {}
+            },
+            "headers": {
+              "x-snapback-auth-client-protocol": "1"
+            },
+            "method": "POST",
+            "route": "/query/listTodos"
+          }
+        },
+        {
+          "expect": {
+            "actions": [
+              "surface_capability_diagnostic"
+            ],
+            "forbiddenActions": [
+              "retry_unchanged"
+            ],
+            "transitions": []
+          },
+          "refusal": {
+            "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+            "details": {
+              "capability": "onlineRequestResponse",
+              "minimumAuthClientProtocol": 1
+            },
+            "status": 400
+          },
+          "request": {
+            "body": {
+              "args": {}
+            },
+            "headers": {},
+            "method": "POST",
+            "route": "/query/listTodos"
+          }
+        },
+        {
+          "expect": {
+            "actions": [
+              "surface_capability_diagnostic"
+            ],
+            "forbiddenActions": [
+              "retry_unchanged"
+            ],
+            "transitions": []
+          },
+          "refusal": {
+            "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+            "details": {
+              "capability": "onlineRequestResponse",
+              "minimumAuthClientProtocol": 1
+            },
+            "status": 400
+          },
+          "request": {
+            "body": {
+              "args": {}
+            },
+            "headers": {
+              "x-snapback-auth-client-protocol": "2"
+            },
+            "method": "POST",
+            "route": "/query/listTodos"
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": "live.subscribe.input.schema.json",
+      "given": {
+        "authMode": "sessions",
+        "connection": {
+          "state": "granted"
+        }
+      },
+      "lane": "core",
+      "name": "auth.live.subscribe_missing_invalidation_offer_refused",
+      "notes": "LLP 0096 §2.2 carrier 2 (the live-lifecycle half): every sessions-mode subscribe/unsubscribe repeats `x-snapback-auth-invalidation-protocol: 1`. Authority independence is a compiled server fact not projected to clients, so always offering is the conformant rule; a missing offer refuses non-retryably.",
+      "profiles": [
+        "auth/live"
+      ],
+      "refusal": {
+        "code": "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+        "details": {
+          "capability": "authScopedLive",
+          "minimumAuthInvalidationProtocol": 1
+        },
+        "status": 400
+      },
+      "request": {
+        "body": {
+          "authorizationNamespace": {
+            "clientStoreId": "store-fixture",
+            "queryInstanceId": 1,
+            "queryKey": "listTodos:{}"
+          },
+          "connection_id": "conn_fixture_1",
+          "input": {
+            "args": {}
+          }
+        },
+        "headers": {
+          "x-snapback-auth-client-protocol": "1"
+        },
+        "method": "POST",
+        "route": "/live/listTodos/subscribe"
+      },
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic",
+          "reopen_connection"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": "authorization-invalidation.ack.input.schema.json",
+      "given": {
+        "connection": {
+          "authInvalidationNegotiated": false,
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "resync_pending",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "core",
+      "name": "auth.live.ack_requires_negotiated_connection",
+      "notes": "LLP 0096 §2.2: the acknowledge routes consult the OPEN-TIME binding — a connection opened without `authInvalidationProtocol: 1` is legacy, and the per-request header cannot substitute for the missing open-time half. Unchanged retry cannot succeed; the obligation stays held (level-triggered) and discharge requires re-opening a correctly negotiated connection and re-establishing the subscription.",
+      "profiles": [
+        "auth/live"
+      ],
+      "refusal": {
+        "code": "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+        "status": 400
+      },
+      "request": {
+        "body": {
+          "ackToken": "ack_fixture_unnegotiated_1",
+          "connectionId": "conn_fixture_legacy_1"
+        },
+        "headers": {
+          "x-snapback-auth-invalidation-protocol": "1"
+        },
+        "method": "POST",
+        "route": "/live/authorization-invalidation/acknowledge"
+      },
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [],
+        "transitions": []
+      },
+      "family": "authorization-invalidation.ack.input.schema.json",
+      "given": {
+        "connection": {
+          "authInvalidationNegotiated": true,
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 43
+          }
+        ]
+      },
+      "lane": "core",
+      "name": "auth.live.ack_needs_no_descriptor_offer",
+      "notes": "Descriptor independence, ratified 2026-07-25 (LLP 0096 §2.2/§8.1; issues/closed/20260725-0093-p3-invalidation-ack-descriptor-coupling.md): the invalidation-ack routes classify InvocationSource::InvalidationAcknowledgement, outside the queued-replay fence — a client claiming only auth/live discharges obligations without ever sending `x-snapback-authority-descriptor-protocol`. A descriptor offer sent anyway is ignored, not required.",
+      "profiles": [
+        "auth/live"
+      ],
+      "request": {
+        "body": {
+          "ackToken": "ack_fixture_1",
+          "connectionId": "conn_fixture_1"
+        },
+        "headers": {
+          "x-snapback-auth-invalidation-protocol": "1"
+        },
+        "method": "POST",
+        "route": "/live/authorization-invalidation/acknowledge"
+      },
+      "response": {
+        "status": 200
+      },
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "surface_terminal_auth"
+        ],
+        "forbiddenActions": [
+          "attempt_reconnect"
+        ],
+        "transitions": [
+          {
+            "connection": "state",
+            "to": "terminal_auth"
+          }
+        ]
+      },
+      "family": "live.socket-server.schema.json",
+      "frame": {
+        "authorityDisposition": "carrier",
+        "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
+        "kind": "auth_error",
+        "reason": "expired"
+      },
+      "given": {
+        "authorizationExpectation": {
+          "authorization": {
+            "epoch": 1,
+            "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+          },
+          "connectionGeneration": 1,
+          "issuerId": {
+            "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+            "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+            "bootSequence": 1
+          },
+          "versionStream": "fixture-stream"
+        },
+        "connection": {
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "acceptedAuthorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "authorizationNamespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "authorizationScope": {
+              "connectionGeneration": 1,
+              "issuerId": {
+                "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                "bootSequence": 1
+              },
+              "kind": "subscription",
+              "namespace": {
+                "clientStoreId": "store-fixture",
+                "queryInstanceId": 1,
+                "queryKey": "listTodos:{}"
+              },
+              "scopeSequence": 1,
+              "subscriptionId": "sub_fixture_1"
+            },
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "live",
+      "name": "auth.live.terminal_auth_carrier_disposition",
+      "notes": "T-AUTH-TERM (LLP 0095 §1.4; LLP 0059's typed terminal closure): auth_error / close 4401 is terminal, never reconnectable with the presented credential. `authorityDisposition: carrier` means only the presented carrier ended — the client may obtain a fresh credential and open a fresh connection, and local durable authority state is retained.",
+      "profiles": [
+        "auth/live"
+      ],
+      "schemaValid": true,
+      "tuples": [
+        "live/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "surface_terminal_auth",
+          "delete_local_durable_authority"
+        ],
+        "forbiddenActions": [
+          "attempt_reconnect"
+        ],
+        "transitions": [
+          {
+            "connection": "state",
+            "to": "terminal_auth"
+          }
+        ]
+      },
+      "family": "live.socket-server.schema.json",
+      "frame": {
+        "authorityDisposition": "durableDelete",
+        "code": "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+        "kind": "auth_error",
+        "reason": "revoked"
+      },
+      "given": {
+        "authorizationExpectation": {
+          "authorization": {
+            "epoch": 1,
+            "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+          },
+          "connectionGeneration": 1,
+          "issuerId": {
+            "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+            "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+            "bootSequence": 1
+          },
+          "versionStream": "fixture-stream"
+        },
+        "connection": {
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "acceptedAuthorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "authorizationNamespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "authorizationScope": {
+              "connectionGeneration": 1,
+              "issuerId": {
+                "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                "bootSequence": 1
+              },
+              "kind": "subscription",
+              "namespace": {
+                "clientStoreId": "store-fixture",
+                "queryInstanceId": 1,
+                "queryKey": "listTodos:{}"
+              },
+              "scopeSequence": 1,
+              "subscriptionId": "sub_fixture_1"
+            },
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "live",
+      "name": "auth.live.terminal_auth_durable_delete_disposition",
+      "notes": "T-AUTH-TERM's durable half: `authorityDisposition: durableDelete` reflects a durable authority deletion, not mere carrier loss — the client must additionally delete local durable authority state (src/live_wire.rs LiveAuthorityDisposition doc). The disposition distinction is the whole reason this frame is not just a close code.",
+      "profiles": [
+        "auth/live"
+      ],
+      "schemaValid": true,
+      "tuples": [
+        "live/local"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "transitions": []
+      },
+      "family": "mutation.input.schema.json",
+      "given": {
+        "authMode": "sessions"
+      },
+      "lane": "core",
+      "name": "auth.replay.descriptor_offer_required",
+      "notes": "LLP 0096 §2.3: the descriptor gate binds exactly the replay-requesting surfaces — a mutation body carrying clientMutationId/acknowledgedClientMutationIds and the standalone settlement acknowledgement (InvocationSource::MutationSettlementAcknowledgement, the deliberate half of the §8.1 split). Post-split it does NOT bind the invalidation-ack routes: see auth.live.ack_needs_no_descriptor_offer.",
+      "profiles": [
+        "auth/replay"
+      ],
+      "schemaValid": true,
+      "steps": [
+        {
+          "expect": {
+            "actions": [
+              "surface_capability_diagnostic"
+            ],
+            "forbiddenActions": [
+              "retry_unchanged"
+            ],
+            "transitions": []
+          },
+          "refusal": {
+            "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+            "details": {
+              "capability": "queuedReplay",
+              "minimumAuthorityDescriptorProtocol": 1
+            },
+            "status": 400
+          },
+          "request": {
+            "body": {
+              "args": {
+                "title": "fixture todo"
+              },
+              "clientMutationId": "cmid_fixture_1"
+            },
+            "headers": {
+              "x-snapback-auth-client-protocol": "1"
+            },
+            "method": "POST",
+            "route": "/mutation/addTodo"
+          }
+        },
+        {
+          "expect": {
+            "actions": [
+              "surface_capability_diagnostic"
+            ],
+            "forbiddenActions": [
+              "retry_unchanged"
+            ],
+            "transitions": []
+          },
+          "family": "client-mutation.ack.input.schema.json",
+          "refusal": {
+            "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+            "details": {
+              "capability": "queuedReplay",
+              "minimumAuthorityDescriptorProtocol": 1
+            },
+            "status": 400
+          },
+          "request": {
+            "body": {
+              "auth": {},
+              "clientMutationIds": [
+                "cmid_fixture_1"
+              ]
+            },
+            "headers": {
+              "x-snapback-auth-client-protocol": "1"
+            },
+            "method": "POST",
+            "route": "/client-mutations/acknowledge"
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "settle_client_mutation",
+          "discard_duplicate_settlement"
+        ],
+        "settlement": {
+          "appliedOnce": true,
+          "clientMutationId": "cmid_fixture_2"
+        },
+        "transitions": []
+      },
+      "family": "mutation.input.schema.json",
+      "given": {
+        "authMode": "sessions"
+      },
+      "lane": "core",
+      "name": "auth.replay.duplicate_settlement_idempotent",
+      "notes": "LLP 0043 (via LLP 0096 §2.3): the durable ordered queue redelivers idempotently under the retained clientMutationId — step 2 is the exact same request after a crash/redelivery, and the server settles the retained result rather than re-executing. The client resolves its queue entry exactly once; re-applying the duplicate settlement is non-conformant.",
+      "profiles": [
+        "auth/replay"
+      ],
+      "schemaValid": true,
+      "steps": [
+        {
+          "expect": {
+            "actions": [
+              "settle_client_mutation"
+            ],
+            "transitions": []
+          },
+          "request": {
+            "body": {
+              "args": {
+                "title": "fixture todo"
+              },
+              "clientMutationId": "cmid_fixture_2"
+            },
+            "headers": {
+              "x-snapback-auth-client-protocol": "1",
+              "x-snapback-authority-descriptor-protocol": "1"
+            },
+            "method": "POST",
+            "route": "/mutation/addTodo"
+          },
+          "response": {
+            "status": 200
+          }
+        },
+        {
+          "expect": {
+            "actions": [
+              "discard_duplicate_settlement"
+            ],
+            "forbiddenActions": [
+              "settle_client_mutation"
+            ],
+            "transitions": []
+          },
+          "request": {
+            "body": {
+              "args": {
+                "title": "fixture todo"
+              },
+              "clientMutationId": "cmid_fixture_2"
+            },
+            "headers": {
+              "x-snapback-auth-client-protocol": "1",
+              "x-snapback-authority-descriptor-protocol": "1"
+            },
+            "method": "POST",
+            "route": "/mutation/addTodo"
+          },
+          "response": {
+            "status": 200
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "client_lifecycle",
+      "expect": {
+        "actions": [
+          "suspend_predecessor_queue"
+        ],
+        "forbiddenActions": [
+          "replay_queued_mutations"
+        ],
+        "transitions": [
+          {
+            "replayQueue": "authinst_fixture_a",
+            "to": "suspended"
+          }
+        ]
+      },
+      "family": null,
+      "given": {
+        "replayQueue": {
+          "authorityInstance": "authinst_fixture_a",
+          "pending": [
+            {
+              "clientMutationId": "cmid_fixture_9"
+            }
+          ]
+        }
+      },
+      "lane": "core",
+      "name": "auth.replay.predecessor_queue_suspends",
+      "notes": "LLP 0064 §4 (via LLP 0096 §2.3): a queue retained under a predecessor authority instance suspends on authority-instance mismatch and is NEVER replayed under successor authority. Resumption requires re-establishing the original authority or explicit user-mediated abandonment — silent replay under the new principal is the defect class this fixture pins out.",
+      "profiles": [
+        "auth/replay"
+      ],
+      "schemaValid": false,
+      "steps": [
+        {
+          "event": {
+            "from": "authinst_fixture_a",
+            "kind": "authority_instance_changed",
+            "to": "authinst_fixture_b"
+          },
+          "expect": {
+            "actions": [
+              "suspend_predecessor_queue"
+            ],
+            "forbiddenActions": [
+              "replay_queued_mutations"
+            ],
+            "transitions": [
+              {
+                "replayQueue": "authinst_fixture_a",
+                "to": "suspended"
+              }
+            ]
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": "authorized-lease.query.input.schema.json",
+      "given": {
+        "authMode": "sessions"
+      },
+      "lane": "core",
+      "name": "auth.lease.offer_pair_required",
+      "notes": "LLP 0096 §1.2/§2.4 declared composition: authorized retained reads require the lease offer AND the invalidation offer together (`RetainedReadAvailability` carries both minima). This request offers only the lease half, so it refuses exactly like an offerless request. Offers ride the decimal headers on the HTTP-only parser (the §8.2 divergence is fixed); readiness failure is the separate 503 SNAPBACK_AUTH_POLICY_UNAVAILABLE.",
+      "profiles": [
+        "auth/lease"
+      ],
+      "refusal": {
+        "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+        "status": 400
+      },
+      "request": {
+        "body": {
+          "args": {},
+          "clientStoreId": "store-fixture",
+          "leaseRequestId": "lease_req_fixture_1",
+          "queryInstanceId": 1,
+          "queryKey": "listTodos:{}"
+        },
+        "headers": {
+          "x-snapback-auth-client-protocol": "1",
+          "x-snapback-authorized-lease-protocol": "1"
+        },
+        "method": "POST",
+        "route": "/query/listTodos/authorized-lease"
+      },
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "clock": "virtual",
+      "direction": "client_lifecycle",
+      "expect": {
+        "actions": [
+          "fence_retained_rows"
+        ],
+        "transitions": [
+          {
+            "retainedRead": "listTodos:{}",
+            "to": "fenced"
+          }
+        ]
+      },
+      "family": null,
+      "given": {
+        "retainedRead": {
+          "lease": {
+            "authorizedLeaseProtocol": 1,
+            "expiresAtServerMs": 60000
+          },
+          "queryInstanceId": 1,
+          "queryKey": "listTodos:{}",
+          "rows": [
+            {
+              "_id": "todo_1",
+              "title": "retained row"
+            }
+          ]
+        },
+        "virtualNowServerMs": 0
+      },
+      "lane": "core",
+      "name": "auth.lease.expiry_fences_retained_rows",
+      "notes": "LLP 0059's transition table owns the semantics (cited, not restated): retention exists only under a current exact signed lease. At expiry — with NO wire event — the retained material is fenced/deleted; rows must not be readable at any virtual instant past expiresAtServerMs. Retention is never inferred from a matching user id or from being online (the axis-independence rule).",
+      "profiles": [
+        "auth/lease"
+      ],
+      "schemaValid": false,
+      "steps": [
+        {
+          "advanceVirtualTimeMs": 59999,
+          "expect": {
+            "actions": [],
+            "transitions": []
+          }
+        },
+        {
+          "advanceVirtualTimeMs": 2,
+          "expect": {
+            "actions": [
+              "fence_retained_rows"
+            ],
+            "transitions": [
+              {
+                "retainedRead": "listTodos:{}",
+                "to": "fenced"
+              }
+            ]
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "acknowledgeAfter": "apply_invalidation_snapshot",
+        "actions": [
+          "unwrap_durable",
+          "quarantine_rows",
+          "apply_invalidation_snapshot",
+          "acknowledge_obligation"
+        ],
+        "orderedActions": [
+          "unwrap_durable",
+          "quarantine_rows",
+          "apply_invalidation_snapshot",
+          "acknowledge_obligation"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 43
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "frame": {
+        "Durable": {
+          "payload": [
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            97,
+            117,
+            116,
+            104,
+            111,
+            114,
+            105,
+            122,
+            97,
+            116,
+            105,
+            111,
+            110,
+            95,
+            105,
+            110,
+            118,
+            97,
+            108,
+            105,
+            100,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            44,
+            34,
+            111,
+            98,
+            108,
+            105,
+            103,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            123,
+            34,
+            112,
+            114,
+            111,
+            116,
+            111,
+            99,
+            111,
+            108,
+            86,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            49,
+            44,
+            34,
+            115,
+            99,
+            111,
+            112,
+            101,
+            73,
+            100,
+            34,
+            58,
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            34,
+            44,
+            34,
+            105,
+            115,
+            115,
+            117,
+            101,
+            114,
+            73,
+            100,
+            34,
+            58,
+            123,
+            34,
+            97,
+            117,
+            116,
+            104,
+            111,
+            114,
+            105,
+            122,
+            97,
+            116,
+            105,
+            111,
+            110,
+            73,
+            110,
+            99,
+            97,
+            114,
+            110,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            48,
+            49,
+            57,
+            56,
+            99,
+            55,
+            97,
+            97,
+            45,
+            49,
+            50,
+            51,
+            52,
+            45,
+            55,
+            48,
+            48,
+            48,
+            45,
+            56,
+            48,
+            48,
+            48,
+            45,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            49,
+            34,
+            44,
+            34,
+            98,
+            111,
+            111,
+            116,
+            83,
+            101,
+            113,
+            117,
+            101,
+            110,
+            99,
+            101,
+            34,
+            58,
+            49,
+            44,
+            34,
+            98,
+            111,
+            111,
+            116,
+            78,
+            111,
+            110,
+            99,
+            101,
+            34,
+            58,
+            34,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            34,
+            125,
+            44,
+            34,
+            110,
+            97,
+            109,
+            101,
+            115,
+            112,
+            97,
+            99,
+            101,
+            34,
+            58,
+            123,
+            34,
+            99,
+            108,
+            105,
+            101,
+            110,
+            116,
+            83,
+            116,
+            111,
+            114,
+            101,
+            73,
+            100,
+            34,
+            58,
+            34,
+            115,
+            116,
+            111,
+            114,
+            101,
+            45,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            34,
+            44,
+            34,
+            113,
+            117,
+            101,
+            114,
+            121,
+            75,
+            101,
+            121,
+            34,
+            58,
+            34,
+            108,
+            105,
+            115,
+            116,
+            84,
+            111,
+            100,
+            111,
+            115,
+            58,
+            123,
+            125,
+            34,
+            44,
+            34,
+            113,
+            117,
+            101,
+            114,
+            121,
+            73,
+            110,
+            115,
+            116,
+            97,
+            110,
+            99,
+            101,
+            73,
+            100,
+            34,
+            58,
+            49,
+            125,
+            44,
+            34,
+            115,
+            99,
+            111,
+            112,
+            101,
+            83,
+            101,
+            113,
+            117,
+            101,
+            110,
+            99,
+            101,
+            34,
+            58,
+            49,
+            44,
+            34,
+            99,
+            111,
+            110,
+            110,
+            101,
+            99,
+            116,
+            105,
+            111,
+            110,
+            71,
+            101,
+            110,
+            101,
+            114,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            49,
+            44,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            73,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            125,
+            44,
+            34,
+            114,
+            101,
+            118,
+            105,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            49,
+            44,
+            34,
+            109,
+            97,
+            120,
+            68,
+            105,
+            115,
+            112,
+            111,
+            115,
+            105,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            113,
+            117,
+            97,
+            114,
+            97,
+            110,
+            116,
+            105,
+            110,
+            101,
+            34,
+            44,
+            34,
+            119,
+            105,
+            116,
+            110,
+            101,
+            115,
+            115,
+            34,
+            58,
+            123,
+            34,
+            97,
+            117,
+            116,
+            104,
+            111,
+            114,
+            105,
+            122,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            123,
+            34,
+            105,
+            110,
+            99,
+            97,
+            114,
+            110,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            48,
+            49,
+            57,
+            56,
+            99,
+            55,
+            97,
+            97,
+            45,
+            49,
+            50,
+            51,
+            52,
+            45,
+            55,
+            48,
+            48,
+            48,
+            45,
+            56,
+            48,
+            48,
+            48,
+            45,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            49,
+            34,
+            44,
+            34,
+            101,
+            112,
+            111,
+            99,
+            104,
+            34,
+            58,
+            49,
+            125,
+            44,
+            34,
+            100,
+            97,
+            116,
+            97,
+            34,
+            58,
+            123,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            83,
+            116,
+            114,
+            101,
+            97,
+            109,
+            34,
+            58,
+            34,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            115,
+            116,
+            114,
+            101,
+            97,
+            109,
+            34,
+            44,
+            34,
+            109,
+            105,
+            110,
+            67,
+            111,
+            109,
+            109,
+            105,
+            116,
+            86,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            52,
+            51,
+            125,
+            125,
+            44,
+            34,
+            114,
+            101,
+            116,
+            114,
+            121,
+            69,
+            112,
+            105,
+            115,
+            111,
+            100,
+            101,
+            73,
+            100,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            111,
+            119,
+            110,
+            101,
+            114,
+            67,
+            111,
+            110,
+            116,
+            105,
+            110,
+            117,
+            105,
+            116,
+            121,
+            73,
+            100,
+            34,
+            58,
+            34,
+            111,
+            119,
+            110,
+            101,
+            114,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            125,
+            44,
+            34,
+            114,
+            101,
+            115,
+            111,
+            108,
+            117,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            123,
+            34,
+            112,
+            114,
+            111,
+            116,
+            111,
+            99,
+            111,
+            108,
+            86,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            49,
+            44,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            115,
+            110,
+            97,
+            112,
+            115,
+            104,
+            111,
+            116,
+            34,
+            44,
+            34,
+            115,
+            99,
+            111,
+            112,
+            101,
+            73,
+            100,
+            34,
+            58,
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            34,
+            44,
+            34,
+            105,
+            115,
+            115,
+            117,
+            101,
+            114,
+            73,
+            100,
+            34,
+            58,
+            123,
+            34,
+            97,
+            117,
+            116,
+            104,
+            111,
+            114,
+            105,
+            122,
+            97,
+            116,
+            105,
+            111,
+            110,
+            73,
+            110,
+            99,
+            97,
+            114,
+            110,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            48,
+            49,
+            57,
+            56,
+            99,
+            55,
+            97,
+            97,
+            45,
+            49,
+            50,
+            51,
+            52,
+            45,
+            55,
+            48,
+            48,
+            48,
+            45,
+            56,
+            48,
+            48,
+            48,
+            45,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            49,
+            34,
+            44,
+            34,
+            98,
+            111,
+            111,
+            116,
+            83,
+            101,
+            113,
+            117,
+            101,
+            110,
+            99,
+            101,
+            34,
+            58,
+            49,
+            44,
+            34,
+            98,
+            111,
+            111,
+            116,
+            78,
+            111,
+            110,
+            99,
+            101,
+            34,
+            58,
+            34,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            65,
+            34,
+            125,
+            44,
+            34,
+            110,
+            97,
+            109,
+            101,
+            115,
+            112,
+            97,
+            99,
+            101,
+            34,
+            58,
+            123,
+            34,
+            99,
+            108,
+            105,
+            101,
+            110,
+            116,
+            83,
+            116,
+            111,
+            114,
+            101,
+            73,
+            100,
+            34,
+            58,
+            34,
+            115,
+            116,
+            111,
+            114,
+            101,
+            45,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            34,
+            44,
+            34,
+            113,
+            117,
+            101,
+            114,
+            121,
+            75,
+            101,
+            121,
+            34,
+            58,
+            34,
+            108,
+            105,
+            115,
+            116,
+            84,
+            111,
+            100,
+            111,
+            115,
+            58,
+            123,
+            125,
+            34,
+            44,
+            34,
+            113,
+            117,
+            101,
+            114,
+            121,
+            73,
+            110,
+            115,
+            116,
+            97,
+            110,
+            99,
+            101,
+            73,
+            100,
+            34,
+            58,
+            49,
+            125,
+            44,
+            34,
+            115,
+            99,
+            111,
+            112,
+            101,
+            83,
+            101,
+            113,
+            117,
+            101,
+            110,
+            99,
+            101,
+            34,
+            58,
+            49,
+            44,
+            34,
+            99,
+            111,
+            110,
+            110,
+            101,
+            99,
+            116,
+            105,
+            111,
+            110,
+            71,
+            101,
+            110,
+            101,
+            114,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            49,
+            44,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            73,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            125,
+            44,
+            34,
+            114,
+            101,
+            118,
+            105,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            49,
+            44,
+            34,
+            119,
+            105,
+            116,
+            110,
+            101,
+            115,
+            115,
+            34,
+            58,
+            123,
+            34,
+            97,
+            117,
+            116,
+            104,
+            111,
+            114,
+            105,
+            122,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            123,
+            34,
+            105,
+            110,
+            99,
+            97,
+            114,
+            110,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            48,
+            49,
+            57,
+            56,
+            99,
+            55,
+            97,
+            97,
+            45,
+            49,
+            50,
+            51,
+            52,
+            45,
+            55,
+            48,
+            48,
+            48,
+            45,
+            56,
+            48,
+            48,
+            48,
+            45,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            49,
+            34,
+            44,
+            34,
+            101,
+            112,
+            111,
+            99,
+            104,
+            34,
+            58,
+            49,
+            125,
+            44,
+            34,
+            100,
+            97,
+            116,
+            97,
+            34,
+            58,
+            123,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            83,
+            116,
+            114,
+            101,
+            97,
+            109,
+            34,
+            58,
+            34,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            115,
+            116,
+            114,
+            101,
+            97,
+            109,
+            34,
+            44,
+            34,
+            109,
+            105,
+            110,
+            67,
+            111,
+            109,
+            109,
+            105,
+            116,
+            86,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            52,
+            51,
+            125,
+            125,
+            44,
+            34,
+            109,
+            97,
+            120,
+            68,
+            105,
+            115,
+            112,
+            111,
+            115,
+            105,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            113,
+            117,
+            97,
+            114,
+            97,
+            110,
+            116,
+            105,
+            110,
+            101,
+            34,
+            44,
+            34,
+            97,
+            99,
+            107,
+            84,
+            111,
+            107,
+            101,
+            110,
+            34,
+            58,
+            34,
+            97,
+            99,
+            107,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            44,
+            34,
+            111,
+            119,
+            110,
+            101,
+            114,
+            67,
+            111,
+            110,
+            116,
+            105,
+            110,
+            117,
+            105,
+            116,
+            121,
+            73,
+            100,
+            34,
+            58,
+            34,
+            111,
+            119,
+            110,
+            101,
+            114,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            125,
+            44,
+            34,
+            115,
+            110,
+            97,
+            112,
+            115,
+            104,
+            111,
+            116,
+            34,
+            58,
+            123,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            73,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            44,
+            34,
+            102,
+            117,
+            110,
+            99,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            108,
+            105,
+            115,
+            116,
+            84,
+            111,
+            100,
+            111,
+            115,
+            34,
+            44,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            52,
+            51,
+            44,
+            34,
+            114,
+            111,
+            119,
+            115,
+            34,
+            58,
+            91,
+            123,
+            34,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            116,
+            111,
+            100,
+            111,
+            95,
+            49,
+            34,
+            44,
+            34,
+            116,
+            105,
+            116,
+            108,
+            101,
+            34,
+            58,
+            34,
+            97,
+            117,
+            116,
+            104,
+            111,
+            114,
+            105,
+            122,
+            101,
+            100,
+            32,
+            114,
+            111,
+            119,
+            34,
+            125,
+            93,
+            125,
+            125
+          ]
+        }
+      },
+      "given": {
+        "authorizationExpectation": {
+          "authorization": {
+            "epoch": 1,
+            "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+          },
+          "connectionGeneration": 1,
+          "issuerId": {
+            "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+            "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+            "bootSequence": 1
+          },
+          "versionStream": "fixture-stream"
+        },
+        "subscriptions": [
+          {
+            "acceptedAuthorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "authorizationNamespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "authorizationScope": {
+              "connectionGeneration": 1,
+              "issuerId": {
+                "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                "bootSequence": 1
+              },
+              "kind": "subscription",
+              "namespace": {
+                "clientStoreId": "store-fixture",
+                "queryInstanceId": 1,
+                "queryKey": "listTodos:{}"
+              },
+              "scopeSequence": 1,
+              "subscriptionId": "sub_fixture_1"
+            },
+            "id": "sub_fixture_1",
+            "rows": [
+              {
+                "_id": "todo_1",
+                "title": "pre-invalidation row"
+              }
+            ],
+            "state": "live",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "poll",
+      "name": "poll.wrapped_authorization_invalidation.apply_then_ack",
+      "notes": "Wrapped/unwrapped parity for the authorization_invalidation family: the byte-exact envelope of auth.live.invalidation_snapshot_apply_then_ack step 1 in Lane-P framing. Unwrapping precedes the T-AUTH-INVALIDATION judgment, which is framing-independent — quarantine, atomic apply, then release the exact ackToken.",
+      "profiles": [
+        "auth/live"
+      ],
+      "schemaValid": true,
+      "tuples": [
+        "poll/local"
       ]
     }
   ],

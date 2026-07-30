@@ -289,6 +289,20 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
         "timing.heartbeat.ping_and_pong_freshness",
         "timing.freshness.budget_exhausted_forces_loss",
         "timing.reconnect.backoff_bounds",
+        // Format-v3 P-3 auth-profile classes (LLP 0096 §8.4;
+        // issues/closed/20260725-0093-p3-profile-fixture-classes.md).
+        "auth.rr.offer_refusal_surfaced",
+        "auth.live.subscribe_missing_invalidation_offer_refused",
+        "auth.live.ack_requires_negotiated_connection",
+        "auth.live.ack_needs_no_descriptor_offer",
+        "auth.live.terminal_auth_carrier_disposition",
+        "auth.live.terminal_auth_durable_delete_disposition",
+        "auth.replay.descriptor_offer_required",
+        "auth.replay.duplicate_settlement_idempotent",
+        "auth.replay.predecessor_queue_suspends",
+        "auth.lease.offer_pair_required",
+        "auth.lease.expiry_fences_retained_rows",
+        "poll.wrapped_authorization_invalidation.apply_then_ack",
     ] {
         assert!(
             names.contains(&required),
@@ -313,6 +327,17 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
             assert!(
                 !tuples.iter().any(|tuple| tuple == "live/hosted"),
                 "{name}: a poll-lane framing fixture cannot bind a live tuple"
+            );
+        }
+        // Every auth-profile fixture is a local-arm tuple: the hosted arm
+        // has no sessions surface, so no profile is negotiable there
+        // (LLP 0096 §2.6).
+        if fixture["profiles"].is_array() {
+            assert!(
+                tuples
+                    .iter()
+                    .all(|tuple| tuple == "poll/local" || tuple == "live/local"),
+                "{name}: profile fixtures must stay local-arm (LLP 0096 §2.6)"
             );
         }
     }
@@ -861,5 +886,232 @@ fn format_v3_pins_parity_negotiation_grant_loss_and_timing() {
     assert_eq!(
         backoff["steps"][1]["expect"]["pacing"],
         serde_json::json!({ "action": "attempt_reconnect", "maxIntervalMs": 10000 })
+    );
+}
+
+/// The LLP 0096 auth-profile classes: shipped refusal codes per profile,
+/// the post-split descriptor fence, terminal authorityDisposition
+/// distinctions, lease-pair composition, and invalidation wrapped parity.
+#[test]
+fn auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules() {
+    let fixtures = fixtures();
+
+    // auth/rr: readiness 503, then the two malformed-offer 400s.
+    let rr = fixture(&fixtures, "auth.rr.offer_refusal_surfaced");
+    let rr_steps = rr["steps"].as_array().expect("rr steps");
+    assert_eq!(rr_steps[0]["refusal"]["status"], 503);
+    assert_eq!(
+        rr_steps[0]["refusal"]["code"],
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+    );
+    for step in &rr_steps[1..] {
+        assert_eq!(step["refusal"]["status"], 400);
+        assert_eq!(
+            step["refusal"]["code"],
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+        );
+        assert_eq!(
+            step["refusal"]["details"]["minimumAuthClientProtocol"],
+            1
+        );
+    }
+    assert_eq!(
+        rr_steps[1]["request"]["headers"],
+        serde_json::json!({}),
+        "the missing-offer negative carries no offer header"
+    );
+    assert_eq!(
+        rr_steps[2]["request"]["headers"]["x-snapback-auth-client-protocol"],
+        "2",
+        "the unknown-integer negative offers a non-v1 value"
+    );
+
+    // auth/live: the subscribe-time and open-time halves refuse the same
+    // code from different gates, and the negotiated ack needs no
+    // descriptor offer (the §8.1 split).
+    let subscribe_offer = fixture(
+        &fixtures,
+        "auth.live.subscribe_missing_invalidation_offer_refused",
+    );
+    assert_eq!(
+        subscribe_offer["refusal"]["code"],
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+    );
+    assert!(
+        subscribe_offer["request"]["body"]["authorizationNamespace"].is_object(),
+        "the subscribe negative still carries the namespace: only the offer is missing"
+    );
+
+    let ack_negotiation = fixture(&fixtures, "auth.live.ack_requires_negotiated_connection");
+    assert_eq!(
+        ack_negotiation["refusal"]["code"],
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+    );
+    assert_eq!(
+        ack_negotiation["given"]["connection"]["authInvalidationNegotiated"],
+        false
+    );
+    assert_eq!(
+        ack_negotiation["request"]["headers"]["x-snapback-auth-invalidation-protocol"],
+        "1",
+        "the per-request header must be present so the fixture isolates the open-time half"
+    );
+    assert!(
+        ack_negotiation["expect"]["actions"]
+            .as_array()
+            .expect("ack actions")
+            .contains(&Value::from("reopen_connection"))
+    );
+
+    let ack_no_descriptor = fixture(&fixtures, "auth.live.ack_needs_no_descriptor_offer");
+    assert_eq!(ack_no_descriptor["response"]["status"], 200);
+    assert!(
+        ack_no_descriptor["request"]["headers"]
+            .get("x-snapback-authority-descriptor-protocol")
+            .is_none(),
+        "the accepted ack must not carry the descriptor offer"
+    );
+
+    // Terminal dispositions: carrier retains durable authority state,
+    // durableDelete deletes it; both are terminal and never reconnect.
+    let carrier = fixture(&fixtures, "auth.live.terminal_auth_carrier_disposition");
+    assert_eq!(carrier["frame"]["kind"], "auth_error");
+    assert_eq!(carrier["frame"]["authorityDisposition"], "carrier");
+    assert_eq!(
+        carrier["expect"]["actions"],
+        serde_json::json!(["surface_terminal_auth"])
+    );
+    let durable_delete = fixture(
+        &fixtures,
+        "auth.live.terminal_auth_durable_delete_disposition",
+    );
+    assert_eq!(durable_delete["frame"]["authorityDisposition"], "durableDelete");
+    assert!(
+        durable_delete["expect"]["actions"]
+            .as_array()
+            .expect("durableDelete actions")
+            .contains(&Value::from("delete_local_durable_authority"))
+    );
+    for terminal in [carrier, durable_delete] {
+        assert!(
+            terminal["expect"]["forbiddenActions"]
+                .as_array()
+                .expect("terminal forbids")
+                .contains(&Value::from("attempt_reconnect")),
+            "terminal auth is never reconnectable with the presented credential"
+        );
+    }
+
+    // auth/replay: the descriptor fence binds the replay-requesting
+    // surfaces and only those.
+    let descriptor = fixture(&fixtures, "auth.replay.descriptor_offer_required");
+    let descriptor_steps = descriptor["steps"].as_array().expect("descriptor steps");
+    assert!(
+        descriptor_steps[0]["request"]["route"]
+            .as_str()
+            .expect("route")
+            .starts_with("/mutation/")
+    );
+    assert!(descriptor_steps[0]["request"]["body"]["clientMutationId"].is_string());
+    assert_eq!(
+        descriptor_steps[1]["request"]["route"],
+        "/client-mutations/acknowledge"
+    );
+    assert_eq!(
+        descriptor_steps[1]["family"],
+        "client-mutation.ack.input.schema.json"
+    );
+    for step in descriptor_steps {
+        assert_eq!(
+            step["refusal"]["details"]["capability"], "queuedReplay",
+            "the descriptor refusal names its axis"
+        );
+    }
+
+    let duplicate = fixture(&fixtures, "auth.replay.duplicate_settlement_idempotent");
+    let duplicate_steps = duplicate["steps"].as_array().expect("duplicate steps");
+    assert_eq!(
+        duplicate_steps[0]["request"], duplicate_steps[1]["request"],
+        "the redelivered settlement must repeat the exact request"
+    );
+    assert!(
+        duplicate_steps[1]["expect"]["forbiddenActions"]
+            .as_array()
+            .expect("duplicate forbids")
+            .contains(&Value::from("settle_client_mutation"))
+    );
+
+    let predecessor = fixture(&fixtures, "auth.replay.predecessor_queue_suspends");
+    assert_eq!(
+        predecessor["steps"][0]["event"]["kind"],
+        "authority_instance_changed"
+    );
+    assert_eq!(
+        predecessor["steps"][0]["event"]["from"],
+        predecessor["given"]["replayQueue"]["authorityInstance"]
+    );
+    assert!(
+        predecessor["expect"]["forbiddenActions"]
+            .as_array()
+            .expect("predecessor forbids")
+            .contains(&Value::from("replay_queued_mutations"))
+    );
+
+    // auth/lease: the pair rule and the expiry fence.
+    let lease_pair = fixture(&fixtures, "auth.lease.offer_pair_required");
+    let lease_headers = &lease_pair["request"]["headers"];
+    assert_eq!(lease_headers["x-snapback-authorized-lease-protocol"], "1");
+    assert!(
+        lease_headers
+            .get("x-snapback-auth-invalidation-protocol")
+            .is_none(),
+        "the pair negative offers only the lease half"
+    );
+    assert_eq!(
+        lease_pair["refusal"]["code"],
+        "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+    );
+
+    let lease_expiry = fixture(&fixtures, "auth.lease.expiry_fences_retained_rows");
+    assert_eq!(lease_expiry["clock"], "virtual");
+    let expiry = lease_expiry["given"]["retainedRead"]["lease"]["expiresAtServerMs"]
+        .as_u64()
+        .expect("lease expiry");
+    let advanced: u64 = lease_expiry["steps"]
+        .as_array()
+        .expect("expiry steps")
+        .iter()
+        .map(|step| step["advanceVirtualTimeMs"].as_u64().unwrap_or(0))
+        .sum();
+    assert!(
+        advanced > expiry,
+        "the fixture must advance the virtual clock past lease expiry"
+    );
+    assert!(
+        lease_expiry["steps"][0]["advanceVirtualTimeMs"]
+            .as_u64()
+            .expect("pre-expiry advance")
+            < expiry,
+        "the first advance must stay inside the lease so the fence is expiry-triggered"
+    );
+
+    // Wrapped invalidation parity: byte-exact against the core step frame.
+    let wrapped_invalidation = fixture(
+        &fixtures,
+        "poll.wrapped_authorization_invalidation.apply_then_ack",
+    );
+    let core_invalidation = fixture(&fixtures, "auth.live.invalidation_snapshot_apply_then_ack");
+    assert_eq!(
+        unwrapped_payload(
+            "poll.wrapped_authorization_invalidation.apply_then_ack",
+            &wrapped_invalidation["frame"]
+        ),
+        core_invalidation["steps"][0]["frame"],
+        "the wrapped invalidation must carry the exact core envelope"
+    );
+    assert_eq!(
+        wrapped_invalidation["expect"]["orderedActions"][0],
+        "unwrap_durable",
+        "unwrapping precedes the invalidation judgment"
     );
 }
