@@ -676,6 +676,12 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   contract + seeded generator (`src/wire_fixtures.rs`), dispatch seam,
   comment retirement; remaining coverage tracked by
   `issues/20260725-0093-p1-*`.*
+  *Status (2026-07-30): the remaining corpus coverage landed as
+  fixture-format v3 (LLP 0095 §2.1/§2.4) — negotiation/offer refusals
+  (`client_to_server` direction), drain-cancel duplicate tolerance,
+  arm-mismatch and grant-loss recovery, wrapped/unwrapped parity for every
+  durable family, and virtual-time heartbeat/freshness/backoff fixtures;
+  `issues/closed/20260725-0093-p1-fixture-corpus-coverage.md`.*
 - **P-2 — Swift client** (`poll/local` → `live/local` → `live/hosted`),
   with its own plan/diary and the
   spec-defect ledger from D4's discipline.

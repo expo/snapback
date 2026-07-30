@@ -5,7 +5,12 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-27 (LLP 0108 amendment: result-contract conformance spans
+**Revised:** 2026-07-30 (fixture-format v3: `client_to_server` and
+`client_lifecycle` directions with request/refusal fixtures, virtual-time and
+lifecycle-event steps, and the §2.4 deferred rows seeded — negotiation/offer
+refusals, drain-cancel duplicate tolerance, arm-mismatch, grant-loss,
+wrapped/unwrapped parity for every durable family, and the T-HB/T-LOSS timing
+fixtures); 2026-07-27 (LLP 0108 amendment: result-contract conformance spans
 query/live publication and mutation/action completion without adding a new
 client lifecycle state); 2026-07-25; 2026-07-25 (live-owner identity rule on
 T-UNSUB/T-RECONNECT and the §2.1 fixture judgment rules, from the P-2
@@ -118,7 +123,8 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   a current socket session (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`,
   `cloudflare/src/coordinator.js`) — socketless HTTP cannot arm hosted
   demand (LLP 0090; the one sanctioned exception is 0090/0092 bundle
-  register mode, owned there).
+  register mode, owned there). Fixture:
+  `arm.hosted_subscribe_requires_socket`.
 - **T-UNSUB** (`LIVE → RELEASED`): explicit unsubscribe on normal shutdown
   and backgrounding. This is a conformance obligation, not etiquette
   (LLP 0093 D2 demand ownership). **Release must present the
@@ -158,10 +164,16 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
 - **T-HB** (`ATTACHED_LIVE` self-loop / `→ RECOVERING`): 5 s heartbeat
   ping, 15 s freshness budget; a missed budget while the socket claims open
   forces the loss path (LLP 0034 D0/D1; the kit's `#startHeartbeat`).
+  Fixtures (virtual-time, §2.1 rule 4):
+  `timing.heartbeat.ping_and_pong_freshness`,
+  `timing.freshness.budget_exhausted_forces_loss`.
 - **T-LOSS** (`ATTACHED_LIVE → RECOVERING`; every subscription
   `→ DROPPED`): **socket loss drops the connection's durable
   subscriptions** server-side (`disconnect_topology_for_transport`,
-  `src/local.rs`; D3 fact 2). Backoff 250 ms → 10 s.
+  `src/local.rs`; D3 fact 2), including a subscription whose subscribe was
+  still in flight — the ambiguous in-flight outcome resolves to `DROPPED`
+  and is never assumed established. Backoff 250 ms → 10 s. Fixtures:
+  `arm.socket_loss_mid_subscribe`, `timing.reconnect.backoff_bounds`.
 - **T-RECONNECT** (`RECOVERING → ATTACHED_LIVE`; each dropped subscription
   `→ PENDING` with `supersedes`): reconnect is **fresh subscribe with
   `supersedes`**, never implicit resumption. The fresh subscribe **must
@@ -187,7 +199,8 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
 - **T-BLACKOUT** (D3 fact 2a; `live/hosted` only): during a hosted socket
   outage the drain delivers nothing (the hosted drain is declared-empty,
   `cloudflare/src/coordinator.js`); reconnect-resubscribe is the **only**
-  recovery lane for `live/hosted`.
+  recovery lane for `live/hosted`. Fixture:
+  `arm.live_hosted_drain_declared_empty_blackout`.
 - **T-DB** (D3 fact 2b; `ATTACHED_LIVE`, connection-wide): a
   `durable_bytes` socket frame (`LiveSocketServerFrame::DurableBytes`,
   `src/live_wire.rs`) is a **known kind with a required recovery action**.
@@ -210,7 +223,8 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   released — possibly redelivered — on cancellation before the cut
   (`drain_outbox`, `src/server.rs`). Clients MUST be duplicate-tolerant
   across cancelled drains. Batch bound `MAX_OUTBOX_DRAIN_BATCH = 64`;
-  handoff/retention budgets 64 MiB (`src/ephemeral.rs`).
+  handoff/retention budgets 64 MiB (`src/ephemeral.rs`). Fixture:
+  `poll.drain_cancel.redelivered_duplicates_tolerated`.
 - **T-OVERFLOW** (both lanes; connection-wide): a `resync_required` with no
   `subscription_id` and `clear_retained: true` (the `outbox_overflow`
   class) voids the whole connection's retained continuity: every durable
@@ -291,6 +305,9 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   server state — subscriptions, outbox, retained continuity — is gone, so a
   fresh grant is a fresh connection identity; treating recovery as
   grant-refresh-only would resurrect the fake-healthy-handle defect class.
+  Fixture: `grant.connection_token_invalid_reopens_everything` (one
+  fixture covers both the reap and expiry origins — the refusal is
+  indistinguishable and the recovery identical).
 - **Tolerance floor** (defense-in-depth, both lanes): unknown envelope
   kinds are skipped, never fatal (new kinds are always offer-gated per LLP
   0093 D1, so a conformant server never sends one ungated); unknown fields
@@ -309,12 +326,19 @@ spec): `replace_rows`, `apply_delta_by_id`, `drop_stale`,
 `apply_invalidation_snapshot`, `apply_invalidation_terminal_delete`,
 `acknowledge_obligation`, `surface_protocol_diagnostic`.
 
+Format v3 adds, for the refusal/lifecycle/timing classes:
+`surface_capability_diagnostic` (a structured LLP 0064-style capability
+refusal surfaced to the caller), `retry_unchanged` (appears only in
+`forbiddenActions` — the blind-retry anti-obligation),
+`establish_live_socket`, `send_ping`, `force_socket_loss`, and
+`attempt_reconnect` (the two timer actions of §2.1 rule 4).
+
 ## 2. The conformance fixture corpus contract
 
 ### 2.1 Artifact and format
 
 The corpus is the committed artifact `schemas/live.wire-fixtures.v1.json`
-(`artifactKind: liveWireFixtureCorpus`, `formatVersion: 2`,
+(`artifactKind: liveWireFixtureCorpus`, `formatVersion: 3`,
 `wireVersion: "snapback.v1"`), generated by
 `snapback::wire_fixtures::wire_fixture_corpus()` (`src/wire_fixtures.rs`).
 Each fixture carries: `name`, `family` (the committed schema file the frame
@@ -323,6 +347,35 @@ instantiates; `null` for unknown-kind negatives), `lane`
 `frame` or ordered `steps[]` of `{frame, expect}` (plus optional
 `batchContext` for drain-batch semantics), `given` (§1
 preconditions), `expect` (transitions + actions from §1.5), `notes`.
+
+**Format v3** (2026-07-30) grows the shape in three ways — a version bump,
+not additive drift, because a v2 consumer's judgment (feed every fixture's
+frame to the client) would misjudge the new classes:
+
+- **`direction: "client_to_server"`** fixtures pin the refusal half of the
+  negotiation/offer surface. They carry a `request`
+  (`{method, route, headers?, subprotocols?, body?}`) instead of a
+  `frame`; `family` (when non-null) is the committed schema the request
+  **body** instantiates (the `schemaValid` claim covers that body), and
+  exactly one of `refusal` (`{status, code, details?}` — the shipped
+  server answer, code-pinned against the served refusal registry) or
+  `response` (`{status}`) accompanies each request. `expect` holds the
+  client's obligations on processing that answer. Multi-step request
+  fixtures put `request`/`refusal`/`response` on each step, and a step
+  may override `family` when its body instantiates a different committed
+  schema.
+- **`direction: "client_lifecycle"`** fixtures carry no wire frames at
+  all: their steps are advance/event steps only, and `family` is `null`.
+- **Step forms**: besides `{frame, expect}`, a step may be a
+  virtual-clock advance (`{"advanceVirtualTimeMs": N, "expect": …}`,
+  positive, only in fixtures declaring `"clock": "virtual"`) or a named
+  client-observable lifecycle event (`{"event": {"kind": …}, "expect": …}`
+  — kinds so far: `socket_lost`, `authority_instance_changed`).
+
+The `given.connection` population rule (rule 3 below) applies to the
+populated connection states (`attached`, `recovering`); the v3
+pre-population states (`idle`, `granted`) have no subscriptions to pin by
+construction.
 
 **Canonical frames in, expected transitions/actions out**: a per-client
 conformance harness feeds each `frame` to the client in the `given` state
@@ -353,10 +406,20 @@ consumer implementing all three):
    reports per-item actions explicitly (contrast
    `poll.acknowledged_batch.malformed_item_forces_resync` with
    `poll.wrapped_durable.unwrap`).
-3. **Attached-connection population.** Every fixture with
-   `given.connection` carries an explicit, non-empty
-   `given.subscriptions` list. Harnesses instantiate those exact ids,
-   states, versions, and rows; no implicit/arbitrary population exists.
+3. **Attached-connection population.** Every fixture with a populated
+   `given.connection` (states `attached`/`recovering`) carries an
+   explicit, non-empty `given.subscriptions` list. Harnesses instantiate
+   those exact ids, states, versions, and rows; no implicit/arbitrary
+   population exists.
+4. **Virtual time** (format v3). A `clock: "virtual"` fixture's harness
+   holds a virtual clock starting at 0; frame/request/event steps are
+   instantaneous, and an advance step advances the clock by exactly its
+   `advanceVirtualTimeMs` with no wire input. Over an advance interval
+   `expect.actions` remains the exact **set** of action kinds emitted —
+   the timer actions (`send_ping`, `attempt_reconnect`) may repeat within
+   the interval — and an optional `expect.pacing`
+   (`{action, maxIntervalMs}`) bounds the spacing of consecutive
+   emissions of that action inside the interval.
 
 Positive frames are constructed **through the serde wire types**, so a
 fixture can never drift from the wire; negative frames are raw JSON.
@@ -404,15 +467,18 @@ The full inventory LLP 0093 D2/P-1 enumerates, with seeding status:
 | `durable_bytes` vs unknown-kind distinction | `socket.durable_bytes.forced_resync` + the unknown-kind fixture — **seeded** |
 | Malformed item in an acknowledged batch | `poll.acknowledged_batch.malformed_item_forces_resync` — **seeded** |
 | Connection-wide resync / overflow | `durable.resync_required.connection_wide_clear_retained` — **seeded** |
-| Malformed capability offers | deferred |
-| Cancelled/duplicated drains (duplicate tolerance) | deferred |
-| Arm-mismatch transitions (`poll/hosted` attempt; hosted subscribe before socket establishment; socket loss mid-subscribe) | deferred |
-| Grant-loss recovery (`SNAPBACK_CONNECTION_TOKEN_INVALID`, both reap and expiry paths) | deferred |
+| Malformed capability offers | `negotiation.open.unknown_wire_version_refused`, `negotiation.open.unknown_auth_invalidation_protocol_refused`, `negotiation.socket.wire_version_required`, `negotiation.socket.unknown_wire_version_refused` (format-v3 `client_to_server`; the auth-profile offer negatives are LLP 0096 §8.4's) — **seeded** |
+| Cancelled/duplicated drains (duplicate tolerance) | `poll.drain_cancel.redelivered_duplicates_tolerated` — **seeded** |
+| Arm-mismatch transitions (`poll/hosted` attempt; hosted subscribe before socket establishment; socket loss mid-subscribe) | `arm.live_hosted_drain_declared_empty_blackout`, `arm.hosted_subscribe_requires_socket`, `arm.socket_loss_mid_subscribe` — **seeded** |
+| Grant-loss recovery (`SNAPBACK_CONNECTION_TOKEN_INVALID`, both reap and expiry paths) | `grant.connection_token_invalid_reopens_everything` (one fixture — the refusal is origin-indistinguishable, §4.4) — **seeded** |
+| Wrapped/unwrapped parity per durable family | `poll.wrapped_durable.unwrap` + `poll.wrapped_live_delta.unwrap`, `poll.wrapped_resync_required.*`, `poll.wrapped_current_as_of.adopts_token_without_rows` (byte-exact against the core siblings, gate-enforced) — **seeded** |
+| Heartbeat/freshness/backoff timing | `timing.heartbeat.ping_and_pong_freshness`, `timing.freshness.budget_exhausted_forces_loss`, `timing.reconnect.backoff_bounds` (virtual time, §2.1 rule 4) — **seeded** |
 
-Deferred rows are tracked by
-`issues/20260725-0093-p1-fixture-corpus-coverage.md`; the corpus's
-`coverage` member names the same ticket so a consumer of the artifact sees
-its own incompleteness.
+The formerly deferred rows landed 2026-07-30 with fixture-format v3
+(`issues/closed/20260725-0093-p1-fixture-corpus-coverage.md`). The
+`durable_bytes` socket frame deliberately has no wrapped form — it is
+Lane-L framing itself, and its Lane-P analogue is the acknowledged-batch
+malformed item.
 
 ## 3. Fixture emission mechanics (closes LLP 0093 OQ3)
 
@@ -526,11 +592,13 @@ expected-operation tuple or compatibility-policy transition.
 
 ## 6. Deferred work
 
-- `issues/20260725-0093-p1-fixture-corpus-coverage.md` — the §2.4 deferred
-  rows, plus wrapped-vs-unwrapped parity fixtures for every durable family
-  and the heartbeat/backoff timing fixtures (which need a fixture notion of
-  virtual time this format does not yet define).
+- ~~The §2.4 deferred rows, wrapped-vs-unwrapped parity, and the
+  heartbeat/backoff timing fixtures~~ — landed 2026-07-30 as fixture-format
+  v3 (`issues/closed/20260725-0093-p1-fixture-corpus-coverage.md`).
 - The per-client conformance harness that replays the corpus against a real
   client (the Swift P-2 client is its first non-JS consumer); until it
   exists, corpus fixtures bind via this spec's normative force and the
-  kit's regression suites cover the seeded classes piecewise.
+  kit's regression suites cover the seeded classes piecewise. The Swift
+  harness (`FixtureHarness.swift`) accepts formatVersions 1–2 only and
+  must adopt v3 before it can load the current corpus:
+  `issues/20260730-swift-fixture-harness-format-v3.md`.

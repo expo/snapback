@@ -16,6 +16,28 @@
 //! grammar (skip-not-crash, known-kind-with-required-action) that the
 //! emission-describing schemas deliberately do not express.
 //!
+//! **Format v3** grows the v2 shape in three ways (each documented in LLP
+//! 0095 §2.1):
+//!
+//! - `direction: "client_to_server"` fixtures pin the refusal half of the
+//!   negotiation/offer surface. They carry a `request`
+//!   (`{method, route, headers?, subprotocols?, body?}`) instead of a
+//!   `frame`; `family` (when non-null) is the committed schema the request
+//!   *body* instantiates, and `refusal` (`{status, code, details?}`) or
+//!   `response` (`{status}`) pins the shipped server answer the client's
+//!   `expect` obligations are judged against. Multi-step request fixtures
+//!   put `request`/`refusal`/`response` on each step; a step may override
+//!   `family` when its body instantiates a different committed schema.
+//! - `direction: "client_lifecycle"` fixtures carry no wire frames at all;
+//!   their steps are advance/event steps only.
+//! - Steps may be, besides `{frame, expect}`: virtual-clock advances
+//!   (`{"advanceVirtualTimeMs": N, "expect": …}`, only in fixtures declaring
+//!   `"clock": "virtual"`) and named client-observable lifecycle events
+//!   (`{"event": {"kind": …}, "expect": …}`). During an advance interval
+//!   `expect.actions` stays the exact *set* of action kinds emitted; timer
+//!   actions (`send_ping`, `attempt_reconnect`) may repeat within it, and an
+//!   optional `expect.pacing` bounds their spacing.
+//!
 //! @ref LLP 0095#2-the-conformance-fixture-corpus-contract — corpus format,
 //!   tuple routing, and the schemaValid-vs-acceptance split.
 //! @ref LLP 0093#d2--client-conformance-classes — fixtures are the normative
@@ -35,8 +57,12 @@ use crate::live_wire::{
 use crate::storage::AuthorizationVersion;
 
 /// Corpus format version — the shape of the corpus file itself, not the wire
-/// version (which every fixture pins as `snapback.v1`).
-pub const WIRE_FIXTURES_FORMAT_VERSION: u32 = 2;
+/// version (which every fixture pins as `snapback.v1`). v3 adds the
+/// `client_to_server` / `client_lifecycle` directions and the
+/// advance/event step forms; a v2 consumer would misjudge those fixtures
+/// (its judgment assumes every fixture feeds a server frame to the client),
+/// so this is a version bump, not an additive drift.
+pub const WIRE_FIXTURES_FORMAT_VERSION: u32 = 3;
 
 /// Committed file name under `schemas/`.
 pub const WIRE_FIXTURES_FILE: &str = "live.wire-fixtures.v1.json";
@@ -59,6 +85,70 @@ fn replace_envelope() -> LiveEnvelope {
         rows: vec![json!({ "_id": "todo_1", "title": "current row" })],
         resume: None,
     }
+}
+
+fn delta_envelope() -> LiveEnvelope {
+    LiveEnvelope::LiveDelta {
+        subscription_id: "sub_fixture_1".to_owned(),
+        function: "listTodos".to_owned(),
+        version: 42,
+        ops: vec![
+            LiveDeltaWireOp {
+                op: LiveDeltaOpKind::Add,
+                id: "todo_2".to_owned(),
+                row: Some(json!({ "_id": "todo_2", "title": "added row" })),
+            },
+            LiveDeltaWireOp {
+                op: LiveDeltaOpKind::Update,
+                id: "todo_1".to_owned(),
+                row: Some(json!({ "_id": "todo_1", "title": "updated row" })),
+            },
+            LiveDeltaWireOp {
+                op: LiveDeltaOpKind::Remove,
+                id: "todo_0".to_owned(),
+                row: None,
+            },
+        ],
+        resume: None,
+    }
+}
+
+fn resync_subscription_envelope() -> LiveEnvelope {
+    LiveEnvelope::ResyncRequired {
+        reason: "live_refresh_failed".to_owned(),
+        subscription_id: Some("sub_fixture_1".to_owned()),
+        scope: None,
+        epoch: None,
+        clear_retained: false,
+    }
+}
+
+fn resync_connection_wide_envelope() -> LiveEnvelope {
+    LiveEnvelope::ResyncRequired {
+        reason: "outbox_overflow".to_owned(),
+        subscription_id: None,
+        scope: None,
+        epoch: None,
+        clear_retained: true,
+    }
+}
+
+fn current_as_of_envelope() -> LiveEnvelope {
+    LiveEnvelope::CurrentAsOf {
+        subscription_id: "sub_fixture_1".to_owned(),
+        function: "listTodos".to_owned(),
+        version: 43,
+        resume: resume_wire(43),
+    }
+}
+
+/// Lane-P framing: the SAME durable envelope, wrapped in the drain's
+/// `{"Durable":{"payload":[u8…]}}` form (the wrapper asymmetry of
+/// src/live_wire.rs — wrapped over HTTP, unwrapped over the socket).
+fn wrapped(envelope: &LiveEnvelope) -> Value {
+    wire(&RealtimeEnvelope::Durable(DurableMessage::new(
+        serde_json::to_vec(envelope).expect("envelope serializes"),
+    )))
 }
 
 fn resume_wire(version: u64) -> ResumeWire {
@@ -202,55 +292,16 @@ fn invalidation_envelope_custom(
 pub fn wire_fixture_corpus() -> Value {
     let replace = wire(&replace_envelope());
 
-    let delta = wire(&LiveEnvelope::LiveDelta {
-        subscription_id: "sub_fixture_1".to_owned(),
-        function: "listTodos".to_owned(),
-        version: 42,
-        ops: vec![
-            LiveDeltaWireOp {
-                op: LiveDeltaOpKind::Add,
-                id: "todo_2".to_owned(),
-                row: Some(json!({ "_id": "todo_2", "title": "added row" })),
-            },
-            LiveDeltaWireOp {
-                op: LiveDeltaOpKind::Update,
-                id: "todo_1".to_owned(),
-                row: Some(json!({ "_id": "todo_1", "title": "updated row" })),
-            },
-            LiveDeltaWireOp {
-                op: LiveDeltaOpKind::Remove,
-                id: "todo_0".to_owned(),
-                row: None,
-            },
-        ],
-        resume: None,
-    });
+    let delta = wire(&delta_envelope());
 
-    let resync_subscription = wire(&LiveEnvelope::ResyncRequired {
-        reason: "live_refresh_failed".to_owned(),
-        subscription_id: Some("sub_fixture_1".to_owned()),
-        scope: None,
-        epoch: None,
-        clear_retained: false,
-    });
+    let resync_subscription = wire(&resync_subscription_envelope());
 
-    let resync_connection_wide = wire(&LiveEnvelope::ResyncRequired {
-        reason: "outbox_overflow".to_owned(),
-        subscription_id: None,
-        scope: None,
-        epoch: None,
-        clear_retained: true,
-    });
+    let resync_connection_wide = wire(&resync_connection_wide_envelope());
 
     let durable_bytes = wire(&LiveSocketServerFrame::DurableBytes {
         payload: vec![0xff, 0xfe],
     });
-    let current_as_of = wire(&LiveEnvelope::CurrentAsOf {
-        subscription_id: "sub_fixture_1".to_owned(),
-        function: "listTodos".to_owned(),
-        version: 43,
-        resume: resume_wire(43),
-    });
+    let current_as_of = wire(&current_as_of_envelope());
     let authorization_invalidation = wire(&invalidation_envelope(
         "sub_fixture_1",
         43,
@@ -360,20 +411,27 @@ pub fn wire_fixture_corpus() -> Value {
         Some((45, "terminal delete must not carry rows")),
     ));
 
-    // Lane-P framing: the SAME durable envelope, wrapped in the drain's
-    // `{"Durable":{"payload":[u8…]}}` form (the wrapper asymmetry of
-    // src/live_wire.rs — wrapped over HTTP, unwrapped over the socket).
-    let wrapped_replace = wire(&RealtimeEnvelope::Durable(DurableMessage::new(
-        serde_json::to_vec(&replace_envelope()).expect("envelope serializes"),
-    )));
+    let wrapped_replace = wrapped(&replace_envelope());
     // A wrapper whose payload bytes are NOT decodable JSON. Valid at the
     // wrapper layer (family realtime.envelope) — the loss happens at the
     // inner decode, after the ownership cut has already consumed the batch.
     let wrapped_malformed = wire(&RealtimeEnvelope::Durable(DurableMessage::new(vec![
         0xff, 0xfe, 0x00,
     ])));
+    // Wrapped/unwrapped parity for the remaining durable families: the exact
+    // envelope value each core fixture carries, re-framed for the drain.
+    let wrapped_delta = wrapped(&delta_envelope());
+    let wrapped_resync_subscription = wrapped(&resync_subscription_envelope());
+    let wrapped_resync_connection_wide = wrapped(&resync_connection_wide_envelope());
+    let wrapped_current_as_of = wrapped(&current_as_of_envelope());
+    // The liveness probe answer (LLP 0034 D0/D1) for the virtual-time
+    // heartbeat fixture.
+    let pong = wire(&LiveSocketServerFrame::Pong {
+        request_id: Some("ping_fixture_1".to_owned()),
+        server_time_ms: 5_000,
+    });
 
-    let fixtures = json!([
+    let seeded = json!([
         {
             "name": "durable.live_replace.basic",
             "family": "live.envelope.schema.json",
@@ -1146,12 +1204,484 @@ pub fn wire_fixture_corpus() -> Value {
         },
     ]);
 
+    // ---- Format-v3 P-1 extensions: negotiation refusals, drain-cancel
+    // duplicate tolerance, arm-mismatch, grant loss, wrapped/unwrapped
+    // parity, and virtual-time heartbeat/freshness/backoff.
+    // @ref LLP 0094#0b3-the-wireversion-open-time-offer — the open-time
+    //   offer matrix the negotiation fixtures pin: known binds, unknown
+    //   refuses, absent degrades to legacy.
+    let p1_extensions = json!([
+        {
+            "name": "negotiation.open.unknown_wire_version_refused",
+            "family": "connection.open.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local", "live/hosted"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "request": {
+                "method": "POST",
+                "route": "/connection/open",
+                "body": { "wireVersion": "snapback.v2" }
+            },
+            "refusal": {
+                "status": 400,
+                "code": "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+            },
+            "given": { "connection": { "state": "idle" } },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "LLP 0094 §0B.3: a present unknown wireVersion refuses — a v2-needing client must never be interpreted under v1. On this refusal the client surfaces a structured capability diagnostic; silently re-opening without the offer would be exactly the undeclared degradation the refusal exists to prevent (absent-offer legacy opens are sanctioned only for clients that never needed the version)."
+        },
+        {
+            "name": "negotiation.open.unknown_auth_invalidation_protocol_refused",
+            "family": "connection.open.input.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local", "live/hosted"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "request": {
+                "method": "POST",
+                "route": "/connection/open",
+                "body": { "authInvalidationProtocol": 2 }
+            },
+            "refusal": {
+                "status": 400,
+                "code": "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED"
+            },
+            "given": { "connection": { "state": "idle" } },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "LLP 0094 §0C.5: both open-time offer fields follow one matrix — known binds, unknown refuses, absent degrades to legacy. Both arms enforce this (src/server.rs open_connection; cloudflare/src/coordinator.js kitOpenConnection)."
+        },
+        {
+            "name": "negotiation.socket.wire_version_required",
+            "family": null,
+            "lane": "live",
+            "tuples": ["live/local", "live/hosted"],
+            "direction": "client_to_server",
+            "schemaValid": false,
+            "request": {
+                "method": "GET",
+                "route": "/live/{connection_id}/stream",
+                "upgrade": true,
+                "subprotocols": ["snapback.connection-token.sct_fixture_1"]
+            },
+            "refusal": {
+                "status": 400,
+                "code": "SNAPBACK_WIRE_VERSION_REQUIRED"
+            },
+            "given": { "connection": { "state": "granted" } },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "LLP 0094 §0B.4/§0B.5 B3: the offerless-upgrade bridge is closed — kit-stream upgrades must offer the bound `snapback.v1` subprotocol. The bearer carrier is excluded before candidate matching and never counts as a version offer. The repair is offering the bound version, not retrying unchanged."
+        },
+        {
+            "name": "negotiation.socket.unknown_wire_version_refused",
+            "family": null,
+            "lane": "live",
+            "tuples": ["live/local", "live/hosted"],
+            "direction": "client_to_server",
+            "schemaValid": false,
+            "request": {
+                "method": "GET",
+                "route": "/live/{connection_id}/stream",
+                "upgrade": true,
+                "subprotocols": [
+                    "snapback.v2",
+                    "snapback.v1.0",
+                    "snapback.connection-token.sct_fixture_1"
+                ]
+            },
+            "refusal": {
+                "status": 400,
+                "code": "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+            },
+            "given": { "connection": { "state": "granted" } },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "LLP 0094 §0B.4: classification precedes equality — an offer set with version candidates but no known token refuses SNAPBACK_WIRE_VERSION_UNSUPPORTED, never MISMATCH, and is never silently interpreted under v1."
+        },
+        {
+            "name": "poll.drain_cancel.redelivered_duplicates_tolerated",
+            "family": "realtime.envelope.schema.json",
+            "lane": "poll",
+            "tuples": ["poll/local"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": wrapped_replace,
+                    "expect": {
+                        "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 41 }],
+                        "actions": ["unwrap_durable", "replace_rows"]
+                    }
+                },
+                {
+                    "frame": wrapped_replace,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["unwrap_durable", "drop_stale"]
+                    }
+                },
+                {
+                    "frame": wrapped_delta,
+                    "expect": {
+                        "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 42 }],
+                        "actions": ["unwrap_durable", "apply_delta_by_id"]
+                    }
+                }
+            ],
+            "given": {
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 40, "rows": [] }
+                ]
+            },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 42 }],
+                "actions": ["unwrap_durable", "replace_rows", "drop_stale", "apply_delta_by_id"]
+            },
+            "notes": "T-DRAIN (LLP 0095 §1.4 / LLP 0059): the drain is a leased batch with an ownership-transfer cut. A drain cancelled before the cut releases its lease and its entries redeliver, so step 2 is the exact byte-identical wrapper of step 1 arriving again. Clients MUST be duplicate-tolerant: the version guard drops the redelivered replace without effect and delivery resumes with the next version."
+        },
+        {
+            "name": "arm.hosted_subscribe_requires_socket",
+            "family": "live.subscribe.input.schema.json",
+            "lane": "core",
+            "tuples": ["live/hosted"],
+            "direction": "client_to_server",
+            "schemaValid": true,
+            "request": {
+                "method": "POST",
+                "route": "/live/listTodos/subscribe",
+                "body": {
+                    "connection_id": "conn_fixture_1",
+                    "input": { "args": {} }
+                }
+            },
+            "refusal": {
+                "status": 409,
+                "code": "SNAPBACK_CONNECTION_SOCKET_REQUIRED"
+            },
+            "given": { "connection": { "state": "granted" } },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_capability_diagnostic", "establish_live_socket"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "T-SUB on the hosted arm (LLP 0095 §1.4; LLP 0090): subscribe refuses without a current authenticated socket session — socketless HTTP cannot arm hosted demand. The repair is establishing the managed socket first, then subscribing; retrying the socketless subscribe unchanged cannot succeed."
+        },
+        {
+            "name": "arm.live_hosted_drain_declared_empty_blackout",
+            "family": "live.outbox-drain.output.schema.json",
+            "lane": "live",
+            "tuples": ["live/hosted"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": [],
+            "given": {
+                "connection": { "state": "recovering" },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "dropped", "version": 42 },
+                    { "id": "sub_fixture_2", "state": "dropped", "version": 7 }
+                ]
+            },
+            "expect": {
+                "transitions": [],
+                "actions": []
+            },
+            "notes": "T-BLACKOUT (D3 fact 2a): the hosted arm has no durable outbox — the drain is declared-empty in the capability manifest and always answers []. During a hosted socket outage the drain delivers NOTHING; a live/hosted client must not treat drain polling as a delivery or recovery lane (this is why poll/hosted is not a claimable tuple). Reconnect-resubscribe is the only recovery lane, and the empty drain is not evidence that no updates were missed."
+        },
+        {
+            "name": "arm.socket_loss_mid_subscribe",
+            "family": null,
+            "lane": "live",
+            "tuples": ["live/local", "live/hosted"],
+            "direction": "client_lifecycle",
+            "schemaValid": false,
+            "steps": [
+                {
+                    "event": { "kind": "socket_lost" },
+                    "expect": {
+                        "transitions": [
+                            { "connection": "state", "to": "recovering" },
+                            { "subscription": "sub_fixture_1", "to": "dropped" },
+                            { "subscription": "sub_fixture_pending", "to": "dropped" }
+                        ],
+                        "actions": []
+                    }
+                }
+            ],
+            "given": {
+                "connection": { "state": "attached" },
+                "subscriptions": [
+                    {
+                        "id": "sub_fixture_1",
+                        "state": "live",
+                        "version": 41,
+                        "rows": [{ "_id": "todo_1", "title": "held row" }]
+                    },
+                    { "id": "sub_fixture_pending", "state": "pending" }
+                ]
+            },
+            "expect": {
+                "transitions": [
+                    { "connection": "state", "to": "recovering" },
+                    { "connection": "all_subscriptions", "to": "dropped" }
+                ],
+                "actions": ["attempt_reconnect", "resubscribe_all"],
+                "supersession": {
+                    "sub_fixture_1": "fresh_subscribe_with_supersedes",
+                    "sub_fixture_pending": "fresh_subscribe_without_supersession_assumption"
+                }
+            },
+            "notes": "T-LOSS + T-RECONNECT (D3 fact 2): socket loss drops the connection's durable subscriptions server-side, including one whose subscribe was still in flight — the ambiguous in-flight outcome resolves to DROPPED and is never assumed established. Recovery is bounded-backoff reconnect then fresh subscribe: with `supersedes` (and the mandatory superseded/supersessionRefusal response witness) for the established id, and a plain fresh subscribe for the never-established one."
+        },
+        {
+            "name": "grant.connection_token_invalid_reopens_everything",
+            "family": null,
+            "lane": "core",
+            "tuples": ["poll/local", "live/local", "live/hosted"],
+            "direction": "client_to_server",
+            "schemaValid": false,
+            "request": {
+                "method": "GET",
+                "route": "/outbox/{connection_id}",
+                "headers": { "x-snapback-connection-token": "sct_fixture_reaped_1" }
+            },
+            "refusal": {
+                "status": 403,
+                "code": "SNAPBACK_CONNECTION_TOKEN_INVALID"
+            },
+            "given": {
+                "connection": { "state": "attached" },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 42 },
+                    { "id": "sub_fixture_2", "state": "live", "version": 7 }
+                ]
+            },
+            "expect": {
+                "transitions": [
+                    { "connection": "state", "to": "grant_lost" },
+                    { "connection": "all_subscriptions", "to": "resync_pending" }
+                ],
+                "actions": ["reopen_connection", "resubscribe_all", "clear_retained_overlays"],
+                "forbiddenActions": ["retry_unchanged"]
+            },
+            "notes": "T-GRANT-LOSS (LLP 0095 §1.4/§4.4): SNAPBACK_CONNECTION_TOKEN_INVALID covers both the local idle reap and hosted grant expiry — the client cannot distinguish them at the refusal, and the recovery is identical: re-open the connection (a fresh grant is a fresh connection identity) and re-establish EVERY subscription, treating retained overlays as void. Grant-refresh-only recovery would resurrect the fake-healthy-handle defect class."
+        },
+        {
+            "name": "poll.wrapped_live_delta.unwrap",
+            "family": "realtime.envelope.schema.json",
+            "lane": "poll",
+            "tuples": ["poll/local"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": wrapped_delta,
+            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 41 } },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 42 }],
+                "actions": ["unwrap_durable", "apply_delta_by_id"]
+            },
+            "notes": "Wrapped/unwrapped parity: the exact live_delta envelope of durable.live_delta.apply_by_id in Lane-P framing. Unwrapping is a lane obligation; the inner judgment is identical to the core fixture."
+        },
+        {
+            "name": "poll.wrapped_resync_required.subscription_scoped",
+            "family": "realtime.envelope.schema.json",
+            "lane": "poll",
+            "tuples": ["poll/local"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": wrapped_resync_subscription,
+            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 42 } },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "resync_pending" }],
+                "actions": ["unwrap_durable", "resubscribe_subscription"]
+            },
+            "notes": "Wrapped/unwrapped parity for durable.resync_required.subscription_scoped: reason strings stay an open set and the transition is reason-independent in either framing."
+        },
+        {
+            "name": "poll.wrapped_resync_required.connection_wide_clear_retained",
+            "family": "realtime.envelope.schema.json",
+            "lane": "poll",
+            "tuples": ["poll/local"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": wrapped_resync_connection_wide,
+            "given": {
+                "connection": { "state": "attached" },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 42 },
+                    { "id": "sub_fixture_2", "state": "live", "version": 7 }
+                ]
+            },
+            "expect": {
+                "transitions": [{ "connection": "all_subscriptions", "to": "resync_pending" }],
+                "actions": ["unwrap_durable", "resubscribe_all", "clear_retained_overlays"]
+            },
+            "notes": "Wrapped/unwrapped parity for durable.resync_required.connection_wide_clear_retained: the cross-lane clear-retained rule (LLP 0059) is framing-independent — retained ephemeral overlays blank in Lane-P framing too."
+        },
+        {
+            "name": "poll.wrapped_current_as_of.adopts_token_without_rows",
+            "family": "realtime.envelope.schema.json",
+            "lane": "poll",
+            "tuples": ["poll/local"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": wrapped_current_as_of,
+            "given": {
+                "subscription": {
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "rows": [{ "_id": "todo_1", "title": "held row" }]
+                }
+            },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 43 }],
+                "actions": ["unwrap_durable", "adopt_resume_token"],
+                "rows": "unchanged"
+            },
+            "notes": "Wrapped/unwrapped parity for durable.current_as_of.adopts_token_without_rows: adopt the mandatory fresh token and advance the version without touching held rows, in Lane-P framing."
+        },
+        {
+            "name": "timing.heartbeat.ping_and_pong_freshness",
+            "family": "live.socket-server.schema.json",
+            "lane": "live",
+            "tuples": ["live/local", "live/hosted"],
+            "direction": "server_to_client",
+            "clock": "virtual",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "advanceVirtualTimeMs": 5000,
+                    "expect": { "transitions": [], "actions": ["send_ping"] }
+                },
+                {
+                    "frame": pong,
+                    "expect": { "transitions": [], "actions": [] }
+                },
+                {
+                    "advanceVirtualTimeMs": 9999,
+                    "expect": { "transitions": [], "actions": ["send_ping"] }
+                }
+            ],
+            "given": {
+                "connection": { "state": "attached", "lastServerActivityVirtualMs": 0 },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 42 }
+                ]
+            },
+            "expect": {
+                "transitions": [],
+                "actions": ["send_ping"]
+            },
+            "notes": "T-HB (LLP 0095 §1.4; LLP 0034 D0/D1): 5 s heartbeat ping, 15 s freshness budget. The advance to t=5000 obligates a liveness probe; the pong refreshes the freshness budget, so the further advance to t=14999 obligates more pings (send_ping repeats within an interval under the rule-4 set judgment) but never the loss path — the budget from the last server activity is not exhausted."
+        },
+        {
+            "name": "timing.freshness.budget_exhausted_forces_loss",
+            "family": null,
+            "lane": "live",
+            "tuples": ["live/local", "live/hosted"],
+            "direction": "client_lifecycle",
+            "clock": "virtual",
+            "schemaValid": false,
+            "steps": [
+                {
+                    "advanceVirtualTimeMs": 15001,
+                    "expect": {
+                        "transitions": [
+                            { "connection": "state", "to": "recovering" },
+                            { "connection": "all_subscriptions", "to": "dropped" }
+                        ],
+                        "actions": ["send_ping", "force_socket_loss"]
+                    }
+                }
+            ],
+            "given": {
+                "connection": { "state": "attached", "lastServerActivityVirtualMs": 0 },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 42 },
+                    { "id": "sub_fixture_2", "state": "live", "version": 7 }
+                ]
+            },
+            "expect": {
+                "transitions": [
+                    { "connection": "state", "to": "recovering" },
+                    { "connection": "all_subscriptions", "to": "dropped" }
+                ],
+                "actions": ["send_ping", "force_socket_loss"]
+            },
+            "notes": "T-HB's loss half (LLP 0095 §1.4; LLP 0034 D0/D1): no server activity for the whole 15 s freshness budget while the socket still claims open forces the loss path — the client declares the socket lost (force_socket_loss) rather than trusting a silent TCP session, and every durable subscription drops per T-LOSS. Pings during the interval repeat under the rule-4 set judgment."
+        },
+        {
+            "name": "timing.reconnect.backoff_bounds",
+            "family": null,
+            "lane": "live",
+            "tuples": ["live/local", "live/hosted"],
+            "direction": "client_lifecycle",
+            "clock": "virtual",
+            "schemaValid": false,
+            "steps": [
+                {
+                    "advanceVirtualTimeMs": 249,
+                    "expect": {
+                        "transitions": [],
+                        "actions": [],
+                        "forbiddenActions": ["attempt_reconnect"]
+                    }
+                },
+                {
+                    "advanceVirtualTimeMs": 59751,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["attempt_reconnect"],
+                        "pacing": { "action": "attempt_reconnect", "maxIntervalMs": 10000 }
+                    }
+                }
+            ],
+            "given": {
+                "connection": { "state": "recovering", "socketLostAtVirtualMs": 0 },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "dropped", "version": 42 }
+                ]
+            },
+            "expect": {
+                "transitions": [],
+                "actions": ["attempt_reconnect"]
+            },
+            "notes": "T-LOSS backoff (LLP 0095 §1.4; LLP 0034 D0/D1): bounded backoff 250 ms → 10 s. No reconnect attempt may fire before 250 ms after the loss; thereafter attempts repeat with growing delays capped at 10 s, so over the second interval consecutive attempts are never more than pacing.maxIntervalMs apart. Each successful attempt is T-RECONNECT's fresh subscribe with supersedes — not judged here, since a fixture carries no live server."
+        },
+    ]);
+
+    let mut fixtures = seeded
+        .as_array()
+        .expect("seeded fixtures are an array")
+        .clone();
+    fixtures.extend(
+        p1_extensions
+            .as_array()
+            .expect("P-1 extension fixtures are an array")
+            .iter()
+            .cloned(),
+    );
+
     json!({
         "artifactKind": "liveWireFixtureCorpus",
         "formatVersion": WIRE_FIXTURES_FORMAT_VERSION,
         "wireVersion": "snapback.v1",
         "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
-        "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, and exact duplicate re-ACK, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
+        "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, and virtual-time heartbeat/freshness/backoff",
         "fixtures": fixtures,
     })
 }

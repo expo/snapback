@@ -1,6 +1,6 @@
 {
   "artifactKind": "liveWireFixtureCorpus",
-  "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, and exact duplicate re-ACK, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
+  "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, and virtual-time heartbeat/freshness/backoff",
   "fixtures": [
     {
       "direction": "server_to_client",
@@ -2903,9 +2903,2193 @@
       "tuples": [
         "poll/local"
       ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": "connection.open.input.schema.json",
+      "given": {
+        "connection": {
+          "state": "idle"
+        }
+      },
+      "lane": "core",
+      "name": "negotiation.open.unknown_wire_version_refused",
+      "notes": "LLP 0094 §0B.3: a present unknown wireVersion refuses — a v2-needing client must never be interpreted under v1. On this refusal the client surfaces a structured capability diagnostic; silently re-opening without the offer would be exactly the undeclared degradation the refusal exists to prevent (absent-offer legacy opens are sanctioned only for clients that never needed the version).",
+      "refusal": {
+        "code": "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+        "status": 400
+      },
+      "request": {
+        "body": {
+          "wireVersion": "snapback.v2"
+        },
+        "method": "POST",
+        "route": "/connection/open"
+      },
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": "connection.open.input.schema.json",
+      "given": {
+        "connection": {
+          "state": "idle"
+        }
+      },
+      "lane": "core",
+      "name": "negotiation.open.unknown_auth_invalidation_protocol_refused",
+      "notes": "LLP 0094 §0C.5: both open-time offer fields follow one matrix — known binds, unknown refuses, absent degrades to legacy. Both arms enforce this (src/server.rs open_connection; cloudflare/src/coordinator.js kitOpenConnection).",
+      "refusal": {
+        "code": "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
+        "status": 400
+      },
+      "request": {
+        "body": {
+          "authInvalidationProtocol": 2
+        },
+        "method": "POST",
+        "route": "/connection/open"
+      },
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": null,
+      "given": {
+        "connection": {
+          "state": "granted"
+        }
+      },
+      "lane": "live",
+      "name": "negotiation.socket.wire_version_required",
+      "notes": "LLP 0094 §0B.4/§0B.5 B3: the offerless-upgrade bridge is closed — kit-stream upgrades must offer the bound `snapback.v1` subprotocol. The bearer carrier is excluded before candidate matching and never counts as a version offer. The repair is offering the bound version, not retrying unchanged.",
+      "refusal": {
+        "code": "SNAPBACK_WIRE_VERSION_REQUIRED",
+        "status": 400
+      },
+      "request": {
+        "method": "GET",
+        "route": "/live/{connection_id}/stream",
+        "subprotocols": [
+          "snapback.connection-token.sct_fixture_1"
+        ],
+        "upgrade": true
+      },
+      "schemaValid": false,
+      "tuples": [
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": null,
+      "given": {
+        "connection": {
+          "state": "granted"
+        }
+      },
+      "lane": "live",
+      "name": "negotiation.socket.unknown_wire_version_refused",
+      "notes": "LLP 0094 §0B.4: classification precedes equality — an offer set with version candidates but no known token refuses SNAPBACK_WIRE_VERSION_UNSUPPORTED, never MISMATCH, and is never silently interpreted under v1.",
+      "refusal": {
+        "code": "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+        "status": 400
+      },
+      "request": {
+        "method": "GET",
+        "route": "/live/{connection_id}/stream",
+        "subprotocols": [
+          "snapback.v2",
+          "snapback.v1.0",
+          "snapback.connection-token.sct_fixture_1"
+        ],
+        "upgrade": true
+      },
+      "schemaValid": false,
+      "tuples": [
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "unwrap_durable",
+          "replace_rows",
+          "drop_stale",
+          "apply_delta_by_id"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 42
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "given": {
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "rows": [],
+            "state": "live",
+            "version": 40
+          }
+        ]
+      },
+      "lane": "poll",
+      "name": "poll.drain_cancel.redelivered_duplicates_tolerated",
+      "notes": "T-DRAIN (LLP 0095 §1.4 / LLP 0059): the drain is a leased batch with an ownership-transfer cut. A drain cancelled before the cut releases its lease and its entries redeliver, so step 2 is the exact byte-identical wrapper of step 1 arriving again. Clients MUST be duplicate-tolerant: the version guard drops the redelivered replace without effect and delivery resumes with the next version.",
+      "schemaValid": true,
+      "steps": [
+        {
+          "expect": {
+            "actions": [
+              "unwrap_durable",
+              "replace_rows"
+            ],
+            "transitions": [
+              {
+                "subscription": "sub_fixture_1",
+                "to": "live",
+                "version": 41
+              }
+            ]
+          },
+          "frame": {
+            "Durable": {
+              "payload": [
+                123,
+                34,
+                107,
+                105,
+                110,
+                100,
+                34,
+                58,
+                34,
+                108,
+                105,
+                118,
+                101,
+                95,
+                114,
+                101,
+                112,
+                108,
+                97,
+                99,
+                101,
+                34,
+                44,
+                34,
+                115,
+                117,
+                98,
+                115,
+                99,
+                114,
+                105,
+                112,
+                116,
+                105,
+                111,
+                110,
+                95,
+                105,
+                100,
+                34,
+                58,
+                34,
+                115,
+                117,
+                98,
+                95,
+                102,
+                105,
+                120,
+                116,
+                117,
+                114,
+                101,
+                95,
+                49,
+                34,
+                44,
+                34,
+                102,
+                117,
+                110,
+                99,
+                116,
+                105,
+                111,
+                110,
+                34,
+                58,
+                34,
+                108,
+                105,
+                115,
+                116,
+                84,
+                111,
+                100,
+                111,
+                115,
+                34,
+                44,
+                34,
+                118,
+                101,
+                114,
+                115,
+                105,
+                111,
+                110,
+                34,
+                58,
+                52,
+                49,
+                44,
+                34,
+                114,
+                111,
+                119,
+                115,
+                34,
+                58,
+                91,
+                123,
+                34,
+                95,
+                105,
+                100,
+                34,
+                58,
+                34,
+                116,
+                111,
+                100,
+                111,
+                95,
+                49,
+                34,
+                44,
+                34,
+                116,
+                105,
+                116,
+                108,
+                101,
+                34,
+                58,
+                34,
+                99,
+                117,
+                114,
+                114,
+                101,
+                110,
+                116,
+                32,
+                114,
+                111,
+                119,
+                34,
+                125,
+                93,
+                125
+              ]
+            }
+          }
+        },
+        {
+          "expect": {
+            "actions": [
+              "unwrap_durable",
+              "drop_stale"
+            ],
+            "transitions": []
+          },
+          "frame": {
+            "Durable": {
+              "payload": [
+                123,
+                34,
+                107,
+                105,
+                110,
+                100,
+                34,
+                58,
+                34,
+                108,
+                105,
+                118,
+                101,
+                95,
+                114,
+                101,
+                112,
+                108,
+                97,
+                99,
+                101,
+                34,
+                44,
+                34,
+                115,
+                117,
+                98,
+                115,
+                99,
+                114,
+                105,
+                112,
+                116,
+                105,
+                111,
+                110,
+                95,
+                105,
+                100,
+                34,
+                58,
+                34,
+                115,
+                117,
+                98,
+                95,
+                102,
+                105,
+                120,
+                116,
+                117,
+                114,
+                101,
+                95,
+                49,
+                34,
+                44,
+                34,
+                102,
+                117,
+                110,
+                99,
+                116,
+                105,
+                111,
+                110,
+                34,
+                58,
+                34,
+                108,
+                105,
+                115,
+                116,
+                84,
+                111,
+                100,
+                111,
+                115,
+                34,
+                44,
+                34,
+                118,
+                101,
+                114,
+                115,
+                105,
+                111,
+                110,
+                34,
+                58,
+                52,
+                49,
+                44,
+                34,
+                114,
+                111,
+                119,
+                115,
+                34,
+                58,
+                91,
+                123,
+                34,
+                95,
+                105,
+                100,
+                34,
+                58,
+                34,
+                116,
+                111,
+                100,
+                111,
+                95,
+                49,
+                34,
+                44,
+                34,
+                116,
+                105,
+                116,
+                108,
+                101,
+                34,
+                58,
+                34,
+                99,
+                117,
+                114,
+                114,
+                101,
+                110,
+                116,
+                32,
+                114,
+                111,
+                119,
+                34,
+                125,
+                93,
+                125
+              ]
+            }
+          }
+        },
+        {
+          "expect": {
+            "actions": [
+              "unwrap_durable",
+              "apply_delta_by_id"
+            ],
+            "transitions": [
+              {
+                "subscription": "sub_fixture_1",
+                "to": "live",
+                "version": 42
+              }
+            ]
+          },
+          "frame": {
+            "Durable": {
+              "payload": [
+                123,
+                34,
+                107,
+                105,
+                110,
+                100,
+                34,
+                58,
+                34,
+                108,
+                105,
+                118,
+                101,
+                95,
+                100,
+                101,
+                108,
+                116,
+                97,
+                34,
+                44,
+                34,
+                115,
+                117,
+                98,
+                115,
+                99,
+                114,
+                105,
+                112,
+                116,
+                105,
+                111,
+                110,
+                95,
+                105,
+                100,
+                34,
+                58,
+                34,
+                115,
+                117,
+                98,
+                95,
+                102,
+                105,
+                120,
+                116,
+                117,
+                114,
+                101,
+                95,
+                49,
+                34,
+                44,
+                34,
+                102,
+                117,
+                110,
+                99,
+                116,
+                105,
+                111,
+                110,
+                34,
+                58,
+                34,
+                108,
+                105,
+                115,
+                116,
+                84,
+                111,
+                100,
+                111,
+                115,
+                34,
+                44,
+                34,
+                118,
+                101,
+                114,
+                115,
+                105,
+                111,
+                110,
+                34,
+                58,
+                52,
+                50,
+                44,
+                34,
+                111,
+                112,
+                115,
+                34,
+                58,
+                91,
+                123,
+                34,
+                111,
+                112,
+                34,
+                58,
+                34,
+                97,
+                100,
+                100,
+                34,
+                44,
+                34,
+                105,
+                100,
+                34,
+                58,
+                34,
+                116,
+                111,
+                100,
+                111,
+                95,
+                50,
+                34,
+                44,
+                34,
+                114,
+                111,
+                119,
+                34,
+                58,
+                123,
+                34,
+                95,
+                105,
+                100,
+                34,
+                58,
+                34,
+                116,
+                111,
+                100,
+                111,
+                95,
+                50,
+                34,
+                44,
+                34,
+                116,
+                105,
+                116,
+                108,
+                101,
+                34,
+                58,
+                34,
+                97,
+                100,
+                100,
+                101,
+                100,
+                32,
+                114,
+                111,
+                119,
+                34,
+                125,
+                125,
+                44,
+                123,
+                34,
+                111,
+                112,
+                34,
+                58,
+                34,
+                117,
+                112,
+                100,
+                97,
+                116,
+                101,
+                34,
+                44,
+                34,
+                105,
+                100,
+                34,
+                58,
+                34,
+                116,
+                111,
+                100,
+                111,
+                95,
+                49,
+                34,
+                44,
+                34,
+                114,
+                111,
+                119,
+                34,
+                58,
+                123,
+                34,
+                95,
+                105,
+                100,
+                34,
+                58,
+                34,
+                116,
+                111,
+                100,
+                111,
+                95,
+                49,
+                34,
+                44,
+                34,
+                116,
+                105,
+                116,
+                108,
+                101,
+                34,
+                58,
+                34,
+                117,
+                112,
+                100,
+                97,
+                116,
+                101,
+                100,
+                32,
+                114,
+                111,
+                119,
+                34,
+                125,
+                125,
+                44,
+                123,
+                34,
+                111,
+                112,
+                34,
+                58,
+                34,
+                114,
+                101,
+                109,
+                111,
+                118,
+                101,
+                34,
+                44,
+                34,
+                105,
+                100,
+                34,
+                58,
+                34,
+                116,
+                111,
+                100,
+                111,
+                95,
+                48,
+                34,
+                125,
+                93,
+                125
+              ]
+            }
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "surface_capability_diagnostic",
+          "establish_live_socket"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": []
+      },
+      "family": "live.subscribe.input.schema.json",
+      "given": {
+        "connection": {
+          "state": "granted"
+        }
+      },
+      "lane": "core",
+      "name": "arm.hosted_subscribe_requires_socket",
+      "notes": "T-SUB on the hosted arm (LLP 0095 §1.4; LLP 0090): subscribe refuses without a current authenticated socket session — socketless HTTP cannot arm hosted demand. The repair is establishing the managed socket first, then subscribing; retrying the socketless subscribe unchanged cannot succeed.",
+      "refusal": {
+        "code": "SNAPBACK_CONNECTION_SOCKET_REQUIRED",
+        "status": 409
+      },
+      "request": {
+        "body": {
+          "connection_id": "conn_fixture_1",
+          "input": {
+            "args": {}
+          }
+        },
+        "method": "POST",
+        "route": "/live/listTodos/subscribe"
+      },
+      "schemaValid": true,
+      "tuples": [
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [],
+        "transitions": []
+      },
+      "family": "live.outbox-drain.output.schema.json",
+      "frame": [],
+      "given": {
+        "connection": {
+          "state": "recovering"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "dropped",
+            "version": 42
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "dropped",
+            "version": 7
+          }
+        ]
+      },
+      "lane": "live",
+      "name": "arm.live_hosted_drain_declared_empty_blackout",
+      "notes": "T-BLACKOUT (D3 fact 2a): the hosted arm has no durable outbox — the drain is declared-empty in the capability manifest and always answers []. During a hosted socket outage the drain delivers NOTHING; a live/hosted client must not treat drain polling as a delivery or recovery lane (this is why poll/hosted is not a claimable tuple). Reconnect-resubscribe is the only recovery lane, and the empty drain is not evidence that no updates were missed.",
+      "schemaValid": true,
+      "tuples": [
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "client_lifecycle",
+      "expect": {
+        "actions": [
+          "attempt_reconnect",
+          "resubscribe_all"
+        ],
+        "supersession": {
+          "sub_fixture_1": "fresh_subscribe_with_supersedes",
+          "sub_fixture_pending": "fresh_subscribe_without_supersession_assumption"
+        },
+        "transitions": [
+          {
+            "connection": "state",
+            "to": "recovering"
+          },
+          {
+            "connection": "all_subscriptions",
+            "to": "dropped"
+          }
+        ]
+      },
+      "family": null,
+      "given": {
+        "connection": {
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "rows": [
+              {
+                "_id": "todo_1",
+                "title": "held row"
+              }
+            ],
+            "state": "live",
+            "version": 41
+          },
+          {
+            "id": "sub_fixture_pending",
+            "state": "pending"
+          }
+        ]
+      },
+      "lane": "live",
+      "name": "arm.socket_loss_mid_subscribe",
+      "notes": "T-LOSS + T-RECONNECT (D3 fact 2): socket loss drops the connection's durable subscriptions server-side, including one whose subscribe was still in flight — the ambiguous in-flight outcome resolves to DROPPED and is never assumed established. Recovery is bounded-backoff reconnect then fresh subscribe: with `supersedes` (and the mandatory superseded/supersessionRefusal response witness) for the established id, and a plain fresh subscribe for the never-established one.",
+      "schemaValid": false,
+      "steps": [
+        {
+          "event": {
+            "kind": "socket_lost"
+          },
+          "expect": {
+            "actions": [],
+            "transitions": [
+              {
+                "connection": "state",
+                "to": "recovering"
+              },
+              {
+                "subscription": "sub_fixture_1",
+                "to": "dropped"
+              },
+              {
+                "subscription": "sub_fixture_pending",
+                "to": "dropped"
+              }
+            ]
+          }
+        }
+      ],
+      "tuples": [
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "client_to_server",
+      "expect": {
+        "actions": [
+          "reopen_connection",
+          "resubscribe_all",
+          "clear_retained_overlays"
+        ],
+        "forbiddenActions": [
+          "retry_unchanged"
+        ],
+        "transitions": [
+          {
+            "connection": "state",
+            "to": "grant_lost"
+          },
+          {
+            "connection": "all_subscriptions",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": null,
+      "given": {
+        "connection": {
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "live",
+            "version": 7
+          }
+        ]
+      },
+      "lane": "core",
+      "name": "grant.connection_token_invalid_reopens_everything",
+      "notes": "T-GRANT-LOSS (LLP 0095 §1.4/§4.4): SNAPBACK_CONNECTION_TOKEN_INVALID covers both the local idle reap and hosted grant expiry — the client cannot distinguish them at the refusal, and the recovery is identical: re-open the connection (a fresh grant is a fresh connection identity) and re-establish EVERY subscription, treating retained overlays as void. Grant-refresh-only recovery would resurrect the fake-healthy-handle defect class.",
+      "refusal": {
+        "code": "SNAPBACK_CONNECTION_TOKEN_INVALID",
+        "status": 403
+      },
+      "request": {
+        "headers": {
+          "x-snapback-connection-token": "sct_fixture_reaped_1"
+        },
+        "method": "GET",
+        "route": "/outbox/{connection_id}"
+      },
+      "schemaValid": false,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "unwrap_durable",
+          "apply_delta_by_id"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 42
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "frame": {
+        "Durable": {
+          "payload": [
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            108,
+            105,
+            118,
+            101,
+            95,
+            100,
+            101,
+            108,
+            116,
+            97,
+            34,
+            44,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            44,
+            34,
+            102,
+            117,
+            110,
+            99,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            108,
+            105,
+            115,
+            116,
+            84,
+            111,
+            100,
+            111,
+            115,
+            34,
+            44,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            52,
+            50,
+            44,
+            34,
+            111,
+            112,
+            115,
+            34,
+            58,
+            91,
+            123,
+            34,
+            111,
+            112,
+            34,
+            58,
+            34,
+            97,
+            100,
+            100,
+            34,
+            44,
+            34,
+            105,
+            100,
+            34,
+            58,
+            34,
+            116,
+            111,
+            100,
+            111,
+            95,
+            50,
+            34,
+            44,
+            34,
+            114,
+            111,
+            119,
+            34,
+            58,
+            123,
+            34,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            116,
+            111,
+            100,
+            111,
+            95,
+            50,
+            34,
+            44,
+            34,
+            116,
+            105,
+            116,
+            108,
+            101,
+            34,
+            58,
+            34,
+            97,
+            100,
+            100,
+            101,
+            100,
+            32,
+            114,
+            111,
+            119,
+            34,
+            125,
+            125,
+            44,
+            123,
+            34,
+            111,
+            112,
+            34,
+            58,
+            34,
+            117,
+            112,
+            100,
+            97,
+            116,
+            101,
+            34,
+            44,
+            34,
+            105,
+            100,
+            34,
+            58,
+            34,
+            116,
+            111,
+            100,
+            111,
+            95,
+            49,
+            34,
+            44,
+            34,
+            114,
+            111,
+            119,
+            34,
+            58,
+            123,
+            34,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            116,
+            111,
+            100,
+            111,
+            95,
+            49,
+            34,
+            44,
+            34,
+            116,
+            105,
+            116,
+            108,
+            101,
+            34,
+            58,
+            34,
+            117,
+            112,
+            100,
+            97,
+            116,
+            101,
+            100,
+            32,
+            114,
+            111,
+            119,
+            34,
+            125,
+            125,
+            44,
+            123,
+            34,
+            111,
+            112,
+            34,
+            58,
+            34,
+            114,
+            101,
+            109,
+            111,
+            118,
+            101,
+            34,
+            44,
+            34,
+            105,
+            100,
+            34,
+            58,
+            34,
+            116,
+            111,
+            100,
+            111,
+            95,
+            48,
+            34,
+            125,
+            93,
+            125
+          ]
+        }
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 41
+        }
+      },
+      "lane": "poll",
+      "name": "poll.wrapped_live_delta.unwrap",
+      "notes": "Wrapped/unwrapped parity: the exact live_delta envelope of durable.live_delta.apply_by_id in Lane-P framing. Unwrapping is a lane obligation; the inner judgment is identical to the core fixture.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "unwrap_durable",
+          "resubscribe_subscription"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "frame": {
+        "Durable": {
+          "payload": [
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            114,
+            101,
+            115,
+            121,
+            110,
+            99,
+            95,
+            114,
+            101,
+            113,
+            117,
+            105,
+            114,
+            101,
+            100,
+            34,
+            44,
+            34,
+            114,
+            101,
+            97,
+            115,
+            111,
+            110,
+            34,
+            58,
+            34,
+            108,
+            105,
+            118,
+            101,
+            95,
+            114,
+            101,
+            102,
+            114,
+            101,
+            115,
+            104,
+            95,
+            102,
+            97,
+            105,
+            108,
+            101,
+            100,
+            34,
+            44,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            44,
+            34,
+            99,
+            108,
+            101,
+            97,
+            114,
+            95,
+            114,
+            101,
+            116,
+            97,
+            105,
+            110,
+            101,
+            100,
+            34,
+            58,
+            102,
+            97,
+            108,
+            115,
+            101,
+            125
+          ]
+        }
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "poll",
+      "name": "poll.wrapped_resync_required.subscription_scoped",
+      "notes": "Wrapped/unwrapped parity for durable.resync_required.subscription_scoped: reason strings stay an open set and the transition is reason-independent in either framing.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "unwrap_durable",
+          "resubscribe_all",
+          "clear_retained_overlays"
+        ],
+        "transitions": [
+          {
+            "connection": "all_subscriptions",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "frame": {
+        "Durable": {
+          "payload": [
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            114,
+            101,
+            115,
+            121,
+            110,
+            99,
+            95,
+            114,
+            101,
+            113,
+            117,
+            105,
+            114,
+            101,
+            100,
+            34,
+            44,
+            34,
+            114,
+            101,
+            97,
+            115,
+            111,
+            110,
+            34,
+            58,
+            34,
+            111,
+            117,
+            116,
+            98,
+            111,
+            120,
+            95,
+            111,
+            118,
+            101,
+            114,
+            102,
+            108,
+            111,
+            119,
+            34,
+            44,
+            34,
+            99,
+            108,
+            101,
+            97,
+            114,
+            95,
+            114,
+            101,
+            116,
+            97,
+            105,
+            110,
+            101,
+            100,
+            34,
+            58,
+            116,
+            114,
+            117,
+            101,
+            125
+          ]
+        }
+      },
+      "given": {
+        "connection": {
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "live",
+            "version": 7
+          }
+        ]
+      },
+      "lane": "poll",
+      "name": "poll.wrapped_resync_required.connection_wide_clear_retained",
+      "notes": "Wrapped/unwrapped parity for durable.resync_required.connection_wide_clear_retained: the cross-lane clear-retained rule (LLP 0059) is framing-independent — retained ephemeral overlays blank in Lane-P framing too.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "unwrap_durable",
+          "adopt_resume_token"
+        ],
+        "rows": "unchanged",
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 43
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "frame": {
+        "Durable": {
+          "payload": [
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            99,
+            117,
+            114,
+            114,
+            101,
+            110,
+            116,
+            95,
+            97,
+            115,
+            95,
+            111,
+            102,
+            34,
+            44,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            44,
+            34,
+            102,
+            117,
+            110,
+            99,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            108,
+            105,
+            115,
+            116,
+            84,
+            111,
+            100,
+            111,
+            115,
+            34,
+            44,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            52,
+            51,
+            44,
+            34,
+            114,
+            101,
+            115,
+            117,
+            109,
+            101,
+            34,
+            58,
+            123,
+            34,
+            116,
+            111,
+            107,
+            101,
+            110,
+            34,
+            58,
+            34,
+            115,
+            98,
+            114,
+            116,
+            49,
+            46,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            52,
+            51,
+            34,
+            44,
+            34,
+            109,
+            101,
+            116,
+            97,
+            34,
+            58,
+            123,
+            34,
+            97,
+            112,
+            112,
+            34,
+            58,
+            34,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            97,
+            112,
+            112,
+            34,
+            44,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            52,
+            51,
+            44,
+            34,
+            99,
+            111,
+            110,
+            116,
+            101,
+            110,
+            116,
+            68,
+            105,
+            103,
+            101,
+            115,
+            116,
+            34,
+            58,
+            34,
+            109,
+            115,
+            101,
+            116,
+            49,
+            58,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            34,
+            44,
+            34,
+            103,
+            101,
+            110,
+            101,
+            114,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            115,
+            104,
+            97,
+            50,
+            53,
+            54,
+            58,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            103,
+            101,
+            110,
+            101,
+            114,
+            97,
+            116,
+            105,
+            111,
+            110,
+            34,
+            44,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            83,
+            116,
+            114,
+            101,
+            97,
+            109,
+            34,
+            58,
+            34,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            115,
+            116,
+            114,
+            101,
+            97,
+            109,
+            34,
+            44,
+            34,
+            113,
+            117,
+            101,
+            114,
+            121,
+            65,
+            114,
+            116,
+            105,
+            102,
+            97,
+            99,
+            116,
+            34,
+            58,
+            34,
+            115,
+            104,
+            97,
+            50,
+            53,
+            54,
+            58,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            113,
+            117,
+            101,
+            114,
+            121,
+            34,
+            44,
+            34,
+            97,
+            114,
+            103,
+            115,
+            72,
+            97,
+            115,
+            104,
+            34,
+            58,
+            34,
+            115,
+            104,
+            97,
+            50,
+            53,
+            54,
+            58,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            45,
+            97,
+            114,
+            103,
+            115,
+            34,
+            125,
+            125,
+            125
+          ]
+        }
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "rows": [
+            {
+              "_id": "todo_1",
+              "title": "held row"
+            }
+          ],
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "poll",
+      "name": "poll.wrapped_current_as_of.adopts_token_without_rows",
+      "notes": "Wrapped/unwrapped parity for durable.current_as_of.adopts_token_without_rows: adopt the mandatory fresh token and advance the version without touching held rows, in Lane-P framing.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local"
+      ]
+    },
+    {
+      "clock": "virtual",
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "send_ping"
+        ],
+        "transitions": []
+      },
+      "family": "live.socket-server.schema.json",
+      "given": {
+        "connection": {
+          "lastServerActivityVirtualMs": 0,
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "live",
+      "name": "timing.heartbeat.ping_and_pong_freshness",
+      "notes": "T-HB (LLP 0095 §1.4; LLP 0034 D0/D1): 5 s heartbeat ping, 15 s freshness budget. The advance to t=5000 obligates a liveness probe; the pong refreshes the freshness budget, so the further advance to t=14999 obligates more pings (send_ping repeats within an interval under the rule-4 set judgment) but never the loss path — the budget from the last server activity is not exhausted.",
+      "schemaValid": true,
+      "steps": [
+        {
+          "advanceVirtualTimeMs": 5000,
+          "expect": {
+            "actions": [
+              "send_ping"
+            ],
+            "transitions": []
+          }
+        },
+        {
+          "expect": {
+            "actions": [],
+            "transitions": []
+          },
+          "frame": {
+            "kind": "pong",
+            "requestId": "ping_fixture_1",
+            "serverTimeMs": 5000
+          }
+        },
+        {
+          "advanceVirtualTimeMs": 9999,
+          "expect": {
+            "actions": [
+              "send_ping"
+            ],
+            "transitions": []
+          }
+        }
+      ],
+      "tuples": [
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "clock": "virtual",
+      "direction": "client_lifecycle",
+      "expect": {
+        "actions": [
+          "send_ping",
+          "force_socket_loss"
+        ],
+        "transitions": [
+          {
+            "connection": "state",
+            "to": "recovering"
+          },
+          {
+            "connection": "all_subscriptions",
+            "to": "dropped"
+          }
+        ]
+      },
+      "family": null,
+      "given": {
+        "connection": {
+          "lastServerActivityVirtualMs": 0,
+          "state": "attached"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "live",
+            "version": 7
+          }
+        ]
+      },
+      "lane": "live",
+      "name": "timing.freshness.budget_exhausted_forces_loss",
+      "notes": "T-HB's loss half (LLP 0095 §1.4; LLP 0034 D0/D1): no server activity for the whole 15 s freshness budget while the socket still claims open forces the loss path — the client declares the socket lost (force_socket_loss) rather than trusting a silent TCP session, and every durable subscription drops per T-LOSS. Pings during the interval repeat under the rule-4 set judgment.",
+      "schemaValid": false,
+      "steps": [
+        {
+          "advanceVirtualTimeMs": 15001,
+          "expect": {
+            "actions": [
+              "send_ping",
+              "force_socket_loss"
+            ],
+            "transitions": [
+              {
+                "connection": "state",
+                "to": "recovering"
+              },
+              {
+                "connection": "all_subscriptions",
+                "to": "dropped"
+              }
+            ]
+          }
+        }
+      ],
+      "tuples": [
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "clock": "virtual",
+      "direction": "client_lifecycle",
+      "expect": {
+        "actions": [
+          "attempt_reconnect"
+        ],
+        "transitions": []
+      },
+      "family": null,
+      "given": {
+        "connection": {
+          "socketLostAtVirtualMs": 0,
+          "state": "recovering"
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "dropped",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "live",
+      "name": "timing.reconnect.backoff_bounds",
+      "notes": "T-LOSS backoff (LLP 0095 §1.4; LLP 0034 D0/D1): bounded backoff 250 ms → 10 s. No reconnect attempt may fire before 250 ms after the loss; thereafter attempts repeat with growing delays capped at 10 s, so over the second interval consecutive attempts are never more than pacing.maxIntervalMs apart. Each successful attempt is T-RECONNECT's fresh subscribe with supersedes — not judged here, since a fixture carries no live server.",
+      "schemaValid": false,
+      "steps": [
+        {
+          "advanceVirtualTimeMs": 249,
+          "expect": {
+            "actions": [],
+            "forbiddenActions": [
+              "attempt_reconnect"
+            ],
+            "transitions": []
+          }
+        },
+        {
+          "advanceVirtualTimeMs": 59751,
+          "expect": {
+            "actions": [
+              "attempt_reconnect"
+            ],
+            "pacing": {
+              "action": "attempt_reconnect",
+              "maxIntervalMs": 10000
+            },
+            "transitions": []
+          }
+        }
+      ],
+      "tuples": [
+        "live/local",
+        "live/hosted"
+      ]
     }
   ],
-  "formatVersion": 2,
+  "formatVersion": 3,
   "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
   "wireVersion": "snapback.v1"
 }

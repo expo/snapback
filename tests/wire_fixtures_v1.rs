@@ -47,8 +47,48 @@ fn fixtures() -> Vec<Value> {
         .clone()
 }
 
+/// A request-carrying container (a `client_to_server` fixture or one of its
+/// steps): checks the v3 request/refusal shape and returns the body to
+/// validate, when one is present.
+fn checked_request_body<'a>(name: &str, container: &'a Value) -> Option<&'a Value> {
+    let request = &container["request"];
+    assert!(
+        request["route"].is_string() && request["method"].is_string(),
+        "{name}: a client_to_server unit pins method and route"
+    );
+    let refusal = &container["refusal"];
+    let response = &container["response"];
+    assert!(
+        refusal.is_object() ^ response.is_object(),
+        "{name}: a client_to_server unit pins exactly one of refusal/response"
+    );
+    if refusal.is_object() {
+        assert!(
+            refusal["status"].is_u64(),
+            "{name}: refusal pins an HTTP status"
+        );
+        let code = refusal["code"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{name}: refusal pins a code"));
+        assert!(
+            code.starts_with("SNAPBACK_"),
+            "{name}: refusal code {code} is not a SNAPBACK_* code"
+        );
+    } else {
+        assert!(
+            response["status"].is_u64(),
+            "{name}: response pins an HTTP status"
+        );
+    }
+    let body = &request["body"];
+    body.is_object().then_some(body)
+}
+
 /// Every fixture's `schemaValid` claim agrees with the committed family
-/// schema. Family-less fixtures (unknown-kind negatives) must claim invalid.
+/// schema — for `server_to_client` fixtures the frames, for
+/// `client_to_server` fixtures the request bodies. Family-less
+/// frame-carrying fixtures (unknown-kind negatives) must claim invalid and
+/// be unknown to both live-wire families.
 #[test]
 fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
     for fixture in fixtures() {
@@ -56,54 +96,134 @@ fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
         let claim = fixture["schemaValid"]
             .as_bool()
             .unwrap_or_else(|| panic!("{name}: fixture has a schemaValid bool"));
-        let frames: Vec<&Value> = if let Some(steps) = fixture["steps"].as_array() {
+        let direction = fixture["direction"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{name}: fixture pins a direction"));
+        assert!(
+            ["server_to_client", "client_to_server", "client_lifecycle"].contains(&direction),
+            "{name}: unknown direction {direction}"
+        );
+        // Validation units: (value, per-step family override). Frames for
+        // server_to_client, request bodies for client_to_server.
+        let mut units: Vec<(&Value, Option<&str>)> = Vec::new();
+        if let Some(steps) = fixture["steps"].as_array() {
             assert!(!steps.is_empty(), "{name}: steps must not be empty");
-            steps
-                .iter()
-                .map(|step| {
-                    let frame = &step["frame"];
-                    assert!(
-                        frame.is_object(),
-                        "{name}: every step carries a frame object"
+            for step in steps {
+                let has_frame = step["frame"].is_object() || step["frame"].is_array();
+                let has_request = step["request"].is_object();
+                let has_advance = step["advanceVirtualTimeMs"].is_u64();
+                let has_event = step["event"].is_object();
+                assert_eq!(
+                    [has_frame, has_request, has_advance, has_event]
+                        .iter()
+                        .filter(|present| **present)
+                        .count(),
+                    1,
+                    "{name}: every step carries exactly one of frame/request/advanceVirtualTimeMs/event"
+                );
+                assert!(
+                    step["expect"].is_object(),
+                    "{name}: every step carries an expect object"
+                );
+                if has_frame {
+                    assert_eq!(
+                        direction, "server_to_client",
+                        "{name}: frame steps belong to server_to_client fixtures"
                     );
-                    frame
-                })
-                .collect()
+                    units.push((&step["frame"], step["family"].as_str()));
+                }
+                if has_request {
+                    assert_eq!(
+                        direction, "client_to_server",
+                        "{name}: request steps belong to client_to_server fixtures"
+                    );
+                    if let Some(body) = checked_request_body(name, step) {
+                        units.push((body, step["family"].as_str()));
+                    }
+                }
+                if has_advance {
+                    assert_eq!(
+                        fixture["clock"], "virtual",
+                        "{name}: advance steps require clock: virtual"
+                    );
+                    assert!(
+                        step["advanceVirtualTimeMs"].as_u64().expect("advance ms") > 0,
+                        "{name}: virtual-time advances must be positive"
+                    );
+                }
+                if has_event {
+                    assert!(
+                        step["event"]["kind"].is_string(),
+                        "{name}: event steps pin a kind"
+                    );
+                }
+            }
+        } else if fixture["request"].is_object() {
+            assert_eq!(
+                direction, "client_to_server",
+                "{name}: request fixtures are client_to_server"
+            );
+            if let Some(body) = checked_request_body(name, &fixture) {
+                units.push((body, None));
+            }
         } else {
             let frame = &fixture["frame"];
-            assert!(frame.is_object(), "{name}: fixture carries a frame object");
-            vec![frame]
-        };
-        match fixture["family"].as_str() {
-            Some(family) => {
+            assert!(
+                frame.is_object() || frame.is_array(),
+                "{name}: fixture carries a frame"
+            );
+            assert_eq!(
+                direction, "server_to_client",
+                "{name}: single-frame fixtures are server_to_client"
+            );
+            units.push((frame, None));
+        }
+        if direction == "client_lifecycle" {
+            assert!(
+                units.is_empty() && fixture["family"].is_null(),
+                "{name}: client_lifecycle fixtures carry no wire frames and no family"
+            );
+        }
+        let fixture_family = fixture["family"].as_str();
+        let any_family = fixture_family.is_some()
+            || units.iter().any(|(_, override_family)| override_family.is_some());
+        if any_family {
+            for (index, (unit, override_family)) in units.iter().enumerate() {
+                let Some(family) = override_family.or(fixture_family) else {
+                    panic!("{name}: unit {index} has no family to validate against");
+                };
                 let schema = committed(family);
                 let validator = jsonschema::validator_for(&schema)
                     .unwrap_or_else(|error| panic!("compile {family}: {error}"));
-                for (index, frame) in frames.iter().enumerate() {
-                    let valid = validator.is_valid(frame);
-                    assert_eq!(
-                        valid, claim,
-                        "{name}: schemaValid claims {claim} but {family} says {valid} for frame {index}"
+                let valid = validator.is_valid(unit);
+                assert_eq!(
+                    valid, claim,
+                    "{name}: schemaValid claims {claim} but {family} says {valid} for unit {index}"
+                );
+            }
+            // batchContext members share the fixture's family.
+            if let Some(batch) = fixture["batchContext"].as_array() {
+                let family = fixture_family.expect("batchContext requires a fixture family");
+                let schema = committed(family);
+                let validator = jsonschema::validator_for(&schema)
+                    .unwrap_or_else(|error| panic!("compile {family}: {error}"));
+                for (index, member) in batch.iter().enumerate() {
+                    assert!(
+                        validator.is_valid(member),
+                        "{name}: batchContext[{index}] does not validate against {family}"
                     );
                 }
-                // batchContext members share the fixture's family.
-                if let Some(batch) = fixture["batchContext"].as_array() {
-                    for (index, member) in batch.iter().enumerate() {
-                        assert!(
-                            validator.is_valid(member),
-                            "{name}: batchContext[{index}] does not validate against {family}"
-                        );
-                    }
-                }
             }
-            None => {
-                assert!(
-                    !claim,
-                    "{name}: a fixture without a family cannot claim schemaValid"
-                );
-                // An unknown-kind negative must really be unknown to BOTH
-                // live-wire families (the known-kind/unknown-kind distinction
-                // fact 2b turns on).
+        } else {
+            assert!(
+                !claim,
+                "{name}: a fixture without a family cannot claim schemaValid"
+            );
+            // A family-less frame-carrying negative must really be unknown to
+            // BOTH live-wire families (the known-kind/unknown-kind
+            // distinction fact 2b turns on). Request/lifecycle fixtures have
+            // no frames to check.
+            if direction == "server_to_client" {
                 for family in [
                     "live.envelope.schema.json",
                     "live.socket-server.schema.json",
@@ -111,9 +231,9 @@ fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
                     let schema = committed(family);
                     let validator = jsonschema::validator_for(&schema)
                         .unwrap_or_else(|error| panic!("compile {family}: {error}"));
-                    for frame in &frames {
+                    for (unit, _) in &units {
                         assert!(
-                            !validator.is_valid(frame),
+                            !validator.is_valid(unit),
                             "{name}: claimed family-less but validates against {family}"
                         );
                     }
@@ -152,6 +272,23 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
         "negative.unknown_kind.skipped",
         "poll.wrapped_durable.unwrap",
         "poll.acknowledged_batch.malformed_item_forces_resync",
+        // Format-v3 P-1 extensions (issues/closed/20260725-0093-p1-fixture-corpus-coverage.md).
+        "negotiation.open.unknown_wire_version_refused",
+        "negotiation.open.unknown_auth_invalidation_protocol_refused",
+        "negotiation.socket.wire_version_required",
+        "negotiation.socket.unknown_wire_version_refused",
+        "poll.drain_cancel.redelivered_duplicates_tolerated",
+        "arm.hosted_subscribe_requires_socket",
+        "arm.live_hosted_drain_declared_empty_blackout",
+        "arm.socket_loss_mid_subscribe",
+        "grant.connection_token_invalid_reopens_everything",
+        "poll.wrapped_live_delta.unwrap",
+        "poll.wrapped_resync_required.subscription_scoped",
+        "poll.wrapped_resync_required.connection_wide_clear_retained",
+        "poll.wrapped_current_as_of.adopts_token_without_rows",
+        "timing.heartbeat.ping_and_pong_freshness",
+        "timing.freshness.budget_exhausted_forces_loss",
+        "timing.reconnect.backoff_bounds",
     ] {
         assert!(
             names.contains(&required),
@@ -199,13 +336,21 @@ fn format_v2_pins_connection_populations_and_row_identity() {
     for fixture in &fixtures {
         let name = fixture["name"].as_str().expect("fixture name");
         if fixture["given"]["connection"].is_object() {
-            let subscriptions = fixture["given"]["subscriptions"]
-                .as_array()
-                .unwrap_or_else(|| panic!("{name}: connection fixture must pin subscriptions"));
-            assert!(
-                !subscriptions.is_empty(),
-                "{name}: connection population cannot be vacuous"
-            );
+            // Populated connection states pin an explicit population. The
+            // v3 pre-population states (idle/granted, where no subscription
+            // can exist yet) are exempt by construction.
+            let state = fixture["given"]["connection"]["state"]
+                .as_str()
+                .unwrap_or_else(|| panic!("{name}: connection precondition pins a state"));
+            if ["attached", "recovering"].contains(&state) {
+                let subscriptions = fixture["given"]["subscriptions"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{name}: connection fixture must pin subscriptions"));
+                assert!(
+                    !subscriptions.is_empty(),
+                    "{name}: connection population cannot be vacuous"
+                );
+            }
         }
     }
 
@@ -380,10 +525,12 @@ fn auth_live_fixtures_pin_apply_delete_before_ack_and_exact_redelivery() {
 fn auth_live_adversarial_fixtures_pin_scope_high_water_and_no_resurrection() {
     let fixtures = fixtures();
 
-    for fixture in fixtures
-        .iter()
-        .filter(|fixture| fixture["profiles"][0] == "auth/live")
-    {
+    for fixture in fixtures.iter().filter(|fixture| {
+        // The strict held-scope pinning applies to the frame-carrying
+        // invalidation fixtures; client_to_server offer/refusal fixtures pin
+        // request/refusal shapes instead.
+        fixture["profiles"][0] == "auth/live" && fixture["direction"] == "server_to_client"
+    }) {
         let name = fixture["name"].as_str().expect("auth/live fixture name");
         let expectation = &fixture["given"]["authorizationExpectation"];
         assert!(
@@ -486,5 +633,233 @@ fn auth_live_adversarial_fixtures_pin_scope_high_water_and_no_resurrection() {
     assert_eq!(
         invalid["steps"][1]["expect"]["actions"],
         serde_json::json!(["surface_protocol_diagnostic", "ignore_frame"])
+    );
+}
+
+/// Decode a Lane-P `{"Durable":{"payload":[u8…]}}` wrapper back to the inner
+/// durable envelope value.
+fn unwrapped_payload(name: &str, frame: &Value) -> Value {
+    let payload = frame["Durable"]["payload"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{name}: wrapped frame carries Durable.payload"));
+    let bytes: Vec<u8> = payload
+        .iter()
+        .map(|byte| byte.as_u64().expect("payload byte") as u8)
+        .collect();
+    serde_json::from_slice(&bytes).unwrap_or_else(|error| panic!("{name}: payload decodes: {error}"))
+}
+
+fn fixture<'a>(fixtures: &'a [Value], name: &str) -> &'a Value {
+    fixtures
+        .iter()
+        .find(|fixture| fixture["name"] == name)
+        .unwrap_or_else(|| panic!("corpus lost fixture {name}"))
+}
+
+/// Format-v3 P-1 extensions: wrapped/unwrapped parity carries the EXACT core
+/// envelope, drain-cancel redelivery is byte-identical, the negotiation and
+/// grant-loss refusals pin the shipped codes, and the virtual-time fixtures
+/// pin the T-HB/T-LOSS numbers.
+#[test]
+fn format_v3_pins_parity_negotiation_grant_loss_and_timing() {
+    let fixtures = fixtures();
+
+    // Wrapped/unwrapped parity: every durable family's wrapped fixture
+    // carries exactly the envelope its core sibling carries.
+    for (wrapped_name, core_name) in [
+        ("poll.wrapped_durable.unwrap", "durable.live_replace.basic"),
+        ("poll.wrapped_live_delta.unwrap", "durable.live_delta.apply_by_id"),
+        (
+            "poll.wrapped_resync_required.subscription_scoped",
+            "durable.resync_required.subscription_scoped",
+        ),
+        (
+            "poll.wrapped_resync_required.connection_wide_clear_retained",
+            "durable.resync_required.connection_wide_clear_retained",
+        ),
+        (
+            "poll.wrapped_current_as_of.adopts_token_without_rows",
+            "durable.current_as_of.adopts_token_without_rows",
+        ),
+    ] {
+        let wrapped = fixture(&fixtures, wrapped_name);
+        let core = fixture(&fixtures, core_name);
+        assert_eq!(
+            unwrapped_payload(wrapped_name, &wrapped["frame"]),
+            core["frame"],
+            "{wrapped_name}: wrapped payload must be the exact {core_name} envelope"
+        );
+        assert_eq!(wrapped["lane"], "poll");
+        assert_eq!(wrapped["tuples"], serde_json::json!(["poll/local"]));
+        assert!(
+            wrapped["expect"]["actions"]
+                .as_array()
+                .expect("wrapped actions")
+                .contains(&Value::from("unwrap_durable")),
+            "{wrapped_name}: unwrapping is the lane obligation"
+        );
+    }
+
+    // Drain-cancel duplicate tolerance: the redelivered entry is the exact
+    // wrapper bytes, dropped by the version guard, and the batch continues.
+    let drain_cancel = fixture(&fixtures, "poll.drain_cancel.redelivered_duplicates_tolerated");
+    let steps = drain_cancel["steps"].as_array().expect("drain-cancel steps");
+    assert_eq!(
+        steps[0]["frame"], steps[1]["frame"],
+        "the redelivered entry must repeat the exact wrapper"
+    );
+    assert!(
+        steps[1]["expect"]["actions"]
+            .as_array()
+            .expect("duplicate-step actions")
+            .contains(&Value::from("drop_stale"))
+    );
+    assert_eq!(
+        unwrapped_payload("drain_cancel step 2", &steps[2]["frame"])["kind"],
+        "live_delta"
+    );
+
+    // Negotiation/offer and grant-loss refusals pin the shipped codes and
+    // statuses (src/wire_version.rs; src/server.rs; cloudflare coordinator).
+    for (name, status, code) in [
+        (
+            "negotiation.open.unknown_wire_version_refused",
+            400,
+            "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+        ),
+        (
+            "negotiation.open.unknown_auth_invalidation_protocol_refused",
+            400,
+            "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
+        ),
+        (
+            "negotiation.socket.wire_version_required",
+            400,
+            "SNAPBACK_WIRE_VERSION_REQUIRED",
+        ),
+        (
+            "negotiation.socket.unknown_wire_version_refused",
+            400,
+            "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+        ),
+        (
+            "arm.hosted_subscribe_requires_socket",
+            409,
+            "SNAPBACK_CONNECTION_SOCKET_REQUIRED",
+        ),
+        (
+            "grant.connection_token_invalid_reopens_everything",
+            403,
+            "SNAPBACK_CONNECTION_TOKEN_INVALID",
+        ),
+    ] {
+        let refused = fixture(&fixtures, name);
+        assert_eq!(refused["direction"], "client_to_server", "{name}");
+        assert_eq!(refused["refusal"]["status"], status, "{name}");
+        assert_eq!(refused["refusal"]["code"], code, "{name}");
+        let forbidden = refused["expect"]["forbiddenActions"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{name}: refusal fixtures forbid blind retry"));
+        assert!(forbidden.contains(&Value::from("retry_unchanged")), "{name}");
+    }
+
+    // The socket offer sets never count the bearer carrier as a version
+    // candidate, and the unknown set carries no supported token.
+    let required = fixture(&fixtures, "negotiation.socket.wire_version_required");
+    for entry in required["request"]["subprotocols"]
+        .as_array()
+        .expect("subprotocols")
+    {
+        assert!(
+            entry
+                .as_str()
+                .expect("entry")
+                .starts_with("snapback.connection-token."),
+            "the REQUIRED offer set must contain only non-version entries"
+        );
+    }
+    let unknown = fixture(&fixtures, "negotiation.socket.unknown_wire_version_refused");
+    assert!(
+        unknown["request"]["subprotocols"]
+            .as_array()
+            .expect("subprotocols")
+            .iter()
+            .all(|entry| entry != "snapback.v1"),
+        "the UNSUPPORTED offer set must not contain the supported token"
+    );
+
+    // Grant loss: recovery is re-open and re-establish everything (§4.4).
+    let grant_loss = fixture(&fixtures, "grant.connection_token_invalid_reopens_everything");
+    assert_eq!(
+        grant_loss["expect"]["actions"],
+        serde_json::json!(["reopen_connection", "resubscribe_all", "clear_retained_overlays"])
+    );
+
+    // Arm mismatch: the hosted drain blackout is a declared-empty array on
+    // the live/hosted tuple, with no transitions and no actions.
+    let blackout = fixture(&fixtures, "arm.live_hosted_drain_declared_empty_blackout");
+    assert_eq!(blackout["frame"], serde_json::json!([]));
+    assert_eq!(blackout["tuples"], serde_json::json!(["live/hosted"]));
+    assert_eq!(blackout["expect"]["actions"], serde_json::json!([]));
+
+    // Socket loss mid-subscribe: the event fixture pins a pending
+    // subscription that resolves DROPPED without an establishment assumption.
+    let mid_subscribe = fixture(&fixtures, "arm.socket_loss_mid_subscribe");
+    assert_eq!(mid_subscribe["steps"][0]["event"]["kind"], "socket_lost");
+    assert!(
+        mid_subscribe["given"]["subscriptions"]
+            .as_array()
+            .expect("populations")
+            .iter()
+            .any(|subscription| subscription["state"] == "pending")
+    );
+    assert_eq!(
+        mid_subscribe["expect"]["supersession"]["sub_fixture_pending"],
+        "fresh_subscribe_without_supersession_assumption"
+    );
+
+    // Virtual time: the timing fixtures pin the normative T-HB/T-LOSS
+    // numbers — 5 s ping, 15 s freshness budget, 250 ms → 10 s backoff.
+    let heartbeat = fixture(&fixtures, "timing.heartbeat.ping_and_pong_freshness");
+    assert_eq!(heartbeat["clock"], "virtual");
+    assert_eq!(heartbeat["steps"][0]["advanceVirtualTimeMs"], 5000);
+    assert_eq!(
+        heartbeat["steps"][0]["expect"]["actions"],
+        serde_json::json!(["send_ping"])
+    );
+    assert_eq!(heartbeat["steps"][1]["frame"]["kind"], "pong");
+
+    let freshness = fixture(&fixtures, "timing.freshness.budget_exhausted_forces_loss");
+    assert!(
+        freshness["steps"][0]["advanceVirtualTimeMs"]
+            .as_u64()
+            .expect("freshness advance")
+            > 15000,
+        "the loss step must exhaust the whole 15 s freshness budget"
+    );
+    assert!(
+        freshness["steps"][0]["expect"]["actions"]
+            .as_array()
+            .expect("loss actions")
+            .contains(&Value::from("force_socket_loss"))
+    );
+
+    let backoff = fixture(&fixtures, "timing.reconnect.backoff_bounds");
+    assert!(
+        backoff["steps"][0]["advanceVirtualTimeMs"]
+            .as_u64()
+            .expect("backoff floor advance")
+            < 250,
+        "the first advance must stay below the 250 ms backoff floor"
+    );
+    assert!(
+        backoff["steps"][0]["expect"]["forbiddenActions"]
+            .as_array()
+            .expect("backoff floor forbids")
+            .contains(&Value::from("attempt_reconnect"))
+    );
+    assert_eq!(
+        backoff["steps"][1]["expect"]["pacing"],
+        serde_json::json!({ "action": "attempt_reconnect", "maxIntervalMs": 10000 })
     );
 }
