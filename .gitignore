@@ -4,6 +4,7 @@
 /.snapback.snapback.restore.lock
 node_modules/
 .agent-local-secrets.md
+.env.local
 
 # Maintained demo backends commit the deterministic review manifest, not the
 # regenerable materialized graph. Codegen and bundler/runtime resolvers consume
