@@ -136,8 +136,10 @@ verifications.
 1. Which series documents should graduate to review loops (LLP 0005
    scale) before their fronts' next design step, and which are
    sufficient as thinking records?
-2. Should the candidate LLP 0115 amendments in cross-cutting finding 6
-   land as a 0115 revision now, or ride the next 0115 version bump?
+2. **Answered 2026-07-30:** the candidate amendments landed as LLP 0115
+   v0.4 — corrections applied, the status board gained an Analysis
+   column pointing each CV item at its series document, and the unowned
+   remainders became 0115's open questions 6–7 (author-gated).
 3. When concrete changes are synthesized from these option spaces, do
    they land as amendments to owning documents, new Specs, or a
    successor Plan tranche — and does 0115 absorb the unowned items

@@ -5,7 +5,16 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.3, Codex pre-implementation review corrections —
+**Revised:** 2026-07-30 (v0.4, research-series integration: LLP 0116–0125
+adopted as this plan's analysis layer — the status board gains a per-item
+Analysis column and §Analysis layer defines the division of labor; verified
+corrections applied: CV-7's indexed-read duplication evidence re-attributed
+to Relay Board (Diary 0033, was Campfire), CV-4's enforcement mechanism
+tightened (closed primitive map is the sole enforcement; the builders'
+`resultOnly` flag is dead metadata), the client subpath-export
+types-condition defect added to CV-1's named gaps; new open questions 6–7
+frame the series-identified unowned remainders and the product-breadth
+scope boundary for author adjudication.) 2026-07-30 (v0.3, Codex pre-implementation review corrections —
 verbatim review in `reviews/0115-convex-parity-course-corrections.codex.md`,
 13 findings, all verified claims spot-checked: CV-1's evidence corrected
 (seven Snapback arms, not fourteen; the admin client is Dispatch-specific,
@@ -40,7 +49,7 @@ representation-sensitive struct equality is what fails; CV-12 split into
 range-filter design vs. already-roadmapped target execution. Open questions 1
 and 2 recorded as answered; a new npm-channel-gating question added; the rerun
 checkpoint gains a React-surface measurement requirement.)
-**Related:** LLP 0004, LLP 0010, LLP 0028, LLP 0030, LLP 0031, LLP 0041, LLP 0046, LLP 0061, LLP 0062, LLP 0070, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, Diary 0032–0039
+**Related:** LLP 0004, LLP 0010, LLP 0028, LLP 0030, LLP 0031, LLP 0041, LLP 0046, LLP 0061, LLP 0062, LLP 0070, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, Diary 0032–0039
 
 ## Summary
 
@@ -100,6 +109,22 @@ default-channel gate; LLP 0113's inability to mint stable maturity).
    The goal is fast generation, good semantic diffs, and consumers never
    needing to read internal projections — not shrinking the graph.
 
+## Analysis layer (v0.4)
+
+The Convex-parity research series (LLP 0116 overview; LLP 0117–0125 by
+front) is this plan's analysis layer. The division of labor is explicit:
+this Plan owns program state — sequencing, the status board, exit
+criteria, and the author decisions in §Open questions — while each series
+document owns the deep Convex/Snapback comparison and the multi-path
+option space for its front, and makes no decisions. When work on an item
+starts, the implementer reads that item's analysis document first (the
+status board's Analysis column); substantive design still lands in the
+owning documents per governing constraint 3. The series documents are
+thinking records, not owners, and this plan does not restate their
+option spaces. Scope stays bounded: the series' product-breadth front
+(LLP 0124, file storage and vector search) sits outside this plan's
+seven-app frame and is handled as open question 7 rather than absorbed.
+
 ## Retired gaps — do not re-litigate
 
 The first bakeoff's highest-profile complaints are fixed on current main and
@@ -119,25 +144,25 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 
 ## Status board
 
-| Item | Title | Tranche | Owning doc(s) | Size | State |
-| --- | --- | --- | --- | --- | --- |
-| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 0041 (lead), 0111, 0114; 0074 gate | L | Open; blocked in part on the npm-gating decision (OQ5) |
-| CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 0010 | M | Open (issue filed 2026-07-30) |
-| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 0010, 0030, 0031 | M | Open |
-| CV-4a | Structured collection validators for arguments | B (P1) | new Spec + 0004 alignment | M | Open |
-| CV-4b | Structured collection stored fields | B (P1) | new Spec + 0004/0007/0081 | L | Open |
-| CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 0073, 0037 | M | Open (re-scoped v0.3) |
-| CV-6 | Precise mutation results as the paved default | B (P1) | 0108 amendment, guide | S | Open (severity/strictness decision, OQ3) |
-| CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 0108 follow-on | L | Open (design exists in 0108's superseded sections) |
-| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 0110, 0080, 0113 | L | In flight (0110 in Review; stable-promotion design does not exist yet) |
-| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 0070 (primary) + 0028 test-seam amendment | M | Open (0070 is Draft; first implementation slice) |
-| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | S | Open (issue filed 2026-07-30; reclassified) |
-| CV-11 | Live/re-executing search story | D (P1) | 0073 + 0112/0114 | L | Open (genuine design hole) |
-| CV-12a | Portable range filters | D (P1) | 0073 (new design) | M | Open |
-| CV-12b | Search target expansion | D (P2) | 0073 §adapter sequence; PG blocked on LLP 0046 | M | Open (roadmap exists; execution only) |
-| CV-13 | Inline handlers primary in "Your first backend" | E (P2) | guide (0061) | S | Open (guide-gap issue filed 2026-07-30) |
-| CV-14 | Semantic review summary for dense manifests | E (P2) | custody owner (confirm at start; 0062 family) | M | Open |
-| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 0010 harness | S | Open |
+| Item | Title | Tranche | Owning doc(s) | Analysis | Size | State |
+| --- | --- | --- | --- | --- | --- | --- |
+| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; blocked in part on the npm-gating decision (OQ5) |
+| CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 0010 | 0123 | M | Open (issue filed 2026-07-30) |
+| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 0010, 0030, 0031 | 0123 | M | Open |
+| CV-4a | Structured collection validators for arguments | B (P1) | new Spec + 0004 alignment | 0117 | M | Open |
+| CV-4b | Structured collection stored fields | B (P1) | new Spec + 0004/0007/0081 | 0117 | L | Open |
+| CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 0073, 0037 | 0117 | M | Open (re-scoped v0.3) |
+| CV-6 | Precise mutation results as the paved default | B (P1) | 0108 amendment, guide | 0117 | S | Open (severity/strictness decision, OQ3) |
+| CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 0108 follow-on | 0118 | L | Open (design exists in 0108's superseded sections) |
+| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review; stable-promotion design does not exist yet) |
+| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice) |
+| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Open (issue filed 2026-07-30; reclassified) |
+| CV-11 | Live/re-executing search story | D (P1) | 0073 + 0112/0114 | 0119 | L | Open (genuine design hole) |
+| CV-12a | Portable range filters | D (P1) | 0073 (new design) | — | M | Open |
+| CV-12b | Search target expansion | D (P2) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
+| CV-13 | Inline handlers primary in "Your first backend" | E (P2) | guide (0061) | 0122 | S | Open (guide-gap issue filed 2026-07-30) |
+| CV-14 | Semantic review summary for dense manifests | E (P2) | custody owner (confirm at start; 0062 family) | — | M | Open |
+| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 0010 harness | 0123 | S | Open |
 
 ## Work items
 
@@ -194,7 +219,12 @@ journey, while LLP 0074 makes npm publication a parallel gate independent of
 hosted milestones. Exact-version candidate-tag installs are available
 pre-hosted under 0111 steps 1–2, but a pinned candidate tag is not the boring
 default install P0-1 describes. This is open question 5, and it is an author
-decision, not a work item.
+decision, not a work item. (4) A **types-condition defect** in the
+published client (new in v0.4): the `./online` subpath export ships
+without a `types` condition — the gap three bakeoff arms hit
+independently — and the `./rqs*` subpaths share the pattern; LLP 0122
+verified it unfixed on current main. Any external rebuild consuming
+those subpaths inherits it.
 
 **Work.** Complete the in-flight nine-package promotion under 0041's own
 gates; close the two artifact gaps; then rebuild at least one full workout
@@ -207,7 +237,9 @@ in a clean external repository using only published artifacts — including its
 acceptance's test-helper needs; the admin-client proof rides Dispatch or a
 separate fixture — acceptance green. (2) The
 matrix harness gains a published-channel mode. (3) No checkout-relative
-import remains in that arm's authored code. The genuinely new content here is
+import remains in that arm's authored code. (4) Every published-package
+subpath the arm consumes resolves with type declarations (the
+`./online`/`./rqs*` defect closed). The genuinely new content here is
 the workout-arm-level external rebuild and the harness mode; the fixture- and
 starter-level clean-install proofs already exist in 0041/0111/0114 and are
 credited, not duplicated.
@@ -284,10 +316,13 @@ is absent, stale, or incoherent, with the same code.
 
 **Evidence, narrowed from v0.1.** Convex's `v.array(v.object(...))` validates
 and types Split Ledger's split vector at the mutation boundary. On current
-main, `v.array` and `v.union` are constructed result-only and the schema
-compiler's closed primitive map rejects them fail-closed at argument and
+main the sole enforcement is the schema compiler's closed primitive map,
+which rejects `v.array` and `v.union` fail-closed at argument and
 stored-field boundaries (`FUNCTION_INVALID_VALIDATOR` /
-`SCHEMA_INVALID_VALIDATOR`), while the `v.json()` escape hatch is already
+`SCHEMA_INVALID_VALIDATOR`); the builders' `resultOnly` flag is dead
+metadata and the result lane validates through a disjoint path — a v0.4
+precision fix, code-verified in LLP 0117, to this item's earlier
+"constructed result-only" framing. The `v.json()` escape hatch is already
 loud (`PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED`). Notably, nested
 `v.object` **arguments already work end-to-end** — typed descriptors and a
 closed JSON Schema with `additionalProperties: false` — so the input gap is
@@ -349,7 +384,8 @@ against it; accepted/rejected AST fixtures agree across all carriers; no
 **Evidence, corrected from v0.1.** The repair-explaining diagnostic is not
 future work — it ships today: codegen emits
 `SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED` with a remediation that
-interpolates the actual table name. It ships at `severity: 'info'`, which is
+interpolates the actual table name. It ships at `severity: 'info'` (the
+full mechanism re-verified on current main in LLP 0117), which is
 exactly why two real apps (Cursor's `updateNote`, Pantry's `addRecipe`)
 shipped degraded contracts anyway. LLP 0108 specifies the degraded-unknown
 contract and the diagnostic but no strictness mechanism.
@@ -373,8 +409,12 @@ known offenders carry exact contracts in the next rerun.
 
 **Evidence.** LLP 0108 v1 deliberately narrowed inline handlers to statically
 self-contained expressions ("no imported or sibling helper … no transitive
-source graph"), which reproduces the diary's duplication (Streak Lab's
-calendar helper, Campfire's indexed-read helpers) by design. But the design
+source graph"), which reproduces the diary's duplication by design:
+Streak Lab's calendar helper (Diary 0032) and Relay Board's indexed-read
+helpers (Diary 0033). (v0.4 correction from LLP 0118: earlier drafts
+attributed the indexed-read duplication to Campfire, but Diary 0034
+records none; LLP 0108 carries the same misattribution and should be
+corrected on its next revision.) But the design
 for the fix already exists *inside 0108*: the superseded "Bounded static
 bundling" section specifies literal-relative-ESM-only resolution from the
 canonical app root, bounds (64 files / depth 16 / 512 KiB source / 256 KiB
@@ -668,3 +708,27 @@ distribution) remains LLP 0074's and is not re-scored here.
    it.) Decide: amend 0111 to decouple the local closure's default channel
    from hosted qualification, or scope CV-1's exit to exact-version
    candidate-tag installs until the hosted journey lands.
+6. **Unowned remainders from the research series (new in v0.4).** Two
+   verified gap clusters have no CV item and no owner tasked with closing
+   them: (a) concurrency's remainder — action/mutation failure-shape
+   unification, domain-typed rejections (app-thrown codes still collapse
+   to `SNAPBACK_HANDLER_FAILED` through the closed allowlist), and a
+   current-main burst measurement (LLP 0125; adjacent owners 0094, 0108,
+   0059, 0003); (b) the type-flow mechanisms outside CV-4/CV-6 —
+   return-type-inference relief and generated interior handler-context
+   typing (LLP 0117). Decide per cluster: absorb as new CV items (a
+   likely CV-16/CV-17 in Tranches B/E under the same governing
+   constraints), or delegate to the owning documents and track nothing
+   here. Absorbing widens a plan whose exit is the rerun; delegating
+   risks the items falling between programs — and the diaries scored
+   both clusters, so the successor diary will re-measure them either
+   way.
+7. **Product-breadth scope boundary (new in v0.4).** LLP 0124 verified
+   that file storage has a stale Draft owner (LLP 0044, zero
+   implementation) and vector search has no owning design document at
+   all. Both sit outside this plan's seven-app frame, and this plan's
+   exit criterion already cedes the strategic frame to LLP 0074. Decide:
+   revive LLP 0044 and mint a vector-search owner under 0074's umbrella
+   (the series' lean, which keeps this plan's scope fixed), or widen
+   this plan with a breadth tranche. Until decided, neither capability
+   has a path from GAP to owned design.
