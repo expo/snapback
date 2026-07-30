@@ -66,3 +66,39 @@ after the binary link while both the doctor and launch smoke remain green.
   before the qualification runs.
 - Add an acceptance test reproducing “server launches, handler VM creation
   fails” so `SNAPBACK_IBEX_RUNTIME_LINK_OK` cannot be emitted for that state.
+
+## Mechanism notes (2026-07-30 code trace, LLP 0115 coverage audit)
+
+- The smoke chain (`scripts/bootstrap-ibex-runtime` →
+  `scripts/runtime-link-smoke.mjs` → `inspectRuntimeBinary` →
+  `snapback build-identity`) never executes JavaScript; the VM is created only
+  per-invocation at `RuntimeGuard::create` → `ex_hermes_create_no_eval()`
+  (`src/runtime.rs`). The precise failing prerequisite is the
+  promise-rejection checkpoint tracker required by the restricted-no-eval
+  constructor (`vendor/ibex/src/engine/hermes_runtime.cc`) — an ABI/behavior
+  contract dyld symbol resolution does not test. Note the local handler VM is
+  the restricted-no-eval constructor, not the distinct `production-armed`
+  one; the qualification should be specified as "the same VM
+  `RuntimeGuard::create` uses".
+- Candidate root cause for "framework newer than binary yet cargo no-ops":
+  bootstrap's artifact copy uses `rsync -a`, which preserves source mtimes,
+  plausibly defeating cargo's mtime-based `rerun-if-changed` on the framework
+  binary (top-level `build.rs` watches the Frameworks directory only;
+  `vendor/ibex/build.rs` watches the selected binary). Verify during the fix.
+- Doctor is structurally blind to this state by design: it builds a fresh
+  disposable target whose glue compiles against current headers, so it is
+  coherent with the current framework exactly when the served
+  `target/debug/snapback` is not (documented in LLP 0010).
+- Prior art to reuse: `runtime-link-smoke.mjs` already sha256s the framework
+  binary, headers, and cargo inputs into every recovery record (captured,
+  never compared);
+  `packages/snapback-runtime-linux-x64/artifact-attestation.mjs` is a
+  complete binary+Hermes digest attestation with validation; and
+  `bench_runtime_create_us` (`src/runtime.rs`) already creates/destroys these
+  VMs in-process.
+- Coverage gaps the fix should close with it: the harness probe runs only on
+  the `cargo` rung (`prebuilt`/`configured`/reused rungs are presence +
+  `/health` identity only), and `scripts/verify-local-proof` disables the
+  smoke by default (`SNAPBACK_BOOTSTRAP_CHECK=0`).
+
+Tracked in LLP 0115 CV-2/CV-3.

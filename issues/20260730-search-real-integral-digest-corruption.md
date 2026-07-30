@@ -69,6 +69,33 @@ fields.
 - Add a regression test that inserts an integral value into a `Real` field
   stored by a search index and successfully searches/releases the result.
 
+## Root cause (2026-07-30 code trace, LLP 0115 coverage audit)
+
+The digest recheck is not what fails. Both sides compute RFC 8785 canonical
+digests via `sha256_identity`, under which integral `5` and `5.0` both spell
+`"5"` — the content digests agree. The failing check is the full
+representation-sensitive struct equality `source != authoritative` at
+`src/search/sqlite.rs:1731`: the insert-path in-memory document keeps
+serde_json integer `Number(5)` because `normalize_json_value`
+(`src/storage.rs`) validates without normalizing, while the authoritative row
+reloads from SQLite as `Number(5.0)`, and serde_json equality treats those as
+unequal. The comparison is also a strengthening beyond LLP 0073's specified
+version+partition+predicate recheck, and the diagnostic message ("failed its
+authoritative digest recheck") is wrong about its own trigger.
+
+Reproduction asymmetry: `Patch`-maintained rows reload from SQLite before
+maintenance, so both sides hold `5.0` and pass — a "corrupt" row silently
+heals on its first patch. Only insert/seed-maintained rows reproduce; the
+regression test in the resolution criteria must target that path
+specifically.
+
+Fix direction: compare canonical bytes/digests at the release recheck and/or
+normalize integral Reals to their SQLite round-trip form in
+`normalize_json_value` (which also fixes the latent storage asymmetry for any
+other subsystem comparing in-memory vs. reloaded documents); correct the
+diagnostic message; optionally pin RFC 8785 number spelling for
+stored/filter scalar bytes in LLP 0073.
+
 ## Evidence
 
 - `diaries/0037-pantry-search-main-rerun.diary.md`

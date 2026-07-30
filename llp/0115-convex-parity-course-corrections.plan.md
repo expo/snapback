@@ -5,7 +5,27 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Related:** LLP 0004, LLP 0010, LLP 0028, LLP 0061, LLP 0062, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, Diary 0032–0039
+**Revised:** 2026-07-30 (v0.2, delegated-owner coverage audit: every work item
+was checked against what its owning documents and the current code actually
+contain. Major corrections — CV-1 gains LLP 0041 as lead owner plus two named
+unpublished-artifact gaps and the 0111-vs-0074 npm-gating conflict; CV-3's
+"different evidence" claim corrected (the three tools already share one probe
+module, one code registry, and one recovery record — the gap is a persisted
+receipt and rung coverage); CV-4 split into an arguments-first slice and a
+larger stored-fields design, with the overbroad `v.json()` claim narrowed;
+CV-6 reframed (the repair-explaining diagnostic already ships at
+`severity: 'info'`); CV-7 redirected to revive LLP 0108's superseded
+Bounded-static-bundling design rather than start fresh; CV-8 corrected — the
+LLP 0113 path terminates at experimental maturity by design, and the aggregate
+shapes are Non-goals of both 0110 and 0080, so the third-profile decision is
+the load-bearing half; CV-9 reassigned from LLP 0028 to LLP 0070, whose Draft
+already specifies transactional one-off enqueue; CV-10 reclassified from spec
+amendment to code fix — the content digests actually agree and a
+representation-sensitive struct equality is what fails; CV-12 split into
+range-filter design vs. already-roadmapped target execution. Open questions 1
+and 2 recorded as answered; a new npm-channel-gating question added; the rerun
+checkpoint gains a React-surface measurement requirement.)
+**Related:** LLP 0004, LLP 0010, LLP 0028, LLP 0030, LLP 0031, LLP 0041, LLP 0046, LLP 0061, LLP 0062, LLP 0070, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, Diary 0032–0039
 
 ## Summary
 
@@ -34,6 +54,16 @@ state, fail-closed evidence boundaries, deterministic acceptance, and explicit
 authority/capability contracts. Every work item below carries the constraint
 that closing a DX gap must not silently discard the corresponding evidence.
 
+A v0.2 coverage audit checked each work item against its owning documents and
+the current code. Its headline: the diary's pains fall into three buckets —
+(1) already designed or even shipped, needing execution, wiring, or a severity
+decision (most of CV-5/6/7, CV-9's semantics via LLP 0070, CV-12's targets);
+(2) genuine design holes no current document covers (stored structured fields,
+an aggregate profile, live search, range filters, admin-client/test-helper
+publication, VM-qualification receipts); and (3) contradictions between
+owners that need an author decision before execution (the 0111-vs-0074 npm
+default-channel gate; LLP 0113's inability to mint stable maturity).
+
 ## Governing constraints
 
 1. **No evidence regression.** The rerun's Snapback wins — Cursor Garden's
@@ -46,9 +76,9 @@ that closing a DX gap must not silently discard the corresponding evidence.
    LLP 0073's existing posture and it held up well in the rerun.
 3. **Owning documents stay owners.** This Plan does not respecify inline
    handlers (LLP 0108), relational profiles (LLP 0080/0110), search
-   (LLP 0073), scheduling (LLP 0028), or packaging/publication
-   (LLP 0062/0111/0113). Each work item names its owner; substantive design
-   lands there (or in a new owned Spec), not here.
+   (LLP 0073), scheduling (LLP 0028/0070), or packaging/publication
+   (LLP 0041/0062/0111/0113). Each work item names its owner; substantive
+   design lands there (or in a new owned Spec), not here.
 4. **The evidence graph is not the problem.** The rerun measured Snapback's
    full generated graph at ~7× Convex's lines, but authored size is tied and
    committed custody is now *smaller* than Convex's committed generated tree.
@@ -76,18 +106,20 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 
 | Item | Title | Tranche | Owning doc(s) | Size | State |
 | --- | --- | --- | --- | --- | --- |
-| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 0062, 0111, 0113, 0114 | L | Open |
-| CV-2 | Bootstrap qualifies an armed handler VM | A (P0) | 0010 | M | Open (issue filed 2026-07-30) |
-| CV-3 | One recovery model for doctor/bootstrap/harness | A (P0) | 0010 | M | Open |
-| CV-4 | Structured collection validators for inputs and stored fields | B (P1) | 0004 (+ new Spec) | L | Open |
-| CV-5 | Typed portable search AST in introspection | B (P1) | 0073 | S | Open |
-| CV-6 | Precise mutation results as the paved default | B (P1) | 0108, guide | S | Open |
-| CV-7 | Safe helper reuse for inline handlers | C (P1) | 0108 follow-on | L | Open |
-| CV-8 | Stabilize children/aggregate/activity relational shapes | C (P1) | 0080, 0110, 0113 | L | In flight (0110 in Review) |
-| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 0028 extension | M | Open |
-| CV-10 | Numeric canonicalization at the search digest boundary | D (P1) | 0073 | S | Open (issue filed 2026-07-30) |
-| CV-11 | Live/re-executing search story | D (P1) | 0073 + 0112/0114 | L | Open |
-| CV-12 | Portable filter and target expansion, evidence-gated | D (P1) | 0073 | M | Open |
+| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 0041 (lead), 0111, 0114; 0074 gate | L | Open; blocked in part on the npm-gating decision (OQ5) |
+| CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 0010 | M | Open (issue filed 2026-07-30) |
+| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 0010, 0030, 0031 | M | Open |
+| CV-4a | Structured collection validators for arguments | B (P1) | new Spec + 0004 alignment | M | Open |
+| CV-4b | Structured collection stored fields | B (P1) | new Spec + 0004/0007/0081 | L | Open |
+| CV-5 | Typed portable search AST in provider projection | B (P1) | 0073 (wiring only) | S | Open |
+| CV-6 | Precise mutation results as the paved default | B (P1) | 0108 amendment, guide | S | Open (severity/strictness decision, OQ3) |
+| CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 0108 follow-on | L | Open (design exists in 0108's superseded sections) |
+| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 0110, 0080, 0113 | L | In flight (0110 in Review; stable-promotion design does not exist yet) |
+| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 0070 (primary) + 0028 test-seam amendment | M | Open (0070 is Draft; first implementation slice) |
+| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | S | Open (issue filed 2026-07-30; reclassified) |
+| CV-11 | Live/re-executing search story | D (P1) | 0073 + 0112/0114 | L | Open (genuine design hole) |
+| CV-12a | Portable range filters | D (P1) | 0073 (new design) | M | Open |
+| CV-12b | Search target expansion | D (P2) | 0073 §adapter sequence; PG blocked on LLP 0046 | M | Open (roadmap exists; execution only) |
 | CV-13 | Inline handlers primary in "Your first backend" | E (P2) | guide (0061) | S | Open (guide-gap issue filed 2026-07-30) |
 | CV-14 | Semantic review summary for dense manifests | E (P2) | custody owner (confirm at start; 0062 family) | M | Open |
 | CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 0010 harness | S | Open |
@@ -109,209 +141,374 @@ untrustworthy.
 **Evidence.** All fourteen rerun arms import codegen, clients, admin clients,
 and test helpers through paths into a sibling Snapback checkout and invoke its
 binary directly (Diary 0039 P0-1). Convex's arms install from the public
-ecosystem. LLP 0074 already carries npm publication as a parallel gate;
-LLP 0111 defines the packaged-CLI product journey; LLP 0113 defines
-publication authority; LLP 0114 scopes a clean-install React starter.
+ecosystem.
 
-**Work.** Drive the existing owners to one demonstrated loop: from a clean
-repository with no sibling checkout, install the published package(s) and
-starter, generate bindings, run a real local backend, and pass acceptance.
-Then make the workout harness itself support an install-from-published-channel
-mode so future matrix runs exercise the public path, not the source tree.
+**What the owners already cover.** The load-bearing owner is **LLP 0041**
+(packaged dev loop): it enumerates the nine-package public closure
+(runtime binaries, CLI, codegen, client, and friends under the
+`@ccheever/snapback-*` aliases — `@snapback/*` is squatted on the public
+registry), the publication state machine and lease authority, repository-free
+tarball cold installs, fresh-machine registry installs, and a comparator
+receipt that runs a real product fixture with semantic checks. LLP 0111
+incorporates that closure by reference and adds the packaged-CLI product
+journey from a clean temporary project; LLP 0114 adds the React starter with a
+packed cold-install gate. None of this machinery has ever fired against the
+real registry — every 0041 revision to date disclaims actual npm mutation.
+
+**Named gaps the owners do not cover.** (1) The **admin client**
+(`packages/snapback-admin-client`) is inventoried by 0041 but excluded from
+the nine-package closure, and every arm's acceptance imports it for
+authenticated inspection; either add it to the closure, fold it into the
+client/CLI, or endorse the served `/_snapback/admin/client.mjs` path for
+external consumers. (2) The **acceptance test helpers**
+(`demos/_kit/server-process.mjs`, `demos/_kit/harness.mjs` — server lifecycle
+and vacuous-pass-guarded checks) are published by no document; decide publish
+vs. fold vs. endorse-vendoring. Without both decisions this item's exit is
+unsatisfiable. (3) A **sequencing conflict**: LLP 0111 serializes
+default-channel (`latest`) promotion behind the full hosted Fly qualification
+journey, while LLP 0074 makes npm publication a parallel gate independent of
+hosted milestones. Exact-version candidate-tag installs are available
+pre-hosted under 0111 steps 1–2, but a pinned candidate tag is not the boring
+default install P0-1 describes. This is open question 5, and it is an author
+decision, not a work item.
+
+**Work.** Execute the 0041 publication machinery for real (candidate tags
+first); close the two artifact gaps; then rebuild at least one full workout
+arm in a clean external repository from published artifacts only, and give the
+matrix harness an install-from-published-channel mode so future runs exercise
+the public path.
 
 **Exit.** (1) At least one full workout arm (Campfire or Streak Lab) rebuilt
-in a clean external repository using only published artifacts, acceptance
-green. (2) The matrix harness gains a published-channel mode. (3) No
-checkout-relative import remains in that arm's authored code.
+in a clean external repository using only published artifacts — including its
+acceptance's admin-client and test-helper needs — acceptance green. (2) The
+matrix harness gains a published-channel mode. (3) No checkout-relative
+import remains in that arm's authored code. The genuinely new content here is
+the workout-arm-level external rebuild and the harness mode; the fixture- and
+starter-level clean-install proofs already exist in 0041/0111/0114 and are
+credited, not duplicated.
 
-#### CV-2. Qualify a real armed handler VM during bootstrap
+#### CV-2. Qualify the real handler VM during bootstrap
 
-**Evidence.** Bootstrap's link and launch checks passed while the actual
-handler VM creation failed at first use
+**Evidence.** Bootstrap's smoke builds the binary, launches it with `DYLD_*`
+scrubbed, and dyld-loads `hermesvm.framework` — but never executes JavaScript
+or creates a VM; the handler VM is created only at first invocation
+(`RuntimeGuard::create` → `ex_hermes_create_no_eval()`), which is where the
+rerun's incident surfaced
 (`issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md`).
-Presence of files plus an exact git stamp did not prove native artifact
-coherence.
+VM creation is a behavioral/ABI coherence contract between the statically
+compiled glue and the dynamically loaded framework that symbol resolution
+does not test. A plausible root cause for the stale state — to be confirmed
+during this item — is that bootstrap's `rsync -a` artifact copy preserves
+source mtimes, defeating cargo's mtime-based `rerun-if-changed` so the stale
+binary never relinks.
 
 **Work.** Extend the LLP 0010 bootstrap contract: after the final framework
-selection, bootstrap must create and destroy the actual armed handler VM
-(execute at least one trivial function through the real no-eval path), and
-bind binary and framework digests into a single readiness receipt. Failure
-gets a stable `SNAPBACK_*` diagnostic in LLP 0010's registry.
+selection, bootstrap must create and destroy the same VM
+`RuntimeGuard::create` uses (`ex_hermes_create_no_eval` — the restricted
+no-eval constructor, which is the precise name for what the issue calls the
+"armed" VM) and execute at least one trivial function through it, then bind
+binary and framework digests into a single readiness receipt. The item also
+owns the invalidation half the ticket lists: a framework refresh must
+invalidate or relink the final binary before qualification runs, or the
+qualification is theater. Failure gets a stable `SNAPBACK_*` diagnostic in
+LLP 0010's registry. Prior art to reuse rather than reinvent: the link smoke
+already sha256s the framework binary, headers, and cargo inputs into every
+recovery record (captured, never compared), and
+`packages/snapback-runtime-linux-x64/artifact-attestation.mjs` is a complete
+binary+Hermes digest attestation with validate-against-actual-files checking;
+`bench_runtime_create_us` already creates and destroys these VMs in-process.
 
 **Exit.** A regression fixture that reproduces the rerun's
 mismatched-framework state fails bootstrap with the new named code instead of
-passing; the readiness receipt binds both digests; `scripts/ibex-doctor`
-reads the same receipt.
+passing; the readiness receipt binds both digests; a post-receipt framework
+swap is detected (by relink or by receipt invalidation) rather than served.
 
-#### CV-3. One recovery model across doctor, bootstrap, and harness
+#### CV-3. A persisted readiness receipt across doctor, bootstrap, and harness
 
-**Evidence.** The rerun incident required manual native-artifact diagnosis and
-an ordering-sensitive relink before JS handlers ran (Diary 0039 P0-3). Doctor,
-bootstrap, and the acceptance harness currently reason about runtime health
-with different evidence.
+**Evidence, corrected from v0.1.** The three tools already share more than
+the diary implied: one probe module (`scripts/runtime-link-smoke.mjs`), one
+diagnostic registry (LLP 0010's `SNAPBACK_*` codes), and one
+`snapback.runtime-recovery.v1` record. What differs is evidence *strategy*,
+and what is missing is *persistence*: doctor builds a fresh disposable target
+(proving the checkout can produce a good binary — structurally blind to a
+stale served binary, and documented in LLP 0010 as deliberate); bootstrap
+builds the kept target (proving the served binary only if cargo actually
+relinks); the harness runs the probe only on its `cargo` rung — the
+`prebuilt`, `configured`, and reused-server rungs are presence-check and
+`/health`-identity only, and `scripts/verify-local-proof` disables the smoke
+by default (`SNAPBACK_BOOTSTRAP_CHECK=0`). Nothing persists a receipt, and
+nothing compares the digests that are already being captured.
 
-**Work.** Converge all three on the CV-2 readiness receipt: digest-based
-coherence checks, one shared diagnostic vocabulary, and either an automated
-relink or a doctor-emitted exact recovery sequence for the known
-ordering-sensitive case.
+**Work.** Build CV-2's receipt into the shared artifact all three tools trust
+and re-verify: defined location and custody, digest-coherence comparison, and
+— the hard part — invalidation semantics when the framework changes after
+issuance. Extend coverage to the harness's `prebuilt`/`configured`/reused
+rungs and to `verify-local-proof`'s default path. Extend the existing shared
+vocabulary with the CV-2 codes rather than inventing a parallel one. Owners:
+LLP 0010, plus LLP 0030 (server-process ownership) and LLP 0031 (server
+binary identity on `/health`) for the harness surfaces.
 
-**Exit.** Doctor detects the CV-2 fixture's incoherence read-only and names
-the recovery; harness preflight refuses to run acceptance against an
-incoherent runtime with the same code.
+**Exit.** Doctor detects the CV-2 fixture's incoherence read-only against the
+*served* binary and names the recovery; every harness rung and
+`verify-local-proof` refuse to run acceptance against a runtime whose receipt
+is absent, stale, or incoherent, with the same code.
 
 ### Tranche B — P1: finish input and search type fidelity
 
-#### CV-4. Structured collection validators for arguments and stored fields
+#### CV-4. Structured collection validators (split: arguments, then storage)
 
-**Evidence.** Convex's `v.array(v.object(...))` validates and types Split
-Ledger's split vector at the mutation boundary; Snapback's `v.array` is
-result-contract-only, so mutation arguments fall back to `v.json()` plus
-manual handler validation (Diary 0039 §5, P1-4). This was the single most
-repeated authoring loss across the matrix.
+**Evidence, narrowed from v0.1.** Convex's `v.array(v.object(...))` validates
+and types Split Ledger's split vector at the mutation boundary. On current
+main, `v.array` and `v.union` are constructed result-only and the schema
+compiler's closed primitive map rejects them fail-closed at argument and
+stored-field boundaries (`FUNCTION_INVALID_VALIDATOR` /
+`SCHEMA_INVALID_VALIDATOR`), while the `v.json()` escape hatch is already
+loud (`PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED`). Notably, nested
+`v.object` **arguments already work end-to-end** — typed descriptors and a
+closed JSON Schema with `additionalProperties: false` — so the input gap is
+specifically arrays and unions, not structured inputs generally. Neither
+LLP 0004 (which constrains the vocabulary but designs only the scalar slice)
+nor LLP 0108 (result-side only) specifies the extension: this is a genuine
+spec hole needing a new owned Spec, with a dated-alignment amendment to
+LLP 0004 — the same pattern 0108/0080/0081 used (this answers open
+question 1).
 
-**Work.** Extend the application data API (LLP 0004) so structured collection
-validators — arrays of objects, nested objects, unions where already
-supported — work at mutation/action argument boundaries and for stored fields,
-with the same generated client types and the same fail-closed refusal
-semantics as scalar validators. This is a new owned Spec (claim the next
-number at drafting time); the result-contract side (LLP 0108) is prior art for
-the type-flow plumbing.
+**CV-4a — arguments (ship first).** Most plumbing exists on the result side
+(vocabulary spellings, recursive Rust validation in `result_contract.rs`,
+type/schema projection, JCS hashing, bounds). The genuinely new piece is a
+runtime **ingress** validation seam: today args are typed by codegen and
+plan-time expression typing, but no server-side per-invocation args-shape
+validation exists even for scalars, and CV-4a's fail-closed exit requires
+one. Exit: Split Ledger's split vector expressed as
+`v.array(v.object(...))` without `v.json()`; generated client types match;
+invalid nested payloads refuse server-side with a precise path-carrying
+diagnostic.
 
-**Exit.** Split Ledger's split vector and Pantry's structured fields expressed
-without `v.json()`; generated client types match; invalid nested payloads
-refuse with a precise path-carrying diagnostic; the rerun arms updated.
+**CV-4b — stored fields (separate, larger).** Storing arrays needs a
+`FieldType` extension, a SQLite/Postgres representation decision under
+LLP 0004's portability rules and LLP 0007, index/`arrayContains`/live-matcher
+semantics, and LLP 0081 migration interaction. None of this is de-risked by
+0108. Exit: Pantry's structured stored fields expressed natively with defined
+index and sync behavior.
 
-#### CV-5. Type the portable search query AST
+#### CV-5. Type the portable search query AST (wiring, not design)
 
-**Evidence.** The client has a concrete search AST, but provider introspection
-publishes the search argument as `unknown` (Diary 0039 P1-5).
+**Evidence, sharpened from v0.1.** The typed AST already exists by design and
+in the client carrier: LLP 0073 makes `SearchQueryAstV1` (with its LLP
+0037-owned JSON Schema) the public request authority and requires all
+carriers to agree byte-for-byte. The `unknown` the diary saw comes from one
+emitter — the provider/contract projection's `typeForGeneratedValidator`
+fallback in `packages/snapback-codegen` — not from a missing type.
 
-**Work.** Publish the precise AST type through LLP 0073's introspection
-surface and generated bindings, consistent with the portable fixtures.
+**Work.** Propagate the existing schema into the contract emitter and
+provider projection, and decide explicitly whether that projection is one of
+0073's byte-for-byte carriers or a Contract-owned surface. No new type design.
 
 **Exit.** Introspection and generated client types agree with the AST
 fixtures; no `unknown` remains at the search argument boundary.
 
 #### CV-6. Make precise mutation results the paved default
 
-**Evidence.** Cursor's `updateNote` and Pantry's `addRecipe` still shipped
-omitted/degraded result contracts even though codegen can explain the repair
-(Diary 0039 P1-6). LLP 0108 already treats omission as an explicit degraded
-`unknown` contract.
+**Evidence, corrected from v0.1.** The repair-explaining diagnostic is not
+future work — it ships today: codegen emits
+`SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED` with a remediation that
+interpolates the actual table name. It ships at `severity: 'info'`, which is
+exactly why two real apps (Cursor's `updateNote`, Pantry's `addRecipe`)
+shipped degraded contracts anyway. LLP 0108 specifies the degraded-unknown
+contract and the diagnostic but no strictness mechanism.
 
-**Work.** Make the degradation loud and self-repairing: codegen emits the
-suggested exact contract in the diagnostic; guide pages show the exact form
-first. Consider (owner's call, in LLP 0108) a per-app strictness toggle that
-refuses omitted contracts outright.
+**Work.** This is a severity/policy item, not a mechanism item: raise the
+diagnostic's visibility, resolve open question 3 (loud degradation vs.
+refusal behind a per-app strictness toggle — an LLP 0108 amendment either
+way), put the exact form first in the guide, and fix the two offenders. One
+boundary to respect: a *fully* field-level paste-ready suggested contract
+would require inspecting handler behavior, which 0108's
+no-inference-from-source invariants forbid — the suggestion stays at the
+template level already shipped, and that is enough.
 
 **Exit.** A newly authored mutation without a result contract produces a
-diagnostic containing a paste-ready repair; the two known offenders carry
-exact contracts in the next rerun.
+diagnostic that is hard to ignore (severity per OQ3's resolution); the two
+known offenders carry exact contracts in the next rerun.
 
 ### Tranche C — P1: generalize composition without losing evidence
 
-#### CV-7. Safe helper reuse or bounded module bundling for inline handlers
+#### CV-7. Helper reuse: revive 0108's bounded static bundling
 
 **Evidence.** LLP 0108 v1 deliberately narrowed inline handlers to statically
-self-contained expressions. The cost showed up immediately: Streak Lab's
-calendar helper and Campfire's indexed-read helpers are duplicated between
-query and mutation handlers (Diary 0039 §1, P1-7). Convex shares ordinary
-TypeScript helpers naturally.
+self-contained expressions ("no imported or sibling helper … no transitive
+source graph"), which reproduces the diary's duplication (Streak Lab's
+calendar helper, Campfire's indexed-read helpers) by design. But the design
+for the fix already exists *inside 0108*: the superseded "Bounded static
+bundling" section specifies literal-relative-ESM-only resolution from the
+canonical app root, bounds (64 files / depth 16 / 512 KiB source / 256 KiB
+bundle), per-edge byte digests, a closed pure-initializer grammar, capability
+rescan of final bundled bytes, and a warm-pool benchmark gate. It was demoted
+to research because the review loop timed out at NOT READY, not because the
+design was rejected.
 
-**Work.** Design the LLP 0108 follow-on: a bounded, content-addressed way for
-inline handlers to share pure helper modules — explicit imports into the
-closed module graph, never `Function.prototype.toString()` capture, never
-runtime inference, never ambient checkout access. The closed-graph and
-no-executable-authority-from-reflection invariants of LLP 0108 are
-non-negotiable inputs.
+**Work.** Revive and close those sections as the 0108 follow-on rather than
+designing from scratch. Two consequences the follow-on must own explicitly:
+the v1 content hash carries no dependency graph, so helper imports force a
+v2 hash format; and shared helpers effectively require the group-bundle model
+(one bundle per original static graph), which reopens the warm-pool-key
+question and the DK-4 benchmark gate. The 2026-07-28 adversarial-closure
+rules (alias/destructuring/computed-access refusals) must be re-proved across
+module boundaries. The non-negotiable invariants are unchanged: closed
+content-addressed graph, no `Function.prototype.toString()` capture, no
+runtime inference, no ambient checkout access.
 
-**Exit.** Streak Lab's calendar helper written once and used by both its query
-and mutation, with the module graph still closed and content-addressed, and
-the LLP 0108 refusal properties preserved under its existing adversarial
-fixtures.
+**Exit.** Streak Lab's calendar helper written once and used by both its
+query and mutation, with the module graph still closed and content-addressed,
+and the 0108 refusal properties preserved under its adversarial fixtures
+extended to cross-module cases.
 
-#### CV-8. Stabilize common children, aggregate, and activity shapes
+#### CV-8. Relational shapes: promote what exists, decide aggregates
 
-**Evidence.** Relay Board's one-board/many-columns/many-cards aggregate and
-Split Ledger's ledger derivation still use imperative multi-query handlers
-because the stable relational surface is intentionally narrow; the more
-fitting `bounded-children.v1` and `write-with-activity.v1` profiles exist but
-are experimental and were correctly not claimed (Diary 0039 §2, §5, P1-8).
+**Evidence, corrected from v0.1.** Two findings change this item. First, the
+LLP 0113 qualification/publication path **terminates at experimental
+maturity by design**: maturity is a static code-owned constant, publication
+CAS never touches it, and 0113 states "promotion to stable requires a later
+ratified design and evidence." v0.1's "drive through 0113 to stable" named
+machinery that does not exist. Second, the aggregate shapes that dominate
+both cited apps are **Non-goals of both relational documents**:
+`bounded-children.v1` admits exactly one parent table and one bounded child
+page per invocation (no second child collection, no aggregates, no grouping),
+and LLP 0080's callable plans are two-source unique-join only with
+aggregation excluded. Relay's `boardView` (one parent + three child
+fan-outs + in-handler assembly) and `boardSummary` (per-column counts), and
+Split's four-table ledger derivation, remain imperative even after full
+promotion. `write-with-activity.v1` does fit Relay's card-patch+audit shape —
+but Relay's `moveCard` computes its sequence counter via a range collect the
+point-operation-only plan refuses (a live instance of 0110's own open
+question 4), the first publication admits `existing-owner.v1` authority only
+(anonymous arms refuse with `SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED`), and
+adoption requires owner fields, scope-incarnation stamps with reviewed
+backfill, and the ten provenance fields.
 
-**Work.** Drive LLP 0110's two profiles through LLP 0113's qualification and
-publication path to stable, then decide the multi-table aggregate question in
-LLP 0080's frame: either specify a third bounded aggregate profile that covers
-the Relay/Split shapes, or document the imperative pattern as the endorsed
-answer with its evidence story. Do not widen the stable surface by
-inference — every promoted profile keeps exact arguments, results, dependency
-ceilings, and capability facts.
+**Work.** Three separable pieces. (1) Finish what exists: complete LLP 0110's
+review to Accepted with its same-landing amendments, close its publication
+gates, and execute the 0113 path — yielding honest *experimental* maturity
+with acknowledgment-gated runtime support. (2) Author the stable-promotion
+design 0113 requires (a ratified code-and-document maturity change with its
+own evidence bar) — this document does not exist and must be written before
+"stable" can be claimed by anything. (3) The load-bearing half: decide the
+aggregate question in LLP 0080's frame — specify a third bounded aggregate
+profile covering the Relay/Split shapes (multi-child fan-out with
+snapshot-consistent assembly, bounded grouped counts, bounded multi-table
+derivation), or endorse the imperative handler pattern as the paved answer
+with its evidence story. Do not widen the stable surface by inference.
 
-**Exit.** Relay Board and Split Ledger rebuilt on stable profiles (or on the
-explicitly endorsed pattern), with no experimental capability claimed and no
-imperative N+1 handler where a profile now fits.
+**Exit.** Relay Board and Split Ledger rebuilt on promoted profiles where the
+profiles fit (with the auth/provenance adoption cost stated, or the arms
+given real owner scope), on the third profile or the endorsed imperative
+pattern where they do not; no experimental capability claimed; the
+sequence-counter and aggregate limitations either lifted by design or
+documented as refusals.
 
 #### CV-9. Transactional one-off scheduling
 
-**Evidence.** Convex's `ctx.scheduler.runAfter(0, ...)` transactionally
-schedules one-off durable work with almost no ceremony; Snapback's cron
-surface (LLP 0028) has the stronger deterministic recurring-work proof but no
-equally obvious one-off primitive (Diary 0039 §7, P1-9).
+**Evidence, corrected from v0.1.** The design for this primitive is not
+missing — it is **LLP 0070 (durable background work, Draft)**, which v0.1
+and the diary both failed to cite. 0070 specifies `ctx.jobs.enqueue` with
+"validation and insertion occur in the same database transaction as the
+mutation's ordinary writes; if that transaction rolls back, no job exists" —
+verbatim the rollback exit criterion — plus `availableAt` delays
+(`runAfter`-equivalent), attempt policy, idempotency keys, and its own
+receipt family (immutable job + append-only attempts). This answers open
+question 2: one-off work gets 0070's receipt family, not the cron ledger,
+whose identity model (`jobName`/nominal slot/schedule hash/definition
+generation) structurally rejects runtime-created entries. 0028 and 0070
+already cross-reference each other on exactly this boundary. 0070 is Draft
+and unimplemented, and its claim boundary explicitly bars shipping this as a
+cron sweep in the meantime.
 
-**Work.** Extend LLP 0028 with a `runAfter`-class primitive: scheduled
-atomically within the enclosing mutation's transaction, durable, observable
-through live queries and the authenticated inspection surface, and covered by
-the same forced-tick test seam so acceptance never sleeps.
+**Work.** Implement the `runAfter` case as the first slice of LLP 0070's
+`durable-work-single-process-sqlite-v1` profile (default queue,
+`availableAt = now + delay`, transactional enqueue, host-plan action callee),
+which simultaneously gives 0070 the executable evidence its Draft status
+needs. Add the one thing 0070 lacks and 0028 has: a deterministic
+forced-drive test seam — amend 0028's manual-tick/disable pattern into a
+sibling injected-clock `jobs` drain so acceptance never sleeps. Name the
+callee-class decision explicitly: whether Dispatch's one-off action→mutation
+shape fits 0070 v1's generated-host-plan-action admission or needs the later
+broader-action capability.
 
-**Exit.** The Dispatch arm's one-off path uses the new primitive; a rolled-
-back mutation provably schedules nothing; the run ledger and forced-tick
-evidence cover one-off work exactly as they cover recurring work.
+**Exit.** The Dispatch arm's one-off path uses the new primitive; a
+rolled-back mutation provably schedules nothing (0070's own first acceptance
+bullet); an injected-clock forced drain claims due one-off jobs with receipts
+in the job/attempt ledger, giving one-off work a deterministic seam
+equivalent to — not literally identical to — the cron run ledger's.
 
 ### Tranche D — P1: mature portable search
 
-#### CV-10. Fix numeric canonicalization at the search digest boundary
+#### CV-10. Fix numeric normalization at the search source/recheck boundary
 
-**Evidence.** An integral `minutes` accepted under `v.number()`/Real and
-included in stored search fields failed authoritative digest recheck as
-`SNAPBACK_SEARCH_INDEX_CORRUPT`; declaring `v.integer()` stabilized it
-(`issues/20260730-search-real-integral-digest-corruption.md`). An accepted
-ordinary value must never surface as opaque index corruption.
+**Evidence, reclassified from v0.1.** The audit traced the mechanism, and it
+is not a digest-canonicalization defect: both sides compute RFC 8785
+canonical digests that **agree** (integral `5` and `5.0` both spell `"5"`).
+What fails is a representation-sensitive full struct equality
+(`source != authoritative`, `src/search/sqlite.rs:1731`) between the
+in-memory insert-path document (which keeps serde_json integer `Number(5)`
+because `normalize_json_value` validates without normalizing) and the
+SQLite-reloaded authoritative row (`Number(5.0)`). The
+`SNAPBACK_SEARCH_INDEX_CORRUPT` message — "failed its authoritative digest
+recheck" — is wrong about its own trigger. The comparison is also an
+implementation strengthening beyond 0073's specified version+partition+
+predicate recheck. A nasty asymmetry: patch-maintained rows reload through
+SQLite on both sides and pass, so a "corrupt" row silently heals on its first
+patch — only insert/seed-maintained rows reproduce.
 
-**Work.** In LLP 0073's digest contract: canonicalize accepted numeric values
-consistently between storage and index digesting, or refuse the declaration
-early with a precise model diagnostic naming the field and the fix.
-`SNAPBACK_SEARCH_INDEX_CORRUPT` must become unreachable from accepted values.
+**Work.** A code fix, not a spec amendment: compare canonical bytes/digests
+at the release recheck, and/or normalize integral Reals to their SQLite
+round-trip form in `normalize_json_value` at write time (the latter also
+fixes the latent storage-layer asymmetry for any other subsystem comparing
+in-memory vs. reloaded documents). Correct the diagnostic message. Ride along
+a one-sentence LLP 0073 pin ("stored/filter scalar bytes at the
+source-content and recheck boundary use RFC 8785 number spelling") to close
+the residual spec silence.
 
-**Exit.** A regression fixture with Real-typed integral search fields passes
-(or refuses early with the new named diagnostic); the Pantry arm's original
-schema no longer produces corruption.
+**Exit.** A regression fixture with Real-typed integral search fields on the
+**insert/seed** path (the only reproducing path) passes; the Pantry arm's
+original schema no longer produces corruption; no legitimate accepted value
+is refused.
 
 #### CV-11. A live/re-execution story for search
 
-**Evidence.** Convex's indexed search composes with its reactive query model;
-Snapback search v1 is honestly non-live, and Pantry needed an extra check just
-to prove that honesty (Diary 0039 §6, P1-11).
+**Evidence.** LLP 0073 excludes live search four separate ways (the generated
+function is `Query` not `LiveQuery`; subscriptions refuse with
+`SNAPBACK_FUNCTION_NOT_LIVE`; Non-goals; implementation-state nonclaims) and
+contains no reactive design — this is a genuine design hole, not deferred
+implementation. 0073 does pin the gate: a live path must earn independent
+capability ids or the exact v1 target corpus before advertisement, and the
+`SNAPBACK_FUNCTION_NOT_LIVE` refusal is a pinned contract until then.
 
 **Work.** Design reactive search in LLP 0073's frame, composing with the live
 query and query-group surfaces (LLP 0112/0114) rather than inventing a
 parallel channel. Until it ships, the non-live declaration stays exactly as
 is — no simulated reactivity, no capability drift.
 
-**Exit.** Either a shipped live-search path with the same rank/highlight/
-cursor contract and an eviction/invalidation evidence story, or a dated
-LLP 0073 decision recording why non-live remains the claim.
+**Exit.** Either a shipped live-search path under its own capability id with
+the same rank/highlight/cursor contract and an eviction/invalidation evidence
+story, or a dated LLP 0073 decision recording why non-live remains the claim.
 
-#### CV-12. Expand portable filters and targets, evidence-gated
+#### CV-12. Filters and targets (split: design vs. execution)
 
-**Evidence.** Pantry's filter combination needed a client-side numeric
-projection because portable filters are equality-only; hosted, offline, and
-additional database targets remain nonclaims (Diary 0039 P1-12).
+**CV-12a — range filters (new design).** 0073 excludes ranges with no gate
+and no design; only null tests are queued. Adding them is real spec work
+inside 0073's constraints: a new operator vocabulary means a new parser
+profile and semantic index version (0073's version-binding rule), an
+anchor/work-ceiling story (complement scans are deliberately inexpressible),
+and cursor query-core hash changes. Exit: Pantry's numeric filter expressed
+portably with the version-binding consequences handled.
 
-**Work.** Bounded range filters first, as the diary identifies them as the
-first practical gap. Each new target or filter class lands only with its own
-acceptance evidence, extending — never diluting — the portable contract.
-
-**Exit.** Pantry's numeric filter expressed portably; capability claims still
-match exactly what acceptance proves.
+**CV-12b — target expansion (execution of an existing roadmap).** 0073
+already contains the staged adapter sequence: hosted SQLite may claim v1
+after its own runtime/authorization evidence; PostgreSQL is an explicit GAP
+until the store seam lands (**blocked on Draft LLP 0046** — a dependency
+v0.1 failed to name); accelerators only as separate capabilities with
+proved-superset translation; offline reserved. Exit: each new target lands
+with its own acceptance evidence; claims continue to match exactly what
+acceptance proves.
 
 ### Tranche E — P2: guide and review polish
 
@@ -346,20 +543,28 @@ so exact-but-explicitly-configured provenance is not misread as weak.
    the credibility of everything else; the diary ranks them P0 and they are
    also prerequisites for running future matrix arms against published
    artifacts. CV-2 → CV-3 are ordered (the receipt exists before the tools
-   converge on it); CV-1 proceeds in parallel through its existing owners.
-2. **Tranches B and C in parallel after A.** They touch different owners
-   (data API/search typing vs. handler composition/relational/scheduling).
-   Within C, CV-8 continues immediately — LLP 0110 is already in Review — but
-   its *stable* promotion waits on LLP 0113's path.
-3. **Tranche D after CV-5.** CV-10 is a small correctness fix and may land
-   any time; CV-11/CV-12 build on the typed AST.
+   converge on it), and CV-2 carries the invalidation half so that ordering is
+   sound. CV-1's candidate-tag publication and artifact-gap decisions can
+   proceed now; its default-channel exit waits on open question 5.
+2. **Tranches B and C in parallel after A.** They touch different owners.
+   CV-4a ships before CV-4b. Within C, CV-8's piece 1 continues immediately —
+   LLP 0110 is already in Review — while piece 2 (the stable-promotion
+   design) and piece 3 (the aggregate decision) are authorable now; CV-9
+   rides LLP 0070's first implementation slice.
+3. **Tranche D after CV-5.** CV-10 is a small code fix and may land any time;
+   CV-11/CV-12a build on the typed AST; CV-12b executes 0073's roadmap as its
+   gates (LLP 0046 for PostgreSQL) clear.
 4. **Tranche E is continuous.** CV-13 and CV-15 are small and may land
    immediately; CV-14 rides the next custody change.
 5. **Rerun checkpoint.** After Tranches A–C land, rerun the seven-app matrix
    by the Diary 0032–0039 method (same contracts, both backends, aggregate
-   serial verification) and write the successor diary. Tranche D/E completion
-   is not gated on the rerun, but the rerun is the plan's measurement, not an
-   optional extra.
+   serial verification) and write the successor diary — with one measurement
+   correction: the existing method drives the provider's headless client, so
+   it cannot observe the LLP 0112/0114 React/query-group gains at all. At
+   least one arm (Campfire is natural) must consume the 0114 React surface
+   and a 0112 registered group, or the plan's watch trigger on the reactive
+   boundary is unmeasurable. Tranche D/E completion is not gated on the
+   rerun, but the rerun is the plan's measurement, not an optional extra.
 
 ## Exit criterion for the plan
 
@@ -385,9 +590,15 @@ distribution) remains LLP 0074's and is not re-scored here.
 - **Reactive-by-default queries.** Convex's deepest structural advantage is
   that ordinary queries are reactive without a separate live classification.
   Snapback's explicit live boundary is a deliberate evidence choice
-  (LLP 0074); LLP 0112/0114's generated query groups are the current answer.
-  Revisit only if the rerun still scores the boundary as a loss after CV-11
-  and the query-group surface ship.
+  (LLP 0074), and the newest surfaces reinforce it (a route with one ordinary
+  `Query` child loses register-group generation entirely, per LLP 0112).
+  LLP 0112/0114 close the *subscription-glue and typed-consumption* half of
+  the Campfire-style DX loss — and register-mode boot consistency is arguably
+  better than Convex's default — but they deliberately leave the
+  classification itself and server-side authoring explicitness untouched
+  (those belong to CV-4/6/7 and CV-11). Revisit only if the rerun — measured
+  through the React surface per §Sequencing item 5 — still scores the
+  boundary itself as a loss after CV-11 and the query-group surface ship.
 - **Graph generation speed and consumer-facing projections.** The 7× generated
   graph is fine while generation is fast and consumers never read internals;
   watch for either assumption failing.
@@ -397,16 +608,23 @@ distribution) remains LLP 0074's and is not re-scored here.
 
 ## Open questions
 
-1. **CV-4 spec placement.** New numbered Spec versus a reviewed amendment to
-   LLP 0004 (which is still Draft): does the input-validator surface deserve
-   its own review loop, or should it ride the data API RFC's eventual
-   acceptance?
-2. **CV-9 semantics.** Does `runAfter`-class work reuse the cron run-ledger
-   identity model, or does one-off work get its own receipt family? (Owner:
-   LLP 0028 extension.)
-3. **CV-6 strictness.** Should omitted result contracts remain a loud
-   degradation, or become a refusal behind a per-app strictness toggle?
+1. **CV-4 spec placement — ANSWERED (v0.2).** New numbered Spec plus a
+   dated-alignment amendment to LLP 0004, per the 0108/0080/0081 precedent
+   and 0004's own split-into-Spec status note.
+2. **CV-9 receipt semantics — ANSWERED (v0.2).** LLP 0070's receipt family
+   (immutable job + append-only attempts), not the cron run ledger, whose
+   identity model rejects runtime-created entries.
+3. **CV-6 strictness.** Should omitted result contracts remain a degradation
+   (raised from today's `severity: 'info'`), or become a refusal behind a
+   per-app strictness toggle? Owner's call, landed as an LLP 0108 amendment.
 4. **Rerun scope.** Should the post-A–C rerun reuse the seven contracts
    unchanged for comparability, or add an eighth contract targeting the new
    surfaces (structured inputs + one-off scheduling) at the cost of
-   diary-to-diary comparability?
+   diary-to-diary comparability? (Either way, §Sequencing item 5's
+   React-surface measurement requirement stands.)
+5. **npm default-channel gating (new in v0.2).** LLP 0111 serializes `latest`
+   promotion of the nine-package closure behind the full hosted Fly
+   qualification journey; LLP 0074 makes npm publication a parallel gate.
+   These cannot both govern CV-1. Decide: amend 0111 to decouple the local
+   closure's default channel from hosted qualification, or scope CV-1's exit
+   to exact-version candidate-tag installs until the hosted journey lands.
