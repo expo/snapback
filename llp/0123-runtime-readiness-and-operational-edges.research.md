@@ -5,8 +5,36 @@
 **Systems:** Competitive evaluation, Developer experience, Runtime, Bootstrap, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:**
-**Related:** LLP 0010, LLP 0030, LLP 0031, LLP 0074, LLP 0115, LLP 0116, LLP 0122, Diary 0022, Diary 0028, Diary 0032–0039
+**Revised:** 2026-07-30 (v0.2, round-1 dual-family review corrections —
+verbatim reviews in
+`reviews/0123-runtime-readiness-and-operational-edges.fable.md` and
+`reviews/0123-runtime-readiness-and-operational-edges.codex.md`, both
+NOT READY; all eleven findings were independently re-verified against
+code and applied — none refuted. Blocking: the false "live paths never
+touch the VM" boundary corrected — JS live queries (`defineJsLiveQuery`
+→ `FunctionKind::LiveQuery`) reach `RuntimeGuard::create()` like every
+JS handler, so the blast-radius statements and Finding 8 now split
+declarative from JS live queries (Codex A); two options added — the
+server-side readiness lane (boot-time VM qualification surfaced on
+`/health`, plus reason-carrying invocation diagnostics; Fable 1) and
+content-addressed immutable dynamic engine selection (vendored Ibex's
+portable-engine machinery; Codex B) — renumbering the option space to
+1–8; the prebuilt/static options reworked around precise guarantees —
+packages are assembly closures, not behavioral-coherence proofs; static
+linking proves link-time binding, not behavioral compatibility; the
+Hermes-rebuild cost claim corrected — plus a per-option
+no-evidence-regression check (Codex C). Material/detail: the
+engine-captivity account expanded with Ibex's native host surface and
+the in-tree Workerd/V8 twin (Codex D); the Convex sealed-artifact
+account narrowed to labeled inference with its verification path
+(Codex E); limit discoverability split into three problem classes with
+"cheap" demoted to hypothesis (Codex F); "created VMs in microseconds"
+corrected to LLP 0035 §M2's ~2 ms (Fable); the CV-15 owner statement
+aligned with 0115's status board (Fable); Finding 5 now credits CV-2's
+owned invalidate-or-relink half (Fable); the "bug surface, not a
+feature" pre-judgment removed in favor of attributed analysis (Fable).
+Related gains LLP 0035, LLP 0048, and Diaries 0029–0031.)
+**Related:** LLP 0010, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0048, LLP 0074, LLP 0115, LLP 0116, LLP 0122, Diary 0022, Diary 0028, Diary 0029–0031, Diary 0032–0039
 
 This document is part of the Convex-parity research series:
 
@@ -45,10 +73,11 @@ This Research document maps the incident class against what Convex does
 structurally differently, reconstructs why Snapback's native runtime lane
 exists and what it buys, and lays out an option space that goes beyond the
 qualification fixes LLP 0115 already plans (CV-2/CV-3) into the strategic
-layer: hermetic prebuilt distribution, shrinking the dynamic-link surface,
-engine-strategy risk reduction, limit discoverability as a product
-surface, and treating the first hour as an acceptance-tested artifact. It
-deliberately does not make the final call.
+layer: a server-side readiness lane, hermetic prebuilt distribution,
+content-addressed immutable engine selection, shrinking the dynamic-link
+surface, engine-strategy risk reduction, limit discoverability as a
+product surface, and treating the first hour as an acceptance-tested
+artifact. It deliberately does not make the final call.
 
 ## What Convex does
 
@@ -65,19 +94,24 @@ and no checkout-relative import into the Convex source tree" (Diary 0039
 operational edges" is one of the report's four "Where Convex is better"
 headings.
 
-**General background (not diary-verified).** Convex's local development
-story ships the backend as a prebuilt binary per platform, fetched by the
-CLI; application JavaScript executes inside the engine embedded in that
-binary. The load-bearing structural property is not the engine choice —
-it is that the server and its JS engine are compiled, versioned, and
-distributed as one sealed artifact. There is no on-user-machine native
-build, no separately refreshable engine artifact sitting beside the
-server binary, and therefore no state in which "the server you built" and
-"the engine you loaded" can disagree. The entire incident class this
-document studies — stamped binary, newer framework, green link smoke,
-dead handler VM — is unrepresentable in that distribution shape. Whatever
-else one thinks of a managed closed backend, this is a real architecture
-dividend, and the rerun priced it.
+**General background and labeled inference (not diary-verified).**
+Convex's local development story ships the backend as a prebuilt binary
+per platform, fetched by the CLI; application JavaScript executes inside
+an engine that ships with that binary. The diaries establish only this
+much: a downloaded precompiled backend, no user-visible native framework
+link step, and clean final starts. The stronger account — server and JS
+engine compiled, versioned, and distributed as one sealed artifact, with
+no separately refreshable engine artifact and therefore no representable
+state in which "the server you built" and "the engine you loaded"
+disagree — is *inference* from that behavior, not observation; verifying
+it would take an authoritative Convex source or an inspection of the
+downloaded artifact's closure (one file or several, and what is
+refreshable in place). What the diaries do support: the tested workflow
+exposed no user-managed engine/server coherence boundary, so the
+incident class this document studies — stamped binary, newer framework,
+green link smoke, dead handler VM — had no surface to occur on across
+seven arms. Whatever else one thinks of a managed closed backend, that
+is a real architecture dividend, and the rerun priced it.
 
 ## What Snapback does today
 
@@ -96,12 +130,22 @@ time-limit and async-failure semantics behind the fail-closed invocation
 contract, and one deterministic local server binary that owns storage,
 live queries, and the ephemeral lane.
 
-An important boundary the incident made visible: the declarative query,
-live-query, and ephemeral paths are pure Rust and kept working throughout
+An important boundary the incident made visible, stated precisely: the
+*declarative* (Rust-evaluated) query and live-query paths and the
+ephemeral lane are pure Rust and kept working throughout
 (`issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md`;
-Diary 0038). The Hermes VM serves exactly the JS-handler lane. That both
-shrank the blast radius and delayed detection — nothing before the first
-JS invocation exercises the VM.
+Diary 0038). Diary 0037 is the in-corpus control: the one rerun arm that
+avoided the incident is the one whose exercised lane was native
+declarative search, and it marks its own failure "independent of the
+Hermes JS-runtime incident" (line 82). The Hermes VM serves the
+JS-handler lane — and that lane is wider than queries, mutations, and
+actions: JS live queries exist (`defineJsLiveQuery`,
+`packages/snapback-codegen/define.mjs`), execute as
+`FunctionKind::LiveQuery` through the same query-execution path, and
+reach `RuntimeGuard::create()` like every other JS handler
+(`src/runtime.rs`), so a JS live query is exactly as dead in this state
+as a JS mutation. That boundary both shrank the blast radius and delayed
+detection — nothing before the first JS invocation exercises the VM.
 
 ### The bootstrap/doctor/harness triad
 
@@ -196,10 +240,13 @@ The 2026-07-30 incident is the newest member of a family:
 
 ## How they differ, and why agents preferred Convex
 
-The structural difference is not engine quality; Hermes created VMs in
-microseconds when coherent (`bench_runtime_create_us`, `src/runtime.rs`).
-It is that Convex ships engine and server as one sealed versioned
-artifact, while Snapback's local lane composes **two independently
+The structural difference is not engine quality; VM-creation cost was
+never the incident's cause — roughly 2 ms when coherent, ~55 % of the
+~2,700–3,900 µs fresh-invocation cost (LLP 0035 §M2, measured by
+`bench_runtime_create_us` in `src/runtime.rs`). It is that the tested
+Convex workflow exposes no user-managed engine/server coherence boundary
+(the sealed-artifact account behind that is labeled inference above),
+while Snapback's local lane composes **two independently
 refreshable native artifacts** — a statically compiled glue crate and a
 dynamically loaded framework — whose agreement is a behavioral/ABI
 contract (the promise-rejection checkpoint prerequisite) that neither
@@ -220,16 +267,19 @@ Recovery, when it came, was paved — re-running the same bootstrap *after*
 the final framework refresh relinked the binary (00:52:53 binary vs
 00:55:00 framework, relinked 00:55:57; Diary 0033) — but diagnosis
 required inherited server output and a parallel lane's cross-observation.
-Agents preferred Convex on this axis because its first hour cannot enter
-this state, not because its diagnostics are better. Snapback's
+Agents preferred Convex on this axis because its first hour presented no
+surface for this state, not because its diagnostics are better. Snapback's
 diagnostics are in fact richer (stable codes, recovery records, digests);
 they were pointed at the wrong boundary.
 
 ## Option space
 
-None of these are decisions. Options 1–3 attack the incident class
-itself; 4 is risk analysis; 5–6 attack the broader operational-edge
-experience.
+None of these are decisions. Options 1–5 attack the incident class
+itself — 1–2 by making readiness witnessed (tool-side, then
+server-side), 3–5 by changing the distribution/link shape that
+manufactures the state; 6 is risk analysis; 7–8 attack the broader
+operational-edge experience. A per-option check against LLP 0115's
+no-evidence-regression constraint closes the section.
 
 ### Option 1 — VM-qualification receipts and digest coherence (CV-2/CV-3)
 
@@ -251,83 +301,224 @@ not remove the process that manufactures it. The mutable
 checkout-plus-copied-artifact model still exists, receipts need
 invalidation semantics that are correct under concurrent refresh (the
 hard part CV-3 names), and a receipt is one more artifact whose custody
-and tamper story must be defined. This option makes the incident loud
-and named; options 2–3 make it unrepresentable.
+and tamper story must be defined. A trivial-function probe proves the
+VM-creation and checkpoint prerequisites, not all handler semantics.
+This option makes the incident loud and named; options 3–5 remove the
+processes that manufacture it, with residuals of their own below.
 
-### Option 2 — Prebuilt hermetic runtime distribution
+### Option 2 — Server-side readiness: the process witnesses itself
+
+The serving process qualifies its own handler VM at boot: create and
+destroy the same VM `RuntimeGuard::create` uses (optionally executing
+one trivial function), surface the verdict on `/health` beside the
+ENG-22798 build-identity block, and either refuse to serve or serve
+loudly degraded when it fails. Today `/health` carries identity and
+capability *presence* only — `ibex_available` reports CLI/bridge
+availability and `binary` reports the build stamp (`src/server.rs`;
+LLP 0031 §Server-binary identity) — and nothing in the payload has ever
+created a VM, which is why the incident's defining sentence — servers
+"launched and served `/health`" while every JS handler was dead — was
+possible. This option is genuinely distinct from option 1: it has no
+receipt custody or invalidation problem (the running process is its own
+witness), it works identically for every distribution shape and every
+harness rung including `configured`/`prebuilt`/reused (which are
+presence-plus-identity only today), and it catches drift that happens
+after bootstrap ran. It would have converted the incident into a loud,
+self-diagnosing launch or health failure regardless of refresh ordering.
+A packaged `snapback runtime-qualify` subcommand exposing the same probe
+would let every delivery form — bootstrap, doctor, package tests, CI —
+share one behavioral check.
+
+The companion sub-option is invocation-error fidelity.
+`SNAPBACK_RUNTIME_CREATE_FAILED` today carries only the fixed strings
+"Ibex runtime could not be created" / "Ibex runtime identity could not
+be captured" (`src/runtime.rs`); the native refusal reason ("Armed
+startup refused: Hermes promise rejection checkpoint tracking is
+unavailable") reached the operator only through inherited stderr, which
+is why diagnosis needed a parallel lane's cross-observation. Carrying
+the native reason inside the coded error is cheap and helps every other
+option.
+
+**Costs.** Boot-time VM creation is ~2 ms (LLP 0035 §M2), negligible
+against server startup. Refuse-vs-degraded semantics interact with
+LLP 0030's process lifecycle and need a ratified failure behavior. The
+readiness verdict is one more thing that must stay truthful: a boot-time
+bit goes stale if the framework is swapped under a running server (OQ4's
+caution applies), so this complements option 1's receipts rather than
+replacing them; and a trivial-probe verdict proves the creation and
+checkpoint prerequisites, not all handler semantics. Owners: LLP 0031
+(`/health` payload), LLP 0030 (lifecycle), LLP 0010 (diagnostics).
+
+### Option 3 — Prebuilt hermetic runtime distribution
 
 Never build or assemble Hermes on an adopter's machine. The seed exists
 in-tree: `packages/snapback-runtime-darwin-arm64` already pairs
-`bin/snapback` with `Frameworks/hermesvm.framework` in one sealed npm
-package, and `packages/snapback-runtime-linux-x64` adds the attestation.
-The strategic move is to make that sealed pair the *only* adopter-facing
-runtime delivery — binary and framework versioned, digested, and
-installed atomically together, attestation extended to macOS — and
-demote the sibling-checkout/vendored-bootstrap machinery to an explicit
-contributor lane. This interacts directly with LLP 0122's single-binary
-packaging option (the limiting case: one artifact, nothing to pair) and
-with CV-1's published-channel work; LLP 0041 owns the package closure.
-Diary 0028's Hermes-from-source cost disappears from the adopter path by
-construction. Residual: contributors still live in the mutable world, so
+`bin/snapback` with `Frameworks/hermesvm.framework` in one npm package,
+and `packages/snapback-runtime-linux-x64` adds a binary+Hermes digest
+attestation. The strategic move is to make that co-packaged pair the
+*only* adopter-facing runtime delivery — binary and framework versioned,
+digested, and installed atomically together, attestation extended to
+macOS — and demote the sibling-checkout/vendored-bootstrap machinery to
+an explicit contributor lane. This interacts directly with LLP 0122's
+single-binary packaging option (the limiting case: one artifact, nothing
+to pair) and with CV-1's published-channel work; LLP 0041 owns the
+package closure. Diary 0028's Hermes-from-source cost disappears from
+the adopter path by construction.
+
+**What it does and does not guarantee.** Today's packages are assembly
+closures, not behavioral-coherence proofs: the macOS prepare script runs
+`build-identity` and then copies binary and framework independently
+(`prepare-runtime.mjs`), its package test checks build identity only
+(`package.test.mjs`), and the Linux package test proves attestation
+digests, launch, and identity — never VM creation. A package can
+therefore seal and faithfully distribute an already-incompatible pair,
+and extracted files can be altered after installation. Packaging removes
+the sibling-refresh workflow — the manufacturing process behind this
+incident — but claiming coherence requires CV-2-style VM qualification
+at the package-production boundary (and/or at consumption, per option
+2's `runtime-qualify` probe), plus a custody story for the attestation
+itself. Residual: contributors still live in the mutable world, so
 option 1 remains necessary for the source-tree lane either way.
 
-### Option 3 — Shrink the dynamic-linking surface
+### Option 4 — Content-addressed immutable dynamic engine selection
+
+Keep dynamic linking, but select the engine artifact by digest from an
+immutable store and bind the build to exactly that selection — removing
+the mutable well-known framework path whose in-place refresh the
+incident raced. This is not hypothetical: vendored Ibex already ships a
+portable-engine mode with exact artifact-id and archive-digest selectors
+(`IBEX_PORTABLE_HERMES_ARTIFACT_ID` /
+`IBEX_PORTABLE_HERMES_ARCHIVE_DIGEST`, `vendor/ibex/build.rs`), a
+checkout-local content-addressed store under `target/hermes-artifacts`
+whose root must canonicalize to itself (no symlink redirection),
+manifest/header-set/runtime validation with exact framework-resolution
+checking, and every selected payload entry added to Cargo's
+rerun-if-changed watch set
+(`vendor/ibex/build_support/portable_engine_build_consumption.rs`) —
+digest-anchored rerun detection instead of the mtime heuristic the rsync
+hypothesis suspects. It occupies a genuine middle point between options
+3 and 5: contributor iteration and shared engine artifacts stay dynamic,
+while "swap the framework in place" stops being a reachable state
+because consumption is pinned to a content address.
+
+**Costs and residuals.** As shipped, Ibex's selector is coupled to its
+promotion/preflight authorization apparatus — portable mode requires a
+preflight receipt, nonce, `RUSTC_WRAPPER`, a cargo target map, and a
+promotion admission alongside the digest selectors
+(`vendor/ibex/build.rs`) — so whether Snapback can adopt the selector
+without that apparatus is an open question (OQ7). Immutability must be
+enforced, not assumed: qualification binds to bytes read at a pathname
+unless it is bound to the mapped object, so post-link mutation/TOCTOU
+survives (OQ8); the loader must resolve exactly the selected artifact at
+run time, not only at link time; and digest identity proves artifact
+identity, not glue/engine behavioral compatibility — a correctly pinned
+but semantically incompatible pair still needs option 1/2
+qualification.
+
+### Option 5 — Shrink the dynamic-linking surface
 
 Statically link (or otherwise embed) the VM so binary and engine cannot
-drift apart. The vendored build already supports it
+drift apart after the link. The vendored build already supports it
 (`HERMES_LINK_STATIC=1`), so this is closer to a build-policy change
-plus a static-bundle supply chain than new engineering. It eliminates
-the entire coherence class: the rsync-mtime staleness, the ENG-22664
-`LC_RPATH` launch wedge, and the framework-refresh-after-link ordering
-all stop existing for the final binary; header drift remains possible
-but fails loudly at compile/link time (the Diary 0022 shape) rather
-than as a runtime refusal after green gates. Costs: larger binaries,
-Hermes rebuilds ride every runtime-package build instead of a framework
-copy, and the swap-a-framework-without-relinking property is lost — the
-correct observation being that this property is the bug surface, not a
-feature adopters need. A plausible split: static for packaged/adopter
-artifacts (compounding option 2), dynamic retained for contributor
-iteration under option 1's receipts.
+plus a static-bundle supply chain than new engineering. What it removes
+is precise: post-link engine replacement and loader-path resolution
+failure stop existing for the final binary — the rsync-mtime staleness,
+the ENG-22664 `LC_RPATH` launch wedge, and the
+framework-refresh-after-link ordering all disappear from the served
+artifact. What survives is equally precise: a defeated relink then
+serves an old but self-coherent engine — staleness, not incoherence —
+and link success proves link-time binding, not behavioral
+compatibility. A semantically incompatible static archive can still
+compile and link cleanly, so header or contract drift is *likelier* to
+fail loudly at build time (the Diary 0022 shape) but is not guaranteed
+to, and build-boundary qualification (option 1) keeps its job. Costs,
+corrected: larger binaries; every final binary relinks against the
+static bundle, but Hermes itself need not rebuild per package assembly
+— the build consumes pre-existing archives (`lib*.a`, `libjsi.a`,
+`libboost_context.a`) that can be produced and cached separately
+(`scripts/build-hermes.sh --release`); and the
+swap-a-framework-without-relinking property is lost — this analysis
+found no adopter-facing need for swap-without-relink, but whether the
+contributor lane needs it is part of what OQ3 routes to a ratifier. A
+plausible split: static for packaged/adopter artifacts (compounding
+option 3), dynamic retained for contributor iteration under option 1's
+receipts or option 4's content addressing.
 
-### Option 4 — Alternative or additional JS engine (risk analysis only)
+### Option 6 — Alternative or additional JS engine (risk analysis only)
 
-What actually depends on Hermes specifics? Reading `src/runtime.rs`, the
-load-bearing contracts are: (a) the restricted **no-eval constructor**;
-(b) the **time-limit watch/interrupt** surface; (c) the **async-failure
-checkpoint** — `ex_hermes_eval` reaching a full microtask checkpoint so
+What actually depends on Hermes specifics? Two boundaries, not one. At
+the `src/runtime.rs` C ABI the load-bearing contracts are: (a) the
+restricted **no-eval constructor**; (b) the **time-limit
+watch/interrupt** surface; (c) the **async-failure checkpoint** —
+`ex_hermes_eval` reaching a full microtask checkpoint so
 detached-rejection and never-settled-promise invocations can be failed
 with no writes; and (d) the host-call bridge and safe-throw/stage1 value
-metadata. These are a small, explicit C ABI — which cuts both ways: any
-replacement engine must supply equivalents of (a)–(c) with the same
-semantics, and the fail-closed invocation contract is only as strong as
-the checkpoint semantics underneath it. A wasm-hosted engine (Hermes or
-QuickJS compiled to wasm inside a statically linked wasm runtime) would
-remove native dynamic-link fragility categorically — the engine becomes
-data, not a dyld participant — at the cost of performance headroom and
-reimplementing the watchdog/checkpoint contracts at the wasm boundary.
-A V8/JSC fallback buys little here: the incident is a distribution-shape
-problem, and V8 would inherit it unless shipped per option 2/3 anyway.
-Conclusion of the analysis: engine *choice* is secondary; engine
-*co-shipment* is the property that matters, and the ex_hermes ABI is
-narrow enough that Snapback is not deeply Hermes-captive, except at the
-checkpoint semantics where it is.
+metadata. That ABI is small and explicit. But the replacement boundary
+is not just that ABI: vendored Ibex compiles and watches a large
+Hermes-specific native body — module execution and bootstrap, timers,
+DNS, crypto, filesystem, process, TLS/HTTP/fetch/WebSocket networking,
+sqlite, debugger, console, IPC, worklets, runtime extensions, ABI
+checks, and per-platform code (`vendor/ibex/build.rs`) — and any engine
+strategy inherits a decision about how much of that host surface moves
+with it. In-tree prior art bounds the question empirically: Snapback
+already carries a **Workerd/V8 execution twin** (`src/workerd_exec.rs`,
+LLP 0048) that runs non-action handlers through the same host-op
+protocol in a local workerd process, opt-in per run — proof that part of
+the semantics is portable, and a marker for what is not (actions stay on
+Ibex; egress and secrets powers are outside the twin's scope). Which
+semantics the twin already proves, and which are absent, is an empirical
+inventory this document has not run (OQ8 territory for the readiness
+boundary; LLP 0048 for the twin itself).
 
-### Option 5 — Runtime-limit discoverability as a product surface
+A wasm-hosted engine (Hermes or QuickJS compiled to wasm inside a
+statically linked wasm runtime) would remove native dynamic-link
+fragility categorically — the engine becomes data, not a dyld
+participant — at the cost of performance headroom and reimplementing the
+watchdog/checkpoint contracts at the wasm boundary. A V8/JSC fallback
+buys little here: the incident is a distribution-shape problem, and V8
+would inherit it unless shipped per option 3/4/5 anyway. Conclusion of
+the analysis, restated with the wider boundary in view: engine *choice*
+is secondary; engine *co-shipment* is the property that matters. The
+checkpoint semantics remain the deepest captivity point because the
+fail-closed invocation contract rests on them — but no-eval enforcement,
+host-call behavior, interruption, value/error representation, async
+settlement, module/bundle semantics, platform capabilities, and action
+support are all contract points too. The source-level narrowness of the
+ex_hermes ABI is not the same thing as a small semantic migration, and
+the migration cost is an empirical question the Workerd twin only
+partially answers.
 
-Declare limits instead of teaching them by refusal. The 1,024
-buffered-write ceiling, the membership-batch bound, and the
-outbound-actions codegen gate should be rows in the capability/
-introspection surfaces that already exist (LLP 0010 §Capability Reports;
-the guide's capability index per LLP 0061), queryable by agents before
-they design against them, assertable by acceptance, and — for the
-codegen-time cases like `SNAPBACK_OUTBOUND_ACTIONS` — checked at
-generation with a diagnostic that names the missing grant rather than
-failing generation obscurely. This extends Snapback's honest-nonclaim
-posture (LLP 0115 governing constraint 2) from capabilities to
-quantitative envelopes. Cheap, incremental, and independent of the
-runtime options above.
+### Option 7 — Runtime-limit discoverability as a product surface
 
-### Option 6 — The first hour as an acceptance-tested artifact
+Declare limits instead of teaching them by refusal — noting that the
+diary evidence actually contains three different problem classes with
+different declaration surfaces and remediation paths:
+
+1. **Quantitative ceilings** — the 1,024 buffered-write ceiling surfaced
+   mid-acceptance (Diary 0029). Belongs in the capability/introspection
+   surfaces that already exist (LLP 0010 §Capability Reports; the
+   guide's capability index per LLP 0061) as queryable numbers,
+   assertable by acceptance.
+2. **Unsupported operation shapes** — one membership command per
+   mutation, discovered as `SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED` at
+   runtime (Diary 0031). A shape restriction, not a number: it belongs
+   in the capability index and the authoring guide as a stated contract
+   of the mutation surface.
+3. **Phase/configuration prerequisites** — `SNAPBACK_OUTBOUND_ACTIONS=1`
+   required *at codegen time*, discovered only after a failed generation
+   despite being documented as a runtime grant (Diaries 0030/0031).
+   Neither a ceiling nor a shape: the fix is a codegen-time check that
+   names the missing grant rather than failing generation obscurely.
+
+All three extend Snapback's honest-nonclaim posture (LLP 0115 governing
+constraint 2) from capabilities to envelopes. Each rides an existing
+surface, so the cost is *plausibly* small — but that is a hypothesis,
+not analysis: canonical ownership, generated-introspection
+compatibility, and drift enforcement between report, index, and guide
+are exactly what OQ5 leaves open. Independent of the runtime options
+above.
+
+### Option 8 — The first hour as an acceptance-tested artifact
 
 Make "fresh machine to first armed JS invocation" a CI job that is
 literally the first hour: clean environment, install from the published
@@ -338,19 +529,55 @@ gate runs this end-to-end path; each tool proves its own slice and the
 seams between slices are where both 2026-07-30 and Diary 0022 lived.
 Prior art: LLP 0041's comparator receipt already runs a real product
 fixture with semantic checks, and CV-1's published-channel harness mode
-is the natural carrier. The adopter variant is only meaningful once
+is the natural carrier; the nearest existing runner shape is
+`.github/workflows/public-package-proof.yml` (LLP 0041's GitHub-hosted
+cold-proof matrix), which sharpens the cost estimate beyond "macOS
+runners and wall-clock." The adopter variant is only meaningful once
 CV-1 lands (a checkout-based job proves contributor experience, not
-adopter experience). Cost is real — macOS runners and wall-clock — and
-the job's value is exactly proportional to how faithfully it refuses
-shortcuts like reusing a warm target directory.
+adopter experience). Cost is real, and the job's value is exactly
+proportional to how faithfully it refuses shortcuts like reusing a warm
+target directory.
+
+### The no-evidence-regression check (LLP 0115 constraint 1)
+
+LLP 0115's first governing constraint — no work item may improve
+ergonomics by weakening an evidence boundary — applied per option:
+
+- **Option 1 (receipts):** evidence-adding. The regression risk is a
+  trusted-but-stale receipt becoming a new false green; CV-3's
+  invalidation semantics are the guard, and receipt custody, tampering,
+  and the qualification-to-use race (OQ8) must be part of the design.
+- **Option 2 (server-side):** evidence-adding at the serving boundary.
+  It must not *replace* invocation-time fail-closed semantics, and a
+  boot-time verdict must not be trusted across post-boot drift.
+- **Option 3 (prebuilt):** regression-prone if the packaged pair is
+  trusted *because it is packaged* — without production-boundary VM
+  qualification and attestation custody it converts a loud local
+  incident into a quietly shipped one. With them, evidence-neutral or
+  better for adopters.
+- **Option 4 (content-addressed):** evidence-adding for artifact
+  identity; regression-prone only if digest identity is read as
+  behavioral proof, which it is not.
+- **Option 5 (static):** removes the loader-drift evidence problem for
+  the served binary but must not retire build-boundary qualification —
+  link success is not behavioral proof.
+- **Option 6 (engine strategy):** any replacement must preserve the
+  fail-closed checkpoint evidence exactly; a faster or better-packaged
+  engine with weaker settlement semantics is a regression by
+  definition.
+- **Options 7–8:** purely evidence-adding (declared envelopes; an
+  end-to-end first-hour proof with a required failing fixture).
 
 ## Findings
 
 1. **The Convex advantage here is distribution shape, not engine or
-   diagnostics.** Engine and server ship as one sealed artifact, so the
-   binary/framework coherence class is unrepresentable. Diary evidence:
-   all seven final Convex arms started cleanly; the sole recorded local
-   edge is beta anonymous-mode port coordination (Diary 0039).
+   diagnostics.** Diary-supported core: the tested workflow exposed no
+   user-managed engine/server coherence boundary — all seven final
+   Convex arms started cleanly, and the sole recorded local edge is beta
+   anonymous-mode port coordination (Diary 0039). The stronger "one
+   sealed engine+server artifact" account is labeled inference (§What
+   Convex does); verifying it needs an authoritative Convex source or
+   inspection of the downloaded artifact's closure.
 2. **Snapback's incident is a two-artifact coherence failure measured by
    the wrong gates.** Presence, linkability, launchability, and identity
    were all green; none executes JavaScript. The failing contract — the
@@ -364,43 +591,75 @@ shortcuts like reusing a warm target directory.
    Diary 0032's rejection-shaped check "passed" under VM-creation
    failure. Harness rungs must prove armed readiness before rejection
    predicates count as evidence.
-5. **CV-2/CV-3 are necessary but detection-shaped.** Receipts and digest
-   coherence make the state loud; only distribution/link-surface changes
-   (options 2/3) remove the state-manufacturing process.
+5. **CV-2/CV-3 carry detection *and* the known ordering fix — but not
+   the whole class.** CV-2's work text owns the prevention half: a
+   framework refresh must invalidate or relink the final binary before
+   qualification runs (LLP 0115), which removes the incident's known
+   manufacturing mechanism. Distribution/link-surface changes (options
+   3–5) remove whole manufacturing processes including out-of-band
+   refresh paths; none of them proves behavioral compatibility by
+   construction, so qualification keeps a job in every option.
 6. **Static linking is an already-supported build mode**
    (`HERMES_LINK_STATIC` in `vendor/ibex/build.rs`), unused locally; the
    dynamic default is mobile-packaging lineage plus the sibling-checkout
    artifact-reuse model, whose swappability is the incident's enabling
    degree of freedom.
-7. **Sealed per-platform runtime packages already exist**
-   (`packages/snapback-runtime-darwin-arm64`, `-linux-x64`); option 2 is
-   largely a promotion/adoption problem riding CV-1, with attestation
-   currently Linux-only.
-8. **The ex_hermes ABI is narrow; the checkpoint semantics are the
-   captivity point.** No-eval, time-limits, and microtask-checkpoint
-   rejection detection are the three contracts any engine strategy must
-   preserve; the declarative/live/ephemeral lanes never touch the VM.
-9. **Limit discoverability is a separate, cheap win.** Diaries 0029–0031
-   show a recurring learn-by-refusal pattern with an existing
-   capability/introspection surface ready to absorb the declarations.
+7. **Co-packaged per-platform runtime packages already exist**
+   (`packages/snapback-runtime-darwin-arm64`, `-linux-x64`) — but as
+   assembly closures whose tests prove launch and identity, never VM
+   creation; option 3 is a promotion/adoption problem riding CV-1 *plus*
+   a qualification-at-assembly obligation, with attestation currently
+   Linux-only.
+8. **The ex_hermes ABI is narrow; captivity is wider than the ABI.**
+   No-eval, time-limits, and microtask-checkpoint rejection detection
+   are the contracts any engine strategy must preserve, and the
+   checkpoint is the deepest captivity point — but the replacement
+   boundary also includes Ibex's Hermes-specific native host surface,
+   partially bounded in practice by the in-tree Workerd/V8 twin
+   (option 6). The declarative (Rust-evaluated) query/live-query paths
+   and the ephemeral lane never touch the VM; JS live queries
+   (`defineJsLiveQuery`) do, exactly like every other JS handler.
+9. **Limit discoverability is a separate win in three classes.**
+   Diaries 0029–0031 show a recurring learn-by-refusal pattern across
+   quantitative ceilings, unsupported operation shapes, and
+   phase/configuration prerequisites, with existing capability/
+   introspection surfaces ready to absorb the declarations; the cost is
+   plausibly small but unquantified (option 7).
 10. **No current gate walks the whole first hour.** Each triad tool
     proves a slice; both major incidents (0022, 0032–0038) lived in the
     seams between slices.
+11. **Nothing witnesses readiness at the serving boundary.** `/health`
+    carries build identity and capability presence only (ENG-22798;
+    `ibex_available` is a presence flag), no layer of the stack creates
+    a VM before the first invocation, and the coded invocation error
+    omits the native refusal reason — which is why the incident served
+    green health while JS-dead, and why diagnosis needed inherited
+    stderr (option 2).
 
 ## Confidence
 
 - **High:** the incident mechanism, timeline, and tool behaviors — read
   directly from six diaries, the issue's code trace, and the scripts
   (`bootstrap-ibex-runtime`, `ibex-doctor`, `runtime-link-smoke.mjs`,
-  `runtime-recovery.mjs`, `build.rs`, `src/runtime.rs`).
+  `runtime-recovery.mjs`, `build.rs`, `src/runtime.rs`). Also
+  code-verified in this revision: the JS-live-query execution path
+  (`define.mjs` → `FunctionKind::LiveQuery` → `RuntimeGuard::create`),
+  the Workerd/V8 twin's existence and non-action scope
+  (`src/workerd_exec.rs`), the runtime packages' assembly and test
+  behavior (prepare/test scripts), the `/health` payload contents
+  (`src/server.rs`), and Ibex's portable-engine selector machinery
+  (`vendor/ibex/build.rs`, `build_support/`).
 - **Medium:** the `rsync -a` mtime root-cause hypothesis (explicitly
   unconfirmed; CV-2 owns verification). Static-link viability — the
   build mode exists but the macOS static bundle supply
   (`build-hermes.sh --release`) is unexercised in Snapback's loop.
-  The wasm-engine analysis (no spike behind it).
+  The wasm-engine analysis (no spike behind it). Whether Ibex's
+  portable-engine selector is adoptable without its promotion/preflight
+  apparatus (OQ7, unassessed).
 - **Low / labeled background:** Convex distribution internals beyond
-  what the diaries observed; treated as general background above and
-  never as diary evidence.
+  what the diaries observed — the sealed single-artifact account is
+  inference; treated as labeled background above and never as diary
+  evidence.
 
 ## Open questions
 
@@ -408,20 +667,36 @@ shortcuts like reusing a warm target directory.
    does fixing it (copy without source mtimes, or digest-based rerun
    detection) belong inside CV-2 or in the bootstrap regardless?
 2. Where is the adopter/contributor lane split declared — does LLP 0041
-   own "adopters get only sealed runtime packages" while LLP 0010 keeps
-   the source-tree bootstrap contract?
-3. Should packaged runtime artifacts move to static linking (option 3)
-   while the contributor lane stays dynamic under receipts, and who
-   ratifies that build-policy change?
+   own "adopters get only co-packaged, qualified runtime packages" while
+   LLP 0010 keeps the source-tree bootstrap contract?
+3. Should packaged runtime artifacts move to static linking (option 5)
+   while the contributor lane stays dynamic under receipts (option 1) or
+   content addressing (option 4), and who ratifies that build-policy
+   change?
 4. Could the framework self-describe its behavioral ABI (a versioned
    checkpoint-contract stamp readable before VM creation) as a cheaper
    coherence check than digest binding, or is that just a second thing
-   to keep coherent?
-5. Where do quantitative limits live canonically — capability report,
-   introspection, guide capability index — and what keeps the three from
-   drifting?
+   to keep coherent? If pursued, who reads it — bootstrap, doctor, or
+   the server at boot (option 2)?
+5. Where do quantitative ceilings, unsupported operation shapes, and
+   phase/configuration prerequisites live canonically — capability
+   report, introspection, guide capability index — and what keeps the
+   three surfaces from drifting?
 6. What does the first-hour CI job cost on macOS runners, and does it
    gate merges or run as a scheduled canary?
+7. Can Snapback adopt Ibex's content-addressed portable-engine selector
+   directly, or is it bound to upstream promotion/preflight
+   infrastructure (preflight receipt, nonce, `RUSTC_WRAPPER`, cargo
+   target map, promotion admission) unsuitable for the ordinary
+   contributor lane?
+8. Which boundary issues the authoritative readiness evidence — engine
+   production, binary link, package assembly, installation, first
+   launch, serve time, or a composition — and how is qualification bound
+   to the mapped engine object rather than to bytes read from a pathname
+   just before use (TOCTOU)?
+9. Is the strategic standard "incoherence impossible," "incoherence
+   fails before serving," or a layered combination — and which options
+   are graded against which standard?
 
 ## Relationship to LLP 0115 and owning documents
 
@@ -432,15 +707,20 @@ option 1 and deliberately explores the layer above them. LLP 0010 owns
 the bootstrap contract, the `SNAPBACK_*` diagnostic registry, and the
 coming CV-2 amendment; its dated 2026-07-30 note already records the
 standing facts. LLP 0030 owns server-process ownership and the resolver
-ladder; LLP 0031 owns `/health` binary identity (and CV-15's `unpinned`
-wording). LLP 0041 owns packaging and the runtime-package closure that
-option 2 would promote; LLP 0122 (series sibling) covers installed-
-product coherence, where the single-binary option composes with options
-2/3. LLP 0074 frames the strategic bar — "ordinary authors should not
-need to know that Cargo, Ibex, Hermes, sibling checkouts, runtime
-packages, ready files, or internal artifact aliases exist" — which is
-the sentence this document's option space exists to make true. Any
-decision arising from options 2–6 should land in those owners (or a new
-owned Spec), not here; per LLP 0115's watch items, Convex's anonymous
-local mode maturing out of beta would erase its one remaining local edge
-and raise the bar for all of them.
+ladder — and would own option 2's refuse-vs-degraded lifecycle
+semantics. LLP 0031 owns `/health` binary identity and defines the
+reuse-verdict vocabulary (`verified`/`unpinned`/…) — and would own
+option 2's readiness block; the CV-15 `unpinned` wording fix itself sits
+with the 0010 harness per LLP 0115's status board. LLP 0041 owns
+packaging and the runtime-package closure that option 3 would promote;
+LLP 0048 owns the Workerd/V8 twin that option 6 uses as prior art;
+LLP 0122 (series sibling) covers installed-product coherence, where the
+single-binary option composes with options 3/5. LLP 0074 frames the
+strategic bar — "ordinary authors should not need to know that Cargo,
+Ibex, Hermes, sibling checkouts, runtime packages, ready files, or
+internal artifact aliases exist" — which is the sentence this document's
+option space exists to make true. Any decision arising from options 2–8
+should land in those owners (or a new owned Spec), not here; per
+LLP 0115's watch items, Convex's anonymous local mode maturing out of
+beta would erase its one remaining local edge and raise the bar for all
+of them.

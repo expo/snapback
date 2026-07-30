@@ -5,8 +5,25 @@
 **Systems:** Developer experience, Packaging, Tooling, Client integration, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:**
-**Related:** LLP 0041, LLP 0062, LLP 0074, LLP 0111, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0123, Diary 0022, Diary 0027, Diary 0028, Diary 0031, Diary 0038, Diary 0039
+**Revised:** 2026-07-30 (v0.2, round-1 dual-family review corrections —
+verbatim reviews in
+`reviews/0122-installed-product-coherence-and-packaging.fable.md` and
+`reviews/0122-installed-product-coherence-and-packaging.codex.md`; all 13
+concerns verified against the tree, 13 applied, 0 rejected: the
+guide-dialect diagnosis reframed as source-corpus/page-composition rather
+than a structural limit of LLP 0061's mechanism; a per-option
+no-evidence-regression analysis added against 0115's governing constraint
+1, with the admin client's privileged-authority surface and the helpers'
+checkout entanglement decomposed against current code; naming-transition
+paths added as Option 7 with the ledger/`latest`-continuity interaction;
+the artifact-gap blocking claim split (any arm vs. Dispatch vs. full CV-1
+exit); Option 1/Option 2 framing conditioned on current owners; the
+empirical agenda closed into §Empirical questions; the client declaration
+enumeration corrected to five declared subpaths; the 0041 tenth-package
+paraphrase requoted verbatim; the `templates/` path qualified; Diary 0029
+added to Related; the `ex_hermes_create_no_eval()` attribution split
+between Diary 0038's incident and 0115 CV-2/Diary 0039's symbol name.)
+**Related:** LLP 0041, LLP 0062, LLP 0074, LLP 0111, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0123, Diary 0022, Diary 0027, Diary 0028, Diary 0029, Diary 0031, Diary 0038, Diary 0039
 
 ## Summary
 
@@ -81,8 +98,9 @@ and `snapback-cli`. Four sit outside it: `snapback-admin-client` is
 `"private": true` and unversioned, consumed in-repo and served at
 `/_snapback/admin/client.mjs`; `snapback-harness` is a directory of workerd
 runtime assets, not an npm package at all; `snapback-hosted-supervisor` is
-image-bound by design (0041: "not an unlisted tenth registry package"); and
-`snapback-publication-authority` is internal release tooling.
+image-bound by design (0041: "not a tenth public package in this
+closure"); and `snapback-publication-authority` is internal release
+tooling.
 
 **Publication state (per LLP 0041 headers, corrected in 0115 v0.3).** The
 eight-package `0.1.0` closure has been public under `latest` since 2026-07-26,
@@ -95,21 +113,29 @@ machine — leases, propagation barriers, dependency-first CLI-root-last
 promotion. Publication engineering is not the bottleneck; it is arguably the
 most hardened subsystem in this space.
 
-**What consumed it: nothing.** All seven Snapback rerun arms import codegen,
-clients, and the acceptance helpers through paths into the sibling Snapback
-checkout and invoke its binary directly; Dispatch's acceptance additionally
-imports the admin client for authenticated cron inspection (Diary 0039 P0-1;
-Diary 0038 §External consumption; scope corrected by 0115 v0.3 — seven arms,
-and the admin client is Dispatch-specific). Diary 0038's phrasing is exact:
-"External consumption is still a source-checkout exercise."
+**What the flagship rerun consumed: none of the public closure.** All
+seven Snapback rerun arms import codegen, clients, and the acceptance
+helpers through paths into the sibling Snapback checkout and invoke its
+binary directly; Dispatch's acceptance additionally imports the admin
+client for authenticated cron inspection (Diary 0039 P0-1; Diary 0038
+§External consumption; scope corrected by 0115 v0.3 — seven arms, and the
+admin client is Dispatch-specific). Diary 0038's phrasing is exact:
+"External consumption is still a source-checkout exercise." The scope of
+the claim matters: the staged package confirmations below did consume
+package-only artifacts; the flagship matrix did not.
 
 **The two named artifact gaps (LLP 0115 CV-1).** (1) The admin client is
 inventoried by 0041 but excluded from the closure. (2) The acceptance test
 helpers every arm imports — `demos/_kit/server-process.mjs` and
 `demos/_kit/harness.mjs` (server lifecycle, vacuous-pass-guarded checks) —
-are published by no document. Until both custody decisions are made, a clean
-external repository cannot run a workout-arm-grade acceptance suite from
-published artifacts (0041 §Open Questions, 2026-07-30 entry).
+are published by no document. Their blocking scopes differ. The helper gap
+blocks *any* external workout arm, since every arm's acceptance imports
+the helpers. The admin-client gap blocks Dispatch specifically: 0115
+CV-1's exit lets the first external arm be Campfire or Streak Lab, with
+"the admin-client proof rides Dispatch or a separate fixture." Closing
+CV-1 as written needs both custody decisions (0041 §Open Questions,
+2026-07-30 entry); a first published-artifacts arm needs only the helper
+decision.
 
 **The seams the Linux/package diaries recorded.** The 2026-07-29 staged
 `0.1.1-llp0102.1` confirmations (Diaries 0027, 0028, 0031) proved the
@@ -122,12 +148,13 @@ feeling like a product:
   tracked in `issues/20260729-external-package-lifecycle-gaps.md`.
   Spot-checked 2026-07-30: still unfixed on current main —
   `packages/snapback-client/package.json` maps `"./online": "./online.mjs"`
-  with no `types` condition and no `online.d.mts` exists (only
-  `index`, `search`, `external-store`, and `canonical-client-value` carry
-  `.d.mts` files; the `./rqs*` subpaths are in the same declarationless
-  state). `online.mjs` is a twelve-line re-export of declared symbols from
-  `index.mjs`, so the fix is one small declaration file plus an export-map
-  condition.
+  with no `types` condition and no `online.d.mts` exists (five subpaths
+  carry declarations — `.`, `./app-data`, `./canonical-client-value`,
+  `./external-store`, and `./search`; `./agent-authority`,
+  `./hosted-browser`, and the `./rqs*` subpaths share `./online`'s
+  declarationless state). `online.mjs` is a twelve-line re-export of
+  declared symbols from `index.mjs`, so the fix is one small declaration
+  file plus an export-map condition.
 - The first dry run under isolated HOME could not find Volta's Node until
   `VOLTA_HOME` was bound explicitly (Diary 0027).
 - A collaborative `0002` umask produced a group-writable startup carrier
@@ -152,19 +179,27 @@ feeling like a product:
 fixed and must not drive the option choice: the packaged CLI now dispatches
 `new`, `generate`, `dev` (with the `--client` arm), `doctor`, and `deploy`
 (`packages/snapback-cli/index.mjs`), closing Diary 0031's missing-`generate`
-complaint; `templates/` ships `react` and `todo-contract`; the packaged
-doctor executes a full disposable VM/bundle/query/mutation/live/shutdown
-slice; and manifest-only custody means committed generated bytes are now
-*smaller* than Convex's committed tree (Diary 0039 §Quantitative shape).
+complaint; `packages/snapback-cli/templates/` ships `react` and
+`todo-contract`; the packaged doctor executes a full disposable
+VM/bundle/query/mutation/live/shutdown slice; and manifest-only custody
+means committed generated bytes are now *smaller* than Convex's committed
+tree (Diary 0039 §Quantitative shape).
 
-**The guide speaks the checkout dialect.** The guide's own getting-started
-page (`guide/getting-started/your-first-backend.md`) teaches
+**The guide speaks the checkout dialect — by corpus choice, not by
+mechanism.** The guide's own getting-started page
+(`guide/getting-started/your-first-backend.md`) teaches
 `node packages/snapback-codegen/index.mjs myapp/snapback` and imports
 `defineSchema` from `'../../_kit/define.mjs'` — the source-checkout dialect
-— on the same page that mentions `snapback new my-app --template react`. The
-CI-verified snippet mechanism (LLP 0061) pins guide code to repo-resident
-demos, which structurally biases every page toward checkout-relative paths.
-An external reader is taught to be a monorepo resident.
+— on the same page that mentions `snapback new my-app --template react`.
+The cause is narrower than the symptom. LLP 0061's snippet checker accepts
+any CI-exercised source file — "a demo acceptance suite, package test, or
+proof script" (`guide/conventions.md`) — and the authoring-loop page
+already lists the packaged templates and a package test among its examples
+while teaching installed commands. The first-backend page's dialect is a
+source-corpus and page-composition choice: its transcluded snippets were
+all selected from the checkout-resident todo demo. The effect on an
+external reader is unchanged — they are taught to be a monorepo resident —
+but the repair is corpus recomposition, not an LLP 0061 amendment.
 
 ## How they differ, and why agents preferred Convex
 
@@ -191,11 +226,13 @@ repo. The packaged CLI has genuinely converged — the verbs exist now — but
 none of the flagship evidence (the matrix, the guide) routes through it yet.
 
 **3. One documentation surface.** Convex's docs are written in the installed
-dialect. Snapback's guide is CI-verified — a real advantage — but verified
-against checkout-resident demos, so its truth-anchoring mechanism currently
-*prevents* it from being written in the dialect an external user types. A
-coherence program that ships packages but leaves the guide teaching
-`../../_kit/define.mjs` has not shipped coherence.
+dialect. Snapback's guide is CI-verified — a real advantage — but its
+first-hour pages transclude from checkout-resident demos, so they teach
+the checkout dialect. That is corpus selection, not the mechanism:
+LLP 0061's checker accepts any CI-exercised source, and installed-dialect,
+package-fixture-anchored snippets already exist on the authoring-loop
+page. A coherence program that ships packages but leaves the guide
+teaching `../../_kit/define.mjs` has not shipped coherence.
 
 **4. Generated artifacts that feel owned by the app.** Convex's
 `_generated/` sits inside the app and is the entire consumption surface.
@@ -209,7 +246,9 @@ whole consumption story.
 binary behind the CLI and the diaries barely mention it. Snapback's native
 Hermes framework is a visible, load-bearing seam: bootstrap ordering, relink
 incidents, `ex_hermes_create_no_eval()` refusals after link-and-launch
-passed (Diary 0038; LLP 0115 CV-2/CV-3), Hermes-from-source fallbacks. An
+passed (the incident is Diary 0038's, phrased there as promise-rejection
+checkpoint tracking being unavailable; the symbol name is LLP 0115
+CV-2's and Diary 0039 P0-2's), Hermes-from-source fallbacks. An
 installed product hides its runtime unless the runtime has something to say.
 This facet is owned by the sibling research document LLP 0123
 (runtime-readiness and operational edges); it is listed here because users
@@ -246,15 +285,24 @@ fixture-level proofs 0041/0111/0114 already ran get workout-arm-scale
 confirmation. *What it does not buy:* naming unity (still `@ccheever/*`
 aliases), the guide dialect, or the runtime seam; and its exit is
 unsatisfiable until the admin-client/test-helper custody decisions (Option
-6) and the npm-gating decision (Option 5) are made. This is the necessary
-floor, not the whole answer.
+6) and the npm-gating decision (Option 5) are made. Under the current
+owners — 0041's closure architecture and 0115 CV-1's exit as written —
+this is the required floor, not the whole answer; a genuine single-binary
+or consolidation decision (Options 2–3) would amend those owners and could
+make parts of this exact nine-package/default-channel path transitional.
 
 ### Option 2 — Single-binary distribution
 
 One `snapback` binary embedding runtime, CLI, and codegen; `npx`-able via a
-thin wrapper package, or fetched directly. This is the strongest coherence
-story available: one artifact, one name, and the runtime disappears into the
-product the way Convex's local backend does.
+thin wrapper package, or fetched directly. On the naming and silent-runtime
+facets this is the strongest story on offer — one artifact, one name, and
+the runtime disappears into the product the way Convex's local backend
+does — but as an overall ranking that is a hypothesis until the facets it
+does not obviously help (TypeScript imports, editor types, browser
+delivery, attestation, runtime recovery) are compared. The intermediate
+shape — runtime fetched on demand behind the CLI, Convex's literal model —
+is LLP 0123 Option 2 (prebuilt hermetic runtime distribution) and is not
+re-analyzed here.
 
 *Tradeoffs:* codegen and the dev loop are JavaScript running under Node
 today; embedding them means either bundling a JS runtime for tooling into
@@ -296,10 +344,13 @@ React starter and packed cold-install gate are most of this; the option is
 to promote that fixture to the documented default entry point and write the
 guide's first hour against it.
 
-*Tradeoffs:* this is how Convex, Next, and Expo actually deliver their
-first-hour coherence, and it gives the guide an installed-dialect corpus to
-verify against (fixing facet 3 structurally). The risk is masking rather
-than fixing: a scaffold can hide incoherent seams that then resurface at
+*Tradeoffs:* scaffold-first onboarding is the delivery model Convex, Next,
+and Expo use for their first hour (general industry background, not
+diary-verified), and it enlarges the installed-dialect corpus the guide
+can verify against — though facet 3 does not require it: LLP 0061's
+mechanism already accepts the existing packed fixtures as snippet
+sources. The risk is masking rather than fixing: a scaffold can hide
+incoherent seams that then resurface at
 the first non-scaffolded step; and a scaffold whose template drifted from
 the packages is worse than none. Mitigation exists in-house: the packed
 cold-install gates already exercise templates from tarballs. The create
@@ -334,26 +385,149 @@ the author's.
 
 Per artifact, three shapes each (0041 §Open Questions):
 
-- *Admin client:* (a) admit `@snapback/admin-client` to the closure as a
-  tenth package — clean but grows the public API surface and its
-  compatibility promise; (b) fold it into `@snapback/client` or the CLI —
-  fewer names, but couples admin-protocol churn to the app-client version;
-  (c) endorse the served `/_snapback/admin/client.mjs` path for external
-  use — zero packaging cost and always version-matched to the running
-  server, but undiscoverable, untypeable without a published declaration,
-  and unusable offline.
-- *Test helpers (`demos/_kit/server-process.mjs`, `harness.mjs`):*
-  (a) publish a test-helper package — makes workout-grade acceptance a
-  supported external activity; (b) fold server lifecycle into the CLI
-  (a `snapback test`-adjacent verb) and keep assertion helpers thin;
-  (c) endorse vendoring, or the Codex pre-implementation review's variant:
-  keep the helpers a digest-pinned evaluation instrument, deliberately not
-  public API — honest about support cost, but then external users get no
-  paved acceptance story, which the diaries suggest agents specifically
-  want (the vacuous-pass guards were repeatedly praised).
+- *Admin client:* first, what it is. Not an ordinary client module but a
+  privileged authority surface: master admin tokens, console-credential
+  exchange, memory-only secret-read leases, and credential redaction
+  (`packages/snapback-admin-client/index.mjs`). The shapes: (a) admit
+  `@snapback/admin-client` to the closure as a tenth package — clean but
+  grows the public API surface and its compatibility promise; (b) fold it
+  into `@snapback/client` or the CLI — fewer names, but couples
+  admin-protocol churn to the app-client version and puts privileged
+  credential handling into the package that ordinary app dependency
+  graphs and browser bundles resolve, an authority-separation cost that
+  package count does not capture; (c) endorse the served
+  `/_snapback/admin/client.mjs` path for external use — zero packaging
+  cost and always version-matched to the running server, but
+  undiscoverable, untypeable without a published declaration, and
+  unavailable before the server is up (most admin operations need a
+  running server anyway; the sharper limit is tooling that wants types or
+  imports at build time). The implementation already describes the served
+  path as an external-tooling surface (`src/admin.rs`); the custody
+  decision is whether that implementation intent becomes a normatively
+  endorsed public contract.
+- *Test helpers (`demos/_kit/server-process.mjs`, `harness.mjs`):* first,
+  what they are. `server-process.mjs` is not a portable helper awaiting a
+  package name: it imports checkout scripts
+  (`scripts/lib/process-tree.mjs`, `scripts/runtime-link-smoke.mjs`),
+  checkout provenance readers, and CLI internals
+  (`packages/snapback-cli/runtime-recovery.mjs`), and carries a
+  `cargo run` source-tree fallback rung. A packaged acceptance surface
+  also already exists: `snapback accept comparator`, configured with
+  `defineComparatorProfile` from `@snapback/cli/comparator`, runs the
+  five-property comparator from an application root
+  (`guide/testing/acceptance.md` §The backend-comparator profile). The
+  shapes: (a) publish a test-helper package — makes workout-grade
+  acceptance a supported external activity, but hides a substantial
+  boundary decomposition (each checkout import above must be cut,
+  replaced, or published); (b) fold server lifecycle into the CLI — a
+  `snapback test`-adjacent verb or an extension of the existing
+  comparator surface, possibly with a portable lifecycle SDK beneath it —
+  and keep assertion helpers thin; (c) endorse vendoring, or the Codex
+  pre-implementation review's variant: keep the helpers a digest-pinned
+  evaluation instrument, deliberately not public API — honest about
+  support cost, but then external users get no paved acceptance story
+  beyond the comparator, and the diaries suggest agents specifically want
+  one (the vacuous-pass guards were repeatedly praised).
 
 The cross-cutting consideration: CV-1's exit needs *a* decision more than it
 needs any particular one.
+
+### Option 7 — Naming-transition paths (facet 1)
+
+Facet 1 is the one facet no option above targets directly; OQ3 names the
+decision. The analyzable paths:
+
+- *(a) Accept `@ccheever/snapback-*` as durable.* Zero evidence cost: the
+  byte-bound ledger, the clean-machine receipts, and `latest` continuity
+  all stay bound to the names they were minted for. The cost is the seam
+  itself — a personal scope as public brand, visible in every
+  package.json and install command — and the authoring/install split
+  persisting indefinitely.
+- *(b) Acquire the `@snapback` scope.* npm operates a public dispute
+  process for name and scope conflicts (general industry background; its
+  applicability to this specific squat is unprobed), and private
+  negotiation with the current holder is also possible. Outcome and
+  timeline are outside the project's control; the path can run in the
+  background while (a) holds.
+- *(c) Secure a fresh unsquatted organization scope.* Available on demand
+  and organization-owned, but forks the public identity: the brand
+  becomes a third name that is neither the authoring identity nor the
+  current install identity.
+- *(d) An unscoped `snapback` or create-name for the front door only.*
+  Pairs with Options 3–4: one unscoped meta or scaffold name over the
+  scoped closure. Gated on the unrun registry probe (§Empirical
+  questions).
+
+The evidence interaction is the load-bearing part. 0041 designed the alias
+so the brand scope "may replace this public alias without changing
+authored imports" — import churn is solved. What a rename cannot inherit
+is history: the publication ledger and the two-platform clean-machine
+receipts bind `@ccheever/snapback-*` tarballs byte-for-byte, and new names
+start with empty version history and no `latest` continuity. Under
+LLP 0115's no-evidence-regression constraint, receipts describing packages
+users no longer install have regressed in force even though no byte
+changed, so a rename carries an obligation to re-run the public-proof
+suite under the new names (the ledger machinery is name-parametric, so
+re-proving is mechanical, but it is not free). Sequencing follows: a
+rename costs least while the receipt corpus is small, and every
+additional proof bound to the alias raises the price of moving. Which
+price to pay, and when, is OQ3's author decision.
+
+### Options against the no-evidence-regression constraint
+
+LLP 0115's first governing constraint — ergonomic work must not weaken an
+evidence boundary — was not applied option-by-option in v0.1; this
+subsection closes that gap. Dimensions evaluated: install/import
+coherence, authority and credential separation, exact version/runtime
+matching, package and binary provenance (ledger lineage), clean-machine
+proof, compatibility/version skew, offline and pre-launch behavior,
+browser bundle exposure, the workout-evidence-versus-supported-testing
+boundary, and required amendments to owning LLPs.
+
+- *Option 1 (finish CV-1):* evidence-neutral or evidence-positive on
+  every dimension — it exercises the existing ledger, receipts, and
+  clean-machine proofs rather than changing them. Its only evidence risk
+  is inherited from Option 6's custody choices. No owner amendments.
+- *Option 2 (single binary):* the heavy case. Per-package tarball
+  digests, platform-filtered optional runtime edges, and dependency-first
+  promotion collapse into one artifact lane — simpler to consume, coarser
+  to attest. Component digests, platform-runtime attribution, rollback
+  granularity, and candidate-to-promoted ledger lineage all need
+  re-derivation, and the two-platform clean-machine proof must re-run
+  against the new artifact. Amends 0041 and touches 0111/0113's
+  promotion machinery.
+- *Option 3 (meta-package):* near-neutral in its cheap form — a
+  meta-package over the unchanged closure adds one name and one export
+  map to the ledger without disturbing existing receipts. Each added
+  package is another surface that can ship a declaration gap (the
+  `online.d.mts` class), and the meta-package's dependency pins must not
+  blur exact-version matching. Amends 0041's closure enumeration.
+- *Option 4 (create-first onboarding):* evidence-neutral for the
+  packages; the risk is a template drifting from the packages it names,
+  which the packed cold-install gates (LLP 0114) already guard. A
+  scaffold that hides seams does not weaken evidence, but it can weaken
+  the diagnostic story if failures surface past the scaffold boundary.
+  No owner amendments beyond 0114.
+- *Option 5 (npm gating):* pure governance — it decides *when* evidence
+  is presented as `latest`, not what evidence exists. The regression risk
+  is advertising a `latest` whose hosted claims lag (0111's argument),
+  weighed against a candidate-tag-only install external users never
+  exercise (0074's argument). Either way the receipts themselves are
+  unchanged.
+- *Option 6 (custody):* for the admin client, authority separation
+  dominates (see the option's own analysis): fold-in shapes put
+  privileged credential handling in ordinary dependency graphs and
+  browser bundles; the tenth-package shape keeps separation but extends
+  the compatibility promise; the served shape keeps authority at the
+  server but gives up build-time types. For the helpers, the
+  workout-evidence boundary dominates: publishing them converts an
+  evaluation instrument into supported API, and the
+  digest-pinned-instrument variant exists precisely to keep workout
+  evidence from being reshaped by user-support pressure. Amends 0041
+  either way.
+- *Option 7 (naming):* see the option itself — the ledger and receipts
+  bind published names, so a rename is the one move here that can
+  silently orphan existing evidence if re-proof is skipped.
 
 ### Cheap moves under every option
 
@@ -366,6 +540,37 @@ hour in the installed dialect (adjacent to LLP 0115 CV-13). These are small,
 and the diaries suggest their coherence yield is disproportionate: an agent
 that hits TS7016 on the first import does not care that the publication
 state machine has Ed25519-signed leases.
+
+## Empirical questions
+
+The option analysis above leans on claims only probes or spikes can
+settle. This is the closed list; an option-space claim not grounded here
+or in the cited documents should be read as hypothesis.
+
+1. **Registry names.** Is unscoped `snapback` available or squatted? Is
+   `create-snapback-app` (or equivalent) available? What does the
+   `@snapback` holder situation actually permit? (Gates Options 3, 4, and
+   7d; one `npm view` sweep.)
+2. **Cold external install.** Commands and wall-clock time from an empty
+   directory to a first rendered row on a machine with no checkout —
+   LLP 0074's preregistered comparison is the designed instrument.
+3. **Typecheck and bundle.** Does a generated project typecheck strictly
+   and bundle for the browser using only published artifacts?
+4. **Declaration resolution.** Does every published subpath export
+   resolve with type declarations under the resolution modes external
+   apps use? (The `./online` class in §What Snapback does today.)
+5. **Single-binary feasibility.** Size, launch time, code signing, update
+   story, and Hermes-framework embedding on both supported tuples — the
+   joint spike with LLP 0123 that open question 5 proposes.
+6. **Provenance survival.** Which evidence properties survive a binary or
+   meta-package consolidation or a rename: component digests,
+   platform-runtime attribution, rollback granularity, candidate-ledger
+   lineage? (Partly desk-analyzable against 0041's ledger design; the
+   residue is empirical.)
+7. **Discoverability.** Can an agent with no source checkout find the
+   documented noninteractive path for each first-hour task — install,
+   scaffold, generate, run, accept — without source archaeology? (A
+   diary-style probe against the docs alone.)
 
 ## Findings
 
@@ -384,15 +589,20 @@ state machine has Ed25519-signed leases.
    silent runtime — and the nine-package closure addresses mainly the
    install facet.** The guide teaching `../../_kit/define.mjs` and the
    `@ccheever/*` alias seam persist after promotion completes.
-4. **Two named artifacts block workout-grade external acceptance and are
-   custody decisions, not engineering:** the private admin client and the
-   `demos/_kit` server/harness helpers (0041 §Open Questions; 0115 CV-1).
+4. **Two named artifacts gate CV-1's exit, with different blast radii.**
+   The `demos/_kit` server/harness helpers block any external workout arm;
+   the private admin client blocks Dispatch specifically — 0115 CV-1's
+   exit lets the first arm be Campfire or Streak Lab. Both need custody
+   decisions first, and the helper path additionally hides a real
+   checkout-decoupling engineering job (§Option 6) (0041 §Open Questions;
+   0115 CV-1).
 5. **The known small defects are still live on current main.** The
    `@snapback/client/online` declaration gap — found independently in three
    apps — remains unfixed as of 2026-07-30 (`"./online": "./online.mjs"`
-   with no `types` condition; no `online.d.mts`), and the `./rqs*` subpaths
-   share the pattern. The guide's first-backend page still teaches the
-   checkout dialect.
+   with no `types` condition; no `online.d.mts`), and the
+   `./agent-authority`, `./hosted-browser`, and `./rqs*` subpaths share
+   the pattern. The guide's first-backend page still teaches the checkout
+   dialect.
 6. **Several diary complaints are already fixed and must not drive the
    option choice:** the packaged CLI now owns `new`/`generate`/`dev`/
    `doctor`/`deploy`, templates exist, the packaged doctor runs a full
@@ -418,12 +628,11 @@ state machine has Ed25519-signed leases.
   behavior, `_generated/` custody) are consistent with the diaries but were
   not re-verified against current Convex releases; Convex's anonymous local
   mode is beta and its edges may move (0115 watch item).
-- **Medium-low:** the option tradeoff judgments. No registry probe was run
-  for a `create-snapback-app` or unscoped meta-package name; no
-  scaffold-to-first-row timing exists for the packaged path (LLP 0074's
-  preregistered comparison remains the instrument that would measure it);
-  and the single-binary option's feasibility is asserted from the known
-  framework layout, not a spike.
+- **Medium-low:** the option tradeoff judgments. §Empirical questions
+  closes the list of unrun probes behind them — registry names,
+  cold-install timing, typecheck/bundle success, declaration resolution,
+  single-binary feasibility, provenance survival, and discoverability —
+  and none of those probes has been run.
 
 ## Open questions
 
@@ -437,9 +646,11 @@ state machine has Ed25519-signed leases.
    an organization-owned scope be secured before coherence is marketed?
    0041 designed the alias to be swappable without import churn; the
    question is when, not whether it is possible.
-4. Should the guide's snippet-authority mechanism (LLP 0061) admit an
-   installed-dialect corpus — e.g., the packed starter fixtures — so pages
-   can be CI-verified in the dialect external users actually type?
+4. Should the guide's first-hour pages be recomposed around
+   installed-dialect snippet sources — e.g., the packed starter fixtures,
+   which LLP 0061's mechanism already accepts — and should installed-user
+   and repository-contributor command tracks be split? (The mechanism
+   needs no amendment; the corpus and page composition do.)
 5. Does the single-binary option warrant a joint spike with LLP 0123's
    runtime-readiness work, since both live on the same Hermes-framework
    seam?
@@ -457,8 +668,9 @@ sequencing and the channel-gating position that conflicts with LLP 0074's;
 LLP 0113 owns qualification/publication authority (and by design cannot mint
 stable maturity); LLP 0114 owns the React starter and its packed
 cold-install gate; LLP 0062 owns the generated app CLI; LLP 0061 owns the
-guide mechanism that question 4 would amend. Substantive design changes land
-in those documents, not here.
+guide snippet mechanism, under which question 4's corpus recomposition
+would land (no mechanism amendment appears required). Substantive design
+changes land in those documents, not here.
 
 This document is part of the Convex-parity research series:
 

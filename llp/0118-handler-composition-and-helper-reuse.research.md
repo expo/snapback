@@ -6,9 +6,33 @@
 generation, Runtime, Security
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:**
-**Related:** LLP 0108, LLP 0115, LLP 0116, LLP 0117, Diary 0022, Diary 0032,
-Diary 0033, Diary 0036, Diary 0039
+**Revised:** 2026-07-30 (v0.2, round-1 dual-family review corrections —
+reviews in `reviews/0118-handler-composition-and-helper-reuse.fable.md` and
+`reviews/0118-handler-composition-and-helper-reuse.codex.md`, both NOT
+READY; ten distinct concerns, all verified against the tree and applied,
+none refuted. Load-bearing: option 1's costs/risks, Finding 7, and open
+question 1 redone under the shipped VM lifecycle — LLP 0009 retired DK-4
+warm reuse on 2026-07-27 and `src/warm_vm.rs` ships a no-op pool, so the
+group-bundle trade is re-analyzed for fresh-per-invocation and for the
+conditional return of pooling; option 1a (same-file lexical helper closure)
+added as a staged slice — both motivating instances are same-file, so it can
+meet CV-7's exit alone; option 3 recast along admission-policy versus
+bundler-implementation axes with the definitions-resolver description
+corrected (esbuild-hosted fail-closed plugins, relative/`file:`/absolute
+specifiers, a two-entry Snapback-owned bare-specifier allowlist); option 4
+gains a hermetic lockfile-pinned package-closure variant as analysis; a
+pure-versus-capability-bearing helper-class axis added with the
+authority-expansion lane named; the CV-8/LLP 0120 dissolution parallel and
+the sub-operation-composition scope boundary added; the helper-pressure
+floor, "small and immediately landable," and "no diagnostic can see" claims
+reclassified as hypotheses or narrowed; Finding 9 refreshed — LLP 0115 v0.4
+already absorbed the Relay re-attribution, only LLP 0108 still owes it;
+Convex third-party and agent-behavior claims provenance-labeled. Reviewer
+suggestions applied where verified: exact 31-global count, Diary 0022 slug
+disambiguation, concrete marker shape. Not applied: the optional
+comparison-table suggestion, to keep the prose option analyses primary.)
+**Related:** LLP 0009, LLP 0108, LLP 0115, LLP 0116, LLP 0117, LLP 0120,
+Diary 0022, Diary 0032, Diary 0033, Diary 0036, Diary 0039
 
 ## Summary
 
@@ -26,9 +50,12 @@ indexed board reads between the view and summary queries.
 This is the deep-comparison companion to LLP 0115's CV-7, which sequences the
 work. It reconstructs both module models from primary evidence, verifies the
 Snapback contract in code, recovers the history that makes "just allow
-imports" a worse idea than it looks, and lays out seven option paths against
-LLP 0115's no-evidence-regression constraint and LLP 0108's invariants. It
-deliberately makes no final call; that belongs to the LLP 0108 follow-on.
+imports" a worse idea than it looks, and lays out eight option paths against
+LLP 0115's no-evidence-regression constraint, LLP 0108's invariants, and —
+as of v0.2 — the VM lifecycle that actually ships (LLP 0009 retired warm-VM
+reuse on 2026-07-27; every invocation evaluates its handler module fresh,
+which re-prices every bundling shape). It deliberately makes no final call;
+that belongs to the LLP 0108 follow-on.
 
 ## What Convex does
 
@@ -40,7 +67,12 @@ exactly this — shared business logic in plain TS modules (the "model"
 directory convention), thin exported query/mutation wrappers. At push time
 the CLI bundles the `convex/` directory (esbuild-based closure over the
 module graph) and deploys the bundle; argument and return types flow through
-TypeScript inference across those same imports.
+TypeScript inference across those same imports. Convex also exposes a second,
+function-level composition surface — calling one registered function from
+another (the `ctx.runQuery`/`ctx.runMutation` family) and packaged components
+— which is a different mechanism from helper imports; this document covers
+helper-level code sharing only and scopes operation-level composition out to
+LLP 0120 (see §Cross-front interactions below).
 
 Convex is not unconstrained: its default runtime is a deterministic
 V8-isolate environment where many Node built-ins are unavailable, and
@@ -85,7 +117,7 @@ graph."
 The shipped extractor (`packages/snapback-codegen/inline-handlers.mjs`)
 implements exactly that:
 
-- a closed `ALLOWED_GLOBALS` set (~32 standard built-ins); any other
+- a closed `ALLOWED_GLOBALS` set (31 standard built-ins); any other
   identifier not declared inside the handler expression refuses with
   `SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER` ("references identifiers outside
   its handler expression") — this is the refusal that forces duplication;
@@ -96,8 +128,9 @@ implements exactly that:
   violations refuse with `SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED`
   and `SNAPBACK_FUNCTION_HANDLER_FORM_INVALID`;
 - the handler expression is replaced in the definition-evaluation graph with a
-  strict-JSON marker (`sha256` over
-  `snapback:inline-handler-marker:v1\n{name}\n{canonicalAst}`), so executable
+  strict-JSON marker — concretely
+  `({__snapbackInlineHandlerMarker:"<sha256>"})`, the hash taken over
+  `snapback:inline-handler-marker:v1\n{name}\n{canonicalAst}` — so executable
   source never crosses the isolated evaluator's JSON boundary and is never
   reconstructed via `Function.prototype.toString()`;
 - each admitted operation is emitted as its own runtime module registering a
@@ -117,15 +150,44 @@ the runtime probes constructor-walk escapes (`Object.constructor.constructor`,
 `Reflect.apply(Function)`, `Reflect.construct(Function)`, the AsyncFunction
 constructor) before application source evaluates.
 
+The VM lifecycle those handlers run under is load-bearing for the option
+analysis below, and it changed three days before this document was first
+authored: LLP 0009 retired DK-4 warm-VM reuse on 2026-07-27 because current
+upstream Ibex binds evaluation, async-failure inspection, value release, and
+destruction to the creating OS thread while Snapback's blocking workers may
+change threads between invocations. `src/warm_vm.rs` now ships `WarmVmPool`
+as an explicit no-op (`enabled()` returns `false`), the capability manifest
+reports `vmLifecycle: "fresh-per-invocation"` (`src/manifest.rs`; the old
+`warm-pooled-reset` survives only as a recognized historical string), and the
+former four-VM pool bound lives in 0009's section marked "Historical /
+retired 2026-07-27." The hosted posture was always fresh per invocation, and
+the workerd conformance lane runs a fresh workerd process per invocation
+(LLP 0048), so no current execution profile retains warm module reuse.
+Reintroducing reuse is conditioned in 0009 on stable runtime-owner threads or
+a new upstream transfer contract. Every invocation therefore re-creates its
+VM and re-evaluates its handler module from source — per LLP 0035's
+decomposition, evaluation is roughly 45% of the ~3.9 ms fresh-invocation
+cost — which makes *bytes evaluated per invocation* a first-class cost axis
+for any bundling design.
+
 One nuance the diaries do not surface: Snapback is already two-tier.
 *Definition-time* modules (schema/functions files) go through a closed
-literal-relative module-graph resolver — bare specifiers, dynamic import, and
-CommonJS fail closed (`CODEGEN_AMBIGUOUS_IMPORT`,
-`CODEGEN_DYNAMIC_IMPORT_UNHASHABLE`, `CODEGEN_COMMONJS_LOADER_UNHASHABLE`)
-and every admitted file joins the attested identity. So validator-building
-helpers can be shared across files today; only *handler executable* code
-cannot. The admission-grade closed-graph machinery the bundling option needs
-is not hypothetical — a sibling of it ships on the definitions side.
+module-graph resolver that is esbuild-*hosted*: Snapback's admission rules
+run as fail-closed `onResolve`/`onLoad` plugins that seize every resolution
+decision (`packages/snapback-codegen/index.mjs`). Admitted specifiers are
+relative, `file:`, and absolute local paths; bare specifiers refuse
+(`CODEGEN_AMBIGUOUS_IMPORT`) except for a two-entry Snapback-owned allowlist
+(`DEFINITION_PACKAGE_IMPORTS`: `@snapback/codegen/define` and
+`…/standard-patterns`, mapped to local files); dynamic import and CommonJS
+fail closed (`CODEGEN_DYNAMIC_IMPORT_UNHASHABLE`,
+`CODEGEN_COMMONJS_LOADER_UNHASHABLE`); and every admitted file joins the
+attested identity. So validator-building helpers can be shared across files
+today; only *handler executable* code cannot. Two consequences for the
+option space: the admission-grade closed-graph machinery the bundling option
+needs is not hypothetical — a sibling of it ships on the definitions side —
+and that sibling already demonstrates that "Snapback-owned admission" and
+"stock bundler as transform host" are compatible, which matters for option 3
+below.
 
 ### Why it is this way
 
@@ -139,11 +201,20 @@ with a DK-4 benchmark gate. The three-round super-refine loop ended with both
 reviewer families at NOT READY, and the author narrowed v1 to self-contained
 expressions to avoid implementing reviewed-but-unclosed mechanisms. The design
 was demoted for review-loop timeout, not refuted — 0108's own 2026-07-30 note
-designates it "the blueprint for the follow-on."
+designates it "the blueprint for the follow-on." One of that blueprint's
+load-bearing assumptions has since expired, however: its warm-pool model and
+DK-4 benchmark gate target a VM lifecycle LLP 0009 retired on 2026-07-27
+(see the lifecycle paragraph above). Both 0108's blueprint note and LLP
+0115's CV-7 work text still speak in warm-pool terms and owe that absorption
+on their next revisions; this document analyzes the options under the
+lifecycle that actually ships.
 
 The properties the narrowing protects are the invariants any option must
-keep: a closed, content-addressed executable graph (a reviewer reading the
-authored declaration sees everything that executes); no
+keep: a closed, content-addressed executable graph — for self-contained v1
+that means a reviewer reading the authored declaration sees everything that
+executes; the durable form any admitted-graph option must preserve is
+complete, bounded, inspectable custody, where the reviewer follows an
+enumerated graph rather than a single declaration; no
 `Function.prototype.toString()` capture; no runtime inference of authority
 from handler behavior; no ambient checkout access from the executable path.
 
@@ -151,9 +222,10 @@ from handler behavior; no ambient checkout access from the executable path.
 
 Before inline v1, operations were declared in `functions.mjs` with
 `source: "handlers.mjs"` / `exportName` wiring into a separate handler module.
-Diary 0022 recorded the cost: "Declaring operations in `functions.mjs` and
-implementing them in `handlers.mjs` duplicated names, source/export wiring,
-and navigation."
+Diary 0022 (`0022-backend-bakeoff.diary.md`; the diary number collides with
+`0022-catalog-lens.diary.md`, so the slug matters) recorded the cost:
+"Declaring operations in `functions.mjs` and implementing them in
+`handlers.mjs` duplicated names, source/export wiring, and navigation."
 
 Two facts about that model matter for the option space. First, it *did* share
 helpers: all handlers lived in one module, so a top-level helper was visible
@@ -183,10 +255,15 @@ maintained twice in Relay Board.
 The deeper cost is not volume but drift risk. A calendar parser and its
 inverse must agree exactly between the query that renders streaks and the
 mutation that validates check-ins; a fix applied to one copy is a silent
-correctness bug with no diagnostic, because the two copies are independent
-ASTs with independent implementation hashes — nothing in the system knows
-they are meant to be the same function. And the seven matrix apps are small;
-helper pressure grows with app size, so the measured gap is a floor.
+correctness bug today, because the two copies are independent ASTs with
+independent implementation hashes and the current identity model records no
+intended equivalence between them. (A duplicate-detection diagnostic —
+option 5 — is buildable precisely because the canonical ASTs exist; none
+ships, so the drift is invisible *today*, not unseeable in principle.) And
+the seven matrix apps are small; it is a plausible expectation — not a
+diary-measured fact — that helper pressure grows with app size, which would
+make the measured gap a floor. That scaling claim is an empirical question
+(open question 6), not a finding.
 
 There is also an asymmetry of visible virtue. Convex's openness is felt
 immediately (write the helper once, import it, types flow); Snapback's
@@ -203,6 +280,30 @@ item that improves ergonomics by weakening an evidence boundary is out of
 scope") and LLP 0108's invariants (closed content-addressed graph, no
 `toString()` capture, no runtime inference, no ambient checkout access).
 
+**A cross-cutting axis: pure versus capability-bearing helpers.** The two
+motivating instances are not the same semantic class. Streak Lab's civil-date
+parser/inverse is pure value transformation — no `ctx`, no reads, no effects.
+Relay Board's duplicated logic is an indexed board *reader*: it receives the
+runtime context and performs declared storage reads. Sharing a pure helper
+moves bytes; sharing a `ctx`-receiving helper moves *capability-exercising
+code* between operations whose declared read sets, write sets, and runtime
+kinds may differ — and Snapback's no-inference invariant requires authority
+to keep deriving from each operation's declaration, never from what a shared
+helper's body happens to do. That opens a distinct risk lane: a helper
+admitted broadly could tempt a design where the helper's behavior, not the
+consuming declaration, effectively defines reach. The safe formulations are
+knowable in advance — pure-only sharing (no `ctx` parameter admitted);
+caller-ceiling-bound sharing (a helper's runtime accesses are checked against
+each *consumer's* declared reads/writes exactly as inline code is today, so a
+helper can never expand any operation's authority, only fail inside a
+narrower one); and kind-scoped sharing (query-only helpers cannot ride into
+actions and acquire egress). Each option below must state which class it
+admits; option 7 is pure-only by construction, and options 1, 1a, and 2 must
+choose. Which classes the first follow-on should admit is open question 7.
+Note the asymmetry of the evidence: satisfying *both* diary instances
+requires at least caller-ceiling-bound `ctx` helpers, while pure-only sharing
+satisfies Streak Lab alone.
+
 ### 1. Revive 0108's bounded static bundling (CV-7's designated lead)
 
 Implement the superseded section as specified: literal-relative-ESM-only
@@ -212,39 +313,122 @@ retained top-level constructs, capability rescan of final bundled bytes, and
 the marker-based three-graph transform.
 
 *Benefits.* Full generality — any app-specific helper is shareable in ordinary
-ESM syntax, which is the idiom Convex-trained agents already reach for. The
-invariants survive by construction: the graph stays closed and
-content-addressed per edge, admission stays static, and the definitions-side
-resolver proves the admission machinery is buildable here. The design is
-unusually mature for an unstarted item; most of the specification work is
-done.
+ESM syntax, the idiom Convex-trained agents can be expected to reach for (an
+expectation from training distribution; the diaries show agents asking for "a
+documented safe helper/import pattern," not which syntax they would try
+first). As specified, the invariants are preserved by design — the graph
+stays closed and content-addressed per edge and admission stays static — but
+the review loop that would have confirmed the construction closed ended dual
+NOT READY, so "preserved by design" is the specification's intent, not a
+confirmed property. The definitions-side resolver proves the admission
+machinery is buildable here, and the design is unusually mature for an
+unstarted item; most of the specification work is done.
 
 *Costs.* (a) A v2 implementation-hash format: the v1 hash carries no
 dependency graph (code-verified above), so the encoding, golden vectors, and
-every consumer of implementation identity change. (b) The group-bundle model:
-0108 specifies one bundle — and one warm-pool key — per original static graph
-to preserve LLP 0009's four-VM bound, which means one helper edit invalidates
+every consumer of implementation identity change. (b) The group-bundle model,
+if kept as specified: 0108 specifies one bundle — and one warm-pool key —
+per original static graph to preserve LLP 0009's four-VM pool bound, but
+both the pool and its bound were retired with DK-4 on 2026-07-27, so the
+model's original rationale is currently vacuous while its costs remain.
+The identity cost stands regardless of lifecycle: one helper edit invalidates
 the implementation identity of *every* co-resident operation, with churn
 consequences for review manifests and any expected-operation-style consumer.
-(c) The DK-4 benchmark gate (warm reuse and memory at 1/4/16/64-operation
-graphs) must pass before advertisement. (d) Every 2026-07-28
-adversarial-closure refusal — alias, destructuring, computed access — must be
-re-proved across module boundaries, where a helper file can now launder what a
-single expression could not (`export const c = obj.constructor`).
+And under the shipped fresh-per-invocation lifecycle the group bundle
+acquires a cost 0108's text never priced: every invocation of any member
+operation re-evaluates the *entire* co-resident graph — all operations' and
+all helpers' bytes — in its fresh VM, scaling the ~45%-of-invocation eval
+share with total application size rather than with the invoked operation's
+actual closure. (c) The DK-4 benchmark gate 0108 names (warm reuse and memory
+at 1/4/16/64-operation graphs) is retired, not pending: its warm-reuse
+criterion has no live referent. The follow-on must respecify the gate for the
+real lifecycle — per-invocation evaluation latency and memory as a function
+of bundle size and helper-duplication factor, against LLP 0035's ~3.9 ms
+fresh-invocation baseline. (d) Every 2026-07-28 adversarial-closure refusal —
+alias, destructuring, computed access — must be re-proved across module
+boundaries, where a helper file can now launder what a single expression
+could not (`export const c = obj.constructor`).
 
 *Risks.* The review loop already failed to converge on this once; the
-three-graph transform is the most intricate machinery in the codegen path. An
-execution-shape question worth deciding early: the spec's group-bundle model
-is not the only way to keep the pool bounded. A *resolve-and-splice* variant
-would resolve the same closed graph, then inline the admitted helper bytes
-into per-operation self-contained runtime modules — keeping the shipped
-one-module-per-operation runtime and warm-pool model untouched, giving precise
-per-operation invalidation (only operations that actually reach the changed
-helper re-hash), at the cost of duplicated bytes in generated artifacts. That
-trade moves duplication from the authored tier to the generated tier, which is
-exactly where LLP 0115's constraint 4 says volume is acceptable. It reopens
-0108's warm-pool-key question in the opposite direction from the group-bundle
-answer, so the follow-on must choose deliberately.
+three-graph transform is the most intricate machinery in the codegen path.
+The execution-shape question is really two separable choices — dependency
+*admission* shape (which graph is admitted) and runtime *emission* shape (how
+admitted code is packaged per invocation) — and the emission choice is
+lifecycle-sensitive. A *resolve-and-splice* variant would resolve the same
+closed graph, then inline the admitted helper bytes into per-operation
+self-contained runtime modules, keeping the shipped one-module-per-operation
+emission and giving precise per-operation invalidation (only operations that
+actually reach the changed helper re-hash), at the cost of duplicated bytes
+in generated artifacts. Under the shipped fresh-per-invocation lifecycle
+that variant dominates the group bundle on the runtime axis, not just the
+identity axis: each invocation evaluates exactly its own operation's closure
+(one copy of each helper it actually uses), which is never more — and for
+multi-operation apps is strictly less — than the group bundle's
+whole-graph re-evaluation. The honest cost accounting is two-tier: the
+duplicated helper *storage* lands in generated artifacts, the tier where LLP
+0115's constraint 4 explicitly tolerates volume, while the *evaluation* cost
+of any single invocation is the operation's own module size — a runtime-tier
+quantity constraint 4 does not govern and the respecified benchmark in cost
+(c) must measure. The group-bundle emission is only re-motivated in the
+conditional future where pooling returns (LLP 0009 conditions that on stable
+runtime-owner threads or a new upstream transfer contract): a pooled world
+wants few pool keys, and per-operation splice modules would mean one key per
+operation — the thrash 0108 originally designed against. So the follow-on's
+emission decision should be made with the lifecycle condition explicit:
+splice is the better fit for the runtime that ships today, and a later
+return of pooling would reopen — not silently reverse — the choice.
+
+### 1a. Same-file lexical helper closure (a staged slice of option 1)
+
+Between full bounded bundling and a novel declared primitive sits a distinct,
+materially smaller design this document's first draft missed: admit ordinary
+top-level function declarations and `const` helpers *in the same authored
+functions file*, statically validate them under the existing
+self-containment and adversarial rules, and splice each operation's reachable
+helpers into its per-operation runtime module. No resolver runs, no
+filesystem or path semantics enter identity, and no new idiom is taught —
+it is exactly the JavaScript an agent writes first (Diary 0033's "shared
+sibling reader helper" is this shape, and the diary records the guide
+steering the agent *away* from it, not the agent failing to think of it).
+0108's superseded text already gestures at the slice: handlers "may reference
+lexical constants, local helper functions, and admitted static ECMAScript
+imports" — this option takes the first two clauses and defers the third.
+
+*Benefits.* It restores precisely the legacy sharing unit — one file per app
+— whose loss the history section above identifies, minus the registry wiring
+Diary 0022 complained about. Both motivating instances are same-file
+(Streak Lab's query and mutation share one authored file; Relay Board's
+backend is "one file contains contract plus implementation" per Diary 0033),
+so CV-7's exit criterion — "Streak Lab's calendar helper written once and
+used by both its query and mutation" — is satisfiable by this slice alone;
+the exit as written requires a helper written once, not cross-file imports.
+The identity story is option-2-shaped under option-1 syntax: the v2 hash
+extension is a list of named helper-content hashes (no paths, no graph
+encoding), with exact per-operation invalidation. Emission stays
+one-module-per-operation, which is the right emission for the shipped
+fresh-per-invocation lifecycle (see option 1's risks).
+
+*Costs.* A real but bounded subset of option 1's mechanism: static
+reachability from each handler over top-level declarations (declaration
+order, cycles among helpers, temporal-dead-zone edges); the closed
+pure-initializer grammar for retained top-level `const`s; adversarial
+re-proof at file scope, because a sibling helper can launder what a single
+expression could not (`const c = obj.constructor` at top level); source-span
+bookkeeping through the splice; and the helper-class decision (the
+cross-cutting axis above — Relay's reader takes `ctx`, so meeting both diary
+instances needs at least caller-ceiling-bound `ctx` helpers even in this
+slice). TypeScript flow from helper into handler is the same joint design
+with LLP 0117 that options 1 and 2 need.
+
+*Risks.* Low relative to its siblings — it is a strict subset of option 1's
+admission problem with option 2's identity shape. The strategic risk is
+sequencing: if it ships first and satisfies the measured pressure, the
+multi-file mechanism may never earn its complexity — which is either a
+graceful stopping point or an under-build, depending on how helper pressure
+actually scales (open question 6). It also reframes this document's open
+question 1: "how much graph is needed at all" (same-file versus multi-file)
+is prior to "group-bundle versus splice," and this slice is the concrete
+form of the smaller answer.
 
 ### 2. Declared shared-helper cells
 
@@ -264,8 +448,12 @@ declaration is inspectable evidence: a reviewer sees which operations share
 which logic, which no import graph states directly.
 
 *Costs.* It is a proprietary composition primitive at the precise moment the
-parity program is about reducing proprietary surprise; Convex-trained agents
-will type `import` first and hit a refusal that must teach the alternative.
+parity program is about reducing proprietary surprise; the expectation (from
+training distribution, not a diary observation — the diaries record agents
+asking for a documented pattern and being steered by the guide, not their
+first-keystroke syntax) is that Convex-trained agents type `import` — or a
+plain sibling function, option 1a's shape — first and hit a refusal that
+must teach the alternative.
 Helper-to-helper references need a rule (a shallow explicit DAG, or flat-only
 to start). TypeScript flow from helper signature into handler inference (LLP
 0117's territory) needs real design. The authoring surface of LLP 0004 grows.
@@ -282,19 +470,33 @@ Convex's actual mechanism.
 
 *Analysis.* The capture variant is a direct invariant violation: serializing
 an evaluated function value *is* `Function.prototype.toString()` authority,
-which 0108 forbids in its opening summary. The stock-bundler variant avoids
-`toString` (it is source-level) but fails the closed-graph invariant a
-different way: resolution semantics belong to the bundler, not to Snapback's
-admission rules — bare specifiers, `node_modules`, conditional exports, and
-tree-shaking heuristics all decide what executes, and digesting whatever the
-bundler happened to read is post-hoc attestation, not admission. Refusals
-degrade from authored source spans to positions in a transformed bundle, and
-the bundler's own version becomes load-bearing identity.
+which 0108 forbids in its opening summary. The bundler variant needs a
+sharper cut than this document's first draft gave it, because "who decides
+what executes" and "whose binary performs the transform" are independent
+axes. The disqualifying configuration is *delegated resolution*: the
+bundler's own semantics — bare specifiers, `node_modules` lookup,
+conditional exports, tree-shaking heuristics — decide what executes, and
+digesting whatever it happened to read is post-hoc attestation, not
+admission; refusals degrade from authored source spans to positions in a
+transformed bundle. But a *controlled* configuration — Snapback-owned
+admission rules seizing every resolution decision through fail-closed
+resolver/loader plugins, with every admitted input recorded before the
+output is accepted — is not that, and it is not hypothetical: the shipped
+definitions-side resolver is exactly this shape (esbuild-hosted, Snapback
+plugins own all resolution; code-verified above). In the controlled
+configuration the bundler is an implementation detail of option 1 (or 1a),
+not a distinct policy; what it adds to option 1's cost sheet is
+toolchain-version pinning — the transform host's version and configuration
+join load-bearing identity — plus the stronger handler-tier initializer and
+capability rules the definitions side does not need.
 
-*Verdict as research.* This is what option 1 is the disciplined version of:
-Snapback-owned resolution with admission-grade rules versus delegated
-resolution with evidence bolted on after. It clarifies why CV-7 points at the
-former. Not viable under the invariants as stated.
+*Verdict as research.* Split the verdict along the real axis. Delegated
+resolution is not viable under the invariants as stated — that half remains
+the undisciplined shadow that clarifies why CV-7 points at Snapback-owned
+admission. A controlled stock transform under Snapback-owned resolution is
+viable in principle and already has a shipped sibling; whether the follow-on
+hosts its transform in esbuild or in Snapback's own splicer is an
+engineering choice inside option 1, not an option-level fork.
 
 ### 4. Open module imports, Convex-style
 
@@ -303,12 +505,14 @@ filesystem and `node_modules` provide; evidence moves to a digest of the final
 bundle plus a capability rescan of final bundled bytes, with the no-eval VM
 and runtime constructor-walk probes as the backstop.
 
-*Benefits.* Maximum familiarity; the entire diary complaint disappears,
-including for third-party pure libraries (date math, decimal arithmetic) that
-options 1 and 2 still exclude. Honestly stated, the runtime boundary already
-does much of the *security* work — the no-eval VM, denied globals, and probes
-run regardless of how the bytes were assembled — and a final-bundle
-capability rescan is a real, if blunt, admission gate.
+*Benefits.* Maximum familiarity; the entire diary complaint disappears, and —
+as general background, not diary evidence: the diaries record duplicated
+*first-party* helpers only, never a blocked third-party dependency —
+third-party pure libraries (date math, decimal arithmetic) that options 1,
+1a, and 2 still exclude become available. Honestly stated, the runtime
+boundary already does much of the *security* work — the no-eval VM, denied
+globals, and probes run regardless of how the bytes were assembled — and a
+final-bundle capability rescan is a real, if blunt, admission gate.
 
 *Costs.* What the static closure uniquely provides is not primarily runtime
 security; it is evidence. An open graph discards reviewability (the authored
@@ -318,25 +522,62 @@ unchanged source no longer regenerates byte-identically across machines), and
 the supply-chain boundary (a package update silently changes executable
 authority with no per-edge attestation). Refusals lose span precision.
 
-*Verdict as research.* This is the clearest candidate violation of LLP 0115's
-no-evidence-regression constraint — the ergonomic gain is real and the
-evidence loss is structural. The rescan-of-final-bundle model recovers a
-capability floor but not the identity, review, or supply-chain properties. If
-ever revisited, it should be an explicitly weaker opt-in profile with its own
-capability id and nonclaims, not a change to the default contract.
+*The hermetic variant, analyzed rather than excluded.* The costs above
+describe the *ambient* open-import design — whatever `node_modules` holds
+executes — and this document's first draft let that stand for the whole
+package space. It should not: a distinct design admits only
+lockfile-resolved, integrity-verified, size-bounded ESM package closures,
+recording package name/version, resolved export conditions, per-file
+digests, and toolchain identity, and still refusing undeclared ambient
+checkout state. That variant genuinely recovers deterministic regeneration
+(the lockfile, not machine state, fixes the bytes) and per-edge attestation
+(integrity hashes are exactly that). What it does not recover cheaply:
+reviewability at package scale (an admitted closure of a real date library
+is orders of magnitude more bytes than any first-party helper, and integrity
+attestation is not review); conditional-export resolution semantics, which
+Snapback must then own and pin; lockfile custody (the lockfile joins
+executable identity, so its format and the package manager producing it
+become load-bearing); source-map precision through third-party transforms;
+and the difference between "this hash was pinned" and "this dependency
+deserves authority" — the supply-chain question moves from mechanism to
+policy but does not disappear. Whether that complexity is worth buying — or
+whether vendoring-into-the-app (which reduces packages to option 1's
+app-relative files) is the honest answer for the rare third-party need — is
+a real open question (open question 8), not something the ambient argument
+settles.
+
+*Verdict as research.* The ambient form is the clearest candidate violation
+of LLP 0115's no-evidence-regression constraint — the ergonomic gain is real
+and the evidence loss is structural; the rescan-of-final-bundle model
+recovers a capability floor but not the identity, review, or supply-chain
+properties. If ever revisited, it should be an explicitly weaker opt-in
+profile with its own capability id and nonclaims, not a change to the
+default contract. The hermetic variant is a different design that this
+document can only bound, not dismiss: it survives the determinism and
+attestation objections, stands or falls on package-scale reviewability and
+resolution-semantics custody, and belongs in the follow-on's option set only
+if third-party helper pressure materializes in evidence the diaries do not
+yet contain.
 
 ### 5. Duplication as the paved answer, plus drift tooling
 
 Accept self-containment permanently; invest in making duplication safe rather
 than eliminating it. Codegen already computes a canonical AST per handler; a
-subtree-hashing pass could detect identical (and near-identical) function
-declarations across a backend's handlers and emit a diagnostic naming the
-copies — turning silent drift, the real hazard, into a visible one. The guide
-would document the copy-and-mark pattern.
+subtree-hashing pass could detect duplicated function declarations across a
+backend's handlers and emit a diagnostic naming the copies — turning silent
+drift, the real hazard, into a visible one. The guide would document the
+copy-and-mark pattern. The two detection grades must be priced separately:
+*exact*-duplicate detection is a plausible small increment on the existing
+`canonicalAst` output, while *near*-identical detection — renamed locals,
+divergence tolerance, false-positive policy, copy provenance — is a real
+research problem. "Small and immediately landable" is therefore a hypothesis
+about the exact-match grade only, unproven for the grade that would catch
+drift *after* it has begun, which is the grade the hazard actually calls
+for.
 
-*Benefits.* Zero invariant risk, zero new runtime or identity mechanism, small
-and immediately landable; directly targets the correctness hazard this
-document identifies as worse than the volume cost.
+*Benefits.* Zero invariant risk, zero new runtime or identity mechanism;
+directly targets the correctness hazard this document identifies as worse
+than the volume cost.
 
 *Costs.* It concedes the DX point entirely — authoring still writes the helper
 twice, and the diaries' comparison score does not move. Legitimately divergent
@@ -355,7 +596,7 @@ a permanent complement (drift detection remains useful even with sharing).
 Restore single-source-of-truth above the artifact model: helpers live in a
 template the author edits, and an expansion step (a codegen pre-pass or CLI
 `expand` command) splices them textually into each handler before extraction.
-The extractor, hash format, runtime, and warm pool never change.
+The extractor, hash format, runtime, and emission model never change.
 
 *Benefits.* The entire 0108 machinery is untouched: no v2 hash, no benchmark
 gate, no adversarial re-proof — each expanded handler is scanned as today.
@@ -391,6 +632,36 @@ first answer to "why can't I share my function."
 the set of helpers that need the heavier mechanism, and its pinning model is a
 rehearsal for option 2's helper-cell identity.
 
+### Cross-front interactions and a scope boundary
+
+Both motivating instances have dissolution paths that run through *other*
+parity fronts, and the urgency evidence for CV-7 must be read net of both —
+this document's first draft noticed only one. The Streak Lab instance is
+option 7's: a pinned civil-date stdlib removes the most-cited duplication
+without any graph mechanism (open question 4). The exactly parallel
+observation holds for Relay Board: LLP 0115 CV-8 and LLP 0120 name Relay's
+`boardView` (one parent + N declared child collections) and `boardSummary`
+(bounded grouped counts) as candidate declarative shapes — precisely the two
+operations whose duplicated indexed reads are this document's second primary
+evidence. If CV-8's declarative promotion lands, that duplication dissolves
+with no helper mechanism at all: the shared reader stops existing because
+the reads stop being imperative. Neither dissolution is committed, and
+helper pressure beyond the two named instances would survive both; but a
+follow-on that prices CV-7's L-size mechanism should know that its two
+headline exhibits each have a cheaper exit that also pays other dividends.
+
+A scope boundary this document owes explicitly: *sub-operation composition*
+— sharing logic by extracting it into a callable admitted operation and
+invoking it from another operation, the shape Convex exposes as the
+`ctx.runQuery` family and components, and which LLP 0120 discusses as
+composition of already-admitted bounded nodes — is deliberately **out of
+scope here**. It is an operation-granularity mechanism with its own
+authority, transaction, and evidence questions, owned by the relational
+composition front (LLP 0120 / CV-8). This document covers helper-granularity
+code sharing inside a single operation's implementation; if the 0108
+follow-on ever considers a callable-operation primitive, it should do so
+jointly with 0120's frame, not as an eighth option in this one.
+
 ## Findings
 
 1. The duplication is a designed consequence of a deliberate narrowing, not an
@@ -404,48 +675,93 @@ rehearsal for option 2's helper-cell identity.
    wiring and navigation, not the closed graph — so neither "revert" nor
    "open imports" follows from the history.
 3. Snapback is already two-tier: definition-time modules resolve through a
-   shipped closed literal-relative graph resolver with attested identity,
-   while handler executable code admits no graph at all. The admission
-   machinery option 1 needs has a working sibling in the same codebase.
+   shipped closed graph resolver with attested identity — esbuild-hosted,
+   with Snapback's fail-closed plugins owning every resolution decision,
+   admitting relative/`file:`/absolute local specifiers plus a two-entry
+   Snapback-owned bare-specifier allowlist — while handler executable code
+   admits no graph at all. The admission machinery option 1 needs has a
+   working sibling in the same codebase, and that sibling also proves
+   Snapback-owned admission can be hosted in a stock transform.
 4. Code-verified: the v1 implementation hash contains no dependency-graph
    field (`{form: 'inline', canonicalAst}` only). Any sharing mechanism that
    changes executable bytes is therefore a v2 hash format; option 1
-   (path-carrying graph encoding) and option 2 (explicit named helper-hash
-   edges) imply materially different v2 shapes.
+   (path-carrying graph encoding), option 1a (named helper-hash edges, no
+   paths), and option 2 (explicit declared helper-hash edges) imply
+   materially different v2 shapes.
 5. The authored-volume evidence is real but confounded (Streak Lab 345→389,
    Relay Board 148→224, Split Ledger 379→427, with verbose exact result
    contracts contributing alongside duplication), and the deeper cost is
-   drift, not lines: duplicated copies share no identity, so divergence is a
-   silent correctness bug no diagnostic can see.
+   drift, not lines: duplicated copies share no identity — the current
+   identity model records no intended equivalence, so divergence is silent
+   today. It is not unseeable in principle; option 5's detection diagnostic
+   is the unbuilt remedy, and its feasibility split (exact vs.
+   near-identical) is an empirical question.
 6. The runtime security backstop (no-eval VM, denied globals, constructor-walk
    probes) is independent of the static closure. The closure's distinctive
    contributions are evidence-tier — reviewability, bounded deterministic
    identity, refusal precision, the supply-chain boundary — which is why
    option 4 is an evidence regression even where arguably security-adequate.
-7. Option 1's headline hidden cost is group-bundle coupling: one warm-pool key
-   and one implementation-identity blast radius per source graph. A
-   resolve-and-splice execution shape avoids both by moving duplication into
-   generated artifacts — the tier where LLP 0115 explicitly tolerates volume —
-   at the cost of departing from the spec's group-bundle text.
+7. Option 1's group-bundle emission was designed for a VM lifecycle that no
+   longer ships: LLP 0009 retired DK-4 warm reuse on 2026-07-27, the pool is
+   a code-verified no-op (`src/warm_vm.rs`), and no current profile — local,
+   hosted, or workerd twin — retains warm module reuse. Under the real
+   fresh-per-invocation lifecycle the group bundle keeps its
+   implementation-identity blast radius (one helper edit re-hashes every
+   co-resident operation) and gains an unpriced runtime cost (every
+   invocation re-evaluates the whole co-resident graph), while its original
+   pool-key rationale is vacuous. Resolve-and-splice dominates it today on
+   both axes: per-invocation evaluation is bounded by the operation's own
+   closure, invalidation is exact, and the duplicated helper *storage* lands
+   in generated artifacts — the tier where LLP 0115 tolerates volume — while
+   the per-invocation evaluation cost is a runtime-tier quantity the
+   respecified benchmark must measure. Group-bundle emission is re-motivated
+   only if pooling returns under 0009's stated condition (stable
+   runtime-owner threads or a new upstream transfer contract). Both 0108's
+   blueprint note and 0115's CV-7 work text still speak in warm-pool terms
+   and owe this absorption.
 8. Options 5 (drift tooling) and 7 (pinned stdlib) are cheap complements that
-   neither meet CV-7's exit alone nor conflict with anything; option 3 is
-   research-useful mainly as the undisciplined shadow of option 1; option 6
-   relocates the problem rather than solving it.
-9. Attribution note: LLP 0115 CV-7 and LLP 0108's field-evidence section name
-   "Campfire's indexed-read helpers," but Diary 0034 (Campfire) records no
-   helper duplication; the primary-source instance is Relay Board (Diary
-   0033). Cosmetic for CV-7's argument, but it should ride its next revision.
+   neither meet CV-7's exit alone nor conflict with anything; option 3's
+   delegated-resolution form is research-useful mainly as the undisciplined
+   shadow of option 1, while its controlled form collapses into an
+   implementation choice inside option 1; option 6 relocates the problem
+   rather than solving it.
+9. Attribution note, updated at v0.2: earlier drafts of LLP 0115 CV-7 and
+   LLP 0108's field-evidence section named "Campfire's indexed-read
+   helpers," but Diary 0034 (Campfire) records no helper duplication; the
+   primary-source instance is Relay Board (Diary 0033). LLP 0115 v0.4 has
+   already absorbed the correction (crediting this document); only LLP 0108
+   (its Diary 0039 field-evidence section) still carries the misattribution
+   and owes it on its next revision.
+10. Both motivating duplication instances are same-file (Streak Lab's query
+    and mutation share one authored file; Relay Board's backend is one
+    schema/functions file), so the same-file lexical slice (option 1a) can
+    satisfy CV-7's exit criterion as written — "written once and used by
+    both" requires a helper written once, not cross-file imports — at a
+    fraction of option 1's mechanism. The graph-scope question (same-file
+    vs. multi-file) is therefore prior to the emission question (group vs.
+    splice) in the follow-on's decision order.
+11. The two instances differ in semantic class — Streak Lab's helper is
+    pure, Relay Board's receives `ctx` and performs declared reads — so a
+    pure-only sharing mechanism satisfies only one of them, and any
+    `ctx`-admitting mechanism must state how a shared helper is prevented
+    from expanding a consumer's declared authority (the caller-ceiling rule
+    is the natural invariant-preserving form).
 
 ## Confidence
 
-**Code-verified** (read in this repository at authoring time): the extractor's
-closed globals set, free-identifier and forbidden-syntax refusals, marker
-replacement, per-operation runtime module registration
-(`packages/snapback-codegen/inline-handlers.mjs`); the dependency-graph-free
-v1 implementation hash (`packages/snapback-codegen/index.mjs`); the
-definitions-side closed module-graph resolver and its refusal codes; the
-no-eval VM constructor and runtime constructor-walk probes
-(`src/runtime.rs`); LLP 0010's single-file legacy handler profile.
+**Code-verified** (read in this repository at authoring or revision time):
+the extractor's closed globals set (31 entries), free-identifier and
+forbidden-syntax refusals, marker replacement, per-operation runtime module
+registration (`packages/snapback-codegen/inline-handlers.mjs`); the
+dependency-graph-free v1 implementation hash
+(`packages/snapback-codegen/index.mjs`); the definitions-side closed
+module-graph resolver, its refusal codes, its esbuild-hosted fail-closed
+plugin structure, and the `DEFINITION_PACKAGE_IMPORTS` two-entry allowlist;
+the no-eval VM constructor and runtime constructor-walk probes
+(`src/runtime.rs`); the retired warm pool — `WarmVmPool` as a no-op
+(`src/warm_vm.rs`) with its `@ref` to LLP 0009's DK-4 retirement — and the
+manifest's `vmLifecycle: "fresh-per-invocation"` default (`src/manifest.rs`);
+LLP 0010's single-file legacy handler profile.
 
 **Diary-reported** (primary observational evidence, not independently rerun):
 all line/byte counts, the specific duplication instances, the comparative
@@ -454,22 +770,45 @@ scoring, and every quoted agent judgment (Diaries 0022, 0032, 0033, 0036,
 
 **General knowledge** (not re-verified against current Convex releases):
 Convex's esbuild-based push bundling, the model-directory helper convention,
-type inference across imports, and the default-isolate/`"use node"` runtime
-split. Directionally load-bearing for §What Convex does; any follow-on that
-depends on a specific Convex mechanism should re-verify it.
+type inference across imports, the default-isolate/`"use node"` runtime
+split, and the `ctx.runQuery`-family/components composition surface.
+Directionally load-bearing for §What Convex does; any follow-on that depends
+on a specific Convex mechanism should re-verify it.
+
+**Hypotheses and expectations** (labeled where they appear, gathered here):
+that helper pressure grows with app size (open question 6); that
+Convex-trained agents reach for `import` or a plain sibling helper first
+(the diaries record neither first-keystroke behavior nor a blocked
+third-party dependency); that third-party pure libraries are a real demand
+lane for option 4 (no diary evidence); and that exact-duplicate detection is
+a small increment while near-identical detection is not (option 5).
 
 ## Open questions
 
-1. **Group-bundle or resolve-and-splice?** 0108's superseded text specifies
-   one bundle per source graph; splicing per operation preserves the shipped
-   runtime and pool model with precise invalidation but duplicates bytes in
-   generated artifacts and departs from the reviewed text. This is the first
-   design decision the follow-on must make, and it determines the v2 hash
-   shape.
+1. **How much graph — then which emission?** The v0.2 revision reordered
+   this question. The *first* design decision is graph scope: same-file
+   lexical closure (option 1a) versus multi-file bounded imports (option 1),
+   because both motivating instances are same-file and the two scopes imply
+   different v2 hash shapes. The emission decision (group-bundle versus
+   resolve-and-splice) comes second and is lifecycle-sensitive: under the
+   shipped fresh-per-invocation lifecycle (LLP 0009's DK-4 retirement,
+   2026-07-27) splice dominates — evaluation bounded by the invoked
+   operation's own closure, exact invalidation — and 0108's group-bundle
+   text is re-motivated only if pooling returns under 0009's stated
+   condition (stable runtime-owner threads or a new upstream transfer
+   contract). The empirical question either emission must answer:
+   per-invocation evaluation latency and memory as a function of runtime
+   module size and helper-duplication factor, against LLP 0035's ~3.9 ms
+   fresh-invocation / ~45%-eval baseline.
 2. **Who is the composition surface for?** If the durable audience is agents
    with a guide in context, option 2's novel idiom may cost little; if human
-   Convex refugees matter, ordinary `import` syntax (option 1) is worth its
-   mechanism. The answer shifts the option ranking.
+   Convex refugees matter, ordinary syntax is worth its mechanism — and
+   option 1a supplies ordinary syntax (a plain sibling function) without
+   `import`, so the question is finer than import-versus-primitive. A
+   related open observation from Diary 0033: the *guide* steered the agent
+   away from a sibling helper; absent that steering, same-file helpers may
+   be the natural first idiom, which favors 1a on muscle-memory grounds.
+   The answer shifts the option ranking.
 3. **How does helper typing flow?** Sharing without TypeScript inference
    across the shared boundary recovers only half the Convex advantage; the
    interaction belongs to LLP 0117's type-flow analysis and should be designed
@@ -477,25 +816,57 @@ depends on a specific Convex mechanism should re-verify it.
 4. **Does the stdlib (option 7) precede or follow the general mechanism?** It
    is independently landable and removes the most-cited duplication instance
    (civil-date logic), which would change the urgency evidence under CV-7
-   before the heavy mechanism starts.
+   before the heavy mechanism starts. The same question now has a twin on
+   the other front: CV-8's declarative promotion (LLP 0120) would dissolve
+   the Relay Board instance the same way (§Cross-front interactions), so the
+   follow-on should price CV-7's mechanism against the possibility that
+   *both* headline instances dissolve through cheaper, independently
+   motivated work.
 5. **What does drift detection owe the interim?** If CV-7 is quarters away, a
    duplicate-subtree diagnostic (option 5) may be worth landing now — but
    CV-6's evidence says advisory severity will not change behavior, and the
    severity decision is already open as LLP 0115 OQ3.
+6. **Does helper pressure actually grow with app size?** The floor claim in
+   §How they differ is an expectation, not a measurement — the seven matrix
+   apps are small and the diaries record no size to helper-count
+   relationship. A larger app in a future rerun (or instrumenting duplicate
+   subtrees across existing demo backends) would turn this into data, and
+   its answer sizes both the urgency of CV-7 and the sufficiency of the
+   same-file slice.
+7. **Which helper classes does the first mechanism admit?** Pure-only,
+   caller-ceiling-bound `ctx` readers, mutation helpers, action/egress
+   helpers — each widening admits more of the diary evidence (Relay needs
+   `ctx` reads) and enlarges the authority-analysis surface (§the
+   cross-cutting axis). The follow-on must pick a cutline and state how the
+   chosen class provably cannot expand any consumer's declared authority.
+8. **Are hermetic lockfile-pinned package closures evaluated now, deferred,
+   or excluded as a product boundary?** Option 4's hermetic variant survives
+   the determinism and attestation objections but stands on package-scale
+   reviewability, resolution-semantics custody, and lockfile custody; no
+   diary evidence yet demands it, and vendoring reduces the known need to
+   option 1's app-relative files. This wants an explicit boundary decision
+   in the follow-on rather than silence.
 
 ## Relationship to LLP 0115 and owning documents
 
 LLP 0115's CV-7 sequences this work (Tranche C, size L) and already commits to
 option 1's frame — "revive and close those sections as the 0108 follow-on
 rather than designing from scratch" — with the exit criterion of Streak Lab's
-calendar helper written once. This document supports that lead while recording
-that the group-bundle execution shape is not forced by the invariants, that
-options 2 and 7 are viable complements or fallbacks with cleaner identity
-stories, and that options 5/7 have value regardless of the main mechanism.
-The normative owner remains LLP 0108: substantive design lands there (or in
-its named follow-on Spec), not here. The final call — including whether CV-7's
-L-size mechanism precedes or follows the cheaper complements — is the
-author's, and this document deliberately does not make it.
+calendar helper written once. This document supports that lead while
+recording four qualifications the follow-on inherits: the group-bundle
+execution shape is not forced by the invariants and its warm-pool rationale
+is currently vacuous (LLP 0009 retired DK-4 on 2026-07-27 — CV-7's work
+text and 0108's blueprint note both still phrase the trade in warm-pool
+terms and owe that absorption); CV-7's exit criterion is satisfiable by the
+same-file slice (option 1a) without any multi-file mechanism, which bears on
+its L sizing; options 2 and 7 are viable complements or fallbacks with
+cleaner identity stories, and options 5/7 have value regardless of the main
+mechanism; and both headline duplication instances have dissolution paths
+through other fronts (option 7 for Streak Lab, CV-8/LLP 0120 for Relay
+Board). The normative owner remains LLP 0108: substantive design lands there
+(or in its named follow-on Spec), not here. The final call — including
+whether CV-7's L-size mechanism precedes or follows the cheaper complements
+— is the author's, and this document deliberately does not make it.
 
 This is document three of the Convex-parity research series:
 

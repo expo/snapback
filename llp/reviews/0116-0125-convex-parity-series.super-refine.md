@@ -65,3 +65,63 @@ read):
 
 Verdicts and dispositions are appended below as reviews are actually
 received; no review is recorded by intent.
+
+### Round 1 results
+
+All eighteen reviews were received (nine Fable, nine Codex; artifacts in
+this directory). Verdicts: **Codex 0/9 READY; Fable 1/9 READY**
+(LLP 0121). Every NOT READY was narrow and resolvable within the bar.
+
+Nine verify-then-fix passes applied the findings; across roughly 120
+enumerated concerns, **none was refuted by verification** — every
+challenged claim that was checked against the tree or diaries confirmed
+the reviewer. Two reviewer paraphrases were themselves corrected during
+verification (Codex's three-way Convex cancellation rule is two-case;
+minor diary line-number drift in the 0124 review). Each target is now
+v0.2 with a house-style Revised note naming its two review artifacts.
+
+Notable resolutions decided by verification:
+
+- **LLP 0119:** the `HandlerPlan::SearchQuery` live-matcher arm is
+  unreachable through any valid subscription (manifest admits SearchQuery
+  only under `Query`; subscription requires `LiveQuery`), so "coarse live
+  search is mostly composition" was downgraded from finding to hypothesis
+  with an integration-blockers inventory.
+- **LLP 0118:** the Option-1 cost model rested on the retired warm-pool
+  lifecycle (`WarmVmPool` ships as a no-op); under fresh-per-invocation,
+  splice dominates group-bundle, and a same-file sharing option (1a) now
+  precedes the emission question.
+- **LLP 0123:** the "live paths never touch the VM" claim was false (JS
+  live queries reach `RuntimeGuard::create()`); two shipped-but-unnamed
+  options were added (Ibex's content-addressed dynamic linking; a
+  server-side boot-qualification lane).
+- **LLP 0117:** the CV-5 board mapping was honored by adding the typed
+  search-AST analysis to 0117 as a structured-input instance; the
+  TypeScript-baseline description was corrected (toolchain exists; the
+  gap is the untyped handler interior).
+- **LLP 0125:** the "fix held in the rerun" sentence cited a concurrency
+  check that never ran; restated in absence-of-regression form.
+
+Tier-2 documents (0119, 0120, 0121, 0124, 0125) have completed their
+approved single round; their reviewers' recommended next steps are
+recorded in the artifacts for the author's status adjudication.
+
+## Round 2 — 2026-07-30 (Tier 1 delta)
+
+Scope: 0117, 0118, 0122, 0123. Same-family delta reviews under the
+delta-review stopping rule: verify round-1 concerns resolved, review new
+text, do not re-litigate settled text.
+
+Delta instruction capsule SHA-256:
+`33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+
+Target SHA-256 vector (v0.2 content):
+
+- LLP 0117:
+  `f9a06a39126a6a37ee8c08d619daa13a1161a37bdda843081a1c49fe8d37d06e`
+- LLP 0118:
+  `3d2ad2b7d7153eb90115d33508454bbe3adf0835101dc1aecf465365a4092e4e`
+- LLP 0122:
+  `27390c8950fd22ca209a714a472da9159311b9868ad9362f4f2e37a1e66afec9`
+- LLP 0123:
+  `5724a474fcc22586eca5d16dda3a68340394a78a4d38bcb19236725c687a7192`

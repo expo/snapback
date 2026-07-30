@@ -1,0 +1,167 @@
+# LLP 0118 review — Codex family
+
+
+## Round 1 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, mutually blind
+**Target SHA-256:** `3e1e2ce6951490156dafca4ae8bf6034a6f70c78762b6dc8bb806b0aff625d97`
+**Instruction SHA-256:** `30c38e1a8f68e1684dc5373f8651842526556e278804dcffad9a78e2d216292e`
+**Status:** completed
+
+## Verbatim review
+
+## 1. Overall assessment
+
+This is a strong, unusually well-evidenced research document. Its diary reconstruction is accurate, its description of inline-handler extraction and identity is mostly code-faithful, and it maintains good decision hygiene by leaving the normative choice to LLP 0108’s follow-on.
+
+It does not yet meet the stated READY bar. Two pre-empirical gaps remain load-bearing:
+
+- The option space omits same-file lexical helper closure, a materially narrower design than either full module bundling or declared helper cells.
+- The analysis conflates dependency admission/resolution policy with bundler implementation, causing it to dismiss controlled stock-bundler and hermetically pinned package-graph variants without actually evaluating them.
+
+Those omissions could change both the mechanism ranking and the claimed necessity of a large v2 module-graph design.
+
+## 2. Strengths
+
+- **The field evidence is accurately and cautiously presented.** The Streak Lab duplication and measurements match [Diary 0032](</Users/ccheever/projects/snapback/diaries/0032-streak-lab-main-rerun.diary.md:100>); the Relay Board helper pressure and confounding result-contract verbosity match [Diary 0033](</Users/ccheever/projects/snapback/diaries/0033-relay-board-main-rerun.diary.md:41>) and its explicit duplicated indexed reads at [line 193](</Users/ccheever/projects/snapback/diaries/0033-relay-board-main-rerun.diary.md:193>). The aggregate 2,196-versus-2,176 comparison also matches [Diary 0039](</Users/ccheever/projects/snapback/diaries/0039-snapback-convex-main-rerun-report.diary.md:191>). Section “How they differ” correctly avoids treating all line growth as helper-duplication evidence.
+
+- **The current inline-handler contract is reconstructed accurately.** The closed global set and free-identifier refusal are visible in [inline-handlers.mjs](</Users/ccheever/projects/snapback/packages/snapback-codegen/inline-handlers.mjs:15>) and [line 318](</Users/ccheever/projects/snapback/packages/snapback-codegen/inline-handlers.mjs:318>); marker hashing and replacement match [lines 507–531](</Users/ccheever/projects/snapback/packages/snapback-codegen/inline-handlers.mjs:507>); and one generated registry entry per operation matches [line 544](</Users/ccheever/projects/snapback/packages/snapback-codegen/inline-handlers.mjs:544>).
+
+- **The v1 identity consequence is correctly identified.** Current identity contains `{form: "inline", canonicalAst}` and no dependency graph in [index.mjs](</Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:4156>). Treating shared executable dependencies as a new identity-format design rather than a trivial extractor relaxation is sound.
+
+- **The runtime-backstop account is code-supported.** Runtime construction uses `ex_hermes_create_no_eval()` at [runtime.rs](</Users/ccheever/projects/snapback/src/runtime.rs:607>), while the dynamic-code probes cover the named constructor routes before application evaluation at [lines 3004–3021](</Users/ccheever/projects/snapback/src/runtime.rs:3004>).
+
+- **The historical reconstruction is valuable.** The document correctly distinguishes the legacy closed single-file handler profile from Convex-style open imports. LLP 0010 explicitly says handler imports were rejected before emission at [LLP 0010](</Users/ccheever/projects/snapback/llp/0010-agent-dx-and-acceptance.spec.md:398>).
+
+- **Empirical and decision hygiene are generally good.** The document labels the Convex overview as general background, labels diary observations separately, records confounding factors, and turns the group-bundle versus resolve-and-splice question into an explicit follow-on decision rather than pretending research settled it.
+
+## 3. Concerns
+
+### 3.1 BLOCKING-FOR-BAR — A narrower same-file lexical-helper option is missing
+
+**Gap.** The option space jumps from full bounded transitive ESM bundling to proprietary declared helper cells. It does not evaluate admitting statically reachable sibling functions and constants from the same `functions.mjs` source file, without following any import graph.
+
+This is not a cosmetic variant:
+
+- It uses ordinary TypeScript function declarations rather than `defineHelper`.
+- It restores the exact one-file sharing unit the historical analysis identifies.
+- It avoids filesystem/module-resolution semantics and third-party dependencies.
+- It can potentially retain per-operation reachability, emission, and invalidation.
+- It directly addresses both diary cases if the calendar and indexed-read helpers are colocated with their operations.
+- The superseded design itself explicitly admitted “lexical constants, local helper functions” separately from imports in [LLP 0108](</Users/ccheever/projects/snapback/llp/0108-inline-handlers-and-result-contracts.spec.md:119>).
+
+The target’s own history—one file per app becoming one expression per operation—makes this omission especially conspicuous at [LLP 0118](</Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:166>).
+
+**What resolves it.** Add a distinct option for bounded same-module lexical closure. Analyze static reachability, declaration order/cycles, top-level initializer rules, type flow, source spans, per-operation versus group identity, and adversarial laundering. State whether it meets CV-7’s exit criterion and why it should lead, complement, or lose to options 1 and 2.
+
+### 3.2 BLOCKING-FOR-BAR — Resolver policy and bundler implementation are conflated
+
+**Gap.** Option 3 argues that using a stock bundler necessarily delegates resolution and yields only post-hoc attestation. That is not exhaustive. A Snapback-owned resolver/admission policy can feed an existing bundler or constrain it through resolver/load plugins, with every admitted input recorded before output acceptance.
+
+Current definition evaluation already demonstrates exactly this hybrid shape: it invokes esbuild at [index.mjs](</Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:7031>) while Snapback controls dynamic-import, CommonJS, ambient, and bare-specifier refusal through a plugin at [lines 7066–7134](</Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:7066>). Therefore “stock bundler” and “Snapback-owned admission” are not mutually exclusive options.
+
+The document’s description of the definitions resolver as “literal-relative” is also too strong. The implementation accepts relative, `file:`, and absolute local specifiers at [lines 7095–7107](</Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:7095>) and can assign identities to app, toolchain, repository, and installed-package files at [lines 7496–7522](</Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:7496>). It is closed and attested, but it is not merely literal-relative-from-app-root.
+
+**What resolves it.** Recast the taxonomy along independent axes:
+
+- admission/resolution policy;
+- allowed source roots and dependency classes;
+- bundler/transform implementation;
+- identity inputs and toolchain-version pinning;
+- runtime emission shape.
+
+Then evaluate “Snapback-controlled graph plus pinned stock transform” as an implementation variant of bounded bundling rather than dismissing it as inherently post-hoc. Correct the factual description of the shipped definitions graph.
+
+### 3.3 MATERIAL — Hermetic package dependencies are excluded by assumption, not analysis
+
+**Gap.** Option 4 equates package imports with ambient, machine-dependent `node_modules`, then says deterministic regeneration and the supply-chain boundary are structurally discarded at [LLP 0118](</Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:299>). That describes one open-import design, but not the whole space.
+
+A distinct design could admit only lockfile-resolved, integrity-verified, size-bounded ESM package closures; record package, export-condition, file, and toolchain identities; and still refuse undeclared ambient checkout state. Whether that complexity is worthwhile is open, but it cannot be ruled out by the stated argument. It matters because third-party date/decimal helpers are option 4’s principal advertised benefit.
+
+**What resolves it.** Add a hermetic-package-closure variant, or explicitly bound it out with a governing constraint from LLP 0115/0108. Compare its reviewability, conditional-export semantics, lockfile custody, package-manager dependence, source-map precision, and supply-chain evidence with vendoring and app-relative imports.
+
+### 3.4 MATERIAL — Pure helpers and capability-bearing helpers are not separated
+
+**Gap.** The two diary examples exercise different semantic classes:
+
+- Streak Lab’s calendar logic is pure value transformation.
+- Relay Board’s shared indexed reader accepts runtime context and performs declared storage reads.
+
+Options 1 and 2 discuss syntax, graph identity, and reflection laundering, but not whether a reusable helper may receive `ctx`, perform reads, cross query/mutation/action kinds, or exercise ambient action capabilities. This matters to no-evidence-regression: Snapback must continue deriving authority from operation declarations, not from helper behavior. A helper reused by operations with different read sets or runtime classes has a different risk profile from a pure calendar helper.
+
+Option 7 recognizes a pure-helper category, but that distinction is not propagated through the main mechanisms.
+
+**What resolves it.** Add a semantic matrix covering at least pure/value helpers, `ctx.db` read helpers, mutation helpers, and action/egress helpers. Explain whether v1 sharing is pure-only, caller-ceiling-bound, kind-specific, or fully general, and how declarations and diagnostics prove that a helper cannot expand authority.
+
+### 3.5 MATERIAL — Several pre-empirical hypotheses are stated as findings
+
+**Gap.**
+
+- “Helper pressure grows with app size, so the measured gap is a floor” at [LLP 0118](</Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:183>) is plausible but not established by the seven small apps.
+- Duplicate-subtree tooling is called “small and immediately landable” at [line 328](</Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:328>), although “near-identical” detection, false-positive policy, renamed locals, and copy provenance are nontrivial.
+- The findings say divergence is a silent bug “no diagnostic can see” at [line 415](</Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:415>), while option 5 proposes heuristic diagnostics intended to see it.
+
+**What resolves it.** Reclassify these as named empirical questions: helper-reuse frequency versus app size; usefulness and false-positive rate of exact/near-duplicate detection; implementation effort; and whether drift diagnostics change author behavior. Narrow the absolute diagnostic claim to “the current identity model records no intended equivalence.”
+
+### 3.6 DETAIL — One current-main statement is stale
+
+**Gap.** Finding 9 says the Relay Board attribution “should ride [LLP 0115’s] next revision” at [LLP 0118](</Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:434>). Current LLP 0115 v0.4 already records that correction in its revision history at [LLP 0115](</Users/ccheever/projects/snapback/llp/0115-convex-parity-course-corrections.plan.md:8>) and in CV-7 at [line 408](</Users/ccheever/projects/snapback/llp/0115-convex-parity-course-corrections.plan.md:408>).
+
+**What resolves it.** Say LLP 0115 is corrected and only LLP 0108 still carries the Campfire misattribution.
+
+### 3.7 DETAIL — A few Convex/package claims need clearer provenance labels
+
+**Gap.** The top-level Convex mechanism is appropriately labeled general background, but later claims about arbitrary third-party pure libraries and what “Convex-trained agents” will do are presented inside option analysis without being included clearly in the diary-evidenced or general-background inventory. The diaries prove ordinary shared helpers, not the behavior or suitability of arbitrary package dependencies.
+
+**What resolves it.** Mark those statements as general background/hypothesis, or narrow them to what the diaries observed. If third-party package support becomes load-bearing to an option, re-verify it against current primary Convex documentation in the follow-on.
+
+## 4. Suggestions
+
+- Add a compact comparison table with rows for same-file lexical closure, bounded relative imports, declared helper cells, hermetic package closure, open ambient imports, duplication tooling, and stdlib. Useful columns would be authoring familiarity, pure/effectful support, graph scope, identity blast radius, type flow, source-span quality, supply-chain evidence, and implementation size.
+
+- Refine “a reviewer reading the authored declaration sees everything that executes” at [LLP 0118](</Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:144>). That is true of self-contained v1, but imported bounded graphs require the reviewer to follow an enumerated dependency graph. The durable invariant is complete, bounded, inspectable custody—not necessarily single-declaration visibility.
+
+- Separate two independent choices currently grouped under “group-bundle or resolve-and-splice”: dependency admission shape and runtime emission/pool shape. The same admitted graph could support several emission strategies.
+
+- Preserve the distinction between authored duplication and generated duplication; it is one of the document’s best analytical observations and deserves an explicit comparison dimension.
+
+## 5. Open questions
+
+1. Can same-file lexical reachability satisfy both known diary cases while retaining one emitted module and implementation identity per operation?
+
+2. Does CV-7 actually require cross-file imports, or only a helper written once? Its stated exit criterion requires the latter.
+
+3. Which helper classes are in scope for the first follow-on: pure functions, `ctx.db` readers, mutations, and/or action helpers?
+
+4. If helper code receives `ctx`, how is its effective authority bounded by each consuming operation’s declared reads, writes, effects, and runtime kind?
+
+5. Is a controlled esbuild transform under Snapback-owned resolution materially different from the already shipped definitions-side pattern, beyond the stronger handler initializer and capability rules?
+
+6. Should hermetically pinned third-party ESM dependencies be evaluated now, explicitly deferred, or permanently excluded as a product boundary?
+
+7. For resolve-and-splice, is implementation identity based on reachable source graph, transformed helper ASTs, or final emitted bytes—and what source-level evidence permits a reviewer to reproduce that derivation?
+
+## 6. Verdict
+
+**NOT READY.**
+
+The document is close in evidence quality and substantially correct about current inline v1, but it has not exhausted the pre-empirical option space. Same-file lexical closure, controlled-bundler implementation, hermetic package closure, and the pure-versus-capability-bearing helper distinction could materially change the follow-on design.
+
+## 7. Recommended next step
+
+Revise LLP 0118 while keeping it in Review:
+
+1. Add the same-file lexical-helper option.
+2. Rebuild the option taxonomy around admission, transformation, identity, and runtime emission as separate axes.
+3. Evaluate or explicitly defer hermetic package closures.
+4. Analyze pure and context-bearing helpers separately.
+5. Convert the untested scaling/tooling claims into empirical questions.
+6. Correct the definitions-resolver description and stale LLP 0115 attribution.
+7. Send the revision through another independent review round.
+
+Final verdict: **NOT READY**.

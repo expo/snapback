@@ -5,15 +5,40 @@
 **Systems:** Competitive evaluation, Developer experience, Live Queries, Search, Client integration, Code generation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:**
-**Related:** LLP 0073, LLP 0074, LLP 0112, LLP 0114, LLP 0115, LLP 0116, Diary 0022, Diary 0028, Diary 0030, Diary 0034, Diary 0037, Diary 0039
+**Revised:** 2026-07-30 (v0.2, round-1 dual-family corrections — verbatim
+reviews in `reviews/0119-reactive-by-default-and-live-search.fable.md` and
+`reviews/0119-reactive-by-default-and-live-search.codex.md`; 13 findings
+applied (Fable C1–C7, Codex A–F), all verified against the tree, none
+rejected. The Campfire quote re-attributed to Diary 0039 §3 and Finding 1's
+independence tally corrected (Diary 0034 is silent on the classification;
+0039 is a synthesis); option 1 decomposed into authoring/subscribability/
+invocation/storage axes with 1a/1b hybrid candidates and Finding 6
+re-costed; the quarantine sub-question and Finding 7 reconciled with
+LLP 0053's obligation model (existing `permissionFields` suppression vs.
+the shrinkage-guarding obligation on auth-scoped `live_replace`, plus the
+Diary 0030 diagnosis question); option 4 gains a current-integration-
+blockers inventory — the `SearchQuery` matcher arm is unreachable through
+any valid subscription today — and "mostly composition" is reclassified as
+the option's hypothesis (Finding 4 likewise); option 5's posting-union
+claim corrected to what `src/search/sqlite.rs` computes, with the missing
+notification carrier and precision case list added; the Convex internal
+mechanism narrowed to the documented contract with the sharper account
+marked inference; settled-sounding judgments ("tiny server cost", "remove
+most flicker", type-ahead churn, sequencing) reclassified as hypotheses or
+named empirical questions (new open questions 5 and 7) with sequencing
+left to owners; "deepest structural" and "no simulated reactivity"
+re-attributed to LLP 0115; subscription entry points corrected to
+`subscribe_live`/`subscribe_live_prepared_with_invalidation`; LLP 0053 and
+LLP 0108 added to Related.)
+**Related:** LLP 0053, LLP 0073, LLP 0074, LLP 0108, LLP 0112, LLP 0114, LLP 0115, LLP 0116, Diary 0022, Diary 0028, Diary 0030, Diary 0034, Diary 0037, Diary 0039
 
 ## Summary
 
 Every bakeoff since Diary 0022 has recorded the same Convex advantage, and
-the 2026-07-30 rerun (Diary 0039) named it Convex's deepest structural one:
-an ordinary Convex query — including an indexed search query — is a reactive
-subscription with no separate classification. One declared function covers
+LLP 0115's watch item — absorbing the 2026-07-30 rerun (Diary 0039) — names
+it Convex's deepest structural one: an ordinary Convex query — including an
+indexed search query — is a reactive subscription with no separate
+classification. One declared function covers
 initial read, WebSocket push, reconnect, and authorization-dependent
 invalidation as one feature. Snapback deliberately splits that surface: live
 queries are an explicit authored subset (`defineLiveQuery` vs.
@@ -37,9 +62,11 @@ Convex calibration arm, under "What felt good": "Reactive queries were the
 standout. One indexed query covered initial read, native WebSocket push,
 reconnect, and authorization-dependent invalidation" — the same arm's
 revocation tests confirmed the invalidation half directly. Diary 0022 ranked
-Convex first for "best authoring and reactive client loop"; Diary 0034
-(Campfire rerun) recorded that "ordinary queries become reactive without a
-separate live classification"; and Diary 0037 (Pantry rerun)
+Convex first for "best authoring and reactive client loop"; Diary 0039 §3
+(the aggregate report's Campfire section) recorded that "ordinary queries
+become reactive without a separate live classification" — the in-arm Diary
+0034 proves equivalent native live delivery on both Campfire arms but makes
+no such structural observation itself; and Diary 0037 (Pantry rerun)
 recorded the search half — Convex's second client received WebSocket delivery
 of a newly indexed recipe, because "Convex search queries participate in its
 reactive query subscription model" while "Snapback portable search v1 is
@@ -47,18 +74,19 @@ ordinary request/response only." Diary 0039 condenses all of this into its
 "Reactive-by-default data and search" heading.
 
 **General Convex background** (general knowledge, not diary evidence, and
-subject to LLP 0074's re-verify-before-reliance rule). Convex queries are
-deterministic functions executed inside Convex's runtime against a consistent
-snapshot of the database, and the system records each execution's read set
-automatically. Mutations are serializable transactions; on commit, the
-subscription layer intersects the committed write set with recorded read
-sets, re-executes exactly the affected queries, and pushes fresh results over
-the WebSocket. The same mechanism backs function-level result caching, and a
-client's active subscriptions stay mutually consistent at one logical
-timestamp. Search participates because a search-index query is still an
-ordinary deterministic query — its read set covers the index range it
-consulted, so an index-touching write invalidates and re-runs it like any
-other read.
+subject to LLP 0074's re-verify-before-reliance rule). Convex's documented
+contract: queries are deterministic functions executed inside Convex's
+runtime against a consistent snapshot of the database; the system tracks
+each query's dependencies automatically, re-executes affected queries when
+relevant data changes, and pushes fresh results over the WebSocket; the same
+tracking backs function-level result caching, a client's active
+subscriptions stay mutually consistent at one logical timestamp, and search
+queries participate in the same reactive subscription model. The sharper
+internal account — a committed write set intersected against recorded
+per-query read sets, with a search query's read set covering the index range
+it consulted — is this document's architectural inference from that contract
+and the diaries' observed behavior, not a verified description of Convex
+internals.
 
 Three structural costs of that design are recorded alongside the praise,
 because Snapback's comparison should not price them at zero. First,
@@ -69,7 +97,9 @@ best-in-class coherence also means accepting its integrated runtime and
 deployment model." Second, everything reactive is durable: Convex has no
 ephemeral lane, so presence and typing became durable heartbeat rows with
 app-authored expiry (Diaries 0022, 0028, 0039 §4); Cursor Garden — Snapback's
-one decisive rerun win — is the same coin as the explicit classification.
+one decisive rerun win — rests on that durable/ephemeral storage-lane
+contrast, a distinct axis from the `Query`/`LiveQuery` function
+classification (see option 1's decomposition).
 Third, the reactive cache is online-only: Diary 0028 recorded that active
 query results lived in JavaScript memory and did not survive a cold offline
 boot.
@@ -81,10 +111,11 @@ boot.
 and the authoring surface exposes the split directly: `defineQuery`,
 `defineLiveQuery`, and `defineJsLiveQuery` in
 `packages/snapback-codegen/define.d.ts`. Subscription admission enforces it
-at runtime: `live_subscribe` in `src/local.rs` refuses any function whose
-kind is not `LiveQuery` with the stable `SNAPBACK_FUNCTION_NOT_LIVE`
-diagnostic. The Pantry rerun proved that refusal deliberately as one of its
-acceptance checks (Diary 0037, check 6).
+at runtime: `subscribe_live` and the `subscribe_live_prepared_with_invalidation`
+path in `src/local.rs` refuse any function whose kind is not `LiveQuery`
+with the stable `SNAPBACK_FUNCTION_NOT_LIVE` diagnostic. The Pantry rerun
+proved that refusal deliberately as one of its acceptance checks (Diary
+0037, check 6).
 
 **The live machinery behind the subset.** For functions that are classified
 live, the invalidation machinery is real and reasonably precise.
@@ -203,33 +234,64 @@ nothing and decides nothing.
 Every `Query` (host-plan, JS, relational, search) becomes subscribable;
 `FunctionKind::LiveQuery` disappears or becomes an implementation detail.
 
-*Benefits.* Erases the decision and the register-group cliff in one move and
-matches Convex's mental model exactly; the matcher already has conservative
-arms for every host-plan shape, so a maximally coarse version is closer than
-it sounds.
+"Live" bundles at least four independent axes, and an honest costing must
+keep them separate:
 
-*Costs and risks.* This is the largest claim expansion available. Liveness
-would stop being a per-function fact backed by targeted acceptance and become
-a universal property every current and future query feature must uphold or
-block on — every new plan shape ships with invalidation evidence, and every
-target claims push or the universal claim is false (LLP 0074's Refuse list:
-polling must not be reported as proven push; hosted targets have no live
-evidence today). It also erases the free ordinary query: every read
-potentially retains server subscription state, and conservative wake storms
-plus quarantine flicker generalize to the whole query surface. The diaries
-score the boundary's cost as real but modest, while its evidence value is
-load-bearing in Snapback's two clearest wins. Erasing the classification
-needs a replacement account of what a liveness claim means, or it silently
-becomes "whatever the implementation does" — the exact failure mode LLP 0074
-refuses.
+- **Authoring kind** — whether the author writes `defineQuery` or
+  `defineLiveQuery`.
+- **Subscribability** — whether the function admits a subscription at all: a
+  per-function capability fact.
+- **Invocation mode** — whether a particular call is one-shot
+  request/response or establishes retained subscription state. A one-shot
+  `client.query` call can stay request/response and retain nothing even when
+  the same function is subscribable.
+- **Storage lane** — whether presence-shaped state is durable rows or
+  Snapback's ephemeral lane. This axis is orthogonal to function kind:
+  making durable queries subscribable neither removes nor weakens the
+  ephemeral lane, so the Cursor Garden win is not directly at stake here.
+
+*Benefits.* Erases the decision and the register-group cliff in one move and
+matches Convex's mental model exactly. The matcher has conservative arms for
+every host-plan shape, though arm existence is not path existence — see
+option 4's integration blockers for the search case.
+
+*Costs and risks.* Still the largest claim expansion available, but the
+decomposition narrows what it actually costs. One-shot invocation stays free
+(retains no subscription state) even under universal subscribability, and a
+target without push evidence could report the subscription capability
+unavailable while still permitting one-shot invocation of the same function
+— so universal function-level subscribability need not become a false
+universal target claim. What the expansion genuinely does: liveness stops
+being a per-function fact backed by targeted acceptance and becomes a
+property every current and future query plan shape must uphold or explicitly
+except — every new plan shape ships with invalidation evidence or a named
+per-target/per-shape refusal (LLP 0074's Refuse list: polling must not be
+reported as proven push) — and conservative wake behavior plus the
+quarantine lane's conservatism extend to every subscribed query. Erasing the
+authored kind also needs a replacement account of what a liveness claim
+means and where it is recorded (capability bits, target admission), or it
+silently becomes "whatever the implementation does" — the exact failure mode
+LLP 0074 refuses.
+
+The decomposition exposes hybrid candidates between options 1 and 2 that the
+bundled framing hides:
+
+- **Option 1a — one authored kind, split capability facts.** A single
+  `defineQuery` surface whose manifest entry carries separate callable and
+  subscribable capability facts, with subscription admission scoped per
+  target. Authored simplicity without a universal claim.
+- **Option 1b — live by default with an authored escape hatch.** Queries are
+  subscribable unless the author declares otherwise (`live: false` or a
+  `defineOneShotQuery` kind), preserving an authored non-live fact without
+  any static inference.
 
 ### Option 2 — Auto-classify liveness, with explicit nonclaims and opt-out
 
 Codegen infers live capability where the machinery can honestly support it
-(host-plan queries; JS queries whose captured-read vocabulary the matcher
-covers) and marks the rest — search until CV-11 lands, actions always — with
-explicit generated nonclaims. Authors may opt out (`live: false`) but never
-opt in past the inference.
+(host-plan queries; JS queries whose declared read-set vocabulary the
+matcher's static coverage spans) and marks the rest — search until CV-11
+lands, actions always — with explicit generated nonclaims. Authors may opt
+out (`live: false`) but never opt in past the inference.
 
 *Benefits.* Removes most of the authoring decision while keeping claims
 per-function and honest; the capability/manifest surface already carries
@@ -245,7 +307,17 @@ diagnostic when regeneration downgrades a previously live function, manifest
 pinning, or both). Inference also sits near — though not across — LLP 0108's
 no-inference-from-source invariants: classifying from the closed generated
 plan is static and reviewable, unlike inferring behavior from handler source,
-but the distinction must be argued explicitly.
+but the distinction must be argued explicitly. For JS (Ibex) queries the
+argument has a carrier question the static-plan defense does not settle: the
+matcher rides both a *declared* table-granular `read_set_summary` and
+dependencies *captured at runtime* (`src/live_matcher.rs`). Only the
+declared summary is a static, reviewable artifact; runtime-captured reads
+are exactly the handler-behavior evidence LLP 0108's no-inference invariants
+forbid as a classification input. Option 2's inference is admissible for the
+JS half only if it reads the declared summary (plus the matcher's static
+vocabulary coverage) and never the captured reads — otherwise the option
+must scope inference to host-plan queries and leave JS classification
+authored.
 
 ### Option 3 — Keep the boundary; erase the DX cost at the client (0112/0114)
 
@@ -271,23 +343,38 @@ not address: the mixed-route register cliff and quarantine flicker.
 
 Give `defineSearchQuery` a live-capable path: a subscribed search re-executes
 when any commit touches its index's source table, and the subscriber receives
-a full `Replace` page. The matcher in `src/live_matcher.rs` already contains
-exactly this table-granular test for `HandlerPlan::SearchQuery`; search
-execution is already bounded, deterministic, and authorization-rechecked per
-page (`src/search/sqlite.rs`); the rank/highlight/cursor contract is
-unchanged.
+a full `Replace` page. Real ingredients exist: the matcher in
+`src/live_matcher.rs` contains a table-granular test for
+`HandlerPlan::SearchQuery`, and search execution is bounded, deterministic,
+and authorization-rechecked per page (`src/search/sqlite.rs`), with the
+rank/highlight/cursor contract unchanged.
 
-*Benefits.* Mostly composition, not new invalidation science: subscription
-lifecycle, the conservative Replace lane, LLP 0053 auth obligations, and the
-bounded search executor all exist. It delivers precisely what Pantry wanted —
-the post-mutation result pushed instead of re-requested. Posting keys embed
-the visibility partition, so wakes could later skip commits provably outside
+*Current integration blockers.* That matcher arm is unreachable through any
+valid subscription today. Manifest validation admits `SearchQuery` plans
+only under `FunctionKind::Query` (`src/manifest.rs`; any other pairing fails
+as `SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH`), subscription admission
+requires `FunctionKind::LiveQuery` (`src/local.rs`), and query execution
+dispatches search only through its `(Query, SearchQuery)` arm. Option 4
+therefore requires coordinated changes to manifest admission, codegen and
+function identity, execution dispatch, subscription result/cursor semantics,
+the generated client capability surface, and acceptance evidence — not
+activation of an existing arm.
+
+*Benefits.* The hypothesis this option carries — to be proven by its design,
+not asserted here — is that the remaining work is composition of existing
+pieces rather than new invalidation science: subscription lifecycle, the
+conservative Replace lane, LLP 0053 auth obligations, and the bounded search
+executor all exist, and the blockers above are admission/dispatch seams, not
+missing machinery. It delivers precisely what Pantry wanted — the
+post-mutation result pushed instead of re-requested. Posting keys embed the
+visibility partition, so wakes could later skip commits provably outside
 the subscriber's partition.
 
 *Costs and risks.* Write amplification is the core cost: every mutation on
 an indexed table re-runs every subscribed search on that index — bounded per
 query by the existing work ceilings but multiplied by subscriber count, and
-type-ahead naturally creates many distinct subscribed queries per user; so
+type-ahead plausibly creates many distinct subscribed queries per user (an
+unmeasured churn question); so
 admission needs per-index live-subscription and concurrency budgets (0073's
 request-path ceilings are a template). Cursor semantics need a decision:
 stateless 120-second cursors do not compose with a long-lived subscription,
@@ -298,10 +385,17 @@ exit criterion verbatim — and `full_text_search_v1` itself stays non-live.
 
 ### Option 5 — Live search by incremental index-driven push
 
-Compute affected subscriptions from posting deltas: the synchronous
-maintenance path already computes the exact union of old/new posting keys per
-mutation, so intersect changed posting keys (and partitions) with subscribed
-queries' positive anchors and wake only genuine candidates.
+Compute affected subscriptions from posting deltas: intersect changed
+posting keys (and partitions) with subscribed queries' positive anchors and
+wake only genuine candidates. The maintenance transaction touches the exact
+union of old/new postings but does not compute it today: the synchronous
+path counts the old postings for the old-plus-new work ceiling and deletes
+them without materializing their keys, computing only the new token set
+(`src/search/sqlite.rs`). Capturing the old-key half needs an additional
+read of the old posting set before deletion — and no posting-delta carrier
+reaches the live notification path at all: `ChangedRow` carries only
+table/id/op/row/changed-fields (`src/storage.rs`), so precision needs a new
+transaction-to-notification artifact or an equivalent reconstruction.
 
 *Benefits.* Precise wakes; re-execution cost scales with relevance rather
 than table write rate; the strongest possible answer for hot indexes with
@@ -311,10 +405,15 @@ many subscribers.
 scoring is global per query — a changed posting proves a candidate changed,
 not what the new top page is — so an affected wake still re-runs the bounded
 page, and the per-page authorization release recheck runs per delivery
-regardless. True incremental top-k maintenance is a research-grade engine
-well beyond v1. Honestly read, option 5 is a wake-precision refinement
-layered on option 4's delivery model, sequenced (if ever) after option 4
-proves the subscription contract.
+regardless. A precise wake predicate must also account for prefixes (posting
+ranges, not exact tokens), phrases with multiple positive anchors,
+equality-filter-only changes, visibility-partition changes, stored-field
+changes on currently returned rows, deletions (where the post-image is
+absent), and top-page displacement by rows not previously in the page. True
+incremental top-k maintenance is a research-grade engine well beyond v1.
+Structurally, option 5 is a wake-precision refinement layered on option 4's
+delivery model rather than an independent delivery path; whether and when
+either ships is LLP 0115/0073's call, not this document's.
 
 ### Option 6 — Hybrid freshness contracts
 
@@ -325,40 +424,69 @@ table-version or generation counter) that a client hook consumes to re-run
 the ordinary search; optionally, declared staleness bounds surfaced as
 explicit refresh receipts in the result envelope.
 
-*Benefits.* Tiny server cost; no new claims on search itself — the result
-remains request/response and says so; composes naturally with 0114 (a
-`useSnapbackSearch` hook owning debounce, superseded-token discard, and
-re-issue would erase most of Pantry's felt client friction); and the refresh
-is visible, which fits the evidence model.
+*Benefits.* Plausibly small server cost — unmeasured, and the hint
+channel's real cost turns on whether a queryable table-version/generation
+row exists today or is itself a small new server surface; no new claims on
+search itself — the result remains request/response and says so; composes
+naturally with 0114 (a `useSnapbackSearch` hook owning debounce,
+superseded-token discard, and re-issue is a candidate for absorbing most of
+Pantry's felt client friction); and the refresh is visible, which fits the
+evidence model.
 
 *Costs and risks.* Two round trips per change instead of one push; a new
 hint-channel contract someone must own; and a real labeling hazard —
-LLP 0073 pins "no simulated reactivity, no capability drift," so this must
-be presented as client convenience over an ordinary query, never as live
-search. Marketed carelessly, it becomes exactly the relabeling 0073 forbids.
+LLP 0115 CV-11, restating LLP 0073's pinned non-live contract, requires "no
+simulated reactivity, no capability drift" — so this must be presented as
+client convenience over an ordinary query, never as live search. Marketed
+carelessly, it becomes exactly the relabeling 0073 forbids.
 
 ### Sub-question — quarantine-to-empty smoothing
 
 Diary 0030's flicker deserves its own treatment because the obvious fix is
 wrong. Holding prior rows visible while a fresh snapshot is in flight would
 soften real revocations — the blank is the fail-closed proof that revoked
-data stopped flowing, and LLP 0053's obligation model depends on it. The
-better frame is wake precision, not delivery smoothing: an ordinary write
-that provably cannot change authorization inputs (policy tables, owner
-fields, membership rows) should not trigger the authorization quarantine at
-all — it should ride the ordinary data-delta/resnapshot lane, which never
-blanks. That is a narrower conservative predicate in the matcher and
-obligation issuer, preserving quarantine-to-empty exactly where an
-authorization-relevant change occurred. A client-side residual (0114 stores
-exposing "stale, refresh in flight" on the non-authorization lane) is
-cosmetic by comparison and must never apply to the revocation path.
+data stopped flowing, and LLP 0053's obligation model depends on it. But
+"narrow which writes count as authorization-relevant" is not by itself the
+answer either, because LLP 0053 already separates lanes this sub-question
+must not re-conflate:
+
+- **Authorization-event suppression already exists.** A known, nonempty
+  changed-field set wholly disjoint from a permission-backing table's
+  `permissionFields` suppresses the authorization event
+  (`src/storage/authorization.rs`), and non-permission-backing tables never
+  produce one; under 0053's acceptance, an ordinary write creates no
+  authorization-event/global quarantine obligation.
+- **The conservative obligation guards shrinkage, not auth inputs.** 0053
+  pins that every auth-scoped `live_replace` is conservatively
+  obligation-backed whether or not shrinkage is observable: for an opaque
+  protected JS query, proving a write cannot change authorization inputs
+  does not prove the previously published result cannot shrink. The proof
+  that would bypass the fenced replacement is the much stronger "this
+  update cannot remove or newly forbid any previously published row" — a
+  non-shrinkage proof the matcher may be unable to supply for arbitrary
+  Ibex handlers.
+- **Diary 0030's blanks need a diagnosis before a remedy.** Whether each
+  blank came from a missing or imprecise `permissionFields` declaration on
+  the wall table, or from the conservative obligation on an auth-scoped
+  `live_replace`, determines which mechanism any fix targets; the diary
+  alone does not say.
+
+A client-side residual (0114 stores exposing "stale, refresh in flight" on
+the non-authorization lane) is cosmetic by comparison and must never apply
+to the revocation path.
 
 ## Findings
 
-1. The advantage is real, consistent, and structural. Four independent
-   diaries across two bakeoff generations (0022, 0028, 0034/0037, 0039)
-   recorded the same one-declaration-covers-everything observation in almost
-   the same words; this is not a single agent's taste.
+1. The advantage is real, consistent, and structural. The
+   one-declaration-covers-everything observation recurs across two bakeoff
+   generations: Diary 0028 records it directly, Diary 0037 records the
+   search half, Diary 0022 records the reactive-loop ranking and glue
+   friction without isolating the classification as the cause, and the
+   aggregate report Diary 0039 — a synthesis over the second generation's
+   arms, not an independent run — states it explicitly for Campfire, whose
+   in-arm Diary 0034 is itself silent on the classification. Repeated
+   across arms and agents, not one agent's taste — but honestly counted,
+   in-arm recordings plus a synthesis, not four independent diaries.
 2. Snapback's boundary is a deliberate evidence choice, documented before
    the rerun scored it. LLP 0074 names invalidation and settlement as facts
    and refuses reported push that is not proven push; LLP 0073 pins search
@@ -368,23 +496,37 @@ cosmetic by comparison and must never apply to the revocation path.
    replaced Diary 0022's hand-aggregation with generated groups and
    single-commit registered boot — and no matrix measurement of those gains
    exists yet, because the rerun method drove headless clients.
-4. Most of what coarse live search (option 4) needs already exists: the
-   matcher's table-granular `SearchQuery` arm, the Replace delivery lane,
-   the auth-obligation machinery, and a bounded per-page-rechecked executor.
-   The genuinely new work — admission budgets, the cursor/liveness decision,
-   a capability id, the evidence story — is composition, not invention.
-5. Fine-grained index-driven push (option 5) is not an independent near-term
-   path. It refines option 4's wake precision and still re-executes pages;
-   treating it as the v1 target would stall the practical win.
-6. Erasing the classification (option 1) endangers three load-bearing
-   properties at once: per-function honest claims, the zero-cost ordinary
-   query, and the durable/ephemeral lane contrast behind the Cursor Garden
-   win. It is the only option requiring a new theory of what liveness claims
-   mean.
-7. Quarantine flicker is a wake-precision problem, not a delivery-smoothing
-   problem. Smoothing the revocation path would weaken the fail-closed
-   property; narrowing which writes count as authorization-relevant would
-   remove most flicker without touching it.
+4. Coarse live search (option 4) has real ingredients — the matcher's
+   table-granular `SearchQuery` arm, the Replace delivery lane, the
+   auth-obligation machinery, and a bounded per-page-rechecked executor —
+   but no end-to-end path: the arm is unreachable through any valid
+   subscription until manifest admission, execution dispatch, codegen
+   identity, cursor semantics, client capability, and evidence change
+   together. That the remaining work is composition rather than invention
+   is the option's hypothesis, to be proven by its design.
+5. Fine-grained index-driven push (option 5) is structurally a
+   wake-precision refinement of option 4's delivery model, not an
+   independent delivery path: it still re-executes pages and needs a
+   posting-delta carrier the notification path does not publish today.
+   Sequencing between the two options belongs to LLP 0115/0073, not this
+   document.
+6. Erasing the authored classification (option 1) puts pressure on
+   per-function honest claims and is the only option requiring a new theory
+   of what a liveness claim means and where it is recorded. Decomposed
+   honestly, though, it does not by itself cost one-shot invocation's
+   freedom (invocation mode is a separate axis) or the durable/ephemeral
+   lane behind the Cursor Garden win (a storage-lane axis orthogonal to
+   function kind); the option 1a/1b hybrids show authored simplicity and
+   per-function facts are not strictly exclusive.
+7. Quarantine flicker must not be fixed by smoothing the revocation path —
+   that would weaken the fail-closed property. But authorization-relevance
+   narrowing alone cannot be the whole fix either: LLP 0053 already
+   suppresses authorization events for declared field-disjoint updates, and
+   its conservative obligation on auth-scoped `live_replace` guards result
+   shrinkage, which auth-input disjointness does not disprove. Whether
+   Diary 0030's flicker is a declaration gap, an obligation-lane cost, or
+   both is an open diagnosis, and how much any narrowing removes is an
+   unmeasured empirical question.
 8. Register-mode boot consistency is a genuine advantage with inspectable
    receipts, but the all-`LiveQuery` eligibility rule turns one ordinary
    child into a cliff. The cliff looks independently softenable (mixed-route
@@ -412,9 +554,10 @@ the diaries' observed behavior but was not re-verified against current Convex
 documentation here; LLP 0074's inventory rule applies to anyone relying on
 it.
 
-Low-to-medium: the cost estimates in options 4 and 5 (amplification,
-admission budgets, type-ahead subscription counts). No prototype exists;
-these are structural arguments, not measurements.
+Low-to-medium: the cost estimates in options 4 through 6 (amplification,
+admission budgets, type-ahead subscription counts, hint-channel cost). No
+prototype exists; these are structural arguments and hypotheses, not
+measurements — open question 7 names the quantities.
 
 ## Open questions
 
@@ -429,12 +572,23 @@ these are structural arguments, not measurements.
    it disqualify inference outright?
 4. Who owns option 6's invalidation-hint contract if it proceeds — LLP 0073,
    LLP 0114, or a small new Spec?
-5. Does the quarantine wake-precision refinement belong to LLP 0053 or to
-   the matcher's conservative predicate — and can authorization-relevance be
-   derived from declared schema facts alone?
+5. For Diary 0030's app as actually declared: was the wall table
+   permission-backing, and did it declare `permissionFields`? Was each
+   blank an authorization-event quarantine or an obligation-backed
+   auth-scoped `live_replace` — and if the latter, can any matcher
+   predicate honestly prove non-shrinkage for opaque JS results, or is the
+   remedy confined to declarations and the cosmetic client lane?
 6. Should the mixed-route register cliff (LLP 0112) be softened
    independently of any classification decision, and does that need a 0112
    amendment or a v2 profile?
+7. The unmeasured quantities this document's hypotheses turn on: live-search
+   wake amplification and fanout under write load, type-ahead subscription
+   churn per user, first-page re-execution cost, cursor behavior across
+   replacements, invalidation-hint channel cost (including whether a
+   queryable generation counter exists), protected-query transition
+   behavior after any narrowing, and how much of the felt preference gap
+   the 0112/0114 React surface closes (LLP 0115 §Sequencing item 5's
+   measurement).
 
 ## Relationship to LLP 0115 and owning documents
 
@@ -445,8 +599,9 @@ capability id … or a dated LLP 0073 decision recording why non-live remains
 the claim." The classification itself is LLP 0115's "Reactive-by-default
 queries" watch item — no action now, revisited only if the next rerun,
 measured through the React surface, still scores the boundary itself as a
-loss after CV-11 and the query-group surface ship. Options 1 and 2 above are
-therefore inputs to a future watch-item trigger, not proposals; options 3
+loss after CV-11 and the query-group surface ship. Options 1 (with its
+1a/1b hybrids) and 2 above are therefore inputs to a future watch-item
+trigger, not proposals; options 3
 through 6 and the quarantine sub-question map onto work LLP 0115 already
 sequences or the owners can absorb: LLP 0073 (portable search, the non-live
 pin, any live-search capability), LLP 0112/0114 (generated groups, registered
