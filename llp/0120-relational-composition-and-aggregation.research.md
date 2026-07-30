@@ -1,7 +1,7 @@
 # LLP 0120: Relational composition and aggregation
 
 **Type:** Research
-**Status:** Draft
+**Status:** Review
 **Systems:** Competitive evaluation, Relational queries, Application data API,
 Authoring, Code generation, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)

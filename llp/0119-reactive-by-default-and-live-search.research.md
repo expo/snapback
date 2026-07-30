@@ -1,7 +1,7 @@
 # LLP 0119: Reactive-by-default and live search
 
 **Type:** Research
-**Status:** Draft
+**Status:** Review
 **Systems:** Competitive evaluation, Developer experience, Live Queries, Search, Client integration, Code generation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30

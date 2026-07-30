@@ -1,7 +1,7 @@
 # LLP 0117: TypeScript type flow — inference, result contracts, and structured inputs
 
 **Type:** Research
-**Status:** Draft
+**Status:** Review
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Client integration, Runtime
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
