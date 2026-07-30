@@ -43,3 +43,13 @@ Two findings:
    failure now reads cleanly), or gate a soft-pass on the fallback error
    being an upstream 5xx/timeout WITH the config check having attested the
    key as set. Needs an author call; leaving as-is until then.
+
+## Status note (2026-07-30 triage)
+
+Finding 1 (the crash) is fully landed: commit 7f67f3b4 made the detail
+template null-safe and the acceptance check fails cleanly on outage
+(cloudflare/test/acceptance.remote.all-aboard.mjs ~317–330), untouched
+since. The only remaining content is finding 2's author decision: keep the
+hard-fail on ORS outage as-is, or add a soft-pass gated on (upstream
+5xx/timeout AND config-check-attested ORS key) at the cost of weakening the
+key-usage evidence. Author-gated; no agent work remains.

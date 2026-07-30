@@ -41,3 +41,15 @@ here rather than widening P-2.
 - The `guide/protocol/` page and recipe exist with CI-verified snippets,
   and `guide/capabilities.md` carries the rows/GAP entries 0093 D5
   requires (non-JS client gap, `poll/hosted` gap).
+
+## Status note (2026-07-30 triage)
+
+Every done-when item except the first is verifiably complete: LLP
+0094/0095/0096 exist, the P-0..P-3 ticket program was filed and is
+substantially closed, guide/protocol/client-protocol.md shipped (reviewed
+2026-07-26), the dev-mode posture is LLP 0094 §0A.6, and
+guide/capabilities.md carries clients.protocol plus the clients.non-js /
+clients.poll-hosted GAP rows. The sole remaining item is the author
+decision: ratify LLP 0093 (Review → Accepted/Implemented, ideally together
+with 0094 and the 0095/0096 Drafts) or explicitly park it. Once recorded,
+this ticket closes with a one-line resolution.

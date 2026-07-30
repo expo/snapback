@@ -1,6 +1,6 @@
 # LLP 0077 sender-constrained browser auth — hardening program (index)
 
-**Status:** Open
+**Status:** Resolved (2026-07-30 — program complete; capability gate transferred, see resolution at end)
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 1
@@ -299,3 +299,25 @@ defect depends on the `BoundGrantAuthorityV2` shape; defects 5↔7 are a single
 work item split across two ledger rows. No ticket permits a positive
 `hostedAuthCapable`/sender-constraint capability claim until the whole matrix
 plus the LLP 0072 hosted-auth drill receipt passes against a served origin.
+
+## Resolution (2026-07-30)
+
+**Closed as complete-with-gate-transfer.** Every piece of work this index
+commissioned is done and witnessed: all 13 ledger defects fixed with negative
+tests, both author-decision prerequisites resolved, D-1 (route-policy hoist)
+and D-2 (one-live-family-per-thumbprint) fixed, the decision-5 WebSocket
+successor-nonce release landed, v2 `sbs2_`/`sct2_` prefixes minted
+(`issues/closed/20260727-llp0077-v2-prefix-minting.md`), and the full matrix
+passed **43/43 against the real served public origin**
+(`demos/competitive-checkpoint/acceptance/results/hosted-sender-matrix.v0.served-20260727.json`,
+`ok: true`).
+
+**`hostedAuthCapable` remains NOT claimed.** The one remaining distance —
+the LLP 0072 hosted-auth drill legs requiring a registered
+`trusted-single-tenant-app-complete.v1` target profile that codegen does not
+yet emit — is authoritatively recorded in LLP 0077 §checkpoint, LLP 0072
+§claim boundary, and tracked by the open
+`issues/20260726-0072-fly-adapter-remaining-surface.md`. Keeping this index
+open duplicated that live gate state in a third place; per the repo convention
+against dual-tracking, the gate now lives solely in those two LLPs plus the
+0072 remaining-surface ticket.

@@ -144,3 +144,12 @@ loss.
   `2e8815ec`); 43/43 against both the served and local hosted origins.
 - A method-mismatched probe of a disabled operator route returns 405 before the
   disablement gate runs.
+
+## Status note (2026-07-30 triage)
+
+All "tracked as work" items are executed (D4 volume, §8.3 hot-swap renewal
+loop, plaintext-403 fix, D-1 authRequirement hoist, served-origin LLP 0077
+matrix 43/43 with D-2 fixed). Remaining are exactly the three author
+decisions D1–D3, plus one minor unexecuted sweep item: a method-mismatched
+probe of a disabled operator route returns 405 before the disablement gate
+runs — worth folding into whichever change lands D3.

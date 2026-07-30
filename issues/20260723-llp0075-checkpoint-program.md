@@ -57,3 +57,18 @@ Standalone author decisions:
 Sequencing: the instrument corrections and the pre-timed-run pins both gate the
 first timed two-arm sample; the fairness and ownership decisions feed the pins;
 the status disposition is independent and owned solely by the author.
+
+## Progress refresh (2026-07-30 triage)
+
+Three of the five sub-tickets are now closed: instrument-corrections
+(resolved 2026-07-26 via the LLP 0076 gate-2 receipts, 8/8 local-streaming
+rerun), status-disposition, and program-ownership (protocol amendments
+v0.6/v0.7 pinned the Fly.io provider tuple and named the program owner; the
+first remote drill executed). Amendments now run v0.1–v0.8 (v0.8: Step 5
+fixture admission, 2026-07-26). Text above that lists those tickets as
+pending predates this refresh. Remaining: only the two author-decision
+tickets (pre-timed-run-pins, comparison-fairness); all 10
+unpinned-blocks-timed-runs gates in
+demos/competitive-checkpoint/acceptance/protocol.v0.json survive intact and
+no timed two-arm sample has run. No agent-executable work remains in this
+umbrella.

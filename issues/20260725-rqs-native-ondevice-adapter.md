@@ -59,3 +59,13 @@ lazily so bundling for Hermes never resolves the builtin), but nothing yet
   `rqs-store-file.mjs` is the extension point.
 - At-rest posture is OS-level protection (LLP 0090 Q4 open); an encrypting
   adapter is Q4's call, not this ticket's.
+
+## Status note (2026-07-30 triage)
+
+Verified still fully open and agent-executable (no LLP gate, no author
+decision): no RN/Hermes files adapter exists (the nine-method adapter
+surface appears only in packages/snapback-client/rqs-store-file.mjs and its
+tests), and no flushResumeState lifecycle wiring exists in any demo source.
+Large — adapter + device-harness proof + chat-matrix adoption + guide
+absorption. This is a natural next large executable now that the 0093
+medium tranche has landed.

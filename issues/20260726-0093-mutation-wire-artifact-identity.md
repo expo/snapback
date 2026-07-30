@@ -24,3 +24,14 @@ protocol surface. Until then: baseline-bearing replays are floor-gated
 and the JS Contract store's artifact privacy boundary prevents its own
 cross-artifact replay client-side — the gap is a hand-rolled wire caller
 that ships predecessor writes with no read set and no attest.
+
+## Status note (2026-07-30 triage)
+
+Verified still open and agent-executable (implementation may proceed under
+LLP 0093's Review status as the P0–P4 cluster did; the change should land as
+dated amendments to LLP 0093 and LLP 0081 §6). Interim mitigations confirmed
+present (SNAPBACK_MIGRATION_UPGRADE_REQUIRED family; 5e244bf9
+resync-before-replay settlement). The LLP 0094 wire-version negotiation
+surface needed to introduce the field compatibly has landed (cea20de7).
+Large — Rust wire + committed schemas + both first-party clients + fixture
+corpus + two LLP amendments.

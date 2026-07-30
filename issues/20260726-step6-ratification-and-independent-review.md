@@ -87,3 +87,14 @@ prove that Machine metadata mutation is actually fenced by the Machine lease
 and `current_version`, that replacement preserves the head, and that no
 automation credential can bypass the guard. Failure requires a new
 single-writer authority design; a local lock is not an acceptable substitution.
+
+## Progress note (2026-07-30 triage)
+
+LLP 0073 has since completed a full dual-family independent review loop
+(llp/reviews/0073-*.{fable,codex,super-refine}.md) with reconciled findings
+and moved to Status: Implemented (Revised 2026-07-30), partially discharging
+required-review item 6. LLP 0068–0072 still carry only the non-independent
+GPT author-side passes; LLP 0100 has one Fable round. Remaining
+agent-executable legs: independent cross-family review loops for 0068–0072
+and a second-family round for 0100. Final ratification (steps 4–5) stays
+author-only.

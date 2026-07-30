@@ -1,6 +1,6 @@
 # Exact TUI agent listener conflicts with an outbound-only app network fence
 
-**Status:** Open
+**Status:** Resolved (2026-07-30 — graduated to Linear ENG-25573; fix is exact-repo work)
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -57,3 +57,15 @@ Either:
 Add a registered TUI launch check combining a declared loopback fetch host
 with the default agent sidecar, plus a release no-agent check if option 2 is
 supported. The app must retain denial of arbitrary listeners in both cases.
+
+## Resolution (2026-07-30)
+
+Graduated to Linear: **ENG-25573**
+(<https://linear.app/expo/issue/ENG-25573/exact-tui-agent-listener-conflicts-with-the-apps-network-ceiling>),
+Exact project, `repo:exact` label. Verified before graduating that nothing has
+changed on exact main (the observed revision is an ancestor of current HEAD;
+`app_runtime.rs` still denies `network:listen` inside the fenced runtime and
+`build_tui_release` still unconditionally bundles the agent), and that no
+prior Linear issue tracked this. The fix must land in the exact repo, so per
+the repo convention this filesystem ticket closes with the Linear pointer
+rather than dual-tracking.
