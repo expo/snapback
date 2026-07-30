@@ -213,3 +213,154 @@ costs and owner interactions, applies the four detail fixes (microseconds
 wording, CV-15 owner alignment, Finding 5 rewording, Option 3
 attribution), and returns for a round-2 delta review. No structural
 changes needed; I expect round 2 to be READY on inspection of the delta.
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh general-purpose subagent
+**Effort:** session-inherited
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh non-author subagent context (round-2 delta), read-only
+review of the working tree at commit 97946b33, cross-family blind
+**Target SHA-256:** `5724a474fcc22586eca5d16dda3a68340394a78a4d38bcb19236725c687a7192`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+## 1. Resolution check — round-1 Fable concerns
+
+1. **BLOCKING-FOR-BAR (missing server-side readiness lane) — RESOLVED.**
+   New Option 2 is exactly the requested option, with the requested
+   invocation-error-fidelity sub-option, honest costs, and owner routing
+   (0031 `/health`, 0030 lifecycle, 0010 diagnostics), plus a new
+   Finding 11 and OQ9. Every factual claim in it survived spot-check:
+   `HealthResponse` carries exactly `ok`/`target`/`sqlite_version`/
+   `ibex_available`/`auth_provider`/`binary` and the handler creates no
+   VM (`src/server.rs` lines 6245–6263, 15247–15268); `ibex_available`
+   is `capabilities.ibex_cli.available || ibex_ctx_db_host_bridge ==
+   Available` — CLI/bridge *presence*, as stated; the `binary` block is
+   the ENG-22798 identity block (doc comment at 6255–6262).
+   `SNAPBACK_RUNTIME_CREATE_FAILED` carries only the two fixed strings
+   (`src/runtime.rs` 617–628), and the claim is even stronger than
+   stated: `ex_hermes_create_no_eval()` returns a bare null pointer on
+   refusal (line 614), so no reason *can* reach the coded error today —
+   the native message ("Armed startup refused: Hermes promise rejection
+   checkpoint tracking is unavailable") is verbatim what the incident
+   issue records from inherited stderr (issue line 31; the underlying
+   throw at `vendor/ibex/src/engine/hermes_runtime.cc:5913`). The ~2 ms
+   boot cost matches LLP 0035 §M2 (~55 % of ~2 700–3 900 µs). The rung
+   claim holds: `'configured' | 'prebuilt' | 'cargo' | 'reused'`
+   (`demos/_kit/server-process.mjs` line 661), the link probe gated to
+   `cargo` only (line 308), reuse decided on a `/health` provenance
+   verdict and `prebuilt` on `requireVerified` identity — presence plus
+   identity, no VM. The `runtime-qualify` subcommand is correctly
+   subjunctive (proposed, not claimed to exist).
+2. **DETAIL (microseconds overstatement) — RESOLVED.** Now "roughly
+   2 ms … ~55 % of the ~2,700–3,900 µs fresh-invocation cost," which
+   matches LLP 0035's Results table verbatim (55 % of 2.7–3.9 ms =
+   1.5–2.1 ms, so "roughly 2 ms" is fair); `bench_runtime_create_us`
+   exists at `src/runtime.rs:693`.
+3. **DETAIL (CV-15 owner conflict) — RESOLVED.** The Relationship
+   section now states both facts compatibly: 0031 defines the verdict
+   vocabulary; the CV-15 wording fix sits with the 0010 harness per the
+   0115 board (board row verified: "CV-15 … 0010 harness").
+4. **DETAIL (Finding 5 undersold CV-2) — RESOLVED.** Finding 5 now
+   credits CV-2's owned invalidate-or-relink half in words matching
+   0115's work text ("a framework refresh must invalidate or relink the
+   final binary before qualification runs"), while correctly keeping
+   out-of-band-refresh removal with options 3–5 and qualification's
+   permanent job.
+5. **DETAIL (Option 3 pre-judgment) — RESOLVED.** Now attributed
+   ("this analysis found no adopter-facing need for
+   swap-without-relink") and explicitly routes the contributor-lane
+   question to OQ3's ratifier.
+
+All four round-1 suggestions were also absorbed (Diary 0037 as the
+control case — quote verified at diary lines ~82–84;
+staleness-not-incoherence sentence in Option 5;
+`public-package-proof.yml` named in Option 8 and present on disk; OQ4
+gains an actor and points at option 2).
+
+Beyond my own concerns, I spot-checked the other new v0.2 material
+independently and it held: the JS-live-query split is code-true
+(`defineJsLiveQuery` → `jsQueryDef('LiveQuery')`,
+`packages/snapback-codegen/define.mjs:1731`; `FunctionKind::LiveQuery`
+takes the Query invocation mode at `src/runtime.rs:2239` and both
+prepare and invoke reach `RuntimeGuard::create()` — lines 2264, 2165);
+the content-addressed option's machinery is real
+(`IBEX_PORTABLE_HERMES_ARTIFACT_ID`/`_ARCHIVE_DIGEST` required
+selectors consumed in `vendor/ibex/build.rs` 705–828; the
+`target/hermes-artifacts` store with the lexical-before-canonicalize
+symlink-redirection guard at
+`build_support/portable_engine_build_consumption.rs` 1980–2016; every
+payload entry in the rerun watch set, 2379–2401; the
+preflight-receipt/nonce/`RUSTC_WRAPPER`/target-map/promotion-admission
+coupling at build.rs 705–807 — so OQ7 is well-founded); the package
+claims are exact (darwin `prepare-runtime.mjs` runs `build-identity`
+then copies independently; darwin `package.test.mjs` is 23 lines of
+identity-only; the Linux test proves attestation digests, `--help`
+launch via rpath, and identity — no VM anywhere); the workerd twin is
+as described, down to the in-code comment "Actions stay on Ibex (egress
+and secrets powers are not in the twin's scope…)" and the
+`!matches!(invocation.mode, IbexInvocationMode::Action)` gate
+(`src/runtime.rs` 2135–2143, `src/workerd_exec.rs`, LLP 0048); the
+Option 6 host-surface list maps one-to-one onto build.rs's compiled
+sources (fs, timers, dns, crypto, process, tls/http/fetch/websocket/
+net, sqlite, debugger, console, ipc, worklet, runtime extensions,
+per-platform files); Option 7's three classes cite correctly (Diary
+0029:33 ceiling mid-acceptance; Diary 0031:842 one-command-per-mutation;
+Diary 0030:537 "documented as a runtime grant, but codegen" verbatim);
+and the no-evidence-regression section paraphrases 0115 constraint 1
+faithfully. Option renumbering cross-references (1–8, OQ3, Relationship
+"options 3/5", "options 2–8") are internally consistent throughout.
+
+## 2. New concerns in the delta
+
+1. **NIT — "digest-anchored rerun detection instead of the mtime
+   heuristic" (Option 4) slightly mislabels the mechanism.** What is
+   digest-anchored is *selection and consumption-time validation*; the
+   payload watch set is still Cargo `rerun-if-changed`, i.e. mtime-based
+   path watching. The protection against the incident class comes from
+   store immutability plus address-change-triggers-rerun plus digest
+   validation when the build does run — and the document's own OQ8
+   already carries the honest residual (TOCTOU/post-link mutation), so
+   this is wording, not substance.
+2. **NIT — the error-fidelity sub-option's "cheap" elides an ABI
+   boundary.** `ex_hermes_create_no_eval()` returns only a null pointer
+   (`src/runtime.rs:614`), so carrying the native refusal reason
+   requires adding a channel to the vendored Ibex C ABI (e.g. a
+   last-error getter) — mechanically trivial, but a cross-repo
+   coordination cost the word "cheap" hides.
+3. **NIT (optional) — `scripts/build-hermes.sh` in Option 5 is
+   Ibex-repo-relative** (`vendor/ibex/scripts/build-hermes.sh` from this
+   repo's root). It matches build.rs's own spelling and the settled
+   §Why-dynamic text round 1 accepted, so this is a reader-clarity
+   touch, not an error.
+
+No MINOR or higher concerns in the delta. No new unfair costings,
+smuggled decisions, or unlabeled empirical claims found; the delta in
+fact moves two v0.1 assertions the honest direction (the Convex
+sealed-artifact account demoted to labeled inference with a named
+verification path; Option 7's "cheap" demoted to hypothesis).
+
+## 3. Verdict
+
+**READY.** Round 1's sole blocking concern — the missing server-side
+readiness option — is genuinely resolved, not reworded: the new option
+is fully argued, factually grounded (every code claim in it verified
+against the tree), honestly costed, and owner-routed, and the option
+space now spans tool-side witnessing, server-side witnessing, three
+distribution/link shapes, engine strategy, and the two experience
+surfaces, with a per-option evidence-regression check. All four detail
+concerns are fixed as requested. The remaining items are three nits
+that do not touch the bar.
+
+## 4. Recommended next step
+
+Accept at the author's discretion; no further review round is needed
+from this family. The three nits (rerun-detection wording, the
+ABI-boundary caveat on "cheap," the build-hermes.sh path spelling) can
+ride any future revision. The natural follow-on is the one the document
+itself names: route option 2 to its owners (LLP 0031 `/health` block,
+LLP 0030 refuse-vs-degraded lifecycle, LLP 0010 diagnostics) and let
+OQ7's adoptability question gate any pursuit of option 4.

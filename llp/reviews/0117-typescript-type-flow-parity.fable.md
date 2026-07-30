@@ -221,3 +221,160 @@ Author applies a v0.2 revision fixing C1 (three citation pointers), C2
 (static-JS inference correction, F↔C composition note, OQ5 recast), plus
 the C4–C7 details at will — then a short round 2 delta review. No
 re-review of the code-verified claims is needed; they held.
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh general-purpose subagent
+**Effort:** session-inherited
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh non-author subagent context (round-2 delta), read-only
+review of the working tree at commit 97946b33, cross-family blind
+**Target SHA-256:** `f9a06a39126a6a37ee8c08d619daa13a1161a37bdda843081a1c49fe8d37d06e`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### 1. Resolution check — round-1 Fable concerns
+
+- **C1 (MATERIAL, three misattributed diary quotes): RESOLVED.** All
+  three source pointers now verified correct against the diaries:
+  "Convex infers more, Snapback proves more" is Diary 0039's
+  executive-table Relay Board row (0039:22, verbatim); "validates and
+  types the split vector" is Diary 0039 §5 (0039:141–142, verbatim, with
+  Diary 0036's role correctly restated as recording the `v.json()`
+  acceptance); the Split Ledger score is now cited to the executive
+  table (0039:25). One residual on the third quote is logged as N1
+  below — pointer right, quote not quite verbatim.
+- **C2 (MATERIAL, unmeasured Relay 148 → 224 decomposition): RESOLVED.**
+  The Summary now carries both diary-named causes; §How they differ
+  quotes Diary 0033 verbatim (checked word-for-word against
+  0033:41–45: "largely because the exact nested result contract is
+  verbose and the guide's inline profile steered this app away from a
+  shared sibling reader helper"); Option E's benefit case is
+  reframed as a hypothesis gated on the schema-respellable fraction;
+  Finding 2 carries the two-cause/no-decomposition statement; the
+  Confidence section lists the undecomposed delta as diary-reported;
+  and new open question 7 names the measurement ("measurable from the
+  rerun app sources before any implementation") exactly as prescribed.
+- **C3 (MATERIAL, Option C inference-source error and missing F↔C
+  composition): RESOLVED.** The incorrect "only inference source is
+  handler behavior" claim is replaced with the accurate `checkJs`
+  static-inference account, the real limit is correctly restated as
+  inference *quality* under `any`-typed `ctx`/`args`, F-enables-C
+  appears in Option C, §Composition, and Finding 7, OQ5 is recast as
+  the better-shaped empirical question I suggested, and the TS
+  behavior relied on (`checkJs` inference, contextual typing) is
+  honestly enumerated as cited background in §Confidence.
+- **C4 (DETAIL, dropped Split qualifier): RESOLVED.** "379 → 427 lines
+  of authored source plus acceptance (Diary 0036:113–114)" — verified
+  against 0036:113–114; the Confidence entry carries it too.
+- **C5 (DETAIL, Convex args-validation outside the taxonomy):
+  RESOLVED.** Added to the background list with the accurate
+  parenthetical that the diaries show passing arms, not
+  invalid-payload refusal.
+- **C6 (DETAIL, scalars-only IR characterization): RESOLVED.** The
+  Option A parenthetical now matches the code — `ValueExpr::Arg` path
+  lookup at src/value_expr.rs:121 and `ValueExpr::Args` at
+  value_expr.rs:128 both verified — and the recast ("interaction is
+  with operator and comparison semantics, not reference shape") is
+  accurate.
+- **C7 (DETAIL, ambiguous Diary 0022): RESOLVED.** Disambiguated to
+  0022-backend-bakeoff with the shared-number note; "casts the API and
+  normalizes unknown rows" verified at 0022-backend-bakeoff:76–77.
+
+Round-1 suggestions 1 and 4 were also taken: the `argsContractHash`
+carrier is cited in Option A (verified: minted at index.mjs:1942,
+carried at src/manifest.rs:3069–3070, and only format-validated at
+manifest load, manifest.rs:1548 — "no runtime consumer" is fair), and
+the Summary now carries the dual-cause framing so quoted excerpts
+inherit the accurate version.
+
+### 2. Spot-checks of the other new v0.2 text
+
+Beyond my own concerns' fixes, I verified the delta's new factual
+claims against the tree; they hold:
+
+- **TS-baseline correction** (§What Snapback does today, Option B,
+  Finding 8, Confidence): `import ts from 'typescript'` at
+  index.mjs:34; `"typescript": "5.9.3"` at
+  packages/snapback-codegen/package.json:56; `.ts`/`.mts` handler
+  dispatch at index.mjs:4416–4419 and the TS-AST scanner at
+  index.mjs:4727–4730; esbuild `.ts`/`.mts`/`.cts` admission at
+  index.mjs:7112; `InferValidator` at define.d.ts:36;
+  `(ctx: any, args: any) => unknown` at define.d.ts:305, 326, 341. No
+  `createProgram`/`getTypeChecker` call exists anywhere in index.mjs,
+  so "syntax and transpilation, never for handler type flow" is exact.
+- **New §CV-5 section:** `query: v.json()` at define.mjs:778;
+  `SearchQueryAstV1`/`SearchRequestV1` as hand-authored string
+  literals at index.mjs:5907–5908; zero `search` matches in
+  src/schema_export.rs; the grammar owner constant
+  `snapback-search-parser-v1` at src/search/types.rs:7. The 0115
+  claims are real: the status board maps CV-5 to 0117 (0115 line 154)
+  and "first conformance fixture for CV-4a's argument-contract
+  carrier" is 0115's own sequencing language (0115 line 374); LLP 0073
+  open question 12 exists. The section's "reference, don't respell"
+  point is a contribution to an item whose ownership it explicitly
+  leaves with 0115/0073 — no smuggled decision, and it is consistent
+  with 0115 v0.3's own re-scope of CV-5.
+- **New Option H:** the costing is honest — it concedes H still
+  crosses LLP 0108's no-inference-from-source line and needs
+  re-ratification, distinguishing that correctly from 0115's
+  no-evidence-regression constraint (satisfied by refusal). Its
+  "existing profile maxima supply specified defaults" claim is
+  grounded: `RESULT_MAX_STRING_BYTES`/`RESULT_MAX_ARRAY_ITEMS` with
+  `??` defaults at result-contracts.mjs:214, 233. Both custody
+  identifiers named in OQ5 exist (`resultContractHash`,
+  index.mjs:1949; `implementationHash`, index.mjs:2071). OQ8's
+  refusal-rate question is properly labeled measurable.
+- **Option F Mechanism paragraph:** the contextual-typing account
+  (builder parameter types, not ambient names, drive inline-handler
+  parameter typing; triple-slash references attach nothing) is
+  correct TS behavior and is now declared as cited background in
+  §Confidence; the three carriers are each workable and the
+  "checker consumes the projection and never mints one" authority
+  argument is sound.
+- **Reclassified causal claims** (Finding 5, Option G): the
+  severity-caused-omission and strictness-scores-worse claims are now
+  hypotheses with OQ6 naming the measurement — consistent with the
+  document's own empirical-labeling discipline.
+
+### 3. New concerns in the delta
+
+- **N1. DETAIL — The 0039:25 quote is still not verbatim.** §What
+  Convex does quotes "slight Convex edge from typed nested mutation
+  input"; the executive-table row reads "Convex slight edge from typed
+  nested mutation input" (0039:25). Round 1 noted this exact wording.
+  The misattribution (the material half of C1) is fixed; the
+  quotation marks now enclose a two-word transposition of a correctly
+  cited line. Fix by reordering to verbatim or paraphrasing without
+  quotes.
+- **N2. DETAIL — One line-range misses a named symbol.** "non-generic
+  `defineJsQuery`/`defineJsMutation` signatures (define.d.ts:449–452)"
+  (twice: §What Snapback does today and Option F Mechanism). Lines
+  449–452 cover `defineQuery`/`defineLiveQuery`/`defineJsQuery`/
+  `defineJsLiveQuery`; `defineJsMutation` is at define.d.ts:521 (also
+  non-generic, returning `unknown` — the claim is true; one of the two
+  named symbols sits outside the cited range). The bare "non-generic
+  builders (define.d.ts:449–452)" in §Confidence is fine as written.
+
+### 4. Verdict
+
+**READY.** All three material round-1 concerns are genuinely resolved —
+verified against the diaries and the tree, not merely reworded — and
+the four detail concerns are fully fixed. The new v0.2 material (the
+TS-baseline correction, Option H, the F Mechanism, §CV-5) is factually
+accurate on every claim I checked, constraint-honest, and properly
+labels its empirical questions (OQ5–OQ8). The two residual items (N1,
+N2) are citation nits of the same class round 1 classified as
+DETAIL — neither touches a finding, a costing, or a conclusion, and
+neither requires re-review; against the stated bar they do not
+constitute unexhausted pre-empirical thinking.
+
+### 5. Recommended next step
+
+Author applies the two one-line citation touch-ups (N1: verbatim or
+unquoted 0039:25 wording; N2: cite define.d.ts:451 and 521, or drop
+`defineJsMutation` from the parenthetical) in the next editorial pass —
+no further review round is warranted on their account. The document is
+ready for the series' acceptance step.

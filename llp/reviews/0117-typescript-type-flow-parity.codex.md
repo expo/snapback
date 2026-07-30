@@ -179,3 +179,67 @@ Revise LLP 0117 in one focused pass:
 Then rerun the independent review. No code experiment is required to close these concerns.
 
 **NOT READY**
+
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol` (as shown in CLI banner), reasoning effort medium
+**Reasoning effort:** CLI default
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-2 delta, cross-family blind
+**Target SHA-256:** `f9a06a39126a6a37ee8c08d619daa13a1161a37bdda843081a1c49fe8d37d06e`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### Verbatim review
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex  
+**Provider / runtime:** Codex API session; exact runner banner not exposed  
+**Reasoning effort:** session default  
+**Date:** 2026-07-30  
+**Redacted:** no  
+**Method:** read-only, same-family delta review; mutually blind  
+**Target SHA-256:** `f9a06a39126a6a37ee8c08d619daa13a1161a37bdda843081a1c49fe8d37d06e`  
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`  
+**Status:** completed
+
+### Resolution check
+
+- **CV-5 ownership contradiction — resolved.** The new CV-5 section reconciles LLP 0115’s mapping, analyzes its interaction with CV-4a, and chooses the host-owned reference lane over mechanically widening app validators.
+- **Incorrect TypeScript baseline — resolved.** The revision now accurately distinguishes the existing pinned compiler and `.ts`/`.mts` handler admission from the missing `ctx`/args/return type flow, and rescoring reflects that baseline.
+- **Missing conservative inference variant — resolved.** Option H is genuinely distinct, fail-closed, preserves runtime enforcement, names compiler custody, and correctly acknowledges its conflict with LLP 0108.
+- **Option F lacked a contextual-typing mechanism — resolved.** It now explains why an ambient declaration alone is insufficient, identifies concrete contextual-typing carriers, and makes return assignability declaration-authoritative.
+- **Causal claims exceeded evidence — resolved.** Relay attribution, diagnostic-severity causality, and strictness ordering are now explicitly hypotheses with named measurements.
+- **“No TypeScript in the loop” obscured the actual boundary — resolved.** The revised baseline precisely locates the collapse at `(ctx: any, args: any) => unknown`.
+
+### New concerns in the delta
+
+#### MATERIAL — CV-5’s carrier inventory and `argsContractHash` characterization are inaccurate
+
+The new section says “three carriers” describe the search shape, but the tree contains another independently hand-authored public carrier in [packages/snapback-client/index.d.mts](/Users/ccheever/projects/snapback/packages/snapback-client/index.d.mts:145), separate from the generated declarations in [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:5898) and the Rust types in [types.rs](/Users/ccheever/projects/snapback/src/search/types.rs:160).
+
+Also, `argsContractHash` is an identity witness calculated over existing argument descriptors, not a payload slot through which a schema reference can “ride” ([result-contracts.mjs](/Users/ccheever/projects/snapback/packages/snapback-codegen/result-contracts.mjs:29)). CV-4a must introduce or extend an actual argument-contract descriptor; `argsContractHash` can then witness its canonical representation.
+
+Resolution: inventory all search carriers and distinguish the future reference-bearing descriptor from its hash.
+
+#### MATERIAL — Option F overstates the existing TypeScript authoring surface
+
+Carrier 3 calls first-class `.ts` definitions “already an admitted authoring surface.” Current codegen still fixes root authoring to `schema.mjs` and `functions.mjs` ([index.mjs](/Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:574)). External `.ts`/`.mts` handler scripts are admitted, but their imports and exports are refused ([index.mjs](/Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:4915)); they cannot currently import a generated app-specific module as described.
+
+The generated builder and per-operation JSDoc carriers remain credible, so Option F itself survives.
+
+Resolution: describe carrier 3 as a new authoring surface requiring admission and type-injection design, or replace it with a mechanism compatible with closed handler scripts.
+
+### Verdict: NOT READY
+
+The Round 1 concerns are substantively closed, but the new CV-5 and Option F text introduces two material, tree-checkable inaccuracies. Both are pre-empirical and straightforward to correct.
+
+### Recommended next step
+
+Correct those two mechanism descriptions, then run a narrow Codex-family Round 3 delta check. No implementation experiment is needed.
+
+The required artifact append could not be persisted because this session’s filesystem is read-only; [the Codex review artifact](/Users/ccheever/projects/snapback/llp/reviews/0117-typescript-type-flow-parity.codex.md) remains unchanged.

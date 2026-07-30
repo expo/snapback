@@ -165,3 +165,65 @@ Revise LLP 0118 while keeping it in Review:
 7. Send the revision through another independent review round.
 
 Final verdict: **NOT READY**.
+
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-2 delta, cross-family blind
+**Target SHA-256:** `3d2ad2b7d7153eb90115d33508454bbe3adf0835101dc1aecf465365a4092e4e`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### Verbatim review
+
+I could not append the Round 2 artifact because this workspace is read-only. Reviewed target SHA-256: `3d2ad2b7…4092e4e`; instruction SHA-256: `33c3fd21…6f7ce`.
+
+## Resolution check
+
+- **3.1 Same-file lexical closure — Resolved.** Option 1a addresses reachability, cycles/TDZ, initializer rules, type flow, source spans, identity, laundering, and CV-7. Both motivating cases are verified as same-file.
+- **3.2 Resolver/bundler conflation — Resolved.** The revised description matches the esbuild-hosted, fail-closed resolver at [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:6974), including relative, `file:`, absolute-local, and two allowlisted bare specifiers.
+- **3.3 Hermetic packages — Resolved.** The lockfile-pinned variant is now analyzed without being prematurely selected or dismissed.
+- **3.4 Pure versus capability-bearing helpers — Partially resolved.** The axis and relevant helper classes are present, but its proposed safety model contains a load-bearing error described below.
+- **3.5 Hypotheses stated as findings — Resolved.** Scaling, diagnostic effort, and drift-detection claims are appropriately narrowed or labeled empirical.
+- **3.6 Stale LLP 0115 attribution — Resolved.** The text correctly says LLP 0115 is fixed and LLP 0108 remains stale.
+- **3.7 Convex/package provenance — Resolved.** Package demand and agent-behavior claims are explicitly labeled as background or hypotheses.
+
+## New concerns
+
+**BLOCKING-FOR-BAR — The helper authority analysis assumes protections that do not exist.**
+
+At [LLP 0118 line 295](/Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:295), “pure-only” is defined as admitting no `ctx` parameter. That is not capability closure: `helper(ctx.db)`, `helper(ctx.db.query.bind(ctx.db))`, or another alias passes capability-bearing values without a parameter named `ctx`.
+
+More importantly, the claimed caller-ceiling rule says helper accesses are checked against each consumer’s declared reads/writes “exactly as inline code is today.” The tree contradicts that:
+
+- Opaque JS/Ibex ceilings merely restate declarations and explicitly claim no static proof in [effect-ceiling.mjs](/Users/ccheever/projects/snapback/packages/snapback-codegen/effect-ceiling.mjs:235).
+- Runtime ceiling validation returns without checking Ibex modules in [manifest.rs](/Users/ccheever/projects/snapback/src/manifest.rs:2114).
+- The host dispatcher accepts the handler-supplied query plan and enforces runtime-kind restrictions, but does not compare its table against the operation’s declared table set in [runtime.rs](/Users/ccheever/projects/snapback/src/runtime.rs:1149).
+
+Thus table-level caller-ceiling enforcement would be a new mechanism, not preservation of today’s behavior.
+
+**DETAIL — Package integrity is imprecisely equated with per-edge attestation.**
+
+Lockfile integrity normally authenticates a package artifact, not each source import edge. Because the proposed variant also records the resolved graph and per-file digests, the broader conclusion survives; the parenthetical “integrity hashes are exactly that” should distinguish package-artifact integrity from resolved-edge/file attestation.
+
+## Verdict
+
+**NOT READY.**
+
+The revision closes six concerns and substantially advances the seventh, but the remaining defect is on the load-bearing authority boundary.
+
+## Recommended next step
+
+Revise only the helper-class analysis:
+
+1. Define purity by capability flow, not parameter naming.
+2. Describe current enforcement accurately: runtime-kind capabilities plus declared-but-unproven read/write evidence for opaque handlers.
+3. Cost table-level caller ceilings as new enforcement if desired.
+4. Spell out mutation and action/egress helpers, including aliased capability arguments and declared grants/`uses`.
+
+Then run a focused Round 3 delta review.

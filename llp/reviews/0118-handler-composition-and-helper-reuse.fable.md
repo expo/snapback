@@ -274,3 +274,154 @@ operation-composition scope boundary; (d) apply C4–C7 and the
 suggestions as one-liners. The document's structure, verification layer,
 and findings otherwise stand; a delta re-review of the revised sections
 should suffice for round 2.
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh general-purpose subagent
+**Effort:** session-inherited
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh non-author subagent context (round-2 delta), read-only
+review of the working tree at commit 97946b33, cross-family blind
+**Target SHA-256:** `3d2ad2b7d7153eb90115d33508454bbe3adf0835101dc1aecf465365a4092e4e`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### 1. Resolution check (round-1 Fable concerns)
+
+Every factual claim the v0.2 fixes introduce was re-verified against the
+tree before acceptance; the verification ledger follows the per-concern
+lines.
+
+- **C1 (BLOCKING-FOR-BAR — retired warm-pool model): RESOLVED.** The new
+  lifecycle paragraph in §What Snapback does today is accurate in every
+  checked particular: `src/warm_vm.rs` ships `WarmVmPool` as a no-op with
+  `enabled()` returning `false` and the `@ref` to LLP 0009's DK-4
+  retirement section (lines 10–34); `src/manifest.rs` defaults
+  `vmLifecycle` to `"fresh-per-invocation"` (`vm_lifecycle_fresh`, line
+  5991) with `"warm-pooled-reset"` documented as "a recognized historical
+  value" (lines 5832–5837); LLP 0009's retired section (line 377) states
+  exactly the refusal list quoted (evaluation, asynchronous-failure
+  inspection, value release, destruction — lines 379–381) and the
+  reintroduction condition verbatim ("stable runtime-owner threads (or a
+  new upstream transfer contract…)", lines 392–393); the four-VM bound
+  ("bounded at **4 VMs total per instance**", line 745) does sit inside
+  the DK-4 as-built section carrying the "Historical / retired
+  2026-07-27" marker (lines 400–773); the hosted posture is fresh per
+  invocation per 0009 ("fresh per invocation remains the durable
+  default," line ~417) and the workerd lane runs "one workerd process per
+  invocation" (LLP 0048 lines 216, 373); LLP 0035 gives ~3.9 ms
+  fresh-invocation cost (line 22) with ~45% attributed to eval (line
+  315). The re-costing itself is now correct where round 1 found it
+  wrong: cost (b) marks the group-bundle's pool rationale vacuous while
+  correctly retaining the identity blast radius; cost (c) reframes DK-4
+  as retired-and-needing-respecification and names the replacement
+  benchmark; the risks paragraph decomposes the choice into admission
+  shape vs. emission shape, derives splice-dominates from sound premises
+  (per-invocation bytes evaluated: splice ≤ group always, strictly less
+  for multi-operation apps), and — the specific correction round 1
+  demanded — the two-tier cost accounting now places duplicated helper
+  *storage* at the generated-artifact tier (where LLP 0115 constraint 4,
+  verified at 0115 lines 106–111, tolerates volume) and per-invocation
+  *evaluation* at the runtime tier constraint 4 does not govern, routed
+  to the respecified empirical benchmark. The conditional return of
+  pooling is analyzed, not ignored ("reopen — not silently reverse"),
+  answering round-1 open questions 1 (hosted profiles: verified — no
+  current profile retains warm reuse) and 2 (the condition is stated from
+  0009 rather than guessed at). Finding 7 and OQ1 carry the same
+  corrected analysis. The document also correctly flags that 0108's
+  blueprint note and 0115's CV-7 work text still speak in warm-pool terms
+  (verified: 0108 lines 13–15, 196; 0115 lines 422, 430) — an accurate
+  debt assignment, not a deflection.
+- **C2 (MATERIAL — missing defining-module-only slice): RESOLVED.**
+  Option 1a is added as a full named option with benefits, costs, risks,
+  and the option-2-shaped identity story (named helper-content hashes, no
+  paths); Finding 10 is added; OQ1 is reordered graph-scope-first exactly
+  as the concern argued. I verified the same-file premise past the
+  diaries down to the app source: Streak Lab's duplicated `civilFromDay`
+  and `dayNumber` appear inside the two handlers of one authored
+  `functions.mjs` (lines 28/47 and 127/146 in the matrix checkout), and
+  Relay Board's `boardView`/`boardSummary` both live in its
+  `functions.mjs`. The Diary 0033 quotes ("shared sibling reader helper,"
+  "one file contains contract plus implementation") are verbatim at diary
+  lines 44–45, and the guide-steering reading is faithful to context.
+- **C3 (MATERIAL — cross-front interactions): RESOLVED.** The new
+  §Cross-front interactions section supplies the CV-8/LLP 0120
+  dissolution parallel for Relay Board, OQ4 gains the twin, and the
+  sub-operation-composition scope boundary is drawn explicitly (in both
+  §What Convex does — naming `ctx.runQuery`/components — and the
+  cross-front section, with ownership assigned to 0120/CV-8).
+- **C4 (DETAIL — stale Finding 9): RESOLVED.** Updated accurately on
+  both halves: LLP 0115 v0.4 has absorbed the re-attribution with credit
+  (0115 line 414), and LLP 0108's "Diary 0039 field evidence —
+  2026-07-30" section (heading line 771) still names Campfire at line
+  793 — the finding's section attribution is itself correct.
+- **C5 (DETAIL — unlabeled extrapolation): RESOLVED.** Reclassified as
+  "a plausible expectation — not a diary-measured fact," promoted to open
+  question 6, and listed in the new Hypotheses ledger in §Confidence.
+- **C6 (DETAIL — "survive by construction"): RESOLVED.** Now "preserved
+  by design — … the specification's intent, not a confirmed property,"
+  with the dual-NOT-READY loop stated in place.
+- **C7 (DETAIL — resolver characterization): RESOLVED.** The resolver
+  description now states the esbuild-hosted fail-closed plugin structure
+  and the allowlist; both verified: the `snapback-definition-graph`
+  plugin seizes all resolution via `onResolve`/`onLoad`
+  (`index.mjs:7066–7137`), and `DEFINITION_PACKAGE_IMPORTS` has exactly
+  two entries mapped to local files (`index.mjs:333–336`), with
+  relative/`file:`/absolute handling at 7089–7101. Option 3's recast
+  along the admission-policy vs. transform-host axes is the analysis the
+  concern asked for, and Finding 3 carries it.
+- **Round-1 suggestions:** all five applied where offered (31-entry
+  count, Diary 0022 slug disambiguation, concrete marker shape, Convex
+  composition surface named and scoped out, option 5's exact-vs-near
+  grades priced separately).
+
+### 2. New concerns in the delta
+
+**N1. DETAIL — Finding 10's "Relay Board's backend is one
+schema/functions file" overstates the file count.** The authored backend
+is two files (`schema.mjs` + `functions.mjs`; the diary itself says "224
+lines across schema/functions"). The load-bearing claim survives — both
+duplicated queries live in the single `functions.mjs`, source-verified —
+but the phrasing should be "the duplicated operations share one authored
+functions file." Option 1a's own text, which quotes the diary directly,
+is fine.
+
+**N2. DETAIL — one clause in the cross-cutting axis describes the
+factored form as the shipped form.** "Relay Board's duplicated logic …
+receives the runtime context" — as shipped it is inline code inside each
+handler using the context; only the hypothetical shared-helper form
+would *receive* `ctx`. The semantic-class analysis is unaffected; one
+clause ("would receive the runtime context if factored") fixes it.
+
+No new factual errors, unfair costings, smuggled decisions, or unlabeled
+empirical claims were found in the delta beyond these two phrasing
+imprecisions. The new hermetic-package-closure analysis (option 4), the
+pure-vs-capability-bearing axis with the caller-ceiling formulation, the
+Hypotheses ledger, and open questions 6–8 are all internally consistent
+and properly provenance-labeled. (The Revised header's "ten distinct
+concerns" spans both families; only my family's seven are verifiable
+under the blindness rule, and all seven were genuinely applied, none
+reworded away.)
+
+### 3. Verdict
+
+**READY.** Round 1's blocking concern is resolved on correct,
+tree-verified premises — the document now analyzes its central design
+question under the lifecycle that actually ships, prices both emission
+shapes under both lifecycles, and names the empirical question that
+remains. The two material option-space gaps are filled with genuine
+analysis (option 1a is source-verified down to the duplicated helper
+line numbers; the cross-front section completes the urgency accounting).
+The two new concerns are phrasing-precision details that do not touch
+any conclusion and do not cross the stated bar.
+
+### 4. Recommended next step
+
+Accept from the Fable side. Optionally fold N1 and N2 as two one-line
+touch-ups in any later revision — neither warrants a re-review round.
+The debts the document correctly assigns outward (LLP 0108's blueprint
+note and LLP 0115's CV-7 work text still owe the DK-4/warm-pool
+absorption on their next revisions) should be tracked by those owners,
+not held against this document.

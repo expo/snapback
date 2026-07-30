@@ -171,3 +171,78 @@ Revise LLP 0122 while keeping it in Review:
 5. Convert unresolved implementation-dependent claims into a named empirical agenda.
 
 After those revisions, request the second-family re-review before the author decides whether the document has reached the READY bar.
+
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-2 delta, cross-family blind
+**Target SHA-256:** `27390c8950fd22ca209a714a472da9159311b9868ad9362f4f2e37a1e66afec9`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### Verbatim review
+
+## Resolution check
+
+1. **Guide-mechanism diagnosis — RESOLVED.** The revision correctly attributes the checkout dialect to source-corpus and page composition. This matches [guide/conventions.md](/Users/ccheever/projects/snapback/guide/conventions.md:99), which permits any CI-exercised demo, fixture, package test, or proof script.
+
+2. **No-evidence-regression option analysis — PARTIALLY RESOLVED.** The option analysis, helper decomposition, and comparator claims are substantially improved and factually supported. However, the admin-client comparison still conflates packaging custody with runtime authority and browser bundling, and Option 7 incorrectly calls the existing ledger machinery name-parametric.
+
+3. **Three-way blocking split — RESOLVED.** The document now correctly distinguishes:
+
+   - helper custody blocking any external workout arm;
+   - admin-client custody blocking Dispatch/admin proof;
+   - both decisions gating complete CV-1 exit.
+
+   This matches [LLP 0115](/Users/ccheever/projects/snapback/llp/0115-convex-parity-course-corrections.plan.md:235).
+
+4. **Option 1’s “necessary floor” — RESOLVED.** It is now explicitly conditional on current owners and acknowledges that consolidation could supersede parts of the nine-package path.
+
+5. **Closed empirical agenda — PARTIALLY RESOLVED.** The new section covers almost all requested probes, but omits the specifically requested runtime-recovery behavior after consolidation. Calling the list “closed” is therefore premature.
+
+6. **Unproven comparator appeal — RESOLVED.** The Convex/Next/Expo statement is now labeled general industry background.
+
+7. **“Nothing consumed it” scope — RESOLVED.** The heading and surrounding text now accurately limit the claim to the flagship rerun.
+
+## New concerns
+
+### BLOCKING-FOR-BAR — Option 7 falsely describes re-proving under new names as mechanical
+
+The claim that “the ledger machinery is name-parametric” is contradicted by current code:
+
+- [protocol.mjs](/Users/ccheever/projects/snapback/packages/snapback-publication-authority/protocol.mjs:20) hard-codes the nine `@ccheever/snapback-*` names and later enforces that scope with a regex.
+- The publication-authority JSON schemas use exact-name `const` values.
+- [snapback-package-cold-install-lib.mjs](/Users/ccheever/projects/snapback/scripts/snapback-package-cold-install-lib.mjs:1234) requires the `ccheever` scope preset and derives the expected alias as `@ccheever/snapback-*`.
+
+A rename requires redesigning and amending the publication authority, schemas, pack/promotion validation, and cold-install proof—not merely rerunning the suite. The npm dispute-process claim itself is sound; npm’s current policy covers package, user, and organization names ([npm policies](https://docs.npmjs.com/policies/terms/)).
+
+### MATERIAL — Admin-client custody is still costed against the wrong authority boundary
+
+The served file is the same browser-executed client code embedded from [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-admin-client/index.mjs:1); serving it does not “keep authority at the server” in a way packaging it would not. Server-side credential validation remains the authority boundary under every custody shape.
+
+Likewise, publishing or exposing a subpath makes privileged code resolvable but does not automatically include it in ordinary browser bundles—an application must import it. Folding into the CLI also has materially different bundle exposure from folding into `@snapback/client`, so those shapes should not be costed together.
+
+### MATERIAL — The empirical list omits runtime recovery after consolidation
+
+Round 1 explicitly requested runtime recovery and provenance after consolidation. “Provenance survival” covers the latter, while the single-binary question lists size, launch, signing, updates, and embedding but not recovery behavior. Add a probe for missing/corrupt runtime detection, repair, relaunch, and retained provenance under Options 2–3.
+
+## Verdict
+
+**NOT READY**
+
+The main Round 1 defects were substantially addressed, but Option 7 introduces a load-bearing factual error about the current publication machinery, and the admin authority analysis remains materially misleading.
+
+## Recommended next step
+
+Revise only the affected delta:
+
+1. Recast Option 7’s rename as a publication-authority and proof-system migration, naming the hard-coded boundaries and required owner amendments.
+2. Separate admin-client packaging, import reachability, browser inclusion, credential custody, and server-side authority; analyze client and CLI folding independently.
+3. Add runtime-recovery-after-consolidation to the empirical agenda.
+
+Then request a focused Codex-family round-3 delta review.

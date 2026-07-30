@@ -5,7 +5,28 @@
 **Systems:** Developer experience, Packaging, Tooling, Client integration, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2, round-1 dual-family review corrections —
+**Revised:** 2026-07-30 (v0.3, round-2 delta corrections — round-2 delta
+reviews in
+`reviews/0122-installed-product-coherence-and-packaging.fable.md` and
+`reviews/0122-installed-product-coherence-and-packaging.codex.md`, both
+NOT READY on delta-only items, with all round-1 concerns recorded as
+resolved or partially resolved; all five round-2 items verified against
+the tree and applied: Option 7's rename recast from "re-proving is
+mechanical" to a publication-authority/proof-system migration whose
+hard-coded name boundaries — the protocol's nine-name table and scope
+regex, the exact-name schema `const`s, the cold-install `ccheever`
+scope-preset refusal — are named and their costs threaded into each
+path; the admin-client custody costing corrected (credential authority
+is server-side under every shape, subpath reachability distinguished
+from browser-bundle inclusion, client-folding and CLI-folding costed
+separately); a runtime-recovery-after-consolidation probe added to the
+empirical agenda and the "closed list" claim qualified to
+closed-by-review; the LLP 0123 cross-reference repointed to its
+prebuilt-hermetic-runtime-distribution option, Option 3 after 0123's
+same-day renumbering; the facet-3 snippet-location claim corrected —
+the authoring-loop page anchors packages via `examples:` frontmatter,
+and the package-sourced snippet fences live on other guide pages.)
+2026-07-30 (v0.2, round-1 dual-family review corrections —
 verbatim reviews in
 `reviews/0122-installed-product-coherence-and-packaging.fable.md` and
 `reviews/0122-installed-product-coherence-and-packaging.codex.md`; all 13
@@ -229,9 +250,16 @@ none of the flagship evidence (the matrix, the guide) routes through it yet.
 dialect. Snapback's guide is CI-verified — a real advantage — but its
 first-hour pages transclude from checkout-resident demos, so they teach
 the checkout dialect. That is corpus selection, not the mechanism:
-LLP 0061's checker accepts any CI-exercised source, and installed-dialect,
-package-fixture-anchored snippets already exist on the authoring-loop
-page. A coherence program that ships packages but leaves the guide
+LLP 0061's checker accepts any CI-exercised source; the authoring-loop
+page already anchors the packaged templates and a package test through
+its `examples:` frontmatter; and package-sourced snippet fences are
+already live elsewhere in the guide —
+`guide/backend/standard-patterns.md` transcludes four snippets from
+`packages/snapback-codegen/standard-patterns.test.mjs`, with more on the
+client and auth pages. That corrected placement is stronger evidence,
+not weaker: the mechanism does not merely permit installed-dialect
+sources in principle, it verifiably renders them on guide pages today.
+A coherence program that ships packages but leaves the guide
 teaching `../../_kit/define.mjs` has not shipped coherence.
 
 **4. Generated artifacts that feel owned by the app.** Convex's
@@ -301,8 +329,8 @@ does — but as an overall ranking that is a hypothesis until the facets it
 does not obviously help (TypeScript imports, editor types, browser
 delivery, attestation, runtime recovery) are compared. The intermediate
 shape — runtime fetched on demand behind the CLI, Convex's literal model —
-is LLP 0123 Option 2 (prebuilt hermetic runtime distribution) and is not
-re-analyzed here.
+is LLP 0123's prebuilt-hermetic-runtime-distribution option (Option 3
+after 0123's v0.2 renumbering) and is not re-analyzed here.
 
 *Tradeoffs:* codegen and the dev loop are JavaScript running under Node
 today; embedding them means either bundling a JS runtime for tooling into
@@ -385,26 +413,39 @@ the author's.
 
 Per artifact, three shapes each (0041 §Open Questions):
 
-- *Admin client:* first, what it is. Not an ordinary client module but a
-  privileged authority surface: master admin tokens, console-credential
-  exchange, memory-only secret-read leases, and credential redaction
-  (`packages/snapback-admin-client/index.mjs`). The shapes: (a) admit
-  `@snapback/admin-client` to the closure as a tenth package — clean but
-  grows the public API surface and its compatibility promise; (b) fold it
-  into `@snapback/client` or the CLI — fewer names, but couples
-  admin-protocol churn to the app-client version and puts privileged
-  credential handling into the package that ordinary app dependency
-  graphs and browser bundles resolve, an authority-separation cost that
-  package count does not capture; (c) endorse the served
-  `/_snapback/admin/client.mjs` path for external use — zero packaging
-  cost and always version-matched to the running server, but
-  undiscoverable, untypeable without a published declaration, and
-  unavailable before the server is up (most admin operations need a
-  running server anyway; the sharper limit is tooling that wants types or
-  imports at build time). The implementation already describes the served
-  path as an external-tooling surface (`src/admin.rs`); the custody
-  decision is whether that implementation intent becomes a normatively
-  endorsed public contract.
+- *Admin client:* first, what it is. Not an ordinary client module but
+  privileged credential-handling code: master admin tokens,
+  console-credential exchange, memory-only secret-read leases, and
+  credential redaction (`packages/snapback-admin-client/index.mjs`).
+  One boundary fact frames every shape: the credential authority is
+  server-side — tokens are validated by the server under all of the
+  shapes below, and the served `/_snapback/admin/client.mjs` is the
+  same package file byte-for-byte (`src/admin.rs` embeds it with
+  `include_str!`) — so no custody choice moves the authority; what the
+  shapes vary is discoverability, typing, and where the privileged
+  client code is resolvable from. The shapes: (a) admit
+  `@snapback/admin-client` to the closure as a tenth package — clean
+  separation but grows the public API surface and its compatibility
+  promise; (b1) fold it into `@snapback/client` — fewer names, but
+  couples admin-protocol churn to the app-client version and makes the
+  privileged operations resolvable from every app dependency graph; a
+  subpath export is reachability and audit surface, not automatic
+  browser-bundle inclusion — an application must import it before any
+  bundler ships it; (b2) fold it into the CLI — keeps admin operations
+  out of app dependency graphs entirely (the CLI is a dev-time tool,
+  not a bundler input) at the price of a command-shaped rather than
+  importable admin surface; its cost profile is materially different
+  from (b1), so the two fold-in variants must be weighed separately;
+  (c) endorse the served path for external use — zero packaging cost
+  and always version-matched to the running server (this shape changes
+  delivery, not authority), but undiscoverable, untypeable without a
+  published declaration, and unavailable before the server is up (most
+  admin operations need a running server anyway; the sharper limit is
+  tooling that wants types or imports at build time). The
+  implementation already describes the served path as an
+  external-tooling surface (`src/admin.rs`); the custody decision is
+  whether that implementation intent becomes a normatively endorsed
+  public contract.
 - *Test helpers (`demos/_kit/server-process.mjs`, `harness.mjs`):* first,
   what they are. `server-process.mjs` is not a portable helper awaiting a
   package name: it imports checkout scripts
@@ -437,9 +478,10 @@ needs any particular one.
 Facet 1 is the one facet no option above targets directly; OQ3 names the
 decision. The analyzable paths:
 
-- *(a) Accept `@ccheever/snapback-*` as durable.* Zero evidence cost: the
-  byte-bound ledger, the clean-machine receipts, and `latest` continuity
-  all stay bound to the names they were minted for. The cost is the seam
+- *(a) Accept `@ccheever/snapback-*` as durable.* Zero evidence and zero
+  migration cost: the byte-bound ledger, the clean-machine receipts, and
+  `latest` continuity all stay bound to the names they were minted for,
+  and the name-bound proof machinery (below) is untouched. The cost is the seam
   itself — a personal scope as public brand, visible in every
   package.json and install command — and the authoring/install split
   persisting indefinitely.
@@ -448,30 +490,47 @@ decision. The analyzable paths:
   applicability to this specific squat is unprobed), and private
   negotiation with the current holder is also possible. Outcome and
   timeline are outside the project's control; the path can run in the
-  background while (a) holds.
+  background while (a) holds. Winning the scope only opens the migration
+  priced below — it does not finish it.
 - *(c) Secure a fresh unsquatted organization scope.* Available on demand
   and organization-owned, but forks the public identity: the brand
   becomes a third name that is neither the authoring identity nor the
-  current install identity.
+  current install identity. Pays the same migration price as (b).
 - *(d) An unscoped `snapback` or create-name for the front door only.*
   Pairs with Options 3–4: one unscoped meta or scaffold name over the
-  scoped closure. Gated on the unrun registry probe (§Empirical
+  scoped closure. Additive rather than migratory — the scoped closure
+  and its proof machinery are untouched unless the new name joins the
+  promoted closure. Gated on the unrun registry probe (§Empirical
   questions).
 
 The evidence interaction is the load-bearing part. 0041 designed the alias
 so the brand scope "may replace this public alias without changing
-authored imports" — import churn is solved. What a rename cannot inherit
-is history: the publication ledger and the two-platform clean-machine
-receipts bind `@ccheever/snapback-*` tarballs byte-for-byte, and new names
-start with empty version history and no `latest` continuity. Under
-LLP 0115's no-evidence-regression constraint, receipts describing packages
-users no longer install have regressed in force even though no byte
-changed, so a rename carries an obligation to re-run the public-proof
-suite under the new names (the ledger machinery is name-parametric, so
-re-proving is mechanical, but it is not free). Sequencing follows: a
-rename costs least while the receipt corpus is small, and every
-additional proof bound to the alias raises the price of moving. Which
-price to pay, and when, is OQ3's author decision.
+authored imports" — import churn is solved. Nothing else about a scope
+change is mechanical. First, history: the publication ledger and the
+two-platform clean-machine receipts bind `@ccheever/snapback-*` tarballs
+byte-for-byte, and new names start with empty version history and no
+`latest` continuity. Under LLP 0115's no-evidence-regression constraint,
+receipts describing packages users no longer install have regressed in
+force even though no byte changed, so a rename obliges re-running the
+public-proof suite under the new names. Second, the machinery that would
+run that suite is itself name-bound, not name-parametric: the
+publication authority hard-codes the nine `@ccheever/snapback-*` names
+and enforces the scope by regex
+(`packages/snapback-publication-authority/protocol.mjs`), its
+lease-request schema pins each package name as an exact-name `const`,
+and the cold-install proof refuses any publication ledger whose scope
+preset is not `ccheever`, deriving every expected alias from that scope
+(`scripts/snapback-package-cold-install-lib.mjs`). A scope change is
+therefore a publication-authority and proof-system migration — protocol
+name table and scope regex, schema regeneration, cold-install-preset
+change, and re-anchoring of ledger lineage across the name boundary —
+followed by the re-proof, and it amends LLP 0041 and the 0113-owned
+authority. That is the cost paths (b) and (c) buy into and path (a)
+avoids; path (d) sidesteps it only while the front-door name stays
+outside the promoted closure. Sequencing follows: a rename costs least
+while the receipt corpus is small, and every additional proof bound to
+the alias raises the price of moving. Which price to pay, and when, is
+OQ3's author decision.
 
 ### Options against the no-evidence-regression constraint
 
@@ -514,12 +573,15 @@ boundary, and required amendments to owning LLPs.
   weighed against a candidate-tag-only install external users never
   exercise (0074's argument). Either way the receipts themselves are
   unchanged.
-- *Option 6 (custody):* for the admin client, authority separation
-  dominates (see the option's own analysis): fold-in shapes put
-  privileged credential handling in ordinary dependency graphs and
-  browser bundles; the tenth-package shape keeps separation but extends
-  the compatibility promise; the served shape keeps authority at the
-  server but gives up build-time types. For the helpers, the
+- *Option 6 (custody):* for the admin client, the credential authority
+  boundary is server-side under every shape — no custody choice moves
+  it (see the option's own analysis); what the shapes vary is where the
+  privileged client code is resolvable from: client-folding makes it
+  reachable from ordinary app dependency graphs (imported, not
+  auto-bundled), CLI-folding keeps it out of them, the tenth-package
+  shape isolates it behind one more compatibility promise, and the
+  served shape trades build-time types for guaranteed version match.
+  For the helpers, the
   workout-evidence boundary dominates: publishing them converts an
   evaluation instrument into supported API, and the
   digest-pinned-instrument variant exists precisely to keep workout
@@ -527,7 +589,9 @@ boundary, and required amendments to owning LLPs.
   either way.
 - *Option 7 (naming):* see the option itself — the ledger and receipts
   bind published names, so a rename is the one move here that can
-  silently orphan existing evidence if re-proof is skipped.
+  silently orphan existing evidence if re-proof is skipped, and the
+  re-proof itself rides a proof-system migration through name-bound
+  machinery. Amends 0041 and the 0113-owned publication authority.
 
 ### Cheap moves under every option
 
@@ -544,8 +608,12 @@ state machine has Ed25519-signed leases.
 ## Empirical questions
 
 The option analysis above leans on claims only probes or spikes can
-settle. This is the closed list; an option-space claim not grounded here
-or in the cited documents should be read as hypothesis.
+settle. This list is closed by review, not by construction — the round-2
+delta review found one omission (probe 8) after v0.2 first called it
+closed — so the operative rule is the falsifiable half: an option-space
+claim not grounded here or in the cited documents should be read as
+hypothesis, and a probe this list is found to be missing is a defect in
+the list.
 
 1. **Registry names.** Is unscoped `snapback` available or squatted? Is
    `create-snapback-app` (or equivalent) available? What does the
@@ -571,6 +639,14 @@ or in the cited documents should be read as hypothesis.
    documented noninteractive path for each first-hour task — install,
    scaffold, generate, run, accept — without source archaeology? (A
    diary-style probe against the docs alone.)
+8. **Runtime recovery after consolidation.** Under a single-binary or
+   meta-package consolidation (Options 2–3), does missing- or
+   corrupt-runtime detection still fire, does repair and relaunch still
+   work, and does the repaired runtime retain its provenance?
+   Probe 6 covers what provenance a consolidation preserves at rest;
+   this probe covers whether the recovery machinery — owned on the
+   runtime side by LLP 0123 — survives the packaging change. (Joint
+   surface with the LLP 0123 spike in probe 5.)
 
 ## Findings
 
@@ -629,10 +705,11 @@ or in the cited documents should be read as hypothesis.
   not re-verified against current Convex releases; Convex's anonymous local
   mode is beta and its edges may move (0115 watch item).
 - **Medium-low:** the option tradeoff judgments. §Empirical questions
-  closes the list of unrun probes behind them — registry names,
-  cold-install timing, typecheck/bundle success, declaration resolution,
-  single-binary feasibility, provenance survival, and discoverability —
-  and none of those probes has been run.
+  lists the unrun probes behind them — registry names, cold-install
+  timing, typecheck/bundle success, declaration resolution,
+  single-binary feasibility, provenance survival, discoverability, and
+  runtime recovery after consolidation — closed by review rather than
+  by construction, and none of those probes has been run.
 
 ## Open questions
 

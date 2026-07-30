@@ -5,7 +5,25 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Client integration, Runtime
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2, round-1 dual-family review corrections —
+**Revised:** 2026-07-30 (v0.3, round-2 delta review corrections — Fable
+READY; Codex NOT READY on two new material items in the v0.2-added text,
+with all round-1 concerns resolved. Round-2 deltas in
+`reviews/0117-typescript-type-flow-parity.fable.md` and
+`reviews/0117-typescript-type-flow-parity.codex.md`; 4 items applied,
+all re-verified against the tree. Codex: the CV-5 carrier inventory
+corrected to four — the client package's hand-authored public search
+typings (`packages/snapback-client/index.d.mts:145`) were missed — and
+`argsContractHash` recharacterized as an identity witness computed over
+the existing argument descriptors, not a payload slot a schema reference
+can ride, so the reference lane is restated through an extended
+argument-contract descriptor that the hash then witnesses; option F's
+carrier 3 narrowed — definition roots are fixed to
+`schema.mjs`/`functions.mjs` (index.mjs:574–575) and external
+`.ts`/`.mts` handler scripts refuse imports/exports (index.mjs:4915–4922),
+so a first-class `.ts` carrier needs an authoring-surface change first.
+Fable: the Diary 0039:25 quote made verbatim ("Convex slight edge"); the
+non-generic builder cite corrected to define.d.ts:451 and 521.)
+2026-07-30 (v0.2, round-1 dual-family review corrections —
 reviews in `reviews/0117-typescript-type-flow-parity.fable.md` and
 `reviews/0117-typescript-type-flow-parity.codex.md`; 12 findings applied
 (5 Codex, 7 Fable), all re-verified against the tree, none rejected.
@@ -96,8 +114,8 @@ produce inferred TS argument types (`Infer<typeof validator>` exposes the
 same types to app code). Diary 0039 §5: Convex's `v.array(v.object(...))`
 "validates and types the split vector" (0039:141–142), while Diary 0036
 records the Snapback arm accepting the same vector as `v.json()` and
-validating it by hand; Diary 0039's executive table scores Split Ledger a
-"slight Convex edge from typed nested mutation input" (0039:25).
+validating it by hand; Diary 0039's executive-table row for Split Ledger
+reads "Convex slight edge from typed nested mutation input" (0039:25).
 
 **No omission lane.** Because the result type is inference, there is no
 separate artifact whose omission degrades typing — a function cannot ship
@@ -272,10 +290,11 @@ LLP 0081 migrations).
   exist today — one of the rare options where DX and evidence point the
   same way. Most result-side plumbing (spellings, recursion, JCS hashing,
   bounds, path diagnostics) is reusable prior art — including an
-  argument-contract identity carrier that already flows through the
-  manifest with no runtime consumer (`argsContractHash`, index.mjs:1942) —
-  and one vocabulary for args and results removes the two-lane surprise
-  entirely.
+  argument-contract identity witness already computed over the authored
+  args descriptors and carried through the manifest with no runtime
+  consumer (`argsContractHash`, result-contracts.mjs:38; computed at
+  index.mjs:1942) — and one vocabulary for args and results removes the
+  two-lane surprise entirely.
 - **Costs/risks.** Real new runtime surface with per-invocation hot-path
   cost; interaction with the host-plan value-expression IR (whose argument
   references already carry structured JSON — `ValueExpr::Args` yields the
@@ -422,20 +441,27 @@ optional `tsc --checkJs` failure instead of a runtime egress refusal.
   the *builder's* declared parameter type, and today's builders declare
   `handler: (ctx: any, args: any) => unknown` (define.d.ts:305, 326, 341)
   on non-generic `defineJsQuery`/`defineJsMutation` signatures
-  (define.d.ts:449–452). Triple-slash references and tsconfig `include`
+  (define.d.ts:451, 521). Triple-slash references and tsconfig `include`
   patterns only make ambient names visible; they attach nothing to the
-  handler's parameters. Three carriers actually work: (1) a generated
-  per-app typed builder module — authors import the app's `define` wrapper
-  whose handler parameter and return types are projected from the schema
-  and the declared contract; (2) generated per-operation JSDoc handler
-  types (`@type {import("./generated").QueryHandler<"ledger">}`), which
-  work under `checkJs` without changing imports but must be authored at
-  each handler; (3) first-class `.ts` definitions — already an admitted
-  authoring surface — checked against a generated app-specific module. In
-  every carrier the return check is assignability of the *inferred* return
-  to the *generated-from-declaration* type: the checker consumes the
-  contract's projection and never mints one, so the declared contract
-  stays authoritative by construction.
+  handler's parameters. Two carriers work on today's surface: (1) a
+  generated per-app typed builder module — authors import the app's
+  `define` wrapper whose handler parameter and return types are projected
+  from the schema and the declared contract; (2) generated per-operation
+  JSDoc handler types
+  (`@type {import("./generated").QueryHandler<"ledger">}`), which work
+  under `checkJs` without changing imports but must be authored at each
+  handler. A third — first-class `.ts` handler modules checked against a
+  generated app-specific module — is *not* viable as the surface stands:
+  `.ts`/`.mts` admission is handler-script-only (definition roots are
+  fixed to `schema.mjs`/`functions.mjs`, index.mjs:574–575), and handler
+  scripts are closed single-file programs whose imports and exports are
+  refused (index.mjs:4915–4922), so this carrier first requires an
+  authoring-surface change — admitting `.ts` definition roots, or a
+  type-only import lane through the closed-script rule. In every carrier
+  the return check is assignability of the *inferred* return to the
+  *generated-from-declaration* type: the checker consumes the contract's
+  projection and never mints one, so the declared contract stays
+  authoritative by construction.
 - **Benefits.** Directly answers (d), the half no 0115 item touches: the
   Convex-feel loop inside server code without moving authority an inch.
   Drift detection runs contract→code (allowed), never code→contract.
@@ -534,10 +560,13 @@ structured input, it ships the same degraded spelling the diaries complain
 about at app boundaries. Downstream, the generated client's
 `SearchQueryAstV1`/`SearchRequestV1` interfaces are hand-authored string
 literals inside codegen (index.mjs:5907–5908), not derived from a shared
-artifact, and `src/schema_export.rs` exports no search schema — so three
-carriers (the authored validator, the emitted client types, and the Rust
-parser that actually owns the grammar) describe one shape with nothing
-gating their agreement.
+artifact; the client package's public typings hand-author the same AST
+shapes a second time, independently
+(`packages/snapback-client/index.d.mts:145`); and `src/schema_export.rs`
+exports no search schema — so four carriers (the authored validator, the
+codegen-emitted client types, the client package's own typings, and the
+Rust parser that actually owns the grammar) describe one shape with
+nothing gating their agreement.
 
 The type-flow analysis adds one structural point to 0115's work item: the
 search AST should *not* be fixed by widening the authoring validator
@@ -548,9 +577,14 @@ exactly the drift this document scores against elsewhere. The right shape
 is the argument-side analogue of option E — *reference, don't respell*: the
 operation contract carries a reference to one exported, drift-gated
 Rust-owned schema, and the generated client types and provider
-introspection derive from or verify against that artifact. The manifest
-already carries an argument-contract identity slot such a reference could
-ride (`argsContractHash`, index.mjs:1942; no runtime consumer today). This
+introspection derive from or verify against that artifact. No manifest
+payload slot exists for such a reference to ride today: `argsContractHash`
+is an identity witness, not a carrier — a digest computed over the
+existing authored argument descriptors (result-contracts.mjs:38,
+canonical JSON under a `snapback:function-args:v1` domain prefix;
+computed at index.mjs:1942, no runtime consumer) — so CV-4a must extend
+an actual argument-contract descriptor to carry the reference, with the
+hash then witnessing the extended descriptor's canonical form. This
 is also why 0115's sequencing — CV-5 as the first conformance fixture for
 CV-4a's argument-contract carrier — is the right order: it exercises the
 reference lane end-to-end on a closed, host-owned grammar before
@@ -618,9 +652,11 @@ question 12, owned there; nothing here re-litigates it.
    integration is constraint-clean and unclaimed.
 9. The platform's own search boundary ships the degradation it diagnoses
    elsewhere: `defineSearchQuery` authors `query: v.json()`
-   (define.mjs:778), and three unaligned carriers — authored validator,
-   hand-authored client interfaces (index.mjs:5907–5908), Rust parser —
-   describe one host-owned grammar with no exported schema gating them.
+   (define.mjs:778), and four unaligned carriers — authored validator,
+   codegen-emitted client interfaces (index.mjs:5907–5908), the client
+   package's own hand-authored typings
+   (packages/snapback-client/index.d.mts:145), Rust parser — describe
+   one host-owned grammar with no exported schema gating them.
    The fix lane is reference-not-respell, the argument-side analogue of E,
    which is why CV-5 is the right first fixture for CV-4a's carrier.
 
@@ -644,10 +680,14 @@ index.mjs:7112) against `any`-typed inline handler signatures
 (define.d.ts:305, 326, 341) and non-generic builders
 (define.d.ts:449–452); structured argument references in the
 value-expression IR (`ValueExpr::Args` and path lookups,
-src/value_expr.rs:121–128); the hand-authored search client interfaces
-(index.mjs:5907–5908) and the absence of any search schema in
-`src/schema_export.rs`; the unconsumed `argsContractHash` carrier
-(index.mjs:1942).
+src/value_expr.rs:121–128); both hand-authored search client carriers —
+the codegen-emitted interfaces (index.mjs:5907–5908) and the client
+package's public typings (packages/snapback-client/index.d.mts:145) —
+and the absence of any search schema in `src/schema_export.rs`; the
+unconsumed `argsContractHash` identity witness (result-contracts.mjs:38;
+computed at index.mjs:1942); fixed `.mjs` definition roots
+(index.mjs:574–575) and the closed-script import/export refusal for
+external `.ts`/`.mts` handler scripts (index.mjs:4915–4922).
 
 **Diary-reported (not independently re-run):** all Convex-arm behavior and
 passes; the line-count figures (148 → 224, and 379 → 427 counting authored

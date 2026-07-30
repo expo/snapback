@@ -5,7 +5,32 @@
 **Systems:** Competitive evaluation, Developer experience, Runtime, Bootstrap, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2, round-1 dual-family review corrections —
+**Revised:** 2026-07-30 (v0.3, round-2 delta review corrections — Fable
+READY (three NITs); Codex NOT READY on the strict-Host handoff hazard in
+the v0.2-added Option 2 and on Option 4's content-addressing precision,
+with all round-1 concerns resolved. Round-2 deltas in
+`reviews/0123-runtime-readiness-and-operational-edges.fable.md` and
+`reviews/0123-runtime-readiness-and-operational-edges.codex.md`; 5 items
+applied, all re-verified against the tree. Codex blocking: the Option 2
+boot probe as drafted consumes the one-shot strict Host handoff —
+`ensure_host_installed()` installs `Host::strict()` once behind a
+`std::sync::Once`, `ex_hermes_create_no_eval()` claims and zeroes the
+thread-bound pending token, and later diagnostic constructions fall
+back to a fresh `SecurityMode::Audit` context — so the option now
+states the hazard, analyzes four mitigation shapes as design
+requirements, and its no-evidence-regression entry is corrected to
+regression-prone as drafted. Codex material + Fable NIT: Option 4's
+"digest-anchored rerun detection" relabeled — digests govern selection
+and build-time validation, the watch set stays Cargo's mtime-based
+change detection, and a digest-named directory does not alone prevent
+in-place mutation. Codex detail + Fable NIT: the error-fidelity
+sub-option's "cheap" replaced with the honest cost — no constructor
+error-result ABI exists, so propagation means a new channel in the
+vendored Ibex C ABI. Codex detail: the Workerd semantic-inventory
+pointer rerouted from OQ8 to LLP 0048. Fable NIT:
+`scripts/build-hermes.sh` respelled repo-relative as
+`vendor/ibex/scripts/build-hermes.sh`. Related gains LLP 0009.)
+2026-07-30 (v0.2, round-1 dual-family review corrections —
 verbatim reviews in
 `reviews/0123-runtime-readiness-and-operational-edges.fable.md` and
 `reviews/0123-runtime-readiness-and-operational-edges.codex.md`, both
@@ -34,7 +59,7 @@ aligned with 0115's status board (Fable); Finding 5 now credits CV-2's
 owned invalidate-or-relink half (Fable); the "bug surface, not a
 feature" pre-judgment removed in favor of attributed analysis (Fable).
 Related gains LLP 0035, LLP 0048, and Diaries 0029–0031.)
-**Related:** LLP 0010, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0048, LLP 0074, LLP 0115, LLP 0116, LLP 0122, Diary 0022, Diary 0028, Diary 0029–0031, Diary 0032–0039
+**Related:** LLP 0009, LLP 0010, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0048, LLP 0074, LLP 0115, LLP 0116, LLP 0122, Diary 0022, Diary 0028, Diary 0029–0031, Diary 0032–0039
 
 This document is part of the Convex-parity research series:
 
@@ -197,8 +222,8 @@ RUNPATH. Two findings from reading `vendor/ibex/build.rs`:
    `HERMES_LINK_STATIC=1` selects `libhermesvm_a.a` (or
    `hermesvmlean_a`), expecting a static bundle (`lib*.a`, `libjsi.a`,
    `libboost_context.a`) under a `macos-static` lib dir produced by
-   `scripts/build-hermes.sh --release`. Snapback simply never uses it
-   locally.
+   `vendor/ibex/scripts/build-hermes.sh --release`. Snapback simply
+   never uses it locally.
 2. **The dynamic default is lineage and artifact-reuse convenience, not a
    hard requirement.** Ibex inherits Hermes's mobile packaging
    (framework/xcframework layouts), and Snapback's prepared-artifact
@@ -329,6 +354,54 @@ A packaged `snapback runtime-qualify` subcommand exposing the same probe
 would let every delivery form — bootstrap, doctor, package tests, CI —
 share one behavioral check.
 
+**The strict-Host handoff hazard (round-2 finding, code-verified).**
+"Create and destroy the same VM" is not posture-neutral as drafted,
+because the strict Host handoff is one-shot. `ensure_host_installed()`
+installs `Host::strict()` (`SecurityMode::Enforce`, default-deny)
+exactly once per process behind a `std::sync::Once` (`src/runtime.rs`);
+`install_host` publishes the policy and retains a thread-bound,
+single-use pending creation token (`PENDING_HOST_CONTEXT`,
+`vendor/ibex/src/host/abi.rs`); `ex_hermes_create_no_eval()` claims and
+zeroes that token; and every later diagnostic construction, finding no
+pending token, falls back to a fresh `SecurityMode::Audit` context —
+the rollout mode that computes and logs the real capability decision
+but lets denied operations proceed (`vendor/ibex/src/host/mod.rs`).
+Armed construction never has that fallback; the diagnostic constructor
+Snapback uses does. Two consequences. First, in today's process exactly
+one VM — the first `RuntimeGuard::create()` on the installing thread —
+ever holds the Enforce-mode context; that standing fact belongs with
+LLP 0009's host-install policy independent of this option. Second, a
+boot probe that creates and destroys a VM would spend that one strict
+claim on a diagnostic VM and guarantee no serving invocation ever
+holds it: readiness evidence weakening the security posture it
+verifies. Any adopted design must satisfy one of these requirement
+shapes:
+
+- **Per-creation strict reinstallation** — install the strict Host (or
+  re-arm the pending token) before every VM construction, so probe and
+  serving VMs claim equivalent strict contexts. Revisits the
+  install-once caching `src/runtime.rs` documents as a deliberate
+  M2-era optimization (LLP 0009), and changes the posture of today's
+  second-and-later invocation VMs — which is why the fix belongs with
+  the owners, not here.
+- **Probe-as-first-real-VM** — the qualification VM is not destroyed
+  but serves the first invocation, so the strict claim is spent on
+  real work. Sits against per-invocation VM isolation (LLP 0009) and
+  only defers the fallback question to the second invocation.
+- **Qualify through the same handoff path** — the probe performs the
+  full install-then-claim sequence a real invocation performs, then
+  re-arms a fresh strict token afterward, making the probe
+  posture-neutral by construction; this is per-creation reinstallation
+  scoped to the probe boundary and shares its ownership question.
+- **An ABI change** — a non-consuming qualification constructor or a
+  claim-preserving probe surface in the vendored Ibex C ABI, so
+  readiness probing never competes with real handoffs; a cross-repo
+  ABI-design cost like the error-fidelity sub-option below.
+
+Whichever shape is chosen, the design needs a post-probe test proving
+that invocations after qualification retain the same fail-closed
+enforcement posture as before it.
+
 The companion sub-option is invocation-error fidelity.
 `SNAPBACK_RUNTIME_CREATE_FAILED` today carries only the fixed strings
 "Ibex runtime could not be created" / "Ibex runtime identity could not
@@ -336,8 +409,15 @@ be captured" (`src/runtime.rs`); the native refusal reason ("Armed
 startup refused: Hermes promise rejection checkpoint tracking is
 unavailable") reached the operator only through inherited stderr, which
 is why diagnosis needed a parallel lane's cross-observation. Carrying
-the native reason inside the coded error is cheap and helps every other
-option.
+the native reason inside the coded error would help every other option,
+but it is not cheap: there is no constructor error-result ABI to tap —
+`ex_hermes_create_no_eval()` returns a bare null pointer on refusal,
+and the detailed reason is emitted through `ex_host_console_log`
+(`vendor/ibex/src/engine/hermes_runtime.cc`) — so propagation means
+designing a new channel in the vendored Ibex C ABI (a last-error getter
+or an error-out constructor variant), with the ownership, concurrency,
+sanitization, and compatibility questions any new native error
+transport carries.
 
 **Costs.** Boot-time VM creation is ~2 ms (LLP 0035 §M2), negligible
 against server startup. Refuse-vs-degraded semantics interact with
@@ -347,7 +427,9 @@ bit goes stale if the framework is swapped under a running server (OQ4's
 caution applies), so this complements option 1's receipts rather than
 replacing them; and a trivial-probe verdict proves the creation and
 checkpoint prerequisites, not all handler semantics. Owners: LLP 0031
-(`/health` payload), LLP 0030 (lifecycle), LLP 0010 (diagnostics).
+(`/health` payload), LLP 0030 (lifecycle), LLP 0010 (diagnostics),
+LLP 0009 (the host-install policy every handoff mitigation above
+touches).
 
 ### Option 3 — Prebuilt hermetic runtime distribution
 
@@ -394,12 +476,21 @@ whose root must canonicalize to itself (no symlink redirection),
 manifest/header-set/runtime validation with exact framework-resolution
 checking, and every selected payload entry added to Cargo's
 rerun-if-changed watch set
-(`vendor/ibex/build_support/portable_engine_build_consumption.rs`) —
-digest-anchored rerun detection instead of the mtime heuristic the rsync
-hypothesis suspects. It occupies a genuine middle point between options
-3 and 5: contributor iteration and shared engine artifacts stay dynamic,
-while "swap the framework in place" stops being a reachable state
-because consumption is pinned to a content address.
+(`vendor/ibex/build_support/portable_engine_build_consumption.rs`).
+Stated precisely: what is digest-anchored is *selection* and
+*build-time validation* — digest checks run only when the build script
+actually reruns, and the watch set itself is still Cargo's ordinary
+mtime-based change detection, so this machinery does not replace the
+mtime heuristic the rsync hypothesis suspects. The protection comes
+from store immutability plus the fact that changing engines changes
+the content address (and so the watched paths), with digest validation
+catching a defeated assumption whenever a rerun does happen. It
+occupies a genuine middle point between options 3 and 5: contributor
+iteration and shared engine artifacts stay dynamic, while "swap the
+framework in place" stops being a supported workflow state because
+consumption is pinned to a content address — though a digest-named
+directory does not by itself make in-place mutation unreachable, which
+is why the enforcement residual below is load-bearing.
 
 **Costs and residuals.** As shipped, Ibex's selector is coupled to its
 promotion/preflight authorization apparatus — portable mode requires a
@@ -436,7 +527,7 @@ corrected: larger binaries; every final binary relinks against the
 static bundle, but Hermes itself need not rebuild per package assembly
 — the build consumes pre-existing archives (`lib*.a`, `libjsi.a`,
 `libboost_context.a`) that can be produced and cached separately
-(`scripts/build-hermes.sh --release`); and the
+(`vendor/ibex/scripts/build-hermes.sh --release`); and the
 swap-a-framework-without-relinking property is lost — this analysis
 found no adopter-facing need for swap-without-relink, but whether the
 contributor lane needs it is part of what OQ3 routes to a ratifier. A
@@ -467,8 +558,9 @@ protocol in a local workerd process, opt-in per run — proof that part of
 the semantics is portable, and a marker for what is not (actions stay on
 Ibex; egress and secrets powers are outside the twin's scope). Which
 semantics the twin already proves, and which are absent, is an empirical
-inventory this document has not run (OQ8 territory for the readiness
-boundary; LLP 0048 for the twin itself).
+inventory this document has not run; running it belongs with LLP 0048,
+which owns the twin — no open question here claims it, and OQ8
+(readiness-evidence boundaries and TOCTOU binding) does not cover it.
 
 A wasm-hosted engine (Hermes or QuickJS compiled to wasm inside a
 statically linked wasm runtime) would remove native dynamic-link
@@ -547,9 +639,16 @@ ergonomics by weakening an evidence boundary — applied per option:
   trusted-but-stale receipt becoming a new false green; CV-3's
   invalidation semantics are the guard, and receipt custody, tampering,
   and the qualification-to-use race (OQ8) must be part of the design.
-- **Option 2 (server-side):** evidence-adding at the serving boundary.
-  It must not *replace* invocation-time fail-closed semantics, and a
-  boot-time verdict must not be trusted across post-boot drift.
+- **Option 2 (server-side):** regression-prone as drafted. The naive
+  create-and-destroy probe consumes the one-shot strict Host handoff
+  and leaves serving constructions on the `SecurityMode::Audit`
+  fallback (see the hazard analysis in the option), buying readiness
+  evidence by weakening enforcement posture; the option cannot be
+  classified evidence-adding until one of its mitigation shapes is
+  chosen and proven posture-neutral. With that in place it is
+  evidence-adding at the serving boundary — and it still must not
+  *replace* invocation-time fail-closed semantics, and a boot-time
+  verdict must not be trusted across post-boot drift.
 - **Option 3 (prebuilt):** regression-prone if the packaged pair is
   trusted *because it is packaged* — without production-boundary VM
   qualification and attestation custody it converts a loud local
@@ -642,17 +741,28 @@ ergonomics by weakening an evidence boundary — applied per option:
   directly from six diaries, the issue's code trace, and the scripts
   (`bootstrap-ibex-runtime`, `ibex-doctor`, `runtime-link-smoke.mjs`,
   `runtime-recovery.mjs`, `build.rs`, `src/runtime.rs`). Also
-  code-verified in this revision: the JS-live-query execution path
+  code-verified in v0.2: the JS-live-query execution path
   (`define.mjs` → `FunctionKind::LiveQuery` → `RuntimeGuard::create`),
   the Workerd/V8 twin's existence and non-action scope
   (`src/workerd_exec.rs`), the runtime packages' assembly and test
   behavior (prepare/test scripts), the `/health` payload contents
   (`src/server.rs`), and Ibex's portable-engine selector machinery
-  (`vendor/ibex/build.rs`, `build_support/`).
+  (`vendor/ibex/build.rs`, `build_support/`). Code-verified in v0.3:
+  the one-shot strict-Host handoff behind Option 2's hazard —
+  `ensure_host_installed()`'s `Once` (`src/runtime.rs`),
+  `install_host`/`claim_pending_host_context` and the
+  `SecurityMode::Audit` fallback (`vendor/ibex/src/host/abi.rs`),
+  `ex_hermes_create_no_eval()`'s claim of the diagnostic context
+  (`vendor/ibex/src/engine/hermes_runtime.cc`), and `Host::strict()` =
+  `Enforce` plus Audit's log-but-proceed semantics
+  (`vendor/ibex/src/host/mod.rs`) — and the console-log-only transport
+  of native refusal reasons (`ex_host_console_log`, no constructor
+  error-result ABI).
 - **Medium:** the `rsync -a` mtime root-cause hypothesis (explicitly
   unconfirmed; CV-2 owns verification). Static-link viability — the
   build mode exists but the macOS static bundle supply
-  (`build-hermes.sh --release`) is unexercised in Snapback's loop.
+  (`vendor/ibex/scripts/build-hermes.sh --release`) is unexercised in
+  Snapback's loop.
   The wasm-engine analysis (no spike behind it). Whether Ibex's
   portable-engine selector is adoptable without its promotion/preflight
   apparatus (OQ7, unassessed).

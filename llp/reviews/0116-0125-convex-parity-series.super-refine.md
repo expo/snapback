@@ -125,3 +125,55 @@ Target SHA-256 vector (v0.2 content):
   `27390c8950fd22ca209a714a472da9159311b9868ad9362f4f2e37a1e66afec9`
 - LLP 0123:
   `5724a474fcc22586eca5d16dda3a68340394a78a4d38bcb19236725c687a7192`
+
+### Round 2 results
+
+All eight delta reviews received. Verdicts: **Fable READY on 0117, 0118,
+0123**; Fable NOT READY on 0122 by "the thinnest margin" (two one-line
+delta defects); **Codex NOT READY on all four** — but with round-1
+concerns resolved or partially resolved across the board; every
+remaining Codex item is scoped to text the v0.2 fixes added. Notable
+new catches, all verified during the v0.3 fix passes:
+
+- **LLP 0123:** the proposed boot-qualification probe would consume the
+  one-shot strict Host handoff (`Host::strict()` installs once behind a
+  `Once`; `ex_hermes_create_no_eval()` claims the pending context; later
+  constructions fall back to `SecurityMode::Audit`) — readiness evidence
+  that weakens the security posture it verifies. Option 2 now carries
+  the hazard, four mitigation shapes, and a corrected evidence
+  classification.
+- **LLP 0122:** the Option 7 rename paths are not mechanical — the
+  publication authority is name-bound at three verified boundaries
+  (protocol name table + regex, exact-name schema consts, cold-install
+  scope preset); a scope change is a proof-system migration and is now
+  priced as one.
+- **LLP 0118:** the helper-class axis's "pure = no ctx parameter" was
+  not capability closure (aliased capability args leak); purity is now
+  flow-defined, and table-level caller ceilings are honestly costed as
+  a NEW enforcement mechanism (three enforcement facts code-verified).
+- **LLP 0117:** the CV-5 carrier inventory grew to four (the client
+  package's own typings), `argsContractHash` is an identity witness not
+  a payload slot, and Option F's `.ts`-imports carrier is not viable on
+  today's closed-script surface.
+
+v0.3 fix passes applied on all four targets; no reviewer finding was
+refuted in this round either.
+
+## Round 3 — 2026-07-30 (Tier 1, narrow)
+
+Scope, per the reviewers' own recommendations: **Codex-only narrow delta
+checks** on 0117, 0118, 0122, 0123 (verify the v0.3 fixes to the
+round-2 concerns only), plus a **Fable fix-verification** on 0122's two
+one-line corrections. Fable is READY on 0117/0118/0123 and is not
+re-polled there.
+
+Target SHA-256 vector (v0.3 content):
+
+- LLP 0117:
+  `3abab2cfc974c008184e41d736dd8dc47bfeb90ea0fb3e0df3ef4d91841771e1`
+- LLP 0118:
+  `925535603827afcc6510bcdd03be7c0448cb1189053a2f0e5fb72b1f69044c35`
+- LLP 0122:
+  `185be0b16c4d3e2b409d3e848fafd2152d8b58e842531c9e7b59f52c18316219`
+- LLP 0123:
+  `0048c61975114d847f9823d9e17908327dcb4392ffbdcfb16274dab63f47238e`

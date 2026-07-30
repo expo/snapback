@@ -175,3 +175,77 @@ Revise LLP 0123 while keeping it in Review:
 5. narrow or independently verify the Convex distribution-internals claim.
 
 Then run a focused re-review of the revised option space and findings.
+
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-2 delta, cross-family blind
+**Target SHA-256:** `5724a474fcc22586eca5d16dda3a68340394a78a4d38bcb19236725c687a7192`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### Verbatim review
+
+Review completed. Verdict: **NOT READY**.
+
+The required artifact append was blocked by the read-only sandbox, so `llp/reviews/0123-runtime-readiness-and-operational-edges.codex.md` remains unchanged.
+
+## 1. Round-1 resolution check
+
+- **A — JS live-query blast radius: resolved.** The document now correctly distinguishes declarative Rust live queries from JS live queries, which reach `RuntimeGuard::create()`.
+- **B — Content-addressed dynamic-link option: partially resolved.** Option 4 now exists and covers the requested risks, but overstates immutability and Cargo rerun guarantees.
+- **C — Packaged/static guarantees and evidence regression: resolved.** The revised options accurately distinguish assembly/link closure from behavioral qualification, correct static-build costs, and preserve qualification.
+- **D — Hermes captivity and Workerd prior art: resolved.** The wider Ibex surface and Workerd/V8 non-action twin are accurately incorporated.
+- **E — Convex provenance: resolved.** The sealed-artifact account is labeled inference; findings are narrowed to diary evidence.
+- **F — Limit categories and “cheap” claim: resolved.** The three problem classes are separated and cost is labeled hypothetical.
+
+## 2. New concerns
+
+### BLOCKING-FOR-BAR — Boot qualification can consume the strict Host handoff
+
+Option 2 proposes calling `RuntimeGuard::create()` at boot and destroying that VM. Today:
+
+- [`ensure_host_installed()`](/Users/ccheever/projects/snapback/src/runtime.rs:592) installs `Host::strict()` only once.
+- [`install_host()`](/Users/ccheever/projects/snapback/vendor/ibex/src/host/abi.rs:1311) creates a thread-bound, one-shot pending context.
+- `ex_hermes_create_no_eval()` consumes that context.
+- Subsequent diagnostic construction without a pending context falls back to [`SecurityMode::Audit`](/Users/ccheever/projects/snapback/vendor/ibex/src/host/abi.rs:1940).
+
+Thus the proposed probe can consume the strict handoff intended for a real invocation, while the `Once` prevents restoring it. Readiness evidence could weaken the security posture it supposedly verifies, contradicting Option 2’s no-evidence-regression classification.
+
+The option must require a non-consuming auxiliary probe or safe re-arming of the exact strict Host policy, with a post-probe test proving real invocations retain the same fail-closed posture.
+
+### MATERIAL — Option 4 overstates content-addressing guarantees
+
+The Ibex machinery validates digests when its build script executes and adds selected inputs to Cargo’s `rerun-if-changed` set. That is not “digest-anchored rerun detection instead of the mtime heuristic”: Cargo still decides whether to rerun through its normal change detection.
+
+Likewise, a digest-named directory does not alone make in-place mutation unreachable. The option later acknowledges that immutability still needs enforcement, contradicting its earlier guarantee.
+
+### DETAIL — Native refusal-reason transport is not demonstrably “cheap”
+
+Rust receives only a null pointer from `ex_hermes_create_no_eval()`. The detailed refusal is emitted through `ex_host_console_log`; there is no constructor error-result ABI. Propagating it into `SNAPBACK_RUNTIME_CREATE_FAILED` requires native error transport, ownership, concurrency, sanitization, and compatibility design.
+
+### DETAIL — Incorrect Workerd open-question pointer
+
+The unperformed Workerd semantic inventory is routed to OQ8, but OQ8 concerns readiness boundaries and mapped-object TOCTOU. It needs a dedicated question or a direct LLP 0048 reference.
+
+## 3. Verdict
+
+**NOT READY.**
+
+Most Round-1 defects are genuinely resolved, but the new server-side option contains a tree-demonstrable security/evidence regression that must be analyzed before meeting the stated bar.
+
+## 4. Recommended next step
+
+Make a focused v0.3 revision:
+
+1. Preserve or safely re-arm the strict Host context around boot qualification.
+2. Narrow Option 4 to the validation and invalidation guarantees actually provided.
+3. Accurately cost native refusal-reason propagation.
+4. Repair the Workerd inventory pointer.
+
+Then run a narrow same-family delta review of those changes.

@@ -236,3 +236,181 @@ the Related header, and the 0038 symbol attribution (concerns 2–6);
 optionally absorb the suggestions. These are hours, not days, of desk
 work. A delta re-review against the revision should suffice for this
 family; nothing here requires a full re-read round.
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh general-purpose subagent
+**Effort:** session-inherited
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh non-author subagent context (round-2 delta), read-only
+review of the working tree at commit 97946b33, cross-family blind
+**Target SHA-256:** `27390c8950fd22ca209a714a472da9159311b9868ad9362f4f2e37a1e66afec9`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+## 1. Resolution check (round-1 Fable concerns)
+
+1. **MATERIAL — facet-1 naming analysis + evidence-lineage interaction:
+   RESOLVED.** Option 7 is exactly what the concern asked for: four
+   analyzable paths (accept `@ccheever/*` as durable; dispute/negotiate
+   the `@snapback` scope; fresh organization scope; unscoped front-door
+   name) each with distinct costs, the scope-dispute path correctly
+   labeled general-industry-background with applicability unprobed, and
+   path (d) gated on the registry probe. The ledger interaction is
+   analyzed, not gestured at: the 0041 alias-swap quote is now verbatim
+   (0041 l. 331, "may replace this public alias without changing
+   authored imports" — verified), the document correctly derives that a
+   rename cannot inherit byte-bound receipt history or `latest`
+   continuity, states the re-proof obligation under 0115 governing
+   constraint 1 (whose paraphrase — "ergonomic work must not weaken an
+   evidence boundary" — is faithful to 0115 l. 93–96, verified), and
+   draws the sequencing consequence (rename cost grows with the receipt
+   corpus). The new per-option no-evidence-regression subsection extends
+   the same constraint across Options 1–7 with a stated dimension list;
+   its Option 6 entry is grounded in code I verified (see §2 checks
+   below). Round-1 open question 2 (does ledger lineage survive a
+   rename?) is answered — it does not; re-proof is required — with the
+   empirical residue honestly routed to §Empirical questions 6. This is
+   the analysis the round-1 verdict was waiting for.
+2. **DETAIL — declaration enumeration: RESOLVED.** Verified against
+   `packages/snapback-client/package.json` and the tree: exactly five
+   subpaths carry `types` conditions (`.`, `./app-data`,
+   `./canonical-client-value`, `./external-store`, `./search`; the five
+   matching `.d.mts` files exist), and `./agent-authority`,
+   `./hosted-browser`, `./online`, and the four `./rqs*` subpaths are
+   bare mappings. Both the seam bullet and Finding 5 now state this
+   correctly.
+3. **DETAIL — 0041 pseudo-quote: RESOLVED.** Now quoted as "not a tenth
+   public package in this closure" — verbatim match to 0041 l. 369.
+4. **DETAIL — `templates/` path: RESOLVED.** Now
+   `packages/snapback-cli/templates/` in both occurrences.
+5. **DETAIL — Related header missing Diary 0029: RESOLVED.** Diary 0029
+   is in the Related line.
+6. **DETAIL — `ex_hermes_create_no_eval()` attribution: RESOLVED.** The
+   split is now explicit and correct: the incident attributed to Diary
+   0038 (phrased there as promise-rejection checkpoint tracking
+   unavailable — matches 0038 ll. 144–147 as verified in round 1), the
+   symbol name to LLP 0115 CV-2 and Diary 0039 P0-2 (verified: the
+   literal symbol appears in Diary 0039's P0 item 2, l. 313).
+
+Round-1 suggestions (non-blocking): the LLP 0123 cross-reference was
+adopted into Option 2 (with a defect — new concern 1 below); the
+postinstall/npm-scripts note, the add-to-existing-project surface, and
+the Windows scoping line were not adopted, which is fine — they were
+non-blocking.
+
+## 2. Delta spot-checks of the v0.2 factual claims
+
+All verified against the working tree unless noted:
+
+- **Blocking-scope split.** 0115 CV-1's exit text is quoted verbatim:
+  "(Campfire or Streak Lab)" and "the admin-client proof rides Dispatch
+  or a separate fixture" both match 0115 ll. 235–238. The derived split
+  (helpers block any external arm; admin client blocks Dispatch
+  specifically; full CV-1 exit needs both custody decisions) follows
+  from that text.
+- **Admin-client decomposition.** `packages/snapback-admin-client/
+  index.mjs` confirms every listed property: master-token handling with
+  immediate exchange for a short-lived console credential
+  (`/console/credential`), secret-read leases commented "intentionally
+  memory-only" and never restored from browser storage, and credential
+  redaction (`CREDENTIAL_REDACTION`, `redactKnownSecrets`).
+  `src/admin.rs` l. 290 confirms the served-path intent: "for external
+  tooling — one client, no drift."
+- **Helper checkout entanglement.** `demos/_kit/server-process.mjs`
+  imports `../../scripts/lib/process-tree.mjs`,
+  `../../scripts/runtime-link-smoke.mjs`, `./provenance.mjs`, and
+  `../../packages/snapback-cli/runtime-recovery.mjs`, and carries the
+  `cargo run` source-tree fallback rung — all as stated.
+- **Comparator surface.** `guide/testing/acceptance.md` §The
+  backend-comparator profile confirms `snapback accept comparator`,
+  `defineComparatorProfile` from `@snapback/cli/comparator`, the five
+  mandatory profile checks, and "Run it from the application root."
+- **Guide reframing.** `guide/conventions.md` l. 103–104 contains the
+  quoted snippet-source sentence verbatim ("a demo acceptance suite,
+  package test, or proof script"); `guide/getting-started/
+  the-authoring-loop.md` frontmatter lists
+  `packages/snapback-cli/templates/{todo-contract,react}` and the
+  `sessions-dev-loop.test.mjs` package test among its `examples:` while
+  teaching `snapback new`/`generate`/`dev`; every `source=` fence on
+  `your-first-backend.md` transculdes from `demos/todo/` — so "corpus
+  choice, not mechanism" is the right diagnosis, and the reframed OQ4
+  and Relationship-section wording are consistent with it. (One
+  overstatement in the facet-3 restatement — new concern 2.)
+- **Flagship-scope clarification** ("staged package confirmations did
+  consume package-only artifacts; the flagship matrix did not") is
+  consistent with the round-1-verified diary record.
+- The expanded Revised header parses; `./ref-check` reports 0 errors
+  corpus-wide.
+
+## 3. New concerns in the delta
+
+1. **DETAIL — Stale option number in the LLP 0123 cross-reference.**
+   Option 2 says the intermediate shape "is LLP 0123 Option 2 (prebuilt
+   hermetic runtime distribution)." In the working tree at 97946b33,
+   LLP 0123's Option 2 is "Server-side readiness: the process witnesses
+   itself"; prebuilt hermetic runtime distribution is **Option 3**
+   (l. 352). The mismatch is a concurrent-revision artifact — 0123's own
+   v0.2 fix pass renumbered its options in the same commit that added
+   this cross-reference — and the parenthetical name keeps the reader
+   from landing on the wrong option, but the number as printed is wrong
+   in the reviewed tree. *Resolves it:* say "LLP 0123's prebuilt
+   hermetic runtime distribution option" or correct the number to 3.
+2. **DETAIL — Facet 3 misplaces the package-anchored snippets.** The
+   facet-3 text claims "installed-dialect, package-fixture-anchored
+   snippets already exist on the authoring-loop page."
+   `guide/getting-started/the-authoring-loop.md` contains **no**
+   `source=` fences at all — only plain `sh`/`text` blocks; in the
+   guide's own vocabulary (conventions §snippet classes) its package
+   anchoring is the `examples:` frontmatter, not snippets. The parallel
+   sentence in §What Snapback does today gets this exactly right
+   ("lists the packaged templates and a package test among its
+   examples"). Package-sourced verified snippets *do* exist — on other
+   pages (`guide/backend/standard-patterns.md` has four
+   `source=packages/snapback-codegen/standard-patterns.test.mjs`
+   fences; also `guide/clients/headless.md`, `guide/clients/
+   contract-adapter.md`, `guide/auth/scoped-roles.md`) — which supports
+   the "mechanism accepts package sources" argument *better* than the
+   sentence as written. But the location claim fails the check, and it
+   sits inside the Confidence section's High bucket ("guide dialect…
+   checked against the working tree"). *Resolves it:* repoint the
+   sentence at the corpus (e.g., standard-patterns) or restore the
+   examples-frontmatter phrasing used earlier in the document.
+
+Nothing else in the new text failed a check. The new no-evidence-
+regression subsection and Option 7 stay decision-free; the two general-
+industry-background claims added in v0.2 (scaffold-first delivery
+model, npm dispute process) are both explicitly provenance-labeled; the
+"ledger machinery is name-parametric" judgment is hedged and its
+empirical residue is routed to §Empirical questions 6.
+
+## 4. Verdict
+
+**NOT READY** — by the thinnest possible margin, and only on the two
+one-sentence defects above. The round-1 MATERIAL gap is genuinely
+closed: Option 7 and the no-evidence-regression subsection are the
+missing analysis, done well, and every round-1 concern is resolved
+rather than reworded. The document has, in my judgment, now exhausted
+what pre-empirical analysis can deliver on this front. What it has not
+yet met is the bar's other clause — "no flaws": the delta introduces
+two verifiably false statements (a wrong option number against the
+sibling document as revised in the same commit, and a snippet-location
+claim that fails against the guide corpus, the latter inside a
+High-confidence claim). These are the same citation-accuracy class my
+round 1 counted against the bar, so consistency requires counting them
+here; but they are transcription-level, touch no conclusion, and each
+is a one-line fix.
+
+## 5. Recommended next step
+
+Apply the two one-line corrections (concern 1: "Option 2" → "Option 3"
+or drop the number; concern 2: repoint the facet-3 sentence at the
+corpus). With those applied verbatim, this family's concerns are
+exhausted: no further Fable review round is needed — a fix-verification
+pass (confirming the two lines) suffices, and the author may treat this
+family as READY at that point without another subagent round. When
+editing the cross-reference, re-check LLP 0123's option numbering in
+the same tree state, since the sibling document is being revised
+concurrently.

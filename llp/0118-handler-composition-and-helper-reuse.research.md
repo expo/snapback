@@ -6,7 +6,36 @@
 generation, Runtime, Security
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2, round-1 dual-family review corrections —
+**Revised:** 2026-07-30 (v0.3, round-2 delta review corrections — Fable
+READY, two phrasing details; Codex NOT READY, one blocking concern in the
+v0.2-added helper-class axis with all round-1 concerns resolved or
+substantially advanced. Round-2 deltas in
+`reviews/0118-handler-composition-and-helper-reuse.fable.md` and
+`reviews/0118-handler-composition-and-helper-reuse.codex.md`; 4 items
+applied, all re-verified against the tree. Codex blocking: the
+helper-class safety analysis redone on verified enforcement ground — the
+pure lane redefined by capability flow rather than signature shape (a
+no-`ctx`-parameter test admits `helper(ctx.db)`, destructured members,
+bound methods, and module-scope stores), with what conservative taint
+admission can and cannot prove under 0108's closed graph stated; the
+caller-ceiling lane's "exactly as inline code is today" was wrong —
+code-verified, opaque-handler enforcement is keyed to the invocation's
+runtime kind and `uses` grant at the host boundary while declared
+reads/writes are unenforced evidence (declared-basis ceilings in
+`effect-ceiling.mjs`, `validate_effect_ceiling` returning without
+checking non-HostPlan runtimes in `src/manifest.rs`, no declared-table
+comparison in the `db.*` dispatch in `src/runtime.rs`) — so table-level
+caller ceilings are recosted as a new mechanism and the axis extended to
+mutation, action/egress, and aliased-capability helper classes; Finding
+11, open question 7, and §Confidence carry the correction. Codex detail:
+the hermetic-package analysis now distinguishes package-artifact
+integrity from resolved-edge/per-file attestation. Fable details:
+Finding 10 corrected — Relay Board's backend is two authored files whose
+duplicated queries share one `functions.mjs`, not "one schema/functions
+file"; the axis no longer says the shipped duplication "receives" the
+runtime context — as shipped it is inline code using it, and only the
+factored form would receive it.)
+2026-07-30 (v0.2, round-1 dual-family review corrections —
 reviews in `reviews/0118-handler-composition-and-helper-reuse.fable.md` and
 `reviews/0118-handler-composition-and-helper-reuse.codex.md`, both NOT
 READY; ten distinct concerns, all verified against the tree and applied,
@@ -282,27 +311,109 @@ scope") and LLP 0108's invariants (closed content-addressed graph, no
 
 **A cross-cutting axis: pure versus capability-bearing helpers.** The two
 motivating instances are not the same semantic class. Streak Lab's civil-date
-parser/inverse is pure value transformation — no `ctx`, no reads, no effects.
-Relay Board's duplicated logic is an indexed board *reader*: it receives the
-runtime context and performs declared storage reads. Sharing a pure helper
-moves bytes; sharing a `ctx`-receiving helper moves *capability-exercising
-code* between operations whose declared read sets, write sets, and runtime
-kinds may differ — and Snapback's no-inference invariant requires authority
-to keep deriving from each operation's declaration, never from what a shared
-helper's body happens to do. That opens a distinct risk lane: a helper
-admitted broadly could tempt a design where the helper's behavior, not the
-consuming declaration, effectively defines reach. The safe formulations are
-knowable in advance — pure-only sharing (no `ctx` parameter admitted);
-caller-ceiling-bound sharing (a helper's runtime accesses are checked against
-each *consumer's* declared reads/writes exactly as inline code is today, so a
-helper can never expand any operation's authority, only fail inside a
-narrower one); and kind-scoped sharing (query-only helpers cannot ride into
-actions and acquire egress). Each option below must state which class it
-admits; option 7 is pure-only by construction, and options 1, 1a, and 2 must
-choose. Which classes the first follow-on should admit is open question 7.
-Note the asymmetry of the evidence: satisfying *both* diary instances
-requires at least caller-ceiling-bound `ctx` helpers, while pure-only sharing
-satisfies Streak Lab alone.
+parser/inverse is pure value transformation — no context, no reads, no
+effects. Relay Board's duplicated logic is an indexed board *reader*: as
+shipped it is inline code inside each handler that uses the runtime context,
+and only the factored shared-helper form would receive that context as a
+parameter. Sharing a pure helper moves bytes; sharing a capability-exercising
+helper moves authority-adjacent code between operations whose declared read
+sets, write sets, and runtime kinds may differ — and Snapback's no-inference
+invariant requires authority to keep deriving from each operation's
+declaration, never from what a shared helper's body happens to do. That opens
+a distinct risk lane: a helper admitted broadly could tempt a design where
+the helper's behavior, not the consuming declaration, effectively defines
+reach.
+
+The v0.2 draft of this axis defined its safe formulations on unverified
+ground; the round-2 review caught both errors, and this section now states
+them on code-verified facts. First, the pure lane cannot be defined by
+signature shape ("no `ctx` parameter admitted," as v0.2 had it). That is not
+capability closure: `helper(ctx.db)`, `const {db} = ctx; helper(db)`, a
+bound method (`ctx.db.query.bind(ctx.db)`), or a module-scope store the
+helper later reads all deliver capability-bearing values to a helper whose
+signature never names `ctx`. The pure lane must be defined by capability
+*flow*: no value derived from the invocation context — the context object
+itself, any member reached from it, any function bound to or closing over
+one — reaches the helper through any channel (argument, closure,
+module-scope state, or return value). What static admission can prove about
+that property is bounded by 0108's closed-graph rules, and they help: the
+closed graph makes the taint roots complete — capabilities enter handler
+scope only through the handler's context parameter, because the 31 admitted
+globals are standard built-ins carrying no host authority and the
+free-identifier refusal bars naming anything else (`globalThis` is not on
+the list, so even host-bridge globals present in the VM are unreachable
+from admitted source), while the existing refusals of `eval`/`Function`,
+dynamic import, and the constructor/prototype reflection walks close every
+channel for minting authority outside the analysis's view. A conservative
+dataflow analysis over admitted source can therefore soundly
+over-approximate context derivation. What it cannot deliver cheaply is
+precision: aliasing, heap stores, and higher-order flow force coarse
+refusals, so a sound pure-lane gate looks like coarse taint — refuse any
+helper call reachable by a context-derived value and any module-scope store
+of one — and will refuse some genuinely capability-free calls. That is a
+real analysis to design and prove, not a reuse of the extractor's
+free-identifier test. The fresh-per-invocation lifecycle bounds
+module-state laundering to a single invocation (module state dies with the
+VM) but does nothing for intra-invocation flows, which are the actual
+question.
+
+Second, v0.2's caller-ceiling lane claimed a helper's runtime accesses
+would be "checked against each consumer's declared reads/writes exactly as
+inline code is today." Inline code is not checked that way today; the tree
+contradicts the premise. What ships for opaque (JS/Ibex) handlers,
+code-verified: host-call enforcement is keyed to the *invocation's* runtime
+kind and grants, never to code origin or declared tables — query
+invocations refuse `ctx.db` writes (`SNAPBACK_HANDLER_WRITE_IN_QUERY`),
+action invocations refuse `ctx.db` reads and writes entirely and route
+external effects through the action host's lifecycle validation,
+fetch-stream operations refuse outside action mode
+(`SNAPBACK_ACTION_CONTEXT_UNAVAILABLE`), protected queries classify every
+host input against a closed allowlist, and configuration access outside the
+invocation's host-computed `uses` grant refuses
+(`SNAPBACK_CONFIG_UNDECLARED`). Declared reads and writes, by contrast, are
+evidence without a runtime ceiling: the effect-ceiling pipeline gives
+opaque handlers `basis: 'declared'` — author declarations restated,
+expressly without static proof
+(`packages/snapback-codegen/effect-ceiling.mjs`); load-time ceiling
+validation returns without checking non-HostPlan runtimes
+(`validate_effect_ceiling`, `src/manifest.rs`); and the dispatcher parses
+the handler-supplied query plan and executes it — capturing OCC read
+dependencies — without comparing the plan's table, or the targets of
+`db.insert`/`db.patch`/`db.delete`, against the operation's declared read
+and write sets (`handle_host_call`, `src/runtime.rs`). Two consequences
+follow. Kind- and grant-scoped sharing has a shipped backstop: because
+enforcement keys on the invocation, a shared helper inherits its
+*consumer's* boundaries automatically — a write inside a helper invoked
+from a query refuses, egress inside a helper invoked from anything but an
+action refuses, and a helper cannot carry its own `uses` grant. But
+table-level caller ceilings have no shipped form: binding helper (or any
+handler) reads and writes to the consumer's declared tables would be a
+*new* enforcement mechanism — a declared-table check at the `db.*`
+host-call boundary, or a static table proof over admitted handler source,
+which the ceiling pipeline today claims only for closed HostPlans — and
+introducing it would change behavior for the entire existing opaque-handler
+tier, whose inline code can currently read and write outside its
+declarations without refusal. The follow-on must price that as new work
+with a migration story, not inherit it as a property.
+
+The helper classes the follow-on must decide among, restated on that
+ground: flow-pure helpers (capability closure by conservative taint
+admission, as above); context-reader helpers (query-kind reads — Relay
+Board's factored form); mutation helpers (buffered writes — the kind
+backstop already refuses them in query consumers, and table-level
+containment would be the new mechanism); and action/egress helpers
+(external effects and `uses`-granted configuration — mode-gated today,
+with grants computed per invocation, so a helper cannot smuggle its own).
+Aliased capability arguments are the cross-class hazard the flow definition
+exists to catch: every class except flow-pure admits them by construction,
+which is precisely why authority must keep deriving from the consumer's
+declaration rather than the helper's body. Each option below must state
+which class it admits; option 7 is pure-only by construction, and options
+1, 1a, and 2 must choose. Which classes the first follow-on should admit —
+and whether declared reads/writes remain evidence or become an enforced
+ceiling — is open question 7. Note the asymmetry of the evidence:
+satisfying *both* diary instances requires admitting at least
+context-reader helpers, while pure-only sharing satisfies Streak Lab alone.
 
 ### 1. Revive 0108's bounded static bundling (CV-7's designated lead)
 
@@ -415,10 +526,12 @@ pure-initializer grammar for retained top-level `const`s; adversarial
 re-proof at file scope, because a sibling helper can launder what a single
 expression could not (`const c = obj.constructor` at top level); source-span
 bookkeeping through the splice; and the helper-class decision (the
-cross-cutting axis above — Relay's reader takes `ctx`, so meeting both diary
-instances needs at least caller-ceiling-bound `ctx` helpers even in this
-slice). TypeScript flow from helper into handler is the same joint design
-with LLP 0117 that options 1 and 2 need.
+cross-cutting axis above — Relay's factored reader would take the runtime
+context, so meeting both diary instances needs at least context-reader
+helpers even in this slice, and with them the axis's enforcement question:
+kind- and grant-keyed boundaries are what ships, declared tables are
+unenforced evidence). TypeScript flow from helper into handler is the same
+joint design with LLP 0117 that options 1 and 2 need.
 
 *Risks.* Low relative to its siblings — it is a strict subset of option 1's
 admission problem with option 2's identity shape. The strategic risk is
@@ -530,8 +643,12 @@ lockfile-resolved, integrity-verified, size-bounded ESM package closures,
 recording package name/version, resolved export conditions, per-file
 digests, and toolchain identity, and still refusing undeclared ambient
 checkout state. That variant genuinely recovers deterministic regeneration
-(the lockfile, not machine state, fixes the bytes) and per-edge attestation
-(integrity hashes are exactly that). What it does not recover cheaply:
+(the lockfile, not machine state, fixes the bytes) and attestation — with
+one distinction the first draft blurred: lockfile integrity hashes
+authenticate the *package artifact* as fetched, not each resolved import
+edge, so resolved-edge and file-level attestation comes from the variant's
+separately recorded resolution graph and per-file digests, not from the
+lockfile itself. What it does not recover cheaply:
 reviewability at package scale (an admitted closure of a real date library
 is orders of magnitude more bytes than any first-party helper, and integrity
 attestation is not review); conditional-export resolution semantics, which
@@ -733,19 +850,31 @@ jointly with 0120's frame, not as an eighth option in this one.
    (its Diary 0039 field-evidence section) still carries the misattribution
    and owes it on its next revision.
 10. Both motivating duplication instances are same-file (Streak Lab's query
-    and mutation share one authored file; Relay Board's backend is one
-    schema/functions file), so the same-file lexical slice (option 1a) can
+    and mutation share one authored file; Relay Board's backend is two
+    authored files — schema plus functions — and both duplicated queries
+    live in the single `functions.mjs`), so the same-file lexical slice
+    (option 1a) can
     satisfy CV-7's exit criterion as written — "written once and used by
     both" requires a helper written once, not cross-file imports — at a
     fraction of option 1's mechanism. The graph-scope question (same-file
     vs. multi-file) is therefore prior to the emission question (group vs.
     splice) in the follow-on's decision order.
 11. The two instances differ in semantic class — Streak Lab's helper is
-    pure, Relay Board's receives `ctx` and performs declared reads — so a
-    pure-only sharing mechanism satisfies only one of them, and any
-    `ctx`-admitting mechanism must state how a shared helper is prevented
-    from expanding a consumer's declared authority (the caller-ceiling rule
-    is the natural invariant-preserving form).
+    pure; Relay Board's shipped duplication is inline code using the
+    runtime context, so its factored form would be a context-receiving
+    reader — and purity is a capability-flow property, not a signature
+    property: a no-`ctx`-parameter test admits `helper(ctx.db)` and its
+    aliases. Code-verified, today's opaque-handler enforcement is keyed to
+    the invocation's runtime kind and `uses` grant at the host boundary,
+    while declared reads/writes are evidence without a runtime ceiling
+    (declared-basis ceilings without static proof, load-time validation
+    skipping non-HostPlan runtimes, no declared-table comparison in the
+    dispatcher). A shared helper therefore inherits its consumer's kind
+    and grant boundaries automatically, but binding helper accesses to the
+    consumer's declared tables — the caller-ceiling rule — would be a new
+    enforcement mechanism whose introduction changes behavior for the
+    whole existing opaque-handler tier, not preservation of current
+    behavior.
 
 ## Confidence
 
@@ -758,7 +887,16 @@ dependency-graph-free v1 implementation hash
 module-graph resolver, its refusal codes, its esbuild-hosted fail-closed
 plugin structure, and the `DEFINITION_PACKAGE_IMPORTS` two-entry allowlist;
 the no-eval VM constructor and runtime constructor-walk probes
-(`src/runtime.rs`); the retired warm pool — `WarmVmPool` as a no-op
+(`src/runtime.rs`); the opaque-handler enforcement facts in §the
+cross-cutting axis — declared-basis effect ceilings without static proof
+for JS/Ibex handlers (`packages/snapback-codegen/effect-ceiling.mjs`),
+load-time ceiling validation returning without checking non-HostPlan
+runtimes (`validate_effect_ceiling`, `src/manifest.rs`), and mode-keyed
+host-call enforcement with no declared-table comparison for
+`db.query`/`db.insert`/`db.patch`/`db.delete`, plus the per-invocation
+`uses` grant and its `SNAPBACK_CONFIG_UNDECLARED` refusal
+(`handle_host_call`, `src/runtime.rs`); the retired warm pool —
+`WarmVmPool` as a no-op
 (`src/warm_vm.rs`) with its `@ref` to LLP 0009's DK-4 retirement — and the
 manifest's `vmLifecycle: "fresh-per-invocation"` default (`src/manifest.rs`);
 LLP 0010's single-file legacy handler profile.
@@ -833,12 +971,20 @@ a small increment while near-identical detection is not (option 5).
    subtrees across existing demo backends) would turn this into data, and
    its answer sizes both the urgency of CV-7 and the sufficiency of the
    same-file slice.
-7. **Which helper classes does the first mechanism admit?** Pure-only,
-   caller-ceiling-bound `ctx` readers, mutation helpers, action/egress
-   helpers — each widening admits more of the diary evidence (Relay needs
-   `ctx` reads) and enlarges the authority-analysis surface (§the
-   cross-cutting axis). The follow-on must pick a cutline and state how the
-   chosen class provably cannot expand any consumer's declared authority.
+7. **Which helper classes does the first mechanism admit, and under which
+   enforcement?** Flow-pure helpers, context-reader helpers, mutation
+   helpers, action/egress helpers — each widening admits more of the diary
+   evidence (Relay's factored form needs context reads) and enlarges the
+   authority-analysis surface (§the cross-cutting axis). Two sub-decisions
+   the axis's corrected facts expose: whether the pure lane's conservative
+   capability-flow admission is built at all (a new static analysis, not
+   the extractor's free-identifier test), and whether declared reads/writes
+   remain unenforced evidence — the shipped posture, under which a helper
+   inherits only its consumer's kind- and grant-keyed boundaries — or
+   become an enforced table-level ceiling, a new mechanism that would
+   change behavior for the existing opaque-handler tier. The follow-on
+   must pick a cutline and state how the chosen class provably cannot
+   expand any consumer's declared authority.
 8. **Are hermetic lockfile-pinned package closures evaluated now, deferred,
    or excluded as a product boundary?** Option 4's hermetic variant survives
    the determinism and attestation objections but stands on package-scale
