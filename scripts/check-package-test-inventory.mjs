@@ -56,6 +56,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'app-data.test.mjs',
       'argument-validation.test.mjs',
       'attribution.test.mjs',
       'bundle.test.mjs',
@@ -336,7 +337,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 124 -> 126 (2026-07-30, attribution wire seams): @snapback/client gains the
 // byte-level non-2xx attribution pass-through matrix and @snapback/app-cli
 // gains the HTTP/client/CLI per-principal-class attribution parity matrix.
-assert.equal(total, 126, 'reviewed package/admin test count changed');
+// 126 -> 127 (2026-07-30, LLP 0062 app-data façade lift): @snapback/client
+// gains the app-data-only façade posture suite (planted admin token,
+// redirect-terminal credentialed requests, per-class ingress bounds, bare
+// artifact fetch path).
+assert.equal(total, 127, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

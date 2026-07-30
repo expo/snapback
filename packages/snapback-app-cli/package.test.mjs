@@ -7,6 +7,13 @@ import { join } from 'node:path';
 import { deriveServiceAuthorityInstanceId } from '@snapback/client';
 import { runPackagedAgentJourney } from './index.mjs';
 
+// Ticket issues/20260717-app-cli-client-core-package.md: the engine's client
+// façade must have no ambient SNAPBACK_ADMIN_TOKEN pickup. Plant the env var
+// for the whole journey and prove no request carries it.
+const PLANTED_ADMIN_TOKEN = 'sbadm_planted_engine_token_do_not_transmit';
+const previousAdminToken = process.env.SNAPBACK_ADMIN_TOKEN;
+process.env.SNAPBACK_ADMIN_TOKEN = PLANTED_ADMIN_TOKEN;
+
 const calls = [];
 let created = false;
 const ACTOR_ID = '018f0d90-7b31-7a22-8c33-445566778899';
@@ -69,7 +76,12 @@ const server = createServer(async (request, response) => {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
   const body = chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  calls.push({ path: request.url, body, authorization: request.headers.authorization ?? null });
+  calls.push({
+    path: request.url,
+    body,
+    authorization: request.headers.authorization ?? null,
+    headers: { ...request.headers },
+  });
   const send = (value) => {
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify(value));
@@ -163,8 +175,27 @@ try {
     true,
     'ordinary agent requests retain the scoped bearer',
   );
+  // @ref LLP 0062#position-among-existing-surfaces — with the admin token
+  // planted in the environment, no engine request of any kind carries it:
+  // the façade has no ambient pickup and no admin request path.
+  for (const call of calls) {
+    const serialized = JSON.stringify(call);
+    assert.equal(
+      serialized.includes(PLANTED_ADMIN_TOKEN),
+      false,
+      `engine request to ${call.path} must not carry the planted admin token`,
+    );
+    assert.equal(
+      'x-snapback-admin-token' in call.headers,
+      false,
+      `engine request to ${call.path} must not carry an admin token header`,
+    );
+  }
   console.log('package.test.mjs: packaged discover/pair/mutate/subscribe/verify journey passes');
+  console.log('package.test.mjs: planted SNAPBACK_ADMIN_TOKEN never left the engine');
 } finally {
   await new Promise((resolve) => server.close(resolve));
   await rm(directory, { recursive: true, force: true });
+  if (previousAdminToken === undefined) delete process.env.SNAPBACK_ADMIN_TOKEN;
+  else process.env.SNAPBACK_ADMIN_TOKEN = previousAdminToken;
 }

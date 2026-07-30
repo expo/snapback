@@ -6,6 +6,12 @@ Exports:
 
 - `@snapback/client` — `SnapbackClient`, auth/custody helpers, and compatibility
   re-exports for the external store;
+- `@snapback/client/app-data` — `SnapbackAppDataClient`, the app-data-only
+  façade for the LLP 0062 app-CLI engine: the query/mutation/action/live/
+  ephemeral call paths, sessions flow, and agent-fence integration of the full
+  client, with no admin methods and no ambient `SNAPBACK_ADMIN_TOKEN` pickup,
+  plus `fetchPublicArtifact`, the bare credential-free non-redirecting fetch
+  for public artifact routes with identity-encoding enforcement;
 - `@snapback/client/hosted-browser` — the hosted app-browser constructor,
   structurally limited to coordinator-owned, sender-constrained session
   custody;

@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import { AgentAuthorityFence, SnapbackClient } from '@snapback/client';
+import { AgentAuthorityFence } from '@snapback/client';
+import { SnapbackAppDataClient } from '@snapback/client/app-data';
 import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
 
 // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
@@ -190,7 +191,10 @@ export async function runPackagedAgentJourney({
     tokenId: token.tokenId,
     bearerToken: token.token,
   });
-  const client = new SnapbackClient(baseUrl, {
+  // @ref LLP 0062#position-among-existing-surfaces — the engine constructs
+  // the app-data-only façade, not the full client: no admin methods and no
+  // ambient SNAPBACK_ADMIN_TOKEN pickup, by construction.
+  const client = new SnapbackAppDataClient(baseUrl, {
     agentAuthority: authority,
     authInvalidationProtocol: 1,
   });

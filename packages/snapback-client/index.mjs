@@ -631,6 +631,110 @@ const sanitizeTransportError = (error, secrets) => {
   return safe;
 };
 
+// Parent-side ingress bounds. Everything the credential-bearing parent
+// ingests from the network gets a per-class decoded-byte ceiling enforced
+// *before* full-text or JSON materialization — dishonest `Content-Length`,
+// chunked bodies, decompression expansion, and WebSocket payloads included.
+//
+// @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
+// "not code" rules out RCE, not denial of service: an oversized response must
+// not exhaust the credential-bearing parent before any advertised ceiling
+// applies.
+export const DEFAULT_INGRESS_LIMIT_BYTES = Object.freeze({
+  appCall: 64 * 1024 * 1024,
+  authLifecycle: 1 * 1024 * 1024,
+  discovery: 1 * 1024 * 1024,
+  artifact: 64 * 1024 * 1024,
+  liveFrame: 64 * 1024 * 1024,
+});
+
+const ingressLimitExceededError = (ingressClass, limitBytes) => {
+  const message = `${ingressClass} response exceeds the ${limitBytes}-byte decoded ingress bound`;
+  const error = new Error(`SNAPBACK_INGRESS_LIMIT_EXCEEDED: ${message}`);
+  error.code = 'SNAPBACK_INGRESS_LIMIT_EXCEEDED';
+  error.diagnostic = Object.freeze({
+    code: 'SNAPBACK_INGRESS_LIMIT_EXCEEDED',
+    message,
+    details: Object.freeze({ ingressClass, limitBytes }),
+  });
+  return error;
+};
+
+const redirectRefusedError = (status) => {
+  const message = 'redirects on credential-carrying requests are terminal';
+  const error = new Error(`SNAPBACK_REDIRECT_REFUSED: ${message}`);
+  error.code = 'SNAPBACK_REDIRECT_REFUSED';
+  error.diagnostic = Object.freeze({
+    code: 'SNAPBACK_REDIRECT_REFUSED',
+    message,
+    details: Object.freeze({ status: typeof status === 'number' ? status : null }),
+  });
+  return error;
+};
+
+// 304 is a cache validator, not a redirect; everything else in the 3xx range
+// names a second hop that must never see a credential again.
+const REDIRECT_STATUSES = new Set([300, 301, 302, 303, 305, 307, 308]);
+const isRedirectResponse = (res) => (
+  res?.type === 'opaqueredirect' || REDIRECT_STATUSES.has(res?.status)
+);
+
+const normalizedIngressLimits = (overrides) => {
+  if (overrides === null || overrides === undefined) return DEFAULT_INGRESS_LIMIT_BYTES;
+  const limits = { ...DEFAULT_INGRESS_LIMIT_BYTES };
+  for (const [name, value] of Object.entries(overrides)) {
+    if (!Object.hasOwn(DEFAULT_INGRESS_LIMIT_BYTES, name)) {
+      throw new TypeError(`unknown ingress class '${name}'`);
+    }
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throw new TypeError('ingress limits must be positive safe integers');
+    }
+    limits[name] = value;
+  }
+  return Object.freeze(limits);
+};
+
+const ingressClassForPath = (path) => (
+  String(path ?? '').startsWith('/auth/') ? 'authLifecycle' : 'appCall'
+);
+
+// Read a fetch response body as text while counting decoded bytes against the
+// class ceiling. The platform decodes any content coding before the body
+// stream, so this bound is on materialized bytes, not the wire framing.
+const readBoundedResponseText = async (res, ingressClass, limitBytes) => {
+  const declared = Number(res.headers?.get?.('content-length') ?? NaN);
+  if (Number.isFinite(declared) && declared > limitBytes) {
+    try { await res.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
+    throw ingressLimitExceededError(ingressClass, limitBytes);
+  }
+  const body = res.body;
+  if (!body || typeof body.getReader !== 'function') {
+    // Non-streaming response implementations still get the bound before any
+    // JSON materialization, just without incremental cancellation.
+    const text = await res.text();
+    if (new TextEncoder().encode(text).byteLength > limitBytes) {
+      throw ingressLimitExceededError(ingressClass, limitBytes);
+    }
+    return text;
+  }
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let receivedBytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    receivedBytes += value?.byteLength ?? value?.length ?? 0;
+    if (receivedBytes > limitBytes) {
+      try { await reader.cancel(); } catch { /* bounded refusal, orderly cleanup */ }
+      throw ingressLimitExceededError(ingressClass, limitBytes);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  text += decoder.decode();
+  return text;
+};
+
 const authHandshakeRequired = (path) => !(
   path === '/health'
   || path === '/inspect'
@@ -1410,9 +1514,13 @@ export class SnapbackClient {
     reservationRetryMaxAttempts = DEFAULT_RESERVATION_RETRY_MAX_ATTEMPTS,
     reservationRetryJitterMilliseconds = DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS,
     onReservationRetryDiagnostic = null,
+    // Per-class decoded-byte ingress bounds (LLP 0062); partial overrides
+    // merge over DEFAULT_INGRESS_LIMIT_BYTES.
+    ingressLimits = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
+    this.ingressLimits = normalizedIngressLimits(ingressLimits);
     if (authCoordinator && agentAuthority) {
       throw new TypeError('AuthCoordinator and AgentAuthorityFence are mutually exclusive');
     }
@@ -3791,6 +3899,13 @@ export class SnapbackClient {
     };
     const requestSecrets = collectRequestSecrets(body, merged);
     for (const secret of forbiddenSecrets) addSecret(requestSecrets, secret);
+    // @ref LLP 0062#4-auth-the-existing-model-projected--with-explicit-selection — non-redirection is
+    // client-enforced, not assumed: every request that carries a credential
+    // (bearer/admin/connection headers or secret-classified body fields) is
+    // issued with redirects treated as terminal errors, because the platform
+    // default follows redirects and a 307/308 would replay a secret to
+    // whatever URL a proxy, misconfiguration, or hostile target names.
+    const credentialed = requestSecrets.size > 0;
     let res;
     let text;
     try {
@@ -3799,10 +3914,15 @@ export class SnapbackClient {
         headers: Object.keys(merged).length > 0 ? merged : undefined,
         body: body === undefined ? undefined : JSON.stringify(body),
         signal,
+        ...(credentialed ? { redirect: 'manual' } : {}),
       });
     } catch (error) {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       throw sanitizeTransportError(error, requestSecrets);
+    }
+    if (credentialed && isRedirectResponse(res)) {
+      try { await res.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
+      throw redirectRefusedError(res.status);
     }
     const responseSenderNonce = res.headers?.get?.('dpop-nonce') ?? null;
     if (responseSenderNonce !== null && !isCanonicalSenderNonce(responseSenderNonce)) {
@@ -3823,7 +3943,8 @@ export class SnapbackClient {
       await onSenderErrorNonce(responseSenderNonce);
     }
     try {
-      text = await res.text();
+      const ingressClass = ingressClassForPath(path);
+      text = await readBoundedResponseText(res, ingressClass, this.ingressLimits[ingressClass]);
     } catch (error) {
       if (opaqueSuccessFailure) {
         throw opaqueCredentialResponseError();
@@ -5840,7 +5961,9 @@ export class SnapbackClient {
       }
       ws.addEventListener('message', async (event) => {
         try {
-          const update = JSON.parse(await websocketText(event.data));
+          const update = JSON.parse(
+            await websocketText(event.data, this.ingressLimits.liveFrame),
+          );
           if (update?.kind === LIVE_SOCKET_KINDS.SENDER_NONCE) {
             // Transport-internal: commit-and-release on the flight-holding
             // socket; swallow late or unexpected copies without ever
@@ -8780,8 +8903,17 @@ class LiveStreamManager {
       this.lastActivityMs = Date.now();
       let frame;
       try {
-        frame = JSON.parse(await websocketText(event.data));
-      } catch {
+        frame = JSON.parse(await websocketText(
+          event.data,
+          this.client.ingressLimits?.liveFrame ?? null,
+        ));
+      } catch (error) {
+        if (error?.code === 'SNAPBACK_INGRESS_LIMIT_EXCEEDED') {
+          // An oversized frame is a transport-class refusal, not a silent
+          // drop: close as 1009 (message too big) so the ordinary loss and
+          // reconnect policy owns recovery with bounded memory.
+          try { ws.close(1009, 'ingress_limit'); } catch { /* loss path owns state */ }
+        }
         return;
       }
       if (frame?.kind === LIVE_SOCKET_KINDS.SENDER_NONCE) {
@@ -9931,10 +10063,33 @@ function bodySnippet(text, limit = 200) {
   return collapsed.length <= limit ? collapsed : `${collapsed.slice(0, limit)}…`;
 }
 
-async function websocketText(data) {
-  if (typeof data === 'string') return data;
-  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
-  if (data && typeof data.text === 'function') return data.text();
+// The optional limit is the liveFrame decoded-byte ingress bound (LLP 0062),
+// checked before the frame text reaches JSON materialization. For text frames
+// the UTF-16 code-unit count is the pre-materialization proxy for size; binary
+// frames are checked on their exact byte length before decoding.
+async function websocketText(data, ingressLimitBytes = null) {
+  if (typeof data === 'string') {
+    if (ingressLimitBytes !== null && data.length > ingressLimitBytes) {
+      throw ingressLimitExceededError('liveFrame', ingressLimitBytes);
+    }
+    return data;
+  }
+  if (data instanceof ArrayBuffer) {
+    if (ingressLimitBytes !== null && data.byteLength > ingressLimitBytes) {
+      throw ingressLimitExceededError('liveFrame', ingressLimitBytes);
+    }
+    return new TextDecoder().decode(data);
+  }
+  if (data && typeof data.text === 'function') {
+    if (
+      ingressLimitBytes !== null
+      && typeof data.size === 'number'
+      && data.size > ingressLimitBytes
+    ) {
+      throw ingressLimitExceededError('liveFrame', ingressLimitBytes);
+    }
+    return data.text();
+  }
   return String(data);
 }
 
