@@ -5,7 +5,22 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Sync, Storage, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2 — round-1 dual-family review fix pass.
+**Revised:** 2026-07-30 (v0.3 — round-2 micro-fix pass. Round-2
+outcome: Fable READY with two DETAILs (N1 blocked-accounting
+completeness, N2 1a locating clause;
+llp/reviews/0127-parity-and-local-first-synthesis.fable.md); Codex
+NOT READY on two sentence-level items, one MATERIAL and one DETAIL
+(llp/reviews/0127-parity-and-local-first-synthesis.codex.md).
+Applied, all four: the composition map's closing coverage claim
+narrowed, with the 0126 residual exceptions enumerated where the
+claim is made; the "only the 1a hybrid is pre-registered" line
+re-attributed to this RFC, informed by — not selected by — 0119
+finding 6; the closing what-blocks-what accounting completed for
+items 7–10, with item 10 joining move 3's owner-landing exit gate;
+and the 1a-erasure claim located at the function-kind surface, with
+the assumed manifest-entry home of the persisting declared
+subscribable fact stated.)
+2026-07-30 (v0.2 — round-1 dual-family review fix pass.
 Round-1 outcome: Fable NOT READY (7 concerns C1–C7, 10 details D1–D10;
 llp/reviews/0127-parity-and-local-first-synthesis.fable.md) and Codex
 NOT READY (2 blocking-for-bar, 3 material, 2 detail;
@@ -321,7 +336,13 @@ capability facts, scoped per target — on a mechanism assumption 0119
 leaves unspecified: the subscribable fact must be minted from a
 declaration, never classified from plan shape (which would be option
 2's inference). On that assumption 1a erases the authoring decision
-while keeping per-function honest claims and no universal target
+at the function-kind surface only — no second kind, no
+callable-versus-subscribable fork in what the author writes — while
+a declared subscribable-fact input persists elsewhere: this RFC
+assumes it lives as the function's manifest-entry capability fact,
+minted under the per-target subscription-admission scope 1a already
+carries (0119's own 1a shape), not on the authored function surface.
+That keeps per-function honest claims and no universal target
 claim — the variant this RFC judges cheapest in evidence terms. The
 unchosen alternative is 1b (live by default behind an authored escape
 hatch), which 0119 notes also preserves an authored non-live fact
@@ -503,8 +524,15 @@ family the live matcher, OCC validator, and retainability rule
 already consume (0126 finding 7), but no single shared descriptor
 artifact exists yet — minting the concrete mapping is move 6 design
 work, and until it lands the move 6 → move 4 line is an architectural
-rhyme, not a dependency. No move is bespoke to one front, and no
-front outside 0124 needs a mechanism not already in the set.
+rhyme, not a dependency. No move is bespoke to one front, and the
+moves cover every front's headline gaps outside 0124 — narrowed by
+the exceptions the 0126 residual cell names: offline search needs an
+owner and a mechanism the set does not contain (0126 OQ6); the
+version-based delta-resume consumer is designed (LLP 0008) but
+unbuilt, a prerequisite no move ships by itself; option F's
+export/restore lane is a successor-Plan rider, not a move; and
+protected-opaque retention is not covered because it is excluded by
+design (LLP 0053; 0126 OQ2).
 
 ## What this deliberately does not do
 
@@ -530,7 +558,9 @@ decision rather than an omission:
 - **No live-by-default erasure.** The classification is a documented
   evidence choice (LLP 0074); erasing it requires a replacement theory
   of what a liveness claim means. The watch item's trigger condition
-  stands; only the 1a hybrid is pre-registered (0119 finding 6).
+  stands; the only pre-registered answer is the 1a hybrid — this
+  RFC's own pre-registration, informed by 0119 finding 6, which
+  selects neither hybrid.
 - **No capture as sole evidence.** Post-hoc read capture polices
   declared budgets; as the evidence itself it is unfalsifiable before
   production traffic (0120 option 4).
@@ -750,7 +780,16 @@ published-channel mode; item 4 blocks slice 5-rebuild and with it
 CV-1's exit; item 2 gates move 3's displaced-in-space half from arm
 choice through exit; item 3 gates when move 6's surface stops being
 bypassable; item 5 is move 1's own deliberately post-A+E completion
-decision; item 6 bounds how much of move 2's first slice exists. The
-program can still start where the evidence is already sufficient and
-decide where it is not — which is the posture the whole corpus has
-been building toward.
+decision; item 6 bounds how much of move 2's first slice exists;
+item 7 gates no first slice — it confirms §Sequencing 3's absorption
+and picks the receipt-association owner, a landing choice the jobs
+slice does not wait on; item 8 gates the product-breadth starts of
+§Sequencing 4, which sit outside the six moves by design, and no
+move slice; item 9 gates nothing until the author elects to pay it —
+only its price moves, rising with every receipt bound to the alias;
+item 10 joins item 2 on move 3's displaced-in-space exit — it is one
+of the five owner-landings move 3 requires before any
+`Parity`-by-construction claim, and the first one option A's landing
+forces. The program can still start where the evidence is already
+sufficient and decide where it is not — which is the posture the
+whole corpus has been building toward.

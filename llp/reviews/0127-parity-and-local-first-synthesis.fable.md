@@ -290,3 +290,227 @@ needed; every fix is a named sentence or list edit), reconcile the
 closing claims with the per-move slice definitions, then run a
 delta-only round 2 on the changed text. The forced-decision list
 (amended per C3) is then fit to put in front of the author.
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh general-purpose subagent
+**Effort:** session-inherited
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** round-2 delta review at commit 90fa0501 — read this
+artifact's Round 1 section, took the delta as
+`git diff 2fb51bdb -- llp/0127-parity-and-local-first-synthesis.rfc.md`,
+re-read the full v0.2 target, and spot-checked every claimed
+resolution against the corpus sources (0126's option-D staging §Option
+D, finding 9, §Wire-protocol, OQ2/OQ4/OQ6, option F, the
+opaque-lane/retainable-subset passages; 0119 options 1a/1b and finding
+6's decomposition; 0124 OQ3/OQ7 and V1/V1b; 0120 findings 4 and 9;
+0125's four-item remainder summary, option 1, OQ1; 0122 OQ6, option 3,
+the registry-probe pairing; 0121 OQ4's three candidates; 0118's
+"clearest candidate" hedge; 0115 §Sequencing 1/4, the CV table, and
+CV-14). The .codex.md artifact was not read. Settled round-1 text not
+re-litigated; new v0.2 text reviewed fresh.
+**Target SHA-256:** `c3b2175dba330f247607de37af91029130feaa69a13b0cd5ee21f0c7d9356aa4`
+**Instruction SHA-256:** `d9c98b1fb05479a4ac22e10821ec527aeee3bb6b980129d798fdb115f7f6f8c7`
+**Status:** completed
+
+## 1. Resolution check, per round-1 concern
+
+**C1 — RESOLVED.** Move 3 now states option D "as LLP 0126 v0.4
+actually stages it: **two parallel platform ladders**, not one
+sequence," with the shared IR rung, the browser ladder continuing to
+WASM behind its named assessment, and the desktop ladder "explicitly
+independent of the browser rungs (nothing in it waits on WASM)" —
+verbatim-faithful to 0126 §Option D ("staged as two parallel platform
+ladders"; "The desktop ladder — independent of the browser rungs;
+nothing in it depends on the WASM stage"). The IR-rung-first ordering
+is now labeled "this RFC's proposal, not 0126's staging" — exactly the
+attribution split C1 asked for. The correction propagates to the
+composition map's 0126 row ("D's two parallel ladders (shared IR rung;
+desktop sidecar WASM-independent)") and §Sequencing 5, and open
+question 2 now asks the author to confirm "the two-parallel-ladder
+staging with this RFC's IR-rung-first resourcing proposal." The
+in-process/mobile "behind its spike" phrasing is supported by 0126's
+own evidence-gate line ("the named spikes for in-process embedding and
+mobile").
+
+**C2 — RESOLVED.** The move-4 pre-registration is recast as "this
+RFC's own judgment: 0119 ranks none of the decomposed variants," the
+superlative is gone ("the variant this RFC judges cheapest in evidence
+terms" replaces "the only decomposed variant that costs no evidence"),
+the mechanism assumption is stated explicitly ("the subscribable fact
+must be minted from a declaration, never classified from plan shape
+(which would be option 2's inference)") and correctly attributed as an
+assumption "0119 leaves unspecified," and 1b is named as the unchosen
+alternative with 0119's exact property ("preserves an authored
+non-live fact without any static inference" — verbatim from 0119's
+option 1b). All three resolution components delivered.
+
+**C3 — RESOLVED.** §Sequencing 4 now labels exact-k-NN-first "this
+RFC's labeled proposal" and names "the exact-versus-ANN base-profile
+order [as] 0124 OQ3's reserved adjudication, routed to open question 8
+rather than assumed"; open question 8 carries it ("0124 OQ3's reserved
+adjudication, on which exact-first is this RFC's labeled proposal, not
+an inherited answer") with OQ3 added to the citation set. Matches
+0124's "nothing in the diaries adjudicates which order is right. That
+adjudication is exactly the substance of OQ3."
+
+**C4 — RESOLVED.** §Sequencing 2 now carries an explicit
+anti-absorption guard: "the sequence-primitive-first ordering is *not*
+in this verified list — it is 0120's labeled lean (finding 4) and this
+RFC's proposal, riding open question 3." CV-8's genuinely verified
+piece-2-gates-piece-3 refinement stays, correctly cited to 0120
+finding 9 alone.
+
+**C5 — RESOLVED.** The false universal claims are gone. The closing
+now gives a per-move startable list that matches the per-move slice
+definitions: move 2's startable component is named as the
+capability-free-only cut, with the move-2 body gaining the matching
+scope-honesty passage (the slice as specified is
+context-reader-admitting, waits on item 6, and the capability-free cut
+"covers only the Streak Lab instance (which the stdlib independently
+dissolves), not Relay's" — resolving Round 1 open question 1
+explicitly); move 5's bundle is split into named slices 5-qual /
+5-types / 5-rebuild with 5-rebuild's custody block "named separately
+so the block stays visible instead of averaging into a bundle"; and
+the blocked side now enumerates item 2's gate on move 3's
+displaced-in-space half "from arm choice through exit" and item 3's
+gate on "when move 6's surface stops being bypassable." Move 3's
+first-slice bundle is likewise split (3-jobs / 3-offline) with
+3-offline gated on item 2. Internally consistent on re-check; one
+DETAIL-grade incompleteness remains (N1 below).
+
+**C6 — RESOLVED.** The 0125 map row's gap cell now names the
+"wide-409 taxonomy" as a fourth remainder item (matching 0125's own
+four-item summary), and both the row's residual cell and §Sequencing 3
+fold it into the 0094/0095 delegation with 0125 OQ1's exact owner
+options ("0094's envelope or a 0095 client-conformance rule" —
+verbatim-faithful to 0125 OQ1). Round 1 open question 4 answered:
+yes, the delegation carries it.
+
+**C7 — RESOLVED.** Option F receives an explicit disposition:
+§Sequencing 5 has the successor Plan carry it "as a proposed cheap
+rider," with 0126's hedges preserved verbatim-faithfully
+("evidence-positive, foreclosing nothing, packaging properties that
+are already true (`near-zero` stays a hypothesis until the surface is
+sized, per 0126)"), and move 3's fronts line plus the map's 0126
+residual cell both point at the disposition. Round 1 open question 3
+answered for F; option G stays undispositioned, which is defensible —
+G is the do-nothing null option and the RFC's existence is its
+rejection — and I do not press it.
+
+**Details:** **D1 resolved** ("0126 finding 9 records capture itself
+as unowned; LLP 0081, the migration seam's owner, is this RFC's
+*proposed* home" — finding 9 says "owned at the seam, unowned at
+capture"). **D2 resolved** (new §Sequencing item 7 carries the
+watch-item amendment; move 4's "what lands where" and the absorption
+list now agree — Round 1 open question 2 answered). **D3 resolved**
+("clearest candidate constraint-1 violation... (0118's own hedge)" —
+0118 line: "the clearest candidate violation"). **D4 resolved**
+("absence-of-regression evidence, with few direct contention exercises
+in the rerun" — 0125's own caveat carried). **D5 resolved** (Tranche E
+narrowed to CV-13/CV-15; "CV-14 is claimed by no move and rides its
+custody trigger exactly as 0115 specifies" — 0115 §Sequencing 4:
+"CV-14 rides the next custody change"). **D6 resolved** (open question
+1 scoped to move 5's packaging-shape exits; "CV-2/CV-3/CV-13/CV-15
+exits do not" wait). **D7 resolved** (move 3 names the version-based
+delta-resume consumer, "designed in LLP 0008, unbuilt," as part of the
+lane's minimum wire surface — matching 0126 §Wire-protocol's "needs at
+minimum"; the fronts line simultaneously drops the "0126 in full"
+phrasing for an enumerated program-plus-residuals). **D8 resolved**
+(map row: "delivery authorization stays an open axis — 0124 OQ7";
+§Sequencing 4 keeps per-request-authorized as the local store's
+natural model while holding OQ7 open — matching 0124 OQ7's
+granularity/revocation question). **D9 resolved** ("owner 0070, the
+0108 family, or a new owned Spec (OQ4's three candidates)" — 0121 OQ4
+verbatim lists exactly those three). **D10 resolved** (map row:
+"meta-package (0122 option 3) unadopted, its registry probe kept as a
+measurement gate" — 0122 pairs the unscoped-name registry probe with
+options 3–4 and the probe sits in the RFC's move-5 gate list).
+
+The Revised header's self-report — "All 17 Fable items verified
+against the cited corpus texts and applied; none rejected" — is
+accurate for the Fable side: 17 of 17 check out against the sources.
+
+## 2. New text, reviewed fresh
+
+The v0.2 additions were checked against their sources and are clean
+where they make source claims: the redefinition of "in full" above the
+map (covered-or-named-residual, "never that every source option was
+adopted") is accurate against every remaining "in full" claim I
+re-walked (0118, 0119, 0120, 0121, 0122/0123 rows and fronts); the
+rewritten 0117 fronts line ("(a) return inference *answered* by E's
+declaration compression, not implemented — mechanism (a) itself stays
+unadopted") matches the corrected map cell and 0117's option
+structure; the new opaque-lane bounding of option A ("protected
+*opaque* queries stay non-retainable under LLP 0053's retainability
+invariant... the scored browser arms drove exactly the opaque lane")
+is verbatim-faithful to 0126's "the retainable subset is the
+declared/analyzable one" and "the bakeoff apps drove the browser JS
+client against protected opaque JS live queries, which are not
+retainable"; the coupling-taxonomy paragraph under the map (hard
+prerequisite / shared artifact / proposed answer / shared principle
+only) correctly re-attributes the move-6→move-3 line as "this RFC's
+answer to 0126 OQ4, which poses it as a question" and downgrades the
+move-6→move-4 line to "an architectural rhyme, not a dependency" —
+both strictly honesty-increasing against 0126 OQ4 and finding 7; the
+0122 OQ6 addition to move 5's decisions reproduces OQ6's three
+placements exactly; §Sequencing 1's new sentence routing move 5's
+beyond-the-board components to their named owners is a labeled
+proposal consistent with move 5's owner list; and §Sequencing 4's
+requirement that v0.5 "amend §Sequencing 1's 'Tranche A first, and
+alone' sentence with an explicit breadth carve-out rather than
+contradicting it silently" quotes 0115's actual sentence and closes a
+real silent contradiction.
+
+New concerns:
+
+**N1 — DETAIL (sequencing coherence).** The closing "What blocks what,
+honestly" enumeration characterizes items 1–6 and is silent on items
+7–10. Items 7–9 plausibly block no move slice or exit, but item 10
+(the settle-time trust policy) is one of the five owner-landings move
+3's own body says "must each land in an owner before any
+`Parity`-by-construction claim" — i.e., it gates move 3's
+displaced-in-space exit alongside item 2's authority gate, and the
+item-10 entry itself says it is "the first unowned design move 3 hits
+once option A lands." The accounting is no longer wrong anywhere, but
+it reads as complete while omitting this one gate a reader must
+recover from the move-3 body. A half-sentence ("items 7–9 block no
+slice or exit; item 10 joins move 3's owner-landing exit gates") would
+finish it.
+
+**N2 — DETAIL (internal precision, new move-4 text).** "1a erases the
+authoring decision" sits in mild tension with the newly stated
+mechanism assumption: if the subscribable fact "must be minted from a
+declaration," a declared input persists somewhere — what 1a erases is
+the function-*kind* choice (one `defineQuery` surface), not all
+authored liveness input. 0119 deliberately leaves the minting locus
+unspecified and the RFC now says so, so this is not a fidelity defect;
+a clause locating the assumed declaration (manifest-entry fact,
+per-target admission scope — versus the authored function surface)
+would remove the last ambiguity in an otherwise clean passage.
+
+## 3. Verdict
+
+**READY** — against the round-1 capsule's RFC-adapted bar. All seven
+material concerns and all ten details from Round 1 are genuinely
+resolved, verified against the corpus texts rather than against the
+revision's self-report; the fixes are faithful to the sources at the
+sentence level, and several (the "in full" definition, the coupling
+taxonomy, the per-move accounting) improve the document beyond what
+Round 1 asked for. The new text introduces no corpus distortion, no
+smuggled adjudication, and no coverage drop. The two new concerns are
+DETAIL-severity polish items that do not misstate any source, do not
+misroute any decision, and do not make the accounting false — they do
+not hold the document short of "no flaws" in the bar's sense of
+exhausting pre-empirical composition.
+
+## 4. Recommended next step
+
+Put the ten-item forced-decision list in front of the author for
+adjudication. N1 and N2 can ride the next natural edit (or the v0.5
+absorption commit) — neither warrants another review round on its
+own. If the other family's round 2 also lands READY, proceed to the
+author's accept/reject pass and the proposed 0115 v0.5 absorption
+items 1–7.

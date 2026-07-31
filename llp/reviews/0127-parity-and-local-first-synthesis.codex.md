@@ -116,3 +116,79 @@ The RFC is close in conceptual quality, but the local-first coverage overclaim a
 Revise the 0126 and 0122 composition-map cells, split Move 5’s first slice and sequencing destinations, explicitly amend 0115’s “Tranche A alone” rule, and tighten the “in full” claims. Then run a focused dual-family delta review limited to those changes and their cross-move dependencies. The three forced author decisions should remain open unless the author separately adjudicates them.
 
 **NOT READY**
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-2 delta review of `git diff 2fb51bdb -- llp/0127-parity-and-local-first-synthesis.rfc.md` at commit 90fa0501, round-1 record required reading, mutually blind on the Fable 0127 artifact
+**Target SHA-256:** `c3b2175dba330f247607de37af91029130feaa69a13b0cd5ee21f0c7d9356aa4`
+**Instruction SHA-256:** `d9c98b1fb05479a4ac22e10821ec527aeee3bb6b980129d798fdb115f7f6f8c7`
+**Status:** completed
+
+### Verbatim review
+
+## Per-item resolution check
+
+1. **0126 accounting — PARTIALLY RESOLVED.** The revised Move 3 and composition-map cell now correctly name:
+
+   - protected opaque queries as non-retainable under LLP 0053;
+   - offline search as unowned;
+   - the unbuilt delta-resume consumer;
+   - option F as a successor-Plan rider.
+
+   However, the closing assertion that “no front outside 0124 needs a mechanism not already in the set” contradicts those residuals, particularly unowned offline search and option F’s backup/export/restore surface ([0127](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:492), [closing claim](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:506)).
+
+2. **Move 5 slice split and CV-1 custody — RESOLVED.** `5-qual`, `5-types`, and custody-blocked `5-rebuild` are separated, and the closing accounting correctly says custody blocks `5-rebuild` and CV-1’s exit—not the other two slices ([0127](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:393), [accounting](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:741)).
+
+3. **0122 one-CLI facet and OQ6 — RESOLVED.** `@snapback/app-cli` placement is now an explicit decision and composition-map residual; the unadopted meta-package is also accounted for ([0127](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:402), [map](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:488)).
+
+4. **Move 1 narrowed claim — RESOLVED.** The text now states that E compresses declarations but never infers, mechanism (a) remains unimplemented, and infer-then-freeze C is 0117’s conditional bridge ([0127](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:96)).
+
+5. **Move 6/Move 4 coupling — RESOLVED.** It is explicitly a shared-principle “architectural rhyme,” not an artifact dependency ([0127](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:494)).
+
+6. **0115 §Sequencing-1 amendment — RESOLVED.** The proposed v0.5 now explicitly amends “Tranche A first, and alone” with the product-breadth carve-out ([0127](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:597)).
+
+7. **Slice sizing — RESOLVED.** The Round 1 bundles in Moves 3 and 5 are split into separately named pilots/workstreams with distinct blockers and boundaries.
+
+## New concerns
+
+- **MATERIAL — Global composition claim contradicts the newly explicit 0126 residuals.** The document cannot simultaneously say offline search is unowned and option F is a separate successor-Plan rider, then conclude that every non-0124 front needs no mechanism outside the six-move set. Resolve by narrowing the closing claim to covered headline gaps, explicitly excepting named residuals.
+
+- **DETAIL — The 1a attribution remains internally inconsistent.** Move 4 correctly says selecting 1a is this RFC’s judgment because LLP 0119 ranks neither hybrid. Later, “only the 1a hybrid is pre-registered (0119 finding 6)” again makes the source appear to select it ([0127](/Users/ccheever/projects/snapback/llp/0127-parity-and-local-first-synthesis.rfc.md:530)). Finding 6 only establishes that 1a/1b make simplicity compatible with per-function facts. Attribute the pre-registration to this RFC, informed by finding 6.
+
+## Verdict
+
+**NOT READY.**
+
+The substantive Round 1 repairs are strong, but the remaining global accounting contradiction prevents concern 1 from being genuinely closed under the stated bar.
+
+## Recommended next step
+
+Make the two narrow textual corrections above, then run a final focused delta check of the composition-map closing paragraph and Move 4’s 1a attribution. No broader redesign or renewed corpus review appears necessary.
+
+## Round 3 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-3 final focused check (requested by Round 2) of the two Round 2 items against the v0.3 fix (`git diff 90fa0501 -- llp/0127-parity-and-local-first-synthesis.rfc.md`), plus a no-fresh-defect check on the completed items 7–10 blocked-accounting and the 1a locating clause; Round 2 record required reading, mutually blind on the Fable 0127 artifact
+**Target SHA-256:** `340a5f47122e36bdec7e7c6d8bb2ccf34cf127b0023c4cbcff49493fd31d9b24`
+**Instruction SHA-256:** `d9c98b1fb05479a4ac22e10821ec527aeee3bb6b980129d798fdb115f7f6f8c7`
+**Status:** completed
+
+### Verbatim review
+
+**Verdict: READY**
+
+1. **MATERIAL — RESOLVED:** The closing claim now explicitly excludes all four LLP 0126 residuals and no longer asserts complete six-move coverage.
+2. **DETAIL — RESOLVED:** The 1a pre-registration is clearly this RFC’s judgment, merely informed by LLP 0119 finding 6, which selects neither hybrid.
+3. **Items 7–10 accounting — CLEAN:** The added blocker/exit mapping matches the stated slices, successor work, and Move 3’s five owner-landings.
+4. **1a locating clause — CLEAN:** It precisely limits erasure to the function-kind surface while retaining the declared subscribability fact in the manifest entry.
+
+**Recommended next step:** Append this Round 3 READY verdict to the Codex review artifact; the author may then conclude the LLP 0005 review loop and decide LLP 0127’s status.
