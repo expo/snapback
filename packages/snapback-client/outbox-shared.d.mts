@@ -47,3 +47,17 @@ export declare const outboxOps: Record<
   string,
   (...args: never[]) => unknown
 >;
+
+export declare const pendingOutboxRecords: (
+  state: OutboxState
+) => StoredOutboxRecord[];
+
+export declare const allOutboxRecords: (
+  state: OutboxState
+) => StoredOutboxRecord[];
+
+export declare const pendingAcknowledgementsFor: (
+  state: OutboxState,
+  userId: string,
+  limit: number
+) => string[];

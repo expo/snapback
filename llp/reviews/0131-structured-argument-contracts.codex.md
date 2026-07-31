@@ -172,3 +172,82 @@ The draft does not meet LLP 0130 SD-4’s zero-unresolved-MATERIAL condition and
 Revise LLP 0131 to resolve the hash/identity facts first, then close descriptor authority, capability gating, search ownership/diagnostics, SchemaRef/option-E semantics, replay taxonomy, and acceptance. Amend LLP 0073 OQ12 in the same proposed landing. After those changes, commission Codex-family round-1 re-review before seeking dual-family READY.
 
 The LLP review artifact should be recorded as `llp/reviews/0131-structured-argument-contracts.codex.md`; this read-only session could not create it.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-2 delta — reviewer re-read its own Round 1 section, verified each Round 1 concern against v0.2 and the previously cited code facts, then reviewed the new text only; read-only sandbox, blind to this Spec's fable artifact
+**Target SHA-256:** `0463e0be0122b599ed2b5454eb2c6bf69963ad378e318face88699962930360a`
+**Status:** completed
+**Runner note:** the runner prompt mistranscribed the target SHA (dropped two hex chars: `0463be01…`). The reviewer independently computed the target file's digest, reported the correct v0.2 SHA recorded above, and reviewed that revision, so the typo did not affect the review target.
+
+### Verbatim review
+
+## Round 2 delta review
+
+Target verified: SHA-256 `0463e0be0122b599ed2b5454eb2c6bf69963ad378e318face88699962930360a`. I read the Codex Round 1 and did not read the Fable artifact.
+
+### Round-1 resolution check
+
+1. **Identity baseline and consumer cascade — RESOLVED, subject to new concern N1.**  
+   The draft now correctly distinguishes raw `def.args` from the bounds-blind carried descriptor, rotates `implementationHash`, and covers search, React deployment identity, and React store-key migration. This agrees with the cited code facts in codegen, client, React, and canonical client values. The old-client compatibility promise introduced by the fix is impossible as written; see N1.
+
+2. **Descriptor authority and round-trip integrity — NOT RESOLVED (MATERIAL).**  
+   Load-time recomputation is now decisively required and correctly follows the result-contract precedent in `manifest.rs`. However, [the descriptor section](/Users/ccheever/projects/snapback/llp/0131-structured-argument-contracts.spec.md:147) still asserts “one frozen JSON representation” without actually freezing the root JSON shape, manifest member names, enum tagging, or every serialized node field. The promised future Rust serde type and generated manifest schema cannot substitute for a normative wire representation in this Spec. Registry inconsistency is also asserted as a load-time refusal without an operational test or comparison mechanism; see N2.
+
+3. **Capability-scoped universal ingress — RESOLVED.**  
+   `args_contract_v1` is now required app-wide for every v2-generated function, including scalar-only and empty-root functions. Incapable targets refuse deployment rather than silently omitting validation.
+
+4. **LLP 0073 ownership, RFC 6901, and diagnostic precedence — RESOLVED.**  
+   LLP 0073 OQ12 is accurately described as still Open, Appendix B contains the proposed dated resolution, RFC 6901 bounded pointers replace JSONPath, and node-scoped generic-versus-owner precedence is unambiguous.
+
+5. **`PlatformSchemaRef` and option E — RESOLVED for v1, with MINOR ambiguity N3.**  
+   The platform reference now has closed authority, version-pinned identity, and hash-by-id semantics; app-schema evolution is fenced behind digest-carrying identity. The later wording about “reusing `PlatformSchemaRef`” should be corrected, but v1 itself is not blocked by that wording.
+
+6. **Replay taxonomy — NOT RESOLVED (MATERIAL).**  
+   Offline replay and retained-settlement release are now correctly distinguished, and durable-job enqueue validation is explicit. But execution, retry, successor replay, and operator replay are still expressly undecided in [open question 5](/Users/ccheever/projects/snapback/llp/0131-structured-argument-contracts.spec.md:704). Acceptance tests only enqueue. Round 1 required the successor/operator path to revalidate migrated arguments under the newly admitted artifact. Either decide that rule through LLP 0070 in the same landing or narrow the guarantee and make the LLP 0070 amendment a prerequisite.
+
+7. **Uncommissioned `DEGRADED` diagnostic — RESOLVED.**  
+   `SNAPBACK_FUNCTION_ARGS_CONTRACT_DEGRADED` is removed from normative scope and routed to CV-6/SD-1.
+
+8. **Acceptance completeness — NOT RESOLVED (MATERIAL).**  
+   The lane, bounds, tampering, capability, diagnostic, and blast-radius matrices are substantially improved. Acceptance 11 adequately covers the identity migration. But [acceptance 12](/Users/ccheever/projects/snapback/llp/0131-structured-argument-contracts.spec.md:604) does not contain a preregistered threshold or fixed numeric fallback—it promises that they will be recorded later. Open question 3 therefore remains a material pre-empirical decision, contrary to the exhausted-analysis bar. Scheduled execution/replay and registry-pair mismatch acceptance also remain incomplete.
+
+9. **LLP 0004 supersession — RESOLVED.**  
+   Appendix A explicitly supersedes the deferred pointer and corrects the false scalar-reference statement.
+
+### New concerns in v0.2
+
+1. **MATERIAL — Bidirectional coded version-skew refusal is impossible as written.**  
+   The new cascade says an old client against v2 artifacts also receives `SNAPBACK_SEARCH_REFERENCE_INVALID`. The existing old client is immutable and throws an uncoded `TypeError` when the digest differs ([client code](/Users/ccheever/projects/snapback/packages/snapback-client/index.mjs:147)). A lockstep new release cannot change already-installed clients. Limit the guarantee to “the v2 client diagnoses v1 or v2 references,” explicitly preserve the legacy old-client `TypeError`, or design a compatibility discriminator that the old client accepts.
+
+2. **MATERIAL — Registry artifact/validator disagreement has no executable load-time definition.**  
+   The new text requires load-time detection when an exported artifact and runtime validator “disagree.” Semantic equivalence between JSON Schema and parser code cannot be established merely by looking up a registry pair. Define a concrete mechanism—such as one generated registry source plus authenticated artifact identity—and add the missing negative acceptance case. Otherwise retain corpus agreement as a CI property and stop promising semantic load-time comparison.
+
+3. **MINOR — Future-reference wording conflicts with the v1 node name.**  
+   The identity section correctly says app-schema authority needs a “distinct node design,” while open question 2 proposes reusing `PlatformSchemaRef` through a new authority class. Say `AppSchemaRef`/a distinct node, or rename the generic node and define authority-specific hashing.
+
+4. **MINOR — The `resultOnly` churn rationale overstates current reachability.**  
+   The draft says deleting the flag would churn v1 hashes for arguments using all five flagged builders. The current authoring gate rejects `null`, `literal`, `array`, and `union` at argument positions; only `finiteReal` can pass through its existing `number`/`Real` classification. This does not invalidate the re-key, but the factual rationale should be narrowed.
+
+## Verdict
+
+**NOT READY**
+
+LLP 0130 SD-4 is not met: Round-1 concerns 2, 6, and 8 retain unresolved MATERIAL parts, and v0.2 introduces two fresh MATERIAL defects.
+
+## Next step
+
+Revise to v0.3 by:
+
+- freezing the exact descriptor/manifest JSON representation;
+- defining an executable registry-authority mechanism;
+- deciding the LLP 0070 execution/successor-replay rule;
+- recording the actual hot-path threshold and numeric fallback;
+- narrowing or redesigning the old-client skew guarantee; and
+- cleaning up the two minor wording/factual inconsistencies.
+
+Then request a Codex-family round-3 delta review before claiming dual-family READY.

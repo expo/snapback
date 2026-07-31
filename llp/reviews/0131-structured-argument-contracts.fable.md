@@ -367,3 +367,228 @@ acceptance 5 (C3), state the search diagnostic precedence rule and its
 0073 consequence (C4), and sweep m1–m4. Then a round-2 delta review; on
 dual-family READY with zero unresolved MATERIALs, LLP 0130 SD-4's
 standing acceptance applies.
+
+## Round 2 — 2026-07-31
+
+**Family:** Fable (Claude)
+**Runtime:** Claude Code / claude-fable-5
+**Effort:** session-inherited
+**Date:** 2026-07-31
+**Method:** round-2 delta review — verify each round-1 Fable concern
+genuinely resolved in v0.2, then review the new v0.2 text for fresh
+defects; settled text not re-litigated. Codex artifact still unread.
+**Target:** `llp/0131-structured-argument-contracts.spec.md` v0.2 (733 lines)
+**Target SHA-256:** `0463e0be0122b599ed2b5454eb2c6bf69963ad378e318face88699962930360a`
+**Status:** completed
+
+Note on the code baseline: current main moved since round 1 — commit
+`4d72c407` (same-file helper sharing, LLP 0118) shifted
+`packages/snapback-codegen/index.mjs` by ~14 lines, and client commits
+(`3a7a980a`, `b444db73`, `00f1f218`) landed. Every identity-section code
+fact was therefore re-verified from scratch on current main rather than
+trusted from round 1.
+
+### Round-2 verification log (raw data)
+
+- `index.mjs:1956` (spec cites 1942): `fn.argsContractHash =
+  argsContractHash(def?.args ?? {})` — raw-builder preimage claim still
+  true. `define.mjs` `resultOnly` at exactly the five cited lines
+  (228, 239, 249, 273, 282) — cite exact.
+- `index.mjs:4183–4213`: `implementationIdentity` includes
+  `argsContractHash` (4205; spec cites 4170), hashed at 4222–4224 (spec
+  cites 4187–4189) — cascade item 1's factual basis holds. New wrinkle:
+  the domain is now `snapback:function-implementation:${v1|v2}` (v2 when
+  inline helpers exist, LLP 0118) — does not affect the claim.
+- **`src/manifest.rs:1566–1594` (new v0.2 cite) verified exact:** the
+  host recomputes `result_contract_hash(contract)` from the carried
+  contract and exact-compares, refusing
+  `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID` — the recompute-decision's
+  precedent claim is code-true, including the paired
+  contract-without-hash refusal and the capability check
+  (`result_contract_v1`, 1595–1609) the capability posture mirrors.
+- `snapback-client/index.mjs:147/167`, `react-binding.mjs:125–133,
+  248, 1095`, `canonical-client-value.mjs:232–233` — all four cascade
+  consumers still at (or within) the spec's cited lines after the
+  client commits.
+- **`SNAPBACK_REACT_REFERENCE_INVALID` exists today**
+  (react-binding.mjs:1090, 1098, 1106, 1130); the mixed-generation
+  mismatch path (`exactDeploymentFunction` inequality at 1095) already
+  throws it at 1098 — cascade item 3 names a real existing code, and
+  acceptance 11's react half is satisfiable on current code.
+  `SNAPBACK_SEARCH_REFERENCE_INVALID` has zero occurrences repo-wide —
+  correctly marked "new" in the diagnostics table.
+- **Settlement-identity claim verified true:** `ClientMutationIdentity`
+  = client mutation id, function name, auth fingerprint, authority
+  instance id, input fingerprint (`src/storage.rs:663–680`), and
+  `mutation_input_fingerprint` hashes args/readSet/ctxLedger only
+  (storage.rs:14908–14921). No `argsContractHash`, no
+  `implementationHash` — "retained-settlement identity does not
+  incorporate the args witness in v1" is true directly, not merely
+  transitively, and replay lane 2 is generation-insensitive server-side.
+- **Store-key cold-start posture verified honest:**
+  `canonicalReactStoreKeyV1` call sites are
+  `packages/snapback-react/index.mjs:689, 1656`; the react store and
+  `pendingMutations` (snapback-react/index.mjs:644) are in-memory
+  session state — no durable v1-keyed store exists on main to leak.
+- **Degraded-introspection claim verified:** v.json() projects as
+  `{shape:'unknown'}` (index.mjs:3379); `renderObjectFields` routes
+  every args field through `renderDataType`
+  (provider-introspection.mjs:675–681), whose shape-unknown branch
+  emits warning-severity `PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED`
+  (619–627) — "a declared v.json() argument included" is code-true.
+- Search fixture cites: `define.mjs:778` (`query: v.json()`) exact;
+  `src/search/types.rs:183–213` exact (enums external-tagged, structs
+  `deny_unknown_fields`); `index.d.mts:145` exact;
+  codegen-emitted `SearchQueryAstV1`/`SearchRequestV1` now at
+  index.mjs:5942–5943 (spec cites 5899–5908). `sqlite.rs:1616–1638`
+  exact including the limit refusal at 1631–1637.
+- `server.rs:5882`, `handler_wire.rs:93–96`, `result_contract.rs:15–17`,
+  `value_expr.rs:121–128` — all exact. `src/schema_export.rs` and
+  `tests/artifact_schemas_v0.rs` exist; `full_text_search_v1` is a real
+  manifest capability (manifest.rs:5256).
+- Result-side object fields are entry-shaped (`ResultObjectFieldContract`)
+  — the normalization rule's "optionality is a field-entry property,
+  mirroring the result contract" is consistent with the code.
+- Id structural validation is non-empty-string only
+  (result_contract.rs:104–108); generated TS brands ids
+  (`Id<Table> = string & {__snapbackIdTable}` at index.mjs:5932);
+  incarnation values are freshly minted UUIDv7 tokens
+  (storage.rs:13972) with `primitive:'string'` +
+  `fieldType.RelationIncarnation` validators (define.mjs:199) — inputs
+  to N3 below.
+
+### Round-1 concern resolution
+
+**C1 — RESOLVED.** §Identity's "Code baseline" now states exactly the
+verified facts: the witness hashes the raw authored builder objects
+(`def?.args`) whose preimage carries authored bounds and internal
+metadata, while the manifest carries the bounds-blind
+shape/name/optional descriptor; unrecomputability and the
+resultOnly-deletion churn are now the stated grounds. §One argument
+grammar names all five `resultOnly` builders with exact lines. This is
+the true, stronger rationale round 1 asked for, and every sentence of it
+re-verified against current main.
+
+**C2 — RESOLVED.** The four-consumer inventory is complete, accurate,
+and normative. Item 1 decides the `implementationHash` question
+explicitly (keep the feed; every implementationHash rotates once;
+fixtures regenerate; acceptance 11) and the "untouched identities"
+sentence is corrected with the v0.1 error named. Item 2 makes the search
+pin generated with a lockstep client release and a new coded skew
+refusal (verified not yet existing — honestly marked new). Item 3
+correctly calls the react refusal a behavior and names the code that
+already backs it. Item 4's cold-start posture matches the in-memory
+reality. The settlement-identity boundary claim was verified true in
+code. Round 1's four suggestion bullets are all absorbed.
+
+**C3 — RESOLVED.** Fixture point 4 and acceptance 5 now corpus-validate
+the expansions embedded by value in the provider projection and the
+per-operation args JSON Schema ("an embedded copy that drifts is a
+corpus failure, not merely a no-`unknown` finding") — the introspection
+carrier the commissioned CV-5 exit names is covered, alongside Rust
+deserialization, the exported schema, codegen-emitted types, and the
+client typings.
+
+**C4 — RESOLVED.** The precedence rule is decided and node-scoped:
+`PlatformSchemaRef` refusals surface under the owning parser's stable
+code with the added pointer (delegation rule = diagnostic rule);
+every non-reference node uses the generic code, search scalars
+included. The 0073-stability consequence is named, accepted, routed
+through the dated Appendix B amendment that lands only at acceptance
+(0073 unedited until then; OQ12 stays Open there), and pinned in
+acceptance 13. Internally consistent and honestly routed; rejecting a
+function-classed special case is the right call for a Spec whose
+purpose is removing special cases.
+
+**m1 — swept.** §Canonicalization now routes finite reals to LLP 0007
+via 0108's routing with LLP 0051 covering the remainder, and acceptance
+7 freezes golden vectors on exactly the sensitive cases.
+**m2 — swept.** `EPHEMERAL_INVALID_VALIDATOR` named with correct
+(round-1-era) lines; all five `resultOnly` builders enumerated.
+**m3 — swept.** Per-lane refusal wording: invocation lanes vs. the
+narrower-by-construction enqueue lane, with 0070's transactional
+no-job-exists meaning.
+**m4 — swept.** Appendix B carries the dated 0073 amendment text with
+0037 as co-owner and an explicit landing trigger.
+**m5 — absorbed.** OQ3 records the 64 KiB per-transport divergence and
+proposes the codegen advisory.
+
+### New concerns (v0.2 text)
+
+**N1 (minor — stale line cites).** The spec landed after commit
+`4d72c407` shifted `packages/snapback-codegen/index.mjs` by ~14 lines,
+so its codegen cites are stale on the tree it landed on: 1942→1956,
+1242→~1253, 2608/2615→2622/2629, 3300/3309→3314/3323–3329,
+3354–3373→3368–3387, 4170→4205, 4187–4189→4222–4224,
+5899–5908→5942–5943. Every underlying fact re-verified true — this is
+cite hygiene, not substance. Sweep in the next touch.
+
+**N2 (minor — untestable load-time refusal clause).** §descriptor and
+§Identity refuse at manifest load when "a registry entry whose exported
+artifact and runtime validator disagree." Both registry halves derive
+from one Rust type (the schemars-generated artifact and the serde
+parser), so at load time the disagreement is either impossible by
+construction or requires an unstated mechanism (e.g., the registry pins
+the committed artifact digest and load compares it against a
+regenerated schema digest). As written the clause names a refusal no
+specified check can produce, and acceptance 7's tampered-manifest
+negatives cover unknown-id but not this case. State the mechanism or
+narrow the refusal to what load can actually observe (unknown id,
+descriptor/hash mismatch), leaving artifact/validator agreement to the
+CI drift gate that actually owns it.
+
+**N3 (minor — relation-incarnation normalization is semantically
+imprecise).** "Relation incarnations emit their underlying `id(table)`
+node" is ambiguous (which table?) and, on the natural reading
+(`parentTable`), wrong about the value domain: incarnation values are
+freshly minted UUIDv7 tokens (`storage.rs:13972`), not parentTable row
+ids. Runtime-harmless in v1 (id validation is non-empty-string,
+result_contract.rs:104–108) — but generated TS brands ids
+(`Id<Table>`, index.mjs:5932), so if v2 arg projections brand id nodes,
+incarnation args acquire a false referent type: a genuine parent row id
+would typecheck and be semantically wrong, while a held incarnation
+string would not typecheck. The normalization also makes
+`v.id(parent)` and an incarnation witness-identical. One-sentence fix:
+normalize incarnations to the string node (or a dedicated alias),
+or pin the arg projection unbranded and state the witness collision as
+accepted.
+
+**N4 (observation).** The diagnostics table omits
+`SNAPBACK_REACT_REFERENCE_INVALID` even though acceptance 11 pins it
+and the table lists other unchanged codes. One row ("client, existing,
+unchanged — named by acceptance 11") would make the table complete.
+
+**N5 (observation).** `implementationIdentity` now carries a format
+version (`v1`/`v2` with inline helpers, LLP 0118, landed between
+rounds). Cascade item 1 is unaffected, but the regeneration event in
+acceptance 11 will span both formats; no text change required.
+
+**N6 (observation, forward-looking).** If LLP 0008's offline outbox
+ever becomes durable across app upgrades while embedding generated
+references, cascade item 3's "partial adoption is not a supported
+state" meets a temporal mixed state at the re-key boundary. Verified
+harmless today: no durable client mutation queue exists on main, and
+the server-side settlement identity carries no contract hashes, so
+lane-1/lane-2 replay is generation-insensitive where it counts. Worth
+one sentence whenever the durable queue lands, owned there.
+
+### Verdict
+
+**READY.** All four round-1 MATERIALs are genuinely resolved — each fix
+was re-verified against current main rather than taken on faith, and
+the two claims round 1 flagged as false are now stated correctly and
+carry the migration design they imply. The new v0.2 text (recompute
+decision, normalization rules, consumer cascade, `PlatformSchemaRef`
+authority enum, three-lane replay taxonomy, acceptance 7–13) survives
+code-grounded scrutiny with zero new false claims found; the residual
+items are three minors and three observations, none material under the
+round-1 severity ladder. Under LLP 0130 SD-4, this family's half of the
+dual-READY condition is met with no unresolved MATERIALs.
+
+### Recommended next step
+
+Sweep N1–N3 in a v0.3 touch (N2 and N3 are normative-rule precision
+fixes and should land before implementation; N1 is cite hygiene), leave
+N4–N6 to author discretion, and proceed per SD-4 on the other family's
+round-2 outcome. The loop should still adjudicate open questions 1–3
+before implementation starts, as the Status section already requires.

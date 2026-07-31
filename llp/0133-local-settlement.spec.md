@@ -1,11 +1,20 @@
 # LLP 0133: Local settlement — settle-time trust and re-derivation
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.3, round-2 fixes: round 2 of the Wave-1
+**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+authorization: dual-family READY — Fable round 2, Codex round 3 —
+with the three conditions checked and satisfied: (1) zero unresolved
+MATERIAL concerns in either family's final round; (2) within the
+decided scope of its commission (LLP 0129 ledger row 1, decision 10);
+(3) no evidence boundary weakened — re-derivation is stricter than
+the shipped pin and every extension is additive. Recorded per SD-4's
+honesty rule: this is the author's standing acceptance made in
+advance, not a fresh manual adjudication. Review artifacts:
+reviews/0133-local-settlement.{fable,codex}.md.) 2026-07-31 (v0.3, round-2 fixes: round 2 of the Wave-1
 Spec loop returned READY from Fable
 (`reviews/0133-local-settlement.fable.md`: both round-1 MATERIALs and
 all eight DETAILs resolved; fresh findings one DETAIL + two NITs,

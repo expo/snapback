@@ -91,3 +91,311 @@ VERDICT: NOT READY
 7. **Recommended next step**
 
 Apply C1–C3 and the should-fixes C4–C6 in one revision (define the per-route soak witness and add its receipt member; restate the §7 exclusion on the tree-true double ground; close the demotion record schema and extend A2 to it; pin the promotion commit's parent; witness or narrow the demo-use claim; add the local-carrier amendment sentence), fold the details as one-line edits, then re-review as a targeted delta on §2, §4, §6, §7, and §9. No empirical work gates the revision; A1's parity gate remains correctly sequenced to the first implementation commit.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh non-author subagent
+**Effort:** session-inherited
+**Date:** 2026-07-31
+**Redacted:** no
+**Method:** round-2 delta review — verify each Round-1 Fable concern
+against v0.2, re-check the C5 refutation evidence directly in the tree,
+then fresh-review the new v0.2 text (demotion fast-path standing
+delegation, history-aware A5, per-class E5 lanes, grandfather
+manifests/void rule, E6 soak witness). Blind to the codex artifact.
+Tree checks this round: `demos/signal-desk/acceptance/results/`
+(receipt content + `git log`/`git ls-files`), the five demo
+`functions.manifest.json` acknowledgments, the 14 `snapback/seed.json`
+demos, `packages/snapback-codegen/index.mjs` `TARGET_PROFILES`,
+`src/manifest.rs` seed-pair registry gate (`@ref LLP 0109`), LLP 0130
+(full read), LLP 0113 renewal-journal/family-epoch text, LLP 0109
+AdminWrite/pre-bind text, LLP 0080 header + acceptance-commit history
+(`dc6ae4c2` 2026-07-24, `cff1aff6` 2026-07-26), Diaries 0033/0039
+witness lines, `tests/acceptance/` receipt convention.
+**Target:** `llp/0134-capability-maturity-promotion.spec.md` (617 lines, v0.2)
+**Target SHA-256:** `1e6a214c52b73ab3951da6ae5991f38ad968fb976381c3f483ba2ad8e80a0040`
+**Status:** completed
+
+### Round-1 concern resolutions
+
+**C1 (MATERIAL, E6 soak witness) — RESOLVED.** E6 now defines the
+witness per route and it is falsifiable on both. Hosted: the supervisor
+journal's canonical renewal record as a digest-bound extract with
+family-epoch continuity — grounded; LLP 0113 defines the
+`capability.publication.renew` verb, requires the journal to "retain
+canonical request and response bytes," and defines family epochs, so the
+extract is derivable from machinery that exists in the contract.
+Local: dated daily green runs of the id's own closed mandatory support
+suite at then-current main HEAD, each emitting a receipt binding date,
+HEAD SHA, carrier/receipt digests, and outcome; a missing or red UTC
+calendar day is a coverage gap and any gap resets the window — genuinely
+falsifiable. The population is fixed at window start from the closed
+`TARGET_PROFILES` list (verified: `local-dev-sqlite-ibex`,
+`remote-service-sqlite-ibex`, `packages/snapback-codegen/index.mjs:175`),
+mid-window additions accrue nothing, departures disqualify. The defect
+corpus is closed (issues/ open tickets, Linear Exact+Snapback naming the
+id or governing LLP, the 0076/0077 ledgers) with the dated search
+recorded — C1(b) answered. The §2 preamble now states anchoring honestly
+per item (E2/E3/E4a at the candidate SHA; E1/E5/E6/E7 locator-bound) —
+C1(c) answered. Residuals are new concerns C11 and C17 below: the daily
+observation receipts themselves have no closed schema and collide with
+A2's suffix dispatch, and their dates are self-asserted.
+
+**C2 (MATERIAL, 0110-pair exclusion ground) — RESOLVED.** §7 now
+concedes exactly what Round 1 found — decision 3's letter arguably
+reaches the pair via the shipped pre-rule local carrier — and rebuilds
+the exclusion on the tree-true triple ground (hosted §5 chain never run;
+demo-use leg empty per LLP 0120 OQ5's "unusable by every anonymous rerun
+arm"; CV-8 piece 1 already routes the pair through the default path).
+The new framing — decision 3 set an eligibility *ceiling* and this set
+is a deliberately stricter subset — is sound: narrowing a reserved act
+is claims-tightening, ER-2 constrains only weakening, and the narrowing
+is adjudicated by the author's acceptance of this document. "A shipped
+pre-rule local carrier alone confers nothing: membership requires both
+legs" closes the adversarial reading Round 1 constructed. The
+grandfather evidence manifests (`<id>.grandfather.json`, A2-validated,
+pre-cutoff commits + witnesses as closed locators +
+`governingContractBaselineSha256`) make the pre-rule substitution bound
+rather than gestured at, and the tombstone-row rule keeps the printed
+table honest. (Baseline-digest definition: see C16.)
+
+**C3 (MATERIAL, demotion record schema) — RESOLVED.**
+`MaturityDemotionRecordV1` is now a closed canonical-JSON schema with a
+closed three-value `triggerKind` vocabulary, closed evidence locators,
+an `authority` member distinguishing `author.v1` from `fast-path.v1`,
+and the same records root; A2 dispatches by suffix
+(`*.promotion.json` / `*.demotion.json` / `*.grandfather.json`) and
+validates all three kinds. The suffix-dispatch construction is clean.
+One letter-level mismatch survives between A5 and this schema — C12.
+
+**C4 (SHOULD-FIX, unpinned candidate parent) — RESOLVED.** §4 pins the
+promotion commit's sole parent to `candidateSourceSha` with zero
+tolerated drift; if main advances, the candidate is re-declared and the
+revision-anchored items re-witnessed; the receipt carries
+`candidateParentSha` constrained equal, and A5 compares it to the actual
+parent so the receipt never names its own commit — a clean answer to the
+self-reference problem Round 1's suggestion gestured at. On this repo's
+multi-session main the zero-drift rule is strict (a promotion must win a
+push race behind a full corpus rerun), but that is an accepted liveness
+cost, stated, not a defect.
+
+**C5 (SHOULD-FIX, `registered_bundle_boot_v1` demo use unevidenced) —
+REFUTED, and the refutation STANDS on my own verification.** The
+evidence is real, in-tree, committed, and pre-cutoff:
+`demos/signal-desk/acceptance/results/react-query-group.v1.json` is
+tracked (`git ls-files`), clean, landed 2026-07-29 in merge `5f48b969`
+("Merge LLP 0102 backend bakeoff"), `generatedAt`
+2026-07-29T01:19:55.235Z, and contains the check
+`generated-registered-bundle-boot` with `ok: true` plus
+`adoption.source`/`adoption.bootSource` = `"registered-bundle"`,
+`providerCustody: true`, 3/3 passed — a real demo app
+(`backend-bakeoff`, profile `local-dev-sqlite-ibex`) booting from the
+registered bundle. My Round-1 search looked only for manifest
+acknowledgments and diary mentions; this id's demo adoption is
+receipt-witnessed, which v0.2 §7 now states precisely ("a
+receipt-witnessed demo adoption path rather than a manifest
+acknowledgment"). I withdraw the C5 claim of no witness. v0.2 also now
+cites witnesses per member as C5 asked. Two residual precision notes:
+the `result_contract_v1` manifest count is five, not four (C14), and the
+seed-pair leg (seed.json presence + Diary 0039's reset/seed row)
+witnesses seeding use, not specifically the versioned v2 carriers —
+tolerable because the grandfathered act still requires E2–E5 fresh, so
+nothing promotes on that sentence.
+
+**C6 (SHOULD-FIX, local carrier escape hatch) — RESOLVED.** §1 route 1
+now states the local leg symmetrically: LLP 0110's carrier binds the two
+atomic ids exactly and generalizes to nothing else; where a local or
+packaged id has no carrier definition, adding one is a dated amendment
+to LLP 0110 or the governing LLP (or a small owned carrier design),
+"never an inference from this Spec." Exactly the parallel sentence
+Round 1 asked for, with the honest extra detail that the other
+experimental ids' local facts are plain registered booleans.
+
+**C7 (DETAIL, seed pair and the together-rule) — RESOLVED.** "The rule
+follows the evidence, not only the wire carrier": the seed pair is
+joined to promote-and-demote-together on the shared-suite ground, which
+I verified in the tree — the registry gate comment at
+`src/manifest.rs:5640` (`@ref LLP 0109`) advertises both ids only after
+the closed executable suite passes every mandatory local row. The
+solo-route escape (a dated revision recording every §2 item witnessed
+severally) is the right shape.
+
+**C8 (DETAIL, records root) — RESOLVED.** `tests/acceptance/maturity/`
+sits inside the existing `tests/acceptance/` receipts convention
+(verified: `auth-mode-predecessor-v1.receipt.json` lives there), and §4
+item 4 states the choice explicitly, naming the conformance-receipts
+location too.
+
+**C9 (DETAIL, materiality adjudicator + SD-1 interplay) — RESOLVED.**
+The adjudicator is named (the author, at or before E8, recorded in the
+receipt or governing-LLP addendum), dated evidence notes and diary
+annotations are categorically non-material (with the two 2026-07-30
+notes cited as the worked example), and the SD-1 interplay is now
+explicit: SD-1 may void `result_contract_v1`'s — possibly
+`inline_handler_v1`'s — reservation, and that shrinkage is declared
+intended.
+
+**C10 (DETAIL, SD-6 citation) — RESOLVED.** Now "the serialization
+principle LLP 0130 SD-6 instantiates for its own scope migration" —
+the exact reframing requested.
+
+Round-1 suggestions: E1 `reviewJournalRefs` added; the E2 profile
+universe is pinned to codegen's `TARGET_PROFILES`; the
+promotion-commit self-reference is solved via A5's parent comparison
+(better than the suggested convention). The §8 bounded-children clause
+was not added — suggestion only, §1's atomic rule answers it.
+
+### New v0.2 text
+
+**The demotion fast-path standing delegation (§3, §6) — the
+construction is sound under LLP 0005/0130.** The chain of authority is
+intact: LLP 0130 is the author's own pre-adjudication ("the rules below
+are therefore the author's own decisions, made in advance"), SD-4 names
+"the stable-promotion design" among the commissioned documents it may
+accept, and this Spec's fast path takes effect only on that acceptance —
+so the delegation is activated by an author-authorized act, not minted
+by the document unilaterally, and the Spec says so in both places rather
+than smuggling it. ER-2 does not fire: the fast path operates only in
+the claim-reducing direction (stable → experimental), its two triggers
+are objective and closed (a red committed gate at HEAD on a population
+profile; A2 cryptographic invalidity), subjective triggers always
+escalate, and every use is recorded as a standing-rule act — LLP 0130's
+honesty framing applied in both directions. The asymmetry with §3's own
+"delegating routine promotions would be an explicit dated LLP 0130
+amendment" is principled (claim-increase vs claim-reduction), not
+inconsistent. Residual registry-completeness gap: C13.
+
+**History-aware A5 — sound for promotions.** Transition-commit
+identification, sole-parent equality against the receipt's
+`candidateParentSha`, one transition per range, diff-derived id set,
+same-diff completeness requirement, and final-tree tests on the
+transition commit itself all check out and make Round 1's
+"norm-not-mechanism" worry obsolete. The demotion leg has a letter-level
+defect — C12.
+
+**Per-class E5 lanes — grounded.** The seed pair's operator-lane
+framing matches LLP 0109 ("`install` uses the same `AdminWrite` or
+pre-bind startup authority", line 872; §3.1.1 closed pre-bind startup
+carrier). Class assignment is implicit (each id's governing LLP declares
+its production authority lane) but determinable; the
+principal-exclusion rule carries over intact. No concern.
+
+**E4 split into candidate + promotion-tree audits — sound**, resolving
+what "stale" means on each side of the flip. One locator-level
+self-reference nit: C15.
+
+### New concerns
+
+**C11. MATERIAL — E6's local daily observation receipts have no closed
+schema and collide with A2's suffix dispatch.** E6-local requires each
+daily run to emit "a dated receipt binding date, HEAD SHA,
+carrier/receipt digests, and outcome, retained under §4's records
+root" — i.e. under `tests/acceptance/maturity/`. But A2 "parses every
+file under `tests/acceptance/maturity/` against the closed schema its
+suffix names — `*.promotion.json` (§4), `*.demotion.json` (§6),
+`*.grandfather.json` (§7)": the daily receipts match none of the three,
+so a conforming A2 either refuses them (making E6-local unexecutable as
+specified) or silently skips them (voiding A2's every-file guarantee) —
+the Spec does not say which, and both readings contradict something.
+Compounding: `soakEvidence.observationRefs` are closed evidence
+locators whose `schemaVersion` must name "the referenced artifact's own
+closed schema," and no closed schema for the daily receipt exists —
+only a four-item prose field sketch, the exact defect class C3 was
+MATERIAL for on the demotion record. By Round 1's own severity
+standard this is MATERIAL, and it sits on the load-bearing fix: the
+local lane is the operative soak witness for the first promotion (§8's
+0110 pair is supported today only on `local-dev-sqlite-ibex`).
+**Resolution (small):** define a closed
+`MaturitySoakObservationV1` (schemaVersion, capabilityIds, dateUtc,
+headSha, suiteProducer, carrierDigests, outcome) with its own suffix
+(e.g. `*.soak-observation.json`), add it to A2's dispatch, and name it
+as the `observationRefs` schemaVersion.
+
+**C12. SHOULD-FIX — A5's parent check names a member the demotion
+record does not have.** A5 requires the transition commit's sole parent
+"to equal the record's `candidateParentSha` (= `candidateSourceSha`,
+§4)" and applies "in either direction"; §6's `MaturityDemotionRecordV1`
+schema has no `candidateParentSha` (rightly — a demotion has no
+candidate revision), so a conforming demotion mechanically fails A5's
+letter, or A5 is unimplementable for demotions. §6's "the demotion
+commit mirrors §4 — sole-parent pin" never says what the pin equals.
+**Resolution:** specify A5's demotion leg as sole non-merge parent +
+exactly one transition per range + same-diff record completeness,
+without the candidate-equality clause (or add a `demotionParentSha`
+member and pin it the same way).
+
+**C13. DETAIL — the fast-path delegation is invisible to the standing-
+decision registry and has no revocation/lapse semantics.** LLP 0130 is
+where standing decisions live, with author revocation-by-dated-revision
+and auto-lapse when the served plan dies; the §6 fast path will exist
+outside it, unlisted, with neither property stated. **Resolution:** on
+acceptance, add a dated 0130 revision row pointing at LLP 0134 §6, and
+one sentence here: the author may revoke the fast path by dated
+revision, and it lapses if this Spec is Superseded or Withdrawn.
+
+**C14. DETAIL — §7's "four demo generated manifests" is five.**
+`all-aboard` also acknowledges `result_contract_v1`
+(`demos/all-aboard/snapback/generated/functions.manifest.json`,
+`acknowledgedExperimentalCapabilities: ["result_contract_v1"]`, landed
+2026-07-27 — pre-cutoff). An undercount inherited from my own Round-1
+text; evidence-safe in direction, but §7 presents the count as a
+witnessed membership fact, so it should be right. **Resolution:** "five
+demo generated manifests (todo, todo-v2, rbac, competitive-checkpoint,
+all-aboard)."
+
+**C15. DETAIL — the promotion-tree audit's locator `sourceSha` is
+self-referential.** E4(b) is produced from the promotion commit's own
+tree, and its locator lives in the receipt committed *in* that commit;
+`sourceSha` ("the revision that produced the artifact") would be the
+promotion commit's SHA, which cannot be known when the receipt is
+written — the same self-reference §4 explicitly engineered
+`candidateParentSha` to avoid. **Resolution:** define E4(b)'s
+`sourceSha` as `candidateSourceSha` with the promotion-tree audit
+understood to run on the staged tree (A5's final-tree run on the
+transition commit is the post-hoc verification), or allow a designated
+`"promotion-tree"` sentinel.
+
+**C16. DETAIL — `governingContractBaselineSha256` is not yet
+computable.** "The canonical digest of the governing LLP's normative
+text as of 2026-07-30" defines neither the extraction ("normative
+text" — whole file? minus evidence notes?) nor the intra-day pin (both
+LLP 0108 and 0110 carry 2026-07-30-dated revisions; which commit is the
+baseline?). Since the very next sentences make evidence notes
+categorically non-material at *adjudication* time, the digest should
+simply be the whole-file canonical bytes at a named commit.
+**Resolution:** bind the baseline as a full locator (path, sha256,
+sourceSha = a named cutoff commit) in the grandfather manifest, and
+drop "normative text" from the digest definition (materiality, not the
+digest, filters evidence notes).
+
+**C17. DETAIL — daily soak receipt dates are self-asserted.** A
+14-day local window could be back-fabricated by running the suite at 14
+historical HEADs after the fact; the receipts would verify, but no run
+happened on the claimed days — and a mid-day red state repaired before
+an evening backfill run would evade the reset rule. Git commit history
+is the natural corroborator. **Resolution:** require each daily
+observation receipt to be committed on its stated UTC day (A2 or the
+soak verifier may check receipt date against commit date), or state the
+trust model explicitly.
+
+### Verdict
+
+**NOT READY** — but converged to a narrow mechanical delta. All three
+Round-1 MATERIALs (C1–C3) are resolved, all should-fixes and details
+(C4, C6–C10) are resolved, and the C5 refutation stands on my own
+verification of the signal-desk receipt. The new standing-delegation
+construction, history-aware A5, and per-class E5 lanes are sound. One
+new MATERIAL remains — C11, the unclosed soak-observation schema
+colliding with A2's suffix dispatch, the same defect class that made C3
+MATERIAL, sitting on the local route the first promotion will use —
+plus one should-fix (C12, A5's demotion-leg letter) and five one-line
+details (C13–C17). No architectural issue anywhere; nothing promotes.
+
+### Recommended next step
+
+Apply C11 and C12 (one closed observation schema + A2 dispatch entry;
+one A5 demotion-leg sentence), fold C13–C17 as one-liners, and
+re-review as a very narrow delta on §2 E6, §4's locator rule, §6/§9
+A2+A5, and §7's witness counts. That delta is hours, not days, from
+READY on this family's bar.

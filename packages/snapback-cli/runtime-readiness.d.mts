@@ -10,7 +10,7 @@ export interface RuntimeArtifactCandidate {
 
 export declare function runtimeArtifactCandidates(
   root: string,
-  options?: { platform?: NodeJS.Platform }
+  options?: { platform?: string }
 ): RuntimeArtifactCandidate[];
 
 export interface RuntimeArtifactDigest {
@@ -20,7 +20,7 @@ export interface RuntimeArtifactDigest {
 
 export declare function digestRuntimeArtifacts(
   root: string,
-  options?: { platform?: NodeJS.Platform }
+  options?: { platform?: string }
 ): RuntimeArtifactDigest[];
 
 export interface RuntimeReadinessReceipt {
@@ -37,7 +37,7 @@ export declare function issueRuntimeReadinessReceipt(options: {
   root: string;
   buildIdentity?: Record<string, unknown>;
   qualification: Record<string, unknown>;
-  platform?: NodeJS.Platform;
+  platform?: string;
 }): RuntimeReadinessReceipt;
 
 export interface RuntimeReadinessVerification {
@@ -50,5 +50,5 @@ export interface RuntimeReadinessVerification {
 export declare function verifyRuntimeReadinessReceipt(options: {
   binaryPath: string;
   root: string;
-  platform?: NodeJS.Platform;
+  platform?: string;
 }): RuntimeReadinessVerification;

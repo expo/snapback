@@ -35,3 +35,5 @@ export function createFileRqsResumeStore(options: {
   readonly maxEntries?: number;
   readonly relaunchOutboxEmpty?: (() => boolean | Promise<boolean>) | null;
 }): RqsResumeStore;
+
+export declare const RQS_FILE_STORE_FORMAT_V1: 'snapback-rqs-store-file.v1';

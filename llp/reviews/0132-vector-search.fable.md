@@ -350,3 +350,234 @@ proceed to the Codex-family round on the revised text. Given the
 fix-locality, one revision round should suffice for this family; on
 dual-family READY with zero unresolved MATERIAL concerns, acceptance
 runs under LLP 0130 SD-4 as the Spec's review path already records.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh non-author subagent
+**Effort:** session-inherited
+**Date:** 2026-07-31
+**Redacted:** no
+**Method:** round-2 delta review — verify each Round-1 Fable concern
+against v0.2 and review the new v0.2 text for fresh defects; blind to
+the codex artifact throughout; C1's fix re-verified against LLP 0073's
+actual text (declaration matrix 0073:115–122, resolved open question 4
+at 0073:876–878, private-custody clause 0073:685–691, query-telemetry
+rule 0073:682–683, noninterference claim shape 0073:484–492); the
+never-−0 lemma, the finiteness restatement, and the scale-floor
+arithmetic re-derived independently; `src/` checked for
+`SNAPBACK_VECTOR_*` code collisions (none exist; zero implementation,
+as expected). No re-litigation of Round-1-settled text.
+**Target:** `llp/0132-vector-search.spec.md` v0.2 (613 lines)
+**Target SHA-256:** `efd2fa83266cc187500a37632e2bee04e59326fad6cd70f990de460a28f28be5`
+**Status:** completed
+
+### Round-1 concern resolution
+
+**C1 (MATERIAL — classification/custody/telemetry matrix): RESOLVED.**
+The new matrix (lines 155–169) closes classification over every
+participating role — vector field, every equality-filter field, every
+stored display field — and I verified it against 0073's actual rule,
+not my Round-1 paraphrase: "omission is `forbidden`," the table-wide
+more-restrictive rule, public-read-admits-only-public,
+owner.v1-may-admit-private with the posting-key/release-authority
+rationale, sensitive/forbidden rejected everywhere pending a later
+named profile, and classification-change-is-semantic-migration all
+mirror 0073:115–122 and resolved OQ4 (0073:876–878) exactly. The
+custody paragraph (lines 171–175) transfers 0073:685–687's clause with
+the correct domain substitutions (term vocabulary → content digests;
+rebuild/rollback generations added, matching 0073:832's custody-path
+list). The query-vector telemetry sentence (lines 176–179) transfers
+0073:682–683 (redacted logging; shape-and-digest default, never raw
+components). The acceptance section adds the generation-negative
+matrix bullet plus paired public/private owner-release evidence
+(lines 559–564), which Round 1 did not even ask for. All three
+sub-omissions (a)(b)(c) are closed.
+
+**C2 (MATERIAL — unpinned decimal→binary64 conversion): RESOLVED.**
+Lines 116–125 pin admission conversion unconditionally — nearest
+binary64, ties to even — declare the admitted value (not the wire
+spelling) the semantic input to storage, digests, and distances, and
+classify a one-ulp parser as nonconforming in the same breath as the
+fast-math transformations. The adversarial corpus now carries
+halfway-case conversion entries (lines 529–532) and "one-ulp decimal
+conversion" appears in the named divergence-class list with committed
+bit-pattern witnesses (lines 533–539). The hole in the pin is closed.
+One attribution nit in the new wording survives as R2-1 below;
+it does not reopen the hole because the binding sentence is
+unconditional.
+
+**C3 (MATERIAL — approximate-door attribution): RESOLVED, and
+sufficient.** The fix lands in both required places. §Commission
+(lines 90–94) now separates "proposes without deciding" from the
+decided list and states decision 8 decided only the proved-superset
+route. §ANN successor admission (lines 484–509) re-labels the
+approximate door "this Spec's own proposal, undecided," discloses it
+as beyond-commission, rides it on open question 2, routes adoption to
+the author, and adds the affirmative bar: "A future
+`vector_search_ann_v1` document may not cite this section as
+commissioned or decided policy." That bar answers Round-1 open
+question 1 in the strongest available form — a future ANN author
+cannot cite this section as decided and must obtain author
+adjudication. The accelerator door keeps its correct decision-8
+attribution, and the Summary's "ANN admitted later ... with
+proved-superset translation" remains consistent (it describes only
+the decided door). Nothing further needed.
+
+**C4 (DETAIL — injectivity overstated / missing lemma): RESOLVED, and
+the lemma is mathematically valid — I re-derived it.** Lines 246–251
+state the never-−0-output lemma; lines 269–273 scope injectivity to
+the reachable output domain (binary64 excluding −0 and non-finites).
+Verification of the lemma: (i) every finite binary64 is an integer
+multiple of 2^−1074, so a nonzero exact difference or sum has
+magnitude ≥ 2^−1074, which is representable, and monotone
+round-to-nearest cannot take it to zero — rounded results are ±0 only
+when the exact result is 0, which RNE signs +0 for
+opposite-sign-operand sums and equal-operand differences; (ii) for
+`l2sq`, differences are therefore never −0 from admitted (+0-
+canonicalized) components, and squares are ≥ +0 in any case because
+same-sign products (including underflow to zero) are positively
+signed; (iii) for `dot`, −0 terms ARE reachable (+0 × negative;
+negative underflow), which the text correctly concedes, and the
+induction correctly absorbs them: acc starts +0.0, +0 + (−0) = +0
+under RNE, nonzero-acc cases follow from (i), so acc is never −0 and
+−0 output would require (−0) + (−0), excluded. Sound. The scoped
+injectivity claim (RFC 8785 shortest round-trip spelling on binary64
+minus −0 and non-finites) is true.
+
+**C5 (DETAIL — filter composition): RESOLVED.** Lines 298–302:
+filters conjoin, stated; duplicate-field lists refuse with
+`SNAPBACK_VECTOR_QUERY_INVALID`, matching the Spec-wide validation
+posture, with the rejected alternatives named. Exactly the requested
+sentence.
+
+**C6 (DETAIL — corpus universality): RESOLVED.** The acceptance
+bullet (lines 532–546) now scopes the claim to the named divergence
+classes on the kernels exercised, names FTZ/DAZ beside the subnormal
+entries, requires every shipped kernel (scalar, SIMD,
+dimension-specialized) to run the full corpus, adds per-kernel
+coverage records and build/flag evidence, concedes "no finite corpus
+detects every nonconforming build," and restates the pin as the
+normative guarantee with the corpus as its detector. This is the
+honest form Round 1 asked for, strengthened.
+
+**C7 (DETAIL — wording/attribution): RESOLVED, all four.**
+(a) "this Spec specifies as one authorized query call" (line 332)
+replaces present-tense shipping. (b) The mutation-side bound refusal
+is coded `SNAPBACK_VECTOR_CORPUS_BOUND` on the named ordinary
+validation envelope (lines 416–418) and added to the diagnostics
+enumeration (line 322); no existing `SNAPBACK_*` code collides
+(checked `src/` and 0073). (c) The partial-bound representability
+clause (k·2^202 exactly representable for k ≤ 2^12; monotone rounding
+cannot cross a representable bound) is stated at lines 240–244 —
+this is precisely the elided step Round 1 verified privately, now on
+the page. (d) The 32 dimensions are attributed to Diary 0031's
+freeze, with 0102 App 5 correctly credited for the fixture only
+(lines 519–521).
+
+### Review of the new v0.2 text
+
+- **Four-counter logical-work object (lines 365–385).** The shape
+  matches 0073's transcript claim (0073:484–492): value/code,
+  termination-insensitive, over counted logical units in the caller's
+  partition, wall-clock/cancellation/machine-loss outside the
+  semantic transcript, no stronger timing claim without separate
+  evidence. Dropping 0073's "continuation-shape" leg is correct, not
+  an omission — v1 vector has no cursor or continuation at all. Each
+  counter is partition-local by construction, the phase order
+  (enumeration → filtering → distance → top-k → release) is fixed,
+  and first-exceeded-ceiling refusal naming is deterministic given
+  the counters, so the paired-database comparison in acceptance is
+  falsifiable as M2 intended. One wording defect survives as R2-2.
+- **Scale-floor arithmetic (lines 565–576).** Verified:
+  min(⌊2^26/dims⌋, 65,536) is the correct generation-validated
+  maximum (the 65,536 cap binds only at dims ≤ 1024, below the
+  bullet's 1,536-dim floor); ⌊67,108,864/1,536⌋ = 43,690 exactly, and
+  1,536 × 43,690 = 67,107,840 ≤ 2^26 while 43,691 would refuse. The
+  receipt (exact vector count, bytes, scalar pairs) plus
+  boundary-fill/next-insert-refused evidence makes the bullet
+  unsatisfiable by a token-cardinality index, which was M4's point.
+- **New refusal code.** `SNAPBACK_VECTOR_CORPUS_BOUND` is declared,
+  used consistently across maintenance, acceptance, and the
+  diagnostics enumeration, and collides with nothing.
+- **`l2sq` restatement (lines 212–217).** "The difference is computed
+  and rounded once, then squared" plus "three per `l2sq` term, two
+  per `dot` term" is consistent with the finiteness proof's operation
+  count and removes the only ambiguity (whether `a[i] − b[i]` is
+  rounded once or twice) the old formula admitted.
+- **Cosine preconditions (lines 253–263).** The M5 restatement is
+  correct: consistent application normalization plus nonzero vectors,
+  with the claim honestly scoped to portable dot ranking over the
+  admitted binary64 components, not exact-real cosine.
+
+### New concerns (all detail-grade; none block)
+
+**R2-1. DETAIL — the IEEE 754 attribution on the conversion pin is
+slightly too generous.** Lines 118–120 gloss the pin as "the
+correctly rounded strtod-class decimal-to-binary conversion IEEE 754
+specifies for decimal character sequences." IEEE 754 (§5.12.2)
+requires correctly rounded conversion only for decimal sequences of
+at most H significant digits (H ≥ 20 for binary64); for longer
+sequences it permits rounding the sequence to H digits first — i.e.,
+double rounding — and JSON wire decimals can be arbitrarily long,
+which is exactly where halfway-straddling adversarial inputs live.
+The Spec's own binding sentence is unconditional ("converts each to
+the nearest binary64 value with ties to even") and therefore
+*stronger* than IEEE's minimum, so the pin itself is sound; the risk
+is an implementer reading the appositive as "an IEEE-conforming
+strtod suffices." **Resolution:** one clause — note the pin is
+unconditional and exceeds IEEE's H-digit minimum (no
+long-input double-rounding allowance) — and prefer at least one
+corpus witness whose decimal exceeds 20 significant digits so the
+H-digit shortcut is detected, not just the one-ulp parser class.
+
+**R2-2. DETAIL — counter 2's definition is internally ambiguous.**
+Line 369–370: "filter comparisons evaluated — enumerated postings
+times the declared filters actually tested." "Times" (a product)
+and "actually tested" (short-circuit) contradict each other: under
+short-circuit evaluation the count is not a product, and under a
+product reading "actually tested" is dead words. Both readings are
+partition-local, so no noninterference or paired-database claim
+becomes false under either — but the counter is one of the four
+compared inspection facts, so the Spec should pick one.
+**Resolution:** either define counter 2 as enumerated postings ×
+declared filter count (evaluation strategy free), or pin
+declaration-order short-circuit testing and count comparisons
+actually executed. One sentence.
+
+**R2-3. OBSERVATION — query-vector telemetry placement.** The
+query-vector custody sentence (lines 176–179) is semantically
+unconditional ("Query vectors are embeddings of caller content and
+are equally custody-bearing") but sits inside the paragraph opening
+"When any participating field is `private`…", so a pedantic reader
+could take shape-and-digest telemetry as conditional on a private
+participating field, leaving raw query components loggable against
+all-public indexes. The unconditional reading is clearly intended
+(and is 0073's default-telemetry posture). A paragraph break or "for
+every index" would close the misreading. Non-blocking.
+
+### Verdict
+
+**READY.**
+
+All three MATERIAL Round-1 concerns are genuinely resolved — C1
+verified against 0073's actual matrix, custody, and telemetry text
+rather than a paraphrase; C2's pin is unconditional with corpus
+witnesses; C3's re-attribution is sufficient, including the explicit
+citation bar — and all four detail concerns are fixed as specified,
+with the C4 lemma independently re-derived and confirmed valid. The
+new v0.2 text (four-counter work object, scale floor, refusal code,
+`l2sq` restatement, cosine preconditions) survives arithmetic and
+0073-shape verification. The three new findings are detail-grade
+wording items (an IEEE attribution clause, one ambiguous counter
+definition, one paragraph-scoping nit); none weakens an evidence
+boundary, none makes any claim false, and none blocks.
+
+### Recommended next step
+
+Apply R2-1 and R2-2 (two sentences plus one corpus-entry qualifier)
+and optionally R2-3 in the next editorial touch — they need no
+re-review from this family. Proceed to the Codex-family round-2
+delta; on dual-family READY with zero unresolved MATERIAL concerns,
+acceptance runs under LLP 0130 SD-4 as the Spec's review path
+records.

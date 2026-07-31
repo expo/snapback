@@ -186,3 +186,78 @@ Revise LLP 0133 while keeping its central decision-10 policy intact:
 6. Bind new settlement semantics into exactly-once identity and expand the acceptance matrix.
 
 Then request a targeted Codex re-review before counting this family as READY.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-2 delta — reviewer given its own Round 1 concerns, the M1 adjudication argument to scrutinize, and pointers to the v0.2 changes; NEW text reviewed for fresh defects; blind to this Spec's fable artifact
+**Target SHA-256:** `2401bd74e9f1f2d25252fe9ca71644304ca1bf16caac81636e705e9d9216548f`
+**Status:** completed
+
+### Verbatim review
+
+## Round 2 delta review
+
+Target SHA-256 verified: `2401bd74e9f1f2d25252fe9ca71644304ca1bf16caac81636e705e9d9216548f`.
+
+### Round 1 resolutions
+
+- **M1 — RESOLVED BY ADJUDICATION.** I accept the adjudication. LLP 0008 makes `{generatedIds, now}` part of the ordinary queued-mutation envelope, and the shipped `ctx_ledger` path accepts those answers from any mutation request after the same shape, auth, contract, and authorization checks. A lane-Q intent is therefore client-constructible without local execution. Mislabeling grants no authority unavailable through an ordinary queued intent, while the server-derived receipt disposition remains unforgeable. Sketch 7 is an appropriate adversarial test.
+
+- **M2 — PARTIALLY RESOLVED; MATERIAL RESIDUE REMAINS.** v0.2 correctly adds leaf-visible scope, serialization before submission, unmapped handling, transitive cascades, and call-count-divergence coverage. However, it explicitly permits equal-count divergent branches to pair IDs of different semantic roles by index ([§Divergence on settle](/Users/ccheever/projects/snapback/llp/0133-local-settlement.spec.md:401)). That can corrupt data:
+  - Local branch mints ID 0 for row A.
+  - Authoritative branch instead mints ID 0 for unrelated row B.
+  - A dependent intent referencing speculative A is rewritten to authoritative B and submitted against the wrong row.
+
+  Documenting this as residue does not make the mapping safe, and typed argument positions alone do not solve the local-to-authoritative mint pairing. This is the unresolved core of Round 1 M2.
+
+- **M3 — RESOLVED.** The rewritten seam matches `external-store.mjs`: rejection splices immediately; confirmation retains the bridge layer; matcher suppression handles delivery-before-confirmation; otherwise the next post-confirmation authoritative delivery retires it. Settlement is no longer incorrectly treated as authoritative-row delivery, and the convergence invariant is appropriately delivery- and query-scoped.
+
+- **M4 — RESOLVED.** Elements 1/5 are now dependencies whose mismatch disposition belongs to rows 3/5; elements 2/3 remain with their tuple owners. LLP 0133 no longer chooses their concrete gate behavior.
+
+- **M5 — RESOLVED.** Bounded skew is narrowed to structurally admitted, directly assigned, untransformed frozen-`now` sinks, with one server clock sample, declaration-time bound validation, mixed-sink behavior, and lane-Q inertness.
+
+- **M6 — RESOLVED.** The new section correctly describes the shipped durable identity and extends it with lane, artifact/activation claims, declaration identity, and claims. Duplicate collision behavior and descriptor → identity lookup → freshness/admission ordering are specified consistently with the cited storage implementation.
+
+- **D1–D2 — RESOLVED.** Reservation-stale retry and copied timestamps are now accurately described.
+- **D3 — PARTIALLY RESOLVED.** Coverage is substantially improved, but the remaining M2 defect needs an equal-count/different-mint-role adversarial test.
+
+### New concerns
+
+No independent fresh defects found in the new text. The sole blocker is the surviving portion of Round 1 M2.
+
+### Verdict
+
+**NOT READY**
+
+One unresolved **MATERIAL** concern remains, so LLP 0130 SD-4’s zero-MATERIAL condition is not met.
+
+### Next step
+
+Replace raw call-index pairing with a server-comparable logical mint identity—for example stable IR mint-site identity plus occurrence index. Map only matching mint identities; any unmatched or reordered semantic mint must be returned as unmapped and cascade dependents. Add an acceptance case where local and authoritative branches each mint one ID at different sites and verify that no cross-role mapping occurs.
+
+I did not append this section to the review artifact because the workspace is read-only.
+
+## Round 3 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-3 focused — verify the v0.3 logical-mint-identity fix for the sole surviving Round 2 MATERIAL (call-index mint pairing) plus the two new small clauses (lane-L retry claim-set identity; sketch-9 marking surface); re-litigate nothing else; read-only sandbox; blind to this Spec's fable artifact
+**Target SHA-256:** `869c18dc59cc73d3bb6bee2dc6b8d489fae7f679bbcc870b1bc46974abb59570`
+**Status:** completed
+
+### Verbatim review
+
+- **Mint pairing — RESOLVED.** `(mint site, occurrence)` prevents equal-count divergent branches from cross-mapping; unmatched sites/counts fail unmapped into cascade. Code anchors confirm the stated mint slots.
+- **Lane-L retry — CLEAN.** Immutable claims plus reused-family failure preserves exactly-once identity.
+- **Sketch 9 marking — CLEAN.** It identifies the store-layer status projection without inventing per-row provenance.
+- **Fresh defects:** None in the focused delta.
+- **Verdict: READY.**
+- **Next step:** Append this Round 3 result to the Codex review artifact; the author may proceed with the LLP 0130 acceptance decision.
+
+Target SHA-256 verified: `869c18dc59cc73d3bb6bee2dc6b8d489fae7f679bbcc870b1bc46974abb59570`. I did not read the Fable review.

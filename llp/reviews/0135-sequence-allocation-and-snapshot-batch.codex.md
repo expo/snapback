@@ -161,3 +161,82 @@ There are multiple unresolved MATERIAL concerns, including an accepted-decision 
 Revise LLP 0135 while it remains Draft, first resolving SD-2 with the author, then choosing an executable handler-allocation/settlement model and a coherent bounded-only or node-kind-specific composite cursor model. After the revisions, rerun both reviewer families from the amended text.
 
 The LLP review skill ordinarily requires this review to be written as a provenance-tracked artifact. The workspace was read-only, so I could not create that artifact.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-2 delta — reviewer given its own Round 1, the SD-2 adjudication to scrutinize, and instructed to verify items 2–12 against v0.2 then review new text only; read-only sandbox, blind to this Spec's fable artifact
+**Target SHA-256:** `e89cc5b5a10dd60d9ae402b7ea95c47a76c13a3a4d0b823e72692ba9ed139e17`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Reviewed exact target SHA-256 `e89cc5b5a10dd60d9ae402b7ea95c47a76c13a3a4d0b823e72692ba9ed139e17`. I did not inspect the Fable review body.
+
+## Round-1 item resolutions
+
+1. **SD-2 adjudication — ACCEPTED, not a defect.** The adjudication correctly distinguishes who makes the decision. LLP 0120 already establishes that 3a cannot express `boardSummary` or Split’s reductions; LLP 0135 merely records that usage evidence for the criteria in [SD-2](</Users/ccheever/projects/snapback/llp/0130-program-standing-decisions.decision.md:39>). The contracted-aggregate outcome is effectively implied by **SD-2 plus LLP 0120**, but it is not newly pre-empted by LLP 0135’s construction. No real pre-emption is missed.
+
+2. **Buffered allocation protocol — RESOLVED.** The snapshot-derived tentative integer, buffered counter RMW, captured-read validation, abort/re-execution behavior, and brief authoritative commit form an executable protocol consistent with LLP 0003’s handler boundary ([§1.2](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:176>)).
+
+3. **Settlement/replay semantics — RESOLVED, with one DETAIL correction below.** The value is correctly settlement-replay evidence, not a `{ids, now}` ledger member; lane-L local execution is excluded and lane Q remains authoritative-only ([§1.4](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:225>)).
+
+4. **Registry enrollment — RESOLVED.** Counter declarations are a second registration ground, with insert/delete/recreation/restore, reviewed backfill, stamping, and fold-on-acceptance coverage.
+
+5. **Exhaustion — RESOLVED.** `MAX−1`, `MAX`, and durable post-MAX exhaustion are unambiguous and represented in acceptance.
+
+6. **Commit-order falsifier — RESOLVED.** The T1 pause/T2 commit/T1 validation failure and fresh allocation vector directly distinguishes allocation order from commit order ([§5.1](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:667>)).
+
+7. **Sink matrix — NOT FULLY RESOLVED; MATERIAL remains.** See M1 below.
+
+8. **Bounded-children-only — RESOLVED.** V1 admits no relational nodes; successor requirements are separated cleanly ([§2.1](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:393>)).
+
+9. **Every resume reads parents — RESOLVED.** Terminal nodes repeat deduplicated parent authorization/projection reads while examining zero child-range entries; inner cursors are prohibited ([§2.4](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:514>)).
+
+10. **Cursor budget — RESOLVED.** The arithmetic is correct: `8192 − 6 = 8186` base64url characters; at most 6,139 decoded bytes; minus 24-byte nonce and 16-byte tag leaves 6,099 plaintext bytes. Static worst-case refusal prevents a runtime size cliff ([§2.4](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:496>)).
+
+11. **Parent authorization identity — RESOLVED.** `ParentAuthorizationKeyV1` has closed canonical JCS bytes, structural equality, plan-hash inclusion, golden vectors, and near-miss tests ([§2.2](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:434>)).
+
+12. **Maturity — RESOLVED.** Minimum-maturity inheritance is no longer falsely normative. Promotion order is explicitly only a proposed LLP 0134 prerequisite pending that document’s own loop ([§2.6](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:558>)).
+
+## New concerns
+
+### M1 — MATERIAL: handler diagnostics expose tentative or aborted allocations
+
+The new sink matrix omits handler logs and thrown-error diagnostics. This matters because the handler receives an ordinary integer before commit, while Snapback’s console stringifies handler values and immediately sends them through `runtime.log` ([console sink](</Users/ccheever/projects/snapback/packages/snapback-harness/ctx-bootstrap.js:664>), [stringification](</Users/ccheever/projects/snapback/packages/snapback-harness/allowlist-install.js:409>)).
+
+A handler can therefore:
+
+```js
+const n = ctx.sequence.allocate("messages", roomId);
+console.log(n);
+```
+
+and subsequently lose captured-read validation. The tentative number has already escaped even though the allocation did not commit. A handler can similarly include it in a thrown error. That contradicts the normative claims that a failed attempt “leaves no trace” and an aborted transaction “leaves no observable trace” ([§1.2–1.3](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:176>)).
+
+Resolution requires an explicit diagnostics/error posture and acceptance vector. Plausible choices are transactionally buffering sequence-bearing handler diagnostics until commit, or narrowing the no-trace claim while honestly documenting tentative-value disclosure. The latter may require an evidence-boundary review.
+
+### D1 — DETAIL: the LLP 0133 divergence-class statement is inaccurate
+
+The claim that sequence divergence “fits none” of LLP 0133’s three classes is too strong. It does not fit the specialized **id-map** or time treatment, but changed sequence-bearing results, rows, branches, or failures do fit **outcome divergence**, whose rule is simply that the authoritative outcome wins ([LLP 0133](</Users/ccheever/projects/snapback/llp/0133-local-settlement.spec.md:501>)).
+
+The real missing facility is narrower: outcome reconciliation provides no typed mapping for speculative sequence values copied into later pending arguments. Rewording that distinction preserves the sound lane-L exclusion.
+
+### D2 — DETAIL: SD-2 explanatory prose overstates branch uncertainty
+
+The new text says the contracted branch is “reachable-or-not” and evidence may land outside both branches ([§5.2](</Users/ccheever/projects/snapback/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:752>)). LLP 0120 already says `boardSummary` and Split remain inexpressible under 3a, so once SD-2’s usage-evidence trigger fires, its contracted-profile branch follows.
+
+This does not revive Round-1 item 1: SD-2 itself owns and causes that outcome. The misleading branch-uncertainty language should simply be removed.
+
+## Verdict
+
+**NOT READY**
+
+One unresolved MATERIAL concern remains, so LLP 0130 SD-4’s zero-unresolved-MATERIAL condition is not met.
+
+## Next step
+
+Revise the sink/abort contract to cover handler logs and thrown errors, add an adversarial aborted-allocation diagnostic test, and make the two DETAIL wording corrections. Then rerun the Codex-family delta review on the new SHA.

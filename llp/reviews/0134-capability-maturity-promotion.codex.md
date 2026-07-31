@@ -184,3 +184,78 @@ The SD-4 boundary itself passes scrutiny, and the core maturity/support separati
 Recommended next step: revise §§2, 4, 6, 7, and 9 around a history-aware transition validator and closed evidence-reference schemas, then request Codex re-review before counting this family READY.
 
 I did not read any `llp/reviews/0134-*.fable.md` file. The required Codex review artifact could not be written because the workspace is read-only.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-2 delta — verify each Round 1 concern (8 MATERIAL + 1 MINOR) against v0.2, then review new text only; fresh CLI runner, read-only sandbox, blind to this Spec's fable artifact; Round 1 section above provided as required context
+**Target SHA-256:** `1e6a214c52b73ab3951da6ae5991f38ad968fb976381c3f483ba2ad8e80a0040`
+**Session id:** `019fb74c-0b26-7670-8b7b-e98c13e74a4f`
+**Status:** completed
+
+### Verbatim review
+
+Verified target SHA-256: `1e6a214c52b73ab3951da6ae5991f38ad968fb976381c3f483ba2ad8e80a0040`. I read only the required Codex Round 1 section and did not read `llp/reviews/0134-capability-maturity-promotion.fable.md`.
+
+## Round 1 resolution register
+
+1. **A5 atomicity — PARTIALLY RESOLVED, MATERIAL remains.**  
+   Promotion is now mechanically grounded: `candidateParentSha == candidateSourceSha`, sole-parent validation, transition-commit diff inspection, refusal of merges/stacking, and final-tree testing are all specified ([§4](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:280), [A5](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:565)).  
+   However, A5 covers transitions “in either direction,” while `MaturityDemotionRecordV1` contains neither `candidateSourceSha` nor `candidateParentSha` ([§6](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:402)). A5 therefore cannot perform its required parent comparison for demotions.
+
+2. **Evidence locators, demotion schema, suffix A2 — MOSTLY RESOLVED.**  
+   The five-field locator is present, E1–E8 use typed locators, demotion has a closed schema, and A2 dispatches promotion/demotion/grandfather suffixes ([§4](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:290), [A2](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:552)).  
+   Residual: `voidedReceiptDigest` is still a bare digest despite §4 stating that a digest without a locator cannot be reopened or interpreted. This is MINOR independently, while the missing demotion parent fields are MATERIAL under concern 1.
+
+3. **E6 per-route witness — RESOLVED conceptually.**  
+   Hosted journal continuity, local daily green runs, finite recorded population, population-loss/gap reset, exact window endpoints, full rerun, and a closed defect corpus make the soak claim falsifiable ([E6](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:175)).
+
+4. **Per-class E5 lanes — RESOLVED.**  
+   Application and operator/startup capabilities now use their actual production authority lanes, while acceptance, qualification, and observation principals remain excluded ([E5](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:159)).
+
+5. **Demotion authority — RESOLVED.**  
+   Immediate support withdrawal is separated from maturity mutation; subjective demotions require author adjudication; the fast path is a standing delegation proposed by this Spec, effective only upon acceptance, and limited to committed-gate failure or cryptographic invalidity ([§6](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:363)). This is compatible with LLP 0005 and the SD-4 boundary.
+
+6. **Grandfather decidability and 0110 exclusion — NOT FULLY RESOLVED, MATERIAL.**  
+   Per-member manifests, baseline digest, author-recorded materiality decisions, tombstones, and the eligibility-ceiling framing are now present ([§7](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:494)). Two problems remain:
+
+   - “Canonical normative text” has no extraction or canonicalization algorithm, so `governingContractBaselineSha256` cannot be independently reproduced.
+   - The claimed tree-true ground that the LLP 0110 pair’s “demo-use leg is empty” and “every rerun arm bypassed the pair” is false as written. Signal Desk contains real `defineBoundedChildrenQuery` declarations ([functions.mjs](/Users/ccheever/projects/snapback/demos/signal-desk/snapback/functions.mjs:69)), and the retained review says the demo executes the unadvertised profiles. The write-with-activity declarations are proving/acceptance-only and the product adapter bypasses them ([functions.mjs](/Users/ccheever/projects/snapback/demos/signal-desk/snapback/functions.mjs:241)). The defensible statement is that the atomic pair lacks a joint real production consumer—especially a provenanced write arm—not that both capabilities have no demo use.
+
+7. **Canonical-JSON A1 — RESOLVED.**  
+   Both sides emit sorted canonical JSON and CI compares bytes, avoiding source scraping ([A1](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:541)).
+
+8. **E4 two-tree split — RESOLVED semantically, but introduces a fresh MATERIAL defect.**  
+   Candidate experimental references and promotion-tree authoritative statements are now correctly distinguished ([E4](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:146)). See new concern N1 below.
+
+9. **E1 history — RESOLVED.**  
+   The text now accurately says LLP 0080 remained experimental after acceptance until Implemented witnesses landed and explicit promotion occurred ([E1](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:125)).
+
+## New delta concerns
+
+### N1 — MATERIAL: promotion-tree audit creates a commit-SHA self-reference
+
+E4 requires an audit receipt “on the promotion commit itself,” and the promotion receipt must reference it through a locator containing `sourceSha`. Both are required in the promotion commit. Consequently, the receipt must contain the SHA of the commit whose SHA depends on the receipt’s bytes—the same self-reference §4 correctly avoided for the promotion receipt itself.
+
+Define a non-self-referential mechanism, such as an A5-resolved transition sentinel, or make the history-aware transition check itself the promotion-tree witness under explicitly different locator semantics.
+
+### N2 — MATERIAL: E6 evidence files have no A2 suffix/schema lane
+
+Local daily receipts must be retained under §4’s maturity records root ([E6](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:192)), but A2 says every file there is parsed using only the three promotion/demotion/grandfather suffixes. Daily observations, hosted journal extracts, and defect-search records have no dispatched suffix/schema.
+
+Either retain referenced evidence outside `tests/acceptance/maturity/`, or extend A2 with closed suffixes for every evidence-artifact class.
+
+### N3 — MINOR: bare voided-receipt digest
+
+Change `voidedReceiptDigest` to a closed locator, or explicitly specify unique digest lookup over the maturity-record corpus.
+
+## Verdict
+
+**NOT READY**
+
+SD-4 cannot fire: unresolved MATERIAL concerns remain, including non-provable demotion atomicity, the inaccurate LLP 0110 exclusion rationale, undefined grandfather baseline canonicalization, and the new promotion-tree self-reference.
+
+Next step: revise §§4, 6, 7, and A2/A5 to close those points, then request a targeted Codex round 3. The workspace is read-only, so I could not append this Round 2 review to the Codex artifact.

@@ -116,3 +116,76 @@ Resolution: require normalization on both sides, reject or define zero vectors, 
 Recommended next step: revise while Draft, closing the classification matrix first because it is an ER-2 issue. Then define logical-work observations, replace the universal corpus claim with combined implementation-control and witness evidence, pin a meaningful scale matrix, and tighten the cosine recipe. Commission a mutually blind Codex-family re-review afterward.
 
 I attempted to record this as `llp/reviews/0132-vector-search.codex.md`, as LLP 0005 requires, but the workspace is read-only and rejected the write. No LLP status was changed.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-2 delta — fresh CLI runner, read-only sandbox, required to read its own Round 1 above, blind to this Spec's fable artifact
+**Target SHA-256:** `efd2fa83266cc187500a37632e2bee04e59326fad6cd70f990de460a28f28be5` (v0.2, 613 lines)
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+## Round-2 delta review
+
+Verified target: 613 lines, SHA-256 `efd2fa83266cc187500a37632e2bee04e59326fad6cd70f990de460a28f28be5`. I read the required Codex Round 1 and did not read the Fable artifact.
+
+### Round-1 concerns
+
+- **MATERIAL — Classification-to-visibility matrix: RESOLVED.** The matrix now matches LLP 0073: public-read permits only public participating fields; owner.v1 permits public/private; sensitive and forbidden are universally rejected; omission is forbidden. Private posting custody, redacted query-vector telemetry, migration semantics, generation negatives, and owner-partition evidence are included. See [LLP 0132](</Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:151>).
+
+- **MATERIAL — Closed logical-work object: RESOLVED.** Four observable counters are defined—posting enumeration, filter comparisons, scored candidates/scalar pairs, and release reads—with a fixed stage and refusal-precedence order. Physical effects and timing remain outside the termination-insensitive transcript. This makes the paired-database claim falsifiable. See [LLP 0132](</Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:365>).
+
+- **MATERIAL — Adversarial-corpus overclaim: RESOLVED.** The revised claim is properly limited to named divergence classes on exercised kernels. It requires per-class bit-pattern witnesses, expected results per metric, full-corpus execution on every shipped kernel, per-kernel coverage records, and strict-FP build/flag evidence. See [LLP 0132](</Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:528>).
+
+- **MATERIAL — Realistic-scale floor: RESOLVED.** The fixture must fill `min(⌊2^26 / dimensions⌋, 65,536)`. For 1,536 dimensions:
+  `⌊67,108,864 / 1,536⌋ = 43,690`.
+  `1,536 × 43,690 = 67,107,840`, while 43,691 produces 67,109,376 and exceeds the ceiling. Boundary evidence and an exact-count receipt are required. See [LLP 0132](</Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:563>).
+
+- **MINOR — Cosine preconditions: RESOLVED.** Both stored and query vectors must be consistently application-normalized and nonzero; the claim is correctly scoped to pinned dot ranking over admitted binary64 components, not exact-real cosine over original inputs. See [LLP 0132](</Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:252>).
+
+### New-text review
+
+- **Conversion pin: no new concern.** Correct rounding to nearest, ties-to-even is normative; admitted binary64 values become the semantic inputs; one-ulp conversion witnesses and build evidence close the target-conformance path.
+
+- **Never-minus-zero lemma: no new concern.** The induction is sound under the pinned operations. L2 squares cannot produce negative zero; for dot, a product may round to `−0`, but `+0 + −0` produces `+0`, and addition of finite binary64 operands cannot create a previously absent sub-minimum nonzero residue.
+
+- **New refusal code — MATERIAL:** `SNAPBACK_VECTOR_CORPUS_BOUND` is explicitly assigned only to an overflowing **insert**, while an ownership/visibility transfer can move an existing row into an already-full destination partition. The surrounding prose promises rollback for a generic "bound failure," but neither the diagnostic assignment nor acceptance evidence closes this named mutation path. Targets could therefore disagree between `SNAPBACK_VECTOR_CORPUS_BOUND`, a generic maintenance failure, or another outcome. See [LLP 0132](</Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:413>) and its insert-only acceptance probe at [line 554](</Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:554>).
+
+  Resolution: state that **every source mutation** that would cause any destination visibility partition to exceed its declared corpus bound—including insert, owner/visibility transfer, or any partition-key-changing update—refuses with `SNAPBACK_VECTOR_CORPUS_BOUND` and rolls back atomically. Add a full-destination ownership-transfer acceptance probe confirming source and index state remain unchanged.
+
+## Verdict
+
+**NOT READY**
+
+The five Codex Round-1 findings are resolved, but the new mutation-side refusal contract has one fresh MATERIAL gap.
+
+Next step: make the narrow refusal-code clarification and add the transfer-overflow acceptance case, then commission a focused Codex-family delta re-review.
+
+## Round 3 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-3 focused check — fresh CLI runner, read-only sandbox, required to read its own Round 2 above, blind to this Spec's fable artifact; scoped to the Round-2 MATERIAL fix and the three Fable detail additions, re-litigating nothing else
+**Target SHA-256:** `7fb3548aff4c2b0b251467b5cc3d98b0a7905992e1a3100687bf66f7339b4346` (v0.3)
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+## Round 3 focused delta review
+
+Verified v0.3 SHA-256: `7fb3548aff4c2b0b251467b5cc3d98b0a7905992e1a3100687bf66f7339b4346`. Read Codex Round 2; did not read the Fable artifact.
+
+- **Round-2 MATERIAL — Corpus-bound refusal: RESOLVED.** Every destination-overflowing mutation now receives `SNAPBACK_VECTOR_CORPUS_BOUND` with atomic source/index rollback, and acceptance includes the requested full-destination ownership-transfer probe ([lines 446–452](/Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:446), [lines 592–596](/Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:592)).
+- **IEEE 754 witness — NEW MATERIAL.** The normative text promises beyond-`H` witnesses, but acceptance requires only `>20` digits; `H` is implementation-defined and may exceed 20, so such a witness need not exercise or detect round-to-`H` double rounding. IEEE 754 defines `H ≥ M+3`, with larger or unbounded values permitted ([IEEE 754-2019 §5.12.2](https://dms-discourse-static.s3.dualstack.us-east-1.amazonaws.com/original/3X/b/7/b7b9c1edaf4019395d2b8315620948e240bf3f8f.pdf)).
+- **Counter 2 short-circuit semantics: CLEAN.** Declaration order, first-mismatch short-circuiting, and actually executed comparisons are deterministic and mutually consistent ([line 394](/Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:394)).
+- **Unconditional telemetry placement: CLEAN.** Query-vector redaction and telemetry now unambiguously apply to every index ([line 203](/Users/ccheever/projects/snapback/llp/0132-vector-search.spec.md:203)).
+
+**Verdict: NOT READY**
+
+Next step: require each finite-`H` target to run a distinguishing witness with more than that target's `H` significant digits—one that differs between direct correct rounding and round-to-`H`-then-binary64—then commission the narrow Codex re-check.

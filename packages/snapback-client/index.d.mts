@@ -962,3 +962,7 @@ export function admittedReactEphemeralDefinition(
   binding: unknown,
   reference: SnapbackEphemeralReference,
 ): PreparedReactEphemeralDefinition;
+
+export { createFileRqsResumeStore } from './rqs-store-file.mjs';
+export declare function createMemoryRqsResumeStore(options?: Record<string, unknown>): unknown;
+export { resolveDefaultRqsStore, type DefaultRqsStoreResolution } from './rqs-store-default.mjs';

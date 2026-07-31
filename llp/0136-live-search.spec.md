@@ -6,10 +6,35 @@
 Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:**
-**Related:** LLP 0034, LLP 0037, LLP 0039, LLP 0053, LLP 0065, LLP 0073,
-LLP 0074, LLP 0090, LLP 0091, LLP 0112, LLP 0114, LLP 0115, LLP 0119,
-LLP 0127, LLP 0130
+**Revised:** 2026-07-31 (v0.2 — round-1 dual-family fixes; verbatim
+reviews in `reviews/0136-live-search.fable.md` and
+`reviews/0136-live-search.codex.md`, both NOT READY (Fable C1–C10 plus
+suggestions; Codex 1–8 plus suggestions), merged, verified against the
+tree, none rejected. Two shape decisions: v1 scopes to non-auth-scoped
+subscriptions — sessions-mode `owner.v1` refuses at admission, because
+the auth-scoped lane's `AuthorizationInvalidationSnapshot` is a
+`deny_unknown_fields` closed shape with no cursor slot, making its
+extension versioned successor wire work (Codex 1) — and coalescing is
+dropped from v1 for the engine's synchronous in-frame per-commit
+delivery under hard ceilings (Fable C2, Codex 4). Also applied: wake
+amplification restated table-wide across all indexes with a per-table
+aggregate ceiling (Codex 2); refresh failure reconciled with the
+shipped `resync_required` and obligation paths (Codex 3); literal-AST
+search children excluded from `registerGroupEligible` by explicit
+two-sided rule (Fable C1); the `authorityIndependent` validator seam
+and `publicInline` foreclosure enumerated (Fable C3, Codex 6); the
+`LiveReplace` cursor member specified as load-bearing behind a
+negotiated connection declaration, routed in Appendix B (Codex 5,
+Fable C8); ceiling defaults provisional behind the measurement gates
+(Codex 7); the acceptance oracle repaired to LLP 0073's semantic
+cursor comparison at a pinned head (Codex 8, Fable C4);
+noninterference vocabulary aligned (Fable C5); `changed_fields`
+narrowing excluded from the v1 claim with the L4 convergence
+obligation named (Fable C6); facts/ceilings carriers pinned (Fable
+C7); quiet-index TTL and capability-id custody stated (Fable C9–C10).)
+**Related:** LLP 0008, LLP 0034, LLP 0037, LLP 0039, LLP 0051, LLP 0053,
+LLP 0065, LLP 0073, LLP 0074, LLP 0090, LLP 0091, LLP 0092, LLP 0093,
+LLP 0112, LLP 0114, LLP 0115, LLP 0119, LLP 0127, LLP 0130
 
 ## Summary
 
@@ -18,17 +43,27 @@ re-execution on invalidation — LLP 0119 option 4, adopted as the design
 direction by LLP 0115 CV-11 (v0.5) and LLP 0127 move 4. A subscribed search
 re-executes its bounded first page whenever a commit touches its index's
 source table; the subscriber receives a freshly authorized full page over
-the existing live replace lane. The path ships under its own capability id,
-`live_full_text_search_v1`, with the same rank/highlight/cursor contract as
-non-live search; `full_text_search_v1` stays non-live, and its
-`SNAPBACK_FUNCTION_NOT_LIVE` refusal remains pinned contract (LLP 0073).
+the existing live replace lane. V1 scopes to subscriptions that are not
+auth-scoped: sessions-mode `owner.v1` search is refused at admission
+pending a successor (§Authorization composition). The path ships under
+its own capability id, `live_full_text_search_v1`, with the same
+rank/highlight/cursor contract as non-live search; `full_text_search_v1`
+stays non-live, and its `SNAPBACK_FUNCTION_NOT_LIVE` refusal remains
+pinned contract (LLP 0073).
 
 Option 4's hypothesis — that the remaining work is composition rather than
 new invalidation machinery — is assessed seam by seam below and
-substantially holds: every load-bearing mechanism exists (matcher arm,
-replace lane, bounded per-page-rechecked executor, LLP 0053 admission).
-What remains is admission/dispatch seams, one additive wire member, an
-authoring entry point, budgets, and evidence — no new invalidation science.
+substantially holds *for the v1 scope*: every load-bearing delivery
+mechanism exists (matcher arm, replace lane, bounded per-page-rechecked
+executor). What remains is admission/dispatch seams, one load-bearing
+wire member behind a negotiated client declaration, the
+`authorityIndependent` validator/codegen extension, an explicit
+register-group exclusion, an authoring entry point, budgets, and
+evidence — no new invalidation science. The boundary that keeps the
+hypothesis honest is the scope itself: sessions-mode `owner.v1` search
+is auth-scoped, its delivery lane is a closed snapshot shape with no
+cursor slot, and extending that shape is real versioned wire work — so
+v1 refuses it at admission and a successor owns it.
 
 This is the CV-11 design half only: it decides the admission path and the
 liveness scope and produces the cursor-semantics (LLP 0119 OQ1) and
@@ -42,7 +77,12 @@ posting-delta wake precision (a later refinement of this same delivery
 model); the mixed-route register-cliff softening (LLP 0119 OQ6); quarantine
 flicker (LLP 0053's diagnosis lane); any function-classification change
 (the option 1a pre-registration stays watch-gated per LLP 0115); hosted,
-PostgreSQL, and offline targets beyond their own evidence.
+PostgreSQL, and offline targets beyond their own evidence. Two further
+exclusions decided by this revision: sessions-mode auth-scoped live
+search — the `AuthorizationInvalidationSnapshot` cursor extension is a
+successor amendment (§Authorization composition, Appendix B §B.2) — and
+the coalescing delivery executor, successor machinery for targets with
+asynchronous fan-out (§Invalidation and delivery).
 
 Claim posture until acceptance: nothing changes. Ordinary search functions
 remain `FunctionKind::Query` and refuse subscription with
@@ -80,11 +120,18 @@ LLP 0119's integration-blockers inventory, addressed blocker by blocker:
    in `src/local.rs` requires `FunctionKind::LiveQuery`. That check needs
    no change: the live search function admits, and the ordinary search
    function keeps refusing with `SNAPBACK_FUNCTION_NOT_LIVE` — LLP 0073's
-   pin preserved verbatim on exactly the functions it covers. One
-   addition: an input guard refusing a non-null `after` member with the
+   pin preserved verbatim on exactly the functions it covers. Two
+   additions: an input guard refusing a non-null `after` member with the
    stable diagnostic `SNAPBACK_SEARCH_LIVE_CURSOR_UNSUPPORTED`, mirroring
    `SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED` (the house
-   first-page-only precedent).
+   first-page-only precedent); and the v1 auth-scope guard — a
+   subscription that would be auth-scoped (sessions mode and not
+   authority-independent, the predicate the subscribe path already
+   computes) refuses with the stable diagnostic
+   `SNAPBACK_SEARCH_LIVE_AUTH_SCOPED_UNSUPPORTED` before any storage
+   work (§Authorization composition). The shared argument validation
+   binds `limit: 1..50` at subscribe exactly as at request; the
+   cursor-aware connection declaration also gates here (seam 8).
 3. **Execution dispatch** — search executes only through the
    `(Query, SearchQuery)` arm. Change: add a `(LiveQuery, SearchQuery)`
    arm delegating to the same executor path — same pinned snapshot, same
@@ -103,6 +150,40 @@ LLP 0119's integration-blockers inventory, addressed blocker by blocker:
    blocker; it is why v1's wake-precision claim is pinned at exactly
    table-granular. The carrier is option 5's work, not built here.
 
+Round-1 review added three seams beyond LLP 0119's inventory (Fable C1
+and C3; Codex 1, 5, and 6):
+
+6. **The `authorityIndependent` validator and codegen** — today
+   `validate_authority_independent` admits only plain
+   `HandlerPlan::Query` runtimes; every other HostPlan refuses at load
+   with `SNAPBACK_AUTHORITY_INDEPENDENT_INVALID` (`src/manifest.rs`).
+   Public-read live search therefore needs a new validator arm
+   admitting a `SearchQuery` plan exactly when the index's declared
+   visibility is `public-read` (constant partition, no authority or
+   ambient input anywhere in the plan), plus codegen emission of the
+   fact for `public-read` live-search declarations. Until this seam
+   lands the failure mode is fail-closed: the function is treated
+   auth-scoped and, in v1, refused in sessions mode. Sweeping every
+   surface keyed on a valid `authorityIndependent` declaration:
+   `rqs_eligible_digest_kind` stays `None` through its independent
+   plan-shape gate, so the retention/resume nonclaim survives the
+   extension; `publicInline` would become newly declarable on
+   public-read search functions (`validate_public_inline` accepts it on
+   any function with a valid `authorityIndependent` declaration), and
+   v1 forecloses that — a search-plan function declaring `publicInline`
+   refuses at load — until an inline-disclosure analysis earns it.
+7. **Register-group exclusion** — the `registerGroupEligible`
+   derivation and its server-side routes validation test only that
+   every child is a `LiveQuery` and every `$param`-mapped arg is
+   string-typed (`packages/snapback-codegen/index.mjs`,
+   `src/local.rs`); a literal-AST live-search child would derive
+   eligible the moment the pairing exists. V1 excludes it explicitly
+   (§Client composition).
+8. **The cursor-aware client declaration** — the `LiveReplace` cursor
+   member is load-bearing result data, not an ignorable addition; its
+   admission gate and wire routing are specified under §Invalidation
+   and delivery (Wire) and drafted in Appendix B.
+
 ## Authoring surface
 
 `defineLiveSearchQuery({ table, index })` joins `defineSearchQuery` in the
@@ -116,41 +197,101 @@ phantom, so the LLP 0114 hook admits it without a new reference class.
 
 ## Invalidation and delivery
 
-**Wake.** The v1 wake predicate is the existing matcher arm: any commit
-containing a `ChangedRow` whose table equals the index's source table
-wakes every live-search subscription on that index — including commits
-entirely inside other owners' visibility partitions (blocker 5). One
-honest narrowing is admissible without a new carrier: when every relevant
-`ChangedRow` carries a known nonempty `changed_fields` set disjoint from
-the index's text, filter, stored, highlight, and visibility fields, the
-commit provably cannot alter any posting, stored projection, partition,
-or released field, and the wake may be skipped; unknown or empty
-`changed_fields` always wakes. The narrowing is optional in v1 and
-requires its own acceptance case if claimed.
+**Wake.** The v1 wake predicate is the existing matcher arm, and its
+granularity is honestly table-wide: the matcher compares only
+`change.table == plan.table` (`src/live_matcher.rs`), so any commit
+containing a `ChangedRow` on an indexed source table wakes every
+live-search subscription on **every** search index over that table —
+not merely the index whose postings changed — including commits
+entirely inside other owners' visibility partitions (blocker 5).
+Worst-case re-executions per commit are therefore the sum of live
+subscriptions across all of the table's indexes, which is why §Budgets
+bounds the aggregate per table, not only per index. One honest
+narrowing is admissible without a new carrier: when every relevant
+`ChangedRow` carries a known nonempty `changed_fields` set disjoint
+from the union of every field the index declaration names in any role
+(text, filter, stored, highlight, visibility — closed over future
+declaration extensions by construction), the commit provably cannot
+alter the delivered page or any released fact, and the wake may be
+skipped; unknown or empty `changed_fields` always wakes. The narrowing
+is **excluded from the v1 claim**. If later claimed it needs its own
+acceptance case, a rerun of the noninterference corpus over wake
+occurrence, and — because the disjointness set includes visibility
+fields, making the skip an authorization-sensitive proof — the
+LLP 0008 L4-style convergence assertion LLP 0053 requires: in test/dev
+profiles every skip verdict is checked against a full re-execution.
 
-**Coalescing.** Per subscription, at most one re-execution is in flight;
-commits arriving meanwhile set a dirty flag and one trailing re-execution
-runs against the latest commit head. Intermediate heads may produce no
-delivery; deliveries are monotone in commit order and the final delivered
-page always reflects the final head (no lost wake).
+**Delivery cadence (decision: synchronous, no v1 coalescing).** V1
+delivery is the engine's shipped shape:
+`notify_live_subscriptions_in_frame` re-executes every affected
+subscription synchronously inside the commit's notification frame
+(`src/local.rs`). There is no per-subscription in-flight state, no
+dirty flag, and no trailing-run scheduler, and v1 adds none: each
+observed commit re-runs each affected subscription once, so per-commit
+cost is exactly commit rate × affected subscriptions — bounded by
+§Budgets' admission ceilings, not by an executor-throughput claim.
+Deliveries are per-commit and monotone in commit order, and after the
+last commit of any burst the last delivered page reflects that
+commit's head — the falsifiable quiescence form of "no lost wake". A
+coalescing executor (at most one in-flight re-execution per
+subscription, a dirty set, one trailing run at the latest head) is
+real new machinery with its own correctness obligations — no lost
+wake, monotone delivery, teardown races, generation/authority fencing
+of queued work, a concurrency ceiling, obligation-discharge
+composition — and belongs to the first target that needs it (the
+hosted/asynchronous fan-out lanes), as a successor with its own spec
+text and acceptance. Nothing in v1's contract forbids it; nothing in
+v1's budget arithmetic assumes it.
 
 **Delivery.** Re-execution runs the unmodified bounded search executor —
 same analyzer, scorer, tie-break, highlights, work ceilings, and per-row
 authorization release recheck as the request path — inside one pinned
-read snapshot. The result is delivered as a full page on the existing
-conservative replace lane (`live_replace`); live search never uses the
-`live_delta` lane. Search pages are ordered, limited windows — precisely
-the shape `compute_live_delta` already declines — so the replace lane is
-the honest carrier, not a fallback.
+read snapshot. For every v1-admitted subscription the result is
+delivered as a full page on the existing conservative replace lane
+(`live_replace`); live search never uses the `live_delta` lane. Search
+pages are ordered, limited windows — precisely the shape
+`compute_live_delta` already declines — so the replace lane is the
+honest carrier, not a fallback. The fan-out has a second lane v1
+deliberately never reaches: auth-scoped subscriptions branch into
+`deliver_authorization_snapshot`, whose
+`AuthorizationInvalidationSnapshot` frame carries only
+subscription/function/version/rows and discards any cursor
+(`src/local.rs`, `src/live_wire.rs`); the v1 admission refusal
+(§Authorization composition) is what keeps "every delivery rides
+`live_replace`" true rather than aspirational. Establishment inherits
+the existing subscribe path's no-missed-commit ordering between the
+establishment snapshot and matcher registration; the search path adds
+no new window.
 
 **Wire.** The establishment snapshot rides the existing
 `LiveSubscribeOutput.snapshot: QueryOutput`, whose `{version, rows,
 cursor}` shape already carries the continuation cursor. The replace
 envelope (`LiveEnvelope::LiveReplace`) has no cursor slot; it gains one
-ignorable optional `cursor` member — the optional-`resume` precedent
-(LLP 0091 §0B.2: old decoders drop unknown optional additions) — set only
-on live-search deliveries: a fresh continuation cursor when a safe one
-exists, absent otherwise. This is the design's one wire change.
+optional `cursor` member, set only on live-search deliveries: a fresh
+continuation cursor when a safe one exists, absent otherwise. This is
+the design's one wire change, and it is **load-bearing, not
+ignorable**: a decoder that drops it cannot construct `{items, cursor,
+hasMore}` after a replacement, so the LLP 0091 §0B.2
+optional-`resume` precedent covers only wire tolerance (old decoders
+do not break on the unknown member — `LiveEnvelope` refuses nothing),
+never semantic ignorability. Admission therefore gates on a negotiated
+client declaration, mirroring the auth-invalidation protocol
+precedent: a connection subscribing a live-search function must have
+declared cursor-aware live-search decoding at open
+(`liveSearchProtocol: 1`; generated clients born with
+`defineLiveSearchQuery` always declare it), and a connection without
+it refuses at subscribe with the stable diagnostic
+`SNAPBACK_SEARCH_LIVE_CLIENT_UNSUPPORTED`. Version skew is thereby
+fail-closed in both directions: an old client never holds a
+live-search subscription, and a new client against an old target
+refuses on the missing capability before storage work. Ownership
+routes explicitly: the member lands as a dated LLP 0091 §0B amendment
+(drafted in Appendix B §B.1), re-proving old-decoder tolerance where
+it is pinned — the regenerated wire schema exports and the JS kit pin
+(`demos/_kit/tests/live-wire-schema.mjs`) under LLP 0051's drift
+gates, plus LLP 0093's Swift-client fixtures regenerated (its
+implementation clusters, LLP 0094–0096, absorb the member on their
+surfaces).
 
 ## Liveness scope and cursors (LLP 0119 OQ1 proposal)
 
@@ -162,14 +303,18 @@ The stateless 120-second `SearchCursorV1` contract is unchanged — no
 redesigned subscription cursor, no server-retained cursor state.
 
 This composes where the 120-second cursor alone does not because the
-cursor is never asked to outlive its TTL or survive replacements: each
-delivered page mints a fresh current-state cursor, and a held cursor from
-a superseded page resumes under LLP 0073's existing keyset honesty or
-fails closed with `SNAPBACK_SEARCH_CURSOR_RESTART`. "Same cursor
-contract" is literal. Deep-pagination liveness would need per-subscriber
-retained window state or multi-page re-execution per wake — rejected for
-v1 as cost without demonstrated demand (Pantry's felt gap is the first
-page). The bounded-children precedent establishes this scope shape.
+cursor is never asked to outlive its TTL while deliveries continue, nor
+to survive replacements: each delivered page mints a fresh
+current-state cursor, and a held cursor from a superseded page resumes
+under LLP 0073's existing keyset honesty or fails closed with
+`SNAPBACK_SEARCH_CURSOR_RESTART`. On a quiet index — no commits, so no
+re-minting delivery — a held cursor ages past its TTL exactly like a
+request-path cursor and paging fails closed with the same coded
+restart. "Same cursor contract" is literal. Deep-pagination liveness
+would need per-subscriber retained window state or multi-page
+re-execution per wake — rejected for v1 as cost without demonstrated
+demand (Pantry's felt gap is the first page). The bounded-children
+precedent establishes this scope shape.
 
 ## Authorization composition (LLP 0053)
 
@@ -195,13 +340,35 @@ future retention profile holds, but retention stays a nonclaim until that
 profile earns its own evidence (offline/retained search is already an
 LLP 0073 nonclaim).
 
-**Auth-scoped admission.** An `owner.v1` live search in sessions mode is
-auth-scoped and rides the existing admission gates unchanged: the
-negotiated auth-invalidation protocol and a stable authorization
-namespace are required, exactly as for other auth-scoped live queries. A
-`public-read` live search carries the generated `authorityIndependent`
-fact (the validator's admitted shapes extend to the `public-read` search
-plan), so it admits without the protocol.
+**Auth-scoped admission (decision: refused in v1).** An `owner.v1`
+live search in sessions mode would be auth-scoped (the existing
+predicate: sessions mode and not authority-independent). V1 refuses it
+at subscription admission with the stable diagnostic
+`SNAPBACK_SEARCH_LIVE_AUTH_SCOPED_UNSUPPORTED`, before any storage
+work. Rationale: auth-scoped fan-out delivers
+`AuthorizationInvalidationSnapshot`, a closed `deny_unknown_fields`
+shape carrying only subscription/function/version/rows; the cursor a
+live-search page needs has no slot there, and because the shape
+refuses unknown members, adding one is a breaking wire change
+requiring negotiation (a bump of the already-negotiated
+auth-invalidation protocol version, or a successor snapshot kind) —
+LLP 0091 §0B.2's ignorable-addition argument does not apply. That is
+real versioned protocol work owned by a successor amendment (outlined
+in Appendix B §B.2), not improvised here; refusing admission is
+fail-closed and leaves LLP 0053's obligation boundary untouched — no
+live-search subscription can carry a quarantine obligation in v1
+because none is ever auth-scoped. The demand signal that commissioned
+this design (Pantry's type-ahead, Diary 0037) is public-read and fully
+inside the v1 scope. What v1 does admit: a `public-read` live search
+carries the generated `authorityIndependent` fact once seam 6 lands
+(§Admission path) and admits in every mode without the invalidation
+protocol; an `owner.v1` live search outside sessions mode is not
+auth-scoped and admits on the ordinary path, delivering on
+`live_replace`. When the successor lands auth-scoped admission, its
+refresh-failure semantics are bound now: they must ride the shipped
+obligation machinery — bounded durable retry episodes,
+`Quarantine`/`Delete` dispositions, exact-ACK discharge — never a bare
+termination that drops an outstanding obligation.
 
 **Why every delivery is safe.** Ownership transfer, deletion, and content
 change are ordinary source-table writes: they rewrite postings
@@ -221,9 +388,13 @@ disposition rules; live search adds no new lane.
 **Noninterference.** LLP 0073's paired-database observation boundary
 extends to the push path: paired databases differing only in an
 unauthorized matching row must be indistinguishable across wake
-occurrence, delivery timing class, delivered rows, decoded cursor
-plaintext and encoded length, and termination codes. The table-granular
-wake fires identically on hidden-partition commits in both databases and
+occurrence; delivery occurrence, count, and order in the semantic
+transcript; delivered rows; decoded cursor plaintext and encoded
+length; and termination codes. That is LLP 0073's
+value/code/continuation-shape vocabulary — deliberately not a timing
+claim, which 0073 forbids asserting without separate evidence;
+acceptance case 4 tests exactly this list. The table-granular wake
+fires identically on hidden-partition commits in both databases and
 re-executed pages release nothing unauthorized, so coarse wakes open no
 existence channel — the acceptance suite proves this, not assumes it.
 
@@ -232,14 +403,24 @@ existence channel — the acceptance suite proves this, not assumes it.
 - **Unsubscribe, connection close, and expiry** ride the existing live
   subscription lifecycle unchanged. **Admission over budget refuses; the
   server never silently evicts** a subscription to admit another.
-- **Re-execution refusal fails the subscription closed.** If a wake's
-  re-execution cannot release a page — work-ceiling overflow, index
-  unavailable, corruption — the subscription terminates on the live
-  channel with the request path's stable diagnostic
-  (`SNAPBACK_SEARCH_WORK_LIMIT`, `SNAPBACK_SEARCH_INDEX_UNAVAILABLE`,
-  `SNAPBACK_SEARCH_INDEX_CORRUPT`). A delivered page is never re-asserted
-  as current after a failed refresh; the client re-subscribes and
-  observes the coded refusal on establishment.
+- **Re-execution refusal fails closed on the shipped failure path.** If
+  a wake's re-execution cannot release a page — work-ceiling overflow,
+  index unavailable, corruption — the existing fan-out failure path
+  (`fail_subscription_fanout`, `src/local.rs`) records the structured
+  search diagnostic (`SNAPBACK_SEARCH_WORK_LIMIT`,
+  `SNAPBACK_SEARCH_INDEX_UNAVAILABLE`,
+  `SNAPBACK_SEARCH_INDEX_CORRUPT`) in the diagnostics ring and
+  publishes `resync_required` with reason `live_refresh_failed` and
+  `clear_retained: true` — the live envelope carries reason strings,
+  not structured diagnostics, and this Spec does not change that. No
+  page is published on a failed wake and no previously delivered page
+  is re-asserted as current; the client's recovery is
+  re-establishment, where a persistent cause reproduces the coded
+  refusal on the request path. Every v1 subscription rides this
+  public-path state machine because none is auth-scoped
+  (§Authorization composition); the successor's auth-scoped failure
+  semantics are bound there to the obligation-preserving
+  retry/quarantine machinery.
 - **Physical generation activation** (same semantic version) needs no
   subscription event: the next wake re-executes against the active
   generation; delivered cursors follow the existing activation restart
@@ -249,45 +430,83 @@ existence channel — the acceptance suite proves this, not assumes it.
 
 ## Budgets and wake amplification
 
-Write amplification is the design's central cost: one commit on an
-indexed table re-runs every subscribed search on that index. The bounds:
+Write amplification is the design's central cost, and its honest model
+is table-wide: one commit on an indexed table synchronously re-runs
+every live-search subscription on every index over that table
+(§Invalidation and delivery). The bounds:
 
 - **Per-wake cost** — the declaration's existing logical work ceiling,
   unchanged from the request path.
-- **Per-commit fanout** — the subscription ceilings below times one
-  coalesced re-execution per subscription; coalescing bounds burst cost
-  by executor throughput rather than commit rate.
-- **Per-index ceiling** — a declared `maxLiveSubscriptions` per index per
-  target, default 64 (LLP 0073's per-index request-path admission
-  ceilings are the template).
-- **Per-connection ceiling** — default 8 per connection per index,
-  bounding type-ahead churn: a keystroke that subscribes must first
-  release a predecessor or be refused.
-- Admission past either ceiling refuses with the stable diagnostic
+- **Per-commit total** — delivery is synchronous and per-commit, so
+  worst-case re-executions per commit equal the live-search
+  subscriptions admitted across all of the table's indexes, and
+  worst-case per-commit work is that count times the per-wake work
+  ceiling. The per-table aggregate ceiling below makes the count a
+  hard bound — by admission, not by scheduling.
+- **Per-index ceiling** — a declared `maxLiveSubscriptions` per index
+  per target, provisional default 64 (LLP 0073's per-index
+  request-path admission ceilings are the template).
+- **Per-table aggregate ceiling** — a target-enforced bound on
+  live-search subscriptions summed across every index over one source
+  table, provisional default 128; this is the count the per-commit
+  arithmetic uses, so declaring more indexes never multiplies the
+  admitted total past it.
+- **Per-connection ceiling** — provisional default 8 per connection
+  per index, bounding type-ahead churn: a keystroke that subscribes
+  must first release a predecessor or be refused. Unsubscribe releases
+  synchronously ahead of same-frame admission, so release-then-
+  subscribe within one keystroke never trips the ceiling.
+- Admission past any ceiling refuses with the stable diagnostic
   `SNAPBACK_SEARCH_LIVE_SUBSCRIPTION_LIMIT` before any storage work.
 
-Ceilings live in the search declaration's limits family, version-bound
-like the other limits; the defaults are this Spec's proposal, finalized
-at implementation against the measurement gates.
+The numeric defaults (64 / 128 / 8) are **provisional behind the
+measurement gates** — they are LLP 0119 OQ7 quantities, not measured
+facts. Until the gates run, a claiming target reports its enforced
+values as mandatory inspection facts (§Capability id) and the numbers
+bind only that target; they become normative spec defaults only through
+a dated amendment after the gates pass (LLP 0073's preregistration
+discipline: gates validate a preregistered bound, they never
+retroactively choose one). The ceiling *structure* — all three ceilings
+existing and refusing at admission — is normative now. Ceilings live in
+the search declaration's limits family, version-bound like the other
+limits; the carrier is pinned in §Capability id.
 
 ## Client composition (LLP 0112 / LLP 0114)
 
 The live search reference is an ordinary generated live-query reference:
 `useSnapbackQuery` subscribes it through the provider like any live
-query, and replace deliveries update the store. The client adapter
-derives the page shape the same way `client.search()` does — `items` from
-rows, `hasMore = cursor != null` — using the envelope's cursor member.
-Type-ahead ergonomics (debounce, superseded-token discard, handoff under
-the per-connection ceiling) are a candidate `useSnapbackSearch` hook
-owned by LLP 0114 if it proceeds; this Spec requires only that the plain
-hook path works.
+query. Because the continuation cursor is part of the result, the
+headless live handle's state is atomic `{rows, cursor, version}`:
+establishment adopts all three from the subscribe snapshot, every
+replace delivery adopts all three from the envelope in one step (a
+delivery without a cursor member adopts `cursor: null`), and
+re-establishment replaces all three — no state where rows and cursor
+disagree is ever observable. The LLP 0114 store projects the search
+page the same way `client.search()` does — `items` from rows, `hasMore
+= cursor != null` — so the hook returns the same result contract as
+the one-shot path. Type-ahead ergonomics (debounce, superseded-token
+discard, handoff under the per-connection ceiling) are a candidate
+`useSnapbackSearch` hook owned by LLP 0114 if it proceeds; this Spec
+requires only that the plain hook path works.
 
-LLP 0112 register groups are untouched: a live-search child's `query`
-argument is a per-interaction structured AST, which route-static register
-groups cannot carry under LLP 0112's existing literal/parameter rules —
-register-ineligible today by 0112's own admission, no rule change.
-Whether a search child should ever join a registered boot is deferred to
-the LLP 0119 OQ6 cliff work.
+Register groups get an explicit exclusion, not an inherited one. The
+tree-true state: a `$param`-mapped `query` arg is ineligible today by
+the string-typing rule, but `registerGroupEligible` is derived from
+exactly two facts — every child a `LiveQuery`, every `$param`-mapped
+arg string-typed (`packages/snapback-codegen/index.mjs`) — and
+`assertLiteral` admits arbitrary object literals, so the moment the
+`(LiveQuery, SearchQuery)` pairing exists, a route pinning a *literal*
+search AST would derive eligible and enter the LLP 0090/0092
+register-mode bundle boot unanalyzed. V1 therefore adds the rule this
+Spec's v0.1 wrongly denied needing: the codegen derivation excludes
+any child whose function carries a search plan, and the server-side
+routes validation (`src/local.rs`) refuses a `registerGroupEligible`
+route containing one — fail-closed on both sides, with a test
+asserting both refusals (seam 7, acceptance case 2). Whether a search
+child should ever join a registered boot — bundle-cut dispatch,
+ceiling admission on the register path, snapshot cursor handling — is
+the LLP 0119 OQ6 cliff work, deferred with its analysis obligations
+named rather than silently reachable.
 
 ## Capability id and claim discipline (LLP 0119 OQ2 proposal)
 
@@ -299,9 +518,27 @@ target. Composition alone never implies the claim: holding both parents
 does not grant the sibling — the id asserts exactly what the live
 acceptance proved, per LLP 0074's evidence discipline. Inspection reports
 the id beside `FullTextSearchFactsV1` with the liveness scope
-(first-page-only), wake granularity (table-granular), delivery lane
-(replace-only), ceilings, and the retention/resume nonclaims as named
-facts.
+(first-page-only), wake granularity (table-granular, across all indexes
+on the source table), delivery lane (replace-only), enforced ceilings,
+and the retention/resume and auth-scoped nonclaims as named facts.
+
+Carriers are pinned, not gestured at. The inspection facts land as a
+new closed sibling object, `LiveFullTextSearchFactsV1`, beside
+`full_text_search` in the LLP 0037-owned inspection projection —
+`FullTextSearchFactsV1` itself is closed and gains no members. The
+ceilings land as a new closed, optional member of the search
+declaration's limits family in `SearchIndexManifestV1`: an absent
+member means the defaults; unknown members keep refusing under the
+existing `deny_unknown_fields` class; and a manifest declaring the
+live operation or its limits requires `live_full_text_search_v1`, so
+an older target refuses the app at load through the existing
+unknown-capability class rather than silently dropping the ceilings.
+`live_full_text_search_v1` joins the closed `TargetCapabilityId`
+vocabulary (`src/manifest.rs`) like every claimable id. Custody after
+acceptance, revising LLP 0127's what-lands-where line by one clause:
+this Spec owns the live claim boundary and the
+`live_full_text_search_v1` id; LLP 0073 owns the shared
+rank/highlight/cursor contract that both operations bind.
 
 `full_text_search_v1` is unchanged: ordinary search functions stay
 `Query`, keep refusing subscription with `SNAPBACK_FUNCTION_NOT_LIVE`,
@@ -316,26 +553,46 @@ Falsifiable evidence a claiming target must retain:
    Pantry recipe search receives — without issuing any further request —
    a pushed first page containing a row newly inserted by a second
    client's committed mutation, and a pushed page omitting a row that
-   mutation deleted or transferred away. The delivered page equals the
-   page a fresh non-live search would return at the same commit head,
-   byte-for-byte (rank, highlights, stored fields, cursor semantics).
+   mutation deleted or transferred away. With the writer quiesced at
+   that commit head, the delivered page equals a fresh non-live search
+   at the same head byte-for-byte over rows, rank order, highlights,
+   and stored fields; the cursor compares by LLP 0073's semantic
+   oracle — decode class, decoded plaintext, encoded length — never by
+   ciphertext bytes (equivalent cursors carry random nonces).
 2. **Refusal matrix.** Ordinary search subscription still refuses
-   `SNAPBACK_FUNCTION_NOT_LIVE`; live subscription with non-null `after`
-   refuses `SNAPBACK_SEARCH_LIVE_CURSOR_UNSUPPORTED`; admission past
-   either ceiling refuses `SNAPBACK_SEARCH_LIVE_SUBSCRIPTION_LIMIT`; a
-   target lacking the capability refuses before storage work.
+   `SNAPBACK_FUNCTION_NOT_LIVE`; live subscription with non-null
+   `after` refuses `SNAPBACK_SEARCH_LIVE_CURSOR_UNSUPPORTED`;
+   sessions-mode `owner.v1` live subscription refuses
+   `SNAPBACK_SEARCH_LIVE_AUTH_SCOPED_UNSUPPORTED`; a connection
+   without the cursor-aware declaration refuses
+   `SNAPBACK_SEARCH_LIVE_CLIENT_UNSUPPORTED`; admission past any
+   ceiling refuses `SNAPBACK_SEARCH_LIVE_SUBSCRIPTION_LIMIT`; a
+   search-plan function declaring `publicInline` refuses at load; a
+   `registerGroupEligible` route containing a search child refuses at
+   build and at load; a target lacking the capability refuses before
+   storage work.
 3. **Fail-closed refresh.** Injected work-limit overflow, index
-   unavailability, and corruption during re-execution terminate the
-   subscription with the coded diagnostic; no stale page is re-published.
+   unavailability, and corruption during re-execution publish no page,
+   emit `resync_required` with reason `live_refresh_failed` and
+   `clear_retained: true`, and record the structured coded diagnostic
+   in the diagnostics ring; re-establishment against a persistent
+   cause reproduces the coded refusal on the request path; no stale
+   page is re-published.
 4. **Authorization.** LLP 0073's paired-database noninterference corpus
-   extended to the push path (wake occurrence, delivered rows, cursor
-   plaintext/length, termination codes); an `owner.v1` transfer between
-   deliveries releases no stale field or existence fact; auth-scoped
-   admission requires the invalidation protocol and namespace exactly as
-   other auth-scoped live queries.
-5. **Coalescing.** A commit burst during an in-flight re-execution
-   produces one trailing delivery reflecting the final head, with no
-   lost wake and monotone delivery order.
+   extended to the push path over the semantic transcript (wake
+   occurrence; delivery occurrence, count, and order; delivered rows;
+   cursor plaintext and encoded length; termination codes — no timing
+   claim); an `owner.v1` transfer between deliveries (non-sessions
+   profile) releases no stale field or existence fact; the
+   sessions-mode refusal of case 2 holds on a target with the
+   invalidation protocol installed.
+5. **Per-commit delivery.** A burst of N committed writes to the source
+   table produces per-subscription deliveries monotone in commit
+   order, and after the burst's last commit the last delivered page
+   reflects that commit's head; no wake is lost (every affected commit
+   produces its delivery). With two indexes over one table, one commit
+   wakes the subscriptions of both indexes, and the per-table
+   aggregate ceiling holds at admission.
 6. **Lifecycle.** Generation activation, semantic migration, reset, and
    restore produce the specified events; delivered cursors behave
    identically to request-path cursors across replacement, expiry, and
@@ -344,36 +601,52 @@ Falsifiable evidence a claiming target must retain:
 **Measurement gates.** LLP 0119's named empirical questions (OQ7) become
 preregistered measurements over a deterministic corpus, budgets recorded
 before the run (LLP 0073's preregistration discipline): wake
-amplification and fanout under write load (re-executions per commit at N
-subscribers, proving the coalescing and ceiling bounds); first-page
-re-execution cost versus the request path at the same head; type-ahead
-churn (subscribe/release storms at the per-connection ceiling, measuring
-admission overhead and cross-subscriber impact); end-to-end push latency
-from mutation commit to client delivery; and cursor behavior across
-replacements (page-2 fetches from superseded pushed pages, classified
-against the keyset guarantees). A gate failure blocks the capability
-claim on that target; the numbers also feed LLP 0115's rerun scoring so
-the design's cost hypotheses are measured, not asserted.
+amplification and fanout under write load (re-executions per commit at
+N subscribers across one and several indexes over one table, proving
+the synchronous per-commit arithmetic and every ceiling, including the
+per-table aggregate — worst case is aggregate ceiling × per-wake work
+ceiling by declaration); first-page re-execution cost versus the
+request path at the same head; type-ahead churn (subscribe/release
+storms at the per-connection ceiling, measuring admission overhead and
+cross-subscriber impact); end-to-end push latency from mutation commit
+to client delivery; and cursor behavior across replacements (page-2
+fetches from superseded pushed pages, classified against the keyset
+guarantees). A gate failure blocks the capability claim on that
+target; a gate pass is also what promotes the provisional ceiling
+defaults to normative spec text via a dated amendment (§Budgets); the
+numbers also feed LLP 0115's rerun scoring so the design's cost
+hypotheses are measured, not asserted.
 
 ## Non-goals
 
 Delta delivery for search pages; posting-delta wake precision and any
-`ChangedRow`/notification carrier change (option 5); continuation-page
-liveness; retention, resume, or offline search; register-group membership
-for search children; counts, facets, suggestions; relational/membership
-visibility; any function-classification change (option 1a stays
-watch-gated per LLP 0115); hosted, PostgreSQL, or accelerator targets
-without their own evidence.
+`ChangedRow`/notification carrier change (option 5); sessions-mode
+auth-scoped live search and any `AuthorizationInvalidationSnapshot`
+change (successor, Appendix B §B.2); the coalescing delivery executor
+(successor for asynchronous fan-out targets); the `changed_fields` wake
+narrowing as a claim; `publicInline` on search-plan functions;
+continuation-page liveness; retention, resume, or offline search;
+register-group membership for search children (explicitly excluded,
+§Client composition); counts, facets, suggestions;
+relational/membership visibility; any function-classification change
+(option 1a stays watch-gated per LLP 0115); hosted, PostgreSQL, or
+accelerator targets without their own evidence.
 
 ## Open questions
 
-1. Does the `changed_fields` wake narrowing land in v1 or wait for its
-   own acceptance case? (Default: wait.)
-2. Final ceiling numbers after the measurement gates run.
+1. Does the `changed_fields` wake narrowing ever land, and in which
+   release? (Decided for v1: excluded from the claim; its acceptance,
+   noninterference-rerun, and L4-convergence obligations are named in
+   §Invalidation and delivery.)
+2. Final ceiling numbers after the measurement gates run (the 64/128/8
+   defaults are provisional until then; §Budgets).
 3. Does `useSnapbackSearch` (debounce/handoff ergonomics) proceed in
    LLP 0114, and does its absence blunt the Pantry rerun score?
 4. Do hosted targets claim the id in the same wave or after the local
    profile's gates run? (LLP 0073's staged-target discipline either way.)
+5. Which negotiation carrier does the auth-scoped successor use — an
+   auth-invalidation protocol version bump or a successor snapshot
+   kind? (Appendix B §B.2 outlines both.)
 
 ## Appendix A — draft LLP 0073 amendment (apply only on acceptance)
 
@@ -385,17 +658,60 @@ claiming target; nothing is edited before then:
 > LLP 0115 CV-11: a separately authored `defineLiveSearchQuery` operation
 > pairs `FunctionKind::LiveQuery` with the unchanged `SearchQueryPlanV1`,
 > re-executing the bounded first page on table-granular invalidation and
-> delivering full authorized pages on the replace lane, first-page-only,
-> under `live_full_text_search_v1` with its own acceptance evidence. The
-> ordinary `defineSearchQuery` operation, its `FunctionKind::Query`
-> classification, and its `SNAPBACK_FUNCTION_NOT_LIVE` refusal are
-> unchanged; the non-live pin now scopes to that ordinary operation
-> rather than to search as a feature. Delta delivery, wake precision
-> beyond table granularity, continuation pages, and retention/resume/
-> offline remain nonclaims under LLP 0136.)
+> delivering full authorized pages on the replace lane, first-page-only
+> and non-auth-scoped (sessions-mode `owner.v1` refuses at admission
+> pending LLP 0136's successor), under `live_full_text_search_v1` with
+> its own acceptance evidence. The ordinary `defineSearchQuery`
+> operation, its `FunctionKind::Query` classification, and its
+> `SNAPBACK_FUNCTION_NOT_LIVE` refusal are unchanged; the non-live pin
+> now scopes to that ordinary operation rather than to search as a
+> feature. Delta delivery, wake precision beyond table granularity,
+> continuation pages, sessions-mode auth-scoped subscriptions, and
+> retention/resume/offline remain nonclaims under LLP 0136.)
 
 LLP 0073's Non-goals list then drops "live search subscriptions" in favor
 of a pointer to this Spec's claim boundary, and its implementation-state
 nonclaims narrow from "live/offline search" to "offline search" plus this
 Spec's residual nonclaims. CV-11's exit is satisfied on the shipped-path
 fork at that moment, not before.
+
+## Appendix B — wire routing and the auth-scoped successor
+
+**B.1 The v1 change (lands with implementation).** A dated LLP 0091 §0B
+amendment adds one optional member to `LiveEnvelope::LiveReplace`:
+
+> `cursor` (optional string): a fresh search continuation cursor, set
+> only on live-search deliveries when a safe continuation exists;
+> absent otherwise and on every non-search delivery. Wire tolerance:
+> old decoders drop the unknown optional member without error (§0B.2's
+> decode rule, re-proven by the schema tests below). Semantic status:
+> load-bearing, not ignorable — a subscriber that cannot decode it must
+> not hold a live-search subscription, which admission enforces through
+> the cursor-aware connection declaration
+> (`SNAPBACK_SEARCH_LIVE_CLIENT_UNSUPPORTED`); the member's wire
+> tolerance is never a substitute for that gate.
+
+The amendment lands with: the regenerated wire schema exports and the
+JS kit pin (`demos/_kit/tests/live-wire-schema.mjs`) under LLP 0051's
+drift gates; LLP 0093's fixture corpus regenerated with cursor-carrying
+and cursor-absent replace frames plus an old-decoder tolerance fixture;
+and the LLP 0094–0096 implementation surfaces absorbing the member
+where they render replace deliveries.
+
+**B.2 The auth-scoped successor (outline only; not v1 work).**
+`AuthorizationInvalidationSnapshot` is `deny_unknown_fields`: a cursor
+member there is a breaking decode change, not an ignorable addition.
+The successor must choose a negotiated path — bump the
+auth-invalidation protocol version the connection already negotiates
+(old connections keep the old shape and remain refused for live
+search), or mint a successor snapshot kind selected by the negotiated
+version — and must carry: the atomic client adoption rule (`{rows,
+cursor, version}` in one frame, obligation/resolution semantics
+unchanged); the obligation-preserving refresh-failure semantics bound
+in §Authorization composition (bounded durable retry episodes,
+`Quarantine`/`Delete` dispositions, exact-ACK discharge — never a bare
+termination); auth-snapshot cursor rotation and cursor clearing on
+quarantine in its acceptance corpus; and its own fixtures. Until that
+amendment is accepted, sessions-mode `owner.v1` live search remains
+refused at admission with
+`SNAPBACK_SEARCH_LIVE_AUTH_SCOPED_UNSUPPORTED`.
