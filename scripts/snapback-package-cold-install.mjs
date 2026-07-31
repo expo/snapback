@@ -174,6 +174,7 @@ function digest(path, algorithm, encoding) {
 }
 
 async function startStagedRegistry(ledgerDirectory, ledger) {
+  const candidatePrefix = ledgerNameGeneration(ledger.scopePreset).prefix;
   const records = new Map();
   for (const entry of ledger.packages ?? []) {
     const tarballPath = join(ledgerDirectory, entry.tarball);
@@ -186,7 +187,7 @@ async function startStagedRegistry(ledgerDirectory, ledger) {
       integrity: `sha512-${digest(tarballPath, 'sha512', 'base64')}`,
     });
   }
-  const server = createServer((request, response) => {
+  const server = createServer(async (request, response) => {
     const pathname = new URL(request.url, 'http://127.0.0.1').pathname;
     if (pathname.startsWith('/tarballs/')) {
       const filename = decodeURIComponent(pathname.slice('/tarballs/'.length));
@@ -202,8 +203,34 @@ async function startStagedRegistry(ledgerDirectory, ledger) {
     const name = decodeURIComponent(pathname.slice(1));
     const record = records.get(name);
     if (!record) {
-      response.writeHead(404, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'not_found', reason: `staged package ${name} is absent` }));
+      // The staged loopback registry is authoritative only for the ledger's
+      // immutable candidate closure. The terminal @expo scope also contains
+      // genuinely public packages (expo, @expo/cli, ...) that packed fixtures
+      // legitimately depend on; the scope-wide .npmrc routing sends those
+      // packument reads here, so they forward read-only to the public
+      // registry. Candidate-family names stay fail-closed: a staged proof
+      // must never substitute a public artifact for an absent candidate.
+      if (name.startsWith(candidatePrefix) || !['GET', 'HEAD'].includes(request.method)) {
+        response.writeHead(404, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ error: 'not_found', reason: `staged package ${name} is absent` }));
+        return;
+      }
+      try {
+        const upstream = await fetch(`${PUBLIC_NPM_REGISTRY}/${pathname.slice(1)}`, {
+          headers: { accept: request.headers.accept ?? 'application/json' },
+        });
+        const body = Buffer.from(await upstream.arrayBuffer());
+        response.writeHead(upstream.status, {
+          'content-type': upstream.headers.get('content-type') ?? 'application/json',
+        });
+        response.end(request.method === 'HEAD' ? undefined : body);
+      } catch {
+        response.writeHead(502, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({
+          error: 'bad_gateway',
+          reason: `public registry passthrough failed for ${name}`,
+        }));
+      }
       return;
     }
     const address = server.address();
