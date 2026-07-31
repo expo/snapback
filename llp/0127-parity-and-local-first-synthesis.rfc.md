@@ -5,7 +5,29 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Sync, Storage, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:**
+**Revised:** 2026-07-30 (v0.2 — round-1 dual-family review fix pass.
+Round-1 outcome: Fable NOT READY (7 concerns C1–C7, 10 details D1–D10;
+llp/reviews/0127-parity-and-local-first-synthesis.fable.md) and Codex
+NOT READY (2 blocking-for-bar, 3 material, 2 detail;
+llp/reviews/0127-parity-and-local-first-synthesis.codex.md), with
+substantial overlap. All 17 Fable items and all 7 Codex items verified
+against the cited corpus texts and applied; none rejected. Applied:
+0126's option D restored as two parallel platform ladders with
+IR-rung-first relabeled as this RFC's resourcing proposal; the 1a
+pre-registration recast as this RFC's own judgment with its
+declared-fact mechanism assumption stated and 1b named; exact-vs-ANN
+routed to open question 8 and sequence-primitive-first moved out of
+the verified-refinements list; the 0126/0122/0117 coverage cells
+corrected (protected-opaque retention, offline search, delta-resume,
+option F, one-CLI/app-cli, meta-package, mechanism (a) unimplemented);
+the 0125 wide-409 taxonomy folded into the 0094/0095 delegation; the
+closing blocked/unblocked accounting restated per move with the
+bundled first slices split and named; the "Tranche A alone" carve-out
+made explicit; the move 6 → move 4 vocabulary line downgraded to
+shared principle; plus the detail fixes (0081 as proposed not settled
+owner, watch-item absorption item 7, restored candidate /
+absence-of-regression / new-owned-Spec hedges, CV-14 and npm-gate
+scope corrections, delivery-authorization axis held open).)
 **Related:** LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0012, LLP 0013, LLP 0028, LLP 0034, LLP 0041, LLP 0043, LLP 0044, LLP 0051, LLP 0053, LLP 0059, LLP 0061, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0090, LLP 0093, LLP 0094, LLP 0095, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, LLP 0126
 
 ## Summary
@@ -73,10 +95,15 @@ Rust-owned schema (CV-5's reference-not-respell shape, 0117 §CV-5),
 and the job-status surface of move 3 is a generated *declared*
 operation with an ordinary contract, not an ambient system table.
 
-**Fronts.** 0117 mechanisms (a)–(d) in full; 0125's rejection-union
-remainder; CV-4a/4b, CV-5, CV-6 on 0115's board; the two type-flow
-mechanisms 0115's board did not cover (return-inference relief via E's
-compression, interior typing via F).
+**Fronts.** The felt gaps behind all four of 0117's mechanisms — (b)
+structured inputs, (c) omission policy, and (d) interior typing
+directly; (a) return inference *answered* by E's declaration
+compression, not implemented — mechanism (a) itself stays unadopted,
+with infer-then-freeze (C) as 0117's named bridge if post-A+E
+measurement still scores bulk as decisive; 0125's rejection-union
+remainder; CV-4a/4b, CV-5, CV-6 on 0115's board; the two mechanisms
+0115's board did not cover ((a)'s compression answer via E, interior
+typing via F).
 
 **What lands where.** The CV-4 Spec (a new numbered Spec plus the dated
 LLP 0004 alignment, per 0115 OQ1's answer) owns the merged grammar, the
@@ -142,7 +169,14 @@ drift diagnostic are independently landable complements.
 
 **First slice.** Option 1a with the v2 hash, adversarial re-proof at
 file scope, and the respecified benchmark (per-invocation evaluation
-latency and memory against LLP 0035's ~3.9 ms baseline).
+latency and memory against LLP 0035's ~3.9 ms baseline). Scope
+honesty: as specified this slice admits context-reader helpers — 0118
+places that need *inside* the slice ("meeting both diary instances
+needs at least context-reader helpers even in this slice") — so the
+slice as specified waits on the helper-class cutline (open question
+6). A capability-free-only first cut is startable today, but it
+covers only the Streak Lab instance (which the stdlib independently
+dissolves), not Relay's.
 
 **Decisions forced.** The helper-class cutline and enforcement posture
 — context-reader helpers admitted or capability-free only; declared
@@ -169,16 +203,26 @@ producing write (the job row carries producer `mutationId` and
 an ambient system table. That out-evidences Convex's single mutable
 status row with no producing-write association and no attempt ledger
 (0121 finding 10; LLP 0116 finding 4). (2) *Displaced in space:*
-optimistic local execution settled by server rebase — LLP 0126's
-staged program. First harden the cache the diaries actually score
-(0126 option A: default persistence via the shipped `rqsStore` seam,
-leases, the M2 outbox, client-minted mutation identity on the JS/React
-arm — every piece has a named owner and most have code). Then the
-shared IR-evaluator rung of option D (LLP 0051 D2): browser-safe,
-already designed, earning honest `Parity` for IR-complete surfaces
-under LLP 0043's existing claim rule. Then the desktop sidecar carrying
-move 5's sealed runtime artifact; in-process embedding, full-runtime
-WASM, and mobile only behind their named spikes. This RFC deliberately
+optimistic local execution settled by server rebase — 0126's option A
+first, then option D as LLP 0126 v0.4 actually stages it: **two
+parallel platform ladders**, not one sequence. Option A hardens the
+cache the diaries actually score (default persistence via the shipped
+`rqsStore` seam, leases, the M2 outbox, client-minted mutation
+identity on the JS/React arm — every piece has a named owner and most
+have code), with its reach bounded by design: protected *opaque*
+queries stay non-retainable under LLP 0053's retainability invariant,
+so cold retention comes to the declared/analyzable subset — and the
+scored browser arms drove exactly the opaque lane. Option D's browser
+ladder starts at the shared IR-evaluator rung (LLP 0051 D2) —
+browser-safe, already designed, earning honest `Parity` for
+IR-complete surfaces under LLP 0043's existing claim rule — and
+continues to full-runtime WASM only behind its named assessment; the
+desktop ladder, explicitly independent of the browser rungs (nothing
+in it waits on WASM), starts with the sidecar carrying move 5's
+sealed runtime artifact, then in-process embedding behind its spike;
+mobile only after its spike. One resourcing choice is this RFC's
+proposal, not 0126's staging: start with the shared IR rung, the
+smallest independently valuable piece. This RFC deliberately
 does *not* put option C (Replicache-class app-authored client mutators)
 on the default ladder: same-by-convention dual implementations are the
 exact drift the content address exists to remove (0126's own analysis),
@@ -188,38 +232,55 @@ an author decision, not a rung. (3) *Repeated under contention:*
 settlement is the shipped conflict machinery — OCC read-set validation,
 client-owned effect-free reservation retry, LWW-per-field replay with
 typed conflict payloads (LLP 0008/0003/0059; LLP 0125 confirmed the
-retry contract held) — extended toward retry-as-evidenced-contract
-(0125 option 4: attempts visible in receipts, invisible in app code) as
-a later rider. Speculative receipts carry content address plus captured
-environment; settlement receipts bind them to the authoritative commit
-version; a locally executed result is never presented as settlement.
+retry contract held — absence-of-regression evidence, with few direct
+contention exercises in the rerun) — extended toward
+retry-as-evidenced-contract (0125 option 4: attempts visible in
+receipts, invisible in app code) as a later rider. Speculative
+receipts carry content address plus captured environment; settlement
+receipts bind them to the authoritative commit version; a locally
+executed result is never presented as settlement.
 
-**Fronts.** 0121 in full (CV-9); 0126 in full; 0125's retry-evidence
-direction; the Dispatch, and offline-scored, arms of every bakeoff.
+**Fronts.** 0121 in full (CV-9); 0126's durable-lane program — option
+A, option D's two ladders, the settlement discipline, the five
+owner-landings, the ephemeral-split pin — with its residuals named
+here and in the map: protected-opaque retention (out by design, LLP
+0053; 0126 OQ2), offline search (unowned; 0126 OQ6), option F
+(disposed in §Sequencing 5); 0125's retry-evidence direction; the
+Dispatch, and offline-scored, arms of every bakeoff.
 
 **What lands where.** LLP 0070 owns the jobs slice, with 0121's
 paved-default-queue conditional and inspection-surface question
 traveling on the ticket as 0121's relationship section proposes — this
 RFC's proposed answer to the latter is the generated declared query
-above; the receipt-association shape is 0121 OQ4, owner 0070 or the
-0108 family.
-LLP 0043/0114/0090 own option A. LLP 0051 owns the IR rung and the
-execution-identity tuple's semantics elements; LLP 0123's attestation
-work seeds the runtime-identity element. The five unowned designs 0126
-names must each land in an owner before any `Parity`-by-construction
-claim: settle-time trust policy for client-captured `now`/ids (0126
-OQ3), the read-satisfiability artifact (move 6; 0126 OQ4),
-schema-at-capture vs schema-at-settle (LLP 0081), speculative/
-settlement receipt shapes (LLP 0043/0034/0093), and the tuple itself.
+above; the receipt-association shape is 0121 OQ4, owner 0070, the
+0108 family, or a new owned Spec (OQ4's three candidates).
+LLP 0043/0114/0090 own option A; the lane's minimum wire surface
+includes the version-based delta-resume consumer (designed in LLP
+0008, unbuilt — 0008/0090/0093 territory no rung skips). LLP 0051
+owns the IR rung and the execution-identity tuple's semantics
+elements; LLP 0123's attestation work seeds the runtime-identity
+element. The five unowned designs 0126 names must each land in an
+owner before any `Parity`-by-construction claim: settle-time trust
+policy for client-captured `now`/ids (0126 OQ3), the
+read-satisfiability artifact (move 6; 0126 OQ4), schema-at-capture vs
+schema-at-settle (0126 finding 9 records capture itself as unowned;
+LLP 0081, the migration seam's owner, is this RFC's *proposed* home),
+speculative/settlement receipt shapes (LLP 0043/0034/0093), and the
+tuple itself.
 Cheap pin, proposed: "ephemeral state does not sync offline" becomes a
 named contract line via an LLP 0013 amendment (0126 OQ8) — the one
 decisive rerun win rides that split and it should not remain emergent.
 
-**First slice.** Two independent slices of the same substrate: the
-CV-9 jobs slice (rolled-back mutation provably schedules nothing;
-injected-clock drain), and option A on the JS/React arm (the diaries'
-exact GAP rows: cold retained boot, restart-safe queue, reconnect
-settlement).
+**First slices** — two separately named pilots of the same substrate,
+each M-to-L with its own completion boundary, not one slice: *slice
+3-jobs* — the CV-9 jobs slice (rolled-back mutation provably
+schedules nothing; injected-clock drain), owner LLP 0070, startable
+now with the callee-class decision (0121 OQ2) made inside it; and
+*slice 3-offline* — option A on the JS/React arm, targeting the
+diaries' GAP-row family (cold retained boot, restart-safe queue,
+reconnect settlement) for the retainable subset — the scored arms'
+protected opaque rows stay non-retainable by design — and gated on
+open question 2's arm confirmation.
 
 **Decisions forced.** The callee class for jobs v1 (0121 OQ2); whether
 option C ever enters; which client arm carries the first hardened
@@ -253,11 +314,18 @@ quarantine flicker before remedying it; the blank is the fail-closed
 proof of revocation and must not be smoothed away (0119 finding 7).
 On the classification itself, this RFC respects 0115's watch item — no
 action until the post-CV-11, React-measured rerun scores the boundary
-itself — but pre-registers the answer if it triggers: option 1a, one
-authored kind with split callable/subscribable capability facts,
-scoped per target. It erases the authoring decision while keeping
-per-function honest claims, with no inference and no universal target
-claim — the only decomposed variant that costs no evidence.
+itself — but pre-registers an answer if it triggers, as this RFC's own
+judgment: 0119 ranks none of the decomposed variants. The choice is
+option 1a — one authored kind with split callable/subscribable
+capability facts, scoped per target — on a mechanism assumption 0119
+leaves unspecified: the subscribable fact must be minted from a
+declaration, never classified from plan shape (which would be option
+2's inference). On that assumption 1a erases the authoring decision
+while keeping per-function honest claims and no universal target
+claim — the variant this RFC judges cheapest in evidence terms. The
+unchosen alternative is 1b (live by default behind an authored escape
+hatch), which 0119 notes also preserves an authored non-live fact
+without any static inference.
 
 **Fronts.** 0119 in full; CV-11; the reactive half of 0122's coherence
 complaint; the client-consumption half of 0117 (typed hooks consume
@@ -322,17 +390,24 @@ policy any boot-witness shape must go through; LLP 0114 owns the
 starter; LLP 0061 owns the guide recomposition (0122 OQ4 — corpus and
 page composition, no mechanism change).
 
-**First slice.** CV-2's bootstrap VM qualification plus the
-mismatched-framework regression fixture (already the plan's P0), the
-`types`-condition sweep, and the CV-1 external workout-arm rebuild once
-the custody decisions land.
+**First slices** — three separately named workstreams, not one slice:
+*slice 5-qual* — CV-2's bootstrap VM qualification plus the
+mismatched-framework regression fixture (already the plan's P0),
+startable today; *slice 5-types* — the `types`-condition sweep,
+startable today; *slice 5-rebuild* — the CV-1 external workout-arm
+rebuild, blocked on the custody decisions (open question 4) and named
+separately so the block stays visible instead of averaging into a
+bundle.
 
 **Decisions forced.** The npm default-channel gate (0115 OQ5 — the
 single highest-leverage decision in this space, 0122 finding 7);
 admin-client and test-helper custody (0122 option 6 — CV-1's exit is
 unsatisfiable without both); the static-for-adopters build-policy
 ratification (0123 OQ3); naming timing — the rename price rises with
-every receipt bound to the alias (0122 option 7).
+every receipt bound to the alias (0122 option 7); and where
+`@snapback/app-cli` fits the one-CLI story — a `snapback` subcommand
+namespace, a divided-audience peer, or an internal surface not
+marketed to app authors (0122 OQ6).
 
 ### Move 6 — Bounded profiles are the unit of everything
 
@@ -397,28 +472,39 @@ unusable by every workout fixture (OQ5).
 ## The composition map
 
 How the moves cover the series' headline gaps. "Residual" names what
-is deliberately left open, gated, or delegated — not forgotten.
+is deliberately left open, gated, or delegated — not forgotten. Where
+a Fronts line says "in full," it claims exactly this: every headline
+gap the source's own summary names is either covered by the move or
+named in the residual column — never that every source option was
+adopted.
 
 | Front | Headline gap (post-review) | Covered by | Deliberate residual |
 | --- | --- | --- | --- |
-| 0117 type flow | four mechanisms: return inference, structured inputs, omission policy, interior typing | Move 1: A+E (inputs, bulk compression), F (interior), G (omission), CV-5 reference lane | full inference (B/H) not adopted; infer-then-freeze (C) bridges only if post-A+E measurement still scores bulk as decisive |
+| 0117 type flow | four mechanisms: return inference, structured inputs, omission policy, interior typing | Move 1: A+E (inputs, bulk compression), F (interior), G (omission), CV-5 reference lane | mechanism (a) unimplemented — E compresses declarations, never infers; full inference (B/H) not adopted; infer-then-freeze (C) bridges only if post-A+E measurement still scores bulk as decisive |
 | 0118 helpers | designed duplication; both instances same-file | Move 2: 1a + splice + stdlib + drift diagnostic | multi-file imports gated on measured pressure; hermetic package closures deferred by explicit boundary decision |
 | 0119 reactive/live search | classification fee; search non-live; register cliff; flicker | Move 4: finish-and-measure 0112/0114, coarse live search under own id, cliff gradient, flicker diagnosis | classification erasure watch-gated with 1a pre-registered; option 5 precision later |
 | 0120 relational/aggregation | aggregation + multi-child fan-out + sequence counters, not joins | Move 6: sequence primitive, 3a composite, contracted aggregates, 2a budgets | general query language rejected; maturity route is an author gate |
 | 0121 one-off scheduling | primitive designed (0070), unbuilt; inspection unowned | Move 3: CV-9 slice + enqueue-association receipts; Move 1: declared job-status query | hosted one-off blocked-on per 0070; exactly-once not claimed (0121 finding 11) |
-| 0122 packaging/coherence | published but unconsumed; five facets | Move 5: CV-1 floor, starter front door, cheap moves, first-hour gate | naming migration timed by author; single-binary pending joint spike |
+| 0122 packaging/coherence | published but unconsumed; five facets | Move 5: CV-1 floor, starter front door, cheap moves, first-hour gate | naming migration timed by author; single-binary pending joint spike; `@snapback/app-cli`'s one-CLI placement open (0122 OQ6); meta-package (0122 option 3) unadopted, its registry probe kept as a measurement gate |
 | 0123 runtime readiness | two-artifact coherence; nothing witnesses the serving boundary | Move 5: sealed qualified pair, boot witness (posture-neutral first), CV-2/3 receipts | engine alternatives remain risk analysis; TOCTOU binding open (0123 OQ8) |
-| 0124 storage/vector | storage owner stale; vector unowned | the moves' admission pattern (staged, evidence-first, per-request-authorized, receipted) applied by new/revived owners — sequenced under LLP 0074, not absorbed into 0115 | V3 embedding pipeline later by 0019's sequencing; external stores earn admission late |
-| 0125 conflicts | remainder: rejection unions, failure-shape split, burst | Move 1: unions as contract variants; Move 3: retry-as-evidenced-contract; Measurement: burst profile | wire-shape unification delegated to 0094/0095 for a dated decision; partial-effect distinction preserved in any unification |
-| 0126 local-first | decisive bakeoff GAPs; rerun measured nothing | Move 3: A → IR rung → desktop sidecar, riding move 2 (closed graph), move 5 (sealed artifact), move 6 (replica admission) | CRDT core and raw replica rejected; client mutators (C) conditional; mobile/WASM/in-process behind named spikes |
+| 0124 storage/vector | storage owner stale; vector unowned | the moves' admission pattern (staged, evidence-first, receipted; delivery authorization stays an open axis — 0124 OQ7) applied by new/revived owners — sequenced under LLP 0074, not absorbed into 0115 | V3 embedding pipeline later by 0019's sequencing; external stores earn admission late |
+| 0125 conflicts | remainder: rejection unions, failure-shape split, wide-409 taxonomy, burst | Move 1: unions as contract variants; Move 3: retry-as-evidenced-contract; Measurement: burst profile | wire-shape unification and the unified app-visible conflict taxonomy (0125 option 1/OQ1 — the wide-409 contract) both delegated to 0094/0095 for dated decisions; partial-effect distinction preserved in any unification |
+| 0126 local-first | decisive bakeoff GAPs; rerun measured nothing | Move 3: A, then D's two parallel ladders (shared IR rung; desktop sidecar WASM-independent), riding move 2 (closed graph), move 5 (sealed artifact), move 6 (replica admission) | CRDT core and raw replica rejected; client mutators (C) conditional; mobile/WASM/in-process behind named spikes; protected-opaque retention out by design (0053; 0126 OQ2); offline search unowned (0126 OQ6); delta-resume consumer a named unbuilt prerequisite; option F a proposed successor-Plan rider (§Sequencing 5) |
 
-The composition is the point: move 2 is ground for move 3; move 5's
-artifact is move 3's desktop carrier and the tuple's runtime-identity
-element; move 6's profiles are move 3's replica admission vocabulary
-and move 4's matcher vocabulary; move 1's grammar carries move 3's
-receipts and move 4's typed consumption. No move is bespoke to one
-front, and no front outside 0124 needs a mechanism not already in the
-set.
+The composition is the point — with its couplings named for what they
+are. Hard prerequisite: move 2 is ground for move 3. Shared artifact:
+move 5's artifact is move 3's desktop carrier and the tuple's
+runtime-identity element; move 1's grammar carries move 3's receipts
+and move 4's typed consumption. Proposed answer: move 6's profiles
+are move 3's replica-admission vocabulary — this RFC's answer to 0126
+OQ4, which poses it as a question. Shared principle only: move 6's
+profiles and move 4's matcher ride the same declared-bounded-shape
+family the live matcher, OCC validator, and retainability rule
+already consume (0126 finding 7), but no single shared descriptor
+artifact exists yet — minting the concrete mapping is move 6 design
+work, and until it lands the move 6 → move 4 line is an architectural
+rhyme, not a dependency. No move is bespoke to one front, and no
+front outside 0124 needs a mechanism not already in the set.
 
 ## What this deliberately does not do
 
@@ -433,10 +519,10 @@ decision rather than an omission:
   identity a function of compiler version. Any future re-litigation
   scores itself against H, not B (0117 finding 7).
 - **No open module imports.** The ambient form is the clearest
-  constraint-1 violation in the corpus — the evidence loss is
-  structural, not incidental (0118 option 4). The hermetic variant is
-  bounded, not dismissed, and waits for third-party pressure the
-  diaries do not contain.
+  candidate constraint-1 violation in the corpus (0118's own hedge) —
+  the evidence loss is structural, not incidental (0118 option 4).
+  The hermetic variant is bounded, not dismissed, and waits for
+  third-party pressure the diaries do not contain.
 - **No general query/graph language.** Its honest version is "profiles
   and their composition, iterated, with an algebra" — sequenced after
   them, never instead of them; the unbounded version is a worse Convex
@@ -473,45 +559,69 @@ absorb the following in a v0.5, and nothing before the author agrees:
 
 1. **The move structure as the board's coherence layer.** The moves map
    onto the existing tranches rather than replacing them: move 5 is
-   Tranche A plus CV-1's adoption half and Tranche E's polish; move 1
-   is Tranche B (CV-4a/4b, CV-5, CV-6) plus its proposed additions;
-   moves 2, 6, and 3's jobs half are Tranche C (CV-7, CV-8, CV-9);
-   move 4 is Tranche D (CV-11, with CV-10/CV-12 riding as specified).
-   Each CV item keeps its owner and analysis pointer; the move names
-   the mechanism it shares with its siblings.
+   Tranche A plus CV-1's adoption half and Tranche E's CV-13/CV-15 —
+   CV-14 is claimed by no move and rides its custody trigger exactly
+   as 0115 specifies; move 1 is Tranche B (CV-4a/4b, CV-5, CV-6) plus
+   its proposed additions; moves 2, 6, and 3's jobs half are Tranche C
+   (CV-7, CV-8, CV-9); move 4 is Tranche D (CV-11, with CV-10/CV-12
+   riding as specified). Each CV item keeps its owner and analysis
+   pointer; the move names the mechanism it shares with its siblings.
+   Move 5's sealed-artifact components beyond the board's scope —
+   adopter-only co-packaging, assembly-boundary qualification, the
+   static-for-adopters policy, the posture-neutral boot witness — are
+   not sequenced by CV-1/2/3; this RFC proposes they proceed under
+   their named owners (LLP 0041, 0010, 0030/0031, 0009) with 0115
+   holding cross-references, not work items.
 2. **Refinements to standing items, from the series' verified
    findings.** CV-7: decision order is graph scope then emission;
    the same-file slice satisfies the exit as written, which bears on
    its L sizing (0118 findings 7/10). CV-8: piece 2 (the
-   stable-promotion design) gates piece 3 on the 0113 route; the
-   sequence primitive ships first (0120 finding 9, finding 4). CV-9:
+   stable-promotion design) gates piece 3 on the 0113 route (0120
+   finding 9); the sequence-primitive-first ordering is *not* in this
+   verified list — it is 0120's labeled lean (finding 4) and this
+   RFC's proposal, riding open question 3. CV-9:
    the paved-default-queue conditional and the inspection-surface
    question travel with the slice ticket (0121's proposal). CV-6:
    strictness is sequenced after A+E per 0117's ordering dependency.
 3. **OQ6 (unowned remainders): absorb, with one delegation.** Add a
    CV item for declaration-closed rejection unions riding the CV-4-era
    grammar work (owner: LLP 0108 family; 0125 option 2), and a small
-   CV item for the typed-interior pilot (0117 option F). Delegate the
-   action/mutation wire-shape decision to LLP 0094/0095 for a dated
-   decision among 0125's option-3 paths, preserving the partial-effect
-   distinction. Burst profiling becomes a rerun precondition (below),
-   not a CV item.
+   CV item for the typed-interior pilot (0117 option F). Delegate to
+   LLP 0094/0095, for dated decisions, both the action/mutation
+   wire-shape choice among 0125's option-3 paths (preserving the
+   partial-effect distinction) and 0125's wide-409 remainder — the
+   unified app-visible conflict taxonomy (0125 option 1; its OQ1
+   already names the same owners: 0094's envelope or a 0095
+   client-conformance rule). Burst profiling becomes a rerun
+   precondition (below), not a CV item.
 4. **OQ7 (product breadth): keep 0115's scope fixed; start the owners
    now.** Revive LLP 0044 (or supersede it by a fresh Spec — 0124 OQ1)
-   with the local per-request-authorized store first and the object-
-   store seam designed; mint the vector owner beside LLP 0073 in its
-   staged-adapter idiom, exact-k-NN-first with the float-pinning
-   question named (0124 OQ2/OQ3). Both proceed under LLP 0074's
-   umbrella in parallel with Tranche A (0124 OQ5's parallel answer),
-   because the blocked app classes do not wait on the parity tranches.
+   with the local store first (per-request-authorized delivery is its
+   natural model, but the delivery-authorization axis stays 0124
+   OQ7's open decision) and the object-store seam designed; mint the
+   vector owner beside LLP 0073 in its staged-adapter idiom —
+   exact-k-NN-first is this RFC's labeled proposal, and the
+   exact-versus-ANN base-profile order is 0124 OQ3's reserved
+   adjudication, routed to open question 8 rather than assumed, with
+   the float-pinning question named either way (0124 OQ2/OQ3). Both
+   proceed under LLP 0074's umbrella in parallel with Tranche A (0124
+   OQ5's parallel answer), because the blocked app classes do not
+   wait on the parity tranches — which requires this v0.5 to amend
+   §Sequencing 1's "Tranche A first, and alone" sentence with an
+   explicit breadth carve-out rather than contradicting it silently.
 5. **Local-first: a successor Plan, not a 0115 tranche.** 0115's board
    deliberately contains no offline item and its exit is the parity
    rerun; widening it would couple two programs with different exit
-   criteria. The local-first program (move 3's ladder: option A → IR
-   rung → desktop sidecar, plus the five owner-landings) gets its own
-   sequencing document under 0126 OQ7's answer, cross-gated with 0115
-   where the substrate is shared: move 5's sealed artifact, move 2's
-   closed graph, move 6's profile vocabulary. 0115 gains a
+   criteria. The local-first program (move 3's staging: option A,
+   then option D's two parallel platform ladders, plus the five
+   owner-landings) gets its own sequencing document under 0126 OQ7's
+   answer, cross-gated with 0115 where the substrate is shared: move
+   5's sealed artifact, move 2's closed graph, move 6's profile
+   vocabulary. The successor Plan also carries 0126 option F — the
+   explicit-sync backup/export/restore lane — as a proposed cheap
+   rider: evidence-positive, foreclosing nothing, packaging
+   properties that are already true ("near-zero" stays a hypothesis
+   until the surface is sized, per 0126). 0115 gains a
    cross-reference, and LLP 0074's graduation-path claim gets its
    consumer instead of a restatement.
 6. **Rerun scope (OQ4), proposed.** Keep the seven contracts unchanged
@@ -523,6 +633,12 @@ absorb the following in a v0.5, and nothing before the author agrees:
    rerun measured none of it (0126 finding 1) — and at most one new
    contract for product breadth once OQ7's owners ship something
    scoreable.
+7. **The reactive watch item carries the 1a pre-registration.** Amend
+   0115's reactive-by-default watch item to record move 4's
+   pre-registered answer (option 1a, on the declared-fact mechanism
+   assumption stated there), trigger condition unchanged — so the
+   pre-registration lives where move 4's "what lands where" says it
+   does.
 
 ## Measurement
 
@@ -584,12 +700,15 @@ on the JS/React arm (0126's evidence gate for the hardening claim).
 The author decisions this synthesis forces, in rough order of leverage:
 
 1. **The npm default-channel gate** (0115 OQ5; 0122 option 5): 0111's
-   hosted-serialized `latest` or 0074's parallel gate. Every move-5
-   exit and the rerun's published-channel mode wait on it.
+   hosted-serialized `latest` or 0074's parallel gate. Move 5's
+   packaging-shape exits — CV-1's default-channel half, the starter
+   front door, naming — and the rerun's published-channel mode wait
+   on it; CV-2/CV-3/CV-13/CV-15 exits do not.
 2. **The local-first program's authority and first arm** (0126
    OQ1/OQ7): confirm the successor-Plan shape, the JS/React arm as
-   first carrier, the A → IR-rung → desktop ladder — and whether
-   option C (client mutators) is ever admitted as a bridge.
+   first carrier, the two-parallel-ladder staging with this RFC's
+   IR-rung-first resourcing proposal — and whether option C (client
+   mutators) is ever admitted as a bridge.
 3. **The aggregate lead and the maturity route** (0120 OQ1/OQ7):
    sequence primitive first, then 3a versus the third profile versus
    maintained aggregates — and whether the 0080 direct-to-stable act
@@ -607,16 +726,31 @@ The author decisions this synthesis forces, in rough order of leverage:
 7. **Confirmation of the OQ6 absorb/delegate split** proposed in
    §Sequencing 3, including which document owns the enqueue-receipt
    association shape (0121 OQ4).
-8. **Product-breadth owners** (0115 OQ7; 0124 OQ1/OQ2/OQ5): revive
-   versus supersede LLP 0044; where the vector design lives; parallel
-   start confirmed.
+8. **Product-breadth owners and the vector base profile** (0115 OQ7;
+   0124 OQ1/OQ2/OQ3/OQ5): revive versus supersede LLP 0044; where the
+   vector design lives; parallel start confirmed; and the exact-k-NN
+   versus engine-native-ANN base-profile order — 0124 OQ3's reserved
+   adjudication, on which exact-first is this RFC's labeled proposal,
+   not an inherited answer.
 9. **Naming** (0122 OQ3): whether and when to pay the scope-migration
    price — it rises with every receipt bound to the current alias.
 10. **The settle-time trust policy** for client-captured `now` and ids
     under local execution, and its owning document (0126 OQ3) — the
     first unowned design move 3 hits once option A lands.
 
-None of these blocks the first slices of moves 1, 2, or 5, and only
-items 1 and 4 block a move's exit. The program can start where the
-evidence is already sufficient and decide where it is not — which is
-the posture the whole corpus has been building toward.
+What can start today with no decision made, per move: move 1's
+CV-4a+CV-5 slice; move 2's capability-free-only cut (the slice as
+specified — context-reader-admitting, which both diary instances need
+— waits on item 6); move 3's jobs slice (0121 OQ2 decided inside it);
+move 4's live-search design pass and rerun arm; move 5's slices
+5-qual and 5-types; move 6's sequence-primitive and 3a design passes
+(their shipping order is item 3's call). What blocks what, honestly:
+item 1 blocks move 5's packaging-shape exits and the rerun's
+published-channel mode; item 4 blocks slice 5-rebuild and with it
+CV-1's exit; item 2 gates move 3's displaced-in-space half from arm
+choice through exit; item 3 gates when move 6's surface stops being
+bypassable; item 5 is move 1's own deliberately post-A+E completion
+decision; item 6 bounds how much of move 2's first slice exists. The
+program can still start where the evidence is already sufficient and
+decide where it is not — which is the posture the whole corpus has
+been building toward.
