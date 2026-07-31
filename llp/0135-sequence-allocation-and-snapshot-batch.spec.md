@@ -6,7 +6,44 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.3, round-2 fixes: round 2 of the loop
+**Revised:** 2026-07-31 (v0.4, round-3 fixes: round 3 of the loop
+returned a split verdict
+(`reviews/0135-sequence-allocation-and-snapshot-batch.fable.md`
+round 3: READY — all five round-2 Fable items verified resolved
+against their cited authorities, 5 new DETAIL D-R1–D-R5;
+`reviews/0135-sequence-allocation-and-snapshot-batch.codex.md`
+round 3: NOT READY — round-2 D1/D2 verified resolved, the M1
+diagnostics residue held MATERIAL, 1 new MATERIAL on the lane-Q
+overlay delta). Applied: Codex M1 residue = Fable D-R4/D-R5 (the
+thrown-error payload channel classified: an uncaught handler error's
+code and stringified message are encoded into the handler completion
+envelope and ride the rejection as typed error details — a
+protocol-carried vehicle with app-authored content, the handler
+chose what to throw — named in §1.7's sink matrix as the second
+app-authored disclosure channel beside console diagnostics, with
+sanitizing rejected on the same taint argument as buffering; §1.2's
+no-trace claim narrowed to durable and result surfaces — counter
+state, stored rows, settlement, receipts, activity, declared result
+contract — with a failed invocation's result record pinned clean,
+keeping §5.1's "results record nothing" falsifiable; the impossible
+single-run §5.1 vector split into run A, console disclosure aborted
+by captured-read invalidation, and run B, thrown-error disclosure
+aborted by its own throw — a throwing handler never reaches
+captured-read validation, LLP 0003); Codex lane-Q MATERIAL = Fable
+D-R3 (§1.4's per-projection omission replaced by mutation-atomic
+withholding: if any row of a mutation's optimistic changeset would
+require a sequence-projected placement, the entire changeset is
+withheld from optimistic presentation until settlement — never
+per-projection or per-row, preserving LLP 0043 M2 / LLP 0008
+all-or-nothing changeset atomicity — with the LLP 0043/0008 fold
+drafted as §4.7 and the cross-projection multi-row vector added to
+§5.1); Fable D-R1 (§4.1 pins `maxEncodedBytes` single-valued per
+`(table, field)` — schema-level, not per plan; conflicting
+declarations refuse at admission); Fable D-R2 (§2.4's static worst
+case computed over serialized plaintext bytes in the credential's
+actual closed-record encoding, never the raw sum of declared
+bounds).)
+2026-07-31 (v0.3, round-2 fixes: round 2 of the loop
 returned NOT READY from both families
 (`reviews/0135-sequence-allocation-and-snapshot-batch.fable.md`
 round 2: all fifteen round-1 Fable concerns verified resolved, 2 new
@@ -226,11 +263,21 @@ serialization or as validate-and-retry, and under which diagnostic, is
 owned by the target execution model (LLP 0003), not this Spec; the
 normative contract is only that a committed allocation's counter read
 was still current at its commit and that a failed attempt leaves no
-trace on any durable or protocol surface — counter state, stored
-rows, settlement, receipts, activity payloads, results.
-Handler-authored diagnostics are the named exception to that
-enumeration: an app-authored disclosure channel (§1.7's sink matrix),
-not a protocol surface.
+trace on any durable or result surface — counter state, stored rows,
+settlement, receipts, activity payloads, and the declared result
+contract: a failed invocation stores no settlement row, retains no
+result bytes, and returns no declared-contract result member. Two
+app-authored disclosure channels are the named exceptions to that
+enumeration (§1.7's sink matrix): handler console diagnostics,
+forwarded immediately and never a protocol surface, and the
+thrown-error rejection payload — an uncaught handler error's code and
+stringified message are encoded into the handler completion envelope
+and ride the rejection the submitting caller receives as typed error
+details. That vehicle is protocol; its content is app-authored (the
+handler chose what to throw). The abort causes are distinct and never
+conflated: a throwing handler rejects on its own throw and never
+reaches captured-read validation (LLP 0003), while a handler that
+reaches captured-read validation completed without throwing.
 The writer lock is never held across handler execution, the handler is
 never re-entered mid-commit, and the integer returned mid-handler is
 the value committed — or the transaction does not commit. This is what
@@ -250,9 +297,10 @@ advance is part of the invoking mutation's storage transaction, committing
 or rolling back with it. Consequences, each a contract:
 
 - **No gaps from aborts.** An aborted or refused transaction advances
-  nothing and leaves no trace on any durable or protocol surface
-  (§1.2's enumeration; handler-authored diagnostics are §1.7's named
-  app-authored disclosure). Committed allocations within one
+  nothing and leaves no trace on any durable or result surface
+  (§1.2's enumeration; console diagnostics and the thrown-error
+  rejection payload are §1.7's named app-authored disclosure
+  channels). Committed allocations within one
   `(counter, scope, incarnation)` are strictly increasing **and
   consecutive**. Density is a claim about allocation events, not surviving
   rows: deleting a row that stores value `n` renumbers nothing and is not a
@@ -309,13 +357,21 @@ and specified: lane Q's optimistic overlay is computed from write
 plans and args alone (LLP 0043 M2), the allocated value does not
 exist before settlement, and a sequence order field is
 schema-required and projected wherever it orders (LLP 0110). The v1
-posture is **omission, not fabrication**: the overlay contributes no
-optimistic row to any projection that projects or orders by the
-sequence field until settlement supplies the authoritative value — a
-sentinel would be a presented speculative allocated value, exactly
-what this section prohibits. The overlay lifecycle owner (LLP 0043
-M2, within lane Q's capture semantics, LLP 0133) owns any richer
-successor presentation, beside open question 6.
+posture is **mutation-atomic withholding, not fabrication**: if any
+row of a mutation's optimistic changeset would require a
+sequence-projected placement, the entire changeset is withheld from
+optimistic presentation — every row, in every projection — until
+settlement supplies the authoritative value. The rule is
+mutation-atomic, never per-projection or per-row: LLP 0043 M2 pins
+overlay application all-or-nothing per changeset (LLP 0008's
+multi-row atomicity), and a per-projection omission would present a
+changeset's sequence-free rows while hiding its sequence-bearing
+ones — exactly the partial presentation that atomicity rule exists
+to prevent. A sentinel would be a presented speculative allocated
+value, exactly what this section prohibits. §4.7 drafts the
+LLP 0043/0008 fold; the overlay lifecycle owner (LLP 0043 M2, within
+lane Q's capture semantics, LLP 0133) owns any richer successor
+presentation, beside open question 6.
 
 ### 1.5 Exhaustion
 
@@ -403,13 +459,27 @@ observe it. The observation surface is enumerated, not implied — the
 - **unique-constraint signals**: prefix-partitioned by
   `(scopeId, relationIncarnation)` (§1.1), so another scope's
   conflicting value is not observable;
-- **handler-authored diagnostics**: an app-authored disclosure
+- **handler console diagnostics**: an app-authored disclosure
   channel, outside §1.2's no-trace enumeration — a handler holds the
   tentative integer as an ordinary value before commit and may
-  stringify it into console output or a thrown-error payload, and the
-  diagnostics path forwards immediately (diagnostics are never
-  control flow), so a tentative value can outlive an abort that
-  commits nothing; and
+  stringify it into console output, and the diagnostics path forwards
+  immediately (diagnostics are never control flow), so a tentative
+  value can outlive an abort that commits nothing;
+- **thrown-error rejection payload**: the second app-authored
+  disclosure channel, and the one that rides protocol — an uncaught
+  handler error rejects the mutation (LLP 0003; the throw itself is
+  the abort, and such a handler never reaches captured-read
+  validation), and the error's code and stringified message are
+  encoded into the handler completion envelope and surfaced to the
+  submitting caller as the rejection's typed error details. The
+  vehicle is protocol; the content is app-authored — the handler
+  chose what to throw — and the payload is distinct from the
+  declared result contract, which a failed invocation never
+  populates (§1.2), keeping "results record nothing" falsifiable
+  rather than definitional. Sanitizing sequence-bearing values out
+  of this payload is rejected on the same taint argument as
+  buffering: a stringified or derived copy is untrackable in
+  imperative code; and
 - **timing**: a named nonclaim — no constant-work claim is made.
 
 V1's containment rule: values from a counter may be stored only in the
@@ -422,8 +492,9 @@ prove where the value flows — the declared-versus-proved split
 LLP 0120's option 2 names, recorded here as a limitation, not hidden
 (open question 1); the same honesty extends to diagnostics — the tier
 cannot prove a value stays out of the handler's own logs or thrown
-errors, and v1 narrows the no-trace claim rather than buffering the
-channel, because buffering only sequence-bearing diagnostics is
+errors, and v1 narrows the no-trace claim rather than buffering or
+sanitizing either channel, because scrubbing or buffering only
+sequence-bearing content is
 unenforceable (a stringified or derived copy is untrackable in
 imperative code) and buffering all handler diagnostics until commit
 would blind exactly the aborted attempts diagnostics exist to
@@ -594,7 +665,13 @@ declared order-field types — integer, boolean, and id widths are
 closed, and every string order field must carry the declared
 `maxEncodedBytes` bound of §4.1's drafted order-field-declaration
 member — schema-level and write-enforced, so no stored value can
-exceed it — without which the composite refuses establishment. A
+exceed it — without which the composite refuses establishment. The
+worst case is computed over **serialized** plaintext bytes: each
+bound member's maximal value as encoded in the credential's actual
+closed-record plaintext encoding (the encoding the golden vectors
+pin), escaping and framing included — never the raw sum of declared
+bounds, which can undercount an in-record string encoding and
+reintroduce the mid-flight cliff on adversarial strings. A
 composite whose computed worst case exceeds the
 budget refuses **at establishment** with
 `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED` — a coded
@@ -721,7 +798,11 @@ drafted here so their scope is reviewable:
    `(scopeId, relationIncarnation)`-prefixed unique constraints; the
    order-field declaration gains an optional `maxEncodedBytes` member
    for string order fields — a declared UTF-8 encoded-length maximum,
-   enforced at the write boundary by every central writer (an
+   **single-valued per `(table, field)`**: the bound is schema-level,
+   not per plan — every plan ordering the same string field binds the
+   one authoritative value, and conflicting declarations refuse at
+   admission — enforced at the write boundary by every central writer
+   (an
    oversized value refuses with
    `SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED`), with adoption
    over pre-existing rows requiring the reviewed check that no stored
@@ -757,6 +838,11 @@ drafted here so their scope is reviewable:
    for `sequence_allocation_v1` and `snapshot_batch_v1` when hosted
    qualification is first sought (LLP 0134 §1's rule: family kinds are
    added by dated LLP 0113 amendment, never by inference).
+7. **LLP 0043 / LLP 0008.** M2's overlay rule gains the withholding
+   clause: a changeset any of whose rows would require a
+   sequence-projected placement is withheld whole from optimistic
+   presentation until settlement (§1.4) — extending, never weakening,
+   the all-or-nothing-per-changeset atomicity LLP 0008 pins.
 
 ## 5. Executable acceptance
 
@@ -782,14 +868,22 @@ passing today.
   conflict is the target's per-LLP 0003 choice (§1.2); either
   recovery shape passes. Every target passes this exact vector or
   publishes the structured GAP (§1.3).
-- **Aborted-allocation diagnostic vector**, adversarial: a handler
-  allocates, stringifies the tentative integer into a console log and
-  a thrown-error payload, and is driven to abort by captured-read
-  invalidation on the counter row. The diagnostics channel may carry
-  the tentative value — §1.7's named app-authored disclosure — but
-  every durable and protocol surface is trace-free: counter state,
-  stored rows, settlement, receipts, activity, and results record
-  nothing of the aborted attempt (§1.2).
+- **Aborted-allocation disclosure vectors**, adversarial, two runs
+  with distinct abort causes — a throwing handler never reaches
+  captured-read validation (LLP 0003), so no single run can exercise
+  both channels. Run A (console): a handler allocates, stringifies
+  the tentative integer into a console log, completes normally, and
+  is driven to abort by captured-read invalidation on the counter
+  row; the console channel may carry the tentative value (§1.7's
+  app-authored disclosure). Run B (thrown error): a handler allocates
+  and throws with the tentative integer in the error payload; the
+  throw itself rejects the mutation, and the rejection's typed error
+  details may carry the value (§1.7's protocol-carried app-authored
+  channel). In both runs every durable and result surface is
+  trace-free: counter state, stored rows, settlement, receipts,
+  activity, and the declared result contract record nothing of the
+  aborted attempt — no settlement row and no retained result bytes
+  exist for either run (§1.2).
 - Delete/recreate of the scope row restarts the counter at 1 under the new
   incarnation; orphaned rows stay physically stored but unreachable, and
   `(scopeId, relationIncarnation)`-prefixed unique constraints admit the
@@ -801,6 +895,13 @@ passing today.
 - Exact settlement replay returns byte-identical retained results including
   the allocated value, with the counter advanced exactly once across
   sequential and concurrent duplicates.
+- **Mutation-atomic withholding**, cross-projection: a lane-Q queued
+  mutation whose optimistic changeset mixes a sequence-bearing insert
+  and a sequence-free patch presents neither row optimistically — in
+  every projection, including projections of the sequence-free row
+  alone — until settlement, after which both appear atomically with
+  the authoritative value; no projection ever observes a partial
+  changeset (§1.4).
 - Exhaustion boundary rows: a counter driven to
   `next_value = MAX_SAFE_INTEGER − 1` allocates `MAX − 1`, then `MAX`
   (the last admitted value); the first post-maximum request refuses
@@ -852,7 +953,8 @@ passing today.
   parent `_version` or incarnation change returns the restart diagnostic.
 - Cursor budget: a maximum-width eight-node composite at its declared
   order-field bounds round-trips its `sbsb1` continuation inside the
-  8,192-byte cap; a composite whose static worst case exceeds the
+  8,192-byte cap; a composite whose static worst case — computed over
+  serialized plaintext bytes (§2.4) — exceeds the
   plaintext budget refuses establishment with
   `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`; a custody-ground
   mint failure refuses the page, never reporting a terminal page; and
