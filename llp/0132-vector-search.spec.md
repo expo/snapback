@@ -5,7 +5,27 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.2, round-1 dual-family review fixes — both
+**Revised:** 2026-07-31 (v0.3, round-2 micro-fixes —
+`reviews/0132-vector-search.codex.md` round 2 NOT READY — all five
+round-1 findings RESOLVED, one new MATERIAL on the mutation-side
+refusal contract; `reviews/0132-vector-search.fable.md` round 2
+READY — all seven round-1 findings RESOLVED, three detail notes
+R2-1–R2-3. Applied: the `SNAPBACK_VECTOR_CORPUS_BOUND` refusal
+extended from the overflowing insert to every source mutation that
+would push any destination visibility partition over its declared
+bound — ownership/visibility transfers and partition-key-changing
+updates included — with atomic rollback and the full-destination
+transfer-overflow acceptance probe beside the insert probe (Codex
+MATERIAL); the conversion pin's IEEE 754 attribution corrected — 754
+§5.12.2 mandates correct rounding only to H significant digits
+(H ≥ 20 for binary64) and permits long-input double rounding, so this
+Spec's unconditional any-length pin is deliberately stronger — with a
+beyond-20-significant-digit corpus witness (R2-1); work counter 2
+pinned to declaration-order short-circuit semantics, counting filter
+comparisons actually executed (R2-2); and the query-vector telemetry
+rule moved to its own paragraph, unconditional for every index rather
+than scoped to the private-custody clause (R2-3))
+2026-07-31 (v0.2, round-1 dual-family review fixes — both
 round-1 reviews NOT READY (`reviews/0132-vector-search.fable.md`:
 3 MATERIAL C1–C3 + 4 detail C4–C7;
 `reviews/0132-vector-search.codex.md`: 4 MATERIAL M1–M4 + 1 MINOR M5);
@@ -116,13 +136,19 @@ the writing transaction:
 Admission also pins the conversion *in*, not only the arithmetic
 after it. Wire components arrive as JSON decimals; admission converts
 each to the nearest binary64 value with ties to even — the correctly
-rounded strtod-class decimal-to-binary conversion IEEE 754 specifies
-for decimal character sequences — and the admitted binary64 value,
-not the wire spelling, is the semantic input to storage, digests, and
-every distance. A parser off by an ulp on halfway-adjacent decimals is
-a divergence source of exactly the same kind as the forbidden
-fast-math transformations and does not conform; the adversarial corpus
-carries conversion witnesses (§Acceptance).
+rounded strtod-class decimal-to-binary conversion — and the admitted
+binary64 value, not the wire spelling, is the semantic input to
+storage, digests, and every distance. This pin is deliberately
+stronger than IEEE 754's: §5.12.2 mandates correct rounding only for
+decimal sequences of at most H significant digits (H ≥ 20 for
+binary64) and permits rounding a longer sequence to H digits first —
+a double rounding this Spec does not allow. JSON wire decimals can be
+arbitrarily long, and that is exactly where halfway-straddling inputs
+live, so here correct rounding is unconditional at any input length.
+A parser off by an ulp on halfway-adjacent decimals is a divergence
+source of exactly the same kind as the forbidden fast-math
+transformations and does not conform; the adversarial corpus carries
+conversion witnesses, including beyond-H-digit entries (§Acceptance).
 
 The type contract is specified by this Spec as the vector owner; its
 schema-vocabulary landing (`v.vector(dims)` beside `v.number()` et al.)
@@ -172,11 +198,14 @@ Private custody travels with the matrix. When any participating field
 is `private`, the index inherits 0073's private-custody clause:
 posting bytes, content digests, caches, rebuild and rollback
 generations, backups, and administrative access carry a storage and
-encryption class at least as restrictive as the source. Query vectors
-are embeddings of caller content and are equally custody-bearing:
-logging is redacted, and default telemetry records query shape
-(dimensions, `k`, filter shape) and digest, never raw components —
-0073's query-text telemetry rule, transferred.
+encryption class at least as restrictive as the source.
+
+Query vectors are custody-bearing for every index — all-`public`
+indexes included, not only under the private-custody clause above —
+because they are embeddings of caller content: logging is redacted,
+and default telemetry records query shape (dimensions, `k`, filter
+shape) and digest, never raw components — 0073's query-text telemetry
+rule, transferred unconditionally.
 
 Generation validates every field, filter, and authorization fact, and
 additionally proves the **bounded-scan product rule**:
@@ -367,7 +396,8 @@ noninterference and work-limit claims range over is closed, and the
 evaluation order is fixed. The four counters: (1) partition postings
 enumerated — rows read from the caller's visibility-partition key
 range in canonical key order; (2) filter comparisons evaluated —
-enumerated postings times the declared filters actually tested;
+declared filters test in declaration order with short-circuit on the
+first mismatch, and the counter is the comparisons actually executed;
 (3) scored candidates and their scalar pairs — candidates admitted
 past filtering, and that count times dimensions; (4) release source
 reads — one authoritative-row read per released candidate. Evaluation
@@ -413,9 +443,13 @@ maintenance advance in one transaction, and a maintenance or bound
 failure rolls back the complete source mutation with a stable
 diagnostic (0073's resolved choice, adopted). Accepted rows are
 retrievable at their commit head; no stale-success state exists.
-Inserting a row that would exceed the declared partition corpus bound
-refuses with `SNAPBACK_VECTOR_CORPUS_BOUND` on the ordinary validation
-envelope, rolling back the source mutation — the write side enforces
+Any source mutation that would cause any destination visibility
+partition to exceed its declared corpus bound — an insert, an
+ownership or visibility transfer moving an existing row into a full
+destination partition, or any partition-key-changing update — refuses
+with `SNAPBACK_VECTOR_CORPUS_BOUND` on the ordinary validation
+envelope, rolling back the complete source mutation atomically and
+leaving source and index state unchanged — the write side enforces
 what the generation-time product rule proved, so
 `SNAPBACK_VECTOR_WORK_LIMIT` at query time indicates drift, is
 fail-closed defense in depth, and never releases a partial or
@@ -528,10 +562,13 @@ The implementation must retain executable evidence that:
 - an adversarial arithmetic corpus covers negative zero, subnormals,
   components at the 2^100 admission bound, halfway-case
   decimal→binary64 conversion entries (adjacent decimals that a
-  non-correctly-rounded parser converts off by one ulp), bit-equal
-  distance ties resolved by row-id direction, dimension mismatch, and
-  non-finite refusal. For each named divergence class — FMA
-  contraction, reassociation/reduction reorder, extended-precision
+  non-correctly-rounded parser converts off by one ulp, including at
+  least one witness whose decimal spelling exceeds 20 significant
+  digits, so a parser taking IEEE 754's H-digit shortcut is
+  detected), bit-equal distance ties resolved by row-id direction,
+  dimension mismatch, and non-finite refusal. For each named
+  divergence class — FMA contraction, reassociation/reduction
+  reorder, extended-precision
   (x87) intermediates, FTZ/DAZ subnormal flushing, and one-ulp
   decimal conversion — the corpus commits bit-pattern witness vectors
   with expected output bits per metric, and every compiled kernel a
@@ -553,9 +590,12 @@ The implementation must retain executable evidence that:
   pass deterministically; injected maintenance failure rolls back the
   complete source mutation;
 - the declared corpus bound refuses the overflowing insert with
-  `SNAPBACK_VECTOR_CORPUS_BOUND`; activation preflight refuses an
-  over-bound legacy partition; the generation refuses a declaration
-  violating the product rule;
+  `SNAPBACK_VECTOR_CORPUS_BOUND`, and an ownership transfer into a
+  full destination partition refuses with the same code and leaves
+  source and index state unchanged — the full-destination
+  transfer-overflow probe beside the insert probe; activation
+  preflight refuses an over-bound legacy partition; the generation
+  refuses a declaration violating the product rule;
 - generation refuses every admission-matrix violation — a `private`
   vector, filter, or stored field in a `public-read` index, and a
   `sensitive` or `forbidden` field in any participating role — and
