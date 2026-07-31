@@ -72,7 +72,39 @@
         "result": {
           "kind": "list",
           "row": {
-            "shape": "unknown"
+            "fields": {
+              "expiresAt": {
+                "name": "number",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "key": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "self": {
+                "name": "boolean",
+                "shape": "primitive"
+              },
+              "sourceClientId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "value": {
+                "fields": {
+                  "state": {
+                    "name": "string",
+                    "shape": "primitive"
+                  }
+                },
+                "shape": "object"
+              }
+            },
+            "shape": "object"
           }
         }
       }

@@ -17,7 +17,7 @@
           ]
         },
         "name": "fixturePresence",
-        "resultType": "ReadonlyArray<unknown>"
+        "resultType": "ReadonlyArray<{ \"expiresAt\"?: number; \"key\": string; \"self\": boolean; \"sourceClientId\": string; \"updatedAt\": number; \"value\": { \"state\": string } }>"
       }
     ],
     "mutations": [
