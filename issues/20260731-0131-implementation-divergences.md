@@ -1,0 +1,88 @@
+# LLP 0131 implementation divergences: one delta pass owed
+
+**Status:** Open
+**Impact:** 3
+**Urgency:** 3
+**Ease:** 3
+**Confidence:** 4
+**Severity:** P1
+**Systems:** Application data API, Search, Code generation, Manifest,
+Diagnostics, Documentation
+**Author:** Claude (Fable 5), directed by Charlie Cheever
+**Date:** 2026-07-31
+**Related:** LLP 0131, LLP 0073, LLP 0070,
+issues/20260730-move1-structured-args-and-search-ast.md
+**Marker:** parity-moves, move-1
+
+The wave-1 lane C6 implementation of LLP 0131 landed on main
+(`4ca67710`..`2bd3c4f9`, 2026-07-31) with all suites green, the
+served signal-desk evidence 4/4, and the acceptance-12 benchmark
+admitting the 1 MiB ceiling (p95 scalar 541 ns; 64 KiB depth-8
+structured 571 µs; ~1 MiB 703 µs). The implementer recorded nine
+divergences/observations against the Accepted v0.4 Spec. LLP 0131 is
+Accepted, so these land as one dated amendment/delta pass over the
+Spec — recording what the code actually does where it departs, and
+making the two genuine rulings — rather than silent drift.
+
+1. **Rust search grammar narrowed** (`op` → eq-only enum, `value` →
+   scalar union): not Spec-mandated, but carrier agreement was
+   impossible without it — the published typings were narrower than
+   the deserialization grammar. Accepted-query set unchanged
+   (non-eq/non-scalar were already refused semantically); the refusal
+   moved to parse time under the same public code. Ruling needed:
+   bless the narrowing (recommended) or widen the published typings.
+2. **Explicit-null optionals:** schemars encodes `Option<T>` as
+   `type:["T","null"]` not-required, so serde and the exported schema
+   admit `"field": null`, but derived TS and the published typings
+   spell `field?: T`, rejecting explicit null. The implementation
+   codified a canonical-form projection (optional+nullable → optional
+   non-null) in `search-request-schema.mjs`; the corpus deliberately
+   carries no explicit-null fixture because the carriers genuinely
+   disagree there. This is the one item the implementer flagged as
+   NEEDS A SPEC RULING.
+3. **`allowExtra` gate location:** the Spec says the manifest schema
+   gate refuses `true`; the generated JSON Schema shares
+   `ResultValueContract` nodes and cannot express a lane-conditional
+   constraint, so the refusal is enforced at manifest load (args
+   lane) instead — same fail-closed effect, different mechanism.
+   Record in the Spec.
+4. **Minted code not in the Spec's table:**
+   `SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID` covers args-lane
+   structural defects the table does not enumerate (duplicate/empty
+   entry names, `allowExtra:true`, missing-hash-beside-descriptor
+   pairing). Registered in the server 4xx inventory. Fold into the
+   Spec's table or rename.
+5. **"v2 hash without descriptor" unenforceable:** v1 and v2 hashes
+   are both bare `sha256:hex` on the wire and a legacy manifest (v1
+   hash, no descriptor) must keep loading, so the reverse-pairing
+   refusal cannot be distinguished from legacy without a generation
+   marker. Descriptor-present pairing is fully enforced. Narrow the
+   Spec's claim.
+6. **Replay lane 3 / acceptance 14:** no `ctx.jobs`/durable-jobs
+   surface existed on the branch base, so the enqueue-side successor
+   validation has no code target yet; the seam function is ready for
+   the jobs lane (C2 / LLP 0070) to call. Verify the wire-up when C2
+   lands, then evidence acceptance 14.
+7. **Acceptance rows partially evidenced:** row 8's at-bound/one-over
+   matrix is covered ad hoc, not exhaustively; row 9's
+   hosted-evaluator leg is inherited-by-construction (the seam runs
+   host-side before evaluator dispatch), not fixture-proven per
+   lane; row 13's per-lane pinned fixture table exists only as unit
+   tests. Either add the fixtures or record the weaker evidence
+   shape in the Spec's acceptance table.
+8. **Residue, tracked not owed here:** committed demo surface dist
+   bundles still embed the pre-v2 client with the old uncoded pin
+   (they regenerate through the surface-build lane); the
+   packaged-runtime comparator leg is environment-gated in fresh
+   worktrees (pre-existing); the lockstep `@snapback/client` publish
+   is a release-lane action (rides the SD-6 scope migration,
+   issues/20260731-sd6-scope-migration-and-rebuild.md); Cloudflare
+   advertises neither `result_contract_v1` nor `args_contract_v1`
+   (unchanged posture).
+9. **Cite refresh:** LLP 0131's code cites (line numbers) drifted
+   when the branch landed; the delta pass refreshes them.
+
+Exit. One dated LLP 0131 amendment lands recording items 1–5 and 7
+(with the explicit-null ruling made), item 9's cites refreshed; item
+6 is re-checked at C2's landing and acceptance 14 evidenced or
+explicitly deferred. Item 8 needs no action here.
