@@ -5,13 +5,19 @@
   "description": "Installable Snapback developer loop and native server launcher.",
   "files": [
     "cli.mjs",
+    "comparator-profile.d.mts",
     "comparator-profile.mjs",
     "comparator-receipt.schema.json",
+    "deployment-control.d.mts",
     "deployment-control.mjs",
+    "hosted-control.d.mts",
     "hosted-control.mjs",
+    "hosted-admission-producer.d.mts",
     "hosted-admission-producer.mjs",
+    "index.d.mts",
     "index.mjs",
     "mcp-control.mjs",
+    "runtime-recovery.d.mts",
     "runtime-recovery.mjs",
     "adapters/fly-machines-vm-driver.mjs",
     "hosted-schemas",
@@ -23,13 +29,31 @@
     "snapback": "./cli.mjs"
   },
   "exports": {
-    ".": "./index.mjs",
-    "./comparator": "./comparator-profile.mjs",
+    ".": {
+      "types": "./index.d.mts",
+      "default": "./index.mjs"
+    },
+    "./comparator": {
+      "types": "./comparator-profile.d.mts",
+      "default": "./comparator-profile.mjs"
+    },
     "./comparator-receipt.schema.json": "./comparator-receipt.schema.json",
-    "./deployment-control": "./deployment-control.mjs",
-    "./hosted-control": "./hosted-control.mjs",
-    "./hosted-admission-producer": "./hosted-admission-producer.mjs",
-    "./runtime-recovery": "./runtime-recovery.mjs",
+    "./deployment-control": {
+      "types": "./deployment-control.d.mts",
+      "default": "./deployment-control.mjs"
+    },
+    "./hosted-control": {
+      "types": "./hosted-control.d.mts",
+      "default": "./hosted-control.mjs"
+    },
+    "./hosted-admission-producer": {
+      "types": "./hosted-admission-producer.d.mts",
+      "default": "./hosted-admission-producer.mjs"
+    },
+    "./runtime-recovery": {
+      "types": "./runtime-recovery.d.mts",
+      "default": "./runtime-recovery.mjs"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {

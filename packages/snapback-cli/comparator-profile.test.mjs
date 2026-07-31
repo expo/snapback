@@ -328,7 +328,13 @@ try {
   assert.equal(packagedDevReceipt.cleanup.ok, true);
 
   const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
-  assert.equal(packageManifest.exports['./comparator'], './comparator-profile.mjs');
+  // Export targets may be plain strings or { types, default } condition
+  // objects; the runtime target is the string itself or the default condition.
+  const comparatorExport = packageManifest.exports['./comparator'];
+  assert.equal(
+    typeof comparatorExport === 'string' ? comparatorExport : comparatorExport.default,
+    './comparator-profile.mjs',
+  );
   assert.equal(
     packageManifest.exports['./comparator-receipt.schema.json'],
     './comparator-receipt.schema.json',
