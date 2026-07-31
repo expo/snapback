@@ -3,16 +3,10 @@ export type SchemaVersion = 'snapback.v0';
 export type Principal = string & { readonly __snapbackPrincipal: unique symbol };
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
-export type SearchMatchAtomV1 =
-  | { Term: { value: string; field?: string } }
-  | { Phrase: { values: readonly string[]; field?: string } }
-  | { Prefix: { value: string; field?: string } };
-export type SearchClauseV1 = SearchMatchAtomV1
-  | { Any: readonly SearchMatchAtomV1[] }
-  | { Not: SearchMatchAtomV1 }
-  | { Filter: { field: string; op: 'eq'; value: string | number | boolean } };
+export type SearchMatchAtomV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } };
+export type SearchClauseV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } } | { Any: readonly SearchMatchAtomV1[] } | { Not: SearchMatchAtomV1 } | { Filter: { field: string; op: "eq"; value: string | number | boolean } };
 export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
-export interface SearchRequestV1 { query: SearchQueryAstV1; limit?: number; after?: string }
+export interface SearchRequestV1 { after?: string; limit?: number; query: SearchQueryAstV1 }
 export interface SearchMatchRangeV1 { start: number; end: number }
 export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }
 export interface SearchItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; score: number; fields: Fields; highlights: readonly SearchHighlightV1[] }

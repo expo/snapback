@@ -310,6 +310,7 @@ export const baseline = defineLiveQuery({
       'host_plan_runtime',
       'bounded_children_v1',
       'result_contract_v1',
+      'args_contract_v1',
     ],
   );
   assert.deepEqual(
@@ -319,11 +320,12 @@ export const baseline = defineLiveQuery({
       'mutation_read_set_validation',
       'write_activity_v1',
       'result_contract_v1',
+      'args_contract_v1',
     ],
   );
   assert.deepEqual(
     publishedFunctions.acknowledgedExperimentalCapabilities,
-    ['bounded_children_v1', 'result_contract_v1', 'write_activity_v1'],
+    ['args_contract_v1', 'bounded_children_v1', 'result_contract_v1', 'write_activity_v1'],
   );
   const guardedManifest = byName.get('addTask').runtime.HostPlan.WriteWithActivity.mutation;
   assert(

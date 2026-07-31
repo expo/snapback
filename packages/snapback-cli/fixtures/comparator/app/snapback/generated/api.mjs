@@ -30,7 +30,7 @@ export const groups = Object.freeze({});
 export const api = Object.freeze({
   "activityRows": {
     "appId": "app",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -38,7 +38,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "app:activityRows",
-    "implementationHash": "sha256:b57ce30e925a5f6f30b030d2a6092aa41175306cc65a0dd57fb0b8a56dcbc2ad",
+    "implementationHash": "sha256:a3aefd3d7b6e5d61aebd341227336b1c5f88c19d08e10c25b6393363cf410639",
     "kind": "LiveQuery",
     "name": "activityRows",
     "resultContractHash": "sha256:46eb4150afe67767c41fb7922c74311919be00941b8deddb1ecce2b46a012c5f",
@@ -71,7 +71,7 @@ export const api = Object.freeze({
   "groups": {},
   "liveRows": {
     "appId": "app",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -79,7 +79,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "app:liveRows",
-    "implementationHash": "sha256:5edd9ca4944a06a5c1bf962a29bf231c0d038c4a1f25c8ede2fffdecf0301696",
+    "implementationHash": "sha256:c1b182218c558b0b7414e82c13e579282cf1d8c687509a3d92ef7197b75f157c",
     "kind": "LiveQuery",
     "name": "liveRows",
     "resultContractHash": "sha256:ba4a45143d6f6efa5f35a6ad58d1830248eb5807f5caf9e57e233fe16f82dcb8",
@@ -87,7 +87,7 @@ export const api = Object.freeze({
   },
   "primaryRows": {
     "appId": "app",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -95,7 +95,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "app:primaryRows",
-    "implementationHash": "sha256:2421830293b53ebd55114614924ea4592e1a1bfe0708b0c0bad06c7e7d0f77e4",
+    "implementationHash": "sha256:f8817869ab197a504537ca0249e800422f3e33151b9f39843d7b4d5aed2b28db",
     "kind": "LiveQuery",
     "name": "primaryRows",
     "resultContractHash": "sha256:eeb982ca6eb410b47d21339f943f854502bb668616447dd68934611c10c3a446",
@@ -103,7 +103,7 @@ export const api = Object.freeze({
   },
   "publishLiveRow": {
     "appId": "app",
-    "argsContractHash": "sha256:8f4a0b35032b4065fdd92bf3969a17ec55c6001da2326c576dfdaf62d7dce9e4",
+    "argsContractHash": "sha256:b17498da304df9fb48249deeed4b296d239c505f25ef7a639b3f410efc777bd0",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -118,7 +118,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "app:publishLiveRow",
-    "implementationHash": "sha256:70556b75a69e78855b53c5c1d3f10c93a030a8a4398d91e283f12dc5f06b74eb",
+    "implementationHash": "sha256:71030e268b602f757c2c3dc460c220e74561c44449cb95e37725b4309bbe5a70",
     "kind": "Mutation",
     "name": "publishLiveRow",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -126,7 +126,7 @@ export const api = Object.freeze({
   },
   "rejectInvalidWrite": {
     "appId": "app",
-    "argsContractHash": "sha256:667ce5de2952fbf2c8a1db169e3f9fd2d2e1946c3f60c9b6828dbb2fc4a7e1f1",
+    "argsContractHash": "sha256:f15b5911f276aecb7f7c644cb698de5ac7d8a33388bb634e5aec25b29d4b06f6",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -141,7 +141,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "app:rejectInvalidWrite",
-    "implementationHash": "sha256:729a47250b5c74fe3be36269230b0430dfea60b83ff66ddf2e18e27c7e001e2f",
+    "implementationHash": "sha256:d6cefd418a2044649475b419e3b34bc62a7f2575f8cab6c04269205574723649",
     "kind": "Mutation",
     "name": "rejectInvalidWrite",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -149,7 +149,7 @@ export const api = Object.freeze({
   },
   "rejectionRows": {
     "appId": "app",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -157,7 +157,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "app:rejectionRows",
-    "implementationHash": "sha256:8f012aad5a4928fd73976c0edaa566990bf5b6f5c9b3bc2c3f39f1b51e3a6d80",
+    "implementationHash": "sha256:a496a2d52a46f04e10ab1f5b23f8e87256ec71f04a39f91a80ca12a16a82fc4e",
     "kind": "LiveQuery",
     "name": "rejectionRows",
     "resultContractHash": "sha256:145be32064f6940253b62f0e05479e3ee9c28f7dea0fe00a1a2c3edb64b62bc1",
@@ -165,7 +165,7 @@ export const api = Object.freeze({
   },
   "writePrimaryAndActivity": {
     "appId": "app",
-    "argsContractHash": "sha256:b80cc87f8cb46c6ec07f7efb9bc81eab489b912d6f6973605f6ea7b7136d6a00",
+    "argsContractHash": "sha256:a9797fc4c6a342b0c25deba97a3e1075ab10c828facb3d5a296bf276f5b66f40",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -184,7 +184,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "app:writePrimaryAndActivity",
-    "implementationHash": "sha256:2e30a434cd1ffbd07cdf2972ba1f01ab63f7bf0c875e2359b8dfab147ba9ccd2",
+    "implementationHash": "sha256:0a8b92e2161be3eccca0c255a01ac8461b6c6391f6d4bd127f80058e8095af1a",
     "kind": "Mutation",
     "name": "writePrimaryAndActivity",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",

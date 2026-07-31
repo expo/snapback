@@ -197,7 +197,7 @@ export const booksWithAuthors = defineRelationalQuery({
   assert.equal(plan.joinedIndex, 'by_slug');
   assert.deepEqual(
     [...fn.requiredCapabilities].sort(),
-    ['host_plan_runtime', 'live_subscriptions', 'relational_query_v1', 'result_contract_v1'],
+    ['args_contract_v1', 'host_plan_runtime', 'live_subscriptions', 'relational_query_v1', 'result_contract_v1'],
     'the relational capability is required, so unsupported targets refuse at generation',
   );
   assert.deepEqual(fn.effectCeiling, {
