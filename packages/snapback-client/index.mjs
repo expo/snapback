@@ -10329,6 +10329,9 @@ function liveStreamProtocols(grant, protocols = {}) {
 
 function functionName(ref) {
   const name = typeof ref === 'string' ? ref : ref?.name;
+  // The one reserved system live query (LLP 0044 §Live asset lifecycle):
+  // server-admitted by exact name, never a generated identifier.
+  if (name === '_snapback.assetRecord') return name;
   if (typeof name === 'string' && GENERATED_IDENTIFIER.test(name)) return name;
   if (typeof name === 'string') {
     throw new TypeError(`Snapback function name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
