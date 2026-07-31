@@ -1,7 +1,6 @@
 # Move 5 slices 5-qual and 5-types: armed-VM bootstrap qualification (CV-2/CV-3) + types-condition sweep
 
-**Status:** Open (5-qual EXECUTED in-branch 2026-07-31, pending landing on
-main; 5-types is a separate lane and remains open here)
+**Status:** Resolved
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 3
@@ -197,3 +196,25 @@ receipt/tamper/doctor-read-only fixtures),
 `demos/_kit/tests/server-process-lifecycle.mjs` (rung coverage),
 `tests/runtime_qualify_posture_v0.rs` (posture neutrality). 5-types remains
 with its own lane; this ticket closes when both halves land on main.
+
+## Resolution (2026-07-31)
+
+RESOLVED. Both halves are on main. Slice 5-qual: CV-2 landed at
+`814acd77` (runtime-qualify create/destroy gate, relink
+invalidation, regression fixture); the CV-3 remainder landed at
+`63dacde2` (persisted `snapback.runtime-readiness.v1` receipt across
+bootstrap, doctor, and proof) and `5ac77b8d` (all four kit rungs
+receipt-gated + the CV-15 `unpinned` verdict split), with the
+posture-neutrality pin at `4d85920f` and the strict-Host precondition
+resolved as a documented finding
+(`issues/20260731-first-vm-only-strict-host-context.md` carries the
+standing ratification item with LLP 0009's owners). Slice 5-types:
+landed at `1f475864` — 51 hand-authored declarations across the ten
+publishing packages, `types`-first export conditions, publish-files
+coverage, and `scripts/check-package-export-types.mjs` as the
+three-phase structural regression gate wired into the local proof.
+LLP 0115 CV-1 gap 4, CV-2, CV-3, and CV-15 board rows record the
+landings. Slice 5-rebuild and the decision-9 scope migration it
+follows are tracked separately at
+`issues/20260731-sd6-scope-migration-and-rebuild.md`, per this
+ticket's decision boundary.

@@ -1,6 +1,6 @@
 # CV-8 piece 2: author the stable-promotion design LLP 0113 requires
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -50,3 +50,20 @@ Exit. The stable-promotion design exists as reviewable text in the
 0113/0080 orbit, specifying the code-and-document maturity change and its
 evidence bar; LLP 0115 CV-8 piece 2 can cite it as landed. No maturity is
 claimed or promoted by this ticket itself.
+
+## Resolution (2026-07-31)
+
+RESOLVED. The stable-promotion design landed as LLP 0134 ("Capability
+maturity promotion to stable", Spec) — the landing-shape author call
+resolved as its own owned design beside LLP 0113 in the 0113/0080
+orbit, exactly one of the two shapes this ticket allowed. It
+specifies the E1–E8 evidence bar, the static code-owned maturity
+constant's change mechanics (a code change with its own evidence bar,
+digest-bound via the staged-tree manifest, never a publication-time
+mutation), the acknowledgment-gate consequences of promotion, and
+demotion/rollback records with the objective-trigger fast path as the
+Spec's own standing delegation. The dual-family loop converged (Fable
+READY round 3, Codex READY round 5, zero unresolved MATERIAL) and the
+Spec was ACCEPTED under LLP 0130 SD-4 (commit `60ce07ac`). No
+maturity was claimed or promoted by this ticket, per its exit; LLP
+0115 CV-8 piece 2 now cites LLP 0134 as landed.

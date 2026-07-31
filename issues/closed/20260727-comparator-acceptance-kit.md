@@ -1,6 +1,6 @@
 # Package-owned comparator acceptance kit
 
-**Status:** Reopened — packaged revalidation
+**Status:** Resolved (2026-07-30)
 **Impact:** 4  
 **Urgency:** 3  
 **Ease:** 2  
@@ -79,3 +79,27 @@ pass. Verified from source with:
 This source-tree verification is not a replacement for the installed-package
 cold proof. Close this ticket again only after the release lane reruns the
 staged/public-style cold install and retains its refreshed receipt.
+
+## Resolution — 2026-07-30
+
+The public `0.1.1` package proof reran the comparator through the installed
+CLI on independently provisioned Darwin/arm64 and Linux/x64 hosts:
+
+- `demos/partiful-matrix/acceptance/evidence/step5-package-public-darwin-arm64.json`
+  and `step5-package-public-linux-x64.json` both report
+  `packagedComparatorProfile: true` against registry-downloaded package bytes.
+- Each retained `comparatorReceipt` passes all five named properties:
+  cross-client native live delivery, atomic declared writes, rejected-mutation
+  rollback without a durable-version advance, TTL plus disconnect presence
+  cleanup, and ephemeral/durable version separation.
+- The receipts bind the exact target, artifact, and runtime binary identities;
+  cleanup is managed and successful, with the leader exited and temporary
+  state removed.
+- The public publication ledger
+  `demos/partiful-matrix/acceptance/evidence/step5-package-publication.json`
+  binds the same nine-package `0.1.1` closure to both platform receipts.
+
+This is the installed-package revalidation the reopening required. Signal
+Desk remains a thin package-owned comparator configuration, and the public
+proof no longer relies on repository-private imports or a source-tree-only
+client path.

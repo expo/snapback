@@ -1,6 +1,6 @@
 # LLP 0131 implementation divergences: one delta pass owed
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
@@ -94,3 +94,52 @@ Exit. One dated LLP 0131 amendment lands recording items 1–5 and 7
 (with the explicit-null ruling made), item 9's cites refreshed; item
 6 is re-checked at C2's landing and acceptance 14 evidenced or
 explicitly deferred. Item 8 needs no action here.
+
+## Resolution (2026-07-31)
+
+Executed as "Amendment (2026-07-31): implementation record and
+rulings" in llp/0131-structured-argument-contracts.spec.md (new
+Revised entry stacked; Status stays Accepted):
+
+- **Item 1 — resolved.** Recorded; ruling made: the narrowing is
+  **blessed** (`op` eq-only enum, `value` scalar union,
+  src/search/types.rs:181–199) — carrier agreement required it, the
+  accepted-query set is unchanged, the refusal moved to parse time
+  under the same public code.
+- **Item 2 — resolved.** Recorded; ruling made: the canonical-form
+  projection (optional+nullable → optional non-null,
+  packages/snapback-codegen/search-request-schema.mjs:22–26) is the
+  Spec's; explicit null is outside the cross-carrier agreed set and
+  the corpus deliberately carries no explicit-null fixture; a future
+  widening needs its own dated amendment with fixtures on every
+  carrier.
+- **Item 3 — resolved.** Mechanism recorded: refusal at manifest load
+  in the args lane (src/manifest.rs:1490–1498 via
+  `ContractLane::Args`), not in the shared JSON Schema, which cannot
+  express the lane-conditional constraint.
+- **Item 4 — resolved.** Folded into the Spec's code table with its
+  actual coverage (empty/duplicate entry names, `allowExtra: true`;
+  minted manifest.rs:1196–1205; 4xx at src/server.rs:21866; inventory
+  at server.rs:34975). One correction to this ticket's own record:
+  missing-hash-beside-descriptor pairing refuses under
+  `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID` (manifest.rs:1581–1591),
+  not under the new code as the item above states.
+- **Item 5 — resolved.** Claim narrowed in the amendment:
+  descriptor-present pairing fully enforced
+  (manifest.rs:1581–1604); v2-hash-without-descriptor is
+  indistinguishable from a legacy v1 manifest without a generation
+  marker and loads as legacy (manifest.rs:1559–1563).
+- **Item 7 — resolved.** Weaker evidence shapes recorded beside the
+  acceptance rows (row 8 ad hoc, row 9 hosted leg
+  inherited-by-construction, row 13 unit tests), plus row 12's
+  admitted benchmark and row 14's C2 evidence (src/local.rs:1712 and
+  1756; test src/server.rs:36546).
+- **Item 9 — resolved.** Twelve present-tense cites refreshed in
+  place against the current tree; baseline cites left as the recorded
+  pre-implementation ground and mapped to their landed replacements
+  in the amendment; acceptance 14's evidence recorded in the
+  amendment's row-14 entry.
+
+Items 6 (closed at C2's landing, above) and 8 (tracked residue owed
+elsewhere) needed no further action. This ticket can move to
+issues/closed/.

@@ -1,6 +1,6 @@
 # Move 6 first slice: sequence-allocation primitive design + 3a snapshot-batch composition design
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -68,3 +68,23 @@ aggregate is an evidence regression); the anonymous-arm authority gap
 (0120 OQ5); and the enforced examined-entry budgets tier (option 2a, LLP
 0108's family) — all separate author decisions or separately owned work,
 not design passes this ticket performs.
+
+## Resolution (2026-07-31)
+
+RESOLVED. Both design passes landed as LLP 0135 ("Sequence allocation
+and snapshot-batch composition", Spec), authored as one document in
+the "own small owned design" shape this ticket anticipated for the
+sequence primitive, with the 3a composition pass riding the same
+frame and the LLP 0080/0110-orbit questions cited rather than
+re-decided. The dual-family loop converged (Fable READY round 3,
+Codex READY round 4, zero unresolved MATERIAL) and the Spec was
+ACCEPTED under LLP 0130 SD-4 (commit `8c2955c1`). Exit satisfied as
+written: reviewable design text, semantic surfaces fully mapped
+(scope identity/incarnation, allocation-vs-commit order, gap
+observability, idempotency, exhaustion, hot-key serialization as a
+named empirical expectation, allocation authority; per-node auth
+dedup, coordinated-resume cursors, composite ceilings/identity,
+sealing-entirely partial refusal), empirical expectations named as
+expectations, no implementation, no maturity or capability claims.
+Implementation (sequence primitive first, then 3a, per 0127
+decision 3) proceeds as wave-2 work now that LLP 0135 is Accepted.

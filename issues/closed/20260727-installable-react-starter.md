@@ -1,6 +1,6 @@
 # Installable React starter and first-hour witness
 
-**Status:** Open  
+**Status:** Resolved (2026-07-30)
 **Impact:** 5  
 **Urgency:** 4  
 **Ease:** 3  
@@ -94,3 +94,29 @@ and public-versus-staged nonclaims discoverable.
 
 This correction adds no browser claim. The ticket remains open on the same
 public expanded-closure and browser acceptance gates above.
+
+## Resolution — 2026-07-30
+
+The later immutable public `0.1.1` publication closure satisfies the gates that
+were still open at the last checkpoint:
+
+- `demos/partiful-matrix/acceptance/evidence/step5-package-public-darwin-arm64.json`
+  and `step5-package-public-linux-x64.json` are clean-machine, public-registry
+  receipts for the same nine-package closure. Both bind registry tarball
+  digests and exact runtime identities and report
+  `platformClaimSatisfied: true`.
+- Both receipts pass the packaged scaffold/offline-generate path, the managed
+  dev ready/attach/watch/stop lifecycle, React web typecheck/test/build/live
+  acceptance, the one-command backend/Vite journey, a real-browser
+  seed/live/reload witness, private-surface absence, Expo typecheck/iOS export,
+  and the relative versioned-seed seam.
+- `demos/partiful-matrix/acceptance/evidence/step5-package-publication.json`
+  binds the published `@ccheever/snapback-*` `0.1.1` bytes, including both
+  runtime platform packages, to the qualified Darwin and Linux receipts.
+- The public receipts contain no sibling-source checkout dependency and retain
+  the exact installed package, artifact, and runtime identities.
+
+The staged Signal Desk receipt remains useful historical evidence but is no
+longer the closure authority. The public two-platform receipts supersede its
+deliberate `public-registry: false` nonclaim. The `todo-react` scaffold and
+first-hour path are therefore shipped and publicly qualified.

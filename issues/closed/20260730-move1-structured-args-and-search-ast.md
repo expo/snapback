@@ -1,6 +1,6 @@
 # Move 1 first slice: structured argument validators (CV-4a) proved on the typed search AST (CV-5)
 
-**Status:** Implemented (2026-07-31, wave-1 lane C6)
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 2
@@ -110,3 +110,16 @@ slice's A+E land and stays out of this ticket. Nor option F interior typing
 or the rejection-union work: 0127 decision 7 CONFIRMED the absorb/delegate
 split, so those are now confirmed CV items (0115 CV-17/CV-16), tracked
 separately — still not this ticket's scope.
+
+## Resolution (2026-07-31)
+
+RESOLVED. The slice is fully landed and its record is complete: LLP
+0131 Accepted under SD-4 (dual-family loop), implementation landed
+(`4ca67710`..`2bd3c4f9`) with the exits above evidenced, the
+enqueue-side successor validation wired at C2's landing
+(`804782a1`, 0131 acceptance 14), and the nine implementation
+divergences resolved by the dated 0131 amendment (`028ad646`;
+divergence ticket closed). The excluded items remain excluded and
+separately tracked per the decision boundary (option E in the CV-4
+Spec's own loop, CV-4b stored fields, post-A+E strictness,
+CV-16/CV-17).

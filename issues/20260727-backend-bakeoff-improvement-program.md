@@ -23,7 +23,7 @@ existing programs or weakening Snapback's capability honesty.
 
 | Comparison item | Current classification | Owning ticket or disposition |
 | --- | --- | --- |
-| 1. installable React starter | Implemented; public qualification pending | `20260727-installable-react-starter.md` |
+| 1. installable React starter | Implemented and publicly qualified | `closed/20260727-installable-react-starter.md` |
 | 2. one `snapback dev` supervisor | Implemented | LLP 0041 and package suite |
 | 3. exact runtime/link doctor | Implemented | closed `20260727-guide-gap-runtime-link-smoke.md` |
 | 4. binary identity mismatch message | Implemented | closed `20260727-guide-gap-runtime-link-smoke.md` |
@@ -35,7 +35,7 @@ existing programs or weakening Snapback's capability honesty.
 | 10. parent/child and write/activity helpers | Contributor-source complete; publication residual | `20260727-relation-and-activity-patterns.md` |
 | 11. explicit seed evolution | Implemented | closed `20260727-versioned-seed-identity.md` |
 | 12–13. reviewable artifacts and summary | Implemented | closed `20260727-codegen-review-surface.md` |
-| 14. comparator-grade acceptance helper | Implemented; public revalidation pending | `20260727-comparator-acceptance-kit.md` |
+| 14. comparator-grade acceptance helper | Implemented and publicly revalidated | `closed/20260727-comparator-acceptance-kit.md` |
 | 15. supported hosted loop | Fail-closed prerequisite implementation; carrier/custody GAP | `20260726-0072-fly-adapter-remaining-surface.md`, `20260728-hosted-lifecycle-carrier-and-custody-gap.md` |
 | 16. hosted ephemeral parity | Gap; capability remains false | `20260727-hosted-ephemeral-parity.md` |
 
@@ -81,11 +81,13 @@ and has a final independent `READY` review at retention commit `7f92156b`.
 The comparison now ranks Convex first, Snapback second, and Supabase third for
 the scoped application-authoring exercise.
 
-The program remains open only for deliberately honest publication/hosted
-residuals: public starter/comparator revalidation, positive public-package or
-cross-target relation/activity authority, the hosted lifecycle carrier and
-custody design, its remote Fly/Tigris corpus, and hosted ephemeral parity.
-No local capability is held back by the bakeoff rerun.
+The public starter and comparator revalidation completed on 2026-07-30 against
+the immutable public `0.1.1` closure on clean Darwin/arm64 and Linux/x64 hosts;
+their tickets are closed. The program remains open only for the deliberately
+honest hosted/publication residuals: positive public-package or cross-target
+relation/activity authority, the hosted lifecycle carrier and custody design,
+its remote Fly/Tigris corpus, and hosted ephemeral parity. No local capability
+is held back by the bakeoff rerun.
 
 ## Program acceptance
 
