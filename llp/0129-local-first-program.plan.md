@@ -5,7 +5,13 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (v0.3, lockstep round-1 fixes: round 1 of the
+**Revised:** 2026-07-31 (standing-decisions pointer: LLP 0130 records
+the author's pre-adjudicated conditional rules for this program's
+mid-flight gates — SD-3 folds the offline dimension into the shared
+successor rerun, answering §Measurement's pending composition; SD-5
+makes the phase gates self-advancing on gate success; ER-1 reserves
+option-C admission as the author's call alone.)
+2026-07-31 (v0.3, lockstep round-1 fixes: round 1 of the
 {0115 v0.6, 0129 v0.2} lockstep super-refine returned Fable READY /
 Codex NOT READY for this Plan (artifacts
 `reviews/0115-0129-lockstep.fable.md`,
@@ -53,7 +59,7 @@ now cite its landed v0.6, whose open question 8 is the decision
 registry of record.) 2026-07-30 (initial draft, directed by the author
 the day LLP 0127 was Accepted; drafted with 0127's open decisions 2
 and 10 deliberately unmade — see §Decision posture)
-**Related:** LLP 0003, LLP 0008, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0051, LLP 0053, LLP 0059, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0084, LLP 0090, LLP 0093, LLP 0107, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0118, LLP 0119, LLP 0123, LLP 0125, LLP 0126, LLP 0127
+**Related:** LLP 0003, LLP 0008, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0051, LLP 0053, LLP 0059, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0084, LLP 0090, LLP 0093, LLP 0107, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0118, LLP 0119, LLP 0123, LLP 0125, LLP 0126, LLP 0127, LLP 0130
 
 ## Summary
 
@@ -134,7 +140,10 @@ owner is the settlement Spec, which gates every
 joining move 3's displaced-in-space exit); exit criteria 1 and 3 bind
 as §Exit criteria states. Per-phase owners and timeboxes (§Open
 questions 5) remain the outstanding before-start requirement for each
-phase.
+phase. Under LLP 0130 SD-5 (2026-07-31), the phase gates are
+self-advancing: a phase whose named gate passes advances without
+fresh adjudication; gate failure or scope change escalates to the
+author.
 
 ## Governing constraints
 
@@ -188,7 +197,9 @@ Staging from LLP 0126/0127, confirmed by 0127 decision 2
 (2026-07-30); the previously decision-gated markers are resolved in
 place. The phase numbers order the resourcing (the confirmed
 IR-rung-first staging puts Phase 1 before either ladder continues);
-they are not a strict dependency chain beyond the gates named.
+they are not a strict dependency chain beyond the gates named. Per
+LLP 0130 SD-5, phases advance automatically when their named gates
+pass; gate failure or scope change escalates.
 
 **Phase 0 — Option A cache hardening on the first arm.** *Arm decided
 (0127 decision 2): the JS/React browser arm, the
@@ -427,12 +438,13 @@ proposes adding to the existing arms, cross-gated with LLP 0115
 (v0.2's "one rerun serves both programs" silently decided it): rerun
 composition — the contracts, the dimensions, whether this program's
 offline scoring folds into the matrix rerun — is LLP 0115 open
-question 4's adjudication, still open there. One rerun serving both
-programs is this Plan's **proposal** pending that adjudication.
-Independently of how OQ4 resolves, this program's diary-grade offline
-acceptance and the measurements below are mandatory — only the fold
-is conditional — and the two programs' exits stay separate either
-way. Two preconditions travel from 0127
+question 4's adjudication. **Answered (2026-07-31): LLP 0130 SD-3
+adjudicates 0115 OQ4** — the seven contracts run unchanged, the
+React-surface measurement is included, and this program's offline
+dimension folds into the same shared rerun, as this Plan proposed.
+This program's diary-grade offline acceptance and the measurements
+below remain independently mandatory, and the two programs' exits
+stay separate either way. Two preconditions travel from 0127
 §Measurement: Phase 0's diary-grade offline acceptance on the chosen
 arm, and the normalized-profile burst benchmark before any
 performance claim (0125 option 5 — its numbers are stale and
@@ -468,9 +480,10 @@ revisions). The shared substrate, by gate:
   forfeit execution-identity element 1.
 - **The profile vocabulary** (0127 move 6; CV-8; LLP 0080/0110):
   ledger row 2's proposed admission artifact for partial replication.
-- **The rerun** (0115 §Sequencing 5): this program *proposes* adding
-  the offline-scored dimension to that rerun — the fold is pending
-  0115 open question 4 (§Measurement) — and, per 0115's requirement,
+- **The rerun** (0115 §Sequencing 5): this program proposed adding
+  the offline-scored dimension to that rerun — the fold is decided,
+  LLP 0130 SD-3 answering 0115 OQ4 (§Measurement) — and, per 0115's
+  requirement,
   at least one arm consumes the LLP 0114 React surface — the arm
   Phase 0 targets (decision 2 confirmed it).
 
@@ -508,7 +521,10 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    insufficient for browser-side write expressiveness after
    measurement. Residue, still open: who observes the measurement and
    where a dated admission decision would be recorded if the trigger
-   ever fires. (0127's earlier phrasing — C "available if demand for
+   ever fires. LLP 0130 ER-1 (2026-07-31) reserves the admission: the
+   program may detect the trigger, but admitting option C is the
+   author's call alone — no standing decision covers it. (0127's
+   earlier phrasing — C "available if demand for
    arbitrary offline client logic arrives before D matures" — is
    superseded by the decided trigger.)
 5. **Phase timeboxes and owners.** This Plan assigns none. Each phase

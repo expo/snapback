@@ -5,7 +5,13 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (v0.7, lockstep round-1 fixes: round 1 of the
+**Revised:** 2026-07-31 (standing-decisions pointer: LLP 0130 records
+the author's pre-adjudicated conditional rules for this plan's
+mid-flight gates — SD-1 covers OQ3/decision 5's completion, SD-2 the
+CV-8 piece-3 aggregate choice, SD-3 answers OQ4, SD-4 the
+commissioned-document acceptances, SD-6 the decision-9 migration
+timing — plus the escalation reservations.)
+2026-07-31 (v0.7, lockstep round-1 fixes: round 1 of the
 {0115 v0.6, 0129 v0.2} lockstep super-refine returned NOT READY from
 both families for this Plan (artifacts
 `reviews/0115-0129-lockstep.fable.md`,
@@ -144,7 +150,7 @@ representation-sensitive struct equality is what fails; CV-12 split into
 range-filter design vs. already-roadmapped target execution. Open questions 1
 and 2 recorded as answered; a new npm-channel-gating question added; the rerun
 checkpoint gains a React-surface measurement requirement.)
-**Related:** LLP 0004, LLP 0009, LLP 0010, LLP 0028, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0044, LLP 0046, LLP 0053, LLP 0061, LLP 0062, LLP 0070, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0094, LLP 0095, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, LLP 0126, LLP 0127, LLP 0129, Diary 0032–0039
+**Related:** LLP 0004, LLP 0009, LLP 0010, LLP 0028, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0044, LLP 0046, LLP 0053, LLP 0061, LLP 0062, LLP 0070, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0094, LLP 0095, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, LLP 0126, LLP 0127, LLP 0129, LLP 0130, Diary 0032–0039
 
 ## Summary
 
@@ -1140,7 +1146,7 @@ so exact-but-explicitly-configured provenance is not misread as weak.
    evidence gate; the arm is confirmed by 0127 decision 2).
    0127's proposal for open question 4 —
    offline/cold-boot scoring as a new dimension on existing arms — is
-   recorded at that question, which stays open.
+   recorded at that question, answered by LLP 0130 SD-3 (2026-07-31).
 
 ## Exit criterion for the plan
 
@@ -1213,19 +1219,23 @@ plan holds the cross-reference (§The move layer).
    toggle, default-on for new apps and default-off for existing ones —
    explicitly subject to the rerun's severity-causality measurement
    before the LLP 0108 amendment lands. (v0.5 routed this as 0127
-   decision 5, then open.)
-4. **Rerun scope.** Should the post-A–C rerun reuse the seven contracts
-   unchanged for comparability, or add an eighth contract targeting the new
-   surfaces (structured inputs + one-off scheduling) at the cost of
-   diary-to-diary comparability? (Either way, §Sequencing item 5's
-   React-surface measurement requirement stands.) v0.5: 0127
-   §Sequencing 6 proposes an answer, on record and undecided — keep
-   the seven contracts unchanged (the new mechanisms are scoreable
-   inside them), add offline/cold-boot scenario scoring as a new
-   dimension on existing arms (the bakeoff generation scored it
-   decisive and the rerun measured none of it, 0126 finding 1), and
-   admit at most one new product-breadth contract once open
-   question 7's owners ship something scoreable.
+   decision 5, then open.) LLP 0130 SD-1 pre-adjudicates the
+   completion: enact the recorded lean when move 1's A+E land;
+   escalate only if the severity-causality measurement contradicts it.
+4. **Rerun scope — ANSWERED (2026-07-31, LLP 0130 SD-3).** Decided
+   outright: the seven contracts run unchanged for diary-to-diary
+   comparability; §Sequencing item 5's React-surface measurement is
+   included; the local-first offline dimension (LLP 0129 §Measurement)
+   folds into the same rerun; an eighth contract targeting structured
+   inputs plus one-off scheduling is added only if moves 1 and 3 have
+   landed by rerun time. (The question, for the record: reuse the
+   seven contracts unchanged, or add an eighth targeting the new
+   surfaces at the cost of diary-to-diary comparability? v0.5
+   recorded 0127 §Sequencing 6's proposed answer — seven unchanged,
+   offline/cold-boot scoring as a new dimension on existing arms per
+   0126 finding 1, at most one product-breadth contract once open
+   question 7's owners ship something scoreable — on record and
+   undecided; SD-3 decides the composition.)
 5. **npm default-channel gating — ANSWERED (v0.6, 0127 decision 1).**
    LLP 0074's parallel gate is adopted: LLP 0111 is to be amended to
    decouple the local closure's default channel from hosted
@@ -1282,7 +1292,9 @@ plan holds the cross-reference (§The move layer).
 8. **The ten 0127-routed author decisions (new in v0.5) — ALL TEN
    DECIDED (v0.6, 2026-07-30).** LLP 0127's acceptance accepted the
    synthesis direction; the author adjudicated the ten routed
-   decisions themselves on 2026-07-30. The registry of record:
+   decisions themselves on 2026-07-30. LLP 0130 (2026-07-31) now
+   governs the mid-flight gates these decisions leave open — standing
+   decisions with escalation reservations. The registry of record:
    1. *npm channel gate* — DECIDED: LLP 0074's parallel gate adopted;
       LLP 0111 to be amended to decouple the local closure's default
       channel from hosted qualification; hosted capability stays a
