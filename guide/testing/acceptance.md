@@ -201,7 +201,7 @@ the five properties that backend bake-offs most often blur together:
 5. an ephemeral publish does not advance the durable storage version.
 
 Create a configuration module with `defineComparatorProfile` from
-`@snapback/cli/comparator`. It names the generated live-query, mutation, and
+`@expo/snapback-cli/comparator`. It names the generated live-query, mutation, and
 ephemeral-collection refs and supplies arguments plus bounded callbacks:
 `live.matches(rows)`, `atomic.snapshot(client)`,
 `rejection.snapshot(client)`, and `presence.matches(entry)`. The kit owns the
@@ -234,7 +234,7 @@ or cleanup failed.
 
 The retained `snapback.comparator-receipt.v1` document is validated against
 the package-owned
-`@snapback/cli/comparator-receipt.schema.json`. It carries exact target,
+`@expo/snapback-cli/comparator-receipt.schema.json`. It carries exact target,
 generated-artifact, and server-binary identity when those identities became
 available; pre-start failures mark unavailable identity sections explicitly.
 It also carries expected and executed checks, per-check timing, capability

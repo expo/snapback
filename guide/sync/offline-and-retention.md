@@ -26,7 +26,7 @@ required proof is present; otherwise the surface stays honestly `Online`.
 
 ## The JS/React arm: default persistence and the offline queue
 
-Since LLP 0129 Phase 0, `@snapback/client` (and the LLP 0114 React hooks
+Since LLP 0129 Phase 0, `@expo/snapback-client` (and the LLP 0114 React hooks
 riding it) persists its cache **by default**: the client resolves an
 IndexedDB store in browsers, a durable file store on node, and an in-memory
 fallback elsewhere, reporting the resolved implementation and durability on

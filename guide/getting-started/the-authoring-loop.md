@@ -44,20 +44,21 @@ runtime path, or repository path. The template uses generated query/mutation
 references and the first-party React provider/hooks; it does not add
 application-owned subscription cleanup.
 
-The source package `@snapback/cli` supplies the `snapback` command. Public
-version `0.1.0` is installed under the alias
-`@ccheever/snapback-cli`; its published manifest preserves the same bin and
-maps internal `@snapback/*` dependencies to the corresponding
-`@ccheever/snapback-*` artifacts. The byte-verified public closure contains
-the macOS/arm64 and Linux/x64 runtimes plus Contract, client, codegen, React,
-app CLI, and developer-loop CLI packages. Clean GitHub-hosted machines on both
-supported runtime tuples installed that exact closure and passed the original
+The package `@expo/snapback-cli` supplies the `snapback` command — the
+terminal npm identity (LLP 0115 decision 9): the workspace name and the
+registry name are the same. The recorded pre-migration public closure
+(`0.1.x`) was published under the interim `@ccheever/snapback-*` aliases from
+the then-`@snapback/*` source names; those receipts remain verifiable as
+lineage. The byte-verified public closure contains the macOS/arm64 and
+Linux/x64 runtimes plus Contract, client, codegen, React, app CLI, and
+developer-loop CLI packages. Clean GitHub-hosted machines on both supported
+runtime tuples installed that exact closure and passed the original
 `todo-contract` scaffold/generate/dev/watch proof.
 
 Do not infer that the public `0.1.0` bytes contain every surface described by
 the current source tree. In particular, the current React scaffold depends on
-`@snapback/vite`, and its retained cold proof is a staged, clean-source
-checkpoint on macOS/arm64 with a real Chromium journey. `@snapback/vite`, the
+`@expo/snapback-vite`, and its retained cold proof is a staged, clean-source
+checkpoint on macOS/arm64 with a real Chromium journey. `@expo/snapback-vite`, the
 current React starter, the current versioned-seed integration, and the Linux
 run of that expanded starter still need one newly versioned public closure
 before this page can call the React command a public-registry path.
@@ -71,9 +72,11 @@ descriptor, and removes the temporary state. Its `snapback.cli-doctor.v2`
 result reports one stable code per completed boundary; a launch-only result is
 test instrumentation and never the installed-product claim. Other host tuples
 report `SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks
-disguised as installs. The `@snapback/cli` npm identity belongs to an unrelated
-product, so application imports remain `@snapback/*` through npm aliases while
-publication uses `@ccheever/snapback-*`.
+disguised as installs. The former `@snapback/*` source scope belongs to an
+unrelated npm product, which is why publication historically used the
+`@ccheever/snapback-*` aliases; under the terminal `@expo/snapback-*` scope
+application imports and published names are one identity and no alias
+mapping exists.
 
 ## 1. Edit
 

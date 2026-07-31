@@ -5,7 +5,26 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (v0.9, CV-9 first slice landed: wave-1 lane C2
+**Revised:** 2026-07-31 (decision 9's scope migration EXECUTED in-repo,
+LLP 0130 SD-6 lane: every workspace package renamed to the terminal
+`@expo/snapback-*` names (publishing nine plus the private/image-bound
+members — the workspace-coherence decision and rationale are recorded in
+LLP 0041's dated 2026-07-31 revision, the lead packaging owner), and the
+proof system migrated as lineage: v4 lease/issue-request generation with
+the terminal name table while v2/v3 keep validating recorded
+`@ccheever/snapback-*` artifacts, `scopePreset`-keyed ledger validation
+(`identity` terminal / `ccheever` recorded legacy), an explicit
+`PACKAGE_NAME_LINEAGE` map, the cold-install preset moved to the direct
+`@expo/snapback-cli@latest` root, the GitHub proof repository slug moved
+to `expo/snapback` for terminal-generation evidence, generated artifacts
+rotated under the renamed emitters, and the guide's authoring-loop
+alias-mapping prose rewritten to the one-identity terminal state. The
+frozen partiful step5 evidence still validates under the legacy
+generation (pinned by test). Registry publication under the terminal
+names and slice 5-rebuild (CV-1's exit) remain the open follow-ons —
+the migration deliberately precedes them per SD-6. LLP 0113 carries the
+co-amendment for the authority wire schemas.)
+2026-07-31 (v0.9, CV-9 first slice landed: wave-1 lane C2
 delivers LLP 0070's `runAfter` slice — transactional `ctx.jobs.enqueue`
 inside the mutation commit, fenced claims with append-only attempt
 receipts, the injected-clock jobs drain, the generated declared
@@ -387,7 +406,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 
 | Item | Title | Tranche | Move | Owning doc(s) | Analysis | Size | State |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types LANDED 2026-07-31 (`1f475864`: 51 hand-authored declarations across 10 publishing packages + the three-phase `check:export-types` gate wired into the proof; named gap 4 closed) |
+| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types LANDED 2026-07-31 (`1f475864`: 51 hand-authored declarations across 10 publishing packages + the three-phase `check:export-types` gate wired into the proof; named gap 4 closed); decision-9 scope migration EXECUTED in-repo 2026-07-31 (SD-6 lane: workspace renamed to terminal `@expo/snapback-*`, proof system migrated as lineage — v4 lease generation, `scopePreset`-keyed ledger validation, `PACKAGE_NAME_LINEAGE`, terminal cold-install preset, `expo/snapback` proof slug — see this doc's dated Revised entry and LLP 0041/0113; registry publication under terminal names + slice 5-rebuild remain the exit's open follow-ons) |
 | CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Landed 2026-07-30 (`814acd77`: `snapback runtime-qualify` create/destroy gate + relink invalidation + regression fixture; ticket closed; residue = persisted receipt → CV-3, kit rungs → issues/20260730-kit-rungs-skip-handler-vm-qualification.md) |
 | CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Landed 2026-07-31 (`63dacde2` + `5ac77b8d`: `snapback.runtime-readiness.v1` receipt beside the binary; digest-recompute consumption; kept-target probe + verify-local-proof issue it; doctor read-only served-binary check; all four kit rungs covered; `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`; kit-rungs ticket closed; posture-neutrality finding + test per 0123) |
 | CV-4a | Structured collection validators for arguments | B (P1) | 1 | LLP 0131 + 0004 alignment | 0117 | M | Design accepted 2026-07-31 (LLP 0131 under SD-4 — one argument grammar carrying CV-4a and CV-5 together); implementation LANDED 2026-07-31 (wave-1 lane C6): one argument grammar admitting the full 0108 vocabulary, FunctionArgsContractV1 carried beside resultContract with the v2 recomputed witness, `validate_function_args` ingress seam on every fresh lane with bounded RFC 6901 pointers, app-wide `args_contract_v1`; exits proved by the split-ledger fixture (valid vector commits, `/splits/2/amountCents` refusal, no partial write) |

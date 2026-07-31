@@ -19,7 +19,7 @@ reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`@snapback/contract` (`packages/snapback-contract`) binds a Snapback
+`@expo/snapback-contract` (`packages/snapback-contract`) binds a Snapback
 backend into a Contract/Exact app: codegen emits per-function Contract
 binding modules, and `createSnapbackContractSurface` wires them to a live
 client at boot. You write no data-plumbing — the `.contract` file names
@@ -134,7 +134,7 @@ The Exact-owned DataProvider suite treats those omissions as declared skips,
 not passes or hidden fallbacks.
 
 This integration surface is shipped as the **Partitime reference**, not yet the
-stable registry-published `@snapback/contract` package path. Use it to add or
+stable registry-published `@expo/snapback-contract` package path. Use it to add or
 verify a provider producer; do not copy Partitime's generated files into
 another app or hand-maintain the generated `.contract-meta.ts` mirror. Stable
 external publication remains a later packaged-loop gate in LLP 0063.
@@ -279,7 +279,7 @@ What the surface does for you:
   For an **Online-only** surface with no `authCoordinator`,
   `agentAuthority`, or retained client store, import
   `createKeyedSnapbackContractProvider` from
-  `@snapback/contract/keyed-provider` directly when the Exact runtime exports
+  `@expo/snapback-contract/keyed-provider` directly when the Exact runtime exports
   `rotatePartition`. Pass `artifactIndex`,
   `schemaManifest`, and `functionManifest` with the Contract manifest so the
   capability-scoped path keeps the same stale-artifact refusal. It also owns
@@ -291,7 +291,7 @@ What the surface does for you:
 - **Published-runtime Online packaging** — the published Exact 0.1.2 runtime
   predates keyed partition rotation. An Online-only app pinned to that runtime
   can import `createOnlineSnapbackContractSurface` from
-  `@snapback/contract/online-surface`. This smaller entrypoint preserves the
+  `@expo/snapback-contract/online-surface`. This smaller entrypoint preserves the
   legacy `liveQueries: [{ name, args }]` boot-scoped behavior, artifact
   validation, the runtime's force-state plane, live connection updates,
   server-authoritative mutations, and cleanup without retaining offline/auth/

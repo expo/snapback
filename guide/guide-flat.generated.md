@@ -725,7 +725,7 @@ from the server's admin-gated mailbox:
 ```
 
 From then on the client carries the session credential; `AuthCoordinator`
-(from `@snapback/contract`) owns custody, refresh, and the logout barrier
+(from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier
 for surface-based clients.
 
 The shipped provider has no production mail adapter yet. For a local native
@@ -1419,7 +1419,7 @@ server may report `trusted-single-tenant-app-complete.v1`.
 
 The package contains a future hosted app-browser entrypoint:
 `HostedBrowserSnapbackClient` from
-`@snapback/client/hosted-browser`. Its constructor requires coordinator-owned
+`@expo/snapback-client/hosted-browser`. Its constructor requires coordinator-owned
 custody, accepts only HTTPS, and exposes no bearer, admin-token, or
 agent-authority option. The implementation generates a non-extractable P-256
 key, binds issuance and refresh to it, signs protected HTTP and WebSocket
@@ -2664,7 +2664,7 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Use `@snapback/codegen/standard-patterns` when a table follows the common
+Use `@expo/snapback-codegen/standard-patterns` when a table follows the common
 single-owner shape. The helpers generate declarative queries and mutations;
 they do not add a second runtime or hide handwritten JavaScript behind the
 API.
@@ -3598,7 +3598,7 @@ reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`@snapback/contract` (`packages/snapback-contract`) binds a Snapback
+`@expo/snapback-contract` (`packages/snapback-contract`) binds a Snapback
 backend into a Contract/Exact app: codegen emits per-function Contract
 binding modules, and `createSnapbackContractSurface` wires them to a live
 client at boot. You write no data-plumbing — the `.contract` file names
@@ -3713,7 +3713,7 @@ The Exact-owned DataProvider suite treats those omissions as declared skips,
 not passes or hidden fallbacks.
 
 This integration surface is shipped as the **Partitime reference**, not yet the
-stable registry-published `@snapback/contract` package path. Use it to add or
+stable registry-published `@expo/snapback-contract` package path. Use it to add or
 verify a provider producer; do not copy Partitime's generated files into
 another app or hand-maintain the generated `.contract-meta.ts` mirror. Stable
 external publication remains a later packaged-loop gate in LLP 0063.
@@ -3858,7 +3858,7 @@ What the surface does for you:
   For an **Online-only** surface with no `authCoordinator`,
   `agentAuthority`, or retained client store, import
   `createKeyedSnapbackContractProvider` from
-  `@snapback/contract/keyed-provider` directly when the Exact runtime exports
+  `@expo/snapback-contract/keyed-provider` directly when the Exact runtime exports
   `rotatePartition`. Pass `artifactIndex`,
   `schemaManifest`, and `functionManifest` with the Contract manifest so the
   capability-scoped path keeps the same stale-artifact refusal. It also owns
@@ -3870,7 +3870,7 @@ What the surface does for you:
 - **Published-runtime Online packaging** — the published Exact 0.1.2 runtime
   predates keyed partition rotation. An Online-only app pinned to that runtime
   can import `createOnlineSnapbackContractSurface` from
-  `@snapback/contract/online-surface`. This smaller entrypoint preserves the
+  `@expo/snapback-contract/online-surface`. This smaller entrypoint preserves the
   legacy `liveQueries: [{ name, args }]` boot-scoped behavior, artifact
   validation, the runtime's force-state plane, live connection updates,
   server-authoritative mutations, and cleanup without retaining offline/auth/
@@ -3963,14 +3963,14 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`SnapbackClient` from the versioned `@snapback/client` package is the
+`SnapbackClient` from the versioned `@expo/snapback-client` package is the
 framework-neutral reference arm. The old `demos/_kit/client.mjs` path is a
 compatibility re-export only. Demos, acceptance suites, the React arm, and
-`@snapback/contract` build on the same transport, live-stream, ephemeral,
+`@expo/snapback-contract` build on the same transport, live-stream, ephemeral,
 receipt, and auth behavior rather than reimplementing HTTP.
 
 Browser bundles that load a client entry as a dynamic module namespace should
-import `SnapbackClient` from `@snapback/client/online`. It re-exports the same
+import `SnapbackClient` from `@expo/snapback-client/online`. It re-exports the same
 class while keeping optional agent-custody and external-store package exports
 out of consumers that did not select them. Use the root entry when those
 additional exports are required.
@@ -4014,7 +4014,7 @@ sender-constrained hosted browser constructor. See
 [native authentication](../auth/native-apps.md).
 
 `senderConstrained` is an internal composition option for the dedicated
-`@snapback/client/hosted-browser` entrypoint. Local applications should not set
+`@expo/snapback-client/hosted-browser` entrypoint. Local applications should not set
 it directly, and no current hosted target has positive admission; see
 [target honesty](../auth/targets.md).
 
@@ -4231,7 +4231,7 @@ harnesses. App UI code normally uses `liveQuery`.
 
 Import `createExternalQueryStore`, `createExternalQueryStoreRegistry`,
 `externalStoreIdentity`, `ExternalQueryScope`, and
-`SNAPBACK_EXTERNAL_STORE_PROTOCOL` from `@snapback/client/external-store` when
+`SNAPBACK_EXTERNAL_STORE_PROTOCOL` from `@expo/snapback-client/external-store` when
 building a framework or generated UI adapter.
 
 The registry owns logical stores above physical `liveQuery` handles. Its key is
@@ -4245,7 +4245,7 @@ stale-generation deliveries are fenced and inspected rather than republished.
 Vanilla view generation. Renewing a scope disposes every predecessor binding;
 closing it is terminal and idempotent. Prefer it over an app-authored
 generation counter. React apps should normally consume the thin
-[`@snapback/react` adapter](./react.md), which projects the same store through
+[`@expo/snapback-react` adapter](./react.md), which projects the same store through
 `useSyncExternalStore`.
 
 When a generated route group needs one-commit boot, call
@@ -4400,8 +4400,8 @@ reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`@snapback/app-cli` packages the first complete agent-facing application
-journey on top of `@snapback/client`. It reads generated JSON artifacts as data,
+`@expo/snapback-app-cli` packages the first complete agent-facing application
+journey on top of `@expo/snapback-client`. It reads generated JSON artifacts as data,
 never imports generated `api.mjs` or handler source, and exposes the generic
 `snapback-app` command.
 
@@ -4486,7 +4486,7 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`@snapback/react` supplies a prepared provider, exact generated-reference
+`@expo/snapback-react` supplies a prepared provider, exact generated-reference
 inference, shared single and grouped live queries, optimistic mutations,
 managed presence, and connection state through React's `useSyncExternalStore`
 contract. The provider owns canonical query and room identity, Strict Mode
@@ -4860,8 +4860,8 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-React Native/Expo uses the same `@snapback/client`, generated function
-references, framework-neutral external store, and `@snapback/react` hook as
+React Native/Expo uses the same `@expo/snapback-client`, generated function
+references, framework-neutral external store, and `@expo/snapback-react` hook as
 React web. It is an **Online** surface: queries and mutations run against a
 reachable Snapback backend. It does not execute handlers locally and therefore
 does not claim local-first behavior or Parity.
@@ -4936,8 +4936,8 @@ transitions in addition to the OS events. It does not claim the durable queue,
 local execution, replay/rebase, or authority-safe retained store required for
 Exact Native Parity.
 
-Use `bindSnapbackAppLifecycle(AppState, liveHandle)` from `@snapback/react`
-(or `@snapback/client/online`) when a provider exposes the first-party
+Use `bindSnapbackAppLifecycle(AppState, liveHandle)` from `@expo/snapback-react`
+(or `@expo/snapback-client/online`) when a provider exposes the first-party
 `liveQuery` handle. The helper has no React Native package dependency: it
 serializes AppState changes onto the handle's `pause()` / `resume()` methods
 and removes the listener on disposal. This is the supported replacement for a
@@ -4988,7 +4988,7 @@ fails silently.
 
 ## Build on the external store
 
-Use `snapback.external-store.v1` from `@snapback/client/external-store`.
+Use `snapback.external-store.v1` from `@expo/snapback-client/external-store`.
 It owns canonical query identity, same-key sibling sharing, late-handle
 resolution, stale-generation fencing, error/connection snapshots, optimistic
 settlement, refcounts, and final disposal. Project that store into the
@@ -5176,7 +5176,7 @@ adapter exits successfully.
 
 An adapter integration calls `createRemoteDrillPlan` and
 `verifyRemoteDrillPlan` from
-`@snapback/cli/deployment-control` before it exposes any provisioning action.
+`@expo/snapback-cli/deployment-control` before it exposes any provisioning action.
 The resulting `snapback.remote-drill-plan.v1` artifact binds the registered
 provider/account/region/origin and exact driver bytes to:
 
@@ -5282,7 +5282,7 @@ configuration requirements. Both artifacts are content-addressed, require a
 closed evidence inventory, and must retain zero GAPs before they can produce an
 eligible plan.
 
-`@snapback/cli` exports `createHostedAuthDrillReceipt`,
+`@expo/snapback-cli` exports `createHostedAuthDrillReceipt`,
 `createAdapterQualificationManifest`, and `createPreparedReleaseManifest` for
 adapter implementations. The producers derive target, provider, account,
 region, origin, driver, qualification, and base-release bindings instead of
@@ -5311,7 +5311,7 @@ the artifacts.
 ## Start a hosted handler through the authenticated gate
 
 The native server has the target-neutral consumer for a real adapter's hosted
-startup authority, and `@snapback/cli/hosted-admission-producer` supplies the
+startup authority, and `@expo/snapback-cli/hosted-admission-producer` supplies the
 provider-neutral producer contract. Before each handler boot,
 `prepareHostedAdmissionBoot` awaits the adapter's atomic advancement of
 `senderReplayEpochFloor` in a monotone store outside the application backup
@@ -6169,20 +6169,21 @@ runtime path, or repository path. The template uses generated query/mutation
 references and the first-party React provider/hooks; it does not add
 application-owned subscription cleanup.
 
-The source package `@snapback/cli` supplies the `snapback` command. Public
-version `0.1.0` is installed under the alias
-`@ccheever/snapback-cli`; its published manifest preserves the same bin and
-maps internal `@snapback/*` dependencies to the corresponding
-`@ccheever/snapback-*` artifacts. The byte-verified public closure contains
-the macOS/arm64 and Linux/x64 runtimes plus Contract, client, codegen, React,
-app CLI, and developer-loop CLI packages. Clean GitHub-hosted machines on both
-supported runtime tuples installed that exact closure and passed the original
+The package `@expo/snapback-cli` supplies the `snapback` command — the
+terminal npm identity (LLP 0115 decision 9): the workspace name and the
+registry name are the same. The recorded pre-migration public closure
+(`0.1.x`) was published under the interim `@ccheever/snapback-*` aliases from
+the then-`@snapback/*` source names; those receipts remain verifiable as
+lineage. The byte-verified public closure contains the macOS/arm64 and
+Linux/x64 runtimes plus Contract, client, codegen, React, app CLI, and
+developer-loop CLI packages. Clean GitHub-hosted machines on both supported
+runtime tuples installed that exact closure and passed the original
 `todo-contract` scaffold/generate/dev/watch proof.
 
 Do not infer that the public `0.1.0` bytes contain every surface described by
 the current source tree. In particular, the current React scaffold depends on
-`@snapback/vite`, and its retained cold proof is a staged, clean-source
-checkpoint on macOS/arm64 with a real Chromium journey. `@snapback/vite`, the
+`@expo/snapback-vite`, and its retained cold proof is a staged, clean-source
+checkpoint on macOS/arm64 with a real Chromium journey. `@expo/snapback-vite`, the
 current React starter, the current versioned-seed integration, and the Linux
 run of that expanded starter still need one newly versioned public closure
 before this page can call the React command a public-registry path.
@@ -6196,9 +6197,11 @@ descriptor, and removes the temporary state. Its `snapback.cli-doctor.v2`
 result reports one stable code per completed boundary; a launch-only result is
 test instrumentation and never the installed-product claim. Other host tuples
 report `SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks
-disguised as installs. The `@snapback/cli` npm identity belongs to an unrelated
-product, so application imports remain `@snapback/*` through npm aliases while
-publication uses `@ccheever/snapback-*`.
+disguised as installs. The former `@snapback/*` source scope belongs to an
+unrelated npm product, which is why publication historically used the
+`@ccheever/snapback-*` aliases; under the terminal `@expo/snapback-*` scope
+application imports and published names are one identity and no alias
+mapping exists.
 
 ## 1. Edit
 
@@ -7012,7 +7015,7 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Use this page when a platform cannot run `@snapback/client`. The committed JSON
+Use this page when a platform cannot run `@expo/snapback-client`. The committed JSON
 Schemas are the exact wire shapes; the
 [`snapback.v1` fixture corpus](repo:schemas/live.wire-fixtures.v1.json) is the
 language-neutral conformance entry point. The protocol does not make a client
@@ -7033,7 +7036,7 @@ Both local lanes begin with `POST /connection/open`. Offer
 connection-scoped request. A WebSocket offers `snapback.v1` plus
 `snapback.connection-token.<token>` as subprotocols.
 
-`@snapback/client` verifies the open response echoes that exact version. Its
+`@expo/snapback-client` verifies the open response echoes that exact version. Its
 compatibility bridge downgrades only when the exact pre-B1 decode refusal
 disappears on one offerless retry, or when an offered hosted open succeeds
 without the B1 echo; either case emits a structured diagnostic and is cached
@@ -7851,7 +7854,7 @@ required proof is present; otherwise the surface stays honestly `Online`.
 
 ## The JS/React arm: default persistence and the offline queue
 
-Since LLP 0129 Phase 0, `@snapback/client` (and the LLP 0114 React hooks
+Since LLP 0129 Phase 0, `@expo/snapback-client` (and the LLP 0114 React hooks
 riding it) persists its cache **by default**: the client resolves an
 IndexedDB store in browsers, a durable file store on node, and an in-memory
 fallback elsewhere, reporting the resolved implementation and durability on
@@ -8297,7 +8300,7 @@ the five properties that backend bake-offs most often blur together:
 5. an ephemeral publish does not advance the durable storage version.
 
 Create a configuration module with `defineComparatorProfile` from
-`@snapback/cli/comparator`. It names the generated live-query, mutation, and
+`@expo/snapback-cli/comparator`. It names the generated live-query, mutation, and
 ephemeral-collection refs and supplies arguments plus bounded callbacks:
 `live.matches(rows)`, `atomic.snapshot(client)`,
 `rejection.snapshot(client)`, and `presence.matches(entry)`. The kit owns the
@@ -8330,7 +8333,7 @@ or cleanup failed.
 
 The retained `snapback.comparator-receipt.v1` document is validated against
 the package-owned
-`@snapback/cli/comparator-receipt.schema.json`. It carries exact target,
+`@expo/snapback-cli/comparator-receipt.schema.json`. It carries exact target,
 generated-artifact, and server-binary identity when those identities became
 available; pre-start failures mark unavailable identity sections explicitly.
 It also carries expected and executed checks, per-check timing, capability

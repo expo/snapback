@@ -126,7 +126,7 @@ adapter exits successfully.
 
 An adapter integration calls `createRemoteDrillPlan` and
 `verifyRemoteDrillPlan` from
-`@snapback/cli/deployment-control` before it exposes any provisioning action.
+`@expo/snapback-cli/deployment-control` before it exposes any provisioning action.
 The resulting `snapback.remote-drill-plan.v1` artifact binds the registered
 provider/account/region/origin and exact driver bytes to:
 
@@ -232,7 +232,7 @@ configuration requirements. Both artifacts are content-addressed, require a
 closed evidence inventory, and must retain zero GAPs before they can produce an
 eligible plan.
 
-`@snapback/cli` exports `createHostedAuthDrillReceipt`,
+`@expo/snapback-cli` exports `createHostedAuthDrillReceipt`,
 `createAdapterQualificationManifest`, and `createPreparedReleaseManifest` for
 adapter implementations. The producers derive target, provider, account,
 region, origin, driver, qualification, and base-release bindings instead of
@@ -261,7 +261,7 @@ the artifacts.
 ## Start a hosted handler through the authenticated gate
 
 The native server has the target-neutral consumer for a real adapter's hosted
-startup authority, and `@snapback/cli/hosted-admission-producer` supplies the
+startup authority, and `@expo/snapback-cli/hosted-admission-producer` supplies the
 provider-neutral producer contract. Before each handler boot,
 `prepareHostedAdmissionBoot` awaits the adapter's atomic advancement of
 `senderReplayEpochFloor` in a monotone store outside the application backup

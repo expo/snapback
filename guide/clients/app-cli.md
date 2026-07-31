@@ -19,8 +19,8 @@ reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`@snapback/app-cli` packages the first complete agent-facing application
-journey on top of `@snapback/client`. It reads generated JSON artifacts as data,
+`@expo/snapback-app-cli` packages the first complete agent-facing application
+journey on top of `@expo/snapback-client`. It reads generated JSON artifacts as data,
 never imports generated `api.mjs` or handler source, and exposes the generic
 `snapback-app` command.
 

@@ -60,7 +60,7 @@ server may report `trusted-single-tenant-app-complete.v1`.
 
 The package contains a future hosted app-browser entrypoint:
 `HostedBrowserSnapbackClient` from
-`@snapback/client/hosted-browser`. Its constructor requires coordinator-owned
+`@expo/snapback-client/hosted-browser`. Its constructor requires coordinator-owned
 custody, accepts only HTTPS, and exposes no bearer, admin-token, or
 agent-authority option. The implementation generates a non-extractable P-256
 key, binds issuance and refresh to it, signs protected HTTP and WebSocket

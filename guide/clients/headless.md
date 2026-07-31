@@ -19,14 +19,14 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`SnapbackClient` from the versioned `@snapback/client` package is the
+`SnapbackClient` from the versioned `@expo/snapback-client` package is the
 framework-neutral reference arm. The old `demos/_kit/client.mjs` path is a
 compatibility re-export only. Demos, acceptance suites, the React arm, and
-`@snapback/contract` build on the same transport, live-stream, ephemeral,
+`@expo/snapback-contract` build on the same transport, live-stream, ephemeral,
 receipt, and auth behavior rather than reimplementing HTTP.
 
 Browser bundles that load a client entry as a dynamic module namespace should
-import `SnapbackClient` from `@snapback/client/online`. It re-exports the same
+import `SnapbackClient` from `@expo/snapback-client/online`. It re-exports the same
 class while keeping optional agent-custody and external-store package exports
 out of consumers that did not select them. Use the root entry when those
 additional exports are required.
@@ -70,7 +70,7 @@ sender-constrained hosted browser constructor. See
 [native authentication](../auth/native-apps.md).
 
 `senderConstrained` is an internal composition option for the dedicated
-`@snapback/client/hosted-browser` entrypoint. Local applications should not set
+`@expo/snapback-client/hosted-browser` entrypoint. Local applications should not set
 it directly, and no current hosted target has positive admission; see
 [target honesty](../auth/targets.md).
 
@@ -287,7 +287,7 @@ harnesses. App UI code normally uses `liveQuery`.
 
 Import `createExternalQueryStore`, `createExternalQueryStoreRegistry`,
 `externalStoreIdentity`, `ExternalQueryScope`, and
-`SNAPBACK_EXTERNAL_STORE_PROTOCOL` from `@snapback/client/external-store` when
+`SNAPBACK_EXTERNAL_STORE_PROTOCOL` from `@expo/snapback-client/external-store` when
 building a framework or generated UI adapter.
 
 The registry owns logical stores above physical `liveQuery` handles. Its key is
@@ -301,7 +301,7 @@ stale-generation deliveries are fenced and inspected rather than republished.
 Vanilla view generation. Renewing a scope disposes every predecessor binding;
 closing it is terminal and idempotent. Prefer it over an app-authored
 generation counter. React apps should normally consume the thin
-[`@snapback/react` adapter](./react.md), which projects the same store through
+[`@expo/snapback-react` adapter](./react.md), which projects the same store through
 `useSyncExternalStore`.
 
 When a generated route group needs one-commit boot, call

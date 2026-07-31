@@ -19,7 +19,7 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`@snapback/react` supplies a prepared provider, exact generated-reference
+`@expo/snapback-react` supplies a prepared provider, exact generated-reference
 inference, shared single and grouped live queries, optimistic mutations,
 managed presence, and connection state through React's `useSyncExternalStore`
 contract. The provider owns canonical query and room identity, Strict Mode

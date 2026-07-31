@@ -49,3 +49,51 @@ name with the proof green end-to-end; the external rebuild consumes
 only published artifacts under the terminal names, satisfying LLP
 0115 CV-1's exit; the `@snapback` alias question stays external
 (Charlie's dispute) and gates nothing here.
+
+## Execution record — work item 1 (2026-07-31, SD-6 lane)
+
+Work item 1 (the in-repo scope migration) EXECUTED on the SD-6 lane
+branch. Landing structure:
+
+1. Baseline repair: canonical package-test inventory reconciled with
+   the wave-1 lane landings (outbox-store, jobs-authoring,
+   inline-helper-sharing, args-contract goldens, search-AST fixtures;
+   127 -> 132) and the `live.wire-fixtures` formatVersion-3 pin fixed
+   in the contract conformance block — both pre-existing cross-lane
+   breaks found red on the base.
+2. Rename + workspace: all workspace packages renamed to
+   `@expo/snapback-*` (nine publishing + hosted-supervisor + private
+   admin-client and publication-authority; decision and rationale in
+   LLP 0041's dated revision), import specifiers, emitter constants,
+   CLI templates/error strings, demo live sources, test fixtures,
+   the package-test inventory ids, and the three bun.lock files
+   (partiful native gains an explicit override pinning the nested
+   contract semver to the local package).
+3. Proof-system lineage: v4 lease/issue-request generation with the
+   terminal name table (v2/v3 still validate the recorded
+   `@ccheever/snapback-*` artifacts), `PACKAGE_NAME_LINEAGE`,
+   `scopePreset`-keyed ledger/dependency validation
+   (`identity` = terminal write-side; `ccheever` read-side only),
+   terminal cold-install preset (`@expo/snapback-cli@latest`
+   direct root), install-tree inspection and propagation witness
+   generation-derived, GitHub proof repository slug
+   `expo/snapback` for terminal evidence (a proof surface decision
+   9's four-item list did not name; recorded in LLP 0041), and the
+   frozen partiful step5 evidence pinned to the legacy generation
+   in its test.
+4. Regen: 18 demo backends, admin-ui bindings, CLI comparator
+   fixture app, guide manifest/flat.
+5. Docs/board: guide pages renamed + authoring-loop alias prose
+   rewritten; dated notes in LLP 0041 (lead record), LLP 0113
+   (authority co-amendment), LLP 0115 (Revised entry + CV-1 row).
+
+Deliberate leave-behinds (records, not drift): recorded evidence
+under demos/*/acceptance and final-confirmation trees, the frozen
+backend-bakeoff work trees and protocol inventory, the
+auth-invalidation composed receipt + its report prose (regenerates
+together on the next genuine rerun), run-capsule legacy fixture
+data, and all `llp/`/`diaries/` history.
+
+Still open here: work item 2 (slice 5-rebuild) and the actual npm
+publication under the terminal names — both explicitly excluded
+from this landing and sequenced after it.

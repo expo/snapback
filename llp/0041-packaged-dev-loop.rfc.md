@@ -1,5 +1,7 @@
 # LLP 0041: Packaged developer loop
 
+**Revised (decision-9 scope migration):** 2026-07-31 (see §Decision-9 terminal-scope migration.)
+
 **Revised (public closure published):** 2026-07-26 (the complete decided
 eight-package `@ccheever/snapback-*` closure is now public as `0.1.0` under
 `latest`, built from clean Snapback main revision
@@ -928,7 +930,7 @@ outside the root workspace and exercise independent consumer setups.
   admin client and the test-harness helpers? Every arm's acceptance imports
   the `demos/_kit` helpers; Dispatch's acceptance additionally imports the
   admin client for authenticated cron inspection. Options per artifact:
-  admit `@snapback/admin-client` to the closure, fold it into the
+  admit `@expo/snapback-admin-client` to the closure, fold it into the
   client/CLI, or endorse the served `/_snapback/admin/client.mjs` path for
   external use; and publish a test-helper package (server lifecycle +
   vacuous-pass-guarded harness), fold server lifecycle into the CLI, or
@@ -938,9 +940,54 @@ outside the root workspace and exercise independent consumer setups.
   cannot run a workout-arm-grade acceptance suite against published
   artifacts (LLP 0115 CV-1).
 
+## Decision-9 terminal-scope migration (2026-07-31)
+
+The in-repo npm scope migration to the terminal `@expo/snapback-*` names
+landed per LLP 0115 decision 9 / LLP 0130 SD-6, as its own serialized
+landing. Every workspace package renamed — the nine publishing packages plus
+three decisions this document now records:
+
+- **Private/image-bound packages rename with the closure.** The private
+  workspace packages `@expo/snapback-admin-client` and
+  `@expo/snapback-publication-authority` and the image-bound
+  `@expo/snapback-hosted-supervisor` renamed for workspace coherence,
+  because the abandoned `@snapback/*` source dialect is a live unrelated
+  third party's npm scope and any internal name left inside it is a
+  registry-fallback supply-chain hazard as well as a second naming dialect
+  (LLP 0122 facet 1).
+- **The proof system migrated as lineage, never rewriting.** The protocol
+  name table and scope pattern moved to a new v4 lease/issue-request
+  generation with the v2/v3 generations still validating the recorded
+  `@ccheever/snapback-*` artifacts; publish/ledger validation is keyed by
+  `scopePreset` (`identity` = terminal, `ccheever` = recorded legacy —
+  read-side only); an explicit `PACKAGE_NAME_LINEAGE` table binds each
+  terminal name to its recorded source/published predecessors. The publish
+  write-side accepts only the `identity` preset.
+- **The GitHub proof repository slug moved to `expo/snapback`** for
+  terminal-generation evidence — a proof-system surface decision 9's
+  four-item enumeration did not name, recorded here as part of the same
+  migration; legacy-generation receipts still validate against
+  `ccheever/snapback`.
+
+§Package boundaries' anticipated "future organization-owned brand scope may
+replace this public alias without changing authored imports" is superseded
+in one respect: decision 9 renames authored imports too, ending the
+three-dialect split. Registry publication under the terminal names and
+slice 5-rebuild remain open follow-ons; the `@ccheever` closure on the
+registry stays the last published generation until then.
+
+Also recorded: the hosted-supervisor counting discrepancy. This document
+excludes it from the nine-package public closure while LLP 0115's 5-types
+sweep counts it among the publishing packages the export-types gate covers —
+both true today (it is versioned, non-private, types-swept, and unpublished),
+flagged here so the GA-front-door closure decision resolves it explicitly.
+
 ## Status
 
-Review. The Apple-silicon macOS tarball closure and external-directory loop are
+Review. As of 2026-07-31 the workspace carries the terminal
+`@expo/snapback-*` names (decision 9; see §Decision-9 terminal-scope
+migration above) and the registry still holds the last-published
+`@ccheever/snapback-*` generation. The Apple-silicon macOS tarball closure and external-directory loop are
 implemented and retained by
 `scripts/snapback-package-cold-install.mjs`: packed runtime launch, `new`,
 offline `generate`, managed `dev`, ready-file attach, watched regeneration and

@@ -19,7 +19,7 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Use `@snapback/codegen/standard-patterns` when a table follows the common
+Use `@expo/snapback-codegen/standard-patterns` when a table follows the common
 single-owner shape. The helpers generate declarative queries and mutations;
 they do not add a second runtime or hide handwritten JavaScript behind the
 API.

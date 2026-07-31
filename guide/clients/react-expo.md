@@ -19,8 +19,8 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-React Native/Expo uses the same `@snapback/client`, generated function
-references, framework-neutral external store, and `@snapback/react` hook as
+React Native/Expo uses the same `@expo/snapback-client`, generated function
+references, framework-neutral external store, and `@expo/snapback-react` hook as
 React web. It is an **Online** surface: queries and mutations run against a
 reachable Snapback backend. It does not execute handlers locally and therefore
 does not claim local-first behavior or Parity.
@@ -95,8 +95,8 @@ transitions in addition to the OS events. It does not claim the durable queue,
 local execution, replay/rebase, or authority-safe retained store required for
 Exact Native Parity.
 
-Use `bindSnapbackAppLifecycle(AppState, liveHandle)` from `@snapback/react`
-(or `@snapback/client/online`) when a provider exposes the first-party
+Use `bindSnapbackAppLifecycle(AppState, liveHandle)` from `@expo/snapback-react`
+(or `@expo/snapback-client/online`) when a provider exposes the first-party
 `liveQuery` handle. The helper has no React Native package dependency: it
 serializes AppState changes onto the handle's `pause()` / `resume()` methods
 and removes the listener on disposal. This is the supported replacement for a

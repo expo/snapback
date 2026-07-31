@@ -5,7 +5,20 @@
 **Systems:** Auth, Wire Protocol, Capability publication, Storage, Realtime, Migrations, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-07-28 (unreviewed post-corrective-round reconciliation:
+**Revised:** 2026-07-31 (decision-9 terminal-scope migration, LLP 0130 SD-6:
+the authority's lease and issue-request wire schemas gained a v4 generation
+binding the terminal `@expo/snapback-*` nine-package name table (new signing
+domain, terminal scope pattern); the standing authority issues v4 only and
+still dual-reads/validates the recorded v2/v3 generations against the legacy
+`@ccheever/snapback-*` table, so every recorded lease, head chain, and
+ledger stays verifiable — the name boundary lands as lineage, keyed by
+schema version on the wire and by `scopePreset` in the package ledgers
+(`identity` = terminal, `ccheever` = recorded legacy). §5's "nine package
+rows bind name, version, …" now reads name in whichever generation the
+ledger's `scopePreset` declares; the candidate → post-promotion
+`previousLedgerSha256` lineage chain is unchanged. See LLP 0041's dated
+2026-07-31 revision for the full migration record.)
+2026-07-28 (unreviewed post-corrective-round reconciliation:
 live-subscribe use transport, non-recursive sender-proof binding, total durable
 replay, ten-minute device-bound grants, production-schema identity,
 observation-principal provisional activation, static experimental maturity,

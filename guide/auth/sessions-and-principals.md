@@ -72,7 +72,7 @@ from the server's admin-gated mailbox:
 ```
 
 From then on the client carries the session credential; `AuthCoordinator`
-(from `@snapback/contract`) owns custody, refresh, and the logout barrier
+(from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier
 for surface-based clients.
 
 The shipped provider has no production mail adapter yet. For a local native

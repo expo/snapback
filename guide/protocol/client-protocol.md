@@ -19,7 +19,7 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Use this page when a platform cannot run `@snapback/client`. The committed JSON
+Use this page when a platform cannot run `@expo/snapback-client`. The committed JSON
 Schemas are the exact wire shapes; the
 [`snapback.v1` fixture corpus](repo:schemas/live.wire-fixtures.v1.json) is the
 language-neutral conformance entry point. The protocol does not make a client
@@ -40,7 +40,7 @@ Both local lanes begin with `POST /connection/open`. Offer
 connection-scoped request. A WebSocket offers `snapback.v1` plus
 `snapback.connection-token.<token>` as subprotocols.
 
-`@snapback/client` verifies the open response echoes that exact version. Its
+`@expo/snapback-client` verifies the open response echoes that exact version. Its
 compatibility bridge downgrades only when the exact pre-B1 decode refusal
 disappears on one offerless retry, or when an offered hosted open succeeds
 without the B1 echo; either case emits a structured diagnostic and is cached

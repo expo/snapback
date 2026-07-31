@@ -27,7 +27,7 @@ fails silently.
 
 ## Build on the external store
 
-Use `snapback.external-store.v1` from `@snapback/client/external-store`.
+Use `snapback.external-store.v1` from `@expo/snapback-client/external-store`.
 It owns canonical query identity, same-key sibling sharing, late-handle
 resolution, stale-generation fencing, error/connection snapshots, optimistic
 settlement, refcounts, and final disposal. Project that store into the
