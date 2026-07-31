@@ -6,7 +6,48 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.2, round-1 fixes: round 1 of the Wave-1
+**Revised:** 2026-07-31 (v0.3, round-2 fixes: round 2 of the loop
+returned NOT READY from both families
+(`reviews/0135-sequence-allocation-and-snapshot-batch.fable.md`
+round 2: all fifteen round-1 Fable concerns verified resolved, 2 new
+MATERIAL + 3 DETAIL;
+`reviews/0135-sequence-allocation-and-snapshot-batch.codex.md`
+round 2: round-1 items 2–12 verified resolved, the round-1 SD-2
+adjudication ACCEPTED as not a defect, 1 new MATERIAL + 2 DETAIL).
+Applied: Codex M1 (the §1.2/§1.3 no-trace claims narrowed to durable
+and protocol surfaces — counter state, stored rows, settlement,
+receipts, activity, results — with handler-authored diagnostics named
+in §1.7's sink matrix as an app-authored disclosure channel that can
+carry a tentative aborted value; the buffering alternative rejected
+with rationale in §1.7 — sequence-bearing-only buffering is
+unenforceable, whole-channel buffering blinds aborted attempts — and
+the adversarial aborted-allocation diagnostic vector added to §5.1);
+Fable M-A (the string order-field bound gets its declaration surface:
+§4.1 drafts the LLP 0110 order-field-declaration `maxEncodedBytes`
+member, write-enforced at every central writer with
+`SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED` and a reviewed
+adoption check over pre-existing rows, making §2.4's static budget a
+real bound and §5.2's round-trip vector implementable); Fable M-B
+(§1.7's no-reach refusal collapses into
+`SNAPBACK_RELATION_PARENT_UNAVAILABLE` — for a non-public counter,
+absent and hidden scope rows refuse byte-identically, the visibility
+evaluation ordered before the incarnation check; §3 and §5.1 aligned,
+closing the existence oracle); Codex D1 (§1.4's divergence claim
+narrowed: sequence-bearing outcome changes are LLP 0133 class-3
+outcome divergence, and the real gap is the missing typed mapping for
+speculative values copied into later pending args, not a
+fits-no-class anomaly); Codex D2 (§5.2's branch-uncertainty
+overstatement removed — LLP 0120 already places the aggregate shapes
+outside 3a, so the contracted branch is SD-2's expected consequence,
+owned there); Fable D-N1 (§5.1's race vector rebound to the invariant
+— no duplicate, no gap, commit-version order — admitting both
+LLP 0003 recovery shapes, retry or typed conflict); Fable D-N2
+(lane Q's presentation gap specified in §1.4: the optimistic overlay
+omits the pending row from projections that project or order by the
+sequence field until settlement — omission, not a sentinel — with
+LLP 0043 M2 / LLP 0133 named the overlay owner); Fable D-N3
+(cross-parent added to §2.4's cursor-refusal collapse list).)
+2026-07-31 (v0.2, round-1 fixes: round 1 of the Wave-1
 Spec loop returned NOT READY from both families
 (`reviews/0135-sequence-allocation-and-snapshot-batch.fable.md`:
 1 BLOCKING + 5 MATERIAL + 9 DETAIL, with SD-2 hygiene explicitly
@@ -179,12 +220,17 @@ read-modify-write** of the counter row. The returned integer is derived
 from the transaction's snapshot of the counter state plus its own
 buffered advances; the counter row joins the captured read set; and the
 brief authoritative commit validates that read like any other. A
-concurrent advance detected at commit aborts the whole attempt, and the
+concurrent advance detected at commit aborts the whole attempt, and any
 fresh re-execution allocates fresh. Whether that contention surfaces as
 serialization or as validate-and-retry, and under which diagnostic, is
 owned by the target execution model (LLP 0003), not this Spec; the
 normative contract is only that a committed allocation's counter read
-was still current at its commit and a failed attempt leaves no trace.
+was still current at its commit and that a failed attempt leaves no
+trace on any durable or protocol surface — counter state, stored
+rows, settlement, receipts, activity payloads, results.
+Handler-authored diagnostics are the named exception to that
+enumeration: an app-authored disclosure channel (§1.7's sink matrix),
+not a protocol surface.
 The writer lock is never held across handler execution, the handler is
 never re-entered mid-commit, and the integer returned mid-handler is
 the value committed — or the transaction does not commit. This is what
@@ -193,7 +239,9 @@ makes §1.3's commit-order assignment hold on the buffered boundary.
 On both surfaces, allocation against a scope row with no active incarnation
 (missing, deleted, or never registered) refuses with the existing
 `SNAPBACK_RELATION_PARENT_UNAVAILABLE` outcome — allocating from a scope is
-relationally a write into it.
+relationally a write into it. §1.7 collapses the non-public no-reach
+refusal into the same byte-identical outcome, so absence and
+invisibility stay indistinguishable on this path.
 
 ### 1.3 Allocation-versus-commit ordering and gap semantics
 
@@ -202,7 +250,9 @@ advance is part of the invoking mutation's storage transaction, committing
 or rolling back with it. Consequences, each a contract:
 
 - **No gaps from aborts.** An aborted or refused transaction advances
-  nothing and leaves no observable trace. Committed allocations within one
+  nothing and leaves no trace on any durable or protocol surface
+  (§1.2's enumeration; handler-authored diagnostics are §1.7's named
+  app-authored disclosure). Committed allocations within one
   `(counter, scope, incarnation)` are strictly increasing **and
   consecutive**. Density is a claim about allocation events, not surviving
   rows: deleting a row that stores value `n` renumbers nothing and is not a
@@ -242,17 +292,30 @@ re-derives them, reconciling id divergence through a leaf-match id-map
 that is sound only because minted ids are high-entropy strings. An
 allocated sequence value has neither property: a client cannot know the
 authoritative next value, so nothing sequence-shaped may ever join the
-accepted captured environment in any lane, and a re-derived small
-integer is unsafely leaf-matchable — its divergence fits none of
-LLP 0133's three divergence classes. V1 therefore scopes allocating
+accepted captured environment in any lane. Under re-derivation,
+sequence-bearing result and row differences are ordinary LLP 0133
+class-3 **outcome divergence** — the authoritative outcome wins — but
+that class carries no typed mapping for a speculative value already
+copied into later pending arguments: the id-map's leaf rewrite is
+sound only for high-entropy minted strings, and a re-derived small
+integer is unsafely leaf-matchable. V1 therefore scopes allocating
 operations **out of local execution** entirely: neither surface is
 admissible for lane-L capture, and no speculative surface presents an
 allocated value (§Nonclaims; open question 6 records the successor
-shape). A lane-Q queued intent that allocates is unaffected — its
-handler never runs client-side, so settlement executes it
-authoritatively and allocates then — but its optimistic overlay cannot
-present the allocated value either, because the value does not exist
-before settlement.
+shape). A lane-Q queued intent that allocates still settles correctly
+— its handler never runs client-side, so settlement executes it
+authoritatively and allocates then — but the presentation gap is real
+and specified: lane Q's optimistic overlay is computed from write
+plans and args alone (LLP 0043 M2), the allocated value does not
+exist before settlement, and a sequence order field is
+schema-required and projected wherever it orders (LLP 0110). The v1
+posture is **omission, not fabrication**: the overlay contributes no
+optimistic row to any projection that projects or orders by the
+sequence field until settlement supplies the authoritative value — a
+sentinel would be a presented speculative allocated value, exactly
+what this section prohibits. The overlay lifecycle owner (LLP 0043
+M2, within lane Q's capture semantics, LLP 0133) owns any richer
+successor presentation, beside open question 6.
 
 ### 1.5 Exhaustion
 
@@ -309,6 +372,18 @@ is the explicit route an anonymous-callable mutation (Campfire's
 `send`) uses — and LLP 0120 open question 5 itself stays open for the
 write profile; this Spec routes around it only for allocation.
 
+The gate's refusal mints no new code: for a non-public counter,
+no-reach and absence refuse **byte-identically** with §1.2's
+`SNAPBACK_RELATION_PARENT_UNAVAILABLE` outcome — the visibility
+evaluation is ordered before (and collapses into) the incarnation
+check — so a caller without declared reach cannot distinguish a
+hidden scope row from a missing one, and no existence oracle opens on
+the allocation path (LLP 0110's absent-versus-invisible discipline,
+extended here on the write side as §2.3 extends it on the read side).
+A public-scope counter's missing or inactive scope still refuses
+`SNAPBACK_RELATION_PARENT_UNAVAILABLE`: the public declaration
+already discloses existence semantics deliberately.
+
 The information-flow fact, stated plainly: an allocated value discloses
 the count of prior committed allocations in its scope to anyone who can
 observe it. The observation surface is enumerated, not implied — the
@@ -327,7 +402,14 @@ observe it. The observation surface is enumerated, not implied — the
 - **stored rows**: the containment rule's subject, below;
 - **unique-constraint signals**: prefix-partitioned by
   `(scopeId, relationIncarnation)` (§1.1), so another scope's
-  conflicting value is not observable; and
+  conflicting value is not observable;
+- **handler-authored diagnostics**: an app-authored disclosure
+  channel, outside §1.2's no-trace enumeration — a handler holds the
+  tentative integer as an ordinary value before commit and may
+  stringify it into console output or a thrown-error payload, and the
+  diagnostics path forwards immediately (diagnostics are never
+  control flow), so a tentative value can outlive an abort that
+  commits nothing; and
 - **timing**: a named nonclaim — no constant-work claim is made.
 
 V1's containment rule: values from a counter may be stored only in the
@@ -338,7 +420,15 @@ more: the generated profile proves it at generation — the plan's
 writes are closed; the handler tier declares the counter but cannot
 prove where the value flows — the declared-versus-proved split
 LLP 0120's option 2 names, recorded here as a limitation, not hidden
-(open question 1); and once a value is legitimately observed through
+(open question 1); the same honesty extends to diagnostics — the tier
+cannot prove a value stays out of the handler's own logs or thrown
+errors, and v1 narrows the no-trace claim rather than buffering the
+channel, because buffering only sequence-bearing diagnostics is
+unenforceable (a stringified or derived copy is untrackable in
+imperative code) and buffering all handler diagnostics until commit
+would blind exactly the aborted attempts diagnostics exist to
+explain, while the generated profile authors no diagnostics at all;
+and once a value is legitimately observed through
 any matrix row, downstream republication by a later operation is
 ordinary application dataflow no rule here can reach. Under the
 visibility gate, the allocate-and-return count oracle is available
@@ -501,9 +591,11 @@ establishment computes the worst case against that budget statically:
 the shared envelope's fixed members, plus each deduplicated parent
 binding, plus each node's boundary worst case derived from its
 declared order-field types — integer, boolean, and id widths are
-closed, and every string order field must carry a declared maximum
-encoded length in its contract, without which the composite refuses
-establishment. A composite whose computed worst case exceeds the
+closed, and every string order field must carry the declared
+`maxEncodedBytes` bound of §4.1's drafted order-field-declaration
+member — schema-level and write-enforced, so no stored value can
+exceed it — without which the composite refuses establishment. A
+composite whose computed worst case exceeds the
 budget refuses **at establishment** with
 `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED` — a coded
 authoring-time refusal, never a data-dependent runtime cliff. Runtime
@@ -525,8 +617,8 @@ is present exactly while some node is non-terminal. Standalone
 `sbbc1` cursors refuse in the composite and composite cursors refuse
 in standalone plans. A bound parent's incarnation or `_version` change
 returns the single `SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED`
-diagnostic; malformed, cross-app, cross-plan, cross-authority, and
-boundary-invalid credentials collapse to
+diagnostic; malformed, cross-app, cross-plan, cross-parent,
+cross-authority, and boundary-invalid credentials collapse to
 `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`. The snapshot claim is
 per invocation only: successive pages are separate snapshots, and the
 composite makes each node's no-skip/no-duplicate claim (LLP 0110 §1.4 /
@@ -600,9 +692,14 @@ imperative handler code, so the undeclared-allocation check enforces
 where the call executes, §1.2),
 `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`,
 `SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED`,
-`SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED`, and inherited
-`SNAPBACK_RELATION_PARENT_UNAVAILABLE` for allocation against a missing or
-inactive scope incarnation.
+`SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED`,
+`SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED` (the §4.1
+write-boundary refusal of a string order-field value exceeding its
+declared `maxEncodedBytes`), and inherited
+`SNAPBACK_RELATION_PARENT_UNAVAILABLE` — one code covering both
+allocation against a missing or inactive scope incarnation and §1.7's
+no-reach refusal on a non-public counter, byte-indistinguishable
+between the absent and hidden causes (§1.7).
 
 ## 4. Fold-on-acceptance amendments (drafted, not applied)
 
@@ -621,7 +718,17 @@ drafted here so their scope is reviewable:
    enrolled scope tables (§1.1), and the protected
    `relationIncarnationOf` stamping boundary stated available to — and
    required of — tables storing allocated values under
-   `(scopeId, relationIncarnation)`-prefixed unique constraints; open
+   `(scopeId, relationIncarnation)`-prefixed unique constraints; the
+   order-field declaration gains an optional `maxEncodedBytes` member
+   for string order fields — a declared UTF-8 encoded-length maximum,
+   enforced at the write boundary by every central writer (an
+   oversized value refuses with
+   `SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED`), with adoption
+   over pre-existing rows requiring the reviewed check that no stored
+   value exceeds the bound (no row silently blessed); composite
+   establishment requires the member on every composed string order
+   field (§2.4), which is what makes the static cursor budget a real
+   bound; open
    question 4 is annotated answered-for-sequences; open question 2
    gains a pointer to `snapshot-batch.v1` as the admitted multi-parent
    composition answer.
@@ -666,12 +773,23 @@ passing today.
   their receipts' commit versions are exactly 1..n.
 - **Commit-order falsifier**, the adversarial two-transaction race:
   T1 allocates and pauses before commit; T2 allocates and is driven to
-  commit first. Recorded authoritative commit versions must order the
-  committed values — sequence order equals commit-version order — with
-  T1's paused attempt aborted by captured-read validation on the
-  counter row and its fresh re-execution allocating after T2 (§1.2).
-  Every target passes this exact vector or publishes the structured
-  GAP (§1.3).
+  commit first. The vector binds the invariant, not the recovery
+  shape: T1's stale attempt never commits its value — captured-read
+  validation on the counter row aborts it — and the committed history
+  stays dense, duplicate-free, and ordered by commit version
+  (sequence order equals commit-version order). Whether T1's caller
+  then observes a fresh re-execution allocating after T2 or a typed
+  conflict is the target's per-LLP 0003 choice (§1.2); either
+  recovery shape passes. Every target passes this exact vector or
+  publishes the structured GAP (§1.3).
+- **Aborted-allocation diagnostic vector**, adversarial: a handler
+  allocates, stringifies the tentative integer into a console log and
+  a thrown-error payload, and is driven to abort by captured-read
+  invalidation on the counter row. The diagnostics channel may carry
+  the tentative value — §1.7's named app-authored disclosure — but
+  every durable and protocol surface is trace-free: counter state,
+  stored rows, settlement, receipts, activity, and results record
+  nothing of the aborted attempt (§1.2).
 - Delete/recreate of the scope row restarts the counter at 1 under the new
   incarnation; orphaned rows stay physically stored but unreachable, and
   `(scopeId, relationIncarnation)`-prefixed unique constraints admit the
@@ -689,11 +807,13 @@ passing today.
   with `SNAPBACK_SEQUENCE_EXHAUSTED` and rolls back source, activity,
   counter, and settlement together, and every subsequent attempt
   refuses identically (§1.5). An undeclared handler allocation refuses
-  at the ctx boundary; a handler allocation with neither declared
-  scope reach nor a public-scope declaration refuses (§1.7); a missing
-  or inactive scope refuses with
-  `SNAPBACK_RELATION_PARENT_UNAVAILABLE`; no generated or ctx surface
-  exposes a counter's current value.
+  at the ctx boundary; on a non-public counter, a handler allocation
+  with neither declared scope reach nor a public-scope declaration
+  and an allocation against a missing or inactive scope refuse with
+  the single `SNAPBACK_RELATION_PARENT_UNAVAILABLE` outcome,
+  byte-identical between the hidden and absent causes (§1.7's oracle
+  collapse); no generated or ctx surface exposes a counter's current
+  value.
 - **Relay `moveCard`** is expressed as `write-with-activity.v1` plus
   `AllocateSequence`: admission passes where the range collect previously
   refused; card patch, activity insert, and counter advance share one
@@ -735,8 +855,11 @@ passing today.
   8,192-byte cap; a composite whose static worst case exceeds the
   plaintext budget refuses establishment with
   `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`; a custody-ground
-  mint failure refuses the page, never reporting a terminal page
-  (§2.4).
+  mint failure refuses the page, never reporting a terminal page; and
+  a write placing a string order-field value above its declared
+  `maxEncodedBytes` refuses at the write boundary with
+  `SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED`, so no stored
+  boundary exceeds the computed worst case (§2.4, §4.1).
 - Dedup identity: `ParentAuthorizationKeyV1` golden vectors reproduce
   the dedup grouping cross-language, and the near-miss vectors — same
   parent table under a different argument binding, same binding under
@@ -757,13 +880,13 @@ passing today.
   decision: SD-2 is the author's pre-adjudicated decision instrument,
   adopted with LLP 0120 — which already places the aggregate shapes
   outside 3a — in evidence, and recording them as not-expressed is
-  exactly the input its branches consume. Whether the
-  contracted-aggregate branch fires therefore remains genuinely
-  reachable-or-not per SD-2 alone: its first branch's `boardView` half
-  (expression within ceilings, acceptance green) is empirically open,
-  evidence can land outside both branches and escalate, and any claim
-  that a branch is already forced is an adjudication for SD-2's owner
-  (LLP 0130), not for this Spec.
+  exactly the input its branches consume. Because LLP 0120 already
+  records those shapes as inexpressible under 3a, the
+  contracted-profile branch is the expected consequence once SD-2's
+  usage-evidence trigger fires — an outcome SD-2 plus LLP 0120 own
+  and cause, not one this Spec newly decides; the trigger's firing
+  and the branch adjudication themselves stay with SD-2's owner
+  (LLP 0130), not this Spec.
 
 ## Nonclaims
 
