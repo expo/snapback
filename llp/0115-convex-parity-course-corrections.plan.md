@@ -5,7 +5,13 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (standing-decisions pointer: LLP 0130 records
+**Revised:** 2026-07-31 (slice 5-types swept: CV-1 named gap 4's
+`types`-condition sweep executed in-branch (`move5-types-sweep`,
+pending landing) — 51 declarations + conditions across all seven
+publishing packages, and `scripts/check-package-export-types.mjs`
+added to the local proof as the structural regression gate; the gap
+4 text and CV-1's board row carry the dated status.)
+2026-07-31 (standing-decisions pointer: LLP 0130 records
 the author's pre-adjudicated conditional rules for this plan's
 mid-flight gates — SD-1 covers OQ3/decision 5's completion, SD-2 the
 CV-8 piece-3 aggregate choice, SD-3 answers OQ4, SD-4 the
@@ -356,7 +362,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 
 | Item | Title | Tranche | Move | Owning doc(s) | Analysis | Size | State |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types startable now |
+| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types SWEPT in-branch 2026-07-31 (`move5-types-sweep`, pending landing; named gap 4 closes at landing) |
 | CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Landed 2026-07-30 (`814acd77`: `snapback runtime-qualify` create/destroy gate + relink invalidation + regression fixture; ticket closed; residue = persisted receipt → CV-3, kit rungs → issues/20260730-kit-rungs-skip-handler-vm-qualification.md) |
 | CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Open |
 | CV-4a | Structured collection validators for arguments | B (P1) | 1 | new Spec + 0004 alignment | 0117 | M | Open (startable; first slice with CV-5) |
@@ -441,7 +447,17 @@ published client (new in v0.4): the `./online` subpath export ships
 without a `types` condition — the gap three bakeoff arms hit
 independently — and the `./rqs*` subpaths share the pattern; LLP 0122
 verified it unfixed on current main. Any external rebuild consuming
-those subpaths inherits it.
+those subpaths inherits it. *Status 2026-07-31: SWEPT in-branch
+(`move5-types-sweep`, pending landing), full-closure scope — 51 new
+declarations plus first-position `types` conditions across all seven
+publishing packages (client 7, vite 4, cli 6, app-cli 1, codegen 7,
+contract 18, hosted-supervisor 8), publish `files` coverage, and a
+structural regression gate (`scripts/check-package-export-types.mjs`
+in the local proof: export-map audit + nodenext consumer-fixture
+compile + declared-vs-runtime export parity over all 60 published
+subpaths). The parity phase also caught and fixed drift in the
+pre-existing declarations (client root/app-data, codegen define,
+vite root). This named gap closes when the branch lands.*
 
 **Work.** Complete the in-flight nine-package promotion under 0041's own
 gates; close the two artifact gaps; then rebuild at least one full workout

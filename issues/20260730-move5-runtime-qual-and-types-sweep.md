@@ -89,3 +89,63 @@ ticket carries the ratification, not the witness), the static-for-adopters
 build-policy ratification (0123 OQ3), the scope migration itself
 (decision 9's execution), and the starter-front-door/CV-13/CV-15 items,
 which are separately tracked.
+
+## 2026-07-31 — slice 5-types: SWEPT in-branch (pending landing)
+
+Branch `move5-types-sweep` (isolated worktree, base `7a4c58a7`). Every
+published subpath export of every publishing `packages/snapback-*` package
+now resolves TypeScript declarations under the standard `types` condition —
+the full sweep, not just `@snapback/client`:
+
+- 51 new hand-authored `.d.mts` files (no `any`-dumps; signatures traced
+  from the `.mjs` sources) across `@snapback/client` (7: agent-authority,
+  hosted-browser, online, rqs, rqs-preload, rqs-store, rqs-store-file),
+  `@snapback/vite` (4), `@snapback/cli` (6), `@snapback/app-cli` (1),
+  `@snapback/codegen` (7), `@snapback/contract` (18), and
+  `@snapback/hosted-supervisor` (8). Each export map gained
+  `{ "types": …, "import"/"default": … }` conditions with `types` first,
+  and every declaration joined the publish `files` allowlist (a tarball
+  that drops the `.d.mts` would re-open the defect for installed users).
+- Declaration drift in the PRE-EXISTING typed surfaces was found and fixed
+  by the new parity gate: `@snapback/client`'s root `index.d.mts` was
+  missing ~20 runtime exports (the rqs-store/rqs-preload/react-binding/
+  result-contract surfaces, `DEFAULT_INGRESS_LIMIT_BYTES`) and carried
+  `...args: unknown[]` stubs for the agent-authority fence;
+  `app-data.d.mts` leaked an importable phantom class
+  (`SnapbackAppDataClientBase` — `undefined` at runtime);
+  `codegen/define.d.ts` was missing `defineRoutes`/`routeParam`/
+  `isRoutesDef`/`isTableDef`/`isEphemeralDef`; `vite/index.d.mts` was
+  missing 12 runtime exports including `default`.
+- REGRESSION CHECK: `scripts/check-package-export-types.mjs`
+  (`bun run check:export-types`; wired into `verify-local-proof` right
+  after the package-test inventory gate, which CI runs). Three phases:
+  (1) static export-map audit — `types` condition present and FIRST,
+  declaration + runtime files exist, publish `files` covers both;
+  (2) a generated consumer fixture importing every subpath by its public
+  specifier, compiled with the locked TypeScript under
+  `--module nodenext --strict` against a symlinked node_modules (installed-
+  consumer resolution); (3) declared-value-export vs runtime `Object.keys`
+  parity per subpath. Green: 60 subpaths across 10 publishing packages.
+  Red-path demonstrated: stripping `./online`'s types condition fails the
+  check with the exact defect named (restored after the scratch run).
+- Tests: client 18/18 (+ tsc fixture), react (incl. tsc fixture), vite
+  package/channel-a/serializer (runtime binary borrowed from the primary
+  checkout), full `@snapback/cli` suite with the same binary, app-cli,
+  codegen, hosted-supervisor 12/12 all pass.
+  `packages/snapback-cli/comparator-profile.test.mjs:331` was updated to
+  normalize string-or-conditions export targets. One pre-existing failure
+  on the unmodified base (not this change):
+  `packages/snapback-contract/query-authorization.test.mjs:507` asserts
+  `schemas/live.wire-fixtures.v1.json` `formatVersion === 2` but the
+  schema (untouched here) carries 3 — flagged for whoever bumped the
+  corpus. Second pre-existing observation: running
+  `comparator-profile.test.mjs` regenerates
+  `packages/snapback-cli/fixtures/comparator/app/snapback/generated/`
+  with richer presence shapes than the committed fixture (committed
+  bytes predate a generator improvement); the churn was restored, not
+  committed, here.
+- LLP 0115 CV-1 named gap 4 / exit clause 4 text updated in-branch (dated,
+  pending landing). Slice 5-qual is NOT this branch: CV-2 landed
+  separately at `814acd77` per 0115 v0.7; CV-3/doctor-harness
+  convergence and the LLP 0009 handoff ratification remain with this
+  ticket's other half.

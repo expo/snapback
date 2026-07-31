@@ -51,6 +51,11 @@ run node tests/ci_workflows_v0.mjs
 run node tests/cargo_target_headroom_v0.mjs
 run node --test tests/runtime_link_smoke_v0.mjs
 run node scripts/check-package-test-inventory.mjs
+# @ref LLP 0115#cv-1-prove-the-public-external-packagestarter-loop — CV-1 named
+# gap 4 (the `@snapback/client/online` TS7016 class): every published subpath
+# must resolve declarations under the `types` condition, compile for an
+# external nodenext consumer, and match its module's runtime export surface.
+run node scripts/check-package-export-types.mjs
 run node tests/conformance/relation-activity-publication-v1.mjs
 run node --test scripts/runtime-package-authority.test.mjs
 run node --test scripts/snapback-package-cold-install.test.mjs
