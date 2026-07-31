@@ -5,14 +5,16 @@
 **Systems:** Authoring, Code generation, Runtime, Application data API, Search, Client integration, Contract, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.2, round-1 dual-family review fixes — identity
-section rebuilt on code truth with the full consumer cascade and migration
-design; Rust load-time recomputation decided; capability posture made
-app-wide; RFC 6901 pointers; search diagnostic precedence decided with a
-dated LLP 0073 amendment plan; `SchemaRef` renamed `PlatformSchemaRef`;
-three-lane replay taxonomy; degraded-args diagnostic deferred; acceptance
-completed)
-**Related:** LLP 0004, LLP 0037, LLP 0051, LLP 0070, LLP 0073, LLP 0093, LLP 0108, LLP 0115, LLP 0117, LLP 0127, LLP 0130
+**Revised:** 2026-07-31 (v0.3, round-2 fixes — descriptor wire form frozen
+as a closed schema table with the registry's executable generation-time
+conformance gate; durable-job successor-replay rule decided, closing open
+question 5 with a proposed dated LLP 0070 amendment; hot-path budget
+preregistered numerically with a ceiling-reduction fallback; search
+version-skew guarantee restated per direction; relation-incarnation
+normalization corrected to the string node; option E reconciled to a
+distinct node kind; `resultOnly` churn narrowed to actual reachability;
+stale code cites refreshed against current main)
+**Related:** LLP 0004, LLP 0037, LLP 0051, LLP 0070, LLP 0073, LLP 0093, LLP 0108, LLP 0110, LLP 0115, LLP 0117, LLP 0127, LLP 0130
 
 ## Summary
 
@@ -96,13 +98,13 @@ V1 does not:
 ## One argument grammar
 
 The two-lane structure — a closed scalar primitive map for authoring
-positions (`packages/snapback-codegen/index.mjs:3300`, map at 3309) and a
+positions (`packages/snapback-codegen/index.mjs:3314`, map at 3323) and a
 disjoint recursive grammar for `results.*` contracts — was the bug, not a
 feature (LLP 0117 finding 3; 0127 move 1). This Spec merges the lanes at
 argument positions:
 
 **Admitted at function-argument boundaries** (query, live query, mutation,
-action — the one gate applied at index.mjs:1242): the full LLP 0108
+action — the one gate applied at index.mjs:1253): the full LLP 0108
 recursive v1 value vocabulary, with identical spellings, bounds, and
 rules — `v.null()`, `v.boolean()`, `v.string({maxBytes})`,
 `v.integer({min,max})`, `v.finiteReal({min,max})`, `v.principal()`,
@@ -110,29 +112,35 @@ rules — `v.null()`, `v.boolean()`, `v.string({maxBytes})`,
 `v.optional(validator)`, `v.array(validator,{maxItems})`,
 `v.union([variants])`, and `v.json({maxDepth,maxBytes})` — plus the
 existing argument-lane spellings (`v.real()`, `v.number()`, relation
-incarnations), which remain valid. Bounds are LLP 0108's: depth 16, 128
+incarnations), which stay valid. Bounds are LLP 0108's: depth 16, 128
 object fields per contract, 8 union variants with the same syntactic
 disjointness rule, 1,024 array elements, 1 MiB per string/JSON value;
 omitted bounds take the profile maxima, authored bounds may only narrow.
 At an ingress boundary strict JSON admits no non-finite numbers, so
 `v.real()` and `v.finiteReal()` have identical runtime semantics; both
 spellings stay, and codegen normalizes both to the one `finiteReal`
-descriptor node (§The argument-contract descriptor, frozen form).
+descriptor node (§The argument-contract descriptor, frozen wire form).
 
 **Unchanged positions.** Schema fields, ephemeral scope/value shapes, and
 the legacy `result` validator position keep the current closed primitive
 map and their existing refusal codes — `SCHEMA_INVALID_VALIDATOR` for
 schema fields, `EPHEMERAL_INVALID_VALIDATOR` for ephemeral scope/value
-shapes (index.mjs:2608, 2615), `FUNCTION_INVALID_VALIDATOR` for the
+shapes (index.mjs:2622, 2629), `FUNCTION_INVALID_VALIDATOR` for the
 legacy `result` position. Widening them is CV-4b's and later work. The
 gate stays one recursive function with a per-position grammar parameter;
 the builders' dead `resultOnly` metadata — carried by five builders:
 `finiteReal`, `null`, `literal`, `array`, `union`
 (`packages/snapback-codegen/define.mjs:228,239,249,273,282`; no readers
 repo-wide, verified in LLP 0117) — is deleted from all five rather than
-becoming load-bearing. That deletion would silently churn today's v1
-witness for every function whose args touch those builders, which is one
-of the re-key's grounds (§Identity and hashing).
+becoming load-bearing. Reachability, stated exactly: of the five, only
+`v.finiteReal` passes today's argument gate, through its `number`/`Real`
+classification (index.mjs:3326); `v.null`, `v.literal`, `v.array`, and
+`v.union` are rejected at argument positions today, so the deletion's
+immediate silent churn is scoped to functions declaring `v.finiteReal`
+args. The deeper ground is general: a witness whose preimage is the
+internal builder spelling moves whenever any builder metadata
+(`fieldType`, `resultKind`, `resultOnly`) is refactored (§Identity and
+hashing).
 
 **Host-plan interaction.** Host-plan value expressions already receive
 structured JSON — `ValueExpr::Args` yields the whole args object and
@@ -148,11 +156,11 @@ owning documents.
 
 Today the carried descriptor and the hashed form are different objects.
 The per-function argument projection is bounds-blind: the descriptor
-(`packages/snapback-codegen/index.mjs:3354–3373`) records only
+(`packages/snapback-codegen/index.mjs:3368–3387`) records only
 `shape`/`name`/`optional` and drops every authored bound. The
 `argsContractHash` witness is computed over something else — the raw
-authored builder objects (`def?.args`, index.mjs:1942; domain prefix
-`snapback:function-args:v1`, result-contracts.mjs:38), whose validator
+authored builder objects (`def?.args`, index.mjs:1956; domain prefix
+`snapback:function-args:v1`, result-contracts.mjs:40), whose validator
 objects do carry authored bounds (`resultOptions.min`/`max`/`maxBytes`)
 plus internal builder metadata (`fieldType`, `resultKind`, `resultOnly`).
 No consumer holding the carried descriptor can recompute the witness.
@@ -167,39 +175,121 @@ kind-for-kind, bounds included). One node vocabulary, two contract roots
 (args, result). The Rust manifest carries the args contract beside the
 existing `resultContract`.
 
-**Frozen form and normalization.** `FunctionArgsContractV1` is a
+**Frozen wire form (normative, closed).** `FunctionArgsContractV1` is a
 Rust-owned serde type with one frozen JSON representation, exactly as
 `FunctionResultContract` is; the JS generator emits it and the committed
-manifest JSON Schema gates the shape. Normalization rules, normative:
-legacy spellings are aliases into the node vocabulary, never additional
-descriptor node kinds — `v.real()` and `v.number()` emit the
-`finiteReal` node, relation incarnations emit their underlying
-`id(table)` node; optionality is a field-entry property (each
-declaration-ordered entry names `name`, `optional`, and its value node),
-not a wrapper node; every bound is carried explicitly, with authored
-omission materialized as the profile maximum it means, mirroring the
-result contract's representation (`ResultValueContract::String {
-max_bytes }` et al., `src/result_contract.rs`). The descriptor format
-name stays `FunctionArgsContractV1` — the first frozen carrier shape —
-while the hash domain says v2 because it counts witness generations: the
-v1 generation's preimage was the raw builder spelling (§Identity and
-hashing).
+manifest JSON Schema gates the shape. The representation is frozen here,
+not deferred to the implementation:
+
+- **Manifest member.** `FunctionDefinition` gains `argsContract`
+  (snake alias `args_contract`), carried beside the existing
+  `resultContract`. Pairing mirrors the result side
+  (manifest.rs:1566–1580): a v2 `argsContractHash` without
+  `argsContract`, or the reverse, refuses at load under
+  `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID`.
+- **Root.** One JSON object with exactly one member, `fields`: the
+  declaration-ordered array of argument entries. Unknown root members
+  refuse (serde `deny_unknown_fields`). An empty declared root is
+  `{"fields": []}` — still a closed object at ingress.
+- **Entry.** Each entry is `{"name", "required", "value"}`,
+  member-for-member the existing `ResultObjectFieldContract`
+  (manifest.rs:3004–3008) — one entry shape for argument roots and
+  `object` nodes alike. `v.optional(inner)` normalizes to
+  `required: false`. This corrects v0.2's `optional` entry member: the
+  frozen form mirrors the result side exactly rather than inventing a
+  second entry dialect.
+- **Node encoding.** Every value node is internally tagged with
+  `kind`, camelCase variant names, unknown members and unknown kinds
+  refused — verbatim the serde form `ResultValueContract` already has
+  (`#[serde(tag = "kind", rename_all = "camelCase",
+  deny_unknown_fields)]`, manifest.rs:2957–3000, code-verified).
+- **Closed node table.** Members beside `kind`, exhaustive:
+
+  | `kind` | members |
+  | --- | --- |
+  | `null`, `boolean`, `principal` | — |
+  | `string` | `maxBytes` |
+  | `integer` | `min`, `max` |
+  | `finiteReal` | `min`, `max` |
+  | `id` | `table` |
+  | `literal` | `value` (finite JSON scalar) |
+  | `json` | `maxDepth`, `maxBytes` |
+  | `array` | `element` (node), `maxItems` |
+  | `union` | `variants` (array of nodes) |
+  | `object` | `fields` (array of entries), `allowExtra` |
+  | `platformSchemaRef` | `authority`, `schema` |
+
+  The first twelve kinds serialize byte-compatibly with
+  `ResultValueContract`; `platformSchemaRef` is the one argument-lane
+  addition. `allowExtra` is carried for node-type reuse and must be
+  `false` at every argument position; the manifest schema gate refuses
+  `true`. Every bound member is always present: authored omission
+  materializes as the profile maximum it means, mirroring
+  `ResultValueContract::String { max_bytes }` et al.
+- **Ordering and canonicalization.** The carried JSON preserves
+  declaration order in every `fields` array, and projections read it
+  in that order. The witness preimage is the canonical form under LLP
+  0108's rule (0108:381–382 is the result-side formula):
+  `argsContractHash = "sha256:" +
+  hex(sha256(UTF8("snapback:function-args:v2\n") ||
+  JCS(FunctionArgsContractV1)))` — RFC 8785 JCS, lowercase hex.
+
+**Normalization (normative).** Legacy spellings are aliases into the
+node vocabulary, never additional descriptor node kinds:
+
+- `v.real()` and `v.number()` emit the `finiteReal` node;
+- `v.relationIncarnationOf(...)` emits the `string` node with the
+  profile-maximum byte bound — **not** `id(parentTable)`, which v0.2
+  wrongly implied. Incarnation values on the wire are host-minted
+  UUIDv7 tokens (`Uuid::now_v7()`, src/storage.rs:13972), not parent
+  row ids, and generated TypeScript brands id nodes (`Id<Table>`,
+  index.mjs:5932): an `id(parentTable)` projection would type-admit a
+  genuine parent row id — semantically wrong — while rejecting a held
+  incarnation token. The `string` normalization matches both today's
+  projection (`{shape: 'primitive', name: 'string'}`) and today's
+  runtime reality; whether a token names the active incarnation stays
+  the relation machinery's runtime check (LLP 0110), exactly as
+  search's semantic constraints stay with their owner. Accepted
+  consequence, stated: `v.string()` and an incarnation argument are
+  witness-identical — incarnation-ness lives in the schema and
+  relation machinery, not the args contract. A dedicated node kind
+  would be new vocabulary with its own hash churn: a v2 question, not
+  v1. Acceptance 7 freezes this alias's golden;
+- `v.optional(validator)` sets its entry's `required: false` — never a
+  wrapper node;
+- omitted authored bounds materialize as profile maxima.
+
+The descriptor format name stays `FunctionArgsContractV1` — the first
+frozen carrier shape — while the hash domain says v2 because it counts
+witness generations: the v1 generation's preimage was the raw builder
+spelling (§Identity and hashing).
 
 **One new node kind: `PlatformSchemaRef`.**
 `PlatformSchemaRef { authority: "platform", schema }` names an entry in
 a closed, platform-owned registry of exported Rust-owned schemas. The
 explicit `authority` field is a closed enum with exactly one admitted
-value in v1; it exists so a future app-schema reference (option E) is a
-distinct authority class with its own semantics — digest-carrying
-identity whose hash churns visibly on app-schema evolution — rather
-than a silent reinterpretation of this node. Hash-by-reference-id
-(§Identity and hashing) is a property of the `platform` authority
-class, whose ids are version-pinned by LLP 0073's version-binding rule;
-it is not a property of the node kind. The registry maps each id to
-both its exported artifact definition and its runtime validator; a
-manifest naming an id the host does not carry, or a registry entry
-whose artifact and validator disagree, refuses at manifest load
-(§Identity and hashing, load-time recomputation). V1's registry has
+value, permanently for this node kind: it makes the platform scope
+legible on the wire and in the witness. A future app-schema reference
+(option E) is a distinct node design — its own node kind carrying its
+own authority value and digest-carrying identity whose hash churns
+visibly on app-schema evolution (open question 2) — never a widened
+enum on this node. Hash-by-reference-id (§Identity and hashing) is a
+property of the `platform` authority class, whose ids are
+version-pinned by LLP 0073's version-binding rule; it is not a property
+of reference nodes generally. The registry is one generated Rust source
+mapping each id to its exported artifact definition and its runtime
+validator. Both halves derive from the same Rust type, so "the registry
+pair disagrees" is not a load-time-observable fact — v0.2's load-time
+refusal for it is withdrawn as unexecutable. The executable definition
+of agreement is the generation-time conformance gate: (a) the committed
+artifact regenerates byte-identically from the owning Rust type (the
+existing schema drift lane, tests/artifact_schemas_v0.rs), and (b) the
+shared golden accept/reject vector corpus (§The search fixture, point
+4) runs against both halves — a vector the serde parser accepts but the
+exported schema rejects, or the reverse, fails CI before any manifest
+carrying the reference exists. Load time refuses exactly what load can
+observe: a manifest naming an id the host does not carry (§Identity and
+hashing, load-time recomputation). V1's registry has
 exactly one entry, `snapback:search-query-ast:v1`, resolving to the
 `SearchQueryAstV1` definition inside the exported search request schema
 (§The search fixture). `PlatformSchemaRef` is deliberately not an
@@ -232,7 +322,8 @@ that exception into one seam:
   search invocation, offline-outbox replay (a queued client mutation
   arrives as a fresh server mutation request and validates as one —
   replay lane 1 below), and scheduled-work admission at enqueue time
-  (execution-time posture is LLP 0070's; open question 5) — before
+  (execution-time posture: enqueue-validated bytes are authoritative —
+  replay lane 3, decided) — before
   handler dispatch, plan execution, or any buffered write. All evaluator
   lanes (native, IR, buffered, hosted) see the same seam and the same
   corpus, mirroring LLP 0108's runtime-validation posture.
@@ -254,7 +345,8 @@ that exception into one seam:
   budget 65,536 (`src/result_contract.rs:15–17` constants, shared or
   mirrored), per-value byte bounds from the grammar, and a complete-args
   ceiling proposed at 1 MiB (profile maximum), admitted only through the
-  preregistered hot-path benchmark gate of open question 3. Transports
+  preregistered numeric gate of acceptance 12 (open question 3,
+  decided). Transports
   may bound lower — the 64 KiB live-socket frame cap at
   `src/server.rs:5882` already does; the per-transport divergence is
   recorded under open question 3.
@@ -285,13 +377,25 @@ that exception into one seam:
      and without running the handler, mirroring LLP 0108's replay
      identity posture; re-validating history against a newer contract
      would be a different (and wrong) claim.
-  3. **Durable jobs validate at enqueue.** `ctx.jobs.enqueue` validates
-     the canonical argument bytes at enqueue time, inside the enclosing
-     transaction (LLP 0070 already requires canonical validator-checked
-     argument bytes and their digest). Retry and successor/operator
-     replay posture — trusting the immutable validated bytes versus
-     revalidating migrated args under a newly admitted artifact — is
-     LLP 0070's call, recorded here as an interface (open question 5).
+  3. **Durable jobs validate at enqueue; enqueue-time validation is
+     authoritative for the job's lifetime (decided; open question 5
+     closed).** `ctx.jobs.enqueue` validates the canonical argument
+     bytes at enqueue time, inside the enclosing transaction (LLP 0070
+     already requires canonical validator-checked argument bytes and
+     their digest). Execution and retry attempts of that job never
+     re-validate args shape: they re-execute against the retained
+     validated bytes under LLP 0070's immutable-job model, even when
+     the app's contract narrows between enqueue and execution — the
+     same history posture as lane 2. A successor job that copies the
+     predecessor's retained canonical bytes verbatim inherits their
+     validated status (0070's successor admission still rechecks
+     artifact and authorization; args shape is not re-derived).
+     Operator resubmission, and any successor that migrates or edits
+     the argument bytes, is a fresh invocation: it validates at its
+     own enqueue against the then-current admitted contract, and
+     identical bytes a narrowed contract no longer admits refuse
+     there. The rule lands in LLP 0070 as Appendix C's dated amendment
+     at this Spec's acceptance; acceptance 14 pins the matrix.
 - **Capability posture.** Targets advertise `args_contract_v1`. Every
   v2-generated app requires it app-wide: every function manifest carries
   the v2 descriptor — scalar-only functions and empty argument roots
@@ -317,7 +421,7 @@ elsewhere: `defineSearchQuery` authors `query: v.json()`
 (`packages/snapback-codegen/define.mjs:778`), and four carriers describe
 one host-owned grammar with nothing gating agreement — the authored
 validator, the codegen-emitted `SearchQueryAstV1`/`SearchRequestV1`
-interfaces (index.mjs:5899–5908), the client package's independently
+interfaces (index.mjs:5942–5943), the client package's independently
 hand-authored typings (`packages/snapback-client/index.d.mts:145`), and
 the Rust parser that owns the grammar (`src/search/types.rs:183–213`,
 already deriving `JsonSchema`, with `deny_unknown_fields`). CV-5 closes
@@ -375,22 +479,24 @@ this as the first conformance fixture for the extended descriptor:
 
 **Code baseline (corrected in round-1 review).** Today's witness does
 not hash the carried descriptor. `fn.argsContractHash` is computed over
-the raw authored builder objects (`def?.args`, index.mjs:1942, domain
+the raw authored builder objects (`def?.args`, index.mjs:1956, domain
 `snapback:function-args:v1`) — a preimage that includes authored bounds
 (`resultOptions.min`/`max`/`maxBytes`) and internal builder metadata
-(`fieldType`, `resultKind`, `resultOnly`) — while the manifest carries
-the bounds-blind `shape`/`name`/`optional` descriptor
-(index.mjs:3354–3373). Two consequences ground the re-key:
+(`fieldType`, `resultKind`, `resultOnly`) — while the carried
+projection is the bounds-blind `shape`/`name`/`optional` descriptor
+(index.mjs:3368–3387). Two consequences ground the re-key:
 
 - **The witness is unrecomputable.** Carrier and preimage are different
   objects; no consumer holding the carried descriptor can recompute or
   verify the hash. That is why the Rust host can only format-gate it.
 - **The preimage is an unstable internal spelling.** This Spec's own
   mandated deletion of the dead `resultOnly` metadata (§One argument
-  grammar) would silently churn v1 hashes for every function whose args
-  touch the five builders carrying it — identity drift with zero
-  contract change. A witness hashed over an internal spelling moves
-  whenever the builders are refactored.
+  grammar) would silently churn v1 hashes for every function declaring
+  `v.finiteReal` args — the one flagged builder today's argument gate
+  admits — identity drift with zero contract change; and the same
+  exposure holds for any refactor of the `fieldType`/`resultKind`
+  metadata the preimage also carries. A witness hashed over an internal
+  spelling moves whenever the builders are refactored.
 
 **Re-keyed witness.** The v2 witness is computed over the canonical form
 of `FunctionArgsContractV1` itself — the carried descriptor becomes the
@@ -413,9 +519,10 @@ refusing `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID` on mismatch
 at manifest load the host recomputes the hash from the carried
 `FunctionArgsContractV1` and exact-compares. A v2 hash without a
 descriptor, an unknown node kind, an unknown `PlatformSchemaRef`
-registry id, a registry entry whose exported artifact and runtime
-validator disagree, or a descriptor/hash mismatch refuses before
-activation under the same code. Rationale for recompute over
+registry id, or a descriptor/hash mismatch refuses before activation
+under the same code; registry-pair agreement is the generation-time
+conformance gate's property (§The argument-contract descriptor), not a
+load-time claim. Rationale for recompute over
 format-gate: format-gating alone would permit descriptor/hash
 disagreement — corrupting both diagnostics (which name the hash) and
 implementation identity (which incorporates it); the result-side
@@ -427,8 +534,8 @@ admission, not per invocation.
 four verified consumers; each gets a normative migration rule:
 
 1. **`implementationHash` rotates too.** `implementationIdentity`
-   incorporates `argsContractHash` (index.mjs:4170) and is hashed into
-   `implementationHash` (index.mjs:4187–4189). This Spec keeps the feed
+   incorporates `argsContractHash` (index.mjs:4205) and is hashed into
+   `implementationHash` (index.mjs:4222–4224). This Spec keeps the feed
    — the args contract is part of what an implementation *is*, and
    dropping the feed to dodge churn would blind implementation identity
    to contract changes — so every function's `implementationHash` also
@@ -441,21 +548,30 @@ four verified consumers; each gets a normative migration rule:
    remain valid history under their original identities (replay lane 2)
    and are never migrated or re-keyed.
 2. **`client.search()`'s pinned digest becomes generated, with a coded
-   skew refusal.** The client hard-pins the v1 search-request digest
-   and compares per call, today throwing a plain `TypeError` on
-   mismatch (snapback-client/index.mjs:147, compared at 167). The pin
-   is hit twice — by the re-key and by CV-5's own
+   skew refusal in the one direction new code can promise.** The
+   client hard-pins the v1 search-request digest and compares per
+   call, today throwing a plain `TypeError` on mismatch
+   (snapback-client/index.mjs:147, compared at 167). The pin is hit
+   twice — by the re-key and by CV-5's own
    `v.json()`→`PlatformSchemaRef` descriptor change. Normative: the
    pinned constant becomes a generated artifact emitted from the same
    descriptor pipeline (regenerate, never hand-keep), with a
    conformance test asserting it equals the codegen-computed hash of
-   `defineSearchQuery`'s contract; the landing ships a lockstep
-   `snapback-client` release; and version skew refuses with the coded
-   diagnostic `SNAPBACK_SEARCH_REFERENCE_INVALID` (§Diagnostics) whose
-   message names the expected and carried contract generations — an
-   old client against v2 artifacts (or the reverse) gets a legible
-   "upgrade the client / regenerate references" refusal, never an
-   uncoded `TypeError`.
+   `defineSearchQuery`'s contract, and the landing ships a lockstep
+   `snapback-client` release. The skew guarantee, stated per
+   direction: the **v2 client** refuses any reference generation it
+   does not expect — v1 references included — with the coded
+   diagnostic `SNAPBACK_SEARCH_REFERENCE_INVALID` (§Diagnostics),
+   naming expected and carried generations in a legible "regenerate
+   references / upgrade" message. An **already-installed pre-v2
+   client** is immutable code: handed v2 references, it keeps throwing
+   its uncoded `TypeError`, and no new release can recode it. That
+   legacy direction is a documented failure mode, and the
+   lockstep-release rule carries its mitigation burden: references and
+   the client move together (cascade item 3's migration rule), so the
+   uncoded path exists only in an unsupported partial-upgrade state —
+   fail-closed, but uncoded. v0.2's claim that both directions refuse
+   coded was impossible as written and is withdrawn.
 3. **React deployment identity refuses mixed generations.**
    `exactDeploymentFunction` joins implementation/args/result hashes
    (react-binding.mjs:125–133) and is equality-compared at admission
@@ -511,9 +627,10 @@ incorporate the args witness in v1 (replay lane 2).
 | `SCHEMA_INVALID_VALIDATOR` | authoring | unchanged; stored fields stay closed (CV-4b) |
 | `EPHEMERAL_INVALID_VALIDATOR` | authoring | unchanged; ephemeral scope/value shapes stay closed (CV-4b / open question 6) |
 | `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION` | runtime, ingress | new; fail-closed per-invocation refusal with operation id/kind, args hash, bounded RFC 6901 pointer, expected/actual kind enums; never the value |
-| `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID` | runtime, load | existing code, extended: also fires for v2 args recomputation mismatch, missing descriptor beside a v2 hash, unknown node kind, unknown or inconsistent `PlatformSchemaRef` registry entry (§Identity and hashing) |
+| `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID` | runtime, load | existing code, extended: also fires for v2 args recomputation mismatch, missing descriptor beside a v2 hash (or the reverse), unknown node kind, unknown `PlatformSchemaRef` registry id (§Identity and hashing) |
 | `SNAPBACK_SEARCH_QUERY_INVALID` | runtime | unchanged public code for search *grammar* refusals — the `PlatformSchemaRef`-delegated `query` argument surfaces under this code, now carrying the bounded pointer; scalar-arg refusals migrate to the generic code (precedence rule below; Appendix B) |
-| `SNAPBACK_SEARCH_REFERENCE_INVALID` | client | new; coded refusal replacing `client.search()`'s uncoded `TypeError` — reference-shape and contract-generation (version-skew) mismatches, naming expected vs. carried generations (§Identity and hashing, cascade item 2) |
+| `SNAPBACK_SEARCH_REFERENCE_INVALID` | client | new; emitted by the lockstep v2 client for reference-shape and contract-generation (version-skew) mismatches, naming expected vs. carried generations; a pre-v2 installed client keeps its uncoded `TypeError` — the documented legacy mode (§Identity and hashing, cascade item 2) |
+| `SNAPBACK_REACT_REFERENCE_INVALID` | client | existing code, unchanged: mixed-generation react references already refuse coded (react-binding.mjs:1090–1098); listed because acceptance 11 pins it |
 
 **Seam-vs-owner precedence (decided).** The rule is node-scoped, not
 function-scoped. A `PlatformSchemaRef` node's violations surface under
@@ -572,14 +689,22 @@ that can fail:
    Schema, codegen-emitted types, and the client package's typings; no
    `unknown` remains at the search argument boundary in generated
    `api.d.ts` or the provider projection.
-6. **Drift gates.** `search.request.schema.json` regenerates
-   byte-identically in the existing schema drift test; the args-contract
-   witness has a committed fixture whose hash changes when (and only
-   when) a bound or node in the canonical descriptor changes.
+6. **Drift gates and registry conformance.** `search.request.schema.json`
+   regenerates byte-identically in the existing schema drift test; the
+   args-contract witness has a committed fixture whose hash changes when
+   (and only when) a bound or node in the canonical descriptor changes;
+   and the registry conformance gate fails when the pair is made to
+   disagree — a committed artifact tampered away from its Rust source,
+   or a golden vector flipped on one half only, is caught at generation
+   time (the executable meaning of registry-pair disagreement).
 7. **Descriptor round trip and tampering.** A node-by-node corpus —
-   every node kind, every legacy-alias normalization, every bound,
-   golden canonical-form vectors including finite-real bounds and
-   numeric literals — round-trips through JS generation, the committed
+   every node kind, every legacy-alias normalization
+   (`v.real()`/`v.number()`→`finiteReal`,
+   `v.relationIncarnationOf`→`string` with the materialized bound, and
+   the `v.string()`/incarnation witness collision asserted as
+   identical), every bound, golden canonical-form vectors including
+   finite-real bounds and numeric literals — round-trips through JS
+   generation, the committed
    manifest JSON (schema-gated), Rust serde load, and the
    inspect/provider/Contract projections and generated references.
    Tampered-manifest negatives refuse at load with
@@ -604,21 +729,45 @@ that can fail:
 11. **Blast-radius migration.** Regenerating the committed fixtures
     (the comparator fixture included) rotates every `argsContractHash`
     and `implementationHash` exactly once, and everything compiles and
-    passes end-to-end; a mixed-generation pair refuses coded —
-    `SNAPBACK_SEARCH_REFERENCE_INVALID` for the search pin,
-    `SNAPBACK_REACT_REFERENCE_INVALID` for react references — never an
-    uncoded `TypeError`; the generated search pin equals the
+    passes end-to-end. Mixed-generation refusals are pinned per
+    direction: the v2 client handed a v1 (or malformed) reference
+    refuses `SNAPBACK_SEARCH_REFERENCE_INVALID`; react references
+    refuse `SNAPBACK_REACT_REFERENCE_INVALID` in both directions
+    (existing code, react-binding.mjs:1090–1098); the pre-v2 client's
+    uncoded `TypeError` against v2 references is recorded as the
+    documented legacy mode — documentation, not a gate, since shipped
+    clients cannot be re-coded. The generated search pin equals the
     codegen-computed hash of `defineSearchQuery`'s contract.
-12. **Hot-path budget.** A preregistered benchmark on the hot mutation
-    path (scalar-args and structured-args profiles) with its threshold
-    recorded before implementation; the 1 MiB ceiling is admitted only
-    if the gate passes, else open question 3's fallback applies.
+12. **Hot-path budget (preregistered here, before implementation).**
+    On the reference profile — release-build `snapback` host, native
+    evaluator, Apple M-series-class development hardware, the host
+    class LLP 0108's benchmark evidence uses — added per-invocation
+    ingress-validation latency must hold: p95 ≤ 100 µs for the scalar
+    profile (five scalar args) and p95 ≤ 1 ms for the structured
+    profile (a 64 KiB nested object/array payload, depth ≥ 8). The
+    1 MiB complete-args ceiling is admitted only if a 1 MiB payload
+    additionally validates at p95 ≤ 16 ms (the same 1 ms-per-64-KiB
+    budget). Fallback if a gate fails, decided now: ceiling reduction
+    — the complete-args ceiling drops to the largest of
+    512/256/128/64 KiB whose measured p95 meets the 1 ms-per-64-KiB
+    budget, floored at 64 KiB (the live-frame cap, making transports
+    uniform). A bounded-depth short-circuit is rejected outright:
+    skipping validation below a depth reopens the unvalidated hole
+    this Spec exists to close.
 13. **Diagnostic stability rows.** Expected code per lane is pinned in
     fixtures: generic code for every non-reference node (search's
     scalar args included, post-amendment — the recorded 0073
     consequence), the owning parser's stable code for
     `PlatformSchemaRef`-delegated refusals, each carrying the bounded
     pointer.
+14. **Durable-job lifetime authority.** With a job enqueued under
+    contract generation G and the contract narrowed before execution:
+    the job executes and retries against its retained validated bytes
+    with no shape revalidation; a successor copying those bytes
+    verbatim likewise executes; operator resubmission of the identical
+    bytes refuses at its fresh enqueue under the narrowed contract;
+    and an invalid payload refuses at the original enqueue with no job
+    row created (replay lane 3; Appendix C).
 
 ## Appendix A — proposed LLP 0004 dated alignment
 
@@ -678,6 +827,31 @@ by this document; its open question 12 stays Open until then.
 > migrate to `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION` under LLP
 > 0131's node-scoped precedence rule.
 
+## Appendix C — proposed LLP 0070 dated amendment
+
+Proposed text, recorded per the same commissioning pattern as
+Appendices A and B; to be appended to LLP 0070 only when this Spec is
+Accepted, with the actual landing date. LLP 0070 is not edited by this
+document.
+
+> ## Dated amendment: argument-shape validation authority (date of
+> acceptance)
+>
+> LLP 0131 supplies the ingress seam for `ctx.jobs.enqueue`: canonical
+> argument bytes validate against the function's declared argument
+> contract at enqueue time, inside the enclosing transaction, refusing
+> `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION` before any job row
+> exists. Enqueue-time validation is authoritative for the job's
+> lifetime: execution and retry attempts re-execute the retained
+> validated bytes and never re-derive args shape; a successor job that
+> copies the predecessor's canonical bytes verbatim inherits their
+> validated status, while artifact and authorization admission are
+> rechecked as this RFC already requires. Operator resubmission, and
+> any successor that migrates or edits argument bytes, is a fresh
+> admission validating against the then-current admitted contract at
+> its own enqueue. History is never revalidated against a newer
+> contract.
+
 ## Open questions
 
 Adjudicated in this Spec's review loop (LLP 0115 v0.6 open question 8
@@ -689,30 +863,37 @@ places them here, outside the ten author-adjudicated decisions):
    evidence it protects.
 2. **Option E placement (0117 OQ2).** Proposed: app-visible
    schema-referencing spellings (`v.doc(...)`-class) land as a dated v2
-   section of this Spec after v1 ships, reusing the `PlatformSchemaRef`
-   machinery through a new authority class with digest-carrying identity
-   and visible hash churn on app-schema evolution (§descriptor), with a
-   dated LLP 0108 cross-amendment for result-side use. Open until this
-   loop closes; nothing in v1 depends on the answer.
-3. **Ingress cost budget (0117 OQ3).** The 1 MiB complete-args ceiling
-   is admitted only through a preregistered hot-mutation-path benchmark
-   with a fixed, pre-recorded threshold and a stated fallback ceiling if
-   the gate fails (acceptance 12); the capability-id half is answered
-   (`args_contract_v1`). The adjudication must also record the
-   per-transport divergence: the 64 KiB live-socket frame cap
-   (`src/server.rs:5882`) means a contract admitting a payload larger
-   than one frame binds over HTTP but fails the live socket with a
-   transport error, not the args-contract code. Proposed mitigation: a
-   codegen advisory when a live-query function's maximum declared args
-   payload exceeds the frame budget.
+   section of this Spec after v1 ships, as a distinct node design — an
+   `AppSchemaRef`-class node kind carrying its own authority value and
+   digest-carrying identity with visible hash churn on app-schema
+   evolution (§descriptor). The registry-and-delegation pattern recurs;
+   the `PlatformSchemaRef` node kind is not reused. A dated LLP 0108
+   cross-amendment covers result-side use. Open until this loop closes;
+   nothing in v1 depends on the answer.
+3. **Ingress cost budget (0117 OQ3) — decided in v0.3.** The numeric
+   gate and its fallback are preregistered in acceptance 12: p95 ≤
+   100 µs scalar and ≤ 1 ms per 64 KiB structured on the reference
+   profile, 1 MiB ceiling admitted only under the same pro-rata budget,
+   ceiling reduction (never a validation short-circuit) on failure; the
+   capability-id half was already answered (`args_contract_v1`). The
+   recorded per-transport divergence stands: the 64 KiB live-socket
+   frame cap (`src/server.rs:5882`) means a contract admitting a
+   payload larger than one frame binds over HTTP but fails the live
+   socket with a transport error, not the args-contract code;
+   mitigation stays the proposed codegen advisory when a live-query
+   function's maximum declared args payload exceeds the frame budget.
+   Remaining for the loop: ratifying the preregistered numbers, not
+   choosing them.
 4. **Structured-leaf plan operators.** Does any host-plan operator need
    array/membership semantics over structured args in the near term, or
    does scalar-leaf comparison hold until CV-4b?
-5. **Scheduled-execution revalidation.** Enqueue-time validation is
-   specified here (replay lane 3); whether execution and retry trust
-   the immutable enqueue-validated bytes, and whether successor or
-   operator replay revalidates migrated args under the newly admitted
-   artifact, is LLP 0070's call, recorded here as an interface.
+5. **Scheduled-execution revalidation — closed in v0.3.** Decided:
+   enqueue-time validation is authoritative for the job's lifetime.
+   Execution, retry, and verbatim-copy successors never re-derive args
+   shape; operator resubmission and migrated-args successors validate
+   as fresh admissions against the then-current contract (replay lane
+   3; acceptance 14). The rule lands in LLP 0070 through Appendix C's
+   dated amendment at acceptance.
 6. **Unchanged-lane debt.** Ephemeral scope/value and legacy `result`
    positions keep the scalar map in v1; decide whether they widen with
    CV-4b or die as lanes first.
@@ -728,6 +909,23 @@ truth with the full consumer cascade, Rust load-time recomputation and
 the search diagnostic precedence were decided, `SchemaRef` became
 `PlatformSchemaRef`, the replay taxonomy went normative, the
 degraded-args diagnostic was deferred to CV-6/SD-1, and acceptance was
-completed. A round-2 delta review follows; the loop should adjudicate
-open questions 1–3 before implementation starts; acceptance criteria
-are §Acceptance verbatim.
+completed.
+
+Revised to v0.3 the same day after round-2 delta review (Fable READY —
+three minors, one semantically load-bearing; Codex NOT READY — round-1
+items 2/6/8 unresolved plus two new MATERIALs): the descriptor wire
+form is frozen as a closed schema table, with the registry's
+unexecutable load-time pair comparison withdrawn in favor of the
+generation-time conformance gate; open question 5 closed with the
+durable-job lifetime-authority rule, Appendix C's proposed LLP 0070
+amendment, and acceptance 14; the hot-path budget is preregistered
+numerically with a ceiling-reduction fallback (open question 3
+decided); the search version-skew guarantee is restated per direction,
+documenting the pre-v2 client's uncoded `TypeError` as the legacy mode;
+relation-incarnation normalization is corrected to the string node with
+the witness collision accepted; option E is reconciled to a distinct
+node kind; the `resultOnly` churn claim is narrowed to `v.finiteReal`
+reachability; and every stale code cite is refreshed against current
+main. A focused Codex round-3 delta review follows; the loop should
+adjudicate open questions 1–2 before implementation starts; acceptance
+criteria are §Acceptance verbatim.
