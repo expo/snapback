@@ -120,6 +120,43 @@ function executingPackageIdentity() {
   };
 }
 
+/**
+ * Bounded evidence for an executing-package identity mismatch. The identity
+ * stores one aggregate digest per package, so a per-file content diff is not
+ * reconstructable from the receipt; this names which package moved, both
+ * aggregate digests, and any file-set difference. Equal file sets with
+ * differing digests mean file contents changed between receipt production and
+ * verification — historically an in-place regeneration of the packaged
+ * comparator fixture from a stale committed state (d5ad77c0, 345cb070).
+ */
+function executorPackageMismatchDetails(receiptPackages, verifierPackages) {
+  const details = {};
+  for (const packageName of ['cli', 'client']) {
+    const recorded = receiptPackages?.[packageName];
+    const observed = verifierPackages[packageName];
+    if (sameValue(recorded, observed)) continue;
+    const recordedFiles = new Set(Array.isArray(recorded?.files) ? recorded.files : []);
+    const observedFiles = new Set(observed.files);
+    details[packageName] = {
+      receipt: {
+        name: recorded?.name ?? null,
+        version: recorded?.version ?? null,
+        sha256: recorded?.sha256 ?? null,
+      },
+      verifier: {
+        name: observed.name,
+        version: observed.version,
+        sha256: observed.sha256,
+      },
+      filesOnlyInReceipt: [...recordedFiles]
+        .filter((file) => !observedFiles.has(file)).slice(0, 16),
+      filesOnlyInVerifier: [...observedFiles]
+        .filter((file) => !recordedFiles.has(file)).slice(0, 16),
+    };
+  }
+  return details;
+}
+
 function comparatorError(code, message, details = undefined) {
   const error = new Error(`${code}: ${message}`);
   error.code = code;
@@ -1772,10 +1809,12 @@ export function validateComparatorReceipt(receipt, {
       `receipt.executorPackages.${packageName} is not a closed package identity`,
     );
   }
+  const verifierPackages = executingPackageIdentity();
   assert(
-    sameValue(receipt.executorPackages, executingPackageIdentity()),
+    sameValue(receipt.executorPackages, verifierPackages),
     'SNAPBACK_COMPARATOR_RECEIPT_INVALID',
     'comparator receipt executing-package identity does not match the verifier package graph',
+    executorPackageMismatchDetails(receipt.executorPackages, verifierPackages),
   );
   assertReceiptIdentity(receipt.identity);
   assert(

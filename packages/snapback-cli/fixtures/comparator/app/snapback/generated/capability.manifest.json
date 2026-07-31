@@ -1,6 +1,60 @@
 {
   "artifactKind": "capabilityManifest",
-  "assetUpload": false,
+  "assetUpload": true,
+  "assets": {
+    "advisoryLimits": [],
+    "appLogicalQuotaBytes": 4294967296,
+    "attemptTtlMs": 21600000,
+    "capabilityId": "asset_lifecycle_v1",
+    "deliveryProfiles": [
+      "private-strict"
+    ],
+    "digestAlgorithm": "sha256",
+    "image": {
+      "capabilityIds": [
+        "asset_image_finalization_v1",
+        "asset_image_pipeline_v1"
+      ],
+      "formats": [
+        "image/jpeg",
+        "image/png"
+      ],
+      "maxDecompressionRatio": 500,
+      "maxDimension": 16384,
+      "maxMetadataBytes": 1048576,
+      "maxOutputBytes": 67108864,
+      "maxPixels": 50000000,
+      "placeholderAlgorithm": "thumbhash.v1",
+      "ratioFloorBytes": 16777216,
+      "stepTimeBudgetMs": 10000
+    },
+    "integrityGrades": [
+      "end-to-end-verified",
+      "received-bytes-canonical"
+    ],
+    "lifecycleStores": [
+      "local-fs"
+    ],
+    "maxChunkBytes": 8388608,
+    "maxOpenAttemptsPerApp": 64,
+    "maxOpenAttemptsPerPrincipal": 8,
+    "minAccountingUnitBytes": 4096,
+    "missing": [
+      "asset-video-finalization",
+      "asset-backup-export",
+      "asset-custom-read-authorizers",
+      "asset-deferred-length",
+      "asset-reference-gc",
+      "public-immutable",
+      "private-signed"
+    ],
+    "pendingGraceMs": 86400000,
+    "publicationRetentionMs": 604800000,
+    "resumableLane": "tus-1.0.0",
+    "tombstoneRetentionMs": 604800000,
+    "workLeaseMs": 60000,
+    "workRetryCeiling": 5
+  },
   "authImpersonation": true,
   "authProtocols": {
     "bootstrap": 1,
@@ -13,7 +67,6 @@
     "cloudflare",
     "hosted_untrusted_code",
     "external_auth",
-    "assets",
     "outbound_actions",
     "bounded_response_stream_v1",
     "notifications",
@@ -22,6 +75,9 @@
   ],
   "capabilityMaturity": {
     "args_contract_v1": "experimental",
+    "asset_image_finalization_v1": "experimental",
+    "asset_image_pipeline_v1": "experimental",
+    "asset_lifecycle_v1": "experimental",
     "bounded_children_v1": "experimental",
     "inline_handler_v1": "experimental",
     "jobs_one_off_v1": "experimental",
@@ -215,7 +271,10 @@
     "args_contract_v1",
     "versioned_seed_install_v1",
     "versioned_seed_reset_v1",
-    "write_activity_v1"
+    "write_activity_v1",
+    "asset_lifecycle_v1",
+    "asset_image_finalization_v1",
+    "asset_image_pipeline_v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",

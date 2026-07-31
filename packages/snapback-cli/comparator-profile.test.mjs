@@ -232,7 +232,19 @@ try {
         },
       },
     }),
-    /executing-package identity does not match/,
+    (error) => {
+      // The mismatch diagnostic must name which package moved and both
+      // aggregate digests; equal file sets with differing digests are the
+      // stale-packaged-fixture signature that cost several staging runs.
+      assert.match(error.message, /executing-package identity does not match/);
+      const details = error.diagnostic.details;
+      assert.deepEqual(Object.keys(details), ['client']);
+      assert.equal(details.client.receipt.sha256, `sha256:${'0'.repeat(64)}`);
+      assert.equal(details.client.verifier.sha256, green.executorPackages.client.sha256);
+      assert.deepEqual(details.client.filesOnlyInReceipt, []);
+      assert.deepEqual(details.client.filesOnlyInVerifier, []);
+      return true;
+    },
   );
 
   const receiptPath = join(root, 'green-receipt.json');
