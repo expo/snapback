@@ -35140,6 +35140,10 @@ globalThis.__snapbackHandlers = {
             "diagnostic-code prefix validated by the durable auth-mode parser",
         ),
         (
+            "SNAPBACK_ASSET_",
+            "diagnostic-code family prefix appearing in detail-shape doc text (LLP 0044); concrete codes are classified individually",
+        ),
+        (
             "SNAPBACK_ACTION_MAX_CONCURRENCY",
             "environment variable configuring detached action worker admission",
         ),
@@ -35726,6 +35730,14 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_V8_COMPAT_FLAG_REFUSED",
         "SNAPBACK_WEBSOCKET_MESSAGE_INVALID",
         "SNAPBACK_WEBSOCKET_SENDER_MISMATCH",
+        "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED",
+        "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED",
+        "SNAPBACK_ASSET_LENGTH_MISMATCH",
+        "SNAPBACK_ASSET_DIGEST_MISMATCH",
+        "SNAPBACK_ASSET_REF_UNVERIFIED",
+        "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
+        "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
+        "SNAPBACK_ASSET_ATTACH_DENIED",
     ];
 
     const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
@@ -35783,6 +35795,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY",
         "SNAPBACK_PROFILE_FORBIDS",
         "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED",
+        "SNAPBACK_ASSET_FORBIDDEN",
+        "SNAPBACK_ASSET_ADMISSION_REVOKED",
     ];
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
@@ -35798,6 +35812,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_UNKNOWN_FUNCTION",
         "SNAPBACK_UNKNOWN_SUBSCRIPTION",
         "SNAPBACK_UNKNOWN_TABLE",
+        "SNAPBACK_ASSET_INTENT_UNKNOWN",
+        "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+        "SNAPBACK_ASSET_UNKNOWN",
+        "SNAPBACK_ASSET_VARIANT_UNKNOWN",
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
@@ -35872,6 +35890,16 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SEED_PARTIAL_UNTRACKED",
         "SNAPBACK_SEED_VERSION_REUSED",
         "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION",
+        "SNAPBACK_ASSET_INTENT_STALE",
+        "SNAPBACK_ASSET_INTENT_REVOKED",
+        "SNAPBACK_ASSET_OFFSET_CONFLICT",
+        "SNAPBACK_ASSET_ATTEMPT_TERMINAL",
+        "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
+        "SNAPBACK_ASSET_ADMISSION_STALE",
+        "SNAPBACK_ASSET_ADMISSION_CONFLICT",
+        "SNAPBACK_ASSET_GENERATION_STALE",
+        "SNAPBACK_ASSET_NOT_READY",
+        "SNAPBACK_ASSET_REFERENCED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
@@ -35888,6 +35916,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE",
         "SNAPBACK_VALUE_TOO_LARGE",
         "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE",
+        "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
     ];
 
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
@@ -35908,6 +35937,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_EPHEMERAL_RATE_LIMITED",
         "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
         "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT",
+        "SNAPBACK_ASSET_QUOTA_EXCEEDED",
+        "SNAPBACK_ASSET_CEILING_EXCEEDED",
     ];
 
     const REQUEST_TIMEOUT_DIAGNOSTICS: &[&str] = &["SNAPBACK_REQUEST_BODY_TIMEOUT"];
@@ -36008,6 +36039,7 @@ globalThis.__snapbackHandlers = {
     // diagnostics that never normally become an `ApiError`. If one does reach
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_BENCH_HELPER_SPLICE_MISMATCH",
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
         // LLP 0070 first slice: internal job-ledger invariants — a corrupt
         // stored state, an exhausted per-job fence, or enqueues reaching
@@ -36131,6 +36163,29 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
         "SNAPBACK_V8_RUNNER_START_FAILED",
         "SNAPBACK_VERSION_OUT_OF_RANGE",
+        "SNAPBACK_ASSET_AUTHORIZER_RESULT_INVALID",
+        "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE",
+        "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",
+        "SNAPBACK_ASSET_HOST_OP_UNKNOWN",
+        "SNAPBACK_ASSET_INTENT_ACCEPT_INVALID",
+        "SNAPBACK_ASSET_INTENT_IDENTITY_COLLISION",
+        "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+        "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID",
+        "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
+        "SNAPBACK_ASSET_LIVE_INPUT_INVALID",
+        "SNAPBACK_ASSET_LIVE_SESSIONS_UNSUPPORTED",
+        "SNAPBACK_ASSET_RECORD_INVALID",
+        "SNAPBACK_ASSET_REFCOUNT_INVALID",
+        "SNAPBACK_ASSET_RETRY_INELIGIBLE",
+        "SNAPBACK_ASSET_RUNNER_DISABLED",
+        "SNAPBACK_ASSET_STORE_KEY_INVALID",
+        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+        "SNAPBACK_ASSET_TEST_CRASH",
+        "SNAPBACK_ASSET_TEST_TRANSIENT",
+        "SNAPBACK_ASSET_TRANSITION_INVALID",
+        "SNAPBACK_ASSET_WORK_KIND_UNKNOWN",
+        "SNAPBACK_ASSET_WORK_TRANSITION_INVALID",
+        "SNAPBACK_ASSET_WORK_UNKNOWN",
     ];
 
     const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
@@ -36152,7 +36207,34 @@ globalThis.__snapbackHandlers = {
             StatusCode::INTERNAL_SERVER_ERROR,
             INTERNAL_SERVER_ERROR_DIAGNOSTICS,
         ),
+        (StatusCode::GONE, ASSET_GONE_DIAGNOSTICS),
+        (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            ASSET_UNPROCESSABLE_DIAGNOSTICS,
+        ),
+        (
+            StatusCode::PRECONDITION_FAILED,
+            ASSET_PRECONDITION_DIAGNOSTICS,
+        ),
+        (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            ASSET_UNSUPPORTED_MEDIA_DIAGNOSTICS,
+        ),
     ];
+
+    const ASSET_GONE_DIAGNOSTICS: &[&str] = &["SNAPBACK_ASSET_ATTEMPT_EXPIRED"];
+    const ASSET_UNPROCESSABLE_DIAGNOSTICS: &[&str] =
+        &["SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED"];
+    const ASSET_PRECONDITION_DIAGNOSTICS: &[&str] =
+        &["SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED"];
+    const ASSET_UNSUPPORTED_MEDIA_DIAGNOSTICS: &[&str] =
+        &["SNAPBACK_ASSET_TUS_CONTENT_TYPE_UNSUPPORTED"];
+
+    // TUS 1.0.0's checksum-mismatch class has no `StatusCode` const; the
+    // reviewed table carries it by numeric status so the inventory stays
+    // exhaustive without loosening the fail-safe default.
+    const NONSTANDARD_STATUS_DIAGNOSTICS: &[(u16, &[&str])] =
+        &[(460, &["SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID"])];
 
     const STALE_ARTIFACT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND",
@@ -36170,6 +36252,14 @@ globalThis.__snapbackHandlers = {
     fn expected_http_diagnostic_codes() -> BTreeSet<String> {
         let mut expected = BTreeSet::new();
         for (_, codes) in HTTP_STATUS_FAMILIES {
+            for code in *codes {
+                assert!(
+                    expected.insert((*code).to_owned()),
+                    "duplicate diagnostic status classification: {code}"
+                );
+            }
+        }
+        for (_, codes) in NONSTANDARD_STATUS_DIAGNOSTICS {
             for code in *codes {
                 assert!(
                     expected.insert((*code).to_owned()),
@@ -36220,6 +36310,15 @@ globalThis.__snapbackHandlers = {
                     status_for_diagnostic_code(code),
                     *expected_status,
                     "{code} drifted out of its reviewed HTTP family"
+                );
+            }
+        }
+        for (expected_status, codes) in NONSTANDARD_STATUS_DIAGNOSTICS {
+            for code in *codes {
+                assert_eq!(
+                    status_for_diagnostic_code(code).as_u16(),
+                    *expected_status,
+                    "{code} drifted out of its reviewed nonstandard status"
                 );
             }
         }
@@ -36890,6 +36989,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -37152,6 +37252,7 @@ globalThis.__snapbackHandlers = {
                         permission_fields: None,
                         search_indexes: Vec::new(),
                         membership: None,
+                        asset_sharing: None,
                     }],
                     ..SchemaManifest::default()
                 })

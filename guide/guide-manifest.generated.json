@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "6685e17aa5e11943f8d53db7923eb12580d36706"
+    "commit": "dfb71f40ca9da05cceb2a321efe58428bc1e307e"
   },
   "nav": {
     ".": [
@@ -456,7 +456,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "698c11e16466079c5ae769a23159b85d30f152a56189f16cc17fd149502d65a7",
+      "sha256": "ea54992efdb64d7da25703b3317ffd0dbdd56218769ca2721fc5d1edbfed2f57",
       "snippets": [
         {
           "lang": "js",
@@ -518,7 +518,7 @@
       ],
       "reviewed": "2026-07-24",
       "reviewedCommit": "HEAD",
-      "sha256": "5013c6807a6c2bcb43be60099faf6afa4b26b6cafb9e565f235f49d906c16382",
+      "sha256": "f4ab04120ea6c2a8bd595a63c494436b49b5afca0cb0b7c8d431b6b0e9fee744",
       "snippets": []
     },
     "backend.actions-and-fetch": {
@@ -833,7 +833,7 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "05d8818044348703472ac6dbc37afa66aea3da8ee3c88739dee841e13ddbec1e",
+      "sha256": "beae97a2758407dcc62e6d0919a063fb4c545388ff1c263a3d6d0d51f7387ab3",
       "snippets": [
         {
           "lang": "js",
@@ -1035,7 +1035,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "2a91ee4dbe6b83dc0158d003b76e3934ae7f59e6434ae028b00d18dac80ad2d1",
+      "sha256": "3343b74430e827f5925698a6b21772a56abe3004b382e1fe51b4e60d81d0385e",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1063,7 +1063,7 @@
       ],
       "reviewed": "2026-07-19",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "98642d7294b6072ac3866363be88ace6d3bcf7f3db562bfff8dfa66bb347e0bc",
+      "sha256": "9ab786a7308c0826e015237f7926c1d2748fc654553f38207db2d6fbe844515b",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -1103,7 +1103,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "6b16980d00c03358810c87d3da2a4542f2597e769adff716c9db2581a3d333d8",
+      "sha256": "ef85c8d1eb3114357284ff19ba10c9c4595df98e449877fed0d5c4e5da0b5a2d",
       "snippets": [
         {
           "lang": "contract",
@@ -1168,7 +1168,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "da842af00cd99be1b72e92dee18ea37e6ca28f91e5295d04230eb0203e1f8e7e",
+      "sha256": "ff5078ff2c0924079bd2ccdd71056c00d6fbf619045b97b9f54f85f8d9ea4b42",
       "snippets": []
     },
     "clients.headless": {
@@ -1206,7 +1206,7 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "6104f44e8d8b07e2c478f9578bbfe13e781f119531a6bd9f3cd01a02475ba35b",
+      "sha256": "5bc45afa9ffbceafb293cdd8c3586abf6c14075d637c634cbdbf05f33968ffc7",
       "snippets": [
         {
           "lang": "js",
@@ -1251,7 +1251,7 @@
       ],
       "reviewed": "2026-07-22",
       "reviewedCommit": "HEAD",
-      "sha256": "600304b3025c9f351373822f84d1cc28e710f5effc585462641378a555a8407b",
+      "sha256": "85f500c986b906e52a309044e38d1d1c5ed96b289bd8e7a770c0d9a21d82e4e1",
       "snippets": [
         {
           "lang": "tsx",
@@ -1298,7 +1298,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "8798c9241b24d00c546baab7258b42fade716db4cf426ef218793f6568ef4c9b",
+      "sha256": "fbbd3a930aff9b4d1f6aeaf5b10be5ef51100983a4be9712798bd7544e076a24",
       "snippets": [
         {
           "lang": "ts",
@@ -1461,7 +1461,7 @@
       ],
       "reviewed": "2026-07-22",
       "reviewedCommit": "HEAD",
-      "sha256": "7e5e6b2de711e63630ea6422071cefff0f44eb6c2606a799c3cbf4c7a7f6f0dd",
+      "sha256": "2674267b2a4fec7966c252cf6fdec4c5c17962533dfdc5ad708e030f7e3b9308",
       "snippets": []
     },
     "getting-started.generated-artifacts": {
@@ -1526,7 +1526,7 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "0007063aa3abaef2d91552165b282d3af6e0e37d9386521e7a36fc268e676603",
+      "sha256": "7a28c53d8a9c8d8f62263550c535d148fa4ef6d51eec19ab04e737ae117c9689",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1819,7 +1819,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "5ab24538b855d7a1144e7e90a512673b0b8d952a3bb249a8b3a3d6c47bb6a65e",
+      "sha256": "bb4d4c3e849cfb7aa6c902bd5e9b641d4f062211cf7edd0f36190a2fb556e321",
       "snippets": []
     },
     "realtime.ephemeral-state": {
@@ -2112,7 +2112,7 @@
       ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "8299c6ddb1c9019c08a72545c8e74998aeb2b5f5",
-      "sha256": "b589d74b2ccadfe32cf1712f8316686631170b29939b09f877268ddd3e3666e1",
+      "sha256": "0aee0faf52197a0b535aaedc3f64976d20243f0f70153809365c813a508472a4",
       "snippets": [
         {
           "lang": "js",
@@ -2177,7 +2177,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "d2b8c6b577feecb42eae852a5a53761f673f329d4dfefe6245b763d61dca150d",
+      "sha256": "dab508e557d6437225ba9a1f2556902357c918606ec7328ddc5061e3da5cf3c2",
       "snippets": [
         {
           "lang": "js",
@@ -2262,6 +2262,7 @@
     ],
     "gaps": [
       "backend.bounded-children-v1",
+      "backend.jobs-one-off",
       "backend.notifications",
       "backend.vector-search",
       "backend.write-activity-v1",
@@ -2271,8 +2272,8 @@
     ]
   },
   "surfaces": {
-    "routes": 80,
+    "routes": 83,
     "hostOps": 24
   },
-  "contentHash": "c18ac5e89b45c38d05587a96c639818c9c3c05d69b95eb9971723f2b15a43184"
+  "contentHash": "dca5ded4f8907a238b4b267565411b677f78c3254bc103ce85872956a61c2f23"
 }

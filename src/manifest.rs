@@ -7372,6 +7372,10 @@ mod membership_manifest_grammar_tests {
                 TargetCapabilityId::WriteActivityV1,
                 CapabilityMaturity::Experimental,
             ),
+            (
+                TargetCapabilityId::AssetLifecycleV1,
+                CapabilityMaturity::Experimental,
+            ),
         ]);
         assert_eq!(disabled.capability_maturity, experimental);
         assert!(

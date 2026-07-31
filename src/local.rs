@@ -1476,7 +1476,7 @@ impl<'a> MutationReceiptPublication<'a> {
 
 enum StagedMutationExecution {
     HostPlan(crate::manifest::MutationPlan),
-    Buffered(BufferedCommitPayload),
+    Buffered(Box<BufferedCommitPayload>),
 }
 
 /// A durable cron claim paired with its process-local finite admission root.
@@ -8780,7 +8780,7 @@ impl LocalSnapback {
                     )?;
                     (
                         self.authorization_commit_preflight_for_changes(preview.changes),
-                        StagedMutationExecution::Buffered(payload),
+                        StagedMutationExecution::Buffered(Box::new(payload)),
                     )
                 }
                 _ => {
@@ -8865,6 +8865,7 @@ impl LocalSnapback {
                 ),
             },
             StagedMutationExecution::Buffered(payload) => {
+                let payload = *payload;
                 self.db.commit_buffered_writes_idempotent_guarded(
                     &input,
                     payload,
@@ -21921,6 +21922,8 @@ globalThis.__snapbackHandlers = {
                 read_dependencies: Vec::new(),
                 result: Value::Null,
                 ctx_ledger: crate::manifest::CtxAnswerLedger::default(),
+                job_enqueues: Vec::new(),
+                job_producer: None,
                 asset_admissions: admissions,
             },
             None,
