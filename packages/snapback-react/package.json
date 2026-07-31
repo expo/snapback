@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/react",
+  "name": "@expo/snapback-react",
   "version": "0.1.0",
   "type": "module",
   "description": "React external-store bindings for the Snapback app-data client.",
@@ -16,7 +16,7 @@
     "./package.json": "./package.json"
   },
   "peerDependencies": {
-    "@snapback/client": ">=0.1.0 <0.2.0",
+    "@expo/snapback-client": ">=0.1.0 <0.2.0",
     "react": ">=18.0.0 <20.0.0"
   },
   "publishConfig": {

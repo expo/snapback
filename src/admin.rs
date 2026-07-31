@@ -286,7 +286,7 @@ fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
 }
 
 /// The one admin HTTP client. Contract admin-ui imports the same source as the
-/// `@snapback/admin-client` workspace package, and the server also exposes it at
+/// `@expo/snapback-admin-client` workspace package, and the server also exposes it at
 /// `/_snapback/admin/client.mjs` for external tooling — one client, no drift.
 const ADMIN_CLIENT_MJS: &str = include_str!("../packages/snapback-admin-client/index.mjs");
 

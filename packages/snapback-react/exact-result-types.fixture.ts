@@ -1,7 +1,7 @@
 import type {
   PreparedReactQueryGroup,
   SnapbackFunctionReference,
-} from '@snapback/client';
+} from '@expo/snapback-client';
 import type {
   GeneratedQueryGroups as BackendBakeoffQueryGroups,
 } from '../../demos/signal-desk/snapback/generated/api.d.ts';

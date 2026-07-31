@@ -1,4 +1,4 @@
-// @snapback/vite — the /__snapback HTTP + WebSocket relay.
+// @expo/snapback-vite — the /__snapback HTTP + WebSocket relay.
 //
 // The relay rewrites its configured prefix onto the backend's server root, so
 // the allowlist in allowlist.mjs is the only thing between browser code and

@@ -26,16 +26,16 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { SnapbackClient } from '@snapback/client';
-import { formatCodegenSummary, generate } from '@snapback/codegen';
+import { SnapbackClient } from '@expo/snapback-client';
+import { formatCodegenSummary, generate } from '@expo/snapback-codegen';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
-} from '@snapback/contract/auth-coordinator';
+} from '@expo/snapback-contract/auth-coordinator';
 import {
   resolveGeneratedArtifact,
   verifyGeneratedGraph,
-} from '@snapback/codegen/review-surface';
+} from '@expo/snapback-codegen/review-surface';
 import {
   addTarget,
   applyBackupPlan,
@@ -145,8 +145,8 @@ export {
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const RUNTIME_PACKAGES = new Map([
-  ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-  ['linux-x64', '@snapback/runtime-linux-x64'],
+  ['darwin-arm64', '@expo/snapback-runtime-darwin-arm64'],
+  ['linux-x64', '@expo/snapback-runtime-linux-x64'],
 ]);
 
 export function diagnosticError(code, message, details = undefined) {
@@ -243,8 +243,8 @@ function installedRuntimeRecovery(runtime, {
       ? { platform: runtime.platform, runtimeSource: runtime.source }
       : null,
     repairCommand: runtime?.source === 'override'
-      ? 'unset SNAPBACK_RUNTIME_BINARY && reinstall @snapback/cli'
-      : 'reinstall @snapback/cli and its platform runtime package',
+      ? 'unset SNAPBACK_RUNTIME_BINARY && reinstall @expo/snapback-cli'
+      : 'reinstall @expo/snapback-cli and its platform runtime package',
     overrideCommand: runtime?.binary
       ? `SNAPBACK_RUNTIME_BINARY=${JSON.stringify(runtime.binary)}`
       : null,
@@ -821,7 +821,7 @@ function stageRuntimeArtifact(options) {
     if (!existsSync(path)) {
       throw diagnosticError(
         'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
-        `runtime artifact directory is missing ${name} (expected the @snapback/runtime-${platform} package layout)`,
+        `runtime artifact directory is missing ${name} (expected the @expo/snapback-runtime-${platform} package layout)`,
         { path: name },
       );
     }
@@ -3081,7 +3081,7 @@ export async function runCli(argv, options = {}) {
   }
   if (command === 'mcp-control') {
     // @ref LLP 0042#implementation-decisions-recorded-for-sc-1b-2026-07-23 —
-    // the control-plane MCP server ships inside @snapback/cli as a JS
+    // the control-plane MCP server ships inside @expo/snapback-cli as a JS
     // command, reusing the CLI lifecycle helpers instead of the native
     // binary's guide-only `snapback mcp`.
     const readyFile = takeFlag(args, '--ready-file');

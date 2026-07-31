@@ -8,7 +8,7 @@ import type {
   QueryGroupEntries,
   SnapbackEphemeralReference,
   SnapbackFunctionReference,
-} from '@snapback/client';
+} from '@expo/snapback-client';
 
 export type SnapbackDiagnostic = Readonly<{
   schemaVersion: 'snapback.client-diagnostic.v1';

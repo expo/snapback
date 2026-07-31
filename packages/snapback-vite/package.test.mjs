@@ -1,4 +1,4 @@
-// @snapback/vite acceptance (LLP 0079 SC-2a): the LLP 0030 MVP plugin against
+// @expo/snapback-vite acceptance (LLP 0079 SC-2a): the LLP 0030 MVP plugin against
 // a real native server and a real Vite dev server on ephemeral ports with a
 // temp database + ready file — managed spawn/handshake/bring-up/teardown,
 // attach-mode refusals, the /__snapback method+path allowlist over live
@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generateApp, scaffoldApp } from '@snapback/cli';
-import { SnapbackClient } from '@snapback/client';
+import { generateApp, scaffoldApp } from '@expo/snapback-cli';
+import { SnapbackClient } from '@expo/snapback-client';
 
 import {
   createSnapbackViteLifecycle,

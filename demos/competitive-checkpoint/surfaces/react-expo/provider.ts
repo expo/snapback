@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import type { SnapbackReactProvider } from '@snapback/react';
+import type { SnapbackReactProvider } from '@expo/snapback-react';
 
 import { api, SnapbackClient } from './generated/runtime.mjs';
 

@@ -1,4 +1,4 @@
-// @snapback/vite — the default app-route allowlist for the /__snapback relay.
+// @expo/snapback-vite — the default app-route allowlist for the /__snapback relay.
 //
 // @ref LLP 0030#proxy-surface — the default app proxy is an explicit
 //   method+path allowlist of app-data routes, never a deny-list: system root

@@ -3,7 +3,7 @@
 // slice 5-types).
 //
 // Three external bakeoff arms independently hit TS7016 importing
-// `@snapback/client/online` because the subpath shipped with no `types`
+// `@expo/snapback-client/online` because the subpath shipped with no `types`
 // condition; LLP 0122 verified the whole declarationless class on main. This
 // gate makes the property structural for EVERY publishing package under
 // packages/: each subpath export must resolve TypeScript declarations under

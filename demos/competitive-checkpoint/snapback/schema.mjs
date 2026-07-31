@@ -1,4 +1,4 @@
-import { defineSchema, defineTable, v } from '@snapback/codegen/define';
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
 export const conversations = defineTable({
   ownerId: v.principal(),

@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import { AgentAuthorityFence } from '@snapback/client';
-import { SnapbackAppDataClient } from '@snapback/client/app-data';
-import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
+import { AgentAuthorityFence } from '@expo/snapback-client';
+import { SnapbackAppDataClient } from '@expo/snapback-client/app-data';
+import { resolveGeneratedArtifact } from '@expo/snapback-codegen/review-surface';
 
 // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
 // local phase 1 discovers the app surface from inert generated JSON and never

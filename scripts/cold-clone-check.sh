@@ -149,10 +149,10 @@ export SNAPBACK_REQUIRE_EXACT=1
 # --- Snapback side: link the workspace so its data tier resolves -------------
 # The surface imports the Snapback data tier from WORKSPACE source
 # (packages/snapback-*), not the registry — only Exact is registry-pinned. Those
-# workspace packages resolve their own workspace: deps (e.g. @snapback/client ->
-# @snapback/contract) through the root install's node_modules linking, so a cold
+# workspace packages resolve their own workspace: deps (e.g. @expo/snapback-client ->
+# @expo/snapback-contract) through the root install's node_modules linking, so a cold
 # clone must link the workspace once before the surface build. Without it, the
-# bare '@snapback/contract/*' specifiers inside packages/snapback-client fail to
+# bare '@expo/snapback-contract/*' specifiers inside packages/snapback-client fail to
 # resolve. This is a workspace link, not an Exact-registry dependency, so it does
 # not weaken the registry isolation the surface's frozen install attests above.
 banner "bun install at repo root (workspace link for the Snapback data tier)"

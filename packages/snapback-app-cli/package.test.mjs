@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { deriveServiceAuthorityInstanceId } from '@snapback/client';
+import { deriveServiceAuthorityInstanceId } from '@expo/snapback-client';
 import { runPackagedAgentJourney } from './index.mjs';
 
 // Ticket issues/20260717-app-cli-client-core-package.md: the engine's client

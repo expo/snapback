@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/vite",
+  "name": "@expo/snapback-vite",
   "version": "0.1.0",
   "type": "module",
   "description": "Managed Snapback Vite dev plugin: mode-aware backend lifecycle, /__snapback app-route proxy allowlist, and structured diagnostics.",
@@ -41,7 +41,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/cli": "workspace:*"
+    "@expo/snapback-cli": "workspace:*"
   },
   "peerDependencies": {
     "vite": "^8.0.0"
@@ -52,7 +52,7 @@
     }
   },
   "devDependencies": {
-    "@snapback/client": "workspace:*",
+    "@expo/snapback-client": "workspace:*",
     "vite": "^8.0.0"
   },
   "engines": {

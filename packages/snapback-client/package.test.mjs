@@ -463,7 +463,7 @@ assert.equal(appStateListeners.size, 0);
     implementationHash: `sha256:${'1'.repeat(64)}`,
     // The generated pin (LLP 0131 identity cascade item 2): regenerated, not
     // hand-kept, and asserted against codegen by the search-pin conformance
-    // test in @snapback/codegen.
+    // test in @expo/snapback-codegen.
     argsContractHash: SEARCH_REQUEST_ARGS_CONTRACT_HASH,
     resultContractHash: `sha256:${'2'.repeat(64)}`,
   };

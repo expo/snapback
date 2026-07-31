@@ -2,7 +2,7 @@ import {
   arg, asc, authUserId, bindingRef, call, cond, defineLiveQuery,
   defineMutation, deleteWhere, eq, eqv, guard, insert, lit, ne, or,
   returnBinding, runtimeNow, v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 
 // @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation —
 // common multi-row writes stay in the portable declarative mutation tier.

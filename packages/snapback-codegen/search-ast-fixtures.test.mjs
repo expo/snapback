@@ -122,7 +122,7 @@ for (const fixture of corpus.fixtures) {
 
 // The workdir lives inside this package (not the OS tmpdir) so the published
 // client typings are type-checked IN PLACE — their own package imports
-// (e.g. @snapback/contract subpaths) resolve through the real workspace
+// (e.g. @expo/snapback-contract subpaths) resolve through the real workspace
 // node_modules chain instead of breaking in an isolated copy.
 const workDir = mkdtempSync(join(here, '.search-ast-fixtures-tmp-'));
 try {

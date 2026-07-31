@@ -896,7 +896,7 @@ export function deriveServiceAuthorityInstanceId(credential: {
 export {
   compileResultContractValidator,
   RESULT_CONTRACT_LIMITS_V1,
-} from '@snapback/contract/result-contract-validator';
+} from '@expo/snapback-contract/result-contract-validator';
 
 export {
   RQS_STORE_MAX_BYTES,

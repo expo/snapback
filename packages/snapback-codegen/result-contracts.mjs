@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 export {
   compileResultContractValidator,
   RESULT_CONTRACT_LIMITS_V1,
-} from '@snapback/contract/result-contract-validator';
+} from '@expo/snapback-contract/result-contract-validator';
 
 // @ref LLP 0108#final-author-reconciliation-after-round-3 — the emitted
 // contract is the schema-expanded effective contract, and its hash is over

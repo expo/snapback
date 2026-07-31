@@ -38,7 +38,7 @@ import {
   resolveFileReadCapability,
   resolveHandlerSourceCapability,
 } from './file-read-capability.mjs';
-import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@snapback/contract/capabilities';
+import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@expo/snapback-contract/capabilities';
 import {
   generatedByHeader,
   jsonLiteral,
@@ -341,10 +341,10 @@ const TOOLCHAIN_ARTIFACT_ROOT = existsSync(join(REPO_ROOT, 'schemas'))
   ? REPO_ROOT
   : join(dirname(fileURLToPath(import.meta.url)), 'runtime-artifacts');
 const DEFINITION_PACKAGE_IMPORTS = new Map([
-  ['@snapback/codegen/define', join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')],
-  ['@snapback/codegen/standard-patterns', join(dirname(fileURLToPath(import.meta.url)), 'standard-patterns.mjs')],
+  ['@expo/snapback-codegen/define', join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')],
+  ['@expo/snapback-codegen/standard-patterns', join(dirname(fileURLToPath(import.meta.url)), 'standard-patterns.mjs')],
 ]);
-const CONTRACT_CAPABILITIES_PATH = fileURLToPath(import.meta.resolve('@snapback/contract/capabilities'));
+const CONTRACT_CAPABILITIES_PATH = fileURLToPath(import.meta.resolve('@expo/snapback-contract/capabilities'));
 
 function loadCommittedSchema(schemaFile) {
   const path = join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', schemaFile);
@@ -6097,7 +6097,7 @@ function renderApiTypes(
   const lines = [
     HEADER,
     ...(hasSearchFunction
-      ? ["import type { SearchPageV1 as ClientSearchPageV1 } from '@snapback/client';"]
+      ? ["import type { SearchPageV1 as ClientSearchPageV1 } from '@expo/snapback-client';"]
       : []),
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
@@ -7737,7 +7737,7 @@ function moduleIdentityLabel(path, backendDir) {
   if (isPathInside(appRelative)) return `app:${appRelative.split(sep).join('/')}`;
   const toolchainRelative = relative(packageDir(), path);
   if (isPathInside(toolchainRelative)) {
-    return `toolchain:@snapback/codegen/${toolchainRelative.split(sep).join('/')}`;
+    return `toolchain:@expo/snapback-codegen/${toolchainRelative.split(sep).join('/')}`;
   }
   const repoRelative = relative(REPO_ROOT, path);
   if (isPathInside(repoRelative)) return `repo:${repoRelative.split(sep).join('/')}`;

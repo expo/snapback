@@ -4,7 +4,7 @@ import {
   type InferValidator,
   defineTable,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 
 const nestedValidator = v.object({
   requiredName: v.string(),

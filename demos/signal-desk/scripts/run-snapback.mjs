@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { SnapbackClient } from '@snapback/client';
+import { SnapbackClient } from '@expo/snapback-client';
 import { startServer } from '../../_kit/server-process.mjs';
-import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
+import { resolveGeneratedArtifact } from '@expo/snapback-codegen/review-surface';
 import { resetInstallGeneratedSeed } from './versioned-seed.mjs';
 
 // @ref LLP 0031#server-binary-identity-on-health — an explicit fallback

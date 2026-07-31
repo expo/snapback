@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/admin-client",
+  "name": "@expo/snapback-admin-client",
   "private": true,
   "type": "module",
   "description": "The one HTTP client for the Snapback headless admin API (/_snapback/api/*), consumed by the Contract admin-ui and served at /_snapback/admin/client.mjs for tooling.",

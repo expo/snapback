@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
 
 const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
-assert.equal(manifest.name, '@snapback/runtime-darwin-arm64');
+assert.equal(manifest.name, '@expo/snapback-runtime-darwin-arm64');
 assert.deepEqual(manifest.os, ['darwin']);
 assert.deepEqual(manifest.cpu, ['arm64']);
 assert.deepEqual(manifest.files, ['bin', 'Frameworks']);

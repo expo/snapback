@@ -8,7 +8,7 @@ import {
   insert,
   lit,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 
 export const listTodos = defineLiveQuery({
   table: 'todos',

@@ -364,7 +364,7 @@ try {
         'dev-admin-token',
         {
           runtime: {
-            source: '@snapback/runtime-darwin-arm64',
+            source: '@expo/snapback-runtime-darwin-arm64',
           },
           runtimeIdentity: {
             stamp: {
@@ -382,7 +382,7 @@ try {
         assert.equal(error.diagnostic.details.selectedBinary, runtime.binary);
         assert.equal(
           error.diagnostic.details.selectedRuntimeSource,
-          '@snapback/runtime-darwin-arm64',
+          '@expo/snapback-runtime-darwin-arm64',
         );
         assert.equal(
           error.diagnostic.details.selectedRuntimeStamp.gitCommit,

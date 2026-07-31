@@ -9,7 +9,7 @@
 // @ref LLP 0041#cli-commands — this profile is a published CLI-owned workflow.
 //
 // Receipt authority note (LLP 0037 §3.1 scope fence): comparator receipts are
-// created, parsed, and verified only by @snapback/cli. The Rust server never
+// created, parsed, and verified only by @expo/snapback-cli. The Rust server never
 // reads them, so their natural owner is this package and the versioned schema
 // shipped beside this module.
 
@@ -32,7 +32,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { SnapbackClient } from '@snapback/client';
+import { SnapbackClient } from '@expo/snapback-client';
 
 export const COMPARATOR_RECEIPT_SCHEMA_VERSION = 'snapback.comparator-receipt.v1';
 export const COMPARATOR_PROFILE_SCHEMA_VERSION = 'snapback.comparator-profile.v1';
@@ -113,7 +113,7 @@ function packageExecutionIdentity(packageRoot) {
 }
 
 function executingPackageIdentity() {
-  const clientEntry = fileURLToPath(import.meta.resolve('@snapback/client'));
+  const clientEntry = fileURLToPath(import.meta.resolve('@expo/snapback-client'));
   return {
     cli: packageExecutionIdentity(comparatorPackageRoot),
     client: packageExecutionIdentity(dirname(clientEntry)),

@@ -7,7 +7,7 @@
 //   --ready-file, HostReadyDescriptor consumption, nonce-verified stop); the
 //   served operations proxy the host-ops HTTP surface, never a second dialect.
 // @ref LLP 0042#implementation-decisions-recorded-for-sc-1b-2026-07-23 — ships
-//   inside @snapback/cli; the app-data catalog is derived deterministically at
+//   inside @expo/snapback-cli; the app-data catalog is derived deterministically at
 //   server start from the codegen-emitted artifacts.
 
 import { spawn } from 'node:child_process';

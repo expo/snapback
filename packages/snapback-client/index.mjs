@@ -17,17 +17,17 @@ import {
   createClientMutationId,
   retainedQueryKey,
   stableJson,
-} from '@snapback/contract/client-store';
+} from '@expo/snapback-contract/client-store';
 import {
   createLiveQueryAuthorizationFence,
   createLiveQueryInstanceAllocator,
   createLiveQueryNamespace,
-} from '@snapback/contract/query-authorization';
+} from '@expo/snapback-contract/query-authorization';
 import {
   scopeKey,
   validateAuthorizationInvalidationConnection,
   validateScopeId,
-} from '@snapback/contract/auth-invalidation';
+} from '@expo/snapback-contract/auth-invalidation';
 import { isAgentAuthorityFence } from './agent-authority-brand.mjs';
 import {
   SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
@@ -52,7 +52,7 @@ export {
 export {
   compileResultContractValidator,
   RESULT_CONTRACT_LIMITS_V1,
-} from '@snapback/contract/result-contract-validator';
+} from '@expo/snapback-contract/result-contract-validator';
 export {
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
@@ -70,7 +70,7 @@ export {
   AgentAuthorityFence,
   createMemoryAgentAuthorityCustodyStorage,
 } from './agent-authority.mjs';
-export { deriveServiceAuthorityInstanceId } from '@snapback/contract/auth-coordinator';
+export { deriveServiceAuthorityInstanceId } from '@expo/snapback-contract/auth-coordinator';
 export {
   assertExternalStoreCompatibility,
   createExternalQueryStore,
@@ -212,7 +212,7 @@ function assertSearchFunctionReferenceV1(ref) {
     throw searchReferenceInvalid(
       `search reference carries a different contract generation than this client expects `
         + `(expected ${SEARCH_REQUEST_ARGS_CONTRACT_GENERATION} ${SEARCH_REQUEST_ARGS_CONTRACT_HASH}); `
-        + 'upgrade @snapback/client or regenerate the app references so both sides '
+        + 'upgrade @expo/snapback-client or regenerate the app references so both sides '
         + 'share one contract generation',
       {
         expectedGeneration: SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,

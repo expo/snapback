@@ -286,7 +286,7 @@ async fn admin_client_module_is_served_from_the_shared_package() {
     let source = text(module).await;
     assert!(
         source.contains("export class AdminClient"),
-        "the served module is the @snapback/admin-client package file"
+        "the served module is the @expo/snapback-admin-client package file"
     );
     assert_eq!(
         source,

@@ -79,7 +79,7 @@ async function eventually(assertion, label, timeoutMs = 8_000) {
 try {
   await mkdir(backendRoot, { recursive: true });
   await writeFile(join(backendRoot, 'schema.mjs'), `
-import { defineSchema, defineTable, v } from '@snapback/codegen/define';
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 export const workspaceMembers = defineTable({
   workspaceId: v.id('workspaces'),
   userId: v.principal(),
@@ -133,7 +133,7 @@ import {
   defineJsMutation,
   defineLiveQuery,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 export const listPublicNotices = defineLiveQuery({
   table: 'publicNotices',
   args: {},

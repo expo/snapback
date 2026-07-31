@@ -3,7 +3,7 @@
 // is search-contract.generated.mjs).
 //
 // The pin is the v2 args-contract witness of `defineSearchQuery`'s complete
-// argument contract — computed through @snapback/codegen's own
+// argument contract — computed through @expo/snapback-codegen's own
 // defineSearchQuery + effectiveArgsContract + argsContractHash path, so the
 // constant can never drift from what codegen stamps on generated search
 // references without the search-pin conformance test failing.
@@ -15,7 +15,7 @@ export const SEARCH_CONTRACT_GENERATION = 'snapback:function-args:v2';
 
 export async function computeSearchContractPin() {
   // Relative workspace imports: this helper is deliberately unpublished and
-  // @snapback/client declares no codegen dependency; the committed generated
+  // @expo/snapback-client declares no codegen dependency; the committed generated
   // constant is what ships.
   const [{ defineSchema, defineTable, defineSearchQuery, v }, contracts] = await Promise.all([
     import('../snapback-codegen/define.mjs'),

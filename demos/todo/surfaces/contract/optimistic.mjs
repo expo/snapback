@@ -1,6 +1,6 @@
 // Todo demo optimistic reducers: how THIS app's mutations transform its rows
 // during the in-flight window. App logic, owned by the demo — the generic
-// @snapback/contract adapter ships no reducers (LLP 0032 P5).
+// @expo/snapback-contract adapter ships no reducers (LLP 0032 P5).
 //
 // Reducers must be idempotent (ENG-23385): while a mutation is in flight the
 // adapter re-applies its reducer to every authoritative server-rows write,

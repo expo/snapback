@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SnapbackClient } from '@snapback/client';
-import { SnapbackProvider, createSnapbackReactProvider } from '@snapback/react';
+import { SnapbackClient } from '@expo/snapback-client';
+import { SnapbackProvider, createSnapbackReactProvider } from '@expo/snapback-react';
 import { snapbackBasePath } from 'virtual:snapback/dev';
 import { App } from './App';
 import functions from '../snapback/generated/functions.manifest.json';

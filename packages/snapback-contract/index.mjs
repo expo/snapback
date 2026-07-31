@@ -558,14 +558,14 @@ export async function createSnapbackContractSurface({
   keyedQueryScopes = false,
   // Channel A preload lookup (LLP 0090 D2 rollout step 3): a
   // `(name, args) => ({ rows, resume } | null)` function over the inlined
-  // boot payload (see @snapback/client rqs-preload.mjs). Each multi-live
+  // boot payload (see @expo/snapback-client rqs-preload.mjs). Each multi-live
   // subscription passes its candidate to the kit's `preloadedResume` seam,
   // which verifies, arbitrates against Channel B state, renders the winner
   // retained-first, and subscribes with `resumeFromToken`.
   rqsPreload = null,
   // Channel C register-mode lookup (LLP 0090 D4 rollout step 7): a
   // `(name, args) => ({ subscriptionId, rows, version, resume } | null)`
-  // function over a register-mode bundle response (see @snapback/client
+  // function over a register-mode bundle response (see @expo/snapback-client
   // rqs-preload.mjs createRqsRegisteredRegistry). A hit is adopted through
   // the kit's `registeredSubscription` seam — the bundle snapshot is the
   // authoritative first state and NO fresh snapshot-with-subscribe is

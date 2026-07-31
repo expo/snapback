@@ -19,7 +19,7 @@
 // Known limit, unchanged from the old proxy: under `bun --bun` the dev server
 // never surfaces HTTP upgrade events, so the live WebSocket cannot relay and
 // the surface falls back to outbox polling (same as graffiti/cursors-web's
-// findings; the @snapback/vite package test proves WS-through-relay under a
+// findings; the @expo/snapback-vite package test proves WS-through-relay under a
 // node-run Vite server, per LLP 0030's dedicated-WS-test allowance).
 
 import { join } from 'node:path';

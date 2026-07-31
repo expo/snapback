@@ -39,7 +39,7 @@ export interface SnapbackChannelAOptions {
 }
 
 // Deliberately structural (the same rule as index.d.mts's snapbackDev):
-// @snapback/vite supports multiple Vite majors and must not leak the package
+// @expo/snapback-vite supports multiple Vite majors and must not leak the package
 // build's peer copy into an application's config type graph.
 export function snapbackChannelA(options: SnapbackChannelAOptions): {
   readonly name: 'snapback-channel-a';

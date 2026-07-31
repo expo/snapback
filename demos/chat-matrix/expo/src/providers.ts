@@ -1,6 +1,6 @@
 // One ChatSession implementation per backend, each using that backend's
 // idiomatic client and realtime mechanism:
-//   snapback — @snapback/client live query (WebSocket push, poll fallback)
+//   snapback — @expo/snapback-client live query (WebSocket push, poll fallback)
 //   convex   — ConvexClient reactive subscription (WebSocket)
 //   supabase — supabase-js + Realtime postgres_changes
 //   sqlite   — gateway HTTP + 700ms poll (its only door)

@@ -7,12 +7,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { SnapbackClient } from '@snapback/client';
+import { SnapbackClient } from '@expo/snapback-client';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
-} from '@snapback/contract';
-import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
+} from '@expo/snapback-contract';
+import { resolveGeneratedArtifact } from '@expo/snapback-codegen/review-surface';
 import {
   SnapbackProvider,
   createSnapbackReactProvider,
@@ -21,7 +21,7 @@ import {
   observeSnapbackQueries,
   skip,
   useSnapbackPresence,
-} from '@snapback/react';
+} from '@expo/snapback-react';
 import React from '../../../node_modules/react/index.js';
 import { renderToString } from '../../../node_modules/react-dom/server.node.js';
 

@@ -1,7 +1,7 @@
 // Thin Signal Desk configuration for the package-owned backend comparator.
 // Lifecycle, native-push attribution, deadlines, cleanup, and receipt
-// validation remain owned by @snapback/cli.
-import { defineComparatorProfile } from '@snapback/cli/comparator';
+// validation remain owned by @expo/snapback-cli.
+import { defineComparatorProfile } from '@expo/snapback-cli/comparator';
 import api, { ephemeral } from './snapback/generated/api.mjs';
 
 export default defineComparatorProfile({

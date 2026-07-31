@@ -14,11 +14,11 @@
     "test:live": "node acceptance.live.mjs"
   },
   "dependencies": {
-    "@snapback/cli": "__SNAPBACK_VERSION__",
-    "@snapback/client": "__SNAPBACK_VERSION__",
-    "@snapback/codegen": "__SNAPBACK_VERSION__",
-    "@snapback/react": "__SNAPBACK_VERSION__",
-    "@snapback/vite": "__SNAPBACK_VERSION__",
+    "@expo/snapback-cli": "__SNAPBACK_VERSION__",
+    "@expo/snapback-client": "__SNAPBACK_VERSION__",
+    "@expo/snapback-codegen": "__SNAPBACK_VERSION__",
+    "@expo/snapback-react": "__SNAPBACK_VERSION__",
+    "@expo/snapback-vite": "__SNAPBACK_VERSION__",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",

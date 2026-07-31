@@ -622,8 +622,8 @@ try {
     private: true,
     type: 'module',
     dependencies: {
-      '@snapback/client': `file:${tarball}`,
-      '@snapback/contract': `file:${contractTarball}`,
+      '@expo/snapback-client': `file:${tarball}`,
+      '@expo/snapback-contract': `file:${contractTarball}`,
     },
   }));
   const installedPackage = spawnSync(
@@ -632,7 +632,7 @@ try {
     { cwd: cold, encoding: 'utf8' },
   );
   assert.equal(installedPackage.status, 0, installedPackage.stderr);
-  const coldModule = await import(join(cold, 'node_modules/@snapback/client/index.mjs'));
+  const coldModule = await import(join(cold, 'node_modules/@expo/snapback-client/index.mjs'));
   check('package-cold-install', typeof coldModule.SnapbackClient === 'function',
     'cold-installed package exports SnapbackClient');
   check('package-cold-install', typeof coldModule.newSeedOperationIdV1 === 'function',

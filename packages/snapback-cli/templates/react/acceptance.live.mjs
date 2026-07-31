@@ -3,12 +3,12 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { SnapbackClient } from '@snapback/client';
+import { SnapbackClient } from '@expo/snapback-client';
 import {
   createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackQueries,
-} from '@snapback/react';
+} from '@expo/snapback-react';
 import api from './snapback/generated/api.mjs';
 import functions from './snapback/generated/functions.manifest.json' with { type: 'json' };
 import capabilityManifest from './snapback/generated/capability.manifest.json' with { type: 'json' };

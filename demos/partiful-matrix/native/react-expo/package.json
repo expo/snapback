@@ -9,8 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@snapback/client": "file:../../../../packages/snapback-client",
-    "@snapback/contract": "file:../../../../packages/snapback-contract",
+    "@expo/snapback-client": "file:../../../../packages/snapback-client",
+    "@expo/snapback-contract": "file:../../../../packages/snapback-contract",
     "expo": "~57.0.7",
     "react": "^19.2.3",
     "react-native": "0.86.0"
@@ -21,5 +21,8 @@
   },
   "patchedDependencies": {
     "expo-modules-jsi@57.0.3": "patches/expo-modules-jsi@57.0.3.patch"
+  },
+  "overrides": {
+    "@expo/snapback-contract": "file:../../../../packages/snapback-contract"
   }
 }

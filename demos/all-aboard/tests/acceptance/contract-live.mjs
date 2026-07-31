@@ -2,7 +2,7 @@
 // change reaches a mounted Contract surface with ZERO per-demo glue.
 //
 // The surface here is built from exactly three things: the generated
-// artifacts, the @snapback/contract adapter (multi-query live mode — the
+// artifacts, the @expo/snapback-contract adapter (multi-query live mode — the
 // adapter owns the live subscriptions, DK-10), and the kit client. No
 // store.mjs, no poll pump, no demo-local bridge. The adapter's own
 // subscription to liveTrainStatus arms the demand-activated warmPoll cron

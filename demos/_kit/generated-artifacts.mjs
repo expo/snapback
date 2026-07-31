@@ -1,5 +1,5 @@
 // Node-side generated artifact consumption for demos and acceptance suites.
-// Browser bundles use @snapback/vite's equivalent resolver hook.
+// Browser bundles use @expo/snapback-vite's equivalent resolver hook.
 //
 // @ref LLP 0010#generated-artifacts — scripts consume the immutable,
 // complete-input cache selected by artifacts.json instead of trusting a

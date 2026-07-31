@@ -504,7 +504,9 @@ const createFence = (overrides = {}) => createLiveQueryAuthorizationFence({
     new URL('../../schemas/live.wire-fixtures.v1.json', import.meta.url),
     'utf8',
   ));
-  assert.equal(corpus.formatVersion, 2);
+  // formatVersion 3: bd94ea18 completed the LLP 0095 P-1 negative inventory
+  // (corpus 21 -> 37 fixtures) without updating this conformance pin.
+  assert.equal(corpus.formatVersion, 3);
   const fixture = (name) => {
     const found = corpus.fixtures.find((entry) => entry.name === name);
     assert(found, `missing conformance fixture ${name}`);

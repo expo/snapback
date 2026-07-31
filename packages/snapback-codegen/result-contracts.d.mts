@@ -1,6 +1,6 @@
 // Type declarations for result-contracts.mjs — the closed result-contract
 // grammar (LLP 0108): effective-contract derivation, canonical hashing, and
-// the shared browser-safe validator re-exported from @snapback/contract.
+// the shared browser-safe validator re-exported from @expo/snapback-contract.
 
 import type { Validator } from './define.js';
 
@@ -13,7 +13,7 @@ export const RESULT_MAX_NODES: number;
 
 /**
  * Closed-vocabulary limits shared with the runtime validator (re-exported at
- * runtime from `@snapback/contract/result-contract-validator`).
+ * runtime from `@expo/snapback-contract/result-contract-validator`).
  */
 export const RESULT_CONTRACT_LIMITS_V1: Readonly<{
   maxDepth: number;
@@ -85,7 +85,7 @@ export interface CompiledResultContractValidator {
 }
 
 /**
- * Runtime re-export of `@snapback/contract/result-contract-validator`:
+ * Runtime re-export of `@expo/snapback-contract/result-contract-validator`:
  * compiles the exact deployed descriptor into a post-JSON-image validator.
  */
 export function compileResultContractValidator(

@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/contract",
+  "name": "@expo/snapback-contract",
   "version": "0.1.0",
   "type": "module",
   "description": "Provider/runtime boundary for Contract applications backed by Snapback.",

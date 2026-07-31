@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/client",
+  "name": "@expo/snapback-client",
   "version": "0.1.0",
   "type": "module",
   "description": "Versioned framework-neutral Snapback app-data client and scoped agent authority fence.",
@@ -99,7 +99,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/contract": "0.1.0"
+    "@expo/snapback-contract": "0.1.0"
   },
   "publishConfig": {
     "access": "public"

@@ -79,8 +79,8 @@ try {
   }
 
   assert.deepEqual(__test.runtimePackages, {
-    'darwin-arm64': '@snapback/runtime-darwin-arm64',
-    'linux-x64': '@snapback/runtime-linux-x64',
+    'darwin-arm64': '@expo/snapback-runtime-darwin-arm64',
+    'linux-x64': '@expo/snapback-runtime-linux-x64',
   });
   const fakeRuntime = join(root, 'snapback');
   writeFileSync(fakeRuntime, '#!/bin/sh\nexit 0\n');
@@ -100,7 +100,7 @@ try {
   const scaffold = scaffoldApp(project);
   assert.equal(scaffold.ok, true);
   const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8'));
-  assert.match(manifest.dependencies['@snapback/cli'], /^\^\d+\.\d+\.\d+/);
+  assert.match(manifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
 
@@ -108,7 +108,7 @@ try {
   const reactScaffold = scaffoldApp(reactProject, { template: 'react' });
   assert.equal(reactScaffold.ok, true);
   const reactManifest = JSON.parse(readFileSync(join(reactProject, 'package.json'), 'utf8'));
-  assert.match(reactManifest.dependencies['@snapback/react'], /^\^\d+\.\d+\.\d+/);
+  assert.match(reactManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
   const generatedReact = await generateApp(join(reactProject, 'snapback'));
   assert.equal(generatedReact.ok, true, JSON.stringify(generatedReact.diagnostics));
   assert.match(readFileSync(join(reactProject, 'src', 'App.tsx'), 'utf8'), /useSnapbackQueries/);

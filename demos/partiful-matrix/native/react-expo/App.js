@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { SnapbackClient } from '@snapback/client';
+import { SnapbackClient } from '@expo/snapback-client';
 import { useSnapbackQuery } from '@partitime/snapback-react';
 
 import api from '@partitime/generated-api';

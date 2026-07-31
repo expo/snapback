@@ -32,7 +32,7 @@ import {
   throughParent,
   throughScope,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 import { activity, comments, incidents, tasks } from './schema.mjs';
 
 export const listIncidents = defineLiveQuery({

@@ -5,7 +5,7 @@
 // receipts depend on it staying that way). One owned table is enough to give
 // the LLP 0077 grant matrix a real authenticated route to exercise.
 
-import { defineSchema, defineTable, v } from '@snapback/codegen/define';
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
 export const notes = defineTable({
   ownerId: v.principal(),

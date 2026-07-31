@@ -1,4 +1,4 @@
-// Ambient types for the @snapback/vite virtual module (LLP 0030): the
+// Ambient types for the @expo/snapback-vite virtual module (LLP 0030): the
 // relative relay base path plus sanitized dev state — never a backend origin,
 // admin token, or token-file path.
 declare module 'virtual:snapback/dev' {

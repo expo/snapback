@@ -19,12 +19,12 @@ import {
   argsRoot,
   insert,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 import {
   defineOwnedCrud,
   defineOwnedKeysetPages,
   defineOwnedUniqueLookup,
-} from '@snapback/codegen/standard-patterns';
+} from '@expo/snapback-codegen/standard-patterns';
 import schema from './schema.mjs';
 
 const visibility = { kind: 'owner', field: 'ownerId' };

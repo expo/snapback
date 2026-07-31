@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { compileResultContractValidator } from '@snapback/contract/result-contract-validator';
+import { compileResultContractValidator } from '@expo/snapback-contract/result-contract-validator';
 
 import { generate } from './index.mjs';
 
@@ -25,11 +25,11 @@ try {
   // Generated declarations consume the public client package. Model that
   // dependency explicitly so an unresolved type-only import cannot silently
   // degrade to `any` under --skipLibCheck.
-  const snapbackModules = join(backend, 'node_modules', '@snapback');
+  const snapbackModules = join(backend, 'node_modules', '@expo');
   mkdirSync(snapbackModules, { recursive: true });
   symlinkSync(
     join(repositoryRoot, 'packages', 'snapback-client'),
-    join(snapbackModules, 'client'),
+    join(snapbackModules, 'snapback-client'),
     'dir',
   );
 
@@ -144,7 +144,7 @@ export const searchIncidents = defineSearchQuery({
   const apiTypes = readFileSync(join(backend, 'generated', 'api.d.ts'), 'utf8');
   assert.match(
     apiTypes,
-    /import type \{ SearchPageV1 as ClientSearchPageV1 \} from '@snapback\/client';/u,
+    /import type \{ SearchPageV1 as ClientSearchPageV1 \} from '@expo\/snapback-client';/u,
   );
   assert.match(
     apiTypes,

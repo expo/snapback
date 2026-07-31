@@ -15,7 +15,7 @@ import {
   AgentAuthorityFence,
   SnapbackClient,
   deriveServiceAuthorityInstanceId,
-} from '@snapback/client';
+} from '@expo/snapback-client';
 import { invokeAppFunction, loadAppArtifacts } from './index.mjs';
 
 const ACTOR_ID = '018f0d90-7b31-7a22-8c33-445566778899';

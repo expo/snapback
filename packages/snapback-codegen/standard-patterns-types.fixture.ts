@@ -1,9 +1,9 @@
-import { defineSchema, defineTable, v } from '@snapback/codegen/define';
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 import {
   defineOwnedCrud,
   defineOwnedKeysetPages,
   defineOwnedUniqueLookup,
-} from '@snapback/codegen/standard-patterns';
+} from '@expo/snapback-codegen/standard-patterns';
 
 const todos = defineTable({
   ownerId: v.principal(),

@@ -3,14 +3,14 @@ import {
   admitSnapbackId,
   parseSearchQueryV1,
   type PreparedReactQueryGroup,
-} from '@snapback/client';
+} from '@expo/snapback-client';
 import {
   createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackPresence,
   observeSnapbackQueries,
   type SnapbackReactProvider,
-} from '@snapback/react';
+} from '@expo/snapback-react';
 import api, {
   ephemeral as generatedEphemeral,
   groups as generatedGroups,

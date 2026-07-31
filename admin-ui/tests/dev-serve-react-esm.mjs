@@ -5,7 +5,7 @@
 // 'isValidElement'").
 //
 // @ref LLP 0023#shared-vite-config-the-anti-drift-move — guards the
-// conditional-dedupe seam in @snapback/contract's contractViteBaseConfig.
+// conditional-dedupe seam in @expo/snapback-contract's contractViteBaseConfig.
 //
 // Needs bun because the published Exact packages ship TypeScript sources.
 // Run directly (`node tests/dev-serve-react-esm.mjs` re-executes itself under

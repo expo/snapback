@@ -651,7 +651,7 @@ export async function collectEvidence(repoRoot = defaultRepoRoot, sourceRevision
   const identities = emptyIdentities();
 
   try {
-    const { readComparatorReceipt } = await import('@snapback/cli/comparator');
+    const { readComparatorReceipt } = await import('@expo/snapback-cli/comparator');
     const file = parseJsonFile(repoRoot, EVIDENCE_PATHS.comparator);
     const receipt = readComparatorReceipt(join(repoRoot, EVIDENCE_PATHS.comparator));
     if (receipt.status !== 'passed') throw new Error(`comparator status is ${receipt.status}`);

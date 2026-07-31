@@ -3,7 +3,7 @@
 // This stays deliberately small and admin-specific: it owns the admin binding
 // list and its arg vocabulary. The module *emission* — runtime links, binding
 // modules, contract-meta sidecars — comes from the shared
-// @snapback/codegen contract emitter (LLP 0032 P1), so the admin surface and
+// @expo/snapback-codegen contract emitter (LLP 0032 P1), so the admin surface and
 // the demo codegen cannot drift one renderer at a time (they had: this file's
 // copy lost the result/shape facts the kit emitter gained).
 
@@ -19,7 +19,7 @@ import {
 } from '../packages/snapback-codegen/contract-emitter.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const HEADER = generatedByHeader('admin-ui/generate-contract-bindings.mjs (@snapback/codegen contract emitter)');
+const HEADER = generatedByHeader('admin-ui/generate-contract-bindings.mjs (@expo/snapback-codegen contract emitter)');
 const REF_LINE = '// @ref LLP 0021#phase-4-move-admin-and-demo-surfaces-onto-the-adapter - admin Contract modules are projected from one binding list by the shared emitter.';
 const LINKS_BASE_NAME = 'AdminContract';
 

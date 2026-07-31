@@ -20,7 +20,7 @@ import {
 } from './artifact-attestation.mjs';
 
 const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
-assert.equal(manifest.name, '@snapback/runtime-linux-x64');
+assert.equal(manifest.name, '@expo/snapback-runtime-linux-x64');
 assert.deepEqual(manifest.os, ['linux']);
 assert.deepEqual(manifest.cpu, ['x64']);
 assert.deepEqual(manifest.files, ['bin', 'lib']);

@@ -2,7 +2,7 @@ import {
   defineJsMutation,
   defineLiveQuery,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 
 export const liveRows = defineLiveQuery({ table: 'liveRows', args: {} });
 export const primaryRows = defineLiveQuery({ table: 'primaryRows', args: {} });

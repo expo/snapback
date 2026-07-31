@@ -9,8 +9,8 @@
     "test": "node acceptance.mjs"
   },
   "dependencies": {
-    "@snapback/cli": "__SNAPBACK_VERSION__",
-    "@snapback/client": "__SNAPBACK_VERSION__",
-    "@snapback/codegen": "__SNAPBACK_VERSION__"
+    "@expo/snapback-cli": "__SNAPBACK_VERSION__",
+    "@expo/snapback-client": "__SNAPBACK_VERSION__",
+    "@expo/snapback-codegen": "__SNAPBACK_VERSION__"
   }
 }

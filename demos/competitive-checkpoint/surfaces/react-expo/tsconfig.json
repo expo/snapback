@@ -7,8 +7,8 @@
     "moduleSuffixes": [".ios", ".native", ".web", ""],
     "baseUrl": ".",
     "paths": {
-      "@snapback/client": ["../../../../packages/snapback-client/index.mjs"],
-      "@snapback/react": ["../../../../packages/snapback-react/index.d.mts"]
+      "@expo/snapback-client": ["../../../../packages/snapback-client/index.mjs"],
+      "@expo/snapback-react": ["../../../../packages/snapback-react/index.d.mts"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "../../snapback/generated/api.d.ts"]

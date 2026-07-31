@@ -16,11 +16,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SnapbackClient } from '@snapback/client';
+import { SnapbackClient } from '@expo/snapback-client';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
-} from '@snapback/contract/auth-coordinator';
+} from '@expo/snapback-contract/auth-coordinator';
 
 import { runDev, scaffoldApp } from './index.mjs';
 

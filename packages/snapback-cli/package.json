@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/cli",
+  "name": "@expo/snapback-cli",
   "version": "0.1.0",
   "type": "module",
   "description": "Installable Snapback developer loop and native server launcher.",
@@ -63,13 +63,13 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/client": "workspace:*",
-    "@snapback/codegen": "workspace:*",
-    "@snapback/contract": "workspace:*"
+    "@expo/snapback-client": "workspace:*",
+    "@expo/snapback-codegen": "workspace:*",
+    "@expo/snapback-contract": "workspace:*"
   },
   "optionalDependencies": {
-    "@snapback/runtime-darwin-arm64": "workspace:*",
-    "@snapback/runtime-linux-x64": "workspace:*"
+    "@expo/snapback-runtime-darwin-arm64": "workspace:*",
+    "@expo/snapback-runtime-linux-x64": "workspace:*"
   },
   "engines": {
     "node": ">=24.0.0"

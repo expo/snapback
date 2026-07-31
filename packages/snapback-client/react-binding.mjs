@@ -1,6 +1,6 @@
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
-import { compileResultContractValidator } from '@snapback/contract/result-contract-validator';
-import { validateScopeId } from '@snapback/contract/auth-invalidation';
+import { compileResultContractValidator } from '@expo/snapback-contract/result-contract-validator';
+import { validateScopeId } from '@expo/snapback-contract/auth-invalidation';
 import {
   argsHash,
   queryArtifactHash,

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { snapbackDev } from '@snapback/vite';
+import { snapbackDev } from '@expo/snapback-vite';
 
 export default defineConfig({
   plugins: [

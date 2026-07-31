@@ -20,7 +20,7 @@ export interface SnapbackDevOptions {
   onDiagnostic?: (diagnostic: Readonly<Record<string, unknown>>) => void;
 }
 
-// Deliberately structural: @snapback/vite supports multiple Vite majors and
+// Deliberately structural: @expo/snapback-vite supports multiple Vite majors and
 // must not leak the package build's peer copy into an application's config
 // type graph.
 export function snapbackDev(options?: SnapbackDevOptions): {

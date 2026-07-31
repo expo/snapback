@@ -250,7 +250,7 @@ export function generateApp(backendDirectory: string, options?: {
   readonly targetProfile?: string;
 }): Promise<GenerateAppResult>;
 
-// Re-declared from @snapback/codegen/review-surface (re-exported at runtime).
+// Re-declared from @expo/snapback-codegen/review-surface (re-exported at runtime).
 export interface GeneratedGraphVerification {
   readonly layout: 'legacy' | 'review-cache';
   readonly graphRoot: string;

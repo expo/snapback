@@ -1,4 +1,4 @@
-import { defineSchema, defineTable, v } from '@snapback/codegen/define';
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
 export default defineSchema({
   todos: defineTable({

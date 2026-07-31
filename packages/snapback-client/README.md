@@ -1,25 +1,25 @@
-# `@snapback/client`
+# `@expo/snapback-client`
 
 Framework-neutral Snapback app-data client.
 
 Exports:
 
-- `@snapback/client` — `SnapbackClient`, auth/custody helpers, and compatibility
+- `@expo/snapback-client` — `SnapbackClient`, auth/custody helpers, and compatibility
   re-exports for the external store;
-- `@snapback/client/app-data` — `SnapbackAppDataClient`, the app-data-only
+- `@expo/snapback-client/app-data` — `SnapbackAppDataClient`, the app-data-only
   façade for the LLP 0062 app-CLI engine: the query/mutation/action/live/
   ephemeral call paths, sessions flow, and agent-fence integration of the full
   client, with no admin methods and no ambient `SNAPBACK_ADMIN_TOKEN` pickup,
   plus `fetchPublicArtifact`, the bare credential-free non-redirecting fetch
   for public artifact routes with identity-encoding enforcement;
-- `@snapback/client/hosted-browser` — the hosted app-browser constructor,
+- `@expo/snapback-client/hosted-browser` — the hosted app-browser constructor,
   structurally limited to coordinator-owned, sender-constrained session
   custody;
-- `@snapback/client/online` — the same `SnapbackClient` class plus
+- `@expo/snapback-client/online` — the same `SnapbackClient` class plus
   `createExternalSessionClient` and `bindSnapbackAppLifecycle` through a narrow
   browser entry that does not retain optional package exports;
-- `@snapback/client/agent-authority` — scoped agent-authority custody;
-- `@snapback/client/external-store` —
+- `@expo/snapback-client/agent-authority` — scoped agent-authority custody;
+- `@expo/snapback-client/external-store` —
   `snapback.external-store.v1`, canonical query identity, provider-scoped
   same-key store sharing, immutable snapshots, optimistic settlement,
   lifecycle fencing, and `ExternalQueryScope` for framework-free hosts.
@@ -45,7 +45,7 @@ When a trusted server-side identity broker has already minted a Snapback
 session, adopt its bearer with the explicit protocol-client constructor:
 
 ```js
-import { createExternalSessionClient } from '@snapback/client/online';
+import { createExternalSessionClient } from '@expo/snapback-client/online';
 
 const client = createExternalSessionClient('http://127.0.0.1:5173', {
   bearerToken: session.bearer,
@@ -60,7 +60,7 @@ sender-constraint, and does not make hosted auth production-ready. See
 For mobile hosts, bind the platform lifecycle to a live-query handle:
 
 ```js
-import { bindSnapbackAppLifecycle } from '@snapback/client/online';
+import { bindSnapbackAppLifecycle } from '@expo/snapback-client/online';
 
 const binding = bindSnapbackAppLifecycle(AppState, liveHandle);
 // Later:
@@ -77,9 +77,9 @@ Use the dedicated entrypoint for an app served by a target that has passed the
 complete hosted-auth admission profile:
 
 ```js
-import { HostedBrowserSnapbackClient } from '@snapback/client/hosted-browser';
-import { AuthCoordinator } from '@snapback/contract/auth-coordinator';
-import { createIndexedDbAuthCustodyStorage } from '@snapback/contract/auth-custody-indexeddb';
+import { HostedBrowserSnapbackClient } from '@expo/snapback-client/hosted-browser';
+import { AuthCoordinator } from '@expo/snapback-contract/auth-coordinator';
+import { createIndexedDbAuthCustodyStorage } from '@expo/snapback-contract/auth-custody-indexeddb';
 
 const authCoordinator = new AuthCoordinator({
   appId: 'example-app',

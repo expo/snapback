@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/runtime-darwin-arm64",
+  "name": "@expo/snapback-runtime-darwin-arm64",
   "version": "0.1.0",
   "type": "module",
   "description": "Prebuilt Snapback server and Hermes runtime for Apple-silicon macOS.",

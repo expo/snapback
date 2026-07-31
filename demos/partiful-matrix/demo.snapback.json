@@ -70,7 +70,7 @@
     ],
     "reactClient": [
       "React Strict Mode replay, same-key sharing, different-key isolation, A-to-B-to-A replacement, and unmount disposal pass",
-      "Partitime React web consumes @snapback/react and the same generated provider operations"
+      "Partitime React web consumes @expo/snapback-react and the same generated provider operations"
     ],
     "providerNativeReactFollowup": [
       "React uses each provider's browser-native client without the comparison gateway",

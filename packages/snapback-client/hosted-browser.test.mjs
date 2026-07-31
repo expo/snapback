@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
-} from '@snapback/contract/auth-coordinator';
+} from '@expo/snapback-contract/auth-coordinator';
 import { SnapbackClient } from './index.mjs';
 import * as hosted from './hosted-browser.mjs';
 

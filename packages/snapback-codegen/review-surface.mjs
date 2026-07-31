@@ -197,7 +197,7 @@ export function createReviewManifest({
     reviewManifest: {
       path: REVIEW_MANIFEST_FILE,
       custody: CUSTODY.reviewManifest,
-      authority: '@snapback/codegen/review-manifest.schema.json',
+      authority: '@expo/snapback-codegen/review-manifest.schema.json',
     },
     cache: {
       key: encodeURIComponent(legacyIndex.inputsHash),
@@ -223,7 +223,7 @@ export function validateReviewManifest(manifest) {
   if (
     manifest.reviewManifest?.path !== REVIEW_MANIFEST_FILE
     || manifest.reviewManifest?.custody !== CUSTODY.reviewManifest
-    || manifest.reviewManifest?.authority !== '@snapback/codegen/review-manifest.schema.json'
+    || manifest.reviewManifest?.authority !== '@expo/snapback-codegen/review-manifest.schema.json'
   ) {
     problems.push('reviewManifest must name the committed artifacts.json authority');
   }

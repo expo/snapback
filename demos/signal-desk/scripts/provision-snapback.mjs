@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { SnapbackClient } from '@snapback/client';
-import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
+import { SnapbackClient } from '@expo/snapback-client';
+import { resolveGeneratedArtifact } from '@expo/snapback-codegen/review-surface';
 
 const readyPath = process.argv[2];
 if (!readyPath) throw new Error('usage: provision-snapback.mjs <ready.json>');

@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/codegen",
+  "name": "@expo/snapback-codegen",
   "version": "0.1.0",
   "type": "module",
   "description": "Snapback codegen: executes source-authored schema/function definitions and emits the generated manifests, typed API, and Contract binding modules.",
@@ -78,7 +78,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/contract": "workspace:*",
+    "@expo/snapback-contract": "workspace:*",
     "acorn": "^8.17.0",
     "esbuild": "^0.28.1",
     "typescript": "5.9.3"

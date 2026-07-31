@@ -19,7 +19,7 @@ const ADA = 'user_ada';
 let activeSurface: { dispose?: () => void } | null = null;
 
 // The browser only ever sees the relative relay base path (`/__snapback` from
-// the @snapback/vite plugin); the backend's loopback origin stays a dev-server
+// the @expo/snapback-vite plugin); the backend's loopback origin stays a dev-server
 // implementation detail. In a shell that supplies its own server origin, the
 // relay path is joined onto that origin instead.
 function snapbackBaseUrl(): string {
@@ -80,7 +80,7 @@ async function boot(): Promise<void> {
   await client.health();
 
   // Backend provisioning no longer happens here (LLP 0030 step 8 / LLP 0079
-  // SC-2a): the @snapback/vite plugin loads schema/functions and seeds during
+  // SC-2a): the @expo/snapback-vite plugin loads schema/functions and seeds during
   // managed bring-up, server-side, before this page is served. The browser
   // holds no provisioning authority — the relay forwards app routes only —
   // and a reload just remounts against the already-prepared backend.

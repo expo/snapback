@@ -127,7 +127,7 @@ try {
       resolve(app, 'schema.mjs'),
     );
     writeFileSync(resolve(app, 'functions.mjs'), [
-      "import { defineOwnedUniqueLookup } from '@snapback/codegen/standard-patterns';",
+      "import { defineOwnedUniqueLookup } from '@expo/snapback-codegen/standard-patterns';",
       "import schema from './schema.mjs';",
       '',
       'export const { myRsvp } = defineOwnedUniqueLookup({',

@@ -8,7 +8,7 @@ Every app states its authoring stack in the UI ("built with …").
 
 | authoring \ backend | Snapback | Convex | Supabase | SQLite |
 | --- | --- | --- | --- | --- |
-| **Expo** (iOS + web) | `@snapback/client` live query (WebSocket push) | `ConvexClient` subscription (push) | `supabase-js` + Realtime (push) | gateway HTTP + 700 ms poll |
+| **Expo** (iOS + web) | `@expo/snapback-client` live query (WebSocket push) | `ConvexClient` subscription (push) | `supabase-js` + Realtime (push) | gateway HTTP + 700 ms poll |
 | **Exact + Contract** (macOS, iOS, web) | gateway poll | gateway poll | gateway poll | gateway poll |
 | **SwiftUI** (iOS + macOS) | gateway poll | gateway poll | gateway poll | gateway poll |
 | **Flutter** (iOS + web) | gateway poll | gateway poll | gateway poll | gateway poll |

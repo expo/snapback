@@ -1,6 +1,6 @@
 // Acceptance for the LLP 0079 SC-2b dev-loop client arm: one `snapback dev
 // --client` process runs the managed backend watch loop AND a real Vite dev
-// server carrying the SC-2a `@snapback/vite` plugin in `auto` mode, on
+// server carrying the SC-2a `@expo/snapback-vite` plugin in `auto` mode, on
 // ephemeral ports with a temp database + ready file. The machine-readable
 // stdin channel exercises the full verb slice — status, force
 // regenerate-and-reload, restart backend — while edits to `functions.mjs`
@@ -138,7 +138,7 @@ try {
   const clientPort = await freePort();
   writeFileSync(join(clientDir, 'client.mjs'), `
 import { createServer } from 'vite';
-import { snapbackDev } from '@snapback/vite';
+import { snapbackDev } from '@expo/snapback-vite';
 
 const server = await createServer({
   root: ${JSON.stringify(clientDir)},

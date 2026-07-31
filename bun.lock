@@ -19,62 +19,63 @@
       },
     },
     "packages/snapback-admin-client": {
-      "name": "@snapback/admin-client",
+      "name": "@expo/snapback-admin-client",
     },
     "packages/snapback-app-cli": {
-      "name": "@snapback/app-cli",
+      "name": "@expo/snapback-app-cli",
       "version": "0.1.0",
       "bin": {
         "snapback-app": "./cli.mjs",
       },
       "dependencies": {
-        "@snapback/client": "workspace:*",
-        "@snapback/codegen": "workspace:*",
+        "@expo/snapback-client": "workspace:*",
+        "@expo/snapback-codegen": "workspace:*",
       },
     },
     "packages/snapback-cli": {
-      "name": "@snapback/cli",
+      "name": "@expo/snapback-cli",
       "version": "0.1.0",
       "bin": {
         "snapback": "./cli.mjs",
       },
       "dependencies": {
-        "@snapback/client": "0.1.0",
-        "@snapback/codegen": "0.1.0",
-        "@snapback/contract": "0.1.0",
+        "@expo/snapback-client": "workspace:*",
+        "@expo/snapback-codegen": "workspace:*",
+        "@expo/snapback-contract": "workspace:*",
       },
       "optionalDependencies": {
-        "@snapback/runtime-darwin-arm64": "0.1.0",
-        "@snapback/runtime-linux-x64": "0.1.0",
+        "@expo/snapback-runtime-darwin-arm64": "workspace:*",
+        "@expo/snapback-runtime-linux-x64": "workspace:*",
       },
     },
     "packages/snapback-client": {
-      "name": "@snapback/client",
+      "name": "@expo/snapback-client",
       "version": "0.1.0",
       "dependencies": {
-        "@snapback/contract": "0.1.0",
+        "@expo/snapback-contract": "0.1.0",
       },
     },
     "packages/snapback-codegen": {
-      "name": "@snapback/codegen",
+      "name": "@expo/snapback-codegen",
       "version": "0.1.0",
       "dependencies": {
-        "@snapback/contract": "0.1.0",
+        "@expo/snapback-contract": "workspace:*",
         "acorn": "^8.17.0",
         "esbuild": "^0.28.1",
         "typescript": "5.9.3",
       },
     },
     "packages/snapback-contract": {
-      "name": "@snapback/contract",
+      "name": "@expo/snapback-contract",
       "version": "0.1.0",
     },
     "packages/snapback-hosted-supervisor": {
-      "name": "@snapback/hosted-supervisor",
+      "name": "@expo/snapback-hosted-supervisor",
       "version": "0.1.0",
       "bin": {
         "snapback-hosted-supervisor": "./cli.mjs",
         "snapback-hosted-supervisor-bootstrap": "./bootstrap.mjs",
+        "snapback-hosted-target-onboarding": "./target-onboarding.mjs",
       },
       "dependencies": {
         "@aws-sdk/client-iam": "3.1096.0",
@@ -82,36 +83,36 @@
       },
     },
     "packages/snapback-publication-authority": {
-      "name": "@snapback/publication-authority",
+      "name": "@expo/snapback-publication-authority",
       "version": "0.1.0",
       "bin": {
         "snapback-publication-authority": "./service.mjs",
       },
     },
     "packages/snapback-react": {
-      "name": "@snapback/react",
+      "name": "@expo/snapback-react",
       "version": "0.1.0",
       "peerDependencies": {
-        "@snapback/client": ">=0.1.0 <0.2.0",
+        "@expo/snapback-client": ">=0.1.0 <0.2.0",
         "react": ">=18.0.0 <20.0.0",
       },
     },
     "packages/snapback-runtime-darwin-arm64": {
-      "name": "@snapback/runtime-darwin-arm64",
+      "name": "@expo/snapback-runtime-darwin-arm64",
       "version": "0.1.0",
     },
     "packages/snapback-runtime-linux-x64": {
-      "name": "@snapback/runtime-linux-x64",
+      "name": "@expo/snapback-runtime-linux-x64",
       "version": "0.1.0",
     },
     "packages/snapback-vite": {
-      "name": "@snapback/vite",
+      "name": "@expo/snapback-vite",
       "version": "0.1.0",
       "dependencies": {
-        "@snapback/cli": "workspace:*",
+        "@expo/snapback-cli": "workspace:*",
       },
       "devDependencies": {
-        "@snapback/client": "workspace:*",
+        "@expo/snapback-client": "workspace:*",
         "vite": "^8.0.0",
       },
       "peerDependencies": {
@@ -235,6 +236,30 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.28.1", "", { "os": "win32", "cpu": "x64" }, "sha512-bm4Mowrv+GXMlpWX++EcXw/iLyd1o3+bJkC2DkWXYVvgZCqD/bSj9ctZeAMC3cIxgjRVR2Dufaiu4YPxr5gW1A=="],
 
+    "@expo/snapback-admin-client": ["@expo/snapback-admin-client@workspace:packages/snapback-admin-client"],
+
+    "@expo/snapback-app-cli": ["@expo/snapback-app-cli@workspace:packages/snapback-app-cli"],
+
+    "@expo/snapback-cli": ["@expo/snapback-cli@workspace:packages/snapback-cli"],
+
+    "@expo/snapback-client": ["@expo/snapback-client@workspace:packages/snapback-client"],
+
+    "@expo/snapback-codegen": ["@expo/snapback-codegen@workspace:packages/snapback-codegen"],
+
+    "@expo/snapback-contract": ["@expo/snapback-contract@workspace:packages/snapback-contract"],
+
+    "@expo/snapback-hosted-supervisor": ["@expo/snapback-hosted-supervisor@workspace:packages/snapback-hosted-supervisor"],
+
+    "@expo/snapback-publication-authority": ["@expo/snapback-publication-authority@workspace:packages/snapback-publication-authority"],
+
+    "@expo/snapback-react": ["@expo/snapback-react@workspace:packages/snapback-react"],
+
+    "@expo/snapback-runtime-darwin-arm64": ["@expo/snapback-runtime-darwin-arm64@workspace:packages/snapback-runtime-darwin-arm64"],
+
+    "@expo/snapback-runtime-linux-x64": ["@expo/snapback-runtime-linux-x64@workspace:packages/snapback-runtime-linux-x64"],
+
+    "@expo/snapback-vite": ["@expo/snapback-vite@workspace:packages/snapback-vite"],
+
     "@img/colour": ["@img/colour@1.1.0", "", {}, "sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ=="],
 
     "@img/sharp-darwin-arm64": ["@img/sharp-darwin-arm64@0.34.5", "", { "optionalDependencies": { "@img/sharp-libvips-darwin-arm64": "1.2.4" }, "os": "darwin", "cpu": "arm64" }, "sha512-imtQ3WMJXbMY4fxb/Ndp6HBTNVtWCUI0WdobyheGf5+ad6xX8VIDO8u2xE4qc/fr08CKG/7dDseFtn6M6g/r3w=="],
@@ -346,30 +371,6 @@
     "@smithy/signature-v4": ["@smithy/signature-v4@5.6.11", "", { "dependencies": { "@smithy/core": "^3.31.0", "@smithy/types": "^4.16.1", "tslib": "^2.6.2" } }, "sha512-7HsspeiNCZvZHEJ22vV5L/QYuJdTyJvPJvMrYD3AgkM3IJB0pkln4jkjPvtpTWRMkHXbO8WKwNjoVdVlBFwHmw=="],
 
     "@smithy/types": ["@smithy/types@4.16.1", "", { "dependencies": { "tslib": "^2.6.2" } }, "sha512-0JFs3V2y2M9tKW5na/qxe69Zv+uxLMO7QBbhxF/FHu/Gp2NFZAAL9tWl9PU02xxo07pb3G9FTyjNc6D5uZrJIg=="],
-
-    "@snapback/admin-client": ["@snapback/admin-client@workspace:packages/snapback-admin-client"],
-
-    "@snapback/app-cli": ["@snapback/app-cli@workspace:packages/snapback-app-cli"],
-
-    "@snapback/cli": ["@snapback/cli@workspace:packages/snapback-cli"],
-
-    "@snapback/client": ["@snapback/client@workspace:packages/snapback-client"],
-
-    "@snapback/codegen": ["@snapback/codegen@workspace:packages/snapback-codegen"],
-
-    "@snapback/contract": ["@snapback/contract@workspace:packages/snapback-contract"],
-
-    "@snapback/hosted-supervisor": ["@snapback/hosted-supervisor@workspace:packages/snapback-hosted-supervisor"],
-
-    "@snapback/publication-authority": ["@snapback/publication-authority@workspace:packages/snapback-publication-authority"],
-
-    "@snapback/react": ["@snapback/react@workspace:packages/snapback-react"],
-
-    "@snapback/runtime-darwin-arm64": ["@snapback/runtime-darwin-arm64@workspace:packages/snapback-runtime-darwin-arm64"],
-
-    "@snapback/runtime-linux-x64": ["@snapback/runtime-linux-x64@workspace:packages/snapback-runtime-linux-x64"],
-
-    "@snapback/vite": ["@snapback/vite@workspace:packages/snapback-vite"],
 
     "@speed-highlight/core": ["@speed-highlight/core@1.2.17", "", {}, "sha512-Z92FwKpCtfaW1V0jTU/fh3QzYEZN8wDwrzRIBoADCJfn4mJCNcJN/XegifX7BDrQ8/h9Xh/JnbyMchL0FqXrkg=="],
 

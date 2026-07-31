@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/runtime-linux-x64",
+  "name": "@expo/snapback-runtime-linux-x64",
   "version": "0.1.0",
   "type": "module",
   "description": "Prebuilt Snapback server and Hermes runtime for x86-64 Linux.",

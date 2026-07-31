@@ -10,7 +10,7 @@ import {
   defineTable,
   ephemeral,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 
 export const incidents = defineTable({
   title: v.string(),

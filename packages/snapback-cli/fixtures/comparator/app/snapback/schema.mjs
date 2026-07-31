@@ -5,7 +5,7 @@ import {
   defineTable,
   ephemeral,
   v,
-} from '@snapback/codegen/define';
+} from '@expo/snapback-codegen/define';
 
 const valueTable = () => defineTable({ value: v.string() }).sync();
 

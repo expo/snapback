@@ -12,12 +12,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { SnapbackClient } from '@snapback/client';
-import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
+import { SnapbackClient } from '@expo/snapback-client';
+import { resolveGeneratedArtifact } from '@expo/snapback-codegen/review-surface';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
-} from '@snapback/contract';
+} from '@expo/snapback-contract';
 import { build } from 'esbuild';
 
 import { startServer } from '../../_kit/server-process.mjs';

@@ -86,7 +86,7 @@ async function mutate(session, name, args, id) {
 try {
   await mkdir(backendRoot, { recursive: true });
   await writeFile(join(backendRoot, 'schema.mjs'), `
-import { defineSchema, defineTable, v } from '@snapback/codegen/define';
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 export const todos = defineTable({
   ownerId: v.principal(), slug: v.string(), title: v.string(),
   pageKey: v.string(), createdAt: v.integer(), updatedAt: v.integer(),
@@ -99,7 +99,7 @@ export default defineSchema({ todos }, { auth: { mode: 'sessions' } });
 `);
   await writeFile(join(backendRoot, 'functions.mjs'), `
 import schema from './schema.mjs';
-import { defineOwnedCrud, defineOwnedKeysetPages, defineOwnedUniqueLookup } from '@snapback/codegen/standard-patterns';
+import { defineOwnedCrud, defineOwnedKeysetPages, defineOwnedUniqueLookup } from '@expo/snapback-codegen/standard-patterns';
 const visibility = { kind: 'owner', field: 'ownerId' };
 export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = defineOwnedCrud({
   table: schema.tables.todos,

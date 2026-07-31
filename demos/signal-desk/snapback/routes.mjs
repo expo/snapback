@@ -8,7 +8,7 @@
 // @ref LLP 0114#bundle-primed-generated-query-groups — generated group
 // references are the closed React composition surface.
 
-import { defineRoutes } from '@snapback/codegen/define';
+import { defineRoutes } from '@expo/snapback-codegen/define';
 
 export default defineRoutes([
   {

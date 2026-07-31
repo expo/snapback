@@ -3,14 +3,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { SnapbackClient, parseSearchQueryV1 } from '@snapback/client';
+import { SnapbackClient, parseSearchQueryV1 } from '@expo/snapback-client';
 import { startServer } from '../../_kit/server-process.mjs';
 import { assert, assertEqual, createSuite, runAcceptance } from '../../_kit/harness.mjs';
-import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
+import { resolveGeneratedArtifact } from '@expo/snapback-codegen/review-surface';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
-} from '@snapback/contract';
+} from '@expo/snapback-contract';
 import { resetInstallGeneratedSeed } from '../scripts/versioned-seed.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));

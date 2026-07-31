@@ -1,8 +1,8 @@
-// @snapback/vite — mode-aware backend lifecycle for the managed dev plugin.
+// @expo/snapback-vite — mode-aware backend lifecycle for the managed dev plugin.
 //
 // The controller is deliberately Vite-free: the plugin in index.mjs is a thin
 // projection of this module, so every mode decision is testable without a dev
-// server. All process/handshake mechanics are the @snapback/cli helpers — the
+// server. All process/handshake mechanics are the @expo/snapback-cli helpers — the
 // plugin must not grow a second lifecycle dialect (LLP 0041's boundary with
 // LLP 0030: same ready-file/host-ops surface, neither embeds the other).
 
@@ -21,7 +21,7 @@ import {
   resolveGeneratedArtifact,
   validateDevTarget,
   waitForReady,
-} from '@snapback/cli';
+} from '@expo/snapback-cli';
 
 export const LIFECYCLE_MODES = Object.freeze(['off', 'external', 'attach', 'managed', 'auto']);
 const RESET_POLICIES = Object.freeze(['if-new', 'always', 'never']);

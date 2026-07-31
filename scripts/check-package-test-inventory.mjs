@@ -13,21 +13,21 @@ const IGNORED_TEST_DIRS = new Set(['.git', 'coverage', 'dist', 'node_modules']);
 
 const inventories = [
   {
-    id: '@snapback/runtime-darwin-arm64',
+    id: '@expo/snapback-runtime-darwin-arm64',
     packageDir: 'packages/snapback-runtime-darwin-arm64',
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: ['package.test.mjs'],
   },
   {
-    id: '@snapback/runtime-linux-x64',
+    id: '@expo/snapback-runtime-linux-x64',
     packageDir: 'packages/snapback-runtime-linux-x64',
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: ['package.test.mjs'],
   },
   {
-    id: '@snapback/cli',
+    id: '@expo/snapback-cli',
     packageDir: 'packages/snapback-cli',
     testDir: '.',
     suffix: '.test.mjs',
@@ -44,14 +44,14 @@ const inventories = [
     ],
   },
   {
-    id: '@snapback/vite',
+    id: '@expo/snapback-vite',
     packageDir: 'packages/snapback-vite',
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: ['channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
   },
   {
-    id: '@snapback/client',
+    id: '@expo/snapback-client',
     packageDir: 'packages/snapback-client',
     testDir: '.',
     suffix: '.test.mjs',
@@ -80,7 +80,7 @@ const inventories = [
     ],
   },
   {
-    id: '@snapback/hosted-supervisor',
+    id: '@expo/snapback-hosted-supervisor',
     packageDir: 'packages/snapback-hosted-supervisor',
     testDir: '.',
     suffix: '.test.mjs',
@@ -100,7 +100,7 @@ const inventories = [
     ],
   },
   {
-    id: '@snapback/publication-authority',
+    id: '@expo/snapback-publication-authority',
     packageDir: 'packages/snapback-publication-authority',
     testDir: '.',
     suffix: '.test.mjs',
@@ -112,21 +112,21 @@ const inventories = [
     ],
   },
   {
-    id: '@snapback/react',
+    id: '@expo/snapback-react',
     packageDir: 'packages/snapback-react',
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: ['lifecycle.test.mjs', 'optimistic.test.mjs', 'package.test.mjs', 'presence.test.mjs'],
   },
   {
-    id: '@snapback/app-cli',
+    id: '@expo/snapback-app-cli',
     packageDir: 'packages/snapback-app-cli',
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: ['attribution.test.mjs', 'package.test.mjs'],
   },
   {
-    id: '@snapback/codegen',
+    id: '@expo/snapback-codegen',
     packageDir: 'packages/snapback-codegen',
     testDir: '.',
     suffix: '.test.mjs',
@@ -162,7 +162,7 @@ const inventories = [
     ],
   },
   {
-    id: '@snapback/contract',
+    id: '@expo/snapback-contract',
     packageDir: 'packages/snapback-contract',
     testDir: '.',
     suffix: '.test.mjs',
@@ -273,54 +273,54 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-// 77 -> 79 (2026-07-24, ENG-25454): @snapback/vite gains channel-a.test.mjs
+// 77 -> 79 (2026-07-24, ENG-25454): @expo/snapback-vite gains channel-a.test.mjs
 // and rqs-serializer.test.mjs (LLP 0092 §0E Channel A seam + serializer).
-// 79 -> 82 (2026-07-25, ENG-25456): @snapback/client gains
+// 79 -> 82 (2026-07-25, ENG-25456): @expo/snapback-client gains
 // rqs-store-file.test.mjs and rqs-resume-native.test.mjs (LLP 0090 step-5
-// native arm), and @snapback/codegen's relational-authoring.test.mjs
+// native arm), and @expo/snapback-codegen's relational-authoring.test.mjs
 // (landed f779c35c, LLP 0080 slice 3) is registered here — the landing
 // commit added the file and its test script entry without updating this
 // canonical inventory.
-// 82 -> 83 (2026-07-25, Step 5 witness rerun): @snapback/codegen gains
+// 82 -> 83 (2026-07-25, Step 5 witness rerun): @expo/snapback-codegen gains
 // maintained-projections.test.mjs (landed 21bb68ff, LLP 0080 §5 authoring
 // surface) — the landing added the file and its test-script entry without
 // updating this canonical inventory; caught by the cumulative-gate rerun.
 // 83 -> 85 (LLP 0074 integration): retain the Linux runtime package proof
 // and the CLI hosted-admission producer suite alongside current main.
-// 85 -> 86 (LLP 0081 §6): @snapback/contract gains the maintained
+// 85 -> 86 (LLP 0081 §6): @expo/snapback-contract gains the maintained
 // migration-boundary quarantine regression.
-// 86 -> 87 (LLP 0072 Fly adapter landing): @snapback/cli gains the
+// 86 -> 87 (LLP 0072 Fly adapter landing): @expo/snapback-cli gains the
 // maintained Fly Machines VM driver suite.
-// 87 -> 88 (LLP 0094 B2): @snapback/client gains the wire-version
+// 87 -> 88 (LLP 0094 B2): @expo/snapback-client gains the wire-version
 // negotiation suite (open-time offer, echo witness, §0B.6 fallback).
-// 88 -> 89 (package-owned comparator acceptance kit): @snapback/cli gains
+// 88 -> 89 (package-owned comparator acceptance kit): @expo/snapback-cli gains
 // the five-property comparator, failure matrix, receipt, and pack proof.
-// 89 -> 91 (codegen review surface): @snapback/codegen gains cache/custody
-// conformance and @snapback/contract gains review-manifest projection checks.
-// 91 -> 94 (backend-bakeoff reconciliation): @snapback/client gains portable
-// search parsing, while @snapback/codegen gains inline/result-contract and
+// 89 -> 91 (codegen review surface): @expo/snapback-codegen gains cache/custody
+// conformance and @expo/snapback-contract gains review-manifest projection checks.
+// 91 -> 94 (backend-bakeoff reconciliation): @expo/snapback-client gains portable
+// search parsing, while @expo/snapback-codegen gains inline/result-contract and
 // versioned-seed artifact coverage.
-// 94 -> 95 (LLP 0110): @snapback/codegen gains the bounded-relation and
+// 94 -> 95 (LLP 0110): @expo/snapback-codegen gains the bounded-relation and
 // transactional write/activity authoring corpus.
-// 95 -> 98 (LLP 0111): @snapback/client gains hosted ephemeral authority
+// 95 -> 98 (LLP 0111): @expo/snapback-client gains hosted ephemeral authority
 // replacement/republish coverage and the independently packed supervisor
 // gains deterministic protocol and provider-bootstrap plan corpora.
 // 98 -> 99 (LLP 0111): the supervisor adds immutable external-mirror,
 // conditional-anchor, chain-recovery, and stale-writer coverage.
-// 99 -> 103 (LLP 0107): @snapback/client gains the negotiated-expiry room
-// lifecycle suite, @snapback/react gains optimistic and presence lifecycle
-// suites, and @snapback/contract gains the shared result-contract validator.
+// 99 -> 103 (LLP 0107): @expo/snapback-client gains the negotiated-expiry room
+// lifecycle suite, @expo/snapback-react gains optimistic and presence lifecycle
+// suites, and @expo/snapback-contract gains the shared result-contract validator.
 // 103 -> 104 (LLP 0111): the independently packed supervisor gains the
 // hosted-edge admission lifecycle and refusal matrix.
 // 104 -> 105 (LLP 0111): target onboarding gains a confirmation-bound,
 // legacy-preserving credential-staging plan corpus.
-// 105 -> 106 (LLP 0107): @snapback/react gains the maintained lifecycle
+// 105 -> 106 (LLP 0107): @expo/snapback-react gains the maintained lifecycle
 // wrapper corpus alongside its optimistic and presence suites.
-// 106 -> 109 (backend-bakeoff first-rerun corrections): @snapback/cli gains
+// 106 -> 109 (backend-bakeoff first-rerun corrections): @expo/snapback-cli gains
 // maintained generated-load identity diagnostics and sessions-mode one-command
-// dev-loop coverage, while @snapback/codegen gains maintained search
+// dev-loop coverage, while @expo/snapback-codegen gains maintained search
 // result-contract coverage.
-// 109 -> 112 (LLP 0111 hosted completion tranche): @snapback/cli gains the
+// 109 -> 112 (LLP 0111 hosted completion tranche): @expo/snapback-cli gains the
 // checkout-free hosted command/package corpus, while the supervisor gains
 // operator-authority semantics and its own extracted-tarball proof.
 // 112 -> 113 (LLP 0111 hosted completion tranche): the supervisor gains the
@@ -335,20 +335,20 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // refuses closed-schema mismatches before transport.
 // 121 -> 122 (LLP 0041 final publication hardening): the publication authority
 // client retains bounded response-stream and deadline refusal coverage.
-// 122 -> 123 (2026-07-28, SB-004): @snapback/client gains the maintained
+// 122 -> 123 (2026-07-28, SB-004): @expo/snapback-client gains the maintained
 // effect-free authorization-reservation retry matrix.
-// 123 -> 124 (2026-07-28, SB-002): @snapback/client gains the maintained
+// 123 -> 124 (2026-07-28, SB-002): @expo/snapback-client gains the maintained
 // live-handle authority-retirement disposal matrix.
-// 124 -> 126 (2026-07-30, attribution wire seams): @snapback/client gains the
-// byte-level non-2xx attribution pass-through matrix and @snapback/app-cli
+// 124 -> 126 (2026-07-30, attribution wire seams): @expo/snapback-client gains the
+// byte-level non-2xx attribution pass-through matrix and @expo/snapback-app-cli
 // gains the HTTP/client/CLI per-principal-class attribution parity matrix.
-// 126 -> 127 (2026-07-30, LLP 0062 app-data façade lift): @snapback/client
+// 126 -> 127 (2026-07-30, LLP 0062 app-data façade lift): @expo/snapback-client
 // gains the app-data-only façade posture suite (planted admin token,
 // redirect-terminal credentialed requests, per-class ingress bounds, bare
 // artifact fetch path).
-// 127 -> 132 (2026-07-31, wave-1 lane landings reconciled): @snapback/client
+// 127 -> 132 (2026-07-31, wave-1 lane landings reconciled): @expo/snapback-client
 // gains the M2 outbox store suite (`2a7bf058`, LLP 0129 Phase 0);
-// @snapback/codegen gains jobs authoring (`64dc60ef`, LLP 0070 first slice —
+// @expo/snapback-codegen gains jobs authoring (`64dc60ef`, LLP 0070 first slice —
 // its landing updated the file list but not this reviewed total), same-file
 // inline-helper sharing (`4d72c407`, LLP 0118 option 1a), and the
 // one-argument-grammar goldens plus search-AST fixtures (`16595117`,

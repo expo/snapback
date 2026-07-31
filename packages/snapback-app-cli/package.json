@@ -1,5 +1,5 @@
 {
-  "name": "@snapback/app-cli",
+  "name": "@expo/snapback-app-cli",
   "version": "0.1.0",
   "type": "module",
   "description": "Artifact-driven local Snapback application CLI for agent journeys.",
@@ -19,8 +19,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/client": "workspace:*",
-    "@snapback/codegen": "workspace:*"
+    "@expo/snapback-client": "workspace:*",
+    "@expo/snapback-codegen": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

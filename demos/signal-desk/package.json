@@ -24,14 +24,14 @@
     "test:supabase": "node tests/supabase.mjs"
   },
   "dependencies": {
-    "@snapback/cli": "file:../../packages/snapback-cli",
-    "@snapback/client": "file:../../packages/snapback-client",
-    "@snapback/codegen": "file:../../packages/snapback-codegen",
-    "@snapback/contract": "file:../../packages/snapback-contract",
-    "@snapback/react": "file:../../packages/snapback-react",
-    "@snapback/runtime-darwin-arm64": "file:../../packages/snapback-runtime-darwin-arm64",
-    "@snapback/runtime-linux-x64": "file:../../packages/snapback-runtime-linux-x64",
-    "@snapback/vite": "file:../../packages/snapback-vite",
+    "@expo/snapback-cli": "file:../../packages/snapback-cli",
+    "@expo/snapback-client": "file:../../packages/snapback-client",
+    "@expo/snapback-codegen": "file:../../packages/snapback-codegen",
+    "@expo/snapback-contract": "file:../../packages/snapback-contract",
+    "@expo/snapback-react": "file:../../packages/snapback-react",
+    "@expo/snapback-runtime-darwin-arm64": "file:../../packages/snapback-runtime-darwin-arm64",
+    "@expo/snapback-runtime-linux-x64": "file:../../packages/snapback-runtime-linux-x64",
+    "@expo/snapback-vite": "file:../../packages/snapback-vite",
     "@supabase/supabase-js": "2.57.4",
     "convex": "1.42.3",
     "react": "19.2.0",
@@ -48,11 +48,11 @@
     "vite": "7.1.7"
   },
   "overrides": {
-    "@snapback/cli": "file:../../packages/snapback-cli",
-    "@snapback/client": "file:../../packages/snapback-client",
-    "@snapback/codegen": "file:../../packages/snapback-codegen",
-    "@snapback/contract": "file:../../packages/snapback-contract",
-    "@snapback/runtime-darwin-arm64": "file:../../packages/snapback-runtime-darwin-arm64",
-    "@snapback/runtime-linux-x64": "file:../../packages/snapback-runtime-linux-x64"
+    "@expo/snapback-cli": "file:../../packages/snapback-cli",
+    "@expo/snapback-client": "file:../../packages/snapback-client",
+    "@expo/snapback-codegen": "file:../../packages/snapback-codegen",
+    "@expo/snapback-contract": "file:../../packages/snapback-contract",
+    "@expo/snapback-runtime-darwin-arm64": "file:../../packages/snapback-runtime-darwin-arm64",
+    "@expo/snapback-runtime-linux-x64": "file:../../packages/snapback-runtime-linux-x64"
   }
 }

@@ -3,7 +3,7 @@ import {
   useSnapbackConnection,
   useSnapbackMutation,
   useSnapbackQueries,
-} from '@snapback/react';
+} from '@expo/snapback-react';
 import api from './snapback/generated/api.mjs';
 
 export function Workspace() {

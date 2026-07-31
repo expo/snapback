@@ -1,6 +1,6 @@
-# `@snapback/react`
+# `@expo/snapback-react`
 
-First-class Online React and React Native bindings over `@snapback/client`.
+First-class Online React and React Native bindings over `@expo/snapback-client`.
 
 The package exports:
 

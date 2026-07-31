@@ -20,8 +20,8 @@ import {
   isPreparedReactQueryGroup,
   consumePreparedReactQueryGroup,
   abandonConsumedReactQueryGroup,
-} from '@snapback/client';
-export { bindSnapbackAppLifecycle } from '@snapback/client';
+} from '@expo/snapback-client';
+export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
 
 // @ref LLP 0114#prepared-binding-and-provider-ownership — the provider owns
 // its registry and barrier participant while borrowing the prepared client's

@@ -5,7 +5,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 
 import {
   canonicalizeClientValueV1,
-} from '@snapback/client';
+} from '@expo/snapback-client';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {

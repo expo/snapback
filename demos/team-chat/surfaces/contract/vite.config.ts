@@ -29,7 +29,7 @@ export default ({ command }: { command: 'serve' | 'build' }) => ({
     // node_modules left behind by another task.
     alias: [
       {
-        find: /^@snapback\/contract(?=\/|$)/,
+        find: /^@expo\/snapback-contract(?=\/|$)/,
         replacement: snapbackContractRoot,
       },
     ],

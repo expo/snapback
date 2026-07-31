@@ -1,5 +1,5 @@
 // Metro must see the repo root: the Snapback cell imports the real
-// @snapback/client sources and the generated api bindings from the monorepo.
+// @expo/snapback-client sources and the generated api bindings from the monorepo.
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('node:path');
 
