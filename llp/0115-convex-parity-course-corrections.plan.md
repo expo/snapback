@@ -22,8 +22,8 @@ now carry dated landing notes, CV-2's Work/Exit are conformed to
 LLP 0010's landed contract (exact-VM create/destroy is the behavioral
 gate; the no-eval constructor admits no trivial execution beyond
 creation; the persisted digest-bound receipt is CV-3's), and
-Tranche A's residue is restated as CV-3 + the open kit-rungs ticket
-+ CV-1. The board-wide staleness sweep the round recommended was run:
+Tranche A's residue is restated as CV-3, the open kit-rungs ticket,
+and CV-1. The board-wide staleness sweep the round recommended was run:
 every remaining Open row was re-verified against issues/,
 issues/closed/, and the fleet's last-day log — CV-13's guide-gap
 ticket is still open, LLP 0110 is still Review and LLP 0070 still
@@ -569,7 +569,8 @@ relinks); the harness runs the probe only on its `cargo` rung — the
 by default (`SNAPBACK_BOOTSTRAP_CHECK=0`). Nothing persists a receipt, and
 nothing compares the digests that are already being captured.
 
-**Work.** Build CV-2's receipt into the shared artifact all three tools trust
+**Work.** Build the persisted readiness receipt — CV-3's own deliverable,
+seeded by CV-2's landed qualification — into the shared artifact all three tools trust
 and re-verify: defined location and custody, digest-coherence comparison, and
 — the hard part — invalidation semantics when the framework changes after
 issuance. Extend coverage to the harness's `prebuilt`/`configured`/reused
@@ -965,7 +966,8 @@ is not a digest-canonicalization defect: both sides compute RFC 8785
 canonical digests that **agree** (integral `5` and `5.0` both spell `"5"`).
 What failed — fixed at the landing; v0.7 note below — was a
 representation-sensitive full struct equality
-(`source != authoritative`, `src/search/sqlite.rs:1731`) between the
+(`source != authoritative`, `src/search/sqlite.rs:1731` at the pre-fix
+revision `01e94173`) between the
 in-memory insert-path document (which keeps serde_json integer `Number(5)`
 because `normalize_json_value` validates without normalizing) and the
 SQLite-reloaded authoritative row (`Number(5.0)`). The
@@ -1115,7 +1117,7 @@ so exact-but-explicitly-configured provenance is not misread as weak.
    shipping order is decided (decision 3): the sequence primitive
    first, then 3a, with the contracted-aggregate profile decision
    deferred until 3a usage evidence exists.
-3. **Tranche D after CV-5.** CV-10 is a small code fix and may land any time;
+3. **Tranche D after CV-5.** CV-10 landed (`c57ef9cd`, 2026-07-31);
    CV-11/CV-12a build on the typed AST; CV-12b executes 0073's roadmap as its
    gates (LLP 0046 for PostgreSQL) clear.
 4. **Tranche E is continuous.** CV-13 and CV-15 are small and may land
