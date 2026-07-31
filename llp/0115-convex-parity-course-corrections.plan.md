@@ -10,7 +10,15 @@
 pending landing) — 51 declarations + conditions across all seven
 publishing packages, and `scripts/check-package-export-types.mjs`
 added to the local proof as the structural regression gate; the gap
-4 text and CV-1's board row carry the dated status.)
+4 text and CV-1's board row carry the dated status.) 2026-07-31 (CV-3 and CV-15 executed in-branch, pending
+landing on main — persisted `snapback.runtime-readiness.v1` receipt with
+digest-recompute consumption across doctor/bootstrap/harness/proof, the
+shared `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` code in LLP 0010's
+registry, all four kit rungs covered, the 0123 strict-Host precondition
+resolved as a documented posture-neutral-by-process-isolation finding
+with a pinned regression test, and the `unpinned` label split into
+`pinned-binary-dirty-checkout`/`unpinned-binary`; see the rows' and
+sections' dated landing notes.)
 2026-07-31 (standing-decisions pointer: LLP 0130 records
 the author's pre-adjudicated conditional rules for this plan's
 mid-flight gates — SD-1 covers OQ3/decision 5's completion, SD-2 the
@@ -364,7 +372,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types SWEPT in-branch 2026-07-31 (`move5-types-sweep`, pending landing; named gap 4 closes at landing) |
 | CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Landed 2026-07-30 (`814acd77`: `snapback runtime-qualify` create/destroy gate + relink invalidation + regression fixture; ticket closed; residue = persisted receipt → CV-3, kit rungs → issues/20260730-kit-rungs-skip-handler-vm-qualification.md) |
-| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Open |
+| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Landed in-branch 2026-07-31, pending landing on main (`snapback.runtime-readiness.v1` receipt beside the binary; digest-recompute consumption; kept-target probe + verify-local-proof issue it; doctor read-only served-binary check; all four kit rungs covered; `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`; kit-rungs ticket closed; posture-neutrality finding + test per 0123) |
 | CV-4a | Structured collection validators for arguments | B (P1) | 1 | new Spec + 0004 alignment | 0117 | M | Open (startable; first slice with CV-5) |
 | CV-4b | Structured collection stored fields | B (P1) | 1 | new Spec + 0004/0007/0081 | 0117 | L | Open |
 | CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 1 | 0073, 0037 | 0117 | M | Open (re-scoped v0.3) |
@@ -378,7 +386,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-12b | Search target expansion | D (P2) | 4 (rider) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
 | CV-13 | Inline handlers primary in "Your first backend" | E (P2) | 5 | guide (0061) | 0122 | S | Landed 2026-07-31 (first-backend page rewritten inline-primary, legacy split moved to a labeled compatibility section; guide checks green; ticket closed) |
 | CV-14 | Semantic review summary for dense manifests | E (P2) | — | custody owner (confirm at start; 0062 family) | — | M | Open (claimed by no move; rides its custody trigger) |
-| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Open |
+| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Landed in-branch 2026-07-31, pending landing on main (split: `pinned-binary-dirty-checkout` for exact clean-built binaries compared against a dirty checkout, `unpinned-binary` for binaries whose own stamp is dirty/unknown; kit README updated) |
 | CV-16 | Declaration-closed rejection unions as result-contract variants | B (P1) | 1 | 0108 family (0125 option 2) | 0125 | M | Confirmed (0127 decision 7, 2026-07-30) |
 | CV-17 | Typed-interior pilot (0117 option F) | B (P1) | 1 | 0108 clarification + codegen | 0117 | S | Confirmed (0127 decision 7, 2026-07-30) |
 
@@ -572,7 +580,7 @@ via the mtime fix. Residue, tracked where it belongs: the persisted
 digest-bound receipt and cross-tool digest comparison are CV-3; the demo
 harness's `configured`/`prebuilt`/`reused` rungs remain presence +
 `/health`-identity gates
-(`issues/20260730-kit-rungs-skip-handler-vm-qualification.md`). With CV-2
+(`issues/closed/20260730-kit-rungs-skip-handler-vm-qualification.md`). With CV-2
 landed, Tranche A's remaining critical path is CV-3 plus CV-1.
 
 #### CV-3. A persisted readiness receipt across doctor, bootstrap, and harness
@@ -606,7 +614,7 @@ binary identity on `/health`) for the harness surfaces.
 qualifies its freshly built binary directly — and left the harness's
 `configured`/`prebuilt`/`reused` rungs as this item's rung-coverage
 residue, tracked with a direction sketch in
-`issues/20260730-kit-rungs-skip-handler-vm-qualification.md`. What remains
+`issues/closed/20260730-kit-rungs-skip-handler-vm-qualification.md`. What remains
 here is the persisted receipt itself — location, custody, digest-coherence
 comparison, invalidation semantics — and rung convergence on it.
 
@@ -614,6 +622,38 @@ comparison, invalidation semantics — and rung convergence on it.
 *served* binary and names the recovery; every harness rung and
 `verify-local-proof` refuse to run acceptance against a runtime whose receipt
 is absent, stale, or incoherent, with the same code.
+
+**Landing note (2026-07-31, in-branch, pending landing on main).** Executed
+per the exit. The receipt is `snapback.runtime-readiness.v1` at
+`<binary>.runtime-readiness.json` (custody by colocation: it shares the
+binary's lifecycle), binding binary sha256 + root-relative Hermes artifact
+digests (the exact `producerInputs.nativeArtifacts` candidate set, now one
+shared function) + build identity + the `snapback.runtime-qualify.v1`
+verdict; consumption always recomputes both digest sides, so binary rebuild
+and framework refresh invalidate with no bookkeeping and a receipt is never
+issued for a failed qualification. Issuers: the runtime-link probe on every
+kept target (bootstrap smoke, kit `cargo` rung) and `verify-local-proof`
+(pre-doctor and post-final-build). Consumers, one shared code
+(`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`, LLP 0010 registry): doctor's new
+read-only served-binary section; kit `configured`/`prebuilt` rungs
+(verify → live re-qualify self-heal → refuse with the CV-2 code when the
+binary cannot qualify; prebuilt falls back to `cargo`, configured is a hard
+coded error); kit `reused` rung (binds `/health` identity to a coherent
+local receipt or refuses reuse — a running process cannot be re-qualified in
+place, and its recovery record says so). The 0123-gated precondition
+resolved as a documented finding: the landed CV-2 subcommand shape is
+posture-neutral by process isolation (LLP 0123 dated note 2026-07-31;
+regression `tests/runtime_qualify_posture_v0.rs`; the standing
+first-VM-only-Enforce fact goes to LLP 0009's owners via
+`issues/20260731-first-vm-only-strict-host-context.md`). Acceptance:
+`tests/runtime_readiness_receipt_v0.mjs`, receipt fixtures in
+`tests/runtime_link_smoke_v0.mjs`, rung coverage in
+`demos/_kit/tests/server-process-lifecycle.mjs`;
+`issues/closed/20260730-kit-rungs-skip-handler-vm-qualification.md` closed at this
+landing. Residue, tracked honestly: the packaged `snapback doctor`/`dev`
+surfaces still consume only the recovery record, not the receipt (they ship
+with the packaged-runtime attestation of LLP 0041, which remains that
+lane's owner).
 
 ### Tranche B — P1: finish input and search type fidelity
 
@@ -1106,6 +1146,15 @@ The harness labeled an explicitly configured exact binary `unpinned` even
 though commit evidence was exact (Diary 0039 P2-15). Rename or split the label
 so exact-but-explicitly-configured provenance is not misread as weak.
 **Exit:** the label distinguishes the cases; harness docs updated.
+
+**Landing note (2026-07-31, in-branch, pending landing on main).** Split in
+`demos/_kit/server-process.mjs` `classifyBinaryIdentity`:
+`pinned-binary-dirty-checkout` (the binary's own stamp is a clean exact
+build of the agreed commit — exact commit evidence — and only the comparing
+checkout is dirty or of unknown dirtiness: the Diary 0039 P2-15 case) versus
+`unpinned-binary` (the binary's own stamp is dirty or unknown, so *its*
+bytes are not pinned). Kit README and lifecycle-suite expectations updated;
+the prebuilt rung's `verified`-only admission is unchanged.
 
 ## Sequencing
 

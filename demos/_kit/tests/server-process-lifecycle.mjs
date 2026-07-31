@@ -40,6 +40,30 @@ if (typeof readyFile === 'string' && readyFile.startsWith('--')) {
   bindPort = Number(flag('--port') || 0);
 }
 const expected = JSON.parse(process.env.FIXTURE_EXPECTED);
+// Readiness-seam fixture support (LLP 0115 CV-3): a stand-in binary on the
+// configured/prebuilt rungs must answer "runtime-qualify" with the same
+// verdict document the real binary prints, or the kit's live re-qualification
+// self-heal would hang against a fixture that only speaks ready+/health.
+if (process.argv[2] === 'runtime-qualify') {
+  const refuse = process.env.FIXTURE_QUALIFY_REFUSE === '1';
+  console.log(JSON.stringify({
+    schemaVersion: 'snapback.runtime-qualify.v1',
+    probe: 'restricted-no-eval-handler-vm',
+    ok: !refuse,
+    binary: { ...expected, buildProfile: 'debug' },
+    ...(refuse
+      ? {
+          diagnostic: {
+            code: 'SNAPBACK_RUNTIME_CREATE_FAILED',
+            severity: 'error',
+            subsystem: 'runtime',
+            message: 'Ibex runtime could not be created',
+          },
+        }
+      : {}),
+  }));
+  process.exit(refuse ? 1 : 0);
+}
 const nonce = randomUUID();
 let resistantDescendant = null;
 const server = createServer((req, res) => {
@@ -562,15 +586,18 @@ try {
   );
 
   // Dirty divergence is honest, not fatal: dirt outside the binary's tracked
-  // build inputs legitimately does not re-stamp it, so the verdict downgrades
-  // to `unpinned` instead of failing (or silently passing as verified).
+  // build inputs legitimately does not re-stamp it. The binary's own stamp is
+  // a clean exact build of the agreed commit, so the verdict is
+  // `pinned-binary-dirty-checkout` (LLP 0115 CV-15 split the old `unpinned`
+  // label so exact binary evidence is not misread as weak) instead of failing
+  // or silently passing as verified.
   {
     const dirtyCheckout = await __startServerForTests(
       { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
       { ...deps, expectedIdentity: { ...EXPECTED, gitDirty: true } },
     );
     running.push(dirtyCheckout);
-    assert.equal(dirtyCheckout.identity.verdict, 'unpinned');
+    assert.equal(dirtyCheckout.identity.verdict, 'pinned-binary-dirty-checkout');
     await dirtyCheckout.stop();
     running.splice(running.indexOf(dirtyCheckout), 1);
   }
@@ -742,7 +769,7 @@ try {
       );
       running.push(dirtySkip);
       assert.equal(dirtySkip.launch.rung, 'cargo', 'a dirty checkout goes straight to the cargo rung');
-      assert.equal(dirtySkip.identity.verdict, 'unpinned');
+      assert.equal(dirtySkip.identity.verdict, 'pinned-binary-dirty-checkout');
       await dirtySkip.stop();
       running.splice(running.indexOf(dirtySkip), 1);
     }
@@ -782,7 +809,300 @@ try {
       ),
       /configured snapback server binary does not exist/,
     );
+
+    // ── Persisted readiness receipt rung coverage (LLP 0115 CV-3) ──
+    // The configured/prebuilt rungs refuse a runtime whose receipt is absent,
+    // stale, or incoherent unless live re-qualification self-heals it
+    // (issues/closed/20260730-kit-rungs-skip-handler-vm-qualification.md).
+    const absentReceipt = (binaryPath) => ({
+      ok: false,
+      reason: 'absent',
+      receipt: null,
+      receiptPath: `${binaryPath}.runtime-readiness.json`,
+      diagnostic: {
+        code: 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID',
+        severity: 'error',
+        subsystem: 'runtime-readiness',
+        message: 'fixture: no persisted runtime readiness receipt',
+        details: { reason: 'absent' },
+      },
+    });
+    const coherentReceipt = (binaryPath) => ({
+      ok: true,
+      reason: 'coherent',
+      receipt: {
+        schemaVersion: 'snapback.runtime-readiness.v1',
+        buildIdentity: { gitCommit: EXPECTED.gitCommit, crateVersion: EXPECTED.crateVersion },
+        qualification: { probe: 'restricted-no-eval-handler-vm', ok: true },
+      },
+      receiptPath: `${binaryPath}.runtime-readiness.json`,
+      diagnostic: null,
+    });
+
+    // An unreceipted prebuilt binary that cannot qualify falls back to the
+    // cargo rung with the shared CV-2 code recorded — never boots.
+    {
+      let fellBack = false;
+      let issuedForFailure = false;
+      const fallbackCapture = captureConsoleError();
+      let unqualified;
+      try {
+        unqualified = await __startServerForTests(
+          {
+            port: 0,
+            cwd: fakeRepo,
+            startupTimeoutMs: 10_000,
+            env: { FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+          },
+          {
+            ...ladderDeps(() => { fellBack = true; }),
+            verifyReadiness: ({ binaryPath }) => absentReceipt(binaryPath),
+            qualifyRuntime: () => ({
+              ok: false,
+              report: null,
+              reason: 'Armed startup refused: fixture checkpoint tracking is unavailable',
+            }),
+            issueReadiness: () => { issuedForFailure = true; },
+          },
+        );
+      } finally {
+        fallbackCapture.restore();
+      }
+      running.push(unqualified);
+      assert.equal(unqualified.launch.rung, 'cargo');
+      assert.equal(fellBack, true, 'an unqualifiable prebuilt binary must fall back to the cargo rung');
+      assert.equal(issuedForFailure, false, 'no receipt is ever issued for a failed qualification');
+      assert.match(
+        unqualified.runtimeRecovery.reuse.reason,
+        /SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED/,
+        'the fallback reason carries the shared CV-2 code',
+      );
+      assert(
+        fallbackCapture.lines.some((line) => line.includes('PREBUILT SNAPBACK REJECTED')
+          && line.includes('SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED')),
+        `prebuilt readiness refusal is loud, got:\n${fallbackCapture.lines.join('\n')}`,
+      );
+      await unqualified.stop();
+      running.splice(running.indexOf(unqualified), 1);
+    }
+
+    // An unreceipted prebuilt binary that DOES qualify self-heals: the kit
+    // re-qualifies, issues a fresh receipt, and boots the prebuilt rung.
+    {
+      let issued = false;
+      const healed = await __startServerForTests(
+        {
+          port: 0,
+          cwd: fakeRepo,
+          startupTimeoutMs: 10_000,
+          env: { FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+        },
+        {
+          ...ladderDeps(() => {
+            throw new Error('a self-healed prebuilt binary must not fall back to cargo');
+          }),
+          verifyReadiness: ({ binaryPath }) => (issued
+            ? coherentReceipt(binaryPath)
+            : absentReceipt(binaryPath)),
+          qualifyRuntime: () => ({
+            ok: true,
+            report: { binary: { ...EXPECTED, buildProfile: 'debug' } },
+            reason: null,
+          }),
+          issueReadiness: ({ qualification }) => {
+            assert.equal(qualification.ok, true);
+            issued = true;
+            return { receiptPath: `${prebuilt}.runtime-readiness.json` };
+          },
+        },
+      );
+      running.push(healed);
+      assert.equal(healed.launch.rung, 'prebuilt');
+      assert.equal(issued, true, 'self-heal must persist a fresh receipt');
+      assert.equal(healed.runtimeRecovery.qualification.probe, 'persisted-receipt');
+      assert.equal(healed.runtimeRecovery.qualification.ok, true);
+      await healed.stop();
+      running.splice(running.indexOf(healed), 1);
+    }
+
+    // A configured binary that cannot qualify is a HARD coded error carrying
+    // the qualification verdict in its runtime-recovery record — the caller
+    // chose the binary, but readiness evidence is never silently skipped.
+    {
+      const configuredCapture = captureConsoleError();
+      try {
+        await assert.rejects(
+          __startServerForTests(
+            {
+              port: 0,
+              cwd: fakeRepo,
+              serverBinary: prebuilt,
+              startupTimeoutMs: 10_000,
+              env: { FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+            },
+            {
+              expectedIdentity: EXPECTED,
+              preflight: () => ({}),
+              verifyReadiness: ({ binaryPath }) => absentReceipt(binaryPath),
+              qualifyRuntime: () => ({
+                ok: false,
+                report: null,
+                reason: 'Armed startup refused: fixture checkpoint tracking is unavailable',
+              }),
+              issueReadiness: () => {
+                throw new Error('must not issue for a failed qualification');
+              },
+            },
+          ),
+          (error) => {
+            assert.equal(error.code, 'SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED');
+            assert.equal(error.runtimeRecovery.selectionRung, 'configured');
+            assert.equal(error.runtimeRecovery.qualification.ok, false);
+            assert.match(error.runtimeRecovery.qualification.reason, /Armed startup refused/);
+            assert.equal(error.runtimeRecovery.reuse.allowed, false);
+            return true;
+          },
+        );
+      } finally {
+        configuredCapture.restore();
+      }
+      assert(
+        configuredCapture.lines.some((line) => line.includes('RUNTIME RECOVERY')),
+        'the configured refusal prints its runtime-recovery record',
+      );
+    }
+
+    // A qualification that passes but cannot be persisted is still a refusal
+    // with the shared receipt code: acceptance never runs against a runtime
+    // whose receipt is absent.
+    await assert.rejects(
+      __startServerForTests(
+        {
+          port: 0,
+          cwd: fakeRepo,
+          serverBinary: prebuilt,
+          startupTimeoutMs: 10_000,
+          env: { FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+        },
+        {
+          expectedIdentity: EXPECTED,
+          preflight: () => ({}),
+          verifyReadiness: ({ binaryPath }) => absentReceipt(binaryPath),
+          qualifyRuntime: () => ({ ok: true, report: null, reason: null }),
+          issueReadiness: () => {
+            throw new Error('fixture: receipt directory is read-only');
+          },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID');
+        assert.equal(error.runtimeRecovery.selectionRung, 'configured');
+        return true;
+      },
+    );
+
     rmSync(fakeRepo, { recursive: true, force: true });
+
+    // ── Reused-rung readiness binding (LLP 0115 CV-3) ──
+    // A running server cannot be re-qualified in place, so reuse binds the
+    // live /health identity to a locally receipted, digest-coherent runtime.
+    {
+      const donor = await __startServerForTests(
+        { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
+        deps,
+      );
+      running.push(donor);
+      const donorPort = Number(new URL(donor.baseUrl).port);
+
+      // Without a coherent local receipt, reuse is refused loudly and a
+      // fresh (fixture-launched) server starts on an isolated port.
+      const refusalCapture = captureConsoleError();
+      let fresh;
+      try {
+        fresh = await __startServerForTests(
+          { port: donorPort, cwd: scratch, startupTimeoutMs: 2_000, binaryProvenance: { identity: EXPECTED } },
+          {
+            ...deps,
+            verifyReadiness: ({ binaryPath }) => absentReceipt(binaryPath),
+            qualifyRuntime: () => ({ ok: true, report: null, reason: null }),
+            issueReadiness: () => ({}),
+          },
+        );
+      } finally {
+        refusalCapture.restore();
+      }
+      running.push(fresh);
+      assert.equal(fresh.reused, false, 'an unreceipted runtime must not be reused');
+      assert(
+        refusalCapture.lines.some((line) => line.includes('PROVENANCE MISMATCH')
+          && line.includes('SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID')),
+        `reuse refusal names the receipt code, got:\n${refusalCapture.lines.join('\n')}`,
+      );
+      await fresh.stop();
+      running.splice(running.indexOf(fresh), 1);
+
+      // With a coherent receipt whose build identity matches the live
+      // /health stamp, reuse proceeds and the handle records the bind.
+      const reused = await __startServerForTests(
+        { port: donorPort, cwd: scratch, startupTimeoutMs: 2_000, binaryProvenance: { identity: EXPECTED } },
+        {
+          ...deps,
+          verifyReadiness: ({ binaryPath }) => coherentReceipt(binaryPath),
+          qualifyRuntime: () => {
+            throw new Error('a running server must never be re-qualified in place');
+          },
+          issueReadiness: () => {
+            throw new Error('reuse must not reissue a coherent receipt');
+          },
+        },
+      );
+      assert.equal(reused.reused, true, 'a receipted, identity-matched server is reused');
+      assert.equal(reused.runtimeRecovery.qualification.probe, 'persisted-receipt');
+      assert.match(
+        reused.runtimeRecovery.qualification.reason,
+        /cannot be re-qualified in place/,
+      );
+      await reused.stop();
+
+      // A receipt whose identity does NOT match the live server refuses the
+      // bind: the receipt cannot vouch for a foreign process.
+      const mismatchCapture = captureConsoleError();
+      let foreign;
+      try {
+        foreign = await __startServerForTests(
+          { port: donorPort, cwd: scratch, startupTimeoutMs: 2_000, binaryProvenance: { identity: EXPECTED } },
+          {
+            ...deps,
+            verifyReadiness: ({ binaryPath }) => ({
+              ...coherentReceipt(binaryPath),
+              receipt: {
+                schemaVersion: 'snapback.runtime-readiness.v1',
+                buildIdentity: {
+                  gitCommit: 'feedfacefeedfacefeedfacefeedfacefeedface',
+                  crateVersion: EXPECTED.crateVersion,
+                },
+                qualification: { probe: 'restricted-no-eval-handler-vm', ok: true },
+              },
+            }),
+            qualifyRuntime: () => ({ ok: true, report: null, reason: null }),
+            issueReadiness: () => ({}),
+          },
+        );
+      } finally {
+        mismatchCapture.restore();
+      }
+      running.push(foreign);
+      assert.equal(foreign.reused, false, 'a receipt for a different build cannot vouch for the live server');
+      assert(
+        mismatchCapture.lines.some((line) => line.includes('does not match the receipted local runtime')),
+        `identity-mismatch refusal is named, got:\n${mismatchCapture.lines.join('\n')}`,
+      );
+      await foreign.stop();
+      running.splice(running.indexOf(foreign), 1);
+
+      await donor.stop();
+      running.splice(running.indexOf(donor), 1);
+    }
 
     const resistant = await __startServerForTests(
       { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },

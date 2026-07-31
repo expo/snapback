@@ -107,13 +107,35 @@ checkout:
    `error.diagnostic` and `error.runtimeRecovery` instead of collapsing into an
    opaque harness startup failure.
 
+Every rung is additionally gated on the persisted **runtime readiness
+receipt** (`<binary>.runtime-readiness.json`, `snapback.runtime-readiness.v1`
+— LLP 0115 CV-3): the digest-bound record that this exact binary, against the
+current Hermes artifacts, created and destroyed its restricted no-eval handler
+VM (`snapback runtime-qualify`, LLP 0115 CV-2). The `cargo` rung's exact-link
+probe qualifies and issues the receipt for the binary it just built; the
+`configured` and `prebuilt` rungs verify it and self-heal an
+absent/stale/incoherent receipt by re-qualifying the resolved binary — a
+binary that cannot qualify fails with the shared
+`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED` /
+`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` codes (prebuilt falls back to the
+cargo rung; configured is a hard coded error). The `reused` rung cannot
+re-qualify a running process, so it binds by identity instead: reuse requires
+a locally receipted, digest-coherent runtime whose build identity the live
+`/health` stamp matches; anything else refuses reuse and starts a fresh,
+receipt-gated server.
+
 Every spawned child is bound to its unique ready-file nonce via `/health`; the
 returned handle reports `launch: { rung, command }` and `identity: { verdict,
 mismatches, binary, expected }`. Verdicts: `verified` (same clean commit on
-both sides), `unpinned` (commits agree but a dirty side means the bytes are
-not pinned), `env-stamped` (an explicit `SNAPBACK_BUILD_GIT_COMMIT` /
-`SNAPBACK_BUILD_GIT_DIRTY` in the launch environment — the deterministic CI
-seam, attested rather than verified), `unverifiable`, and `stamp-mismatch`.
+both sides), `pinned-binary-dirty-checkout` (the binary's own stamp is a
+clean exact build of the agreed commit — exact commit evidence — and only the
+comparing checkout is dirty; LLP 0115 CV-15 split this out of the old
+`unpinned` so an explicitly configured exact binary is not misread as weak
+provenance), `unpinned-binary` (the binary's own stamp is dirty or of unknown
+dirtiness, so *its* bytes are not pinned to the commit), `env-stamped` (an
+explicit `SNAPBACK_BUILD_GIT_COMMIT` / `SNAPBACK_BUILD_GIT_DIRTY` in the
+launch environment — the deterministic CI seam, attested rather than
+verified), `unverifiable`, and `stamp-mismatch`.
 
 It also reports `runtimeRecovery`, the same
 `snapback.runtime-recovery.v1` record emitted by repository

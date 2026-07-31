@@ -1,6 +1,7 @@
 # Move 5 slices 5-qual and 5-types: armed-VM bootstrap qualification (CV-2/CV-3) + types-condition sweep
 
-**Status:** Open
+**Status:** Open (5-qual EXECUTED in-branch 2026-07-31, pending landing on
+main; 5-types is a separate lane and remains open here)
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 3
@@ -149,3 +150,50 @@ the full sweep, not just `@snapback/client`:
   separately at `814acd77` per 0115 v0.7; CV-3/doctor-harness
   convergence and the LLP 0009 handoff ratification remain with this
   ticket's other half.
+
+## 5-qual execution note (2026-07-31, in-branch, pending landing on main)
+
+Work item (1) — CV-2 — had already landed on main at `814acd77`
+(`snapback runtime-qualify`, `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`, the
+rsync-mtime hypothesis CONFIRMED and fixed at source; LLP 0115 v0.7
+conformed the "trivial execution" and "single readiness receipt" clauses to
+the landed owner text). This branch executed the remainder:
+
+- **Work item (2) — CV-3, the persisted receipt.** Location and custody:
+  `<binary>.runtime-readiness.json`, `snapback.runtime-readiness.v1`
+  (`packages/snapback-cli/runtime-readiness.mjs`), colocated with the binary
+  it certifies; digest-coherence recomputed on every consumption (binary
+  sha256 + the shared Hermes-artifact candidate set, root-relative);
+  invalidation on framework change or rebuild is structural
+  (`framework-drift` / `binary-drift`), and a receipt is never issued for a
+  failed qualification. Issuers: the runtime-link probe on kept targets
+  (bootstrap smoke, kit cargo rung) and `verify-local-proof` (pre-doctor +
+  post-final-build). Consumers with the one shared
+  `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` code (LLP 0010 registry): doctor
+  (read-only against the SERVED binary, both recoveries named), kit
+  `configured`/`prebuilt` rungs (verify → re-qualify self-heal → refuse),
+  kit `reused` rung (identity bind or refuse reuse), and the proof's default
+  path. Kit-rungs residue ticket closed
+  (`issues/closed/20260730-kit-rungs-skip-handler-vm-qualification.md`).
+- **Work item (3) — the strict-Host precondition.** Resolved as a documented
+  finding rather than a code change: the landed CV-2 shape is
+  posture-neutral toward serving processes BY PROCESS ISOLATION
+  (`runtime-qualify` is a separate short-lived process; no server startup
+  path runs the probe in-process). LLP 0123 carries the dated 2026-07-31
+  note; `tests/runtime_qualify_posture_v0.rs` is the 0123-required
+  post-probe test (external qualification, then first/second in-process VMs
+  present identical fail-closed enforcement). The standing
+  first-VM-only-Enforce fact is ticketed with LLP 0009's owners
+  (`issues/20260731-first-vm-only-strict-host-context.md`); any
+  in-serving-process boot witness remains gated on that ratification.
+- **CV-15 (picked up by this lane per the wave-1 program):** the harness
+  `unpinned` verdict split into `pinned-binary-dirty-checkout` /
+  `unpinned-binary` (`demos/_kit/server-process.mjs`, README, lifecycle
+  suite).
+
+Proof in-branch: `tests/runtime_readiness_receipt_v0.mjs` (7 tests),
+`tests/runtime_link_smoke_v0.mjs` (11 tests — CV-2 fixtures still green +
+receipt/tamper/doctor-read-only fixtures),
+`demos/_kit/tests/server-process-lifecycle.mjs` (rung coverage),
+`tests/runtime_qualify_posture_v0.rs` (posture neutrality). 5-types remains
+with its own lane; this ticket closes when both halves land on main.

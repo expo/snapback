@@ -51,7 +51,15 @@ import {
   verifyApiProvenance,
   verifyBinaryProvenance,
 } from './provenance.mjs';
-import { createRuntimeRecoveryRecord } from '../../packages/snapback-cli/runtime-recovery.mjs';
+import {
+  createRuntimeRecoveryRecord,
+  qualifyRuntimeBinary,
+} from '../../packages/snapback-cli/runtime-recovery.mjs';
+import {
+  RUNTIME_READINESS_INVALID_CODE,
+  issueRuntimeReadinessReceipt,
+  verifyRuntimeReadinessReceipt,
+} from '../../packages/snapback-cli/runtime-readiness.mjs';
 
 // A clean CI runner can spend nearly a minute compiling before the child
 // publishes readiness. Keep that cold start bounded, with enough margin that
@@ -162,12 +170,30 @@ async function startServerWithDeps({
   // named before we ask the OS for an isolated port; cargo is never launched
   // into an occupied address (ENG-24378).
   if (!bindPortExactly && occupied && await isHealthy(requestedBaseUrl, fetchImpl)) {
-    const verdict = await reuseVerdict(requestedBaseUrl, {
+    let verdict = await reuseVerdict(requestedBaseUrl, {
       provenance,
       binaryProvenance,
       cwd,
       fetchImpl,
     });
+    // Rung readiness coverage for `reused` (LLP 0115 CV-3): a running server
+    // cannot be re-qualified from outside, so reuse additionally requires a
+    // locally receipted, digest-coherent runtime whose build identity the
+    // live /health stamp matches. Anything else refuses reuse and starts a
+    // fresh, receipt-gated server instead.
+    let readiness = null;
+    const reuseSeam = resolveReadinessSeam(deps);
+    if (verdict.ok && reuseSeam) {
+      readiness = await reusedRuntimeReadiness({
+        baseUrl: requestedBaseUrl,
+        cwd,
+        env,
+        serverBinary,
+        seam: reuseSeam,
+        fetchImpl,
+      });
+      if (!readiness.ok) verdict = { ok: false, reason: readiness.reason };
+    }
     if (verdict.ok && !captureImpersonationCapability && !cronDisabled) {
       console.log(`REUSED snapback server at :${port} (${verdict.detail})`);
       return serverHandle({
@@ -179,6 +205,14 @@ async function startServerWithDeps({
           selectionRung: 'reused',
           buildable: null,
           runnable: true,
+          qualification: readiness
+            ? {
+                probe: 'persisted-receipt',
+                ok: true,
+                reason: 'a running server cannot be re-qualified in place; readiness is bound by receipt digest-coherence plus /health identity',
+                receiptPath: readiness.verdict.receiptPath,
+              }
+            : null,
           reuseAllowed: true,
           reuseReason: verdict.detail,
         }),
@@ -254,6 +288,7 @@ async function startServerWithDeps({
         deps,
         startupTimeoutMs,
       });
+      certifyRuntimeReadiness(plan, { cwd, childEnv, deps, expectedIdentity });
       return await launchServerAttempt(plan, attemptContext);
     } catch (error) {
       if (plan.fallback && index < plans.length - 1) {
@@ -297,6 +332,88 @@ async function startServerWithDeps({
     }
   }
   throw new Error('snapback server launch resolved no runnable command (LLP 0030 ladder)');
+}
+
+// @ref LLP 0115#cv-3-a-persisted-readiness-receipt-across-doctor-bootstrap-and-harness —
+// every rung consumes the same persisted readiness receipt bootstrap/doctor
+// use; fixture launchers (deps.launchSpec) get a disabled seam unless a test
+// injects the pieces explicitly, mirroring proveCargoFallback's probe rule.
+function resolveReadinessSeam(deps) {
+  const injected = deps.verifyReadiness || deps.issueReadiness || deps.qualifyRuntime;
+  if (!injected && deps.launchSpec) return null;
+  return {
+    verify: deps.verifyReadiness ?? verifyRuntimeReadinessReceipt,
+    issue: deps.issueReadiness ?? issueRuntimeReadinessReceipt,
+    qualify: deps.qualifyRuntime ?? qualifyRuntimeBinary,
+  };
+}
+
+// Certify the `configured` and `prebuilt` rungs against the persisted
+// readiness receipt before anything is spawned. An absent/stale/incoherent
+// receipt self-heals by re-qualifying the exact resolved binary (the CV-2
+// probe, milliseconds) and reissuing; when the binary cannot qualify — the
+// incident state — this throws the shared CV-2 code, so a prebuilt failure
+// falls back to the cargo rung and a configured failure is a hard coded
+// error (issues/closed/20260730-kit-rungs-skip-handler-vm-qualification.md). The
+// cargo rung is certified by the exact-link probe itself, which qualifies
+// and issues the receipt for the binary it just built.
+function certifyRuntimeReadiness(plan, { cwd, childEnv, deps, expectedIdentity }) {
+  if (plan.rung !== 'configured' && plan.rung !== 'prebuilt') return;
+  const seam = resolveReadinessSeam(deps);
+  if (!seam) return;
+  let verdict = seam.verify({ root: cwd, binaryPath: plan.command });
+  let qualification = null;
+  if (!verdict.ok) {
+    qualification = seam.qualify(plan.command, childEnv);
+    if (qualification.ok) {
+      try {
+        seam.issue({
+          root: cwd,
+          binaryPath: plan.command,
+          qualification: {
+            probe: 'restricted-no-eval-handler-vm',
+            ok: true,
+            report: qualification.report,
+          },
+          issuer: `kit-${plan.rung}`,
+        });
+      } catch {
+        // Re-verification below reports the persistent state honestly.
+      }
+      verdict = seam.verify({ root: cwd, binaryPath: plan.command });
+    }
+  }
+  if (!verdict.ok) {
+    const code = qualification && !qualification.ok
+      ? 'SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED'
+      : RUNTIME_READINESS_INVALID_CODE;
+    const detail = qualification && !qualification.ok
+      ? `the ${plan.rung} binary could not create its restricted no-eval handler VM: ${qualification.reason}`
+      : `readiness receipt ${verdict.reason} for the ${plan.rung} binary ${plan.command}`;
+    const error = new Error(`${code}: ${detail}`);
+    error.code = code;
+    error.diagnostic = verdict.diagnostic ?? {
+      code,
+      severity: 'error',
+      subsystem: 'runtime-readiness',
+      message: detail,
+    };
+    error.runtimeRecovery = createRuntimeRecoveryRecord({
+      selectedBinary: plan.command,
+      selectionRung: plan.rung,
+      expected: expectedIdentity,
+      runnable: qualification ? qualification.ok : null,
+      qualification: qualification
+        ? { probe: 'restricted-no-eval-handler-vm', ok: qualification.ok, reason: qualification.reason }
+        : { probe: 'persisted-receipt', ok: false, reason: verdict.reason },
+      reuseAllowed: false,
+      reuseReason: detail,
+      diagnostic: { code },
+      repairCommand: `${join(cwd, 'scripts/bootstrap-ibex-runtime')}`,
+    });
+    throw error;
+  }
+  plan.readiness = verdict;
 }
 
 async function proveCargoFallback(plan, {
@@ -555,6 +672,15 @@ async function launchServerAttempt(plan, {
               actualStamp: identity.binary,
               buildable: plan.rung === 'cargo' ? true : null,
               runnable: true,
+              qualification: plan.runtimeLinkRecovery?.qualification
+                ?? (plan.readiness
+                  ? {
+                      probe: 'persisted-receipt',
+                      ok: true,
+                      reason: null,
+                      receiptPath: plan.readiness.receiptPath,
+                    }
+                  : null),
               reuseAllowed: true,
               reuseReason: plan.reuseSkipReason
                 ?? `selected ${plan.rung} binary launched with identity verdict ${identity.verdict}`,
@@ -654,8 +780,9 @@ function serverHandle({
     },
     // Honest build-identity classification of a spawned child (null when
     // reused): { verdict, mismatches, binary, expected }. Verdicts:
-    // 'verified' | 'unpinned' | 'env-stamped' | 'unverifiable' |
-    // 'stamp-mismatch' (see classifyBinaryIdentity).
+    // 'verified' | 'pinned-binary-dirty-checkout' | 'unpinned-binary' |
+    // 'env-stamped' | 'unverifiable' | 'stamp-mismatch'
+    // (see classifyBinaryIdentity).
     identity,
     // Which LLP 0030 resolver-ladder rung produced this server:
     // { rung: 'configured' | 'prebuilt' | 'cargo' | 'reused', command }.
@@ -749,6 +876,54 @@ function resolveTestAdminToken(env) {
   const explicit = env?.SNAPBACK_ADMIN_TOKEN ?? process.env.SNAPBACK_ADMIN_TOKEN;
   if (explicit && explicit.length > 0) return explicit;
   return `sbat_test_${randomUUID().replace(/-/g, '')}`;
+}
+
+// The `reused` rung's readiness binding. The running process's mapped
+// framework cannot be re-digested from outside, so this is deliberately an
+// identity bind, not a process proof: the live /health build stamp must match
+// a local receipt that is still digest-coherent with the on-disk binary and
+// CURRENT Hermes artifacts. A framework swapped after issuance refuses reuse
+// (receipt framework-drift) even though the running process keeps serving its
+// already-mapped copy — the fresh spawn relinks and requalifies instead.
+async function reusedRuntimeReadiness({ baseUrl, cwd, env, serverBinary, seam, fetchImpl }) {
+  let health;
+  try {
+    const response = await fetchImpl(`${baseUrl}/health`, { signal: AbortSignal.timeout(2000) });
+    if (!response.ok) {
+      return { ok: false, reason: `its /health identity is unavailable (HTTP ${response.status}), so no readiness receipt can be bound to it (${RUNTIME_READINESS_INVALID_CODE})` };
+    }
+    health = await response.json();
+  } catch (error) {
+    return { ok: false, reason: `its /health identity is unavailable (${error.message}), so no readiness receipt can be bound to it (${RUNTIME_READINESS_INVALID_CODE})` };
+  }
+  const live = health?.binary;
+  const configured = serverBinary
+    ?? env?.SNAPBACK_SERVER_BINARY
+    ?? process.env.SNAPBACK_SERVER_BINARY
+    ?? null;
+  const candidate = configured
+    ? resolve(cwd, configured)
+    : join(cwd, 'target', 'debug', process.platform === 'win32' ? 'snapback.exe' : 'snapback');
+  const verdict = seam.verify({ root: cwd, binaryPath: candidate });
+  if (!verdict.ok) {
+    return {
+      ok: false,
+      reason: `no coherent readiness receipt covers ${candidate} (${verdict.reason}); a running server cannot be re-qualified in place, so reuse requires a receipted local runtime (${RUNTIME_READINESS_INVALID_CODE})`,
+    };
+  }
+  const receipted = verdict.receipt.buildIdentity;
+  if (
+    !live?.gitCommit
+    || !receipted?.gitCommit
+    || live.gitCommit !== receipted.gitCommit
+    || (receipted.crateVersion && live.crateVersion !== receipted.crateVersion)
+  ) {
+    return {
+      ok: false,
+      reason: `its /health identity (commit ${String(live?.gitCommit ?? 'unknown').slice(0, 12)}) does not match the receipted local runtime ${candidate} (commit ${String(receipted?.gitCommit ?? 'unknown').slice(0, 12)}), so the readiness receipt cannot vouch for it (${RUNTIME_READINESS_INVALID_CODE})`,
+    };
+  }
+  return { ok: true, candidate, verdict };
 }
 
 // The reuse verdict for a healthy port. Bundle provenance is strongest (it
@@ -896,10 +1071,15 @@ async function verifySpawnedReady(ready, {
 ///     seam), so the stamp attests the caller's declaration, not an
 ///     independent probe; a commit comparison against the checkout would be
 ///     circular, so it is not performed.
-///   - 'unpinned': the pinned facts agree but a side is dirty (or of unknown
-///     dirtiness), so the bytes are not pinned to the commit. Honest, not a
-///     failure: dirt outside the binary's tracked build inputs legitimately
-///     does not re-stamp it (ENG-23365 tracks exactly the real inputs).
+///   - 'pinned-binary-dirty-checkout': the binary's own stamp is a CLEAN
+///     exact build of the agreed commit — its commit evidence is exact — and
+///     only the comparing checkout is dirty (or of unknown dirtiness). Split
+///     out of the old 'unpinned' so an explicitly configured exact binary is
+///     not misread as weak provenance (LLP 0115 CV-15, Diary 0039 P2-15).
+///   - 'unpinned-binary': the binary's own stamp is dirty or of unknown
+///     dirtiness, so ITS bytes are not pinned to the agreed commit. Honest,
+///     not a failure: dirt outside the binary's tracked build inputs
+///     legitimately does not re-stamp it (ENG-23365 tracks the real inputs).
 ///   - 'unverifiable': a side has no commit identity at all.
 ///   - 'stamp-mismatch': pinned facts disagree (commit or crate version) —
 ///     the binary demonstrably is not this checkout's build.
@@ -923,7 +1103,8 @@ export function classifyBinaryIdentity(binary, expectedIdentity, { envStamp = fa
   if (mismatches.length > 0) verdict = 'stamp-mismatch';
   else if (envStamp) verdict = 'env-stamped';
   else if (!expectedCommit || !binaryCommit) verdict = 'unverifiable';
-  else if (binary.gitDirty !== false || expectedIdentity.gitDirty !== false) verdict = 'unpinned';
+  else if (binary.gitDirty !== false) verdict = 'unpinned-binary';
+  else if (expectedIdentity.gitDirty !== false) verdict = 'pinned-binary-dirty-checkout';
   else verdict = 'verified';
   return {
     verdict,
