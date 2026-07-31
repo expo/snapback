@@ -5,7 +5,53 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.6, decisions recorded: the author
+**Revised:** 2026-07-31 (v0.7, lockstep round-1 fixes: round 1 of the
+{0115 v0.6, 0129 v0.2} lockstep super-refine returned NOT READY from
+both families for this Plan (artifacts
+`reviews/0115-0129-lockstep.fable.md`,
+`reviews/0115-0129-lockstep.codex.md`). Board truth restored against
+the tree (Fable B1 / Codex blocking 1–2): CV-2 landed at `814acd77`
+(`snapback runtime-qualify` create/destroy gate,
+`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`, the rsync-mtime
+missed-relink root cause confirmed and fixed at source,
+`verify-local-proof`'s blind spot closed, LLP 0010's dated landing
+note, ticket closed) and CV-10 at `c57ef9cd` (canonical-digest
+recheck + storage normalization + the LLP 0073 pin, ticket closed) —
+both ancestors of v0.6's own landing commit; both rows and work items
+now carry dated landing notes, CV-2's Work/Exit are conformed to
+LLP 0010's landed contract (exact-VM create/destroy is the behavioral
+gate; the no-eval constructor admits no trivial execution beyond
+creation; the persisted digest-bound receipt is CV-3's), and
+Tranche A's residue is restated as CV-3 + the open kit-rungs ticket
++ CV-1. The board-wide staleness sweep the round recommended was run:
+every remaining Open row was re-verified against issues/,
+issues/closed/, and the fleet's last-day log — CV-13's guide-gap
+ticket is still open, LLP 0110 is still Review and LLP 0070 still
+Draft, and no other commit in the staleness window touches a board
+row; one adjacent execution fact recorded at OQ7: LLP 0044's revival
+revision (decision 8) landed 2026-07-31 as `14bd5ddb`. Decision 9's
+record corrected by dated erratum (Fable B2/M1/D1, Codex material 3):
+the "zero public packages" premise was false when recorded —
+`npm view @snapback/cli version` returns `3.0.1`, a live unrelated
+public package (last published 2026-03-27; probed 2026-07-31),
+consistent with CV-1's "squatted" and with LLP 0041's 2026-07-21
+probe, so the org release request is a dispute with lower odds, not a
+free release; the request is re-tensed to *to be filed* (an author
+npm-account to-do — no filing evidence exists in the tree); the
+repository-transfer leg is complete (`origin` is
+`github.com/expo/snapback.git`, 2026-07-31); decision substance
+unchanged. Codex's round-1 reconciliation of carried inconsistency 4
+("a held org can contain zero public packages") is refuted by the
+same live probe. CV-8 piece 2's mandatory, startable
+stable-promotion design gains its execution tracker
+(`issues/20260731-cv8-piece2-stable-promotion-design.md`, Codex
+material 4); decision 8's float-pinning rider is restored (Fable D2)
+— with one attribution correction: the portable-exactness subquestion
+lives in 0124 OQ3, not OQ2, per 0124's own list and 0127's decision
+docket; CV-14's exit is made falsifiable (Fable D3). Per the
+LLP 0063-style delegation, this revision was agent-executed under the
+author's 2026-07-31 direction.)
+2026-07-30 (v0.6, decisions recorded: the author
 adjudicated all ten LLP 0127-routed decisions on 2026-07-30; open
 question 8's registry records each as DECIDED. In place: OQ5 answered
 by decision 1 (LLP 0074's parallel gate; 0111 to be amended), OQ3 by
@@ -305,16 +351,16 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | Item | Title | Tranche | Move | Owning doc(s) | Analysis | Size | State |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types startable now |
-| CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Open (issue filed 2026-07-30; 0127 slice 5-qual) |
+| CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Landed 2026-07-30 (`814acd77`: `snapback runtime-qualify` create/destroy gate + relink invalidation + regression fixture; ticket closed; residue = persisted receipt → CV-3, kit rungs → issues/20260730-kit-rungs-skip-handler-vm-qualification.md) |
 | CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Open |
 | CV-4a | Structured collection validators for arguments | B (P1) | 1 | new Spec + 0004 alignment | 0117 | M | Open (startable; first slice with CV-5) |
 | CV-4b | Structured collection stored fields | B (P1) | 1 | new Spec + 0004/0007/0081 | 0117 | L | Open |
 | CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 1 | 0073, 0037 | 0117 | M | Open (re-scoped v0.3) |
 | CV-6 | Precise mutation results as the paved default | B (P1) | 1 | 0108 amendment, guide | 0117 | S | Open (OQ3 answered — decision 5: deferral confirmed, provisional lean recorded; sequenced post-A+E) |
 | CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Open (design exists in 0108's superseded sections; first slice admits context-readers per 0127 decision 6) |
-| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, verified 2026-07-30; decision 3: sequence primitive first, then 3a; stable-promotion design written as part of move 6) |
+| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, re-verified 2026-07-31; decision 3: sequence primitive first, then 3a; stable-promotion design written as part of move 6, ticketed 2026-07-31: issues/20260731-cv8-piece2-stable-promotion-design.md) |
 | CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice = 0127 slice 3-jobs, startable; receipt-association owner = 0070 per decision 7) |
-| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Open (issue filed 2026-07-30; reclassified) |
+| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Landed 2026-07-30 (`c57ef9cd`: canonical-digest recheck + storage normalization + 0073 pin; ticket closed) |
 | CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Open (genuine design hole; design pass startable) |
 | CV-12a | Portable range filters | D (P1) | 4 (rider) | 0073 (new design) | — | M | Open |
 | CV-12b | Search target expansion | D (P2) | 4 (rider) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
@@ -414,12 +460,22 @@ Channel (decision 1): LLP 0074's parallel gate governs; LLP 0111 is to
 be amended to decouple the local closure's default channel from hosted
 qualification, and hosted capability stays a candidate-tag nonclaim
 until the hosted journey lands. Naming (decision 9): the terminal npm
-scope is **`@expo/snapback-*`** — the repository is moving to the
-expo/snapback GitHub org, which publicly commits Snapback as an Expo
-product. The `@snapback` org release request is filed in parallel as a
-free option (the scope currently has zero public packages); nothing
-gates on it, and if granted it becomes deprecation-stub aliases
-pointing at the `@expo` names, never a second migration. The scope
+scope is **`@expo/snapback-*`** — the repository has moved to the
+expo/snapback GitHub org (transfer completed 2026-07-31; `origin` is
+`github.com/expo/snapback.git`), publicly committing Snapback as an
+Expo product. Erratum, v0.7 (2026-07-31): the v0.6 parenthetical "the
+scope currently has zero public packages" was false when recorded — a
+registry scope-search miss. `npm view @snapback/cli version` returns
+`3.0.1`, a live unrelated public package (created 2026-01-14, last
+published 2026-03-27), matching LLP 0041's 2026-07-21 probe and this
+item's own "squatted" evidence above. The `@snapback` org release
+request is therefore a *dispute* against a scope with a live
+unrelated package — lower odds than a free release — and it has not
+been filed: it is **to be filed**, an author npm-account action on
+the author's to-do list. It remains a free option in exactly the
+sense that nothing gates on it, and if granted it becomes
+deprecation-stub aliases pointing at the `@expo` names, never a
+second migration; the decision's substance is unchanged. The scope
 migration is a proof-system migration — protocol name table, schema
 consts, cold-install preset, ledger lineage — scheduled before the
 starter/GA front-door moment. Sequencing note, not a new decision:
@@ -441,39 +497,61 @@ credited, not duplicated.
 
 #### CV-2. Qualify the real handler VM during bootstrap
 
-**Evidence.** Bootstrap's smoke builds the binary, launches it with `DYLD_*`
-scrubbed, and dyld-loads `hermesvm.framework` — but never executes JavaScript
-or creates a VM; the handler VM is created only at first invocation
-(`RuntimeGuard::create` → `ex_hermes_create_no_eval()`), which is where the
-rerun's incident surfaced
-(`issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md`).
-VM creation is a behavioral/ABI coherence contract between the statically
-compiled glue and the dynamically loaded framework that symbol resolution
-does not test. A plausible root cause for the stale state — to be confirmed
-during this item — is that bootstrap's `rsync -a` artifact copy preserves
-source mtimes, defeating cargo's mtime-based `rerun-if-changed` so the stale
-binary never relinks.
+**Evidence.** Before the landing, bootstrap's smoke built the binary,
+launched it with `DYLD_*` scrubbed, and dyld-loaded `hermesvm.framework` —
+but never executed JavaScript or created a VM; the handler VM was created
+only at first invocation (`RuntimeGuard::create` →
+`ex_hermes_create_no_eval()`), which is where the rerun's incident surfaced
+(`issues/closed/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md`,
+closed at the landing). VM creation is a behavioral/ABI coherence contract
+between the statically compiled glue and the dynamically loaded framework
+that symbol resolution does not test. The plausible root cause v0.1 named
+for the stale state — bootstrap's `rsync -a` artifact copy preserving
+source mtimes, defeating cargo's mtime-based `rerun-if-changed` so the
+stale binary never relinks — was confirmed during the landing and fixed at
+the source.
 
-**Work.** Extend the LLP 0010 bootstrap contract: after the final framework
-selection, bootstrap must create and destroy the same VM
-`RuntimeGuard::create` uses (`ex_hermes_create_no_eval` — the restricted
-no-eval constructor, which is the precise name for what the issue calls the
-"armed" VM) and execute at least one trivial function through it, then bind
-binary and framework digests into a single readiness receipt. The item also
-owns the invalidation half the ticket lists: a framework refresh must
-invalidate or relink the final binary before qualification runs, or the
-qualification is theater. Failure gets a stable `SNAPBACK_*` diagnostic in
-LLP 0010's registry. Prior art to reuse rather than reinvent: the link smoke
-already sha256s the framework binary, headers, and cargo inputs into every
-recovery record (captured, never compared), and
-`packages/snapback-runtime-linux-x64/artifact-attestation.mjs` is a complete
-binary+Hermes digest attestation with validate-against-actual-files checking;
-`bench_runtime_create_us` already creates and destroys these VMs in-process.
+**Work — LANDED (2026-07-30, `814acd77`), conformed to the landed
+mechanism in v0.7.** The LLP 0010 bootstrap contract now includes the
+qualification: `snapback runtime-qualify` creates and destroys the exact
+restricted no-eval handler VM `RuntimeGuard::create` uses
+(`ex_hermes_create_no_eval`) twice and prints a
+`snapback.runtime-qualify.v1` verdict; `scripts/runtime-link-smoke.mjs`
+runs it against the just-linked binary with loader overrides scrubbed, so
+`SNAPBACK_IBEX_RUNTIME_LINK_OK` now implies armed handler-VM readiness and
+the reproduced incident state fails with the new stable
+`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED` in LLP 0010's registry. Two v0.1
+clauses are conformed against the landed owner text rather than carried as
+residue. (1) "Execute at least one trivial function through it" is
+absorbed: LLP 0010's landing note records that the no-eval constructor
+admits no trivial execution beyond creation — creation is the incident's
+exact failure point, and exact-VM create/destroy is the behavioral gate.
+(2) "Bind binary and framework digests into a single readiness receipt" is
+re-scoped: the qualification verdict rides the
+`snapback.runtime-recovery.v1` record beside the framework digests and
+binary identity, and the *persisted* digest-bound receipt is CV-3's, where
+its custody and invalidation semantics were always specified. The
+invalidation half landed here as v0.1 demanded: the rsync-mtime root cause
+was closed at the source (the artifact copy no longer preserves source
+mtimes for changed files, so a framework refresh always relinks before
+qualification runs), and `scripts/verify-local-proof` now qualifies its
+freshly built binary directly, closing its `SNAPBACK_BOOTSTRAP_CHECK=0`
+blind spot. The receipt prior art v0.1 named (the recovery record's
+captured digests, `packages/snapback-runtime-linux-x64/`
+`artifact-attestation.mjs`, `bench_runtime_create_us`) now feeds CV-3.
 
-**Exit.** A regression fixture that reproduces the rerun's
-mismatched-framework state fails bootstrap with the new named code instead of
-passing; the readiness receipt binds both digests; a post-receipt framework
-swap is detected (by relink or by receipt invalidation) rather than served.
+**Exit — satisfied at the landing, as conformed above.** The regression
+fixture (`tests/runtime_link_smoke_v0.mjs`) proves a launchable but
+VM-refusing binary is never `LINK_OK`: the reproduced mismatched-framework
+state fails with the named code instead of passing. The qualification
+verdict binds to the recovery record's framework digests and binary
+identity, and a post-landing framework swap relinks before qualification
+via the mtime fix. Residue, tracked where it belongs: the persisted
+digest-bound receipt and cross-tool digest comparison are CV-3; the demo
+harness's `configured`/`prebuilt`/`reused` rungs remain presence +
+`/health`-identity gates
+(`issues/20260730-kit-rungs-skip-handler-vm-qualification.md`). With CV-2
+landed, Tranche A's remaining critical path is CV-3 plus CV-1.
 
 #### CV-3. A persisted readiness receipt across doctor, bootstrap, and harness
 
@@ -499,6 +577,15 @@ rungs and to `verify-local-proof`'s default path. Extend the existing shared
 vocabulary with the CV-2 codes rather than inventing a parallel one. Owners:
 LLP 0010, plus LLP 0030 (server-process ownership) and LLP 0031 (server
 binary identity on `/health`) for the harness surfaces.
+
+**v0.7 note (CV-2 landed).** CV-2's landing (`814acd77`) already closed
+`verify-local-proof`'s `SNAPBACK_BOOTSTRAP_CHECK=0` blind spot — it
+qualifies its freshly built binary directly — and left the harness's
+`configured`/`prebuilt`/`reused` rungs as this item's rung-coverage
+residue, tracked with a direction sketch in
+`issues/20260730-kit-rungs-skip-handler-vm-qualification.md`. What remains
+here is the persisted receipt itself — location, custody, digest-coherence
+comparison, invalidation semantics — and rung convergence on it.
 
 **Exit.** Doctor detects the CV-2 fixture's incoherence read-only against the
 *served* binary and names the recovery; every harness rung and
@@ -811,6 +898,11 @@ stable-promotion design written as part of move 6; LLP 0080-style
 direct-to-stable stays reserved for surfaces with witnessed shipped
 implementations predating the rule.
 
+**v0.7 (tracking).** Piece 2's stable-promotion design — mandatory on
+the default 0113 route, authorable now, and excluded by the move 6
+ticket as "beyond this ticket's two design passes" — has its
+execution tracker: `issues/20260731-cv8-piece2-stable-promotion-design.md`.
+
 #### CV-9. Transactional one-off scheduling
 
 **Evidence, corrected from v0.1.** The design for this primitive is not
@@ -871,7 +963,8 @@ LLP 0094 like every other receipt — 0121 OQ4 resolved.
 **Evidence, reclassified from v0.1.** The audit traced the mechanism, and it
 is not a digest-canonicalization defect: both sides compute RFC 8785
 canonical digests that **agree** (integral `5` and `5.0` both spell `"5"`).
-What fails is a representation-sensitive full struct equality
+What failed — fixed at the landing; v0.7 note below — was a
+representation-sensitive full struct equality
 (`source != authoritative`, `src/search/sqlite.rs:1731`) between the
 in-memory insert-path document (which keeps serde_json integer `Number(5)`
 because `normalize_json_value` validates without normalizing) and the
@@ -896,6 +989,17 @@ the residual spec silence.
 **insert/seed** path (the only reproducing path) passes; the Pantry arm's
 original schema no longer produces corruption; no legitimate accepted value
 is refused.
+
+**v0.7 landing note (2026-07-30, `c57ef9cd`).** Landed exactly as
+reclassified: storage admission normalizes Real values to their round-trip
+f64 form, and the release recheck compares RFC 8785 canonical content
+digests (stored record vs. its own digest vs. the authoritative
+derivation), releasing the authoritative derivation — legacy integral
+spellings heal; genuine tamper and drift still fail closed. The diagnostic
+message is corrected, the regression tests cover the insert/seed path, and
+the one-sentence LLP 0073 pin landed in its §Authorization and result
+release. The ticket is closed
+(`issues/closed/20260730-search-real-integral-digest-corruption.md`).
 
 #### CV-11. A live/re-execution story for search
 
@@ -964,8 +1068,13 @@ Manifest-only custody fixed source-control volume, but a reviewer facing an
 85 KiB `artifacts.json` diff needs a concise semantic change summary
 (operations added/removed, contracts changed, capabilities moved) over the raw
 JSON (Diary 0039 P2-14). Confirm the custody owner (LLP 0062 family) when this
-starts. **Exit:** a diff of the matrix's review manifests renders a summary a
-reviewer can act on without reading raw JSON.
+starts. **Exit (made falsifiable in v0.7):** against a seeded manifest-diff
+fixture containing at least one operation added, one operation removed, one
+result-contract hash change, and one capability fact moved, the summary
+names every seeded change with its kind and misses none — fixture-checked,
+not reader-judged; run over the matrix's real review-manifest diff, it
+emits the same change classes without the reviewer opening the raw JSON.
+Any seeded change class absent from the summary fails the check.
 
 #### CV-15. Resolve `unpinned` harness wording
 
@@ -979,9 +1088,12 @@ so exact-but-explicitly-configured provenance is not misread as weak.
 1. **Tranche A first, and alone.** External install and runtime readiness gate
    the credibility of everything else; the diary ranks them P0 and they are
    also prerequisites for running future matrix arms against published
-   artifacts. CV-2 → CV-3 are ordered (the receipt exists before the tools
-   converge on it), and CV-2 carries the invalidation half so that ordering is
-   sound. CV-1's custody calls are made (decision 4), its
+   artifacts. CV-2 landed 2026-07-30 (`814acd77`) carrying its invalidation
+   half, so the CV-2 → CV-3 ordering (the qualification exists before the
+   tools converge on its receipt) is already half-executed: Tranche A's
+   remaining critical path is CV-3 — the persisted receipt plus rung
+   coverage, including the open kit-rungs ticket — and CV-1. CV-1's custody
+   calls are made (decision 4), its
    default-channel exit is un-gated (decision 1; the answered open
    question 5), and slice 5-rebuild is sequenced after or with
    decision 9's `@expo/snapback-*` scope migration so the
@@ -1157,7 +1269,14 @@ plan holds the cross-reference (§The move layer).
    the FTS owner, and the vector Spec copies its staged-admission
    pattern; **exact k-NN is the base profile first**, with ANN
    admitted later as a separate capability with proved-superset
-   translation (resolving 0124 OQ3's reserved order).
+   translation (resolving 0124 OQ3's reserved order). Rider, restored
+   v0.7 (0127 §Sequencing 4 required "the float-pinning question
+   named either way, 0124 OQ2/OQ3"): the portable-exactness pinning
+   strategy for float distance arithmetic — 0124 OQ3's named
+   subquestion; the FTS integer-scoring precedent does not transfer —
+   is undecided and rides the vector Spec. Execution fact, recorded
+   in the v0.7 board sweep: LLP 0044's revival revision landed
+   2026-07-31 (`14bd5ddb`), executing this decision's revive call.
 8. **The ten 0127-routed author decisions (new in v0.5) — ALL TEN
    DECIDED (v0.6, 2026-07-30).** LLP 0127's acceptance accepted the
    synthesis direction; the author adjudicated the ten routed
@@ -1208,13 +1327,29 @@ plan holds the cross-reference (§The move layer).
       staged-admission pattern); the parallel start under LLP 0074 is
       confirmed — the §Sequencing-1 carve-out un-gates; exact k-NN is
       the base profile first, ANN admitted later as a separate
-      capability with proved-superset translation (= OQ7).
+      capability with proved-superset translation (= OQ7). Rider,
+      restored v0.7 per 0127 §Sequencing 4 ("the float-pinning
+      question named either way, 0124 OQ2/OQ3"): the
+      portable-exactness pinning strategy for float distance
+      arithmetic (0124 OQ3's named subquestion — the FTS
+      integer-scoring precedent does not transfer) rides the vector
+      Spec, named and undecided.
    9. *Naming* — DECIDED: the terminal npm scope is
-      `@expo/snapback-*` — the repository is moving to the
-      expo/snapback GitHub org, publicly committing Snapback as an
-      Expo product. The `@snapback` org release request is filed in
-      parallel as a free option (the scope currently has zero public
-      packages); nothing gates on it, and if granted it becomes
+      `@expo/snapback-*` — the repository has moved to the
+      expo/snapback GitHub org (transfer completed 2026-07-31),
+      publicly committing Snapback as an Expo product. Premise
+      erratum, v0.7 (2026-07-31): as recorded in v0.6 this entry said
+      the `@snapback` scope "currently has zero public packages" and
+      that the org release request "is filed in parallel"; both were
+      false when recorded. `@snapback/cli@3.0.1` is a live unrelated
+      public package (last published 2026-03-27; probed 2026-07-31) —
+      the "zero" premise was a registry scope-search miss that
+      contradicted CV-1's own "squatted" evidence and LLP 0041's
+      2026-07-21 probe — so the org release request is a *dispute*
+      with lower odds, not a free release; and no request has been
+      filed: it is **to be filed**, an author npm-account action on
+      the author's to-do list. The decision's substance is unchanged:
+      nothing gates on the request, and if granted it becomes
       deprecation-stub aliases pointing at `@expo` names, never a
       second migration. The scope migration is a proof-system
       migration (protocol name table, schema consts, cold-install

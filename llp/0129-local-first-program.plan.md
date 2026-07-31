@@ -5,7 +5,39 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2, decisions recorded: 0127 decisions 2
+**Revised:** 2026-07-31 (v0.3, lockstep round-1 fixes: round 1 of the
+{0115 v0.6, 0129 v0.2} lockstep super-refine returned Fable READY /
+Codex NOT READY for this Plan (artifacts
+`reviews/0115-0129-lockstep.fable.md`,
+`reviews/0115-0129-lockstep.codex.md`). Codex blocking 1: v0.2's "one
+rerun serves both programs" silently decided rerun composition, which
+is LLP 0115 open question 4's still-open adjudication — §Measurement
+and §Cross-gates now carry the fold as this Plan's proposal pending
+OQ4, with the program's diary-grade offline acceptance and
+measurement independently mandatory either way. Codex blocking 2:
+§Exit criteria gains the program-completion boundary — criteria 1–2
+are Phase 0's exit and Phase 0's exit is not program completion;
+criterion 3 binds same-code claims from Phase 1 on; criterion 4 binds
+every phase; "program complete" is defined over all authorized
+phases (0, 1, 2a, 2b) plus a stated disposition for the Option F
+rider. Codex material 3 + Fable material 1 (same territory): ledger
+row 1 gains decision 10's domain and lane scoping —
+application-visible values vs. the protocol-lane `clientMutationId`,
+verified against LLP 0008 §Replay environment contract on
+2026-07-31: 0008's replay-accept pin (the wire transmits
+`{generatedIds, now}`; the server accepts them on replay) STANDS for
+the queued-intent replay lane Phase 0 ships, while the settlement
+Spec governs the local-execution lanes, where re-derivation is the
+stricter default; any future change to the 0008 pin lands as a dated
+0008 amendment. Detail fixes: criterion 3's ledger gate restated as
+all five unowned designs with row 1 merely first (Codex detail 4);
+criterion 2's arm-scoped guide rows named as a Phase 0 deliverable —
+`guide/capabilities.md` is arm-agnostic today (Fable D1);
+LLP 0084/0107/0108/0118 added to Related (Fable D2); the decision
+registry cited as "LLP 0115 open question 8" by question, not
+version (Fable D3). Per the LLP 0063-style delegation, this revision
+was agent-executed under the author's 2026-07-31 direction.)
+2026-07-30 (v0.2, decisions recorded: 0127 decisions 2
 and 10 were adjudicated by the author on 2026-07-30 — decision 2
 confirms this Plan's shape and authority, the JS/React browser arm as
 first carrier, and the two-parallel-ladder staging with IR-rung-first
@@ -21,7 +53,7 @@ now cite its landed v0.6, whose open question 8 is the decision
 registry of record.) 2026-07-30 (initial draft, directed by the author
 the day LLP 0127 was Accepted; drafted with 0127's open decisions 2
 and 10 deliberately unmade — see §Decision posture)
-**Related:** LLP 0003, LLP 0008, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0051, LLP 0053, LLP 0059, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0090, LLP 0093, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0119, LLP 0123, LLP 0125, LLP 0126, LLP 0127
+**Related:** LLP 0003, LLP 0008, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0051, LLP 0053, LLP 0059, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0084, LLP 0090, LLP 0093, LLP 0107, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0118, LLP 0119, LLP 0123, LLP 0125, LLP 0126, LLP 0127
 
 ## Summary
 
@@ -73,8 +105,9 @@ every claim scaled to exactly what its acceptance proves.
 
 LLP 0127 is Accepted, and the two of its routed author decisions that
 bear directly on this Plan were adjudicated by the author on
-2026-07-30 (registry of record: LLP 0115 v0.6, open question 8). Both
-are **decided**; §Open questions 1–2 record them:
+2026-07-30 (registry of record: LLP 0115, open question 8 — cited by
+question, durable across that Plan's revisions). Both are
+**decided**; §Open questions 1–2 record them:
 
 - **0127 decision 2 — DECIDED.** The successor-Plan shape (this
   document) is confirmed as the program's authority; the JS/React
@@ -253,6 +286,26 @@ designed but unbuilt. Proposed owners are proposals (constraint 7).
    new-owned-Spec branch — and the program's first owned-Spec
    deliverable. Still first among these: the first design the program
    hits once Phase 0 lands; the row un-gates when the Spec lands.
+   **Domain and lane scoping (v0.3; verified against LLP 0008
+   §Replay environment contract, 2026-07-31).** (a) Decision 10
+   governs *application-visible* values: client-captured time and
+   ids that enter durable application state — the `generatedIds`/
+   `now` class of LLP 0008's replay environment. (b) The
+   client-minted `clientMutationId` Phase 0 requires is a
+   *protocol-lane* idempotency/correlation key, not an application
+   value; decision 10 does not govern it, and there is no collision
+   with Phase 0's minting. The settlement Spec pins the two domains
+   separately. (c) Lane scoping: LLP 0008's shipped pin — the wire
+   transmits `{generatedIds, now}` and the server accepts them on
+   replay, because "divergent ids or timestamps between the
+   optimistic run and the server run would corrupt data" — **stands
+   for its lane**. Phase 0's M2 queued-intent replay lane ships
+   under the shipped 0008 accept pin; the settlement Spec governs
+   the local-execution lanes (Phase 1 on), where re-derivation is
+   the default — stricter than accept, so no boundary weakens under
+   either policy. Two lanes, two policies, both labeled in receipts;
+   if the settlement Spec ever proposes revisiting 0008's pin, that
+   change lands as a dated LLP 0008 amendment, named there.
 2. **Partial-replica read satisfiability.** A handler is locally
    executable only if its reads are provably satisfiable from the
    retained subset; table-granular JS-tier declarations cannot prove
@@ -315,9 +368,16 @@ in this form does not exit.
    arm match the Contract arm's: the guide capability rows
    `sync.offline` and `auth.authorized-leases` report shipped for the
    JS/React arm on the local target under exactly LLP 0043's proof
-   rule. Falsified by any claim row on the JS arm lacking the Contract
-   arm's proof set (durable store, complete retained identity, local
-   IR-derivability where `Parity` is claimed).
+   rule. Structural deliverable, named in v0.3: today
+   `guide/capabilities.md` carries one arm-agnostic row per
+   capability, so the arm-scoped claim rows this criterion reads do
+   not exist yet — Phase 0 delivers them (per-arm rows or an arm
+   column, landing under LLP 0061's guide conventions with LLP 0043's
+   proof rule as the row-level gate); the criterion is executable
+   only once that structure exists. Falsified by any claim row on the
+   JS arm lacking the Contract arm's proof set (durable store,
+   complete retained identity, local IR-derivability where `Parity`
+   is claimed).
 3. **Tuple harness before any same-code claim.** Before the program
    asserts "same code both sides" anywhere, each execution-identity
    element has a per-element test harness: hash equality (element 1),
@@ -332,18 +392,47 @@ in this form does not exit.
    any claim/acceptance mismatch found in review or rerun.
 
 Criterion 1 binds to the JS/React browser arm (decision 2, decided
-2026-07-30); criterion 3 still requires the ledger to have landed —
-decision 10 is decided, and its settlement Spec (ledger row 1) is the
-program's first owned-Spec deliverable. Neither criterion weakened in
+2026-07-30). Criterion 3's gate is the full ledger, restated in v0.3
+against a misreadable v0.2 sentence: **all five unowned designs
+(ledger rows 1–5) must land in owning documents before any
+`Parity`-by-construction claim ships** — row 1's settlement Spec is
+merely the first of them, and decision 10 being decided changes that
+row's content, not the gate's breadth. Neither criterion weakened in
 the resolution — only the binding was fixed.
+
+**Which criteria bind which phases, and what "program complete"
+means (v0.3).** Criteria 1 and 2 are Phase 0's exit: they bind the
+Phase 0 arm and can pass with every later phase unexecuted — so
+**Phase 0's exit is not program completion**. Criterion 3 binds
+every phase from Phase 1 on that ships a same-code or
+`Parity`-by-construction claim; it is vacuous only while no such
+claim ships, and Phase 1's IR `Parity` claims make it live.
+Criterion 4 binds every phase and the Option F rider. The program
+is **complete** when all authorized phases — 0, 1, 2a, and 2b —
+have executed with their named evidence gates passed and their
+binding criteria met, and the Option F rider's disposition is
+stated: either landed behind its acceptance-script gate or declined
+by a dated note in this Plan. The mobile spike sits outside the
+completion boundary by construction (a question, not a lane; its
+disposition is OQ-grade, not phase-grade). A phase the program
+abandons rather than executes exits only by a dated author decision
+recorded here, naming successor authority if the scope moves.
 
 ## Measurement
 
-The program's measurement is **the local-first arm of the successor
-rerun** — the offline/cold-boot scenario dimension 0127 §Sequencing 6
+The program's measurement is **the offline/cold-boot dimension of the
+successor rerun** — the scenario dimension 0127 §Sequencing 6
 proposes adding to the existing arms, cross-gated with LLP 0115
-§Sequencing 5's rerun checkpoint (one rerun serves both programs;
-their exits stay separate). Two preconditions travel from 0127
+§Sequencing 5's rerun checkpoint. Composition, restated in v0.3
+(v0.2's "one rerun serves both programs" silently decided it): rerun
+composition — the contracts, the dimensions, whether this program's
+offline scoring folds into the matrix rerun — is LLP 0115 open
+question 4's adjudication, still open there. One rerun serving both
+programs is this Plan's **proposal** pending that adjudication.
+Independently of how OQ4 resolves, this program's diary-grade offline
+acceptance and the measurements below are mandatory — only the fold
+is conditional — and the two programs' exits stay separate either
+way. Two preconditions travel from 0127
 §Measurement: Phase 0's diary-grade offline acceptance on the chosen
 arm, and the normalized-profile burst benchmark before any
 performance claim (0125 option 5 — its numbers are stale and
@@ -365,9 +454,10 @@ The named empirical questions from LLP 0126 this program must answer
 LLP 0115 remains the parity program's sequencing authority; this Plan
 is deliberately **not** a 0115 tranche — the two programs have
 different exit criteria and 0127 §Sequencing 5 keeps them uncoupled.
-LLP 0115 v0.6 (2026-07-30) records these cross-gates reciprocally,
-along with the registry of the ten adjudicated 0127 decisions (its
-open question 8). The shared substrate, by gate:
+LLP 0115 (from its v0.6, 2026-07-30) records these cross-gates
+reciprocally, along with the registry of the ten adjudicated 0127
+decisions (its open question 8 — cited by question, durable across
+revisions). The shared substrate, by gate:
 
 - **The sealed runtime artifact** (0127 move 5; 0115 Tranche A,
   CV-2/CV-3; LLP 0123): Phase 2b's sidecar carrier and the tuple's
@@ -378,10 +468,11 @@ open question 8). The shared substrate, by gate:
   forfeit execution-identity element 1.
 - **The profile vocabulary** (0127 move 6; CV-8; LLP 0080/0110):
   ledger row 2's proposed admission artifact for partial replication.
-- **The rerun** (0115 §Sequencing 5): this program adds the
-  offline-scored dimension and, per 0115's requirement, at least one
-  arm consuming the LLP 0114 React surface — the arm Phase 0 targets
-  (decision 2 confirmed it).
+- **The rerun** (0115 §Sequencing 5): this program *proposes* adding
+  the offline-scored dimension to that rerun — the fold is pending
+  0115 open question 4 (§Measurement) — and, per 0115's requirement,
+  at least one arm consumes the LLP 0114 React surface — the arm
+  Phase 0 targets (decision 2 confirmed it).
 
 ## Open questions
 
@@ -403,7 +494,11 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    per-field declared opt-in. Owner: a new settlement Spec under this
    program — the program's first owned-Spec deliverable. Ledger
    row 1 un-gates as that Spec lands; exit criterion 3's binding
-   stands.
+   stands. Domain and lane scoping recorded at ledger row 1 (v0.3):
+   the queued-intent replay lane keeps LLP 0008's shipped accept
+   pin; re-derivation governs the local-execution lanes; the
+   client-minted `clientMutationId` is protocol-lane identity
+   outside decision 10's domain.
 3. **First-arm fallback shape — MOOT (v0.2).** Decision 2 confirmed
    the JS/React arm as first carrier, so the Contract-arm-first
    fallback (0126 OQ1's alternative) does not arise; retained for the
