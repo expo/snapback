@@ -530,6 +530,13 @@ pub enum AssetReceiptEventV1 {
     PublicationRepaired,
     MigrationVerified,
     GcReclaimed,
+    WorkClaimed,
+    WorkCompleted,
+    WorkRetrying,
+    WorkExhausted,
+    WorkCancelled,
+    WorkLeaseReclaimed,
+    WorkAmbiguous,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2128,6 +2135,144 @@ pub fn enqueue_work(
         ],
     )?;
     Ok(row.work_id)
+}
+
+pub const ASSET_WORK_KIND_CONDEMNED_CLEANUP: &str = "condemned-object-cleanup";
+#[cfg(test)]
+pub const ASSET_WORK_KIND_TEST_TRANSIENT_FAILURE: &str = "test-transient-failure";
+pub const ASSET_WORK_LEASE_MS: u64 = 60_000;
+pub const ASSET_WORK_BACKOFF_BASE_MS: u64 = 5_000;
+pub const ASSET_WORK_BACKOFF_CAP_MS: u64 = 10 * 60 * 1000;
+pub const ASSET_WORK_CLAIM_BATCH: usize = 16;
+
+/// @ref LLP 0044#processing-runner-and-idempotency — the closed ledger
+/// transition set. `Claimed → Enqueued` is lease expiry (an explicit,
+/// receipted transition); `Retrying` is transient and re-enters `Enqueued`
+/// in the same transaction with the incremented attempt count.
+pub fn work_transition_allowed(from: AssetWorkState, to: AssetWorkState) -> bool {
+    use AssetWorkState as S;
+    matches!(
+        (from, to),
+        (S::Enqueued, S::Claimed)
+            | (S::Enqueued, S::Cancelled)
+            | (S::Claimed, S::Done)
+            | (S::Claimed, S::Retrying)
+            | (S::Claimed, S::Exhausted)
+            | (S::Claimed, S::Ambiguous)
+            | (S::Claimed, S::Cancelled)
+            | (S::Claimed, S::Enqueued)
+            | (S::Retrying, S::Enqueued)
+    )
+}
+
+pub fn work_backoff_ms(attempt_count: u64) -> u64 {
+    let doublings = attempt_count.min(8) as u32;
+    (ASSET_WORK_BACKOFF_BASE_MS << doublings).min(ASSET_WORK_BACKOFF_CAP_MS)
+}
+
+pub fn transition_work(
+    tx: &Transaction<'_>,
+    row: &mut AssetWorkRowV1,
+    to: AssetWorkState,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    if !work_transition_allowed(row.state, to) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_WORK_TRANSITION_INVALID",
+            "assets",
+            format!(
+                "asset work transition {:?} -> {:?} is not in the closed set",
+                row.state, to
+            ),
+        ));
+    }
+    row.state = to;
+    row.updated_at_ms = now_ms;
+    update_work_row(tx, row)
+}
+
+/// Claimed rows keep `next_eligible_at_ms` equal to their lease expiry, so
+/// the one `(state, next_eligible_at_ms)` index serves both the due scan and
+/// the expired-lease scan.
+pub fn update_work_row(tx: &Transaction<'_>, row: &AssetWorkRowV1) -> SnapbackResult<()> {
+    let updated = tx.execute(
+        "UPDATE _snapback_asset_work_ledger_v1
+         SET state = ?2, next_eligible_at_ms = ?3, record_json = ?4,
+             updated_at_ms = ?5
+         WHERE work_id = ?1",
+        rusqlite::params![
+            row.work_id,
+            state_str(row.state)?,
+            row.next_eligible_at_ms,
+            record_json(row)?,
+            row.updated_at_ms,
+        ],
+    )?;
+    if updated != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_WORK_UNKNOWN",
+            "assets",
+            format!("unknown asset work row {}", row.work_id),
+        ));
+    }
+    Ok(())
+}
+
+pub fn load_work_row(
+    tx: &Transaction<'_>,
+    work_id: &str,
+) -> SnapbackResult<Option<AssetWorkRowV1>> {
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_work_ledger_v1 WHERE work_id = ?1",
+    )?;
+    let mut rows = statement.query([work_id])?;
+    match rows.next()? {
+        Some(row) => {
+            let json: String = row.get(0)?;
+            Ok(Some(decode_record(&json)?))
+        }
+        None => Ok(None),
+    }
+}
+
+fn work_rows_in_state(
+    tx: &Transaction<'_>,
+    state: AssetWorkState,
+    eligible_before_ms: u64,
+    limit: usize,
+) -> SnapbackResult<Vec<AssetWorkRowV1>> {
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_work_ledger_v1
+         WHERE state = ?1 AND next_eligible_at_ms <= ?2
+         ORDER BY next_eligible_at_ms ASC LIMIT ?3",
+    )?;
+    let rows = statement.query_map(
+        rusqlite::params![state_str(state)?, eligible_before_ms, limit as i64],
+        |row| row.get::<_, String>(0),
+    )?;
+    let mut parsed = Vec::new();
+    for json in rows {
+        parsed.push(decode_record(&json?)?);
+    }
+    Ok(parsed)
+}
+
+pub fn load_due_work(
+    tx: &Transaction<'_>,
+    now_ms: u64,
+    limit: usize,
+) -> SnapbackResult<Vec<AssetWorkRowV1>> {
+    work_rows_in_state(tx, AssetWorkState::Enqueued, now_ms, limit)
+}
+
+/// Expired leases: claimed rows whose lease deadline (mirrored into
+/// `next_eligible_at_ms` at claim time) has passed.
+pub fn load_expired_leases(
+    tx: &Transaction<'_>,
+    now_ms: u64,
+    limit: usize,
+) -> SnapbackResult<Vec<AssetWorkRowV1>> {
+    work_rows_in_state(tx, AssetWorkState::Claimed, now_ms.saturating_sub(1), limit)
 }
 
 fn state_str<T: Serialize>(state: T) -> SnapbackResult<String> {

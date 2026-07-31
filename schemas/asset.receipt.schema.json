@@ -26,7 +26,14 @@
         "reference-removed",
         "publication-repaired",
         "migration-verified",
-        "gc-reclaimed"
+        "gc-reclaimed",
+        "work-claimed",
+        "work-completed",
+        "work-retrying",
+        "work-exhausted",
+        "work-cancelled",
+        "work-lease-reclaimed",
+        "work-ambiguous"
       ],
       "type": "string"
     }

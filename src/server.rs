@@ -15334,6 +15334,51 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
     })
 }
 
+/// Asset runner tick cadence: how often claimed/due ledger work is driven.
+pub(crate) const ASSET_RUNNER_TICK_SECS: u64 = 15;
+/// Asset GC sweep cadence, in runner ticks (15 s × 20 = every 5 minutes).
+pub(crate) const ASSET_GC_TICKS_PER_SWEEP: u64 = 20;
+
+/// True when `SNAPBACK_ASSET_RUNNER_DISABLED` disables the autonomous asset
+/// maintenance loop (suites and deterministic dev loops). Same conservative
+/// parse as the cron switch: only an exact `0`/`false` (surrounding
+/// whitespace ignored) keeps the loop armed once the variable is present.
+pub(crate) fn asset_runner_disabled(raw: Option<&str>) -> bool {
+    raw.is_some_and(|value| {
+        let trimmed = value.trim();
+        !(trimmed.is_empty() || trimmed == "0" || trimmed.eq_ignore_ascii_case("false"))
+    })
+}
+
+/// The LLP 0044 compatibility-runner scheduler: a 0028-style sweep loop that
+/// only *schedules* — every claim, drive, retry, and receipt belongs to the
+/// per-item ledger machinery in `asset_runner_tick`, so a successful loop
+/// pass is never evidence any work item succeeded (LLP 0127's bar). Runs
+/// independently of live subscribers: closing the app cannot strand an
+/// uploaded image.
+pub fn spawn_asset_maintenance_loop(state: SharedSnapback, disabled: bool) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        if disabled {
+            return;
+        }
+        let mut ticks = interval(Duration::from_secs(ASSET_RUNNER_TICK_SECS));
+        let mut tick_count: u64 = 0;
+        loop {
+            ticks.tick().await;
+            let now = now_millis();
+            let run_gc = tick_count == 0;
+            tick_count = (tick_count + 1) % ASSET_GC_TICKS_PER_SWEEP;
+            let mut snapback = state.lock().await;
+            if let Err(error) = snapback.asset_runner_tick(now) {
+                snapback.record_asset_runner_error(error);
+            }
+            if run_gc && let Err(error) = snapback.asset_gc_sweep(now) {
+                snapback.record_asset_runner_error(error);
+            }
+        }
+    })
+}
+
 pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> JoinHandle<()> {
     tokio::spawn(async move {
         // @ref LLP 0028#scheduler-state-and-run-ledger — SNAPBACK_CRON_DISABLED

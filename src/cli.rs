@@ -2566,6 +2566,16 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let jobs_worker = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         .then(|| server::spawn_jobs_worker(state.clone(), jobs_autonomy_disabled));
+    let asset_runner = (auth_mode_state.app_data_availability
+        == crate::auth::mode::AppDataAvailability::Available)
+        .then(|| {
+            server::spawn_asset_maintenance_loop(
+                state.clone(),
+                server::asset_runner_disabled(
+                    std::env::var("SNAPBACK_ASSET_RUNNER_DISABLED").ok().as_deref(),
+                ),
+            )
+        });
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state,
@@ -2597,6 +2607,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     if let Some(worker) = jobs_worker {
         worker.abort();
+    if let Some(runner) = asset_runner {
+        runner.abort();
     }
     maintenance_worker.abort();
     if let Some(worker) = auth_maintenance_worker {

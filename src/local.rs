@@ -2578,6 +2578,7 @@ pub struct LocalSnapback {
     live_delivery: LiveDeliveryStats,
     recent_diagnostics: VecDeque<Diagnostic>,
     cron_tick_errors: u64,
+    asset_runner_errors: u64,
     maintenance: MaintenanceDiagnostics,
     maintenance_permission_reported_at_ms: Option<u64>,
     maintenance_prune_reported_at_ms: Option<u64>,
@@ -7238,6 +7239,284 @@ impl LocalSnapback {
 
         report.publication = self.asset_publication_maintain(now_ms)?;
         Ok(report)
+    }
+
+    /// One compatibility-runner tick (LLP 0044 §Processing runner): reclaim
+    /// expired leases, claim due ledger rows under the generation fence, and
+    /// drive each claimed row to a terminal or re-enqueued state with its own
+    /// per-item receipts. The 0028-style sweep loop is scheduler only — this
+    /// function is the deterministic drive tests call directly, and it never
+    /// records sweeper-level success as the work's success (LLP 0127's bar).
+    pub(crate) fn asset_runner_tick(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<AssetRunnerReport> {
+        use crate::assets as assets;
+        let mut report = AssetRunnerReport::default();
+
+        // Phase A: expired leases become enqueued again — an explicit,
+        // receipted transition, never a silent claim-metadata mutation.
+        let reclaimed = self.db.asset_transaction(|tx| {
+            let expired =
+                assets::load_expired_leases(tx, now_ms, assets::ASSET_WORK_CLAIM_BATCH)?;
+            let mut count = 0u64;
+            for mut row in expired {
+                row.lease_owner = None;
+                row.lease_expires_at_ms = None;
+                row.next_eligible_at_ms = now_ms;
+                assets::transition_work(tx, &mut row, assets::AssetWorkState::Enqueued, now_ms)?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &row.work_id,
+                        assets::AssetReceiptEventV1::WorkLeaseReclaimed,
+                        &row.asset_id,
+                        row.attempt_id.as_deref(),
+                        now_ms,
+                        serde_json::json!({ "kind": row.kind, "attemptCount": row.attempt_count }),
+                    ),
+                )?;
+                count += 1;
+            }
+            Ok(count)
+        })?;
+        report.leases_reclaimed = reclaimed;
+
+        // Phase B: claim due rows. The generation fence and the deadline are
+        // claim-time checks, so cancelled/exhausted rows never hold a lease.
+        let claimed: Vec<assets::AssetWorkRowV1> = self.db.asset_transaction(|tx| {
+            let due = assets::load_due_work(tx, now_ms, assets::ASSET_WORK_CLAIM_BATCH)?;
+            let mut claimed = Vec::new();
+            for mut row in due {
+                let asset = assets::load_asset(tx, &row.asset_id)?;
+                let fenced = match &asset {
+                    None => true,
+                    Some(asset) => asset.lifecycle_generation != row.lifecycle_generation,
+                };
+                if fenced {
+                    assets::transition_work(
+                        tx,
+                        &mut row,
+                        assets::AssetWorkState::Cancelled,
+                        now_ms,
+                    )?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &row.work_id,
+                            assets::AssetReceiptEventV1::WorkCancelled,
+                            &row.asset_id,
+                            row.attempt_id.as_deref(),
+                            now_ms,
+                            serde_json::json!({
+                                "kind": row.kind,
+                                "cause": "generation-fence",
+                            }),
+                        ),
+                    )?;
+                    report.cancelled += 1;
+                    continue;
+                }
+                if now_ms > row.deadline_at_ms {
+                    row.failure = Some(serde_json::json!({ "cause": "deadline exceeded before completion" }));
+                    assets::transition_work(
+                        tx,
+                        &mut row,
+                        assets::AssetWorkState::Claimed,
+                        now_ms,
+                    )?;
+                    assets::transition_work(
+                        tx,
+                        &mut row,
+                        assets::AssetWorkState::Exhausted,
+                        now_ms,
+                    )?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &row.work_id,
+                            assets::AssetReceiptEventV1::WorkExhausted,
+                            &row.asset_id,
+                            row.attempt_id.as_deref(),
+                            now_ms,
+                            serde_json::json!({ "kind": row.kind, "cause": "deadline" }),
+                        ),
+                    )?;
+                    report.exhausted += 1;
+                    continue;
+                }
+                row.lease_owner = Some("local-runner".to_owned());
+                row.lease_expires_at_ms = Some(now_ms + assets::ASSET_WORK_LEASE_MS);
+                // Mirror the lease deadline into the indexed column so one
+                // index serves the due scan and the expired-lease scan.
+                row.next_eligible_at_ms = now_ms + assets::ASSET_WORK_LEASE_MS;
+                assets::transition_work(tx, &mut row, assets::AssetWorkState::Claimed, now_ms)?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &row.work_id,
+                        assets::AssetReceiptEventV1::WorkClaimed,
+                        &row.asset_id,
+                        row.attempt_id.as_deref(),
+                        now_ms,
+                        serde_json::json!({ "kind": row.kind, "attemptCount": row.attempt_count }),
+                    ),
+                )?;
+                claimed.push(row);
+            }
+            Ok(claimed)
+        })?;
+        report.claimed = claimed.len() as u64;
+
+        // Phase C: drive each claimed row by kind, then settle it with its
+        // own receipt. Store effects run outside the settle transaction and
+        // are idempotent, exactly like finalization's object puts.
+        for mut row in claimed {
+            let outcome = self.asset_execute_work(&row, now_ms);
+            self.db.asset_transaction(|tx| match &outcome {
+                Ok(()) => {
+                    assets::transition_work(tx, &mut row, assets::AssetWorkState::Done, now_ms)?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &row.work_id,
+                            assets::AssetReceiptEventV1::WorkCompleted,
+                            &row.asset_id,
+                            row.attempt_id.as_deref(),
+                            now_ms,
+                            serde_json::json!({ "kind": row.kind }),
+                        ),
+                    )?;
+                    report.completed += 1;
+                    Ok(())
+                }
+                Err(error) => {
+                    row.attempt_count += 1;
+                    row.failure = Some(serde_json::json!({ "code": error.diagnostic.code }));
+                    // A programmer-error kind can never succeed on retry;
+                    // exhaust it on first observation instead of burning the
+                    // ceiling on deterministic failures.
+                    let unretryable =
+                        error.diagnostic.code == "SNAPBACK_ASSET_WORK_KIND_UNKNOWN";
+                    if unretryable || row.attempt_count >= row.retry_ceiling {
+                        assets::transition_work(
+                            tx,
+                            &mut row,
+                            assets::AssetWorkState::Exhausted,
+                            now_ms,
+                        )?;
+                        assets::write_receipt(
+                            tx,
+                            &asset_receipt(
+                                &row.work_id,
+                                assets::AssetReceiptEventV1::WorkExhausted,
+                                &row.asset_id,
+                                row.attempt_id.as_deref(),
+                                now_ms,
+                                serde_json::json!({
+                                    "kind": row.kind,
+                                    "cause": "retry-ceiling",
+                                    "failure": error.diagnostic.code,
+                                    "attemptCount": row.attempt_count,
+                                }),
+                            ),
+                        )?;
+                        report.exhausted += 1;
+                        return Ok(());
+                    }
+                    // Retrying is transient: it re-enters enqueued with the
+                    // backoff-derived eligibility in this same transaction.
+                    assets::transition_work(
+                        tx,
+                        &mut row,
+                        assets::AssetWorkState::Retrying,
+                        now_ms,
+                    )?;
+                    row.lease_owner = None;
+                    row.lease_expires_at_ms = None;
+                    row.next_eligible_at_ms =
+                        now_ms + assets::work_backoff_ms(row.attempt_count);
+                    assets::transition_work(
+                        tx,
+                        &mut row,
+                        assets::AssetWorkState::Enqueued,
+                        now_ms,
+                    )?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &row.work_id,
+                            assets::AssetReceiptEventV1::WorkRetrying,
+                            &row.asset_id,
+                            row.attempt_id.as_deref(),
+                            now_ms,
+                            serde_json::json!({
+                                "kind": row.kind,
+                                "failure": error.diagnostic.code,
+                                "attemptCount": row.attempt_count,
+                                "nextEligibleAtMs": row.next_eligible_at_ms,
+                            }),
+                        ),
+                    )?;
+                    report.retried += 1;
+                    Ok(())
+                }
+            })?;
+        }
+        Ok(report)
+    }
+
+    /// Execute one claimed ledger row by kind. Effects are idempotent; the
+    /// caller settles the row's state and receipts.
+    fn asset_execute_work(
+        &mut self,
+        row: &crate::assets::AssetWorkRowV1,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        use crate::assets as assets;
+        match row.kind.as_str() {
+            // Condemned-object cleanup completes on observation: the pass
+            // deletes any condemned publication object still on disk for
+            // this asset, and Done means none remain (satisfied-by-sweep is
+            // the same observation).
+            assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP => {
+                let store = self.asset_store()?;
+                let condemned = self.db.asset_transaction(|tx| {
+                    assets::publications_in_state(
+                        tx,
+                        assets::AssetPublicationState::Condemned,
+                    )
+                })?;
+                for record in condemned
+                    .iter()
+                    .filter(|record| record.attempt_id.as_deref() == row.attempt_id.as_deref())
+                {
+                    let path = store.blob_path(&record.planned_key)?;
+                    if path.exists() {
+                        std::fs::remove_file(&path).map_err(|error| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                                "assets",
+                                format!("condemned object delete failed: {error}"),
+                            )
+                        })?;
+                    }
+                }
+                let _ = now_ms;
+                Ok(())
+            }
+            #[cfg(test)]
+            assets::ASSET_WORK_KIND_TEST_TRANSIENT_FAILURE => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_TEST_TRANSIENT",
+                "assets",
+                "injected transient failure for runner tests",
+            )),
+            other => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_WORK_KIND_UNKNOWN",
+                "assets",
+                format!("unknown asset work kind {other}"),
+            )),
+        }
     }
 
     /// Execute the only full revalidation path permitted to mint an
@@ -13294,6 +13573,18 @@ impl LocalSnapback {
     /// rows exist. The worker polls this only when its activity hint is set.
     pub(crate) fn jobs_pending_count(&self) -> SnapbackResult<u64> {
         self.db.pending_job_count()
+    /// Asset-runner loop errors land in the same bounded diagnostics ring as
+    /// cron tick errors; the ledger rows themselves carry per-item failure
+    /// state, so this records only scheduler-machinery faults.
+    pub(crate) fn record_asset_runner_error(&mut self, error: SnapbackError) {
+        self.asset_runner_errors += 1;
+        self.record_diagnostics(vec![error.diagnostic]);
+    }
+
+    /// Swallowed asset-runner scheduler errors, surfaced for tests/inspection.
+    #[allow(dead_code)]
+    pub fn asset_runner_errors(&self) -> u64 {
+        self.asset_runner_errors
     }
 
     /// Record a retryable maintenance failure without retaining the underlying
@@ -13873,6 +14164,7 @@ impl LocalSnapback {
             live_delivery: LiveDeliveryStats::default(),
             recent_diagnostics,
             cron_tick_errors: 0,
+            asset_runner_errors: 0,
             maintenance: MaintenanceDiagnostics::default(),
             maintenance_permission_reported_at_ms: None,
             maintenance_prune_reported_at_ms: None,
@@ -19651,6 +19943,16 @@ pub(crate) enum AssetDeliveryOutcome {
 }
 
 #[derive(Debug, Default)]
+pub(crate) struct AssetRunnerReport {
+    pub leases_reclaimed: u64,
+    pub claimed: u64,
+    pub completed: u64,
+    pub retried: u64,
+    pub exhausted: u64,
+    pub cancelled: u64,
+}
+
+#[derive(Debug, Default)]
 #[allow(dead_code)]
 pub(crate) struct AssetGcReport {
     pub expired_attempts: u64,
@@ -21391,6 +21693,229 @@ globalThis.__snapbackHandlers = {
             })
             .expect("re-evaluation");
         assert!(moved, "the first attachment must move the pinned empty capture");
+    }
+
+    fn asset_ready_fixture(snapback: &mut LocalSnapback) -> (String, Option<String>, u64) {
+        let created = asset_upload(snapback, "user_a", b"runner-fixture", true);
+        let attempt_id = created.task.attempt_id.clone();
+        let asset_id = created.task.asset_id.clone();
+        asset_finalize(snapback, "user_a", &attempt_id, None).expect("publishes");
+        let generation = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_asset(tx, &asset_id)?
+                    .expect("fixture asset exists")
+                    .lifecycle_generation)
+            })
+            .expect("load generation");
+        (asset_id, Some(attempt_id), generation)
+    }
+
+    fn asset_enqueue(
+        snapback: &mut LocalSnapback,
+        kind: &str,
+        asset_id: &str,
+        attempt_id: Option<&str>,
+        generation: u64,
+        now: u64,
+    ) -> String {
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                crate::assets::enqueue_work(tx, kind, asset_id, attempt_id, generation, now)
+            })
+            .expect("enqueue work")
+    }
+
+    fn asset_work_row(
+        snapback: &mut LocalSnapback,
+        work_id: &str,
+    ) -> crate::assets::AssetWorkRowV1 {
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_work_row(tx, work_id)?.expect("work row exists"))
+            })
+            .expect("load work row")
+    }
+
+    #[test]
+    fn asset_runner_completes_enqueued_work_with_no_live_subscriber() {
+        let mut snapback = asset_test_snapback();
+        let (asset_id, attempt_id, generation) = asset_ready_fixture(&mut snapback);
+        let now = now_millis();
+        let work_id = asset_enqueue(
+            &mut snapback,
+            crate::assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP,
+            &asset_id,
+            attempt_id.as_deref(),
+            generation,
+            now,
+        );
+
+        // No client, no subscription, no route call: the runner alone drives
+        // the row to done — closing the app cannot strand enqueued work.
+        let report = snapback.asset_runner_tick(now).expect("tick");
+        assert_eq!(report.claimed, 1);
+        assert_eq!(report.completed, 1);
+        let row = asset_work_row(&mut snapback, &work_id);
+        assert_eq!(row.state, crate::assets::AssetWorkState::Done);
+        let events = asset_receipt_events(&mut snapback, &asset_id);
+        assert!(events.iter().any(|event| event == "work-claimed"));
+        assert!(events.iter().any(|event| event == "work-completed"));
+    }
+
+    #[test]
+    fn asset_runner_reclaims_an_expired_lease_as_a_receipted_transition() {
+        let mut snapback = asset_test_snapback();
+        let (asset_id, attempt_id, generation) = asset_ready_fixture(&mut snapback);
+        let now = now_millis();
+        let work_id = asset_enqueue(
+            &mut snapback,
+            crate::assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP,
+            &asset_id,
+            attempt_id.as_deref(),
+            generation,
+            now,
+        );
+        // Simulate a crashed worker: claimed, lease long expired, never
+        // settled.
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let mut row =
+                    crate::assets::load_work_row(tx, &work_id)?.expect("row exists");
+                row.lease_owner = Some("crashed-runner".to_owned());
+                row.lease_expires_at_ms = Some(now.saturating_sub(1));
+                row.next_eligible_at_ms = now.saturating_sub(1);
+                crate::assets::transition_work(
+                    tx,
+                    &mut row,
+                    crate::assets::AssetWorkState::Claimed,
+                    now,
+                )
+            })
+            .expect("hand-claim");
+
+        let report = snapback.asset_runner_tick(now).expect("tick");
+        assert_eq!(report.leases_reclaimed, 1, "the expired lease reclaims");
+        assert_eq!(report.completed, 1, "and the reclaimed row re-drives to done");
+        let events = asset_receipt_events(&mut snapback, &asset_id);
+        assert!(events.iter().any(|event| event == "work-lease-reclaimed"));
+        assert_eq!(
+            asset_work_row(&mut snapback, &work_id).state,
+            crate::assets::AssetWorkState::Done
+        );
+    }
+
+    #[test]
+    fn asset_runner_retry_ceiling_produces_a_durable_exhausted_failure() {
+        let mut snapback = asset_test_snapback();
+        let (asset_id, attempt_id, generation) = asset_ready_fixture(&mut snapback);
+        let mut now = now_millis();
+        let work_id = asset_enqueue(
+            &mut snapback,
+            crate::assets::ASSET_WORK_KIND_TEST_TRANSIENT_FAILURE,
+            &asset_id,
+            attempt_id.as_deref(),
+            generation,
+            now,
+        );
+
+        let mut retried = 0u64;
+        let mut exhausted = 0u64;
+        for _ in 0..crate::assets::ASSET_WORK_RETRY_CEILING + 1 {
+            let report = snapback.asset_runner_tick(now).expect("tick");
+            retried += report.retried;
+            exhausted += report.exhausted;
+            if exhausted > 0 {
+                break;
+            }
+            // Jump past the backoff so the next tick re-claims.
+            now += crate::assets::ASSET_WORK_BACKOFF_CAP_MS + 1;
+        }
+        assert_eq!(exhausted, 1, "the ceiling produces exhausted, not silence");
+        assert_eq!(
+            retried,
+            crate::assets::ASSET_WORK_RETRY_CEILING - 1,
+            "every earlier failure was a receipted retry"
+        );
+        let row = asset_work_row(&mut snapback, &work_id);
+        assert_eq!(row.state, crate::assets::AssetWorkState::Exhausted);
+        assert!(row.failure.is_some(), "the failure is durable on the row");
+        let events = asset_receipt_events(&mut snapback, &asset_id);
+        assert!(events.iter().any(|event| event == "work-retrying"));
+        assert!(events.iter().any(|event| event == "work-exhausted"));
+    }
+
+    #[test]
+    fn asset_runner_generation_fence_cancels_stale_work_at_claim() {
+        let mut snapback = asset_test_snapback();
+        let (asset_id, attempt_id, generation) = asset_ready_fixture(&mut snapback);
+        let now = now_millis();
+        let work_id = asset_enqueue(
+            &mut snapback,
+            crate::assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP,
+            &asset_id,
+            attempt_id.as_deref(),
+            generation + 5,
+            now,
+        );
+
+        let report = snapback.asset_runner_tick(now).expect("tick");
+        assert_eq!(report.cancelled, 1, "stale-generation work cancels at claim");
+        assert_eq!(report.claimed, 0, "a fenced row never holds a lease");
+        assert_eq!(
+            asset_work_row(&mut snapback, &work_id).state,
+            crate::assets::AssetWorkState::Cancelled
+        );
+        let events = asset_receipt_events(&mut snapback, &asset_id);
+        assert!(events.iter().any(|event| event == "work-cancelled"));
+    }
+
+    #[test]
+    fn asset_runner_deadline_and_unknown_kind_exhaust_without_retry_burn() {
+        let mut snapback = asset_test_snapback();
+        let (asset_id, attempt_id, generation) = asset_ready_fixture(&mut snapback);
+        let now = now_millis();
+
+        // Past-deadline row: exhausted at claim time, no lease held.
+        let deadline_row = asset_enqueue(
+            &mut snapback,
+            crate::assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP,
+            &asset_id,
+            attempt_id.as_deref(),
+            generation,
+            now,
+        );
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let mut row =
+                    crate::assets::load_work_row(tx, &deadline_row)?.expect("row exists");
+                row.deadline_at_ms = now.saturating_sub(1);
+                crate::assets::update_work_row(tx, &row)
+            })
+            .expect("age the deadline");
+
+        // Unknown-kind row: a programmer error exhausts on first observation
+        // instead of burning the retry ceiling on deterministic failures.
+        let unknown_row = asset_enqueue(
+            &mut snapback,
+            "no-such-kind",
+            &asset_id,
+            attempt_id.as_deref(),
+            generation,
+            now,
+        );
+
+        let report = snapback.asset_runner_tick(now).expect("tick");
+        assert_eq!(report.exhausted, 2);
+        for work_id in [&deadline_row, &unknown_row] {
+            let row = asset_work_row(&mut snapback, work_id);
+            assert_eq!(row.state, crate::assets::AssetWorkState::Exhausted);
+            assert!(row.failure.is_some());
+        }
     }
 
     fn asset_receipt_events(snapback: &mut LocalSnapback, asset_id: &str) -> Vec<String> {
