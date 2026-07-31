@@ -32,7 +32,12 @@ export interface ResultObjectFieldContract {
   readonly value: ResultValueContract;
 }
 
-/** The closed v1 value-contract vocabulary. */
+/**
+ * The closed v1 value-contract vocabulary. `platformSchemaRef` is the one
+ * argument-lane addition (LLP 0131): a reference into the closed
+ * platform-owned registry of exported Rust-owned schemas, valid only in
+ * argument contracts.
+ */
 export type ResultValueContract =
   | Readonly<{ kind: 'null' }>
   | Readonly<{ kind: 'boolean' }>
@@ -45,7 +50,17 @@ export type ResultValueContract =
   | Readonly<{ kind: 'json'; maxDepth: number; maxBytes: number }>
   | Readonly<{ kind: 'array'; element: ResultValueContract; maxItems: number }>
   | Readonly<{ kind: 'union'; variants: readonly ResultValueContract[] }>
-  | Readonly<{ kind: 'object'; fields: readonly ResultObjectFieldContract[]; allowExtra: boolean }>;
+  | Readonly<{ kind: 'object'; fields: readonly ResultObjectFieldContract[]; allowExtra: boolean }>
+  | Readonly<{ kind: 'platformSchemaRef'; authority: 'platform'; schema: string }>;
+
+/**
+ * FunctionArgsContractV1 (LLP 0131): one closed object contract over a
+ * function's declared arguments — declaration-ordered entries carrying the
+ * shared node vocabulary, bounds always materialized.
+ */
+export interface FunctionArgsContract {
+  readonly fields: readonly ResultObjectFieldContract[];
+}
 
 /** The closed top-level result-contract descriptor vocabulary. */
 export type ResultContractDescriptor =
@@ -81,15 +96,33 @@ export function compileResultContractValidator(
 export const canonicalJson: (value: unknown) => string;
 
 export function resultContractHash(contract: ResultContractDescriptor): `sha256:${string}`;
-export function argsContractHash(args?: unknown): `sha256:${string}`;
+
+/**
+ * The v2 argument-contract witness (LLP 0131 §Identity and hashing): SHA-256
+ * under the `snapback:function-args:v2` domain over the canonical (JCS) form
+ * of the carried descriptor itself.
+ */
+export function argsContractHash(contract?: FunctionArgsContract | null): `sha256:${string}`;
+
+/**
+ * Builds FunctionArgsContractV1 from a function's authored argument
+ * validators (declaration order preserved, `v.optional` becomes
+ * `required: false`, legacy spellings normalized, bounds materialized) and
+ * validates it under the shared node/bounds profile.
+ */
+export function effectiveArgsContract(
+  args?: Readonly<Record<string, Validator>> | null,
+): FunctionArgsContract;
 
 /**
  * Lowers an authoring validator (from ./define.mjs) into the closed
  * value-contract vocabulary; throws TypeError on unsupported shapes.
+ * `args: true` selects the argument lane (admits `platformSchemaRef`,
+ * normalizes relation incarnations to the profile-max string node).
  */
 export function validatorResultValue(
   validator: Validator,
-  options?: Readonly<{ legacy?: boolean }>,
+  options?: Readonly<{ legacy?: boolean; args?: boolean }>,
 ): ResultValueContract;
 
 /** Table shapes as the effective-contract derivation observes them. */

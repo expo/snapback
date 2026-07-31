@@ -78,12 +78,18 @@ import {
 import {
   argsContractHash,
   canonicalJson as canonicalResultJson,
+  effectiveArgsContract,
   effectiveResultContract,
   resultContractHash,
   resultContractType,
   searchPageResultType,
   validatorResultValue,
 } from './result-contracts.mjs';
+import {
+  SEARCH_QUERY_AST_SCHEMA_REF,
+  searchArgsSchemaProblems,
+  searchAstEmission,
+} from './search-request-schema.mjs';
 import {
   createCodegenSummary,
   formatCodegenSummary,
@@ -147,6 +153,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'relational_query_v1',
   'migration_keyset_scan_v1',
   'result_contract_v1',
+  'args_contract_v1',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
@@ -165,6 +172,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'inline_handler_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
+  'args_contract_v1',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
@@ -1217,6 +1225,14 @@ export async function generateInProcess(backendDir, options = {}) {
         validateIdReferences(nested, `${where}.${field}`, { ...details, field });
       }
     }
+    if (validator?.resultKind === 'array' && validator.element?.__validator) {
+      validateIdReferences(validator.element, `${where}[]`, details);
+    }
+    if (validator?.resultKind === 'union' && Array.isArray(validator.variants)) {
+      for (const [index, variant] of validator.variants.entries()) {
+        validateIdReferences(variant, `${where}|${index}`, details);
+      }
+    }
   };
 
   for (const [name, def] of Object.entries(functionsModule)) {
@@ -1252,7 +1268,7 @@ export async function generateInProcess(backendDir, options = {}) {
       }
       validateAuthoringValidator(argVal, `${name} arg ${argName}`, (message) => {
         err('FUNCTION_INVALID_VALIDATOR', 'function', message, { function: name, arg: argName });
-      });
+      }, new Set(), 'argument');
       validateIdReferences(argVal, `${name} arg ${argName}`, { function: name, arg: argName });
       checkObjectValidatorFieldIdents(argVal, `arg ${argName}`, (fieldName, where) => {
         err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, arg: argName, field: fieldName });
@@ -1321,6 +1337,17 @@ export async function generateInProcess(backendDir, options = {}) {
         err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: search query references unknown table ${plan.table}`, { function: name, table: plan.table });
       } else if (!(table.searchIndexes ?? []).some((candidate) => candidate.name === plan.index)) {
         err('SNAPBACK_SEARCH_INDEX_UNAVAILABLE', 'search', `${name}: search query references unknown search index ${plan.table}.${plan.index}`, { function: name, table: plan.table, index: plan.index });
+      }
+      // @ref LLP 0131#the-search-fixture-cv-5 — the generation-time gate:
+      // the function's complete argument contract (query + limit + after)
+      // must agree with the exported request schema's top level, so "one
+      // exported search request schema" stays literally true.
+      try {
+        for (const problem of searchArgsSchemaProblems(def.args ?? {})) {
+          err('SNAPBACK_SEARCH_REQUEST_SCHEMA_MISMATCH', 'search', `${name}: ${problem}`, { function: name });
+        }
+      } catch (error) {
+        err(error.code ?? 'SNAPBACK_SEARCH_REQUEST_SCHEMA_DERIVATION', 'search', `${name}: ${error.message}`, { function: name });
       }
       functions.push({
         name,
@@ -1953,7 +1980,14 @@ export async function generateInProcess(backendDir, options = {}) {
   for (const fn of functions) {
     const def = functionsModule[fn.name];
     try {
-      fn.argsContractHash = argsContractHash(def?.args ?? {});
+      // @ref LLP 0131#the-argument-contract-descriptor — the extended
+      // descriptor (bounds included) is the carrier; the v2 hash is its
+      // identity witness, never a resolver. No degraded-args authoring
+      // diagnostic is minted here (v0.2 defers that to CV-6/SD-1): a
+      // v.json() argument already projects loudly through the provider
+      // degraded warning.
+      fn.argsContract = effectiveArgsContract(def?.args ?? {});
+      fn.argsContractHash = argsContractHash(fn.argsContract);
       fn.resultContract = effectiveResultContract({
         def,
         functionKind: fn.kind,
@@ -3297,7 +3331,18 @@ function mutationReadTables(plan) {
 // the caller-supplied diagnostic emitter (reserved words are fine here —
 // property positions accept them).
 function checkObjectValidatorFieldIdents(val, where, report) {
-  if (!val?.__validator || val.primitive !== 'object') return;
+  if (!val?.__validator) return;
+  if (val.resultKind === 'array' && val.element?.__validator) {
+    checkObjectValidatorFieldIdents(val.element, `${where}[]`, report);
+    return;
+  }
+  if (val.resultKind === 'union' && Array.isArray(val.variants)) {
+    for (const [index, variant] of val.variants.entries()) {
+      checkObjectValidatorFieldIdents(variant, `${where}|${index}`, report);
+    }
+    return;
+  }
+  if (val.primitive !== 'object') return;
   for (const [fieldName, field] of Object.entries(val.fields ?? {})) {
     if (!IDENT.test(fieldName)) {
       report(fieldName, where);
@@ -3311,7 +3356,14 @@ function checkObjectValidatorFieldIdents(val, where, report) {
 // schema fields, function args/results, and ephemeral scope/value shapes.
 // Builders catch ordinary mistakes early, but definition objects are mutable
 // JavaScript; codegen must re-establish the closed vocabulary before emitting.
-function validateAuthoringValidator(val, where, report, seen = new Set()) {
+//
+// The gate stays one recursive function with a per-position grammar
+// parameter (LLP 0131 §One argument grammar): ARGUMENT positions admit the
+// full LLP 0108 recursive v1 value vocabulary — v.null/v.literal/v.array/
+// v.union plus the platform-constructed SchemaRef — while schema fields,
+// ephemeral scope/value shapes, and the legacy `result` position keep the
+// closed scalar primitive map (widening them is CV-4b's and later work).
+function validateAuthoringValidator(val, where, report, seen = new Set(), position = 'closed') {
   if (!val || typeof val !== 'object' || val.__validator !== true) {
     report(`${where} must be a Snapback validator (v.string(), v.object(), ...)`);
     return false;
@@ -3319,6 +3371,41 @@ function validateAuthoringValidator(val, where, report, seen = new Set()) {
   if (seen.has(val)) {
     report(`${where} contains a cyclic validator shape`);
     return false;
+  }
+  const argument = position === 'argument';
+  if (argument) {
+    const recurse = (children) => {
+      seen.add(val);
+      let valid = true;
+      for (const [childWhere, child] of children) {
+        if (!validateAuthoringValidator(child, childWhere, report, seen, position)) valid = false;
+      }
+      seen.delete(val);
+      return valid;
+    };
+    if (val.primitive === 'platformSchemaRef') {
+      const reference = val.fieldType?.PlatformSchemaRef;
+      if (reference?.authority !== 'platform' || reference?.schema !== SEARCH_QUERY_AST_SCHEMA_REF) {
+        report(`${where} references unregistered schema ${JSON.stringify(reference?.schema)}`);
+        return false;
+      }
+      return true;
+    }
+    if (val.resultKind === 'null' || val.resultKind === 'literal') return true;
+    if (val.resultKind === 'array') {
+      if (!val.element?.__validator) {
+        report(`${where} array validator must carry an element validator`);
+        return false;
+      }
+      return recurse([[`${where}[]`, val.element]]);
+    }
+    if (val.resultKind === 'union') {
+      if (!Array.isArray(val.variants) || val.variants.length < 2 || val.variants.length > 8) {
+        report(`${where} union validator must carry 2–8 variants`);
+        return false;
+      }
+      return recurse(val.variants.map((variant, index) => [`${where}|${index}`, variant]));
+    }
   }
   const primitives = new Map([
     ['string', new Set(['String', 'Principal'])],
@@ -3346,7 +3433,7 @@ function validateAuthoringValidator(val, where, report, seen = new Set()) {
   seen.add(val);
   let valid = true;
   for (const [name, field] of Object.entries(val.fields)) {
-    if (!validateAuthoringValidator(field, `${where}.${name}`, report, seen)) valid = false;
+    if (!validateAuthoringValidator(field, `${where}.${name}`, report, seen, position)) valid = false;
   }
   seen.delete(val);
   return valid;
@@ -3377,6 +3464,25 @@ function validatorDescriptor(val) {
   let descriptor;
   if (!val || val.primitive === 'unknown') {
     descriptor = { shape: 'unknown' };
+  } else if (val.primitive === 'platformSchemaRef') {
+    // @ref LLP 0131#the-search-fixture-cv-5 — the provider projection
+    // carries the reference with its expansion embedded by value, derived
+    // from the exported Rust-owned schema; the search argument stops
+    // projecting as `unknown`.
+    descriptor = {
+      shape: 'platformSchemaRef',
+      authority: 'platform',
+      schema: val.fieldType?.PlatformSchemaRef?.schema,
+      expansion: searchAstEmission().queryDescriptorExpansion,
+    };
+  } else if (val.resultKind === 'null') {
+    descriptor = { shape: 'literal', value: null };
+  } else if (val.resultKind === 'literal') {
+    descriptor = { shape: 'literal', value: val.literal };
+  } else if (val.resultKind === 'array') {
+    descriptor = { shape: 'array', items: validatorDescriptor(val.element) };
+  } else if (val.resultKind === 'union') {
+    descriptor = { shape: 'union', variants: (val.variants ?? []).map(validatorDescriptor) };
   } else if (val.primitive === 'object') {
     descriptor = { shape: 'object', fields: argDescriptors(val.fields ?? {}) };
   } else {
@@ -3419,6 +3525,24 @@ function jsonSchemaObjectProperties(fields) {
 
 function jsonSchemaForValidator(validator) {
   if (!validator || validator.primitive === 'unknown') return {};
+  if (validator.primitive === 'platformSchemaRef') {
+    // Operation schemas stay self-contained: the reference's expansion is
+    // embedded by value from the exported Rust-owned schema (LLP 0131).
+    return structuredClone(searchAstEmission().queryJsonSchema);
+  }
+  if (validator.resultKind === 'null') return { type: 'null' };
+  if (validator.resultKind === 'literal') return { const: validator.literal };
+  if (validator.resultKind === 'array') {
+    const maxItems = validator.resultOptions?.maxItems;
+    return {
+      type: 'array',
+      items: jsonSchemaForValidator(validator.element),
+      ...(maxItems !== undefined ? { maxItems } : {}),
+    };
+  }
+  if (validator.resultKind === 'union') {
+    return { anyOf: (validator.variants ?? []).map(jsonSchemaForValidator) };
+  }
   if (validator.primitive === 'object') {
     return {
       type: 'object',
@@ -3429,7 +3553,12 @@ function jsonSchemaForValidator(validator) {
   if (validator.primitive === 'string') return { type: 'string' };
   if (validator.primitive === 'boolean') return { type: 'boolean' };
   if (validator.primitive === 'number') {
-    return { type: validator.fieldType === 'Integer' ? 'integer' : 'number' };
+    const { min, max } = validator.resultOptions ?? {};
+    return {
+      type: validator.fieldType === 'Integer' ? 'integer' : 'number',
+      ...(min !== undefined ? { minimum: min } : {}),
+      ...(max !== undefined ? { maximum: max } : {}),
+    };
   }
   return {};
 }
@@ -4223,6 +4352,7 @@ function decorateFunctions(appId, functions) {
         `snapback:function-implementation:${implementationFormatVersion}\n${canonicalResultJson(implementationIdentity)}`,
       )}`,
       argsContractHash: fn.argsContractHash,
+      argsContract: fn.argsContract,
       resultContract: fn.resultContract,
       resultContractHash: fn.resultContractHash,
       requiredCapabilities: requiredCapabilities(fn),
@@ -4305,6 +4435,11 @@ function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
   const contractCapabilities = [
     'result_contract_v1',
+    // @ref LLP 0131#runtime-ingress-validation — the capability posture is
+    // app-wide: every v2-generated function carries the descriptor (scalar
+    // and empty argument roots included), so deployment to a target that
+    // does not run the fail-closed ingress seam refuses outright.
+    'args_contract_v1',
     ...(fn.handlerForm === 'inline' ? ['inline_handler_v1'] : []),
   ];
   if (fn.runtime?.HostPlan?.SearchQuery) {
@@ -5931,16 +6066,10 @@ function renderApiTypes(
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
-    'export type SearchMatchAtomV1 =',
-    '  | { Term: { value: string; field?: string } }',
-    '  | { Phrase: { values: readonly string[]; field?: string } }',
-    '  | { Prefix: { value: string; field?: string } };',
-    'export type SearchClauseV1 = SearchMatchAtomV1',
-    '  | { Any: readonly SearchMatchAtomV1[] }',
-    '  | { Not: SearchMatchAtomV1 }',
-    "  | { Filter: { field: string; op: 'eq'; value: string | number | boolean } };",
-    'export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }',
-    'export interface SearchRequestV1 { query: SearchQueryAstV1; limit?: number; after?: string }',
+    // @ref LLP 0131#the-search-fixture-cv-5 — the request-grammar types are
+    // derived from the exported Rust-owned search.request.schema.json, not
+    // hand-authored; the derivation fails closed on unknown constructs.
+    ...searchAstEmission().tsLines,
     'export interface SearchMatchRangeV1 { start: number; end: number }',
     'export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }',
     // @ref LLP 0073#ranking-order-and-cursors — each generated search ref
@@ -6538,7 +6667,19 @@ function typeForGeneratedValidator(val) {
   if (!val || !val.__validator) return 'unknown';
   let type;
   const idTable = idFieldTypeTable(val.fieldType);
-  if (val.fieldType === 'Principal') type = 'Principal';
+  if (val.primitive === 'platformSchemaRef') {
+    // api.d.ts declares the derived SearchQueryAstV1 type (renderApiTypes).
+    type = 'SearchQueryAstV1';
+  } else if (val.resultKind === 'null') type = 'null';
+  else if (val.resultKind === 'literal') type = JSON.stringify(val.literal);
+  else if (val.resultKind === 'array') {
+    const element = typeForGeneratedValidator(val.element).replace(/ \| undefined$/, '');
+    type = `ReadonlyArray<${element}>`;
+  } else if (val.resultKind === 'union') {
+    type = (val.variants ?? [])
+      .map((variant) => typeForGeneratedValidator(variant).replace(/ \| undefined$/, ''))
+      .join(' | ');
+  } else if (val.fieldType === 'Principal') type = 'Principal';
   else if (idTable !== null) type = `Id<'${idTable}'>`;
   else type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
   if (val.primitive === 'object') {
@@ -6560,7 +6701,20 @@ function typeProperty(name, val) {
 function typeForValidator(val) {
   if (!val || !val.__validator) return 'unknown';
   let type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
-  if (val.primitive === 'object') {
+  if (val.primitive === 'platformSchemaRef') {
+    // Contract runtime-links/binding modules have no named search types in
+    // scope; the reference projects as its fully inlined structural
+    // expansion derived from the exported schema.
+    type = searchAstEmission().queryTypeInline;
+  } else if (val.resultKind === 'null') type = 'null';
+  else if (val.resultKind === 'literal') type = JSON.stringify(val.literal);
+  else if (val.resultKind === 'array') {
+    type = `ReadonlyArray<${typeForValidator(val.element).replace(/ \| undefined$/, '')}>`;
+  } else if (val.resultKind === 'union') {
+    type = (val.variants ?? [])
+      .map((variant) => typeForValidator(variant).replace(/ \| undefined$/, ''))
+      .join(' | ');
+  } else if (val.primitive === 'object') {
     type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
   }
   return val.optional ? `${type} | undefined` : type;

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { SEARCH_REQUEST_ARGS_CONTRACT_HASH } from './search-contract.generated.mjs';
 
 import {
   AgentAuthorityFence,
@@ -460,20 +461,25 @@ assert.equal(appStateListeners.size, 0);
     name: 'searchIncidents',
     kind: 'Query',
     implementationHash: `sha256:${'1'.repeat(64)}`,
-    argsContractHash: 'sha256:784935fd790a14517fd0c38931dd1e2da4d043cd4f9377164ec792e59084af57',
+    // The generated pin (LLP 0131 identity cascade item 2): regenerated, not
+    // hand-kept, and asserted against codegen by the search-pin conformance
+    // test in @snapback/codegen.
+    argsContractHash: SEARCH_REQUEST_ARGS_CONTRACT_HASH,
     resultContractHash: `sha256:${'2'.repeat(64)}`,
   };
   const queryAst = { all: [{ Term: { value: 'cache' } }] };
   try {
     await assert.rejects(
       searchClient.search('searchIncidents', { query: queryAst }),
-      /generated Query reference for SearchRequestV1/u,
+      (error) => error.code === 'SNAPBACK_SEARCH_REFERENCE_INVALID',
     );
     await assert.rejects(
       searchClient.search({ ...searchRef, argsContractHash: `sha256:${'3'.repeat(64)}` }, {
         query: queryAst,
       }),
-      /generated Query reference for SearchRequestV1/u,
+      (error) => error.code === 'SNAPBACK_SEARCH_REFERENCE_INVALID'
+        && /contract generation/u.test(error.message)
+        && error.diagnostic?.details?.carriedArgsContractHash === `sha256:${'3'.repeat(64)}`,
     );
     await assert.rejects(
       searchClient.search(searchRef, { query: queryAst, after: null }),

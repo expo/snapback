@@ -177,6 +177,18 @@
             },
             "optional": { "type": "boolean" }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "authority", "schema", "expansion"],
+          "properties": {
+            "shape": { "const": "platformSchemaRef" },
+            "authority": { "const": "platform" },
+            "schema": { "enum": ["snapback:search-query-ast:v1"] },
+            "expansion": { "$ref": "#/$defs/dataType" },
+            "optional": { "type": "boolean" }
+          }
         }
       ]
     },

@@ -34,6 +34,7 @@
     "rqs-store.mjs",
     "rqs.d.mts",
     "rqs.mjs",
+    "search-contract.generated.mjs",
     "search.d.mts",
     "search.mjs",
     "sender-proof.mjs"

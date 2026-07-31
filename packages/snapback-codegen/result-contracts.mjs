@@ -35,12 +35,39 @@ export function resultContractHash(contract) {
     .digest('hex')}`;
 }
 
-export function argsContractHash(args) {
+// @ref LLP 0131#identity-and-hashing — the args witness is computed over the
+// canonical extended descriptor under the v2 domain, replacing v1 (which
+// hashed a bounds-blind projection). SchemaRef nodes contribute their
+// reference id, never referenced-artifact bytes. Every function's
+// argsContractHash changed once, visibly, at adoption.
+export function argsContractHash(contract) {
   return `sha256:${createHash('sha256')
-    .update('snapback:function-args:v1\n')
-    .update(canonicalJson(args ?? {}))
+    .update('snapback:function-args:v2\n')
+    .update(canonicalJson(contract ?? { fields: [] }))
     .digest('hex')}`;
 }
+
+/**
+ * Build FunctionArgsContractV1 (LLP 0131 §The argument-contract descriptor):
+ * one closed object contract over the declared arguments, declaration-
+ * ordered, each field carrying a value node from the same vocabulary the
+ * result manifest uses — bounds included — plus the platform-owned SchemaRef
+ * node. Validated under the shared node/bounds profile before emission.
+ */
+export function effectiveArgsContract(args) {
+  const fields = Object.entries(args ?? {}).map(([name, validator]) => ({
+    name,
+    required: validator?.optional !== true,
+    value: validatorResultValue(validator, { args: true }),
+  }));
+  validateEffectiveResultContract({
+    kind: 'value',
+    value: { kind: 'object', fields, allowExtra: false },
+  });
+  return { fields };
+}
+
+const SCHEMA_REF_REGISTRY_V1 = new Set(['snapback:search-query-ast:v1']);
 
 const scalar = (kind, extra = {}) => ({ kind, ...extra });
 
@@ -199,30 +226,45 @@ function validateEffectiveResultContract(contract) {
 
 export function validatorResultValue(validator, {
   legacy = false,
+  args = false,
 } = {}) {
   if (!validator || validator.__validator !== true) {
     throw new TypeError('result value must be a Snapback validator');
   }
   const options = validator.resultOptions ?? {};
   let value;
-  if (validator.resultKind === 'null') value = scalar('null');
+  if (validator.primitive === 'platformSchemaRef') {
+    // @ref LLP 0131#the-argument-contract-descriptor — argument-lane only;
+    // the reference id must name the closed platform registry, and the
+    // authority class is a closed enum with exactly `platform` in v1.
+    const reference = validator.fieldType?.PlatformSchemaRef;
+    if (
+      !args
+      || reference?.authority !== 'platform'
+      || typeof reference?.schema !== 'string'
+      || !SCHEMA_REF_REGISTRY_V1.has(reference.schema)
+    ) {
+      throw new TypeError(`unsupported schema reference ${JSON.stringify(reference?.schema)}`);
+    }
+    value = scalar('platformSchemaRef', { authority: 'platform', schema: reference.schema });
+  } else if (validator.resultKind === 'null') value = scalar('null');
   else if (validator.resultKind === 'literal') {
     value = scalar('literal', { value: validator.literal });
   } else if (validator.resultKind === 'array') {
     value = scalar('array', {
-      element: validatorResultValue(validator.element, { legacy }),
+      element: validatorResultValue(validator.element, { legacy, args }),
       maxItems: options.maxItems ?? RESULT_MAX_ARRAY_ITEMS,
     });
   } else if (validator.resultKind === 'union') {
     value = scalar('union', {
-      variants: validator.variants.map((variant) => validatorResultValue(variant, { legacy })),
+      variants: validator.variants.map((variant) => validatorResultValue(variant, { legacy, args })),
     });
   } else if (validator.primitive === 'object') {
     value = scalar('object', {
       fields: Object.entries(validator.fields ?? {}).map(([name, field]) => ({
         name,
         required: field.optional !== true,
-        value: validatorResultValue(field, { legacy }),
+        value: validatorResultValue(field, { legacy, args }),
       })),
       allowExtra: legacy,
     });
@@ -245,7 +287,19 @@ export function validatorResultValue(validator, {
       });
     } else if (fieldType === 'Principal') value = scalar('principal');
     else if (fieldType && typeof fieldType === 'object' && fieldType.RelationIncarnation) {
-      value = scalar('string', { maxBytes: 64 });
+      // @ref LLP 0131#the-argument-contract-descriptor — normalization rule:
+      // at argument positions a relation incarnation is the `string` node
+      // with the profile-maximum byte bound. Incarnation values on the wire
+      // are host-minted UUIDv7 tokens, not parent row ids — an
+      // id(parentTable) projection would type-admit a genuine parent row id
+      // while rejecting a held token. Whether a token names the active
+      // incarnation stays the relation machinery's runtime check (LLP 0110).
+      // Accepted consequence: v.string() and an incarnation argument are
+      // witness-identical. The result lane keeps its shipped 64-byte string
+      // mapping (resultContractHash is untouched).
+      value = args
+        ? scalar('string', { maxBytes: RESULT_MAX_STRING_BYTES })
+        : scalar('string', { maxBytes: 64 });
     }
     else if (fieldType && typeof fieldType === 'object' && fieldType.Id) {
       value = scalar('id', { table: fieldType.Id.table });

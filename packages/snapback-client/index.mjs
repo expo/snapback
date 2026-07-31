@@ -30,6 +30,10 @@ import {
 } from '@snapback/contract/auth-invalidation';
 import { isAgentAuthorityFence } from './agent-authority-brand.mjs';
 import {
+  SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
+  SEARCH_REQUEST_ARGS_CONTRACT_HASH,
+} from './search-contract.generated.mjs';
+import {
   canonicalSenderExternalUri,
   createSenderIssuanceProofForCustody,
   createSenderProofForCustody,
@@ -160,13 +164,28 @@ export const DEFAULT_POLL_CADENCE_MS = 1_500;
 
 const SNAPBACK_ID_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const SNAPBACK_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
+
+function searchReferenceInvalid(message, details = {}) {
+  const error = new Error(`SNAPBACK_SEARCH_REFERENCE_INVALID: ${message}`);
+  error.code = 'SNAPBACK_SEARCH_REFERENCE_INVALID';
+  error.diagnostic = {
+    code: 'SNAPBACK_SEARCH_REFERENCE_INVALID',
+    severity: 'error',
+    subsystem: 'client',
+    message,
+    details,
+  };
+  return error;
+}
+
 // @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — every generated
 // v1 search operation has the same closed request contract. Its digest is the
 // runtime discriminator that keeps client.search off arbitrary query refs;
 // the operation-specific result digest remains intentionally variable.
-const SEARCH_REQUEST_ARGS_CONTRACT_HASH_V1 =
-  'sha256:784935fd790a14517fd0c38931dd1e2da4d043cd4f9377164ec792e59084af57';
-
+// @ref LLP 0131#identity-and-hashing — cascade item 2: the pin is a
+// generated artifact from the descriptor pipeline (regenerate, never
+// hand-keep), and version skew refuses with the coded diagnostic naming the
+// expected and carried contract generations instead of an uncoded TypeError.
 function assertSearchFunctionReferenceV1(ref) {
   const requiredStrings = [
     'schemaVersion',
@@ -184,10 +203,22 @@ function assertSearchFunctionReferenceV1(ref) {
     || ref.artifactKind !== 'functionReference'
     || ref.kind !== 'Query'
     || requiredStrings.some((key) => typeof ref[key] !== 'string' || ref[key].length === 0)
-    || ref.argsContractHash !== SEARCH_REQUEST_ARGS_CONTRACT_HASH_V1
   ) {
-    throw new TypeError(
+    throw searchReferenceInvalid(
       'Snapback search requires a generated Query reference for SearchRequestV1',
+    );
+  }
+  if (ref.argsContractHash !== SEARCH_REQUEST_ARGS_CONTRACT_HASH) {
+    throw searchReferenceInvalid(
+      `search reference carries a different contract generation than this client expects `
+        + `(expected ${SEARCH_REQUEST_ARGS_CONTRACT_GENERATION} ${SEARCH_REQUEST_ARGS_CONTRACT_HASH}); `
+        + 'upgrade @snapback/client or regenerate the app references so both sides '
+        + 'share one contract generation',
+      {
+        expectedGeneration: SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
+        expectedArgsContractHash: SEARCH_REQUEST_ARGS_CONTRACT_HASH,
+        carriedArgsContractHash: ref.argsContractHash,
+      },
     );
   }
 }

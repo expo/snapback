@@ -544,6 +544,16 @@ export function validateProviderResultShapeVocabulary(introspection) {
       ));
       return;
     }
+    // @ref LLP 0131#the-search-fixture-cv-5 — a platform schema reference
+    // carries its expansion embedded by value; the expansion is an ordinary
+    // descriptor and is inspected as one.
+    if (descriptor?.shape === 'platformSchemaRef') {
+      if (descriptor.authority !== 'platform') {
+        problems.push(`${path}.authority: unmapped ${describe(descriptor.authority)}`);
+      }
+      inspectType(descriptor.expansion, `${path}.expansion`);
+      return;
+    }
     problems.push(`${path}.shape: unmapped ${describe(descriptor?.shape)}`);
   }
 }
@@ -667,6 +677,11 @@ function renderDataType(descriptor, path, diagnostics) {
         diagnostics,
       ))
       .join(' | ');
+  }
+  if (descriptor?.shape === 'platformSchemaRef' && descriptor.authority === 'platform') {
+    // The embedded-by-value expansion renders like any other descriptor —
+    // the reference stops projecting as `unknown` (LLP 0131 CV-5).
+    return renderDataType(descriptor.expansion, `${path}.expansion`, diagnostics);
   }
   diagnostics.push(unmappedShapeDiagnostic(path, descriptor?.shape, 'shape'));
   return 'never';
@@ -1175,8 +1190,26 @@ function validateDataType(descriptor, path, add) {
         validateDataType(variant, `${path}.variants[${index}]`, add)
       ));
     }
+  } else if (descriptor.shape === 'platformSchemaRef') {
+    // @ref LLP 0131#the-argument-contract-descriptor — closed authority
+    // enum (exactly `platform` in v1), closed registry id, and the
+    // expansion embedded by value as an ordinary descriptor.
+    closedObject(
+      descriptor,
+      path,
+      ['shape', 'authority', 'schema', 'expansion', 'optional'],
+      ['shape', 'authority', 'schema', 'expansion'],
+      add,
+    );
+    if (descriptor.authority !== 'platform') {
+      add(`${path}.authority`, 'must be platform');
+    }
+    if (descriptor.schema !== 'snapback:search-query-ast:v1') {
+      add(`${path}.schema`, 'must name a registered platform schema');
+    }
+    validateDataType(descriptor.expansion, `${path}.expansion`, add);
   } else {
-    add(`${path}.shape`, 'must be unknown, primitive, object, literal, array, or union');
+    add(`${path}.shape`, 'must be unknown, primitive, object, literal, array, union, or platformSchemaRef');
   }
   if (descriptor.optional !== undefined && typeof descriptor.optional !== 'boolean') {
     add(`${path}.optional`, 'must be boolean');

@@ -225,7 +225,6 @@ export const v = {
     assertKnownSpecFields(options, 'v.finiteReal() options', new Set(['min', 'max']));
     return validator('Real', 'number', {
       resultOptions: { ...options },
-      resultOnly: true,
     });
   },
   json: (options = {}) => {
@@ -236,7 +235,7 @@ export const v = {
         : {}),
     });
   },
-  null: () => validator('Json', 'null', { resultKind: 'null', resultOnly: true }),
+  null: () => validator('Json', 'null', { resultKind: 'null' }),
   literal: (value) => {
     assert(
       value === null || typeof value === 'string' || typeof value === 'boolean'
@@ -246,7 +245,6 @@ export const v = {
     return validator('Json', typeof value, {
       resultKind: 'literal',
       literal: value,
-      resultOnly: true,
     });
   },
   object: (fields) => {
@@ -270,7 +268,6 @@ export const v = {
       resultKind: 'array',
       element: inner,
       resultOptions: { ...options },
-      resultOnly: true,
     });
   },
   union: (variants) => {
@@ -279,7 +276,6 @@ export const v = {
     return validator('Json', 'union', {
       resultKind: 'union',
       variants: REFLECT_APPLY(ARRAY_SLICE, variants, []),
-      resultOnly: true,
     });
   },
 };
@@ -754,6 +750,21 @@ export function defineSchema(tables, options = {}) {
 
 const SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth']);
 
+// @ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is
+// deliberately not an app-authorable spelling in v1: no `v.*` builder emits
+// it, and defineSearchQuery constructs it internally against the closed
+// platform registry. Codegen re-validates the reference id against the same
+// registry. The explicit `authority` member is a closed enum with exactly
+// one admitted value in v1.
+const searchQueryAstRef = () => ({
+  __validator: true,
+  fieldType: {
+    PlatformSchemaRef: { authority: 'platform', schema: 'snapback:search-query-ast:v1' },
+  },
+  primitive: 'platformSchemaRef',
+  optional: false,
+});
+
 /**
  * Define an ordinary, non-live query carried by SearchQueryPlanV1.
  *
@@ -774,8 +785,12 @@ export function defineSearchQuery(spec) {
     [FN]: true,
     __kind: 'Query',
     auth,
+    // @ref LLP 0131#the-search-fixture-cv-5 — the query argument is a
+    // reference to the one exported Rust-owned search request schema, not an
+    // authored v.json() respelling; a generation-time gate checks this
+    // complete three-argument contract against that schema's top level.
     args: {
-      query: v.json(),
+      query: searchQueryAstRef(),
       limit: v.optional(v.integer({ min: 1, max: 50 })),
       after: v.optional(v.string({ maxBytes: 2_048 })),
     },
