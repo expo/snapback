@@ -803,6 +803,86 @@ pub fn write_receipt(tx: &Transaction<'_>, receipt: &AssetReceiptV1) -> Snapback
     Ok(())
 }
 
+/// Receipts for one asset, oldest first — the operator inspection
+/// projection. Receipts carry only safe structured facts by construction.
+pub fn receipts_for_asset(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+    limit: usize,
+) -> SnapbackResult<Vec<AssetReceiptV1>> {
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_receipts_v1
+         WHERE asset_id = ?1 ORDER BY at_ms ASC, receipt_id ASC LIMIT ?2",
+    )?;
+    let rows = statement
+        .query_map(rusqlite::params![asset_id, limit as i64], |row| {
+            row.get::<_, String>(0)
+        })?;
+    let mut parsed = Vec::new();
+    for json in rows {
+        parsed.push(decode_record(&json?)?);
+    }
+    Ok(parsed)
+}
+
+/// Ledger rows for one asset, any state — operator inspection of runner
+/// claims and pending work.
+pub fn work_rows_for_asset(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+) -> SnapbackResult<Vec<AssetWorkRowV1>> {
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_work_ledger_v1
+         WHERE asset_id = ?1 ORDER BY updated_at_ms ASC, work_id ASC",
+    )?;
+    let rows = statement.query_map([asset_id], |row| row.get::<_, String>(0))?;
+    let mut parsed = Vec::new();
+    for json in rows {
+        parsed.push(decode_record(&json?)?);
+    }
+    Ok(parsed)
+}
+
+/// Assets filtered by availability (or all), newest first — the operator
+/// listing.
+pub fn assets_in_state(
+    tx: &Transaction<'_>,
+    state: Option<AssetAvailability>,
+    limit: usize,
+) -> SnapbackResult<Vec<AssetRecordV1>> {
+    let mut parsed = Vec::new();
+    match state {
+        Some(state) => {
+            let mut statement = tx.prepare(
+                "SELECT record_json FROM _snapback_asset_records_v1
+                 WHERE availability = ?1
+                 ORDER BY updated_at_ms DESC, asset_id ASC LIMIT ?2",
+            )?;
+            let rows = statement.query_map(
+                rusqlite::params![state_str(state)?, limit as i64],
+                |row| row.get::<_, String>(0),
+            )?;
+            for json in rows {
+                parsed.push(decode_record(&json?)?);
+            }
+        }
+        None => {
+            let mut statement = tx.prepare(
+                "SELECT record_json FROM _snapback_asset_records_v1
+                 ORDER BY updated_at_ms DESC, asset_id ASC LIMIT ?1",
+            )?;
+            let rows = statement
+                .query_map(rusqlite::params![limit as i64], |row| {
+                    row.get::<_, String>(0)
+                })?;
+            for json in rows {
+                parsed.push(decode_record(&json?)?);
+            }
+        }
+    }
+    Ok(parsed)
+}
+
 // ---------------------------------------------------------------------------
 // Asset and attempt persistence. Every write goes through these helpers so
 // the closed transition tables are enforced in exactly one place.

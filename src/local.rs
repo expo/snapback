@@ -5736,6 +5736,315 @@ impl LocalSnapback {
         })
     }
 
+    /// The `snapback assets` operator surface (LLP 0044 §Seeds and agent DX):
+    /// five host-ops operations over the same asset machinery the routes use.
+    /// Authority is the `function.run` model — dev-admitted, optionally
+    /// impersonating `userId` — so this is a dev/test operator surface, and
+    /// sessions/prod deployments refuse at admission exactly like the direct
+    /// runner.
+    pub(crate) fn asset_host_op(
+        &mut self,
+        operation: &str,
+        input: Option<&Value>,
+        user_id: Option<&str>,
+        profile: ServerProfile,
+    ) -> SnapbackResult<Value> {
+        match operation {
+            "asset.put" => self.asset_host_put(input, user_id, profile),
+            "asset.inspect" => self.asset_host_inspect(input, user_id),
+            "asset.list" => self.asset_host_list(input),
+            "asset.retry" => self.asset_host_retry(input),
+            "asset.delete" => {
+                let parsed: AssetHostIdInput = asset_host_input(input, operation)?;
+                let authority =
+                    self.asset_host_authority(user_id, InvocationSource::HttpQuery, profile)?;
+                self.asset_delete(&authority, &parsed.asset_id)
+            }
+            _ => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_HOST_OP_UNKNOWN",
+                "assets",
+                format!("unknown asset host operation {operation}"),
+            )),
+        }
+    }
+
+    fn asset_host_authority(
+        &self,
+        user_id: Option<&str>,
+        source: InvocationSource,
+        profile: ServerProfile,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let input = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: user_id.map(str::to_owned),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        self.prepare_legacy_dev_authority(source, profile, &input)
+    }
+
+    fn asset_host_put(
+        &mut self,
+        input: Option<&Value>,
+        user_id: Option<&str>,
+        profile: ServerProfile,
+    ) -> SnapbackResult<Value> {
+        use sha2::Digest as _;
+
+        let parsed: AssetHostPutInput = asset_host_input(input, "asset.put")?;
+        let bytes = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            parsed.bytes_base64.as_bytes(),
+        )
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",
+                "assets",
+                "asset.put bytesBase64 is not valid base64",
+            )
+        })?;
+        let intent = self.asset_intent(&parsed.upload)?.clone();
+        let creator = self.asset_host_authority(user_id, InvocationSource::HttpQuery, profile)?;
+        let transfer =
+            self.asset_host_authority(user_id, InvocationSource::AssetTransfer, profile)?;
+        let created = self.asset_attempt_create(
+            &creator,
+            crate::assets::AssetAttemptCreateRequestV1 {
+                intent_id: intent.id.clone(),
+                intent_policy_hash: intent.intent_policy_hash.clone(),
+                args: parsed
+                    .args
+                    .unwrap_or_else(|| Value::Object(Default::default())),
+                declared_filename: parsed.file_name,
+                declared_length: Some(bytes.len() as u64),
+                declared_content_type: parsed.content_type,
+                retry_of_asset_id: None,
+            },
+        )?;
+        let attempt_id = created.task.attempt_id.clone();
+        let chunk_len = (created.transfer.max_chunk_bytes.max(1)) as usize;
+        let mut offset = 0u64;
+        for chunk in bytes.chunks(chunk_len) {
+            let checksum = base64::Engine::encode(
+                &base64::engine::general_purpose::STANDARD,
+                sha2::Sha256::digest(chunk),
+            );
+            self.asset_tus_patch(
+                &transfer,
+                &attempt_id,
+                offset,
+                chunk,
+                Some(("sha256", checksum.as_str())),
+            )?;
+            offset = offset.saturating_add(chunk.len() as u64);
+        }
+        let whole_digest = sha2::Sha256::digest(&bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let lifecycle_generation = self
+            .db
+            .asset_transaction(|tx| crate::assets::load_attempt(tx, &attempt_id))?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                    "assets",
+                    format!("unknown attempt {attempt_id}"),
+                )
+            })?
+            .lifecycle_generation;
+        let finalized = self.asset_attempt_finalize(
+            &creator,
+            crate::assets::AssetFinalizeRequestV1 {
+                attempt_id,
+                lifecycle_generation,
+                declared_digest: Some(whole_digest),
+            },
+        )?;
+        serde_json::to_value(&finalized.task)
+            .map(|task| serde_json::json!({ "task": task }))
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    format!("task state does not serialize: {error}"),
+                )
+            })
+    }
+
+    fn asset_host_inspect(
+        &mut self,
+        input: Option<&Value>,
+        user_id: Option<&str>,
+    ) -> SnapbackResult<Value> {
+        use crate::assets as assets;
+
+        let parsed: AssetHostIdInput = asset_host_input(input, "asset.inspect")?;
+        let caller = user_id.map(str::to_owned);
+        let schema = self.db.schema().clone();
+        self.db.asset_transaction(|tx| {
+            let asset = assets::load_asset(tx, &parsed.asset_id)?
+                .ok_or_else(asset_unknown(&parsed.asset_id))?;
+            // An impersonated caller sees only what the read-access policy
+            // admits; a pure-admin call (no userId) is the operator posture
+            // behind the admin-write gate.
+            if let Some(user) = caller.as_deref() {
+                let decision =
+                    crate::storage::asset_read_authorized(&schema, tx, Some(user), &asset)?;
+                if !decision.authorized {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_FORBIDDEN",
+                        "assets",
+                        "this asset is not readable by the caller",
+                    ));
+                }
+            }
+            let current = assets::current_attempt(tx, &asset.asset_id)?;
+            let renditions = assets::renditions_for_asset(tx, &asset.asset_id)?;
+            let edges = assets::load_edges_for_asset(tx, &asset.asset_id)?;
+            let accounting = assets::asset_accounting(tx, &asset.app_id)?;
+            let work = assets::work_rows_for_asset(tx, &asset.asset_id)?;
+            let receipts = assets::receipts_for_asset(tx, &asset.asset_id, 200)?;
+            // Attempt and work projections are built field-by-field: staging
+            // keys, admissions/witnesses, and anything bearer-shaped never
+            // leave the record layer (LLP 0044 §Receipts/inspection).
+            let attempt = current.map(|attempt| {
+                serde_json::json!({
+                    "attemptId": attempt.attempt_id,
+                    "state": attempt.state,
+                    "acknowledgedOffset": attempt.acknowledged_offset,
+                    "declaredLength": attempt.declared_length,
+                    "integrityGrade": attempt.integrity_grade,
+                    "expiresAtMs": attempt.expires_at_ms,
+                })
+            });
+            Ok(serde_json::json!({
+                "asset": {
+                    "assetId": asset.asset_id,
+                    "intentId": asset.intent_id,
+                    "intentName": asset.intent_name,
+                    "ownerPrincipal": asset.owner_principal,
+                    "availability": asset.availability,
+                    "deliveryProfile": asset.delivery_profile,
+                    "readAccess": asset.read_access,
+                    "primaryRenditionId": asset.primary_rendition_id,
+                    "lifecycleGeneration": asset.lifecycle_generation,
+                    "policyGeneration": asset.policy_generation,
+                    "createdAtMs": asset.created_at_ms,
+                    "updatedAtMs": asset.updated_at_ms,
+                },
+                "currentAttempt": attempt,
+                "renditions": renditions.iter().map(|rendition| serde_json::json!({
+                    "renditionId": rendition.rendition_id,
+                    "variantKey": rendition.variant_key,
+                    "state": rendition.state,
+                    "blobId": rendition.blob_id,
+                })).collect::<Vec<_>>(),
+                "referenceEdges": edges.iter().map(|edge| serde_json::json!({
+                    "table": edge.table_name,
+                    "rowId": edge.row_id,
+                    "fieldPath": edge.field_path,
+                })).collect::<Vec<_>>(),
+                "accounting": {
+                    "reservedBytes": accounting.reserved_bytes,
+                    "settledBytes": accounting.settled_bytes,
+                    "openAttempts": accounting.open_attempts_app,
+                },
+                "workRows": work.iter().map(|row| serde_json::json!({
+                    "workId": row.work_id,
+                    "kind": row.kind,
+                    "state": row.state,
+                    "attemptCount": row.attempt_count,
+                    "retryCeiling": row.retry_ceiling,
+                    "nextEligibleAtMs": row.next_eligible_at_ms,
+                    "deadlineAtMs": row.deadline_at_ms,
+                })).collect::<Vec<_>>(),
+                "receipts": receipts,
+            }))
+        })
+    }
+
+    fn asset_host_list(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
+        use crate::assets as assets;
+
+        let parsed: AssetHostListInput = match input {
+            None => AssetHostListInput::default(),
+            Some(_) => asset_host_input(input, "asset.list")?,
+        };
+        let state = parsed
+            .state
+            .map(|state| {
+                serde_json::from_value::<crate::assets::AssetAvailability>(Value::String(
+                    state.clone(),
+                ))
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",
+                        "assets",
+                        format!("asset.list state {state} is not an availability state"),
+                    )
+                })
+            })
+            .transpose()?;
+        self.db.asset_transaction(|tx| {
+            let records = assets::assets_in_state(tx, state, 200)?;
+            Ok(serde_json::json!({
+                "assets": records.iter().map(|asset| serde_json::json!({
+                    "assetId": asset.asset_id,
+                    "intentName": asset.intent_name,
+                    "ownerPrincipal": asset.owner_principal,
+                    "availability": asset.availability,
+                    "updatedAtMs": asset.updated_at_ms,
+                })).collect::<Vec<_>>(),
+            }))
+        })
+    }
+
+    /// Operator retry: a generation-fenced re-drive of pending publication
+    /// and ledger work. It never reopens a terminal attempt or edits a
+    /// receipt — it runs the same maintenance the runner runs, now.
+    fn asset_host_retry(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
+        use crate::assets as assets;
+
+        let parsed: AssetHostIdInput = asset_host_input(input, "asset.retry")?;
+        let asset = self
+            .db
+            .asset_transaction(|tx| assets::load_asset(tx, &parsed.asset_id))?
+            .ok_or_else(asset_unknown(&parsed.asset_id))?;
+        if asset.availability == crate::assets::AssetAvailability::Deleted {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RETRY_INELIGIBLE",
+                "assets",
+                "a deleted asset has no pending work to re-drive",
+            ));
+        }
+        let now = now_millis();
+        let maintenance = self.asset_publication_maintain(now)?;
+        let runner = self.asset_runner_tick(now)?;
+        let availability = self
+            .db
+            .asset_transaction(|tx| assets::load_asset(tx, &parsed.asset_id))?
+            .map(|asset| asset.availability);
+        Ok(serde_json::json!({
+            "publication": {
+                "staged": maintenance.staged,
+                "condemned": maintenance.condemned,
+                "retired": maintenance.retired,
+                "objectsDeleted": maintenance.objects_deleted,
+            },
+            "runner": {
+                "leasesReclaimed": runner.leases_reclaimed,
+                "claimed": runner.claimed,
+                "completed": runner.completed,
+                "retried": runner.retried,
+                "exhausted": runner.exhausted,
+                "cancelled": runner.cancelled,
+            },
+            "availability": availability,
+        }))
+    }
+
     pub(crate) fn asset_attempt_cancel(
         &mut self,
         authority: &PreparedAuthority,
@@ -19965,6 +20274,56 @@ pub(crate) struct AssetGcReport {
     pub publication: AssetPublicationMaintenanceReport,
 }
 
+/// Closed operator-input shapes for the `asset.*` host operations. These are
+/// operator-surface carriers under `HostOpsRequest.input` (the `function.run`
+/// loose-body idiom, closed with `deny_unknown_fields`), not registered wire
+/// DTOs — the wire DTOs are the L1-02 schemas.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct AssetHostPutInput {
+    upload: String,
+    #[serde(default)]
+    args: Option<Value>,
+    #[serde(default)]
+    file_name: Option<String>,
+    #[serde(default)]
+    content_type: Option<String>,
+    bytes_base64: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct AssetHostIdInput {
+    asset_id: String,
+}
+
+#[derive(Default, serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct AssetHostListInput {
+    #[serde(default)]
+    state: Option<String>,
+}
+
+fn asset_host_input<T: for<'de> serde::Deserialize<'de>>(
+    input: Option<&Value>,
+    operation: &str,
+) -> SnapbackResult<T> {
+    let value = input.cloned().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_HOST_OP_INPUT_MISSING",
+            "assets",
+            format!("{operation} requires input"),
+        )
+    })?;
+    serde_json::from_value(value).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",
+            "assets",
+            format!("{operation} input is not the closed operator shape: {error}"),
+        )
+    })
+}
+
 fn asset_unknown(asset_id: &str) -> impl Fn() -> SnapbackError + '_ {
     move || {
         SnapbackError::error(
@@ -21916,6 +22275,200 @@ globalThis.__snapbackHandlers = {
             assert_eq!(row.state, crate::assets::AssetWorkState::Exhausted);
             assert!(row.failure.is_some());
         }
+    }
+
+    // -----------------------------------------------------------------
+    // The asset operator surface (ticket L1-12 CLI slice): the five
+    // host-ops operations over the same machinery the routes use.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn asset_host_ops_round_trip_put_inspect_list_retry_delete() {
+        let mut snapback = asset_test_snapback();
+        let bytes = b"host-op bytes";
+        let encoded =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+
+        let put = snapback
+            .asset_host_op(
+                "asset.put",
+                Some(&serde_json::json!({
+                    "upload": "avatarUpload",
+                    "bytesBase64": encoded,
+                    "fileName": "note.bin",
+                })),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect("put publishes");
+        assert_eq!(put["task"]["availability"], serde_json::json!("ready"));
+        assert_eq!(
+            put["task"]["integrityGrade"],
+            serde_json::json!("end-to-end-verified"),
+            "chunk checksums plus the whole-upload digest grade end-to-end"
+        );
+        let asset_id = put["task"]["assetId"]
+            .as_str()
+            .expect("asset id")
+            .to_owned();
+
+        let inspected = snapback
+            .asset_host_op(
+                "asset.inspect",
+                Some(&serde_json::json!({ "assetId": asset_id })),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect("owner inspects");
+        assert_eq!(inspected["asset"]["availability"], serde_json::json!("ready"));
+        assert!(
+            inspected["receipts"]
+                .as_array()
+                .is_some_and(|receipts| !receipts.is_empty()),
+            "inspection renders the lifecycle receipts"
+        );
+        let raw = inspected.to_string();
+        assert!(
+            !raw.contains("stagingKey") && !raw.contains("staging_key"),
+            "no staging keys in operator inspection: {raw}"
+        );
+        assert!(
+            !raw.contains("witness") && !raw.contains("admission"),
+            "no admission witnesses in operator inspection: {raw}"
+        );
+
+        // Operator posture (no userId) reads behind the admin gate; a foreign
+        // impersonated caller is refused by the read-access policy.
+        snapback
+            .asset_host_op(
+                "asset.inspect",
+                Some(&serde_json::json!({ "assetId": asset_id })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("operator inspects");
+        let foreign = snapback
+            .asset_host_op(
+                "asset.inspect",
+                Some(&serde_json::json!({ "assetId": asset_id })),
+                Some("user_b"),
+                ServerProfile::Dev,
+            )
+            .expect_err("foreign caller refused");
+        assert_eq!(foreign.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+
+        let listed = snapback
+            .asset_host_op(
+                "asset.list",
+                Some(&serde_json::json!({ "state": "ready" })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("list");
+        assert!(
+            listed["assets"]
+                .as_array()
+                .is_some_and(|assets| assets
+                    .iter()
+                    .any(|asset| asset["assetId"] == serde_json::json!(asset_id))),
+            "listing includes the published asset: {listed}"
+        );
+
+        let retried = snapback
+            .asset_host_op(
+                "asset.retry",
+                Some(&serde_json::json!({ "assetId": asset_id })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("retry re-drives");
+        assert_eq!(retried["availability"], serde_json::json!("ready"));
+
+        snapback
+            .asset_host_op(
+                "asset.delete",
+                Some(&serde_json::json!({ "assetId": asset_id })),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect("owner deletes");
+        let ineligible = snapback
+            .asset_host_op(
+                "asset.retry",
+                Some(&serde_json::json!({ "assetId": asset_id })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("deleted assets have no re-drivable work");
+        assert_eq!(ineligible.diagnostic.code, "SNAPBACK_ASSET_RETRY_INELIGIBLE");
+    }
+
+    #[test]
+    fn asset_host_ops_refuse_bad_input_and_ride_the_envelope() {
+        let mut snapback = asset_test_snapback();
+
+        let bad_base64 = snapback
+            .asset_host_op(
+                "asset.put",
+                Some(&serde_json::json!({
+                    "upload": "avatarUpload",
+                    "bytesBase64": "!!",
+                })),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect_err("bad base64 refused");
+        assert_eq!(
+            bad_base64.diagnostic.code,
+            "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID"
+        );
+
+        let unknown_intent = snapback
+            .asset_host_op(
+                "asset.put",
+                Some(&serde_json::json!({ "upload": "nope", "bytesBase64": "" })),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect_err("unknown intent refused");
+        assert_eq!(unknown_intent.diagnostic.code, "SNAPBACK_ASSET_INTENT_UNKNOWN");
+
+        let missing_input = snapback
+            .asset_host_op("asset.inspect", None, None, ServerProfile::Dev)
+            .expect_err("missing input refused");
+        assert_eq!(missing_input.diagnostic.code, "SNAPBACK_HOST_OP_INPUT_MISSING");
+
+        let bad_state = snapback
+            .asset_host_op(
+                "asset.list",
+                Some(&serde_json::json!({ "state": "nope" })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("unknown state refused");
+        assert_eq!(
+            bad_state.diagnostic.code,
+            "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID"
+        );
+
+        // The host-ops envelope arm: a structured refusal rides ok=false with
+        // the ordinary hostOpsResult shape.
+        let result = crate::host_ops::execute_host_op(
+            &mut snapback,
+            serde_json::from_value(serde_json::json!({
+                "operation": "asset.inspect",
+                "input": { "assetId": "asset_missing" },
+            }))
+            .expect("request parses"),
+            None,
+        );
+        let value = serde_json::to_value(&result).expect("envelope serializes");
+        assert_eq!(value["resultKind"], serde_json::json!("hostOpsResult"));
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(
+            value["diagnostics"][0]["code"],
+            serde_json::json!("SNAPBACK_ASSET_UNKNOWN")
+        );
     }
 
     fn asset_receipt_events(snapback: &mut LocalSnapback, asset_id: &str) -> Vec<String> {

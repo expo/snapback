@@ -13978,6 +13978,75 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::secret_read(),
         ),
+        // The asset operator surface (LLP 0044 §Seeds and agent DX): the
+        // function.run posture — admin-write everywhere, dev-admitted
+        // authority inside the executor, legacy body userId rejected under
+        // sessions.
+        host(
+            "host_ops.asset.put",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.asset.inspect",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.asset.list",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.asset.retry",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.asset.delete",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
         host(
             "host_ops.function.explain",
             RoutePolicy::AdminRead,
@@ -14379,6 +14448,11 @@ pub(crate) fn host_ops_operation_spec(
         "functions.load" => "host_ops.functions.load",
         "auth.mintSession" => "host_ops.auth.mintSession",
         "auth.rescueCollidingTable" => "host_ops.auth.rescueCollidingTable",
+        "asset.put" => "host_ops.asset.put",
+        "asset.inspect" => "host_ops.asset.inspect",
+        "asset.list" => "host_ops.asset.list",
+        "asset.retry" => "host_ops.asset.retry",
+        "asset.delete" => "host_ops.asset.delete",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
         // authenticated request reaches the structured UNIMPLEMENTED /

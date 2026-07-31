@@ -915,6 +915,11 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
         BTreeSet::from([
             "host_ops.acceptance.run",
             "host_ops.app.inspect",
+            "host_ops.asset.delete",
+            "host_ops.asset.inspect",
+            "host_ops.asset.list",
+            "host_ops.asset.put",
+            "host_ops.asset.retry",
             "host_ops.app.reset",
             "host_ops.app.seed.clear.v1",
             "host_ops.app.seed.ensure.v1",

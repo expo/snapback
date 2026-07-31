@@ -1251,6 +1251,34 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
         }
         "function.run" => run_function(snapback, &request, prepared_authority, envelope),
         "function.explain" => explain_function(snapback, &request, prepared_authority, envelope),
+        // The `snapback assets` operator surface (LLP 0044 §Seeds and agent
+        // DX): dev-admitted like function.run, admin-write gated at the
+        // route, closed input shapes, no byte samples or bearer material in
+        // any envelope.
+        "asset.put" | "asset.inspect" | "asset.list" | "asset.retry" | "asset.delete" => {
+            let outcome = snapback.asset_host_op(
+                &operation,
+                request.input.as_ref(),
+                request.user_id.as_deref(),
+                profile,
+            );
+            match outcome {
+                Ok(data) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    data,
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
         "auth.mintSession" | "auth.rescueCollidingTable" => envelope(
             snapback,
             false,

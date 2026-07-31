@@ -223,6 +223,12 @@ pub(crate) fn operation_profile_requirement(
         // surfaces even when they project an anonymous handler input. Hosted
         // production invocation goes through the ordinary app-data gate.
         "function.run" | "auth.mintSession" => OperationProfileRequirement::NonProd,
+        // The asset operator surface is developer/operator tooling like the
+        // direct runner; hosted production traffic uses the ordinary asset
+        // routes.
+        "asset.put" | "asset.inspect" | "asset.list" | "asset.retry" | "asset.delete" => {
+            OperationProfileRequirement::NonProd
+        }
         // Frozen LLP 0039 deliberately excludes demo from the below-manifest
         // collision-recovery authority, on both ordinary and recovery servers.
         "auth.rescueCollidingTable" => OperationProfileRequirement::DevOrTest,

@@ -682,6 +682,13 @@ pub enum HostCommand {
         #[arg(long)]
         user: Option<String>,
     },
+    /// asset.* — the LLP 0044 asset operator surface: upload through a
+    /// generated intent, inspect a complete lifecycle, list, re-drive
+    /// generation-fenced work, delete.
+    Assets {
+        #[command(subcommand)]
+        command: AssetsCommand,
+    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.
@@ -893,6 +900,68 @@ impl std::fmt::Debug for HostCommand {
     }
 }
 
+#[derive(clap::Subcommand)]
+pub enum AssetsCommand {
+    /// asset.put — upload one file through a generated upload intent and
+    /// finalize it (end-to-end verified: every chunk checksummed plus the
+    /// whole-upload digest).
+    Put {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Path of the file to upload.
+        file: PathBuf,
+        /// The upload intent's exported name (or stable id).
+        #[arg(long)]
+        upload: String,
+        /// JSON object of intent args.
+        #[arg(long)]
+        args: Option<String>,
+        /// Upload as this app user (devUser authority).
+        #[arg(long)]
+        user: Option<String>,
+        /// Declared content type (trusted detection still decides).
+        #[arg(long)]
+        content_type: Option<String>,
+    },
+    /// asset.inspect — one asset's lifecycle, receipts, quota, reference
+    /// edges, and ledger claims. Never byte samples, staging keys, or
+    /// bearer URLs.
+    Inspect {
+        #[command(flatten)]
+        target: TargetArgs,
+        asset_id: String,
+        /// Read as this app user (owner/via-references authorization);
+        /// omitted reads as the operator.
+        #[arg(long)]
+        user: Option<String>,
+    },
+    /// asset.list — assets by availability state.
+    List {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// pending | ready | rejected | deleted (omitted lists all).
+        #[arg(long)]
+        state: Option<String>,
+    },
+    /// asset.retry — generation-fenced re-drive of pending publication and
+    /// ledger work; never reopens a terminal attempt.
+    Retry {
+        #[command(flatten)]
+        target: TargetArgs,
+        asset_id: String,
+    },
+    /// asset.delete — explicit authorized delete (refuses while typed
+    /// references remain).
+    Delete {
+        #[command(flatten)]
+        target: TargetArgs,
+        asset_id: String,
+        /// Delete as this app user (owner authority).
+        #[arg(long)]
+        user: Option<String>,
+    },
+}
+
 #[derive(clap::Args)]
 pub struct TargetArgs {
     /// Server base URL (e.g. http://127.0.0.1:4287).
@@ -987,6 +1056,81 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 }),
             )
         }
+        Some(HostCommand::Assets { command }) => match command {
+            AssetsCommand::Put {
+                target,
+                file,
+                upload,
+                args,
+                user,
+                content_type,
+            } => {
+                let bytes = std::fs::read(&file)
+                    .map_err(|error| anyhow::anyhow!("cannot read {}: {error}", file.display()))?;
+                let parsed_args = parse_run_args(args)?;
+                let file_name = file
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned());
+                let mut input = json!({
+                    "upload": upload,
+                    "bytesBase64": base64::Engine::encode(
+                        &base64::engine::general_purpose::STANDARD,
+                        bytes,
+                    ),
+                });
+                if let Some(name) = file_name {
+                    input["fileName"] = json!(name);
+                }
+                if parsed_args != Value::Null {
+                    input["args"] = parsed_args;
+                }
+                if let Some(content_type) = content_type {
+                    input["contentType"] = json!(content_type);
+                }
+                host_op_via_http(
+                    &target,
+                    json!({ "operation": "asset.put", "input": input, "userId": user }),
+                )
+            }
+            AssetsCommand::Inspect {
+                target,
+                asset_id,
+                user,
+            } => host_op_via_http(
+                &target,
+                json!({
+                    "operation": "asset.inspect",
+                    "input": { "assetId": asset_id },
+                    "userId": user,
+                }),
+            ),
+            AssetsCommand::List { target, state } => {
+                let mut input = json!({});
+                if let Some(state) = state {
+                    input["state"] = json!(state);
+                }
+                host_op_via_http(
+                    &target,
+                    json!({ "operation": "asset.list", "input": input }),
+                )
+            }
+            AssetsCommand::Retry { target, asset_id } => host_op_via_http(
+                &target,
+                json!({ "operation": "asset.retry", "input": { "assetId": asset_id } }),
+            ),
+            AssetsCommand::Delete {
+                target,
+                asset_id,
+                user,
+            } => host_op_via_http(
+                &target,
+                json!({
+                    "operation": "asset.delete",
+                    "input": { "assetId": asset_id },
+                    "userId": user,
+                }),
+            ),
+        },
         Some(HostCommand::SecretReadMint {
             ready_file,
             token,
