@@ -18,3 +18,5 @@ flip activates it; video stays refused.
 Done when: GPS-strip end-to-end proves no location in any deliverable
 blob with orientation applied and captured-at retained; strip-vs-retain
 digests differ; strip dedups with strip; expansion refusal tested.
+
+**RESOLVED 2026-07-31 — ceb1cee5: strip canonicalization through all four publication phases, strip-image.v1 policy in blob identity, safe-EXIF facts, expansion refusal; e2e APP1-absence proof.**

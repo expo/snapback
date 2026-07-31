@@ -1775,16 +1775,47 @@ Missing elsewhere). Evidence: the ticket program
 covered, deferred-with-owner, or a declared nonclaim), and the guide page
 `guide/backend/assets.md`.
 
-Deferred with named owners, honestly: the WS live projection and the
-client upload task/React projection (ticket L1-14 and
-`issues/20260731-0044-live-projection-follow-up.md` — the no-polling
-acceptance rows gate on them); frozen-generation authorizer retention
+The live projection and headless client landed with L1-14's first half:
+the reserved `_snapback.assetRecord` system live query proves the
+no-polling acceptance rows (publish wakes, first attachment wakes through
+the pinned empty-range capture, revocation blanks), and
+`client.assets.start` in the JS client covers the task rows
+(per-chunk checksums, persisted-fact hygiene, resume, retry preserving
+identity).
+
+### Implementation status: `asset-image-pipeline-v1` on the local target (2026-07-31, later same day)
+
+The image pipeline is built on the same target, under the author's two
+recorded picks (pure-Rust `image` crate — revisit trigger: HEIC,
+throughput, or video; ThumbHash as the single versioned placeholder):
+bounded decode with Enforced adversarial ceilings and a hostile-input
+corpus; GPS-strip canonicalization inside the trusted finalizer (decode →
+orientation transform → re-encode, digested after rewriting, so strip
+and retain can never alias in blob identity and dedup operates on
+canonical bytes); typed media facts (dimensions,
+`placeholder: {algo: "thumbhash.v1"}` cross-checked against the
+reference decoder, dominant color, captured-at); declared renditions with
+required-variants-gate-ready produced atomically with the primary,
+optional variants riding the work ledger, generation-checked pointer
+switching, and `best?maxWidth=N` selection on strict delivery. The local
+manifest claims `asset_image_finalization_v1` and
+`asset_image_pipeline_v1` with the ceilings in the `assets.image` facts
+block; every other target withholds all three asset ids. Evidence: the
+program `issues/closed/20260731-0044-p-*`, the §Image pipeline section
+of the traceability map, and the guide page's Images flow.
+
+Deferred with named owners, honestly: the React/Expo projection and
+real-server JS conformance vectors (ticket L1-14's recorded remainder);
+sessions-mode live-projection classification (the live-projection
+ticket's remainder note); frozen-generation authorizer retention
 (`issues/20260731-0044-frozen-generation-artifact-retention.md` — the
 implementation currently fails closed where 0044 would re-run frozen
 code); bounded-array `v.assetRef`
-(`issues/20260731-assetref-array-needs-portable-array-fields.md` — the
-portable field vocabulary has no array table fields yet); the image
-pipeline, signed/public delivery profiles, S3 store qualification, store
-migration, reference GC, and the LLP 0070 runner generation, each already
-scoped as later capabilities above. The document stays Accepted;
-Implemented awaits the client slice and the live projection.
+(`issues/20260731-assetref-array-needs-portable-array-fields.md`); the
+blob-JSON refcount staleness cleanup
+(`issues/20260731-0044-blob-json-refcount-staleness.md`); and
+signed/public delivery profiles, S3 store qualification, store
+migration, video finalization, reference GC, and the LLP 0070 runner
+generation, each already scoped as later capabilities above. The
+document stays Accepted; Implemented awaits the client remainder and a
+second target's evidence.

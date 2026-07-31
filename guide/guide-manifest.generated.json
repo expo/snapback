@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "dfb71f40ca9da05cceb2a321efe58428bc1e307e"
+    "commit": "624c973533177a8e7913054cc36ee0a99ac9cc17"
   },
   "nav": {
     ".": [
@@ -606,7 +606,7 @@
       "examples": [],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "0880bd5b8b86e10dbf8dcdd8823bd25cbb12faff5a745009d2e341d50b581cf2",
+      "sha256": "3e841ee647b2bfbde105dbe0664d2f26ba7eb6cb2422e111311473dc3208fe04",
       "snippets": [
         {
           "lang": "js",
@@ -621,6 +621,11 @@
         {
           "lang": "js",
           "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
         }
       ]
     },
@@ -1035,7 +1040,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "3343b74430e827f5925698a6b21772a56abe3004b382e1fe51b4e60d81d0385e",
+      "sha256": "1cc069547c16a2125dcf4b97bce9d98d9d70143a19de24e1086446572c7cb658",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2275,5 +2280,5 @@
     "routes": 83,
     "hostOps": 24
   },
-  "contentHash": "dca5ded4f8907a238b4b267565411b677f78c3254bc103ce85872956a61c2f23"
+  "contentHash": "12d11a17c321454de86f5da4d7af4e8ed4e6eb5f655342beeda2a81738858926"
 }

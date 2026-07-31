@@ -52,7 +52,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment, private-strict delivery with ranges, deletion/GC, receipts (`asset_lifecycle_v1`); image pipeline and hosted targets remain design-only | files, images, upload, object storage, media | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`asset_lifecycle_v1` in supportedCapabilities; `assets` facts block) + src/assets.rs suite | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the image pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization, declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict delivery with ranges and best-variant selection, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`); video finalization and hosted targets remain design-only | files, images, upload, object storage, media | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all three asset ids in supportedCapabilities; `assets` facts block with Enforced image ceilings) + src/assets.rs + src/assets_image.rs suites | llp/0044 | backend/assets.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.vector-search | Portable vector storage, ANN indexing, and semantic retrieval; no ordinary vector path ships today | vector, embeddings, similarity, semantic search, RAG, ANN | none | design-only | llp/0019-agentic-readiness.research.md (unmade product decision; no shipped witness) | llp/0019, llp/0007 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260729-guide-gap-vector-semantic-search-capability-row.md) |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
@@ -2537,14 +2537,15 @@ reviewed-commit: HEAD
 
 # Assets
 
-> **Local target only, files-first.** `asset_lifecycle_v1` ships on the
-> local target with the filesystem store, TUS resumable transfer, and
-> `private-strict` delivery. The image pipeline
-> (`asset_image_pipeline_v1` — location stripping, renditions,
-> placeholders) is design-only, so a `location: "strip"` image or video
-> intent **refuses at generation** on every current target; only explicit
-> `location: "retain"` media intents and non-media files upload today.
-> Hosted targets report the whole capability Missing.
+> **Local target only.** `asset_lifecycle_v1` and the image pipeline
+> (`asset_image_pipeline_v1` — GPS stripping, declared renditions,
+> ThumbHash placeholders, dominant color) both ship on the local target
+> with the filesystem store, TUS resumable transfer, and
+> `private-strict` delivery. A `location: "strip"` **image** intent
+> admits and publishes here; a strip-declared **video** intent still
+> refuses at generation everywhere (`asset-video-finalization` is a
+> declared Missing nonclaim). Hosted targets report the whole capability
+> Missing.
 
 Use an asset when your app stores a file: bytes live outside document rows
 under a Snapback-owned lifecycle — upload, trusted finalization, typed
@@ -2635,6 +2636,42 @@ through the declared read-access policy, responses carry
 and active-content types are never served inline. Revoking access or
 deleting the asset denies the next request.
 
+## Images
+
+Declare a location policy on every image intent — omission refuses at
+generation, and `strip` (the conventional choice) removes GPS metadata
+from the canonical bytes before they are digested or stored, applying the
+EXIF orientation and keeping only safe facts (dimensions, captured-at).
+Declared variants render off the canonical bytes; mark one `required` and
+it gates `ready`, produced atomically with the primary.
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export const photoUpload = defineAssetUpload({
+  accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  image: { location: 'strip', variants: [{ key: 'thumb', width: 128 }] },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+Every published image carries typed media facts on its primary rendition:
+`width`/`height`, `placeholder: { algo: "thumbhash.v1", value }` (render
+it client-side for instant previews), `dominantColor`, `locationPolicy`,
+and `capturedAt` where the source declared one. Deliver a specific variant
+by key, or let the server pick the best fit:
+
+```text
+GET /assets/records/{id}/bytes/thumb
+GET /assets/records/{id}/bytes/best?maxWidth=480
+```
+
+Processing is bounded and adversarial-input safe: decoded pixels,
+dimensions, decompression ratio, metadata size, step time, and output
+bytes are all Enforced ceilings in the manifest's `assets.image` block,
+and a hostile file (decompression bomb, dimension lie, truncated stream)
+rejects the asset with a structured `SNAPBACK_ASSET_IMAGE_*` diagnostic.
+Retain-declared intents (`location: 'retain'`) keep metadata intact and
+record that policy in the asset's lifecycle evidence.
+
 ## Operate
 
 The CLI drives the same lifecycle for agents and fixtures (dev/test
@@ -2666,9 +2703,11 @@ the manifest facts (stores, profiles, integrity grades, enforced limits,
 and the explicit Missing nonclaims — backup/export, video finalization,
 custom read authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
-Live no-polling readiness over the WebSocket channel and the client upload
-task are the L1-14 follow-ups; until then poll `GET /assets/records/{id}`
-or use `snapback assets inspect`.
+Live no-polling readiness ships as the reserved `_snapback.assetRecord`
+projection (subscribe via the headless client's `watch`), and the
+framework-neutral upload task is `client.assets.start` in
+`@expo/snapback-client`; the React/Expo hook and renderer are the
+remaining follow-up recorded in the L1-14 ticket.
 
 ---
 

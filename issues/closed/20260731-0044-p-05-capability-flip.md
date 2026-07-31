@@ -18,3 +18,5 @@ resolved to issues/closed/, program index closed.
 Done when: a default (strip) avatar intent generates, uploads, strips,
 renders variants on local; all gates + check-guide green; manifests
 honest everywhere.
+
+**RESOLVED 2026-07-31 — the flip commit: asset_image_finalization_v1 + asset_image_pipeline_v1 claimed on local with the Enforced image facts block, strip admission live in codegen (remote still refuses), 422 classes for bounds/decode, evidence map §Image pipeline, guide Images flow, 0044 status note.**

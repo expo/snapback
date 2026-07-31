@@ -18,7 +18,7 @@ background loop.
 | Acceptance row | Evidence |
 |---|---|
 | Generated reference cannot be widened; stale reference refuses before staging | `packages/snapback-codegen/asset-upload-authoring.test.mjs` (declaration fixes the policy; refusals are generation-time) plus `asset_attempt_refusals_are_structured` (`SNAPBACK_ASSET_INTENT_STALE` before any reservation) and `manifest` validation `asset_upload_intent_manifest_*` (4 tests). |
-| Location policy mandatory; strip refuses without the finalization fact; retain admits | `asset-upload-authoring.test.mjs` refusal cases (`SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED`, strip-unsupported against the embedded capability manifest, retain admits) — image and video media classes both. Defense in depth at the finalizer: `asset_finalize_strip_policy_defense_rejects_the_asset`. |
+| Location policy mandatory; strip requires the finalization fact; retain admits | `asset-upload-authoring.test.mjs`: `SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED` (omission refuses), strip **admits on local** since the image-pipeline flip (the local manifest advertises `asset_image_finalization_v1`) and **refuses on the remote profile** which withholds the fact; video strip refuses everywhere; retain admits. Defense in depth at the finalizer for a fact-less target: `asset_finalize_strip_policy_defense_rejects_the_asset` (override-pinned disabled posture). |
 
 ## Client task and SDKs
 
@@ -42,8 +42,8 @@ background loop.
 | Acceptance row | Evidence |
 |---|---|
 | Staging unreachable; finalization verifies, detects, digests, publishes idempotently | Structural: no registered route serves staging (`tests/route_policy_v1.rs` registry parity) and store keys refuse path shapes (`assets::tests`). Behavior: `asset_finalize_publishes_end_to_end_and_is_idempotent`, `asset_finalize_refuses_incomplete_transfers_and_detects_types_from_bytes`. |
-| GPS strip on ready blobs | **Deferred to the image-pipeline program**: no v1 target admits a strip intent (generation refusal covered above), so no ready blob can carry the obligation; the finalizer defense test covers the impossible-path arrival. |
-| Required renditions gate ready | Machinery covered with only the primary in play (`asset_finalize_publishes_end_to_end_and_is_idempotent`); derived renditions arrive with the image pipeline. |
+| GPS strip on ready blobs | **Covered** (image pipeline): `asset_finalize_strip_publishes_canonical_without_gps` — a GPS-EXIF JPEG publishes with the canonical blob provably APP1-free on the delivered bytes, orientation applied, captured-at retained; `asset_finalize_strip_vs_retain_blobs_differ_and_strip_dedups` (retain keeps location under explicit policy evidence; strip-vs-retain never alias in blob identity). |
+| Required renditions gate ready | **Covered** with real variants: `asset_variants_required_gate_ready_and_optionals_ride_the_runner` (required produced inside the publication transaction, atomically with `ready`; optionals enqueue transactionally and ride the runner); quota isolation in `asset_variant_quota_refusals_are_structured_and_never_gate_the_primary`. |
 | Fault injection at the named crash cuts; uniqueness loser converges; dedup-vs-GC race safe; retirement frees headroom | `asset_finalize_crash_cuts_recover_via_publication_records`, `asset_finalize_condemned_race_republishes_under_a_fresh_key`, `asset_finalize_dedups_within_the_app_and_charges_quota_twice`, `asset_publication_records_retire_after_the_retention_window`. Mid-migration cut: **deferred** — v1 has one store parameter; store migration lands with the second store (see Runner and cleanup). |
 | Deletion cascade exact; crash-mid-cascade recovers | `asset_delete_cascade_is_exact_on_shared_and_unshared_blobs` (shared and unshared blobs, primary counted exactly once, exact refcount/quota), `asset_delete_refuses_foreign_callers_references_and_recovers_from_crash`. |
 
@@ -80,7 +80,7 @@ background loop.
 | Acceptance row | Evidence |
 |---|---|
 | Availability/renditions update live with no polling | **Covered** — the reserved `_snapback.assetRecord` projection: `asset_record_live_projection_publishes_wakes_and_blanks_with_no_polling` (publish delivers ready with no polling; the first attachment wakes a blank subscriber through the pinned empty-range capture) and `asset_record_live_projection_refuses_bad_input_and_unrelated_commit_stays_quiet` (fingerprint dedup; no delivery on unrelated commits). Sessions-mode establishment fails closed pending its auth-invalidation classification (the live-projection ticket's recorded remainder). Progress-cannot-settle is covered: only finalization settles quota or readiness (`asset_finalize_*`; TUS patches change no durable availability). |
-| Image processing / hostile corpus | **Deferred to the image-pipeline program** (`asset_image_pipeline_v1` is not claimed; the manifest reports the finalization fact Missing). |
+| Image processing / hostile corpus | **Covered** — see §Image pipeline below (`asset_image_pipeline_v1` is claimed on local). |
 | Only closed transitions occur | The closed guards refuse unlisted transitions at the persistence layer (`assets::tests` transition tables) and every lifecycle test drives only legal paths; refusal cases in `asset_attempt_refusals_are_structured` and `asset_host_ops_refuse_bad_input_and_ride_the_envelope`. |
 
 ## Runner and cleanup
@@ -96,4 +96,15 @@ background loop.
 | Acceptance row | Evidence |
 |---|---|
 | CLI/inspection uploads, inspects, retries, explains — no byte samples/staging keys/bearer URLs | `asset_host_ops_round_trip_put_inspect_list_retry_delete`, `asset_host_ops_refuse_bad_input_and_ride_the_envelope`; `snapback assets` subcommands ride the same operations over `post_host_op`. |
-| Manifest distinguishes composites, store parameter, profiles, grades, ceilings; nonclaims Missing | `tests/capability_v0.rs` (committed manifests: local claims `asset_lifecycle_v1` with `local-fs` and `private-strict`; served/workerd/Cloudflare withhold; the `missing` nonclaims list is present, never omitted). |
+| Manifest distinguishes composites, store parameter, profiles, grades, ceilings; nonclaims Missing | `tests/capability_v0.rs` (committed manifests: local claims `asset_lifecycle_v1`, `asset_image_finalization_v1`, and `asset_image_pipeline_v1` with `local-fs`, `private-strict`, and the Enforced image ceilings block; served/workerd/Cloudflare withhold all three; the `missing` nonclaims list is present, never omitted). |
+
+## Image pipeline (`asset-image-pipeline-v1`, local target)
+
+| Acceptance row | Evidence |
+|---|---|
+| Hostile inputs refuse structurally within declared ceilings | `assets_image::tests` corpus — dimension lie (refused pre-allocation from self-parsed headers), truncated file, metadata bomb, decompression-ratio bomb, zero step budget, output ceiling — each a structured `SNAPBACK_ASSET_IMAGE_*` refusal; hostile bytes at finalization reject the asset deterministically (`asset_finalize_strip_hostile_and_unsupported_reject_the_asset`). |
+| Typed media facts: dimensions, placeholder, dominant color | `asset_finalize_strip_publishes_canonical_without_gps` + retain-path facts tests; ThumbHash determinism + cross-decoder fidelity: `assets_image::tests` pinned vector and `packages/snapback-codegen/asset-thumbhash-vector.test.mjs` (vendored reference decoder renders our value). |
+| Renditions immutable; pointer switch generation-checked; stale run never replaces newer | `asset_variant_stale_recipe_run_cannot_replace_newer` (runner short-circuit AND the pointer layer's `StaleLoses`). |
+| Declarative variant selection | `asset_variants_required_gate_ready_and_optionals_ride_the_runner` (by-key delivery and `best?maxWidth=N` selection). |
+| Per-rendition quota settlement; optional failure isolated | `asset_variant_quota_refusals_are_structured_and_never_gate_the_primary` (optional exceed = structured rendition failure, primary stays Ready; required exceed = whole-publication abort, asset stays Pending). Optional-failure durability is receipts-based (`RenditionFailed` receipt, no Failed row) — the honest disposition; a Failed rendition row would need a placeholder blob reference. |
+| Deletion retires variant renditions exactly | `asset_delete_cascade_is_exact_on_shared_and_unshared_blobs` extended by the P-04 variant-retirement assertions. |

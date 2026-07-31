@@ -15,14 +15,15 @@ reviewed-commit: HEAD
 
 # Assets
 
-> **Local target only, files-first.** `asset_lifecycle_v1` ships on the
-> local target with the filesystem store, TUS resumable transfer, and
-> `private-strict` delivery. The image pipeline
-> (`asset_image_pipeline_v1` — location stripping, renditions,
-> placeholders) is design-only, so a `location: "strip"` image or video
-> intent **refuses at generation** on every current target; only explicit
-> `location: "retain"` media intents and non-media files upload today.
-> Hosted targets report the whole capability Missing.
+> **Local target only.** `asset_lifecycle_v1` and the image pipeline
+> (`asset_image_pipeline_v1` — GPS stripping, declared renditions,
+> ThumbHash placeholders, dominant color) both ship on the local target
+> with the filesystem store, TUS resumable transfer, and
+> `private-strict` delivery. A `location: "strip"` **image** intent
+> admits and publishes here; a strip-declared **video** intent still
+> refuses at generation everywhere (`asset-video-finalization` is a
+> declared Missing nonclaim). Hosted targets report the whole capability
+> Missing.
 
 Use an asset when your app stores a file: bytes live outside document rows
 under a Snapback-owned lifecycle — upload, trusted finalization, typed
@@ -113,6 +114,42 @@ through the declared read-access policy, responses carry
 and active-content types are never served inline. Revoking access or
 deleting the asset denies the next request.
 
+## Images
+
+Declare a location policy on every image intent — omission refuses at
+generation, and `strip` (the conventional choice) removes GPS metadata
+from the canonical bytes before they are digested or stored, applying the
+EXIF orientation and keeping only safe facts (dimensions, captured-at).
+Declared variants render off the canonical bytes; mark one `required` and
+it gates `ready`, produced atomically with the primary.
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export const photoUpload = defineAssetUpload({
+  accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  image: { location: 'strip', variants: [{ key: 'thumb', width: 128 }] },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+Every published image carries typed media facts on its primary rendition:
+`width`/`height`, `placeholder: { algo: "thumbhash.v1", value }` (render
+it client-side for instant previews), `dominantColor`, `locationPolicy`,
+and `capturedAt` where the source declared one. Deliver a specific variant
+by key, or let the server pick the best fit:
+
+```text
+GET /assets/records/{id}/bytes/thumb
+GET /assets/records/{id}/bytes/best?maxWidth=480
+```
+
+Processing is bounded and adversarial-input safe: decoded pixels,
+dimensions, decompression ratio, metadata size, step time, and output
+bytes are all Enforced ceilings in the manifest's `assets.image` block,
+and a hostile file (decompression bomb, dimension lie, truncated stream)
+rejects the asset with a structured `SNAPBACK_ASSET_IMAGE_*` diagnostic.
+Retain-declared intents (`location: 'retain'`) keep metadata intact and
+record that policy in the asset's lifecycle evidence.
+
 ## Operate
 
 The CLI drives the same lifecycle for agents and fixtures (dev/test
@@ -144,6 +181,8 @@ the manifest facts (stores, profiles, integrity grades, enforced limits,
 and the explicit Missing nonclaims — backup/export, video finalization,
 custom read authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
-Live no-polling readiness over the WebSocket channel and the client upload
-task are the L1-14 follow-ups; until then poll `GET /assets/records/{id}`
-or use `snapback assets inspect`.
+Live no-polling readiness ships as the reserved `_snapback.assetRecord`
+projection (subscribe via the headless client's `watch`), and the
+framework-neutral upload task is `client.assets.start` in
+`@expo/snapback-client`; the React/Expo hook and renderer are the
+remaining follow-up recorded in the L1-14 ticket.
