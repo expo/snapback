@@ -592,3 +592,198 @@ fixes and should land before implementation; N1 is cite hygiene), leave
 N4–N6 to author discretion, and proceed per SD-4 on the other family's
 round-2 outcome. The loop should still adjudicate open questions 1–3
 before implementation starts, as the Status section already requires.
+
+## Round 3 — 2026-07-31 (fix verification)
+
+**Family:** Fable (Claude)
+**Runtime:** Claude Code / claude-fable-5
+**Effort:** session-inherited
+**Date:** 2026-07-31
+**Method:** round-3 fix-verification — verify the three round-2 minors
+(N1–N3) genuinely resolved in v0.3 and sanity-skim the other v0.3
+changes for damage to previously verified-clean text; not a full round.
+Codex artifact still unread.
+**Target:** `llp/0131-structured-argument-contracts.spec.md` v0.3 (931 lines)
+**Target SHA-256:** `8cf3170c12e6867f86eb7715dd3df344de2aa77d8782d253378346ef27c84a98`
+**Status:** completed
+
+Baseline note: HEAD at verification time is `afffd6e1` — the v0.3
+landing commit itself — with a clean tree, and
+`packages/snapback-codegen/index.mjs` unmoved since `4d72c407` (the
+commit whose shift caused round-2 N1). Two `packages/snapback-client`
+commits landed between round 2 and v0.3 (`2a7bf058` LLP 0129 Phase 0
+durable outbox + default rqsStore persistence; `fb03e65a`), which both
+the N1 check and the cascade sanity-skim below account for.
+
+### Round-3 verification log (raw data)
+
+- **N1 spot-check 1:** index.mjs:1956 = `fn.argsContractHash =
+  argsContractHash(def?.args ?? {})` — exact.
+- **N1 spot-check 2:** gate function at index.mjs:3314, primitive map
+  at 3323–3329 (`'number' → {'Integer','Real'}` at 3326, backing the
+  v0.3 finiteReal-reachability narrowing), descriptor projection at
+  3368–3387 (`shape`/`name`/`fields`/`optional` only) — all exact.
+- **N1 spot-check 3:** `argsContractHash` inside
+  `implementationIdentity` at index.mjs:4205; hashed at 4222–4224
+  under `snapback:function-implementation:${implementationFormatVersion}`
+  — exact (the v1/v2 format version confirms round-2 N5; cascade item
+  1 unaffected).
+- N1 extras, all exact: index.mjs:1253 (args gate application),
+  2622/2629 (`EPHEMERAL_INVALID_VALIDATOR`), 5932 (`Id<Table>`
+  branding), 5942–5943 (search interfaces); define.mjs:778
+  (`query: v.json()`), `resultOnly` at exactly 228/239/249/273/282;
+  result-contracts.mjs:40 (`snapback:function-args:v1` domain);
+  manifest.rs:1546–1565 (format gate), 1566–1580 (pairing refusal),
+  1581–1594 (recompute + exact-compare,
+  `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID`);
+  react-binding.mjs:125–133 / 248 / 1095 / 1090–1098;
+  canonical-client-value.mjs:225–235 (argsContractHash at 233);
+  tests/artifact_schemas_v0.rs exists.
+- **N1 residual found:** cascade item 2's client cites are stale on
+  the very tree v0.3 landed on — `SEARCH_REQUEST_ARGS_CONTRACT_HASH_V1`
+  now sits at snapback-client/index.mjs:167 (spec: 147) and the
+  comparison at 187 (spec: 167), shifted by the pre-v0.3 client
+  commits. Constant, digest, and comparison semantics unchanged —
+  cite hygiene only, but the Revised-header claim "every stale code
+  cite is refreshed against current main" overreaches by this one
+  pair. Also sub-minor: the result-side witness formula sits at LLP
+  0108:380–381, one line off the spec's `0108:381–382` cite; the
+  formula itself (RFC 8785 JCS + `snapback:function-result:v1` domain
+  prefix) verified verbatim, so the v2 args formula is genuinely
+  parallel.
+- **N3 grounds:** `src/storage.rs:13972` =
+  `let incarnation = Uuid::now_v7().to_string();` (host-minted UUIDv7,
+  predecessor incarnations deactivated in the same transaction) —
+  exact. `v.relationIncarnationOf` builds a `'string'`-primitive
+  validator (define.mjs ~199), so today's projection is
+  `{shape: 'primitive', name: 'string'}` via validatorDescriptor
+  (index.mjs:3383) — the spec's "matches both today's projection and
+  today's runtime reality" is code-true on both halves.
+- **Wire-form grounds:** manifest.rs:2957–3000 = the internally tagged
+  camelCase `deny_unknown_fields` `ResultValueContract` enum; the
+  spec's closed node table matches it member-for-member (string
+  maxBytes; integer/finiteReal min/max; id table; literal value; json
+  maxDepth/maxBytes; array element/maxItems; union variants; object
+  fields/allowExtra). manifest.rs:3004–3008 =
+  `ResultObjectFieldContract { name, required, value }` — the frozen
+  entry shape mirrors it exactly, grounding the optional→required
+  correction.
+- **Appendix C grounds (LLP 0070):** "canonical, validator-checked
+  argument bytes and their digest" (0070:75), immutable jobs with
+  operator replay creating a successor (0070:23–24; "Arguments are
+  immutable; migration creates a successor," 0070:247), successor only
+  through authenticated authorization admission (0070:124–131) — the
+  lane-3 rule and Appendix C compose with 0070's existing model
+  faithfully.
+- **Post-round-2 ground shift checked:** the LLP 0129 Phase 0 durable
+  outbox stores `{id, function: name, args, userId, readSet,
+  correlation, authorityDescriptor, environment}`
+  (outbox-shared.mjs:60–80) — no generated references, no contract
+  hashes — so a drained intent is exactly replay lane 1's fresh
+  server mutation request and the mixed-generation-reference hazard
+  round-2 N6 conditioned on did not materialize.
+  `canonicalReactStoreKeyV1` call sites remain only the in-memory
+  react store (snapback-react/index.mjs:689, 1656); no persisted
+  client surface (rqsStore, outbox) embeds
+  argsContractHash/implementationHash (grep clean). Cascade items 3–4
+  hold on current main despite the persistence landing.
+
+### Per-item verification
+
+**N1 — VERIFIED, with one residual pair.** All three commissioned
+spot-checks (1956; 3314/3323; 4205/4222–4224) and every other
+refreshed codegen/Rust cite are exact on the v0.3 landing tree. The
+one miss is client-side: the search-pin pair (spec 147/167, actual
+167/187 after the pre-v0.3 client commits), plus the one-line-off 0108
+formula cite. Same class as round-2 N1 — facts intact, hygiene only —
+and it does not gate.
+
+**N2 — RESOLVED.** The unexecutable load-time registry-pair refusal is
+explicitly withdrawn, with the withdrawal honestly recorded twice
+("withdrawn as unexecutable" in §descriptor; again in the Status v0.3
+note), and the reasoning is correct: both registry halves derive from
+one Rust type, so pair disagreement is not a load-time-observable
+fact. The replacement is the executable shape round 2 asked for:
+generation-time gate leg (a) byte-identical regeneration through the
+existing drift lane (tests/artifact_schemas_v0.rs, exists) and leg (b)
+the shared golden corpus run against both halves, with acceptance 6
+making both legs falsifiable via tamper negatives and naming itself
+"the executable meaning of registry-pair disagreement." Load time now
+refuses exactly what load can observe (unknown id; descriptor/hash
+mismatch — §Identity, acceptance 7). The epistemics are right:
+agreement is framed as corpus-defined, not totality-proven. Sound and
+honest.
+
+**N3 — RESOLVED.** Normalization corrected to the `string` node with
+the profile-maximum bound; both stated grounds verified in code
+(UUIDv7 mint at storage.rs:13972; `Id<Table>` branding hazard at
+index.mjs:5932 — a branded `id(parentTable)` projection would
+type-admit a semantically wrong parent row id while rejecting a held
+token). The v0.2 error is named rather than papered over ("which v0.2
+wrongly implied"). The witness collision (`v.string()` ≡ incarnation)
+is stated in-spec as an accepted consequence with ownership correctly
+routed to the relation machinery (LLP 0110), and acceptance 7 requires
+the golden asserting the collision as identical. The dedicated-node
+alternative is deferred to v2 with the right rationale (new vocabulary
+= its own hash churn). This fully resolves the round-2 semantic
+concern.
+
+### Sanity-skim of the other v0.3 changes
+
+No damage found to previously verified-clean text.
+
+- **Frozen wire form:** node table member-for-member against
+  `ResultValueContract` (verified above); entry shape mirrors
+  `ResultObjectFieldContract` exactly; the optional→required change is
+  flagged as a deliberate v0.2 correction, not slipped in silently;
+  the JCS witness formula parallels 0108's verified result-side
+  formula; always-materialized bounds mirror the Rust side's
+  non-optional members.
+- **Per-direction skew:** v0.2's both-directions-coded claim is
+  explicitly withdrawn as impossible — correct, since a shipped pre-v2
+  client is immutable code — and the surviving guarantee is stated
+  only in the direction new code can promise, with the lockstep rule
+  carrying the legacy direction's mitigation and acceptance 11 pinning
+  the coded direction while recording the uncoded mode as
+  documentation. Honest and sound.
+- **Successor-replay decision (OQ5 closed, Appendix C, acceptance
+  14):** composes faithfully with LLP 0070's verified model (canonical
+  validator-checked bytes at enqueue, immutable args,
+  migration-creates-successor, successor admission recheck); the
+  enqueue-authoritative rule is lane 2's history posture applied
+  consistently; the amendment is routed dated-at-acceptance without
+  editing 0070 now. Sound.
+- **OQ3 closure:** preregistered numeric gates with a pro-rata budget,
+  ceiling-reduction fallback floored at the 64 KiB live-frame cap, and
+  the validation short-circuit rejected for exactly the right reason;
+  the per-transport divergence recorded per round-2 m5.
+- **N4 absorbed:** the diagnostics table now carries the
+  `SNAPBACK_REACT_REFERENCE_INVALID` row (cites verified exact).
+- **Ground-shift robustness (beyond the letter of this round):** LLP
+  0129 Phase 0's durable outbox and default rqsStore persistence
+  landed before v0.3; verified above that no persisted record embeds
+  the hashes the cascade reasons about, so replay lane 1, cascade item
+  3's partial-adoption rule, and cascade item 4's cache-identity
+  posture all remain code-true on current main.
+
+### Verdict
+
+**READY.** All three round-2 minors are genuinely resolved — N2 and
+N3, the two normative-rule items, by sound and honestly recorded
+decisions whose stated code grounds were re-verified against the
+landing tree, and N1 by a refresh that is exact everywhere it was
+commissioned to be checked. The sanity-skim found the remaining v0.3
+changes clean and, where they decide (skew direction, successor
+replay, OQ3 numbers), correctly reasoned. Residuals: the stale client
+search-pin cite pair (167/187) and the one-line 0108 formula cite —
+sub-minor hygiene for the next touch, not gates. This family's half of
+the LLP 0130 SD-4 dual-READY condition stands at round 3 with zero
+unresolved concerns above cite hygiene.
+
+### Recommended next step
+
+Fix the client search-pin cite pair (snapback-client/index.mjs 147/167
+→ 167/187) in the next touch of the document — no re-review needed —
+and proceed per SD-4 on the Codex round-3 outcome. The loop still
+adjudicates open questions 1–2 before implementation starts, as the
+Status section requires.

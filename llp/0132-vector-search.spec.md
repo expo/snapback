@@ -1,11 +1,23 @@
 # LLP 0132: Portable vector search
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.4, round-3 single fix —
+**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+authorization: dual-family READY — Fable round 2, Codex round 4 —
+with the three conditions checked and satisfied: (1) zero unresolved
+MATERIAL concerns in either family's final round; (2) within the
+decided scope of its commission (decision 8: exact-k-NN base profile,
+embeddings-from-outside, Spec beside 0073, the OQ3 float-pinning
+rider; the one beyond-commission item — the approximate door — is
+disclosed as this Spec's own undecided proposal routed to the author);
+(3) no evidence boundary weakened — the classification matrix,
+custody, and telemetry rules mirror 0073's resolved posture and every
+mechanism is additive. Recorded per SD-4's honesty rule: the author's
+standing acceptance made in advance, not a fresh manual adjudication.
+Review artifacts: reviews/0132-vector-search.{fable,codex}.md.) 2026-07-31 (v0.4, round-3 single fix —
 `reviews/0132-vector-search.codex.md` round 3 NOT READY on one item:
 the fixed beyond-20-significant-digit conversion witness cannot
 detect round-to-H double rounding on a target whose

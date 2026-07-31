@@ -259,3 +259,69 @@ Change `voidedReceiptDigest` to a closed locator, or explicitly specify unique d
 SD-4 cannot fire: unresolved MATERIAL concerns remain, including non-provable demotion atomicity, the inaccurate LLP 0110 exclusion rationale, undefined grandfather baseline canonicalization, and the new promotion-tree self-reference.
 
 Next step: revise §§4, 6, 7, and A2/A5 to close those points, then request a targeted Codex round 3. The workspace is read-only, so I could not append this Round 2 review to the Codex artifact.
+
+## Round 3 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-3 delta — verify Round 2 residues and new concerns (items 1, 6, N1, N2, N3) against v0.3, then review new text only; fresh CLI runner, read-only sandbox, blind to this Spec's fable artifact; Rounds 1–2 sections above provided as required context
+**Target SHA-256:** `5867e4a87b5371286a8f99aec54fbbb0af7bfbebe24c59d5fd47c71523e07a43`
+**Session id:** `019fb75f-f800-70b3-9821-e89437910908`
+**Status:** completed
+
+### Verbatim review
+
+## Round 3 delta review — Codex family
+
+**Target SHA-256:** `5867e4a87b5371286a8f99aec54fbbb0af7bfbebe24c59d5fd47c71523e07a43` — verified.  
+**Method:** Read v0.3 and required Codex Rounds 1–2 only. I did not read `.fable.md`.
+
+### Round-2 item resolution
+
+1. **Demotion A5 lineage — RESOLVED.**  
+   `MaturityDemotionRecordV1` now includes both `candidateSourceSha` and `candidateParentSha`, constrained to each other and the demotion commit’s sole parent. A5 explicitly applies that comparison in both directions. See [LLP 0134 §6](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:469) and [A5](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:674).
+
+6. **Grandfather baseline and LLP 0110 exclusion — RESOLVED, with one new MINOR factual defect.**
+
+   - `governingContractBaseline` is now a full closed locator: repo path, exact committed blob digest, and `sourceSha` selected as the last main-history commit with a committer UTC date on or before 2026-07-30 that touched the file. It explicitly hashes whole-file committed bytes with no extraction or normalization. Once instantiated in the per-member manifest, the locator is independently reproducible. See [§7](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:595).
+   - The corrected LLP 0110 ground is substantively tree-true. Signal Desk has exactly three `defineBoundedChildrenQuery` declarations: `incidentTasks`, `incidentComments`, and `incidentActivity` ([functions.mjs](/Users/ccheever/projects/snapback/demos/signal-desk/snapback/functions.mjs:69)). Their consumers are confined to the comparator configuration and acceptance harness.
+   - `addTaskWithActivity` is explicitly review-gated, and its comment says the product transport deliberately retains the explicit handler pending non-dev provenance ([functions.mjs](/Users/ccheever/projects/snapback/demos/signal-desk/snapback/functions.mjs:241)).
+   - Therefore, “no joint real production consumer outside the acceptance corpus and comparator fixtures” is tree-true.
+
+N1. **Staged-tree anchoring — NOT FULLY RESOLVED; MATERIAL remains.**  
+   The commit-SHA self-reference is broken, and A5 proves the registry transition’s one-commit atomicity. But the E4(b) evidence claim remains unprovable as written.
+
+   `candidateParentSha + audit-receipt sha256` binds the parent and receipt bytes; it does not bind the staged tree that the receipt claims to have audited. A5 running unspecified “final-tree tests” cannot prove that the audited staged tree and landed tree are identical. The “unique child” formulation is also not generally true unless constrained to the validated main-history transition: a Git commit may have multiple children containing the same receipt bytes. See [§4 staged-tree rule](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:393) and [A5](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:674).
+
+   The dated post-landing addendum does not compromise the atomic registry flip—the transition commit remains independently identifiable by A5—but it does not repair the missing staged-tree binding.
+
+N2. **E6 evidence schemas and suffixes — PARTIALLY RESOLVED; MATERIAL remains.**  
+   All three suffix lanes are now dispatched by A2. However, the schemas are only field-name outlines, not closed schemas capable of enforcing E6:
+
+   - `outcome` has no required enum such as `"green"`;
+   - `carrierDigests`, `familyEpochs`, `renewalRecordDigests`, `scopes`, and `findings` have no element schemas;
+   - counts are not constrained to nonnegative integers or required to equal zero;
+   - `findings` is not required to demonstrate zero open MATERIAL defects;
+   - cross-record equality with the promotion receipt’s capability set, population, and window is not stated.
+
+   Thus a syntactically conforming record can still fail to prove the claimed soak. See [E6 evidence records](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:251) and [A2](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:657).
+
+N3. **Voided receipt locator — RESOLVED.**  
+   `voidedReceiptRef` is now a closed evidence locator resolving to the voided promotion receipt. See [§6 schema](/Users/ccheever/projects/snapback/llp/0134-capability-maturity-promotion.spec.md:483).
+
+### New concern
+
+**D1 — MINOR: Signal Desk has two write-with-activity declarations, not one.**  
+Section 7 calls `addTaskWithActivity` the demo’s “sole `defineWriteWithActivity` declaration,” but `toggleTaskWithActivity` is a second, explicitly acceptance-only declaration ([functions.mjs](/Users/ccheever/projects/snapback/demos/signal-desk/snapback/functions.mjs:304)). This does not defeat the no-production-consumer conclusion; change “sole declaration” to “product-adjacent declaration,” or acknowledge both proving/acceptance-only declarations.
+
+## Verdict
+
+**NOT READY**
+
+SD-4 cannot fire because N1 and N2 remain MATERIAL: E4(b) does not cryptographically bind the audited staged tree, and the E6 evidence records are not sufficiently closed to enforce their claimed semantics.
+
+Next step: make A5 recompute a canonical, self-excluding E4(b) tree manifest—or designate a full landed-tree audit as the normative witness—and fully specify the three E6 field domains, nested schemas, cross-record constraints, and success predicates. Then request a targeted Codex round 4.
+
+The filesystem is read-only, so I could not append this section to the Codex review artifact.

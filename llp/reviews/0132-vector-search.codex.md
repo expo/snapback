@@ -189,3 +189,25 @@ Verified v0.3 SHA-256: `7fb3548aff4c2b0b251467b5cc3d98b0a7905992e1a3100687bf66f7
 **Verdict: NOT READY**
 
 Next step: require each finite-`H` target to run a distinguishing witness with more than that target's `H` significant digits—one that differs between direct correct rounding and round-to-`H`-then-binary64—then commission the narrow Codex re-check.
+
+## Round 4 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-4 narrow — fresh CLI runner, read-only sandbox, required to read its own Round 3 above, blind to this Spec's fable artifact; scoped to the single Round-3 MATERIAL fix (per-target beyond-H conversion witness) in the normative conversion pin and the acceptance corpus bullet, re-litigating nothing else
+**Target SHA-256:** `899b9fa5105198043029cd915cac6b24d7130b12bef1d5c70e3dd86e0d638472` (v0.4)
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Verified v0.4 SHA-256: `899b9fa5105198043029cd915cac6b24d7130b12bef1d5c70e3dd86e0d638472`. Read Codex Round 3; did not read `.fable.md`.
+
+- Normative conversion pin: **RESOLVED** — finite-H targets require a distinguishing >H-digit witness; unbounded targets record that fact; >20 digits remains the portable floor.
+- Acceptance corpus: **RESOLVED** — mirrors the normative rule without weakening or contradiction.
+- Fresh defects: **NONE**.
+
+**Verdict: READY**
+
+Next step: record this Round 4 review and proceed with the author-controlled acceptance decision.

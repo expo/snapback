@@ -187,3 +187,55 @@ Revise LLP 0136 in place to:
 6. repair the acceptance oracle.
 
 Then rerun Codex-family round 1 before commissioning the second family. I could not persist the mandated review artifact under `llp/reviews/` because this session’s filesystem is read-only.
+
+## Round 2 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-2 delta — reviewer given its own Round 1 section above and the v0.2 resolution summary; read-only sandbox, blind to this Spec's fable artifact
+**Target SHA-256:** `763ecb5a36811ed7104459abd95ba2956ab7bac15de9bc1e862cffc7d512ab46`
+**Session id:** `019fb75f-be2a-7b12-957e-3691c784ca00`
+**Status:** completed
+
+### Verbatim review
+
+Reviewed exact SHA-256 `763ecb5a…ab46`. I read only the Codex Round 1 section and did not read `.fable.md`.
+
+## Round-1 resolution
+
+| Item | Resolution |
+|---|---|
+| 1. Auth delivery | **Resolved.** The scope-down is complete. Sessions-mode non-`authorityIndependent` search refuses before registration; public-read search and non-sessions `owner.v1` receive no authorization scope. Fan-out reaches `deliver_authorization_snapshot` only when `subscription.authorization.is_some()` ([local.rs](/Users/ccheever/projects/snapback/src/local.rs:13465)). Register-group admission is separately excluded, and auth deployment activation retires unscoped predecessors. No v1-admitted live-search path can reach that call. Appendix B §B.2 honestly assigns the closed snapshot extension to a versioned successor. |
+| 2. Wake amplification | **Substantively resolved**, but the new ceiling carrier has a material defect below. Wake granularity is correctly table-wide across all indexes, with an aggregate provisional ceiling of 128. |
+| 3. Refresh failure | **Partially resolved.** Server behavior now matches `fail_subscription_fanout`: diagnostic ring plus `resync_required(live_refresh_failed, clear_retained=true)`. Quarantine is unreachable for v1. Client cursor invalidation remains unspecified. |
+| 4. Coalescing | **Resolved.** Dropped from v1; synchronous per-commit execution and successor obligations are explicit. |
+| 5. Wire compatibility | **Partially resolved.** Cursor is correctly load-bearing and gated by `liveSearchProtocol: 1`; both skew directions and LLP 0091/0093 routing are stated. The negotiation carrier itself is incomplete. |
+| 6. `authorityIndependent` | **Resolved.** Seam 6 covers validator, codegen, visibility proof, RQS nonclaim, and `publicInline` foreclosure. |
+| 7. Provisional budgets | **Resolved in posture.** Numeric values remain target facts until measurement gates promote defaults. |
+| 8. Cursor oracle | **Resolved.** Acceptance compares decoded class/plaintext/length at a pinned, quiescent head rather than ciphertext bytes. |
+
+## New concerns
+
+1. **Major/MATERIAL — `liveSearchProtocol` is an unowned second wire change.**  
+   The Spec calls the optional `LiveReplace.cursor` member its one wire change, but open-time negotiation also requires changes to the closed `OpenConnectionRequest`, connection record, response witness/reopen rules, subscribe admission carrier, schemas, and fixtures. The current open request is `deny_unknown_fields` ([server.rs](/Users/ccheever/projects/snapback/src/server.rs:4270)), so “generated clients always declare it” would make an old target reject connection opening before the claimed missing-capability refusal and could break unrelated durable use. Specify capability-preflight omission for old targets—or an explicit minimum-version break—and route/test the complete immutable connection-lineage carrier.
+
+2. **Major/MATERIAL — refresh resync does not invalidate the live-search cursor.**  
+   The shipped client’s `clear_retained` handling clears only RQS state and initiates asynchronous resubscription ([index.mjs](/Users/ccheever/projects/snapback/packages/snapback-client/index.mjs:7860)). V0.2 defines cursor adoption for establishment/replacement/re-establishment, but not the intervening `resync_required` transition. The previous cursor can remain observable while its page is no longer current. Require atomic `cursor = null`/non-current state on refresh resync and add it to acceptance case 3.
+
+3. **Major/MATERIAL — the per-table ceiling lacks a single authoritative carrier.**  
+   The aggregate ceiling is table-scoped, but §Capability id places it in each per-index `SearchIndexManifestV1` limits object ([types.rs](/Users/ccheever/projects/snapback/src/search/types.rs:120)). Multiple indexes can therefore declare conflicting table ceilings. Their per-wake work ceilings can also differ, making “count × the per-wake ceiling” ambiguous. Define one table-level authority or an exact reconciliation rule, and express total work as a sum or `aggregate count × maximum admitted per-wake ceiling`.
+
+4. **Moderate — stable auth refusal precedence is not pinned.**  
+   Require `SNAPBACK_SEARCH_LIVE_AUTH_SCOPED_UNSUPPORTED` to run before the existing invalidation-installation/protocol/namespace checks ([local.rs](/Users/ccheever/projects/snapback/src/local.rs:7725)); otherwise some sessions-mode searches return a generic auth-invalidation diagnostic despite the Spec’s unconditional stable-code claim.
+
+## Verdict
+
+**NOT READY.**
+
+LLP 0130 SD-4 does not fire because three unresolved MATERIAL concerns remain. The scope-down itself is safe and honest; the blockers are in the newly added negotiation, cursor-failure transition, and aggregate-budget carrier.
+
+Next step: revise LLP 0136 in place to close those three carriers, pin auth-refusal precedence, then run another Codex-family delta review before seeking dual-family READY.
+
+I could not append this Round 2 to the review artifact because the workspace is read-only.

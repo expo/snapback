@@ -251,3 +251,73 @@ Revise to v0.3 by:
 - cleaning up the two minor wording/factual inconsistencies.
 
 Then request a Codex-family round-3 delta review before claiming dual-family READY.
+
+## Round 3 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-3 delta — reviewer re-read its own Rounds 1-2, verified each Round-2 item (2, 6, 8, N1-N4) against v0.3 and the cited code facts, then reviewed new text only for fresh defects; read-only sandbox, blind to this Spec's fable artifact
+**Target SHA-256:** `8cf3170c12e6867f86eb7715dd3df344de2aa77d8782d253378346ef27c84a98`
+**Status:** completed
+
+### Verbatim review
+
+## Round 3 delta review
+
+Target SHA-256 verified: `8cf3170c12e6867f86eb7715dd3df344de2aa77d8782d253378346ef27c84a98`. I read Codex Rounds 1–2 and did not read the Fable artifact.
+
+### Per-item resolution
+
+1. **(2) Descriptor authority and registry conformance — RESOLVED.**
+
+   The descriptor is now genuinely frozen: root and manifest member, required `{name, required, value}` entries, internally tagged camelCase encoding, exhaustive 13-kind table, materialized bounds, aliases, and JCS witness. This matches [manifest.rs](/Users/ccheever/projects/snapback/src/manifest.rs:2957), including the required entry shape at line 3004.
+
+   Withdrawing semantic “registry disagreement” detection at load is sound. Byte-identical regeneration plus the shared accept/reject corpus gives disagreement an executable generation-time meaning. Load now refuses only observable defects: unknown id/kind, missing descriptor/hash pairing, and recomputed hash mismatch.
+
+2. **(6) OQ5 and durable-job lifetime authority — NOT RESOLVED (MATERIAL).**
+
+   Trusting enqueue validation for execution and retries of the same immutable job is sound. The successor rule is not.
+
+   LLP 0070 defines operator replay as creating a fresh successor job that may copy canonical args while rechecking current artifact admission ([LLP 0070](/Users/ccheever/projects/snapback/llp/0070-durable-background-work.rfc.md:124)). Consequently, “verbatim-copy successor inherits” and “operator resubmission revalidates” overlap: operator replay can itself be a verbatim-copy successor.
+
+   More fundamentally, validation against the predecessor’s artifact cannot authorize a new job admitted to a current artifact whose contract may have narrowed. Acceptance 14 exposes the contradiction by allowing a verbatim successor but refusing operator resubmission of identical bytes.
+
+   Every newly created successor job must validate against its freshly admitted artifact at enqueue, including verbatim copies and operator replay. Only execution/retries of the original immutable job should inherit enqueue validation.
+
+3. **(8) Acceptance completeness — RESOLVED, subject to correcting item 6.**
+
+   Acceptance 12 now preregisters numeric p95 thresholds and a fixed ceiling-reduction ladder. Acceptance 6 covers registry mismatch at generation time, and acceptance 14 supplies the scheduled-work matrix—although that matrix must adopt the corrected successor rule above.
+
+4. **N1, directional version skew — RESOLVED.**
+
+   Pre-v2 clients retain their uncoded `TypeError`; v2 clients emit `SNAPBACK_SEARCH_REFERENCE_INVALID`. React correctly refuses mixed generations with `SNAPBACK_REACT_REFERENCE_INVALID` in both directions through the exact-identity comparison in [react-binding.mjs](/Users/ccheever/projects/snapback/packages/snapback-client/react-binding.mjs:1090).
+
+5. **N2, executable registry authority — RESOLVED.**
+
+   The generated-source, byte-regeneration, and shared-corpus gate provides the required executable mechanism.
+
+6. **N3, option E — RESOLVED.**
+
+   App-schema references are now a distinct `AppSchemaRef`-class node with digest-carrying identity; `PlatformSchemaRef` is not reused.
+
+7. **N4, current reachability — NOT RESOLVED (MINOR).**
+
+   `finiteReal` is not the only flagged builder currently admitted. `v.literal(null)` produces `primitive: "object"` with `fieldType: "Json"`, which the current gate accepts at [index.mjs](/Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:3323). Immediate churn therefore includes `finiteReal` and `literal(null)`. Other literals, `v.null`, `v.array`, and `v.union` remain rejected.
+
+### New concerns
+
+None beyond the failed item-6 and N4 resolution checks.
+
+## Verdict
+
+**NOT READY**
+
+SD-4 is not met because item 6 remains MATERIAL.
+
+## Next step
+
+Revise replay lane 3, Appendix C, acceptance 14, and OQ5 so every new successor validates against its freshly admitted artifact, regardless of whether its bytes were copied verbatim. Preserve inherited validation only for attempts of the existing immutable job. Also correct the `v.literal(null)` reachability statement, then request a focused Round 4.
+
+I could not append this section to the Codex review artifact because the workspace is read-only.

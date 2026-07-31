@@ -399,3 +399,178 @@ one A5 demotion-leg sentence), fold C13–C17 as one-liners, and
 re-review as a very narrow delta on §2 E6, §4's locator rule, §6/§9
 A2+A5, and §7's witness counts. That delta is hours, not days, from
 READY on this family's bar.
+
+## Round 3 — 2026-07-31
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh non-author subagent
+**Effort:** session-inherited
+**Date:** 2026-07-31
+**Redacted:** no
+**Method:** round-3 delta review — verify each Round-2 Fable item
+(C11–C17) against v0.3, then verify the Codex-originated v0.3 changes
+did not damage text this family verified clean: the staged-tree
+anchoring (unique-child derivation + post-hoc addendum) and the
+restated §7 0110 demo-use ground. Blind to the codex artifact. Tree
+checks this round: the five demo `functions.manifest.json`
+acknowledgment lists (each exactly `["result_contract_v1"]`),
+`demos/signal-desk/snapback/functions.mjs` (declaration census + the
+two adapter-bypass comments), consumer sweep for
+`incidentTasks`/`incidentComments`/`incidentActivity` across
+`demos/signal-desk` (hits: comparator config, `tests/snapback-extras.mjs`,
+generated `artifacts.json`, the defining file — no product code),
+Diary 0033 line 57 ("kept the board view and atomic move as ordinary
+inline JS"), Diary 0039 line 33 (colocated-inline-handlers row), the
+signal-desk `react-query-group.v1.json` receipt and its retained
+evidence copies, the 14 `snapback/seed.json` demos, both maturity
+registries (still exactly seven experimental ids), and LLP 0113 §4.2
+(lines 555–575 contain both the `capability.publication.renew` verb
+row and "the supervisor journal must retain canonical request and
+response bytes").
+**Target:** `llp/0134-capability-maturity-promotion.spec.md` (727 lines, v0.3)
+**Target SHA-256:** `5867e4a87b5371286a8f99aec54fbbb0af7bfbebe24c59d5fd47c71523e07a43`
+**Status:** completed
+
+### Round-2 item resolutions
+
+**C11 (MATERIAL, soak-observation schema / A2 collision) — RESOLVED.**
+E6's *Evidence records* subsection defines all three evidence classes
+as closed canonical-JSON documents with stated member lists and their
+own suffixes — `MaturitySoakObservationV1` (`*.soak-observation.json`),
+`MaturitySoakJournalExtractV1` (`*.soak-extract.json`),
+`MaturityDefectSearchV1` (`*.defect-search.json`) — and A2's dispatch
+now names all six suffixes and refuses a file matching no suffix, so
+the silent-skip/refuse dilemma is gone. The locator `schemaVersion`
+tokens are named exactly (`soak-observation.v1`, `soak-extract.v1`,
+`defect-search.v1`), closing the `observationRefs` dangling reference.
+This is my proposed resolution, member-for-member.
+
+**C12 (SHOULD-FIX, A5's demotion parent check) — RESOLVED.**
+`MaturityDemotionRecordV1` gains `candidateSourceSha` ("the revision
+the trigger evidence is witnessed at"; on the fast path, the HEAD
+where the gate ran red or validation failed) and `candidateParentSha`
+constrained equal to it and to the demotion commit's sole parent; A5
+now reads "§4's receipt for promotions, §6's record for demotions."
+The parent comparison is provable in both directions.
+
+**C13 (DETAIL, fast-path registry visibility) — RESOLVED.** §6: on
+acceptance a dated LLP 0130 revision row records the fast path as a
+standing decision hosted at this §6; the author may revoke by dated
+revision of either document; automatic lapse on Superseded or
+Withdrawn. All three requested properties.
+
+**C14 (DETAIL, manifest count) — RESOLVED and re-verified.** "Five
+demo generated manifests (todo, todo-v2, rbac, competitive-checkpoint,
+all-aboard)"; I re-checked all five in-tree and each acknowledges
+exactly `result_contract_v1`.
+
+**C15 (DETAIL, promotion-tree audit self-reference) — RESOLVED.**
+E4(b)'s locator `sourceSha` is defined as `candidateSourceSha` under
+§4's staged-tree rule, the artifact anchored by `candidateParentSha`
+plus its own `sha256`, with A5's final-tree run on the transition
+commit as the post-hoc witness — the exact shape my resolution asked
+for. Soundness assessment under "Codex-originated changes" below.
+
+**C16 (DETAIL, baseline digest computability) — RESOLVED.**
+`governingContractBaseline` is a full closed locator; the digest is
+the whole-file committed blob bytes at a named baseline commit; the
+intra-day pin is decidable ("the last main-history commit with
+committer UTC date on or before 2026-07-30 that touched that file");
+"there is no extraction or normalization step — 'normative text' is
+not a digest concept; materiality adjudication … not the digest,
+filters evidence notes." Exactly the requested binding. (One residual
+fillability nit on the locator's other members — C20.)
+
+**C17 (DETAIL, self-asserted soak dates) — RESOLVED.** An observation
+is credited only when its introducing commit's committer UTC date
+equals its `dateUtc`, A2 refuses the mismatch, and the
+back-fabrication rationale is stated. My proposed corroborator,
+adopted as specified.
+
+### Codex-originated v0.3 changes, verified against this family's clean text
+
+**Staged-tree anchoring — SOUND.** The self-reference is genuinely
+broken: no file the promotion commit carries names the promotion
+commit's SHA; the receipt anchors on `candidateParentSha` plus content
+digests; the commit SHA is recovered post hoc and recorded as a dated
+follow-up line in the governing-LLP addendum — a separate
+documentation commit that changes no registry, so A5 correctly does
+not fire on it. The general locator definition ("`sourceSha` is the
+revision that produced the artifact") is explicitly carved for this
+one class rather than silently contradicted, and §2's anchoring
+preamble was updated to match. A5's transition-commit identification
+remains the mechanical authority; the derivation predicate is a
+documentation convenience. One precision nit on "unique" — C19.
+
+**The restated §7 demo-use ground — VERIFIED, with one count error.**
+The three `defineBoundedChildrenQuery` declarations exist as named
+(`incidentTasks`, `incidentComments`, `incidentActivity`,
+`demos/signal-desk/snapback/functions.mjs` lines 69/96/116); a full
+sweep of `demos/signal-desk` finds their only consumers are the
+comparator config, the acceptance-harness extras, and the generated
+artifacts — no product code — so "no joint real production consumer
+outside the acceptance corpus and comparator fixtures" is tree-true.
+The adapter-bypass claim is confirmed by the in-file comments ("the
+bakeoff's dev-impersonation transport intentionally keeps using the
+explicit handler"). The honest concession that decision 3's letter
+arguably reaches the pair, the eligibility-ceiling framing, and the
+"a shipped pre-rule local carrier alone confers nothing" closure all
+survive intact from v0.2. But "the demo's **sole**
+`defineWriteWithActivity` declaration" is false — C18.
+
+### New concerns
+
+**C18. DETAIL — Signal Desk has two `defineWriteWithActivity`
+declarations, not a "sole" one.** `addTaskWithActivity` (line 244, the
+review-gated proving declaration §7 describes) and
+`toggleTaskWithActivity` (line 306, "Acceptance-only closed profile …
+The product adapter keeps its backend-neutral toggle contract"). Both
+are deliberately bypassed by the product adapter, so the exclusion
+ground is strengthened, not weakened — but §7 presents the count as a
+witnessed tree fact and it is wrong, the same defect class as C14.
+**Resolution:** "its two `defineWriteWithActivity` declarations are a
+review-gated proving declaration and an acceptance-only profile, both
+deliberately bypassed by its product adapter."
+
+**C19. DETAIL — "the unique child of `candidateParentSha` whose tree
+holds the receipt" is not a git-graph invariant.** Uniqueness holds on
+the landed history (A5 admits exactly one transition per pushed range)
+but the graph may contain other children of the same parent — an
+abandoned pre-race promotion attempt on a side ref would carry a
+receipt at the same path. The recovered SHA is a documentation line,
+so the exposure is small. **Resolution:** one clause scoping the
+derivation to main's landed history, or equivalently "the transition
+commit A5 identifies."
+
+**C20. DETAIL — the `governingContractBaseline` locator's
+`schemaVersion` and `producer` members are unfillable for LLP prose.**
+§4's closed locator requires `schemaVersion` to "name the referenced
+artifact's own closed schema" and `producer` to name the emitting
+suite or tool; a governing LLP file has neither, and only prose
+diaries get a named token (`diary.v1`). A conforming grandfather
+manifest cannot be written until the tokens exist. **Resolution:** name
+them once in §4 or §7 (e.g. `schemaVersion: "llp-prose.v1"`,
+`producer: "git"` for committed-blob evidence).
+
+### Verdict
+
+**READY.** Every Round-2 item is resolved as requested — C11's three
+closed schemas with A2 suffix lanes and no-suffix refusal, C12's
+demotion-side parent pin making A5 provable in both directions, and
+C13–C17 each landed in the exact proposed shape — and the two
+Codex-originated v0.3 changes I audited are sound: the staged-tree
+anchoring breaks the receipt/commit self-reference cleanly, and the
+restated 0110 exclusion ground is tree-true in every checked
+particular except one word. Three DETAILs remain (C18's "sole" is a
+false stated tree fact, direction-safe; C19's uniqueness scoping;
+C20's locator tokens), none MATERIAL, none touching the bar, the
+routes, the authority model, or the fail-closed posture. Nothing
+promotes.
+
+### Recommended next step
+
+Fold C18–C20 as three one-line edits — C18 first, since the author
+should not accept a document containing a known false tree fact, even
+a harmless one — in the acceptance revision or a v0.4. No further
+Fable-family round is needed unless the other family's round 3 forces
+non-trivial new text.

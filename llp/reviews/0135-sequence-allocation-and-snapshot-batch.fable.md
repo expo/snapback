@@ -476,3 +476,263 @@ and §4. Under LLP 0130 SD-4 the Spec can then be accepted only on
 dual-family READY with zero unresolved MATERIAL concerns; this round
 records six above that threshold, so convergence needs the revision
 first.
+
+---
+
+## Round 2 — 2026-07-31
+
+**Family:** Fable (Claude)
+**Runtime:** Claude Code / claude-fable-5
+**Effort:** session-inherited
+**Date:** 2026-07-31
+**Method:** round-2 delta — verify each round-1 Fable concern against
+v0.2, then review the new v0.2 text for fresh defects; no
+re-litigation of settled text; blind to the codex artifact (not
+opened)
+**Target:** `llp/0135-sequence-allocation-and-snapshot-batch.spec.md`
+v0.2 (832 lines)
+**Target SHA-256:**
+`e89cc5b5a10dd60d9ae402b7ea95c47a76c13a3a4d0b823e72692ba9ed139e17`
+**Status:** completed
+
+Re-verified against the corpus for this round: LLP 0110 lines
+165–203 (eligibility enumeration, admitted order types), 960–1004
+(registry lifecycle, stamping boundary, `sbbc1` parameters),
+1116–1120 (both-direction activation/restore validation), 1138–1148
+(XChaCha20-Poly1305 construction — 24-byte nonce, 16-byte tag);
+LLP 0133 v0.3 (lanes Q/L at 156/170, the three divergence classes at
+422–508, element 4 "host-call answer surface" at 549–586, the receipt
+privacy rule at 540–545); LLP 0129 ledger row 2 (partial-replica read
+satisfiability — the local-execution admission artifact, proposed
+into the move-6 owners) and rows 1–5; LLP 0051 D1 (ledger
+`{version, ids: [...], now}`, no random channel, the wire-split
+table); LLP 0003 lines 266–350 (buffered `ctx.db`,
+drive-to-completion, brief commit with captured-read validation, lock
+never held across handler execution, retry-or-reject owned there);
+LLP 0007 line 120 (`_id` is host-minted UUIDv7 — id widths closed);
+LLP 0113 §4 (closed `familyKind` union); LLP 0134 §5/E3
+(acknowledgment refusal "at admission"), line 111 (family kinds added
+by dated LLP 0113 amendment), and the §8 default-route naming of both
+ids; LLP 0130 SD-4's three conditions; and a negative search for any
+string-width declaration vocabulary in LLP 0007/0110/0080/0047 and
+`guide/` (none exists).
+
+### Round-1 concern resolution
+
+- **B1 — RESOLVED.** §1.1 makes counter declaration a **second
+  registration ground** in 0110's incarnation registry, restating the
+  lifecycle faithfully against 0110:968–973 (same-transaction insert
+  registration, inactive-on-delete, new UUIDv7 on recreate, patch
+  preserves, transactional restore carry), reusing the activation
+  gates verbatim ("no row is silently blessed", 0110:984;
+  both-direction restore validation, 0110:1117), stating the stamp
+  obligation via `relationIncarnationOf {foreignKeyField,
+  parentTable}` (0110:976) for tables under prefixed unique
+  constraints, and answering round-1 open question 1 with the
+  conditional activation (counter-only scopes gate on
+  registry-lifecycle validation alone). §4.1 now extends 0110's
+  registration clause and stamping availability; §5.1 adds the
+  pre-existing-rows backfill vector; §1.9/§5.1 state Campfire's rooms
+  enrollment. The Campfire acceptance and the delete/recreate
+  acceptance are now admissible as specified. The
+  two-authorities-disagree rejection rationale is a correct addition.
+- **M1 — RESOLVED.** §1.7 adopts round-1 option (b): a structural
+  scope-visibility gate (declared read-or-write reach evaluated
+  against the scope row at allocation time) or an explicit
+  `scopeAccess: "public.v1"` declaration; bare invocation authority
+  no longer reaches a non-public counter. The anonymous Campfire arm
+  routes through the public declaration — exactly round-1 open
+  question 2's anticipated shape. The sink matrix enumerates the
+  observation surfaces, and the containment rule's enforcement
+  boundary is stated honestly (allocating operation's own writes
+  only; D5 folded; OQ1 extended). One residue of this same concern
+  class is new — see M-B below.
+- **M2 — RESOLVED.** §1.4 replaces the "exactly like `runtime.id`"
+  analogy with the settlement-replay-evidence framing and states the
+  two disqualifying properties correctly against 0133 v0.3: lane Q
+  accepts captured `{generatedIds, now}` (0133:160–161), lane L's
+  id-map leaf-rewrite is sound only for high-entropy minted strings
+  (0133:462–463), and a re-derived small integer fits none of the
+  three divergence classes (0133:422–508 — the id class pairs mint
+  sites, not values). The 0051 D1 ledger claim ("`{ids, now}`") is
+  accurate (D1: `{version, ids: [...], now}`, no random channel).
+  Allocating operations are scoped out of lane-L local execution as a
+  Nonclaim with OQ6 naming the successor (typed declarations,
+  0133 OQ2's graduation path — the right pointer); LLP 0129/0133
+  joined Related; §4.5 drafts the dated 0133 element-4 note (element
+  4 verified as the host-call answer surface, 0133:554) and registers
+  with 0129 row 2's owner (row 2 verified as the local-execution
+  admission artifact); §4.3 pins the never-a-ledger-member
+  restriction in the 0051-orbit amendment.
+- **M3 — RESOLVED** (arithmetic verified), with one new concern in
+  the fix's mechanism (M-A below). The shown numbers check: 8,192 −
+  6 (`sbsb1.`) = 8,186 base64url chars; 8,186 = 4·2046 + 2 → 6,138 +
+  1 = 6,139 decoded bytes; − 24 (nonce) − 16 (tag) = 6,099 plaintext
+  bytes — and 24/16 match 0110's `sbbc1` XChaCha20-Poly1305
+  construction (0110:1138). The static establishment-time budget with
+  `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`, deduplicated
+  parents bound once (D9a), and the closed-width enumeration —
+  integer, boolean, id — is exactly complete against 0110's admitted
+  order types (string, table-scoped id, safe integer, boolean;
+  floats refuse, 0110:194–197), and ids are closed-width (host-minted
+  UUIDv7, 0007:120). §5.2 adds the round-trip, establishment-refusal,
+  and custody-ground mint-failure vectors.
+- **M4 — RESOLVED.** §2.1 narrows v1 to bounded-children-only (OQ5's
+  smaller branch, as round 1 suggested); the Nonclaims pin it; OQ5's
+  successor enumeration carries all three round-1 holes (merged
+  normalized argument binding, boundary/terminal/restart mapping
+  under root-window semantics, per-consumed-root joined-lookup
+  counting) plus seal semantics. §2.5's ceiling is now exact for the
+  admitted node kind.
+- **M5 — RESOLVED.** §4.4 drafts the LLP 0108 amendment (per-kind
+  `sequences` member, dated `implementationHash` field-list extension
+  with new golden vectors, `ctx.sequence.allocate` surface), and
+  `SNAPBACK_SEQUENCE_UNDECLARED` is reclassified as a stable public
+  **runtime** diagnostic with the ctx-boundary enforcement locus
+  stated in both §1.2 and §3 — the declared-versus-proved reasoning
+  round 1 asked for, verbatim in spirit.
+- **D1 — RESOLVED.** Complete `next_value` transition; the maximum is
+  allocatable; `next_value = 2^53` is the durable exhausted state
+  (i64-representable, never returned); §5.1 seeds at MAX−1 and walks
+  MAX−1 → MAX → refusal. Arithmetic consistent.
+- **D2 — RESOLVED.** The direct witness (values sorted by receipts'
+  commit versions are 1..n) plus the two-transaction race falsifier.
+- **D3 — RESOLVED.** §2.3's node content is the cursor-free
+  `{parent, children}` page; no per-node `continuation`, no `sbbc1`
+  credential inside a composite result; §5.2 instruments it.
+- **D4 — RESOLVED.** Every resume point-reads and visibility-checks
+  every deduplicated parent, terminal nodes included; "zero examined
+  entries" redefined to child-range entries; §5.2 vector added.
+- **D5 — RESOLVED** (folded into §1.7's enforcement-boundary text).
+- **D6 — RESOLVED.** §1.1's enumeration now matches 0110:172–174
+  exactly (membership, permission-backing, protected/system,
+  maintained-projection output, retired, independently
+  authority-bearing).
+- **D7 — RESOLVED.** §1.2 specifies the buffered read-modify-write
+  protocol and delegates the contention surface and diagnostic to
+  LLP 0003's target execution model — verified as 0003's own text
+  (buffered `ctx.db`, brief commit, captured-read validation,
+  retry-or-reject at 0003:349–350). See D-N1 for a residual tension
+  in the §5.1 vector.
+- **D8 — RESOLVED.** §5.1's moveCard arm is stated
+  owner-provenanced, congruent with §1.9.
+- **D9 — RESOLVED** in all three parts: (a) deduplicated parents
+  bound once in the cursor; (b) the acknowledgment gate's locus named
+  as admission (matches 0134 E3, "refused at admission", 0134:168);
+  (c) the min-maturity coupling recast as a proposed LLP 0134
+  prerequisite routed to 0134's own loop, with §4.6 adding the dated
+  LLP 0113 §4 `familyKind` amendment (0113:426's closed union;
+  0134:111's dated-amendment rule).
+
+### New concerns (v0.2 text)
+
+MATERIAL:
+
+- **M-A — The string order-field width bound has no declaration
+  surface, no owning amendment, and no stated enforcement — and the
+  no-cliff claim depends on all three.** §2.4 requires "every string
+  order field must carry a declared maximum encoded length in its
+  contract, without which the composite refuses establishment." No
+  such declaration exists anywhere in the corpus: LLP 0007's type
+  map, LLP 0110's order-field contract, LLP 0080, LLP 0047's limit
+  rows, and the guide carry no string-length declaration vocabulary
+  (verified by search). §4 drafts no amendment creating it — the
+  round-1 B1/M5 pattern recurring in the fix for M3: as specified,
+  every string-ordered composite refuses establishment forever, and
+  §5.2's "at its declared order-field bounds" round-trip vector is
+  unimplementable. Worse, the budget's soundness needs the bound
+  **write-enforced**, which the Spec never states: if a stored string
+  may exceed its declared maximum (nothing today refuses such a
+  write), a resumed boundary can exceed the computed "worst case,"
+  the mint can exceed the cap mid-flight, and §2.4's "runtime mint
+  failure therefore has custody grounds only / never a data-dependent
+  runtime cliff" is false — the exact cliff the v0.2 fix exists to
+  close. "In its contract" is also ambiguous between the field's
+  schema contract and a composite-level declaration; only a
+  schema-level, write-enforced bound makes the static budget a real
+  bound. Fix: pin the declaration's owner and draft the amendment in
+  §4 (LLP 0007's field-contract surface, or 0110's plan contract if
+  scoped to order fields), state that the write boundary refuses a
+  value exceeding its declared encoded length (making the worst case
+  sound), and keep the establishment refusal for undeclared widths.
+- **M-B — The §1.7 gate refusal is unnamed and its relationship to
+  `SNAPBACK_RELATION_PARENT_UNAVAILABLE` is unspecified, which as
+  written opens a scope-row existence oracle.** §1.2 assigns
+  PARENT_UNAVAILABLE to missing/deleted/never-registered scopes;
+  §1.7's visibility-gate refusal has no diagnostic in §3 and no
+  stated precedence, and §5.1 lists the two refusals as separate
+  vectors with a code named only for one — implying they are
+  distinguishable. For a non-public counter, a caller with no
+  declared reach can then probe `scopeId` values and distinguish
+  "exists but hidden" (gate refusal) from "missing"
+  (PARENT_UNAVAILABLE) — the absent-versus-invisible disclosure the
+  corpus deliberately seals (0110's discipline, which §2.3 itself
+  extends on the read side), reopened on the allocation path this
+  Spec creates. The domains even overlap (a missing row also fails
+  every declared visibility), so an implementation must guess the
+  order. Fix is one sentence plus a §3 entry: for a non-public
+  counter, absence and no-reach refuse indistinguishably (one code,
+  with the visibility evaluation ordered before — or collapsed into —
+  the incarnation check); the public-scope case may keep
+  PARENT_UNAVAILABLE since the declaration already discloses
+  existence semantics deliberately.
+
+DETAIL:
+
+- **D-N1 — §5.1's race vector overbinds the mechanism §1.2
+  delegates.** The vector requires "T1's paused attempt aborted by
+  captured-read validation … and its fresh re-execution allocating
+  after T2," but §1.2's own normative contract is only
+  currency-at-commit plus no-trace-on-failure, with the surface
+  delegated to LLP 0003 — whose menu (0003:349–350) is retry **or
+  reject**. A rejecting target satisfies §1.2 and fails the vector as
+  written. Restate the pass condition in contract terms: T1's stale
+  attempt never commits its value; every committed value is ordered
+  by commit version; whether T1's caller sees a retried success or a
+  typed conflict is the target's per-0003 choice.
+- **D-N2 — §1.4's lane-Q "unaffected" understates the optimistic
+  gap.** Lane Q's overlay is args/write-plan-derived (0133:156–159),
+  and order fields are schema-required/non-null (0110:192–193): an
+  offline Campfire send's optimistic message has no sequence value to
+  carry or sort by, so the overlay cannot faithfully present the
+  write at all — omit the field, skip the row, or degrade is
+  unspecified and unowned. State the behavior or delegate it
+  explicitly (LLP 0043 M2 / 0133's overlay owners) beside OQ6, and
+  soften "unaffected" to name the presentation gap.
+- **D-N3 — Cursor-refusal vocabulary drift.** §2.4's collapse list
+  (malformed, cross-app, cross-plan, cross-authority,
+  boundary-invalid) omits **cross-parent**, which §5.2's matrix
+  tests; a composite cursor presented with different bound parent
+  arguments should be named in §2.4's list as collapsing to
+  `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`.
+
+Also checked, no concern: the SD-2 hygiene expansion in §5.2/
+§Nonclaims keeps round 1's PASS — the added reasoning states the
+evidence/decision boundary more explicitly without claiming any
+branch; the pause-and-race, settlement-replay-evidence, and
+0051-orbit texts are otherwise faithful to their cited authorities;
+the header's provenance for the Fable round-1 counts is accurate.
+
+### Verdict
+
+**NOT READY** (round 2) — but sharply narrowed. All fifteen round-1
+Fable concerns (B1, M1–M5, D1–D9) are resolved, and the resolutions
+are faithful to the corpus documents they cite. Two new MATERIAL
+concerns arise inside v0.2's own new mechanism — M-A (the string
+width bound's missing declaration surface, owning amendment, and
+write-enforcement, on which the no-cliff claim depends) and M-B (the
+unnamed §1.7 refusal opening an absent-versus-hidden oracle) — plus
+three details. Under LLP 0130 SD-4's zero-unresolved-MATERIAL bar the
+Spec cannot converge this round, but both MATERIALs are small,
+pre-empirical, and fixable within the corpus: M-A is one §4 amendment
+row plus one enforcement sentence; M-B is one sentence plus a §3
+entry.
+
+### Recommended next step
+
+Author applies a v0.3 addressing M-A (name the width-declaration
+owner in §4, state write-boundary enforcement) and M-B (one
+indistinguishability sentence and the diagnostic pin), sweeps
+D-N1–D-N3, and requests a targeted round-3 delta of §1.7, §2.4, §3,
+§4, and the two §5 vectors touched. On that revision this family
+expects READY.
