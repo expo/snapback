@@ -2010,6 +2010,35 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             .with_invocation_authority(InvocationAuthority::System),
             post(admin_run_cron_job),
         ),
+        // The injected-clock jobs drain (LLP 0070 first slice; LLP 0115
+        // CV-9's deterministic seam) — the set-based sibling of the cron
+        // forced tick. The body's optional `nowMs` is the injected clock;
+        // acceptance never sleeps.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/jobs/drain",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_invocation_authority(InvocationAuthority::System),
+            post(admin_jobs_drain),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/jobs",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::secret_read()),
+            get(admin_jobs_list),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/jobs/{id}",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::secret_read()),
+            get(admin_job_show),
+        ),
         RegisteredRoute::new(
             write(
                 "POST",
@@ -2627,6 +2656,68 @@ async fn admin_cron_tick(
     // action runs themselves execute off it.
     let runs = crate::server::cron_tick_detached(&snapback, now).await?;
     Ok(Json(runs))
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct JobsDrainRequest {
+    /// The injected drain clock. Absent means wall clock — the sibling of
+    /// cron's forced tick; supplying it makes due-ness and retry scheduling a
+    /// pure function of this value (LLP 0115 CV-9's deterministic seam).
+    #[serde(rename = "nowMs")]
+    now_ms: Option<u64>,
+    /// Bounded cascade waves (default 1, capped at the paved maximum).
+    #[serde(rename = "maxWaves")]
+    max_waves: Option<usize>,
+}
+
+async fn admin_jobs_drain(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    body: Option<Json<JobsDrainRequest>>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    authorize(&ctx, &headers, true)?;
+    let request = body.map(|Json(request)| request).unwrap_or_default();
+    let now = request.now_ms.unwrap_or_else(now_millis);
+    let waves = request.max_waves.unwrap_or(1);
+    let drained = crate::server::jobs_drain_detached(&snapback, now, waves).await?;
+    Ok(Json(serde_json::json!({
+        "artifactKind": "snapback.jobs-drain/v0",
+        "nowMs": now,
+        "drained": drained,
+    })))
+}
+
+async fn admin_jobs_list(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    authorize(&ctx, &headers, false)?;
+    let inspect =
+        crate::server::with_snapback(&snapback, |snapback| snapback.jobs_inspect(200)).await?;
+    Ok(Json(inspect))
+}
+
+async fn admin_job_show(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    authorize(&ctx, &headers, false)?;
+    let shown = {
+        let id = id.clone();
+        crate::server::with_snapback(&snapback, move |snapback| snapback.job_show(&id)).await?
+    };
+    match shown {
+        Some(value) => Ok(Json(value)),
+        None => Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_JOB_UNKNOWN",
+            "jobs",
+            format!("no job {id:?} exists"),
+        ))),
+    }
 }
 
 async fn admin_run_cron_job(

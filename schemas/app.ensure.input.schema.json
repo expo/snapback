@@ -1726,6 +1726,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "The generated declared job-status query (LLP 0121 option 3, decided in\nLLP 0070's first slice): a Rust-owned plan serving the privacy-bounded\njob lifecycle projection for one job id, live-capable through the\nordinary subscription machinery — a declared operation with an\nordinary contract, never an ambient system table.",
+          "properties": {
+            "JobStatusQuery": {
+              "$ref": "#/$defs/JobStatusQueryPlanV1"
+            }
+          },
+          "required": [
+            "JobStatusQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "properties": {
             "Mutation": {
               "$ref": "#/$defs/MutationPlan"
@@ -1824,6 +1837,10 @@
         "name",
         "fields"
       ],
+      "type": "object"
+    },
+    "JobStatusQueryPlanV1": {
+      "description": "The v1 job-status plan carries no authored parameters: the job id arrives\nas the invocation's `jobId` argument, the projection shape is Rust-owned,\nand observability scoping is the operation's own declared auth requirement\n(knowledge of the opaque job id within that auth class; per-job row policy\nis a later vocabulary — see the LLP 0070 amendment note).",
       "type": "object"
     },
     "JoinEquality": {

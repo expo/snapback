@@ -752,6 +752,29 @@
         id: function() { return host("runtime.id", {}); }
       }
     };
+    // Transactional one-off durable work (LLP 0070 first slice): mutations
+    // buffer enqueues that commit or roll back with their writes. Queries
+    // cannot enqueue; actions enqueue only through an explicit mutation —
+    // the host refuses both with SNAPBACK_JOB_ENQUEUE_UNAVAILABLE, and the
+    // non-mutation stub throws the same code without a host round-trip.
+    ctx.jobs = {
+      enqueue: mode === "mutation"
+        ? function(action, jobArgs, options) {
+            return host("jobs.enqueue", {
+              action: action,
+              args: jobArgs || {},
+              options: options || {}
+            });
+          }
+        : function() {
+            throw snapbackError(
+              "SNAPBACK_JOB_ENQUEUE_UNAVAILABLE",
+              mode === "action"
+                ? "actions enqueue follow-up work only through an explicit mutation"
+                : "queries cannot enqueue durable work"
+            );
+          }
+    };
     if (mode === "action") {
       ctx.run = run || host("action.metadata", {});
       ctx.cron = ctx.run;

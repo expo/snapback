@@ -950,6 +950,10 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)),
                 ) => validate_search_query_plan_shape(plan)?,
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)),
+                ) => {}
+                (
                     FunctionKind::LiveQuery,
                     FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
                 ) => validate_bounded_children_plan_shape(plan)?,
@@ -989,6 +993,17 @@ impl FunctionManifest {
                 }
                 FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_)) => {
                     &[crate::search::types::SEARCH_CAPABILITY]
+                }
+                // The declared job-status query requires the experimental
+                // jobs registry id (LLP 0070 is Draft, so the id can never be
+                // stable while the claim boundary stands) plus live delivery
+                // when declared live.
+                FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {
+                    if function.kind == FunctionKind::LiveQuery {
+                        &["jobs_one_off_v1", "live_subscriptions"]
+                    } else {
+                        &["jobs_one_off_v1"]
+                    }
                 }
                 FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_)) => {
                     &["bounded_children_v1", "live_subscriptions"]
@@ -2189,6 +2204,11 @@ impl ObservedEffects {
             }
             HandlerPlan::SearchQuery(plan) => {
                 self.read(&plan.table, "search", Some(&plan.index));
+            }
+            HandlerPlan::JobStatusQuery(_) => {
+                // A point read of the reserved job-status projection — not an
+                // application schema table.
+                self.read(crate::jobs::JOBS_STATUS_TABLE, "point", None);
             }
             HandlerPlan::RelationalQuery(plan) => {
                 self.read(&plan.root, "query", Some(&plan.root_index));
@@ -4086,6 +4106,7 @@ pub enum PublicFunctionRuntime {
 pub enum PublicHostPlanKind {
     Query,
     SearchQuery,
+    JobStatusQuery,
     Mutation,
     Action,
     RelationalQuery,
@@ -4271,6 +4292,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
             FunctionRuntime::HostPlan(plan) => PublicFunctionRuntime::HostPlan(match plan {
                 HandlerPlan::Query(_) => PublicHostPlanKind::Query,
                 HandlerPlan::SearchQuery(_) => PublicHostPlanKind::SearchQuery,
+                HandlerPlan::JobStatusQuery(_) => PublicHostPlanKind::JobStatusQuery,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
                 // Plan-level kind only: per-row facts stay off the ordinary
@@ -4300,6 +4322,12 @@ pub enum HandlerPlan {
     /// @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — search is a
     /// Query-kind HostPlan and never gains live semantics by implication.
     SearchQuery(SearchQueryPlanV1),
+    /// The generated declared job-status query (LLP 0121 option 3, decided in
+    /// LLP 0070's first slice): a Rust-owned plan serving the privacy-bounded
+    /// job lifecycle projection for one job id, live-capable through the
+    /// ordinary subscription machinery — a declared operation with an
+    /// ordinary contract, never an ambient system table.
+    JobStatusQuery(JobStatusQueryPlanV1),
     Mutation(MutationPlan),
     Action(ActionPlan),
     // @ref LLP 0080#1-closed-relational-plan — closed bounded-join plan.
@@ -4312,6 +4340,14 @@ pub enum HandlerPlan {
     /// Closed source/scope/activity transaction.
     WriteWithActivity(WriteWithActivityPlan),
 }
+
+/// The v1 job-status plan carries no authored parameters: the job id arrives
+/// as the invocation's `jobId` argument, the projection shape is Rust-owned,
+/// and observability scoping is the operation's own declared auth requirement
+/// (knowledge of the opaque job id within that auth class; per-job row policy
+/// is a later vocabulary — see the LLP 0070 amendment note).
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct JobStatusQueryPlanV1 {}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ActionPlan {
@@ -5484,6 +5520,15 @@ pub enum TargetCapabilityId {
     IbexCtxDbHostBridge,
     #[serde(rename = "inline_handler_v1")]
     InlineHandlerV1,
+    /// Transactional one-off durable work, first slice (LLP 0070, Draft):
+    /// `ctx.jobs.enqueue` from JS mutations, the paved default queue,
+    /// job/attempt receipts, the declared job-status query, and the
+    /// injected-clock forced drain. Experimental for as long as LLP 0070 is
+    /// Draft — its claim boundary bars any durable-background-work
+    /// capability-class claim, and this id asserts current-contract
+    /// compatibility only.
+    #[serde(rename = "jobs_one_off_v1")]
+    JobsOneOffV1,
     #[serde(rename = "live_subscriptions")]
     LiveSubscriptions,
     #[serde(rename = "mutation_read_set_validation")]
@@ -5520,6 +5565,7 @@ impl TargetCapabilityId {
         Self::HostPlanRuntime,
         Self::IbexCtxDbHostBridge,
         Self::InlineHandlerV1,
+        Self::JobsOneOffV1,
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
@@ -5544,6 +5590,7 @@ impl TargetCapabilityId {
             Self::HostPlanRuntime => "host_plan_runtime",
             Self::IbexCtxDbHostBridge => "ibex_ctx_db_host_bridge",
             Self::InlineHandlerV1 => "inline_handler_v1",
+            Self::JobsOneOffV1 => "jobs_one_off_v1",
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
@@ -5581,6 +5628,10 @@ impl TargetCapabilityId {
         match self {
             Self::BoundedChildrenV1
             | Self::InlineHandlerV1
+            // LLP 0070 is Draft: `jobs_one_off_v1` stays experimental until
+            // the RFC is accepted, and its presence never claims a
+            // durable-work capability class or target tuple (claim boundary).
+            | Self::JobsOneOffV1
             | Self::RegisteredBundleBootV1
             | Self::ResultContractV1
             | Self::ArgsContractV1
@@ -5646,6 +5697,11 @@ impl TargetCapabilityId {
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
             Self::InlineHandlerV1 => facts.inline_handler_v1_registered,
+            // Fail-closed dedicated fact: only the local single-process
+            // SQLite target registers the jobs enqueue/drain implementation.
+            // Hosted targets stay false — LLP 0070's hosted candidate is
+            // blocked-on and out of this slice (nonclaim).
+            Self::JobsOneOffV1 => facts.jobs_one_off_v1_registered,
             Self::LiveSubscriptions => manifest.live_subscriptions,
             Self::MutationReadSetValidation => {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
@@ -5861,6 +5917,7 @@ pub struct TargetCapabilityFacts {
     migration_keyset_scan_v1_registered: bool,
     full_text_search_v1_registered: bool,
     inline_handler_v1_registered: bool,
+    jobs_one_off_v1_registered: bool,
     result_contract_v1_registered: bool,
     args_contract_v1_registered: bool,
     versioned_seed_install_v1_registered: bool,
@@ -5901,6 +5958,10 @@ impl TargetCapabilityFacts {
             migration_keyset_scan_v1_registered: true,
             full_text_search_v1_registered: true,
             inline_handler_v1_registered: true,
+            // @ref LLP 0070#non-goals-and-claim-boundary — registered means
+            // the local enqueue/drain implementation exists; the id's
+            // experimental maturity carries the Draft-status honesty.
+            jobs_one_off_v1_registered: true,
             result_contract_v1_registered: true,
             args_contract_v1_registered: true,
             versioned_seed_install_v1_registered: true,
@@ -5927,6 +5988,9 @@ impl TargetCapabilityFacts {
         Self {
             bounded_children_v1_registered: false,
             ibex_ctx_db_host_bridge_available: false,
+            // The conformance profile has no jobs worker/drain instance;
+            // fail closed like the other local-only registrations.
+            jobs_one_off_v1_registered: false,
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
             ..Self::local_auth_aware()

@@ -550,6 +550,17 @@ pub struct MutationCommit {
     pub read_dependencies: Vec<CapturedReadDependency>,
     #[serde(default)]
     pub write_dependencies: Vec<CapturedWriteDependency>,
+    /// Jobs durably enqueued by this commit (LLP 0070's first slice; 0127
+    /// decision 7): bounded per-enqueue facts for the mutation receipt.
+    /// Empty for every mutation that enqueued nothing.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub job_enqueues: Vec<crate::jobs::JobEnqueueFact>,
+    /// Job-state ChangedRows for live fan-out only. Deliberately separate
+    /// from `changes`: job rows are receipts-family state, not application
+    /// rows, so they never enter OCC validation, projections, search
+    /// maintenance, or the version head — only the live matcher.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub job_changes: Vec<ChangedRow>,
     /// `None` means no commit occurred (dry-run or exact replay). Every fresh
     /// committed app writer returns the pair observed/written in its SQLite
     /// transaction, including ordinary commits that did not advance it.
@@ -604,6 +615,12 @@ pub(crate) struct BufferedCommitPayload {
     pub read_dependencies: Vec<CapturedReadDependency>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
+    /// Buffered `ctx.jobs.enqueue` intents, inserted inside the same SQLite
+    /// transaction as the writes above (LLP 0070 §Job identity and enqueue).
+    pub job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
+    /// Producer provenance stamped on every inserted job row (0127 decision
+    /// 7). `None` is only legal when `job_enqueues` is empty.
+    pub job_producer: Option<crate::jobs::JobProducer>,
 }
 
 struct BufferedEffects {
@@ -611,6 +628,8 @@ struct BufferedEffects {
     membership_plans: Vec<AuthorizedMembershipPlan>,
     read_dependencies: Vec<CapturedReadDependency>,
     result: Value,
+    job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
+    job_producer: Option<crate::jobs::JobProducer>,
 }
 
 #[derive(Clone, Copy)]
@@ -3291,6 +3310,8 @@ impl LocalDatabase {
                 changes: Vec::new(),
                 read_dependencies: Vec::new(),
                 write_dependencies: Vec::new(),
+                job_enqueues: Vec::new(),
+                job_changes: Vec::new(),
                 authorization: None,
             });
         }
@@ -3315,6 +3336,8 @@ impl LocalDatabase {
                 changes: Vec::new(),
                 read_dependencies: Vec::new(),
                 write_dependencies: Vec::new(),
+                job_enqueues: Vec::new(),
+                job_changes: Vec::new(),
                 authorization: None,
             });
         }
@@ -4091,6 +4114,11 @@ impl LocalDatabase {
                 write_dependencies: captured_writes_from_changes(&changes),
                 changes,
                 read_dependencies,
+                // IR-plan mutations have no enqueue vocabulary in v1; the
+                // jobs surface is JS-tier only (see the LLP 0070 amendment
+                // note's callee/producer scoping).
+                job_enqueues: Vec::new(),
+                job_changes: Vec::new(),
                 authorization,
             },
             generated_ids,
@@ -4140,6 +4168,8 @@ impl LocalDatabase {
             read_dependencies,
             result,
             ctx_ledger,
+            job_enqueues,
+            job_producer,
         } = payload;
         self.apply_buffered_writes_with_lifecycle(
             input,
@@ -4148,6 +4178,8 @@ impl LocalDatabase {
                 membership_plans,
                 read_dependencies,
                 result,
+                job_enqueues,
+                job_producer,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4173,6 +4205,33 @@ impl LocalDatabase {
         result: Value,
         ctx_ledger: CtxAnswerLedger,
     ) -> SnapbackResult<MutationCommit> {
+        self.dry_run_buffered_writes_with_jobs(
+            input,
+            writes,
+            membership_plans,
+            read_dependencies,
+            result,
+            ctx_ledger,
+            Vec::new(),
+            None,
+        )
+    }
+
+    /// Dry-run variant carrying buffered job enqueues: identical validation
+    /// and insertion (LLP 0051 D8 fidelity — the rollback discards the job
+    /// rows exactly as it discards app writes).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dry_run_buffered_writes_with_jobs(
+        &mut self,
+        input: &HandlerInput,
+        writes: Vec<BufferedWrite>,
+        membership_plans: Vec<AuthorizedMembershipPlan>,
+        read_dependencies: Vec<CapturedReadDependency>,
+        result: Value,
+        ctx_ledger: CtxAnswerLedger,
+        job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
+        job_producer: Option<crate::jobs::JobProducer>,
+    ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
             input,
             BufferedEffects {
@@ -4180,6 +4239,8 @@ impl LocalDatabase {
                 membership_plans,
                 read_dependencies,
                 result,
+                job_enqueues,
+                job_producer,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4207,6 +4268,8 @@ impl LocalDatabase {
                 membership_plans: Vec::new(),
                 read_dependencies,
                 result,
+                job_enqueues: Vec::new(),
+                job_producer: None,
             },
             options,
             MembershipCommitAuthority::deny(),
@@ -4257,7 +4320,16 @@ impl LocalDatabase {
             membership_plans,
             mut read_dependencies,
             result,
+            job_enqueues,
+            job_producer,
         } = effects;
+        if !job_enqueues.is_empty() && job_producer.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_JOB_PRODUCER_MISSING",
+                "jobs",
+                "buffered job enqueues reached commit without producer provenance",
+            ));
+        }
         for authorized in &membership_plans {
             read_dependencies.extend(authorized.plan.read_dependencies.iter().cloned());
         }
@@ -4529,6 +4601,43 @@ impl LocalDatabase {
         } else {
             next_version
         };
+        // @ref LLP 0070#job-identity-and-enqueue — enqueue insertion shares
+        // this exact transaction: a rollback (validation failure, dry-run, or
+        // commit refusal) leaves no job. Runs after app writes so the stamped
+        // producer snapshot version equals the receipt's snapshotVersion.
+        let (job_enqueue_facts, job_changes) = if job_enqueues.is_empty() {
+            (Vec::new(), Vec::new())
+        } else {
+            let producer = job_producer
+                .as_ref()
+                .expect("checked above: enqueues carry a producer");
+            let status_rows = crate::jobs::insert_enqueued_jobs_in_tx(
+                &tx,
+                producer,
+                version,
+                &job_enqueues,
+                now_ms,
+            )?;
+            let facts = status_rows
+                .iter()
+                .map(|row| crate::jobs::JobEnqueueFact {
+                    job_id: row.job_id.clone(),
+                    action: row.action.clone(),
+                    available_at_ms: row.available_at_ms,
+                })
+                .collect();
+            let job_changes = status_rows
+                .iter()
+                .map(|row| ChangedRow {
+                    table: crate::jobs::JOBS_STATUS_TABLE.to_owned(),
+                    id: row.job_id.clone(),
+                    op: ChangeOp::Insert,
+                    row: Some(row.to_row_value()),
+                    changed_fields: Vec::new(),
+                })
+                .collect();
+            (facts, job_changes)
+        };
         let output = MutationOutput {
             version,
             changed_count: changes.len(),
@@ -4590,8 +4699,79 @@ impl LocalDatabase {
             write_dependencies: captured_writes_from_changes(&changes),
             changes,
             read_dependencies,
+            job_enqueues: job_enqueue_facts,
+            job_changes,
             authorization,
         })
+    }
+
+    /// Set-based injected-clock claim over the durable job table (LLP 0070's
+    /// first slice; the deterministic drain seam of LLP 0115 CV-9). One
+    /// SQLite transaction claims every due job up to `limit`; the returned
+    /// ChangedRows feed the live matcher for the declared job-status query.
+    pub(crate) fn claim_due_jobs(
+        &mut self,
+        now_ms: u64,
+        limit: usize,
+        drive: &str,
+    ) -> SnapbackResult<(Vec<crate::jobs::ClaimedJob>, Vec<ChangedRow>)> {
+        crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let mut claim_ids = new_id_source();
+        let claims = crate::jobs::claim_due_jobs_in_tx(&tx, now_ms, limit, drive, &mut claim_ids)?;
+        let mut job_changes = Vec::with_capacity(claims.len());
+        for claim in &claims {
+            if let Some(row) = crate::jobs::job_status_row(&tx, &claim.job_id)? {
+                job_changes.push(job_status_changed_row(&row));
+            }
+        }
+        tx.commit()?;
+        Ok((claims, job_changes))
+    }
+
+    /// Atomic terminal publication for one claimed job attempt. Returns the
+    /// disposition plus the job's post-transition ChangedRow (None only when
+    /// the publication was stale AND the row vanished, which v1 never does).
+    pub(crate) fn finish_job(
+        &mut self,
+        claim: &crate::jobs::ClaimedJob,
+        outcome: &crate::jobs::JobAttemptOutcome,
+        now_ms: u64,
+    ) -> SnapbackResult<(crate::jobs::JobFinishDisposition, Option<ChangedRow>)> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let disposition = crate::jobs::finish_job_in_tx(&tx, claim, outcome, now_ms)?;
+        let row = crate::jobs::job_status_row(&tx, &claim.job_id)?;
+        tx.commit()?;
+        Ok((disposition, row.as_ref().map(job_status_changed_row)))
+    }
+
+    pub(crate) fn job_status(
+        &self,
+        job_id: &str,
+    ) -> SnapbackResult<Option<crate::jobs::JobStatusRow>> {
+        crate::jobs::job_status_row(&self.conn, job_id)
+    }
+
+    pub(crate) fn job_attempt_records(
+        &self,
+        job_id: &str,
+    ) -> SnapbackResult<Vec<crate::jobs::JobAttemptRecord>> {
+        crate::jobs::job_attempts(&self.conn, job_id)
+    }
+
+    pub(crate) fn list_job_status_rows(
+        &self,
+        limit: usize,
+    ) -> SnapbackResult<Vec<crate::jobs::JobStatusRow>> {
+        crate::jobs::list_job_status_rows(&self.conn, limit)
+    }
+
+    pub(crate) fn pending_job_count(&self) -> SnapbackResult<u64> {
+        crate::jobs::pending_job_count(&self.conn)
     }
 
     fn configure(&mut self, file_backed: bool) -> SnapbackResult<()> {
@@ -4740,6 +4920,11 @@ impl LocalDatabase {
             ",
         )?;
         crate::search::sqlite::create_infra(&self.conn)?;
+        // @ref LLP 0070#job-identity-and-enqueue — the durable one-off job and
+        // append-only attempt tables live in the same SQLite database as
+        // application data so `ctx.jobs.enqueue` inserts inside the mutation's
+        // own transaction.
+        crate::jobs::create_jobs_infra(&self.conn)?;
         // Keep corruption preflights O(number of corrupt rows), which is zero
         // for every healthy database. MIN/MAX alone cannot detect an invalid
         // non-high-water predecessor, and scanning a table's entire journal on
@@ -7556,6 +7741,35 @@ impl DbRead<'_> {
 
     pub fn generate_id(&self) -> String {
         new_id()
+    }
+
+    fn conn(&self) -> &Connection {
+        match self {
+            DbRead::Pinned { conn, .. } => conn,
+            DbRead::Live(db) => &db.conn,
+        }
+    }
+
+    /// Snapshot lookup for `ctx.jobs.enqueue` idempotent reuse (LLP 0070:
+    /// same scoped key plus identical canonical bytes return the existing
+    /// job). The commit-time check inside the insert transaction remains the
+    /// authority; this read only serves the handler-visible fast path.
+    pub(crate) fn find_job_by_scoped_idempotency(
+        &self,
+        queue: &str,
+        action: &str,
+        idempotency_key: &str,
+    ) -> SnapbackResult<Option<crate::jobs::ExistingIdempotentJob>> {
+        crate::jobs::find_job_by_scoped_idempotency(self.conn(), queue, action, idempotency_key)
+    }
+
+    /// The declared job-status query's read (LLP 0121 option 3): the
+    /// privacy-bounded lifecycle projection for one job id.
+    pub(crate) fn job_status_row(
+        &self,
+        job_id: &str,
+    ) -> SnapbackResult<Option<crate::jobs::JobStatusRow>> {
+        crate::jobs::job_status_row(self.conn(), job_id)
     }
 }
 
@@ -12299,6 +12513,8 @@ impl LocalDatabase {
                 membership_plans: Vec::new(),
                 read_dependencies: plan.read_dependencies,
                 result: plan.result,
+                job_enqueues: Vec::new(),
+                job_producer: None,
             },
             BufferedCommitOptions {
                 ctx_ledger: None,
@@ -15164,6 +15380,33 @@ fn record_client_mutation_result(
 
 pub(crate) fn new_id() -> String {
     Uuid::now_v7().to_string()
+}
+
+/// A fresh-claim-id source over the trusted id allocator, in the closure
+/// shape `claim_due_jobs_in_tx` consumes.
+fn new_id_source() -> impl FnMut() -> String {
+    || new_id()
+}
+
+/// The ChangedRow a job lifecycle transition publishes for live matching —
+/// the pseudo-table row the declared job-status query captured a dependency
+/// on. `changed_fields` names the mutable lifecycle fields so predicate
+/// membership checks on immutable identity fields can skip.
+pub(crate) fn job_status_changed_row(row: &crate::jobs::JobStatusRow) -> ChangedRow {
+    ChangedRow {
+        table: crate::jobs::JOBS_STATUS_TABLE.to_owned(),
+        id: row.job_id.clone(),
+        op: ChangeOp::Update,
+        row: Some(row.to_row_value()),
+        changed_fields: vec![
+            "state".to_owned(),
+            "stateVersion".to_owned(),
+            "attemptCount".to_owned(),
+            "availableAtMs".to_owned(),
+            "terminalAtMs".to_owned(),
+            "lastErrorCode".to_owned(),
+        ],
+    }
 }
 
 fn now_millis() -> u64 {
@@ -18186,6 +18429,8 @@ mod guarded_commit_tests {
             read_dependencies: Vec::new(),
             result: json!(2),
             ctx_ledger: ledger(),
+            job_enqueues: Vec::new(),
+            job_producer: None,
         }
     }
 
@@ -20557,6 +20802,8 @@ mod guarded_commit_tests {
                     read_dependencies: Vec::new(),
                     result: json!({ "now": ledger.now }),
                     ctx_ledger: ledger.clone(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
                 },
                 None,
                 || Ok(()),
@@ -21369,6 +21616,8 @@ mod membership_write_tests {
                         now: 1,
                         auth_fingerprint: None,
                     },
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
                 },
                 None,
                 || Ok(()),

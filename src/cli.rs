@@ -2557,6 +2557,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let cron_scheduler = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         .then(|| server::spawn_cron_scheduler(state.clone(), cron_autonomy_disabled));
+    // The jobs worker is the one-off-work sibling: its own disable switch
+    // (SNAPBACK_JOBS_DISABLED) idles autonomy while the admin forced drain
+    // (POST /_snapback/api/jobs/drain) keeps claiming due jobs — the
+    // deterministic seam LLP 0115 CV-9 requires (LLP 0070 first slice).
+    let jobs_autonomy_disabled =
+        server::jobs_autonomy_disabled(std::env::var("SNAPBACK_JOBS_DISABLED").ok().as_deref());
+    let jobs_worker = (auth_mode_state.app_data_availability
+        == crate::auth::mode::AppDataAvailability::Available)
+        .then(|| server::spawn_jobs_worker(state.clone(), jobs_autonomy_disabled));
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state,
@@ -2585,6 +2594,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     if let Some(scheduler) = cron_scheduler {
         scheduler.abort();
+    }
+    if let Some(worker) = jobs_worker {
+        worker.abort();
     }
     maintenance_worker.abort();
     if let Some(worker) = auth_maintenance_worker {

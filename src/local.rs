@@ -1501,6 +1501,31 @@ impl Deref for AdmittedCronClaim {
     }
 }
 
+/// One claimed job plus its process-admission lease — the jobs sibling of
+/// [`AdmittedCronClaim`]. The lease gates detached execution and result
+/// publication exactly like cron's.
+pub(crate) struct AdmittedJobClaim {
+    claim: crate::jobs::ClaimedJob,
+    /// The drain clock this claim was taken under; terminal publication and
+    /// retry scheduling reuse it so forced drains stay deterministic.
+    pub(crate) drain_now_ms: u64,
+    admission: AdmissionLease,
+}
+
+impl AdmittedJobClaim {
+    pub(crate) fn admission_lease(&self) -> &AdmissionLease {
+        &self.admission
+    }
+}
+
+impl Deref for AdmittedJobClaim {
+    type Target = crate::jobs::ClaimedJob;
+
+    fn deref(&self) -> &Self::Target {
+        &self.claim
+    }
+}
+
 pub(crate) struct DetachedIbexAction {
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
@@ -1672,6 +1697,61 @@ pub(crate) fn manual_action_metadata(prefix: &str, name: &str) -> CronRunMetadat
         attempt: 1,
         trigger: CronRunTrigger::Manual,
     }
+}
+
+/// Callee admission for buffered `ctx.jobs.enqueue` intents (LLP 0070 v1,
+/// with the callee-class decision LLP 0121 OQ2 names): the callee must be a
+/// manifest-declared **action** — either runtime form, HostPlan-planned or
+/// Ibex-module, both of which execute under the generated host envelope
+/// (declared writes, `uses` grants, LLP 0009/0047 limits). This admits the
+/// Dispatch action→mutation shape. Direct mutation or query callees are the
+/// later broader-callee capability and fail closed here.
+///
+/// Returns the admitted enqueues plus the producer provenance (0127 decision
+/// 7: producer mutation id, function, principal ride every job row).
+pub(crate) fn admit_job_enqueues(
+    functions: &FunctionManifest,
+    enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
+    producer_mutation_id: &str,
+    producer_function: &str,
+    principal: Option<String>,
+) -> SnapbackResult<(
+    Vec<crate::jobs::BufferedJobEnqueue>,
+    Option<crate::jobs::JobProducer>,
+)> {
+    if enqueues.is_empty() {
+        return Ok((Vec::new(), None));
+    }
+    for enqueue in &enqueues {
+        let Some(callee) = functions.function(&enqueue.action) else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_JOB_ACTION_UNKNOWN",
+                "jobs",
+                format!(
+                    "ctx.jobs.enqueue names {:?}, which is not a declared function",
+                    enqueue.action
+                ),
+            ));
+        };
+        if callee.kind != FunctionKind::Action {
+            return Err(SnapbackError::error(
+                "SNAPBACK_JOB_CALLEE_NOT_ADMITTED",
+                "jobs",
+                format!(
+                    "ctx.jobs.enqueue admits declared actions only in v1; {:?} is a {:?} (direct mutation/query callees are a later capability — LLP 0070)",
+                    enqueue.action, callee.kind
+                ),
+            ));
+        }
+    }
+    Ok((
+        enqueues,
+        Some(crate::jobs::JobProducer {
+            mutation_id: producer_mutation_id.to_owned(),
+            function: producer_function.to_owned(),
+            principal,
+        }),
+    ))
 }
 
 /// The handler input a claimed cron run passes to its action.
@@ -5566,6 +5646,7 @@ impl LocalSnapback {
             input,
             client_mutation_id,
             authority_descriptor,
+            Some(receipt_mutation_id.as_str()),
             authority,
         );
         self.record_mutation_commit_after_publication_guard(
@@ -5705,6 +5786,8 @@ impl LocalSnapback {
                     changes: Vec::new(),
                     read_dependencies: Vec::new(),
                     write_dependencies: Vec::new(),
+                    job_enqueues: Vec::new(),
+                    job_changes: Vec::new(),
                     authorization: None,
                 };
                 let recorded = self.record_mutation_commit_after_publication_guard(
@@ -5762,21 +5845,35 @@ impl LocalSnapback {
                     let membership_plans = self
                         .db
                         .authorize_membership_commands(executed.membership_commands)?;
+                    // Callee admission for buffered enqueues happens before
+                    // any commit work: an inadmissible callee fails the whole
+                    // mutation (rollback schedules nothing).
+                    let (job_enqueues, job_producer) = admit_job_enqueues(
+                        &self.functions,
+                        executed.job_enqueues,
+                        &receipt_mutation_id,
+                        name,
+                        input.auth.user_id.clone(),
+                    )?;
                     let payload = BufferedCommitPayload {
                         writes: executed.writes,
                         membership_plans,
                         read_dependencies: executed.reads,
                         result: executed.result,
                         ctx_ledger: executed.ctx_ledger,
+                        job_enqueues,
+                        job_producer,
                     };
                     crate::result_contract::validate_handler_result(&function, &payload.result)?;
-                    let preview = self.db.dry_run_buffered_writes(
+                    let preview = self.db.dry_run_buffered_writes_with_jobs(
                         &input,
                         payload.writes.clone(),
                         payload.membership_plans.clone(),
                         payload.read_dependencies.clone(),
                         payload.result.clone(),
                         payload.ctx_ledger.clone(),
+                        payload.job_enqueues.clone(),
+                        payload.job_producer.clone(),
                     )?;
                     (
                         self.authorization_commit_preflight_for_changes(preview.changes),
@@ -5905,11 +6002,12 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let (outcome, rollback_reason, snapshot_version, result) = match result {
+        let (outcome, rollback_reason, snapshot_version, enqueues, result) = match result {
             Ok(commit) => (
                 MutationReceiptOutcome::Confirmed,
                 None,
                 Some(commit.output.version),
+                commit.job_enqueues.clone(),
                 Ok(commit),
             ),
             Err(error) => match self.db.current_version() {
@@ -5919,12 +6017,14 @@ impl LocalSnapback {
                     // values (§3.3 privacy).
                     Some(error.diagnostic.code.clone()),
                     Some(version),
+                    Vec::new(),
                     Err(error),
                 ),
                 Err(version_error) => (
                     MutationReceiptOutcome::Rejected,
                     Some(version_error.diagnostic.code.clone()),
                     None,
+                    Vec::new(),
                     Err(version_error),
                 ),
             },
@@ -5936,6 +6036,7 @@ impl LocalSnapback {
             rollback_reason,
             affected_tables,
             snapshot_version,
+            enqueues,
             transport: transport.to_owned(),
             correlation: correlation.unwrap_or(Value::Null),
             received_at_ms: now_millis(),
@@ -6048,6 +6149,10 @@ impl LocalSnapback {
         input: HandlerInput,
         client_mutation_id: Option<String>,
         authority_descriptor: Option<AuthorityDescriptor>,
+        // The caller's pre-minted receipt mutation id, when a receipt will be
+        // emitted for this commit — job rows stamp it as their producer so
+        // the two association halves name the same identity (0127 decision 7).
+        receipt_mutation_id: Option<&str>,
         authority: PreparedAuthority,
     ) -> SnapbackResult<MutationCommit> {
         // @ref LLP 0058#gate-algorithm — function lookup and requirement
@@ -6084,6 +6189,8 @@ impl LocalSnapback {
                 changes: Vec::new(),
                 read_dependencies: Vec::new(),
                 write_dependencies: Vec::new(),
+                job_enqueues: Vec::new(),
+                job_changes: Vec::new(),
                 authorization: None,
             });
         }
@@ -6158,6 +6265,17 @@ impl LocalSnapback {
                 let membership_plans = self
                     .db
                     .authorize_membership_commands(executed.membership_commands)?;
+                let producer_mutation_id = receipt_mutation_id
+                    .map(ToOwned::to_owned)
+                    .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
+                    .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+                let (job_enqueues, job_producer) = admit_job_enqueues(
+                    &self.functions,
+                    executed.job_enqueues,
+                    &producer_mutation_id,
+                    name,
+                    input.auth.user_id.clone(),
+                )?;
                 self.db.commit_buffered_writes_idempotent_guarded(
                     &input,
                     BufferedCommitPayload {
@@ -6166,6 +6284,8 @@ impl LocalSnapback {
                         read_dependencies: executed.reads,
                         result: executed.result,
                         ctx_ledger: executed.ctx_ledger,
+                        job_enqueues,
+                        job_producer,
                     },
                     identity.as_ref(),
                     || Ok(()),
@@ -6285,6 +6405,7 @@ impl LocalSnapback {
                 .filter(|authorization| authorization.event && self.auth_invalidation.is_some());
             if !permission_changes.is_empty()
                 || !commit.changes.is_empty()
+                || !commit.job_changes.is_empty()
                 || authorization_event.is_some()
             {
                 self.begin_live_delivery_frame(self.subscriptions.len());
@@ -6300,13 +6421,31 @@ impl LocalSnapback {
                         admission,
                     )?);
                 }
-                if !commit.changes.is_empty() || authorization_event.is_some() {
-                    self.notify_live_subscriptions_in_frame(
-                        &commit.changes,
-                        &resynced,
-                        frame_version,
-                        admission,
-                    )?;
+                if !commit.changes.is_empty()
+                    || !commit.job_changes.is_empty()
+                    || authorization_event.is_some()
+                {
+                    // Job-state rows ride the same frame as app changes so a
+                    // declared job-status subscription observes its enqueue;
+                    // they never touch OCC/projection/search consumers, which
+                    // read `commit.changes` upstream of here.
+                    if commit.job_changes.is_empty() {
+                        self.notify_live_subscriptions_in_frame(
+                            &commit.changes,
+                            &resynced,
+                            frame_version,
+                            admission,
+                        )?;
+                    } else {
+                        let mut frame_changes = commit.changes.clone();
+                        frame_changes.extend(commit.job_changes.iter().cloned());
+                        self.notify_live_subscriptions_in_frame(
+                            &frame_changes,
+                            &resynced,
+                            frame_version,
+                            admission,
+                        )?;
+                    }
                 }
             }
             Ok(())
@@ -6352,6 +6491,18 @@ impl LocalSnapback {
         let membership_plans = self
             .db
             .authorize_membership_commands(executed.membership_commands)?;
+        // Action-hosted nested mutations may enqueue (LLP 0070: actions
+        // enqueue follow-up work only through an explicit mutation). The
+        // nested commit mints its own producer identity in the receipt id
+        // domain.
+        let producer_mutation_id = format!("mut_{}", Uuid::now_v7().simple());
+        let (job_enqueues, job_producer) = admit_job_enqueues(
+            &self.functions,
+            executed.job_enqueues,
+            &producer_mutation_id,
+            name,
+            input.auth.user_id.clone(),
+        )?;
         self.ensure_permission_epoch_capacity(&binding.epoch_scopes)?;
         let commit = self.db.commit_buffered_writes_idempotent_guarded(
             &input,
@@ -6361,6 +6512,8 @@ impl LocalSnapback {
                 read_dependencies: executed.reads,
                 result: executed.result,
                 ctx_ledger: executed.ctx_ledger,
+                job_enqueues,
+                job_producer,
             },
             None,
             check_live,
@@ -9555,6 +9708,7 @@ impl LocalSnapback {
                 input,
                 None,
                 None,
+                None,
                 prepared.authority().clone(),
             ) {
                 Ok(commit) => FunctionRunResult {
@@ -10904,6 +11058,190 @@ impl LocalSnapback {
     pub(crate) fn record_cron_tick_error(&mut self, error: SnapbackError) {
         self.cron_tick_errors += 1;
         self.record_diagnostics(vec![error.diagnostic]);
+    }
+
+    /// Set-based claim of every due one-off job at the supplied clock — the
+    /// deterministic drain seam (LLP 0115 CV-9): due-ness is a pure function
+    /// of `now_ms`, sibling of cron's forced tick but over the job set, not
+    /// nominal slots. Callers execute each claim off the lock and finish it
+    /// through [`Self::finish_job_claim`].
+    pub(crate) fn claim_due_jobs(
+        &mut self,
+        now_ms: u64,
+        limit: usize,
+        drive: &str,
+    ) -> SnapbackResult<Vec<AdmittedJobClaim>> {
+        self.db.ensure_migration_lane_open()?;
+        // Admission precedes the durable claim write, mirroring cron: if the
+        // process is closing, no new claims are taken.
+        let first_admission = self.admission.admit()?;
+        let (claims, job_changes) = self.db.claim_due_jobs(now_ms, limit, drive)?;
+        if !job_changes.is_empty() {
+            self.notify_live_subscriptions(&job_changes);
+        }
+        let mut admitted = Vec::with_capacity(claims.len());
+        let mut admissions = vec![first_admission];
+        for _ in 1..claims.len() {
+            match self.admission.admit() {
+                Ok(admission) => admissions.push(admission),
+                Err(error) => {
+                    // Claims beyond the admitted prefix stay claimed; their
+                    // leases expire and a successor drain re-claims them —
+                    // the same recovery path as a crash after claim
+                    // (LLP 0070 §Claims and fencing). Record and stop.
+                    self.record_diagnostics(vec![error.diagnostic]);
+                    break;
+                }
+            }
+        }
+        for (claim, admission) in claims.into_iter().zip(admissions) {
+            admitted.push(AdmittedJobClaim {
+                claim,
+                drain_now_ms: now_ms,
+                admission,
+            });
+        }
+        Ok(admitted)
+    }
+
+    /// Atomic terminal publication for one executed job claim: the fenced CAS
+    /// transition, the appended attempt outcome, live fan-out for the
+    /// declared job-status query, and the synchronous drain receipt.
+    pub(crate) fn finish_job_claim(
+        &mut self,
+        claim: AdmittedJobClaim,
+        result: Result<Value, Diagnostic>,
+    ) -> SnapbackResult<crate::jobs::JobDrainRecord> {
+        let admission = claim.admission_lease().clone();
+        let outcome = match result {
+            Ok(_) => crate::jobs::JobAttemptOutcome::Succeeded,
+            Err(diagnostic) => {
+                crate::jobs::JobAttemptOutcome::Failed(self.config.redact_diagnostic(diagnostic))
+            }
+        };
+        let now_ms = claim.drain_now_ms;
+        // The effect guard linearizes only the SQLite terminal publication;
+        // it owns the admission mutex, so it MUST drop before live fan-out
+        // (which takes admission-controller entry points of its own).
+        let (disposition, changed_row) = {
+            let _publication = admission.effect_guard("job result publication")?;
+            self.db.finish_job(&claim.claim, &outcome, now_ms)?
+        };
+        if let Some(changed_row) = changed_row
+            && disposition != crate::jobs::JobFinishDisposition::StalePublication
+        {
+            // Mirror finish_mutation_commit: fan out under the existing
+            // admission lease rather than minting a fresh root.
+            match self.db.current_version() {
+                Ok(frame_version) => {
+                    self.begin_live_delivery_frame(self.subscriptions.len());
+                    if let Err(error) = self.notify_live_subscriptions_in_frame(
+                        std::slice::from_ref(&changed_row),
+                        &BTreeSet::new(),
+                        frame_version,
+                        &admission,
+                    ) {
+                        self.record_diagnostics(vec![error.diagnostic]);
+                    }
+                }
+                Err(error) => self.record_diagnostics(vec![error.diagnostic]),
+            }
+        }
+        let (disposition_name, next_available_at_ms) = match &disposition {
+            crate::jobs::JobFinishDisposition::Succeeded => ("succeeded", None),
+            crate::jobs::JobFinishDisposition::RetryPending { available_at_ms } => {
+                ("retry_pending", Some(*available_at_ms))
+            }
+            crate::jobs::JobFinishDisposition::Dead => ("dead", None),
+            crate::jobs::JobFinishDisposition::StalePublication => ("stale_publication", None),
+        };
+        let diagnostic_code = match &outcome {
+            crate::jobs::JobAttemptOutcome::Succeeded => None,
+            crate::jobs::JobAttemptOutcome::Failed(diagnostic) => Some(diagnostic.code.clone()),
+        };
+        if let crate::jobs::JobAttemptOutcome::Failed(diagnostic) = &outcome
+            && disposition == crate::jobs::JobFinishDisposition::Dead
+        {
+            self.record_diagnostics(vec![diagnostic.clone()]);
+        }
+        Ok(crate::jobs::JobDrainRecord {
+            job_id: claim.claim.job_id.clone(),
+            queue: claim.claim.queue.clone(),
+            action: claim.claim.action.clone(),
+            attempt: claim.claim.attempt,
+            claim_id: claim.claim.claim_id.clone(),
+            fence: claim.claim.fence,
+            disposition: disposition_name.to_owned(),
+            diagnostic_code,
+            next_available_at_ms,
+        })
+    }
+
+    /// The handler input a claimed job passes to its action: the immutable
+    /// validated args, under system authority (LLP 0070 v1 executes the
+    /// generated action with the enqueue-time-validated argument bytes).
+    pub(crate) fn job_claim_input(claim: &AdmittedJobClaim) -> HandlerInput {
+        HandlerInput {
+            args: claim.claim.args.clone(),
+            auth: Default::default(),
+            read_set: Vec::new(),
+            correlation: None,
+            ctx_ledger: None,
+        }
+    }
+
+    /// The run metadata a claimed job hands the action runtime — the jobs
+    /// sibling of a cron run's metadata, carried in the same shape so both
+    /// action tiers work unchanged. `due_at_ms` is the drain clock, which the
+    /// action observes as `ctx.runtime.now()` — deterministic under forced
+    /// drains.
+    pub(crate) fn job_claim_metadata(claim: &AdmittedJobClaim) -> CronRunMetadata {
+        CronRunMetadata {
+            job_name: format!("jobs:{}", claim.claim.action),
+            run_id: format!("job:{}:{}", claim.claim.job_id, claim.claim.attempt),
+            scheduled_at_ms: None,
+            due_at_ms: claim.drain_now_ms,
+            idempotency_key: claim
+                .claim
+                .idempotency_key
+                .clone()
+                .unwrap_or_else(|| format!("job:{}", claim.claim.job_id)),
+            slot_key: format!("job:{}", claim.claim.job_id),
+            attempt: claim.claim.attempt,
+            trigger: CronRunTrigger::Manual,
+        }
+    }
+
+    pub(crate) fn jobs_inspect(&self, limit: usize) -> SnapbackResult<Value> {
+        let jobs = self.db.list_job_status_rows(limit)?;
+        let pending = self.db.pending_job_count()?;
+        Ok(json!({
+            "artifactKind": "snapback.jobs-inspect/v0",
+            // Honest capability posture (LLP 0070 §Non-goals): the RFC is
+            // Draft, so no durable-background-work capability class or target
+            // tuple is claimed here — these are lifecycle facts only.
+            "claimBoundary": "LLP 0070 Draft — no durable-background-work capability claimed",
+            "pendingCount": pending,
+            "jobs": jobs,
+        }))
+    }
+
+    pub(crate) fn job_show(&self, job_id: &str) -> SnapbackResult<Option<Value>> {
+        let Some(job) = self.db.job_status(job_id)? else {
+            return Ok(None);
+        };
+        let attempts = self.db.job_attempt_records(job_id)?;
+        Ok(Some(json!({
+            "artifactKind": "snapback.job-show/v0",
+            "job": job,
+            "attempts": attempts,
+        })))
+    }
+
+    /// Whether any job could need the autonomous worker: pending or claimed
+    /// rows exist. The worker polls this only when its activity hint is set.
+    pub(crate) fn jobs_pending_count(&self) -> SnapbackResult<u64> {
+        self.db.pending_job_count()
     }
 
     /// Record a retryable maintenance failure without retaining the underlying
@@ -15034,6 +15372,9 @@ fn validate_function_schema_references(
     for function in &manifest.functions {
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => query(plan)?,
+            // The job-status plan reads no application schema table: nothing
+            // to validate against the schema here (its shape is Rust-owned).
+            FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {}
             FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
                 crate::manifest::validate_search_query_plan_shape(plan)?;
                 let declared = table(&plan.table)?;
@@ -16327,6 +16668,57 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)),
+        ) => {
+            // The generated declared job-status query (LLP 0121 option 3):
+            // one point read of the privacy-bounded lifecycle projection,
+            // captured as a Row/MissingRow dependency on the reserved
+            // job-status table so job lifecycle transitions wake live
+            // subscriptions through the ordinary matcher — including the
+            // absent→present direction after a later enqueue.
+            let Some(job_id) = input.args.get("jobId").and_then(Value::as_str) else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_JOB_STATUS_ARGS_INVALID",
+                    "jobs",
+                    "the job-status query requires a string jobId argument",
+                ));
+            };
+            let status = db.job_status_row(job_id)?;
+            let version = db.current_version()?;
+            let rows = status
+                .as_ref()
+                .map(|row| vec![row.to_row_value()])
+                .unwrap_or_default();
+            let mut read_dependencies = vec![CapturedReadDependency {
+                kind: if status.is_some() {
+                    CapturedReadKind::Row
+                } else {
+                    CapturedReadKind::MissingRow
+                },
+                table: Some(crate::jobs::JOBS_STATUS_TABLE.to_owned()),
+                id: Some(job_id.to_owned()),
+                version: status.as_ref().map(|row| row.state_version),
+                predicate: None,
+                rows: Vec::new(),
+                field: None,
+                value: None,
+                order: None,
+                limit: None,
+                result_count: Some(rows.len()),
+                boundary: None,
+            }];
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output: QueryOutput {
+                    version,
+                    cursor: None,
+                    rows,
+                },
+                read_dependencies,
+            })
+        }
         (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan))) => {
             // @ref LLP 0073#authorization-and-result-release — the search
             // executor receives only server-resolved authority and evaluates
@@ -17008,6 +17400,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
             (vec![plan.table.clone()], Vec::new())
         }
+        FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {
+            (vec![crate::jobs::JOBS_STATUS_TABLE.to_owned()], Vec::new())
+        }
         FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
             (vec![plan.root.clone(), plan.joined.clone()], Vec::new())
         }
@@ -17639,8 +18034,7 @@ mod tests {
                     return_value: None,
                 })),
             );
-            stream_action.required_capabilities =
-                vec!["bounded_response_stream_v1".to_owned()];
+            stream_action.required_capabilities = vec!["bounded_response_stream_v1".to_owned()];
             functions.functions.push(stream_action);
             let artifacts = StartupArtifacts {
                 format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
@@ -17664,10 +18058,7 @@ mod tests {
                 let error = result.expect_err(
                     "an exact process with outbound actions disabled must refuse the bounded stream requirement",
                 );
-                assert_eq!(
-                    error.diagnostic.code,
-                    "SNAPBACK_CAPABILITY_UNSUPPORTED"
-                );
+                assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
                 assert_eq!(
                     error.diagnostic.details["capability"],
                     "bounded_response_stream_v1"
@@ -26911,6 +27302,7 @@ globalThis.__snapbackHandlers = {
                 id: "guarded_item".to_owned(),
                 values,
             }],
+            job_enqueues: Vec::new(),
             membership_commands: Vec::new(),
             reads: Vec::new(),
             result: json!("guarded_item"),
@@ -28818,6 +29210,131 @@ globalThis.__snapbackHandlers = {
 
     fn rqs_resume_from_value(value: &Value) -> crate::live_wire::ResumeWire {
         serde_json::from_value(value.clone()).expect("resume wire decodes")
+    }
+
+    /// The declared job-status query is an ordinary live query over job state
+    /// (LLP 0121 option 3; LLP 0070 first slice): one subscription observes
+    /// the enqueued job's pending snapshot, its claim, and its terminal
+    /// publication through the ordinary live machinery — no privileged
+    /// channel, no sleeping.
+    #[test]
+    fn job_status_live_query_updates_across_the_job_lifecycle() {
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        let manifest = FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "scheduleOnly",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = {\
+                             async scheduleOnly(ctx, args) {\
+                               return await ctx.jobs.enqueue(\
+                                 'inertNotify', { tag: args.tag },\
+                                 { delayMs: args.delayMs || 0 });\
+                             } };"
+                            .to_owned(),
+                        export: "scheduleOnly".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "inertNotify",
+                    FunctionKind::Action,
+                    FunctionRuntime::HostPlan(HandlerPlan::Action(crate::manifest::ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+                {
+                    let mut function = FunctionDefinition::new(
+                        "jobStatus",
+                        FunctionKind::LiveQuery,
+                        FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(
+                            crate::manifest::JobStatusQueryPlanV1::default(),
+                        )),
+                    );
+                    // What codegen emits for the declared job-status query
+                    // (the artifact-honesty rule requires the declaration).
+                    function.required_capabilities = vec![
+                        "jobs_one_off_v1".to_owned(),
+                        "live_subscriptions".to_owned(),
+                    ];
+                    function
+                },
+            ],
+            // The artifact-level knowing bind to the not-yet-Accepted jobs
+            // contract (LLP 0058 capability maturity) — codegen emits this.
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        };
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "jobs live fixture must install: {diagnostics:?}"
+        );
+
+        let output = snapback
+            .invoke_mutation(
+                "scheduleOnly",
+                HandlerInput {
+                    args: json!({ "tag": "alpha", "delayMs": 60_000 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("enqueueing mutation commits");
+        let job_id = output.result["jobId"]
+            .as_str()
+            .expect("enqueue returns jobId")
+            .to_owned();
+        let available_at = output.result["availableAtMs"]
+            .as_u64()
+            .expect("enqueue returns availableAtMs");
+
+        let subscribed = snapback
+            .subscribe_live(
+                "jobStatus",
+                LiveSubscribeInput {
+                    connection_id: "conn-jobs".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "jobId": job_id }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe job status");
+        let snapshot = subscribed.snapshot.expect("initial snapshot");
+        assert_eq!(snapshot.rows.len(), 1, "the pending job is visible");
+        assert_eq!(snapshot.rows[0]["state"], "pending");
+        assert_eq!(snapshot.rows[0]["jobId"], json!(job_id));
+
+        // Injected-clock claim: the subscription observes the claimed state.
+        let mut claims = snapback
+            .claim_due_jobs(available_at, 64, "forced-drain")
+            .expect("claim due jobs");
+        assert_eq!(claims.len(), 1);
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-jobs");
+        let claimed = envelopes.last().expect("claim transition delivers");
+        assert_eq!(claimed["rows"][0]["state"], "claimed");
+        assert_eq!(claimed["rows"][0]["attemptCount"], 1);
+
+        // Terminal publication: the subscription observes completion.
+        let record = snapback
+            .finish_job_claim(claims.remove(0), Ok(json!(null)))
+            .expect("finish claim");
+        assert_eq!(record.disposition, "succeeded");
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-jobs");
+        let settled = envelopes.last().expect("terminal transition delivers");
+        assert_eq!(settled["rows"][0]["state"], "succeeded");
+        assert_eq!(
+            settled["rows"][0]["producerFunction"],
+            json!("scheduleOnly"),
+            "the job row carries its producer association into the live view"
+        );
     }
 
     #[test]

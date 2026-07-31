@@ -2645,6 +2645,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
 
     for receipt in [
         Receipt::Mutation {
+            enqueues: Vec::new(),
             mutation_id: "mut_1".to_owned(),
             mutation: "addTodo".to_owned(),
             outcome: MutationReceiptOutcome::Confirmed,
@@ -2687,6 +2688,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         assert_validates("receipt.schema.json", &receipt.into_value());
     }
     let nullable_mutation_snapshot = Receipt::Mutation {
+        enqueues: Vec::new(),
         mutation_id: "mut_cursor_unavailable".to_owned(),
         mutation: "addTodo".to_owned(),
         outcome: MutationReceiptOutcome::Rejected,
@@ -2791,6 +2793,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         result: json!({ "id": "todo_1" }),
         ctx_ledger: None,
         receipt: Receipt::Mutation {
+            enqueues: Vec::new(),
             mutation_id: "mut_direct_1".to_owned(),
             mutation: "addTodo".to_owned(),
             outcome: MutationReceiptOutcome::Confirmed,
@@ -2838,6 +2841,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(ErrorResponse {
             diagnostic: Diagnostic::error("SNAPBACK_REJECTED", "mutation", "rejected"),
             receipt: Some(Receipt::Mutation {
+                enqueues: Vec::new(),
                 mutation_id: "mut_rejected_1".to_owned(),
                 mutation: "addTodo".to_owned(),
                 outcome: MutationReceiptOutcome::Rejected,

@@ -180,6 +180,12 @@ pub(crate) fn live_subscription_may_be_affected(
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
             changes.iter().any(|change| change.table == plan.table)
         }
+        // Table-granular fallback for the declared job-status query: any job
+        // lifecycle transition resnapshots it. The captured Row/MissingRow
+        // dependency above already gives the per-job precise wake/skip.
+        FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => changes
+            .iter()
+            .any(|change| change.table == crate::jobs::JOBS_STATUS_TABLE),
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
         | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_))
         | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => true,

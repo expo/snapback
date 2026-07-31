@@ -5,7 +5,14 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (v0.8, wave-1 program-state refresh: the six
+**Revised:** 2026-07-31 (v0.9, CV-9 first slice landed: wave-1 lane C2
+delivers LLP 0070's `runAfter` slice — transactional `ctx.jobs.enqueue`
+inside the mutation commit, fenced claims with append-only attempt
+receipts, the injected-clock jobs drain, the generated declared
+job-status live query, and the experimental `jobs_one_off_v1`
+capability facts; CV-9's row and §CV-9's dated tracking note carry the
+detail. 0070 stays Draft; the claim boundary stands.)
+2026-07-31 (v0.8, wave-1 program-state refresh: the six
 commissioned Specs are all Accepted under LLP 0130 SD-4 — LLP 0131
 (CV-4a+CV-5 unified argument grammar), LLP 0132 (vector search), LLP
 0133 (local settlement), LLP 0134 (CV-8 piece 2 stable promotion),
@@ -389,7 +396,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-6 | Precise mutation results as the paved default | B (P1) | 1 | 0108 amendment, guide | 0117 | S | Open (OQ3 answered — decision 5: deferral confirmed, provisional lean recorded; sequenced post-A+E) |
 | CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Landed 2026-07-31 (`4d72c407`: full option-1a same-file slice — context-readers admitted per 0127 decision 6, splice emission, v2 named-helper-content hash, cross-helper adversarial fixtures, spliced-bytes capability rescan; ticket issues/20260730-move2-capability-free-helper-cut.md; benchmark receipts against LLP 0035's baseline still open) |
 | CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, re-verified 2026-07-31; decision 3: sequence primitive first, then 3a; stable-promotion design LANDED as LLP 0134, Accepted 2026-07-31 under SD-4; sequence-primitive + 3a design passes LANDED as LLP 0135, Accepted 2026-07-31 under SD-4; both design tickets closed) |
-| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice = 0127 slice 3-jobs, startable; receipt-association owner = 0070 per decision 7) |
+| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice = 0127 slice 3-jobs, startable; receipt-association owner = 0070 per decision 7); implementation LANDED 2026-07-31 (wave-1 lane C2): transactional `ctx.jobs.enqueue` in the mutation commit, fenced claims + append-only attempt receipts, the injected-clock drain seam, the declared job-status live query, experimental `jobs_one_off_v1`; 0070 stays Draft; Dispatch-arm rerun evidence outstanding |
 | CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Landed 2026-07-30 (`c57ef9cd`: canonical-digest recheck + storage normalization + 0073 pin; ticket closed) |
 | CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Design half landed 2026-07-31 (LLP 0136, Accepted under SD-4: coarse re-execution on invalidation, non-auth-scoped v1, table-scoped ceilings, offer-gated negotiation); implementation + the 0114 rerun-arm prep remain open |
 | CV-12a | Portable range filters | D (P1) | 4 (rider) | 0073 (new design) | — | M | Open |
@@ -1028,6 +1035,26 @@ stays blocked-on per 0070; exactly-once is not claimed
 **v0.6 (0127 decision 7, decided).** The enqueue-receipt association
 shape is owned by LLP 0070, with its wire projection flowing to
 LLP 0094 like every other receipt — 0121 OQ4 resolved.
+
+**v0.9 (tracking, 2026-07-31 — lane C2 landing).** The first
+slice landed with the wave-1 C2 lane
+(`issues/20260730-move3-jobs-slice-0070.md` §Execution record):
+transactional `ctx.jobs.enqueue` inside the mutation's SQLite commit,
+the paved default queue, fenced claims with append-only attempt
+receipts, the injected-clock `POST /_snapback/api/jobs/drain` seam
+(set-based, bounded waves, synchronous receipts), the callee-class
+decision (declared actions of both runtime forms — the Dispatch shape
+fits), both option-3 association halves (job-side producer facts;
+bounded `enqueues` on confirmed mutation receipts), the generated
+declared job-status live query, and the experimental
+`jobs_one_off_v1` capability facts. Both exit criteria are pinned by
+Rust tests (rollback-schedules-nothing; the forced drain claims due
+jobs exactly once with receipts). 0070 remains Draft — its claim
+boundary stands, and the enqueue-association spec text awaits
+absorption from the dated amendment note
+`llp/0070-durable-background-work.amendment-2026-07-31-first-slice.md`.
+The Dispatch arm's one-off path (the diary-visible half of the exit)
+ports at the successor rerun per §Sequencing 5.
 
 ### Tranche D — P1: mature portable search
 

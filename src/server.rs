@@ -2672,6 +2672,131 @@ pub(crate) async fn execute_cron_claim_detached(
     .await
 }
 
+/// One injected-clock jobs drain (LLP 0115 CV-9's deterministic seam; sibling
+/// of [`cron_tick_detached`] but set-based per LLP 0121): claim every due job
+/// at `now_ms` under the lock, execute each claim off the lock, publish each
+/// terminal transition back under the lock, and repeat for cascading enqueues
+/// up to `max_waves` bounded waves (LLP 0121 open question 5's drain
+/// semantics, decided: bounded waves, never run-to-quiescence). Returns the
+/// synchronous drain receipts in claim order.
+pub(crate) async fn jobs_drain_detached(
+    state: &SharedSnapback,
+    now_ms: u64,
+    max_waves: usize,
+) -> SnapbackResult<Vec<crate::jobs::JobDrainRecord>> {
+    let mut records = Vec::new();
+    let waves = max_waves.clamp(1, crate::jobs::JOBS_DRAIN_MAX_WAVES);
+    for _ in 0..waves {
+        let claims = with_snapback(state, move |snapback| {
+            snapback.claim_due_jobs(now_ms, crate::jobs::JOBS_CLAIM_BATCH, "forced-drain")
+        })
+        .await?;
+        if claims.is_empty() {
+            break;
+        }
+        let mut completed =
+            futures_util::stream::iter(claims.into_iter().enumerate().map(|(index, claim)| {
+                let state = state.clone();
+                async move { (index, execute_job_claim_detached(&state, claim).await) }
+            }))
+            .buffer_unordered(configured_cron_dispatch_concurrency(
+                std::env::var("SNAPBACK_CRON_DISPATCH_CONCURRENCY")
+                    .ok()
+                    .as_deref(),
+            ))
+            .collect::<Vec<_>>()
+            .await;
+        completed.sort_by_key(|(index, _)| *index);
+        for (_, result) in completed {
+            records.push(result?);
+        }
+    }
+    Ok(records)
+}
+
+/// Execute one claimed job without holding the global mutex across the
+/// action, then publish its terminal outcome — the jobs sibling of
+/// [`execute_cron_claim_detached`]. The callee runs with the job's immutable
+/// validated args under the same staged action machinery cron uses (LLP 0070
+/// v1 host-plan-envelope admission; both action tiers).
+pub(crate) async fn execute_job_claim_detached(
+    state: &SharedSnapback,
+    claim: crate::local::AdmittedJobClaim,
+) -> SnapbackResult<crate::jobs::JobDrainRecord> {
+    let input = LocalSnapback::job_claim_input(&claim);
+    let metadata = LocalSnapback::job_claim_metadata(&claim);
+    let action = claim.action.clone();
+    let staged = {
+        let action = action.clone();
+        let admission = claim.admission_lease().clone();
+        with_snapback(state, move |snapback| {
+            snapback.stage_action_invocation_with_admission(&action, admission)
+        })
+        .await
+    };
+    let result = match staged {
+        Ok(StagedAction::Detached(action)) => {
+            run_detached_ibex_action(state, action, input, metadata).await
+        }
+        Ok(StagedAction::HostPlan(prepared)) => {
+            run_managed_host_plan_action(state, action, input, metadata, prepared).await
+        }
+        Err(error) => Err(error),
+    }
+    .map_err(|error| error.diagnostic);
+    with_snapback(state, move |snapback| {
+        snapback.finish_job_claim(claim, result)
+    })
+    .await
+}
+
+/// The autonomous jobs worker: the existing one-second scheduler loop reused
+/// as the wakeup over the durable job table (LLP 0121 option 2 case 3 — the
+/// ticker is a wakeup; the job/attempt rows stay the only evidence).
+/// `SNAPBACK_JOBS_DISABLED` idles it (the sibling of `SNAPBACK_CRON_DISABLED`,
+/// deliberately a separate flag: cron and jobs are separate subsystems with
+/// separate ledgers), leaving the admin forced drain as the only driver —
+/// which is how deterministic acceptance runs.
+pub fn spawn_jobs_worker(state: SharedSnapback, autonomy_disabled: bool) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        if autonomy_disabled {
+            return;
+        }
+        let mut ticks = interval(Duration::from_secs(1));
+        // First tick resolves immediately; it doubles as the startup recovery
+        // sweep for jobs that were pending/claimed at the last shutdown.
+        loop {
+            ticks.tick().await;
+            // Cheap idle path: one indexed COUNT under the lock only decides
+            // whether a drain is worth running; the drain itself claims.
+            let pending =
+                match with_snapback(&state, |snapback| snapback.jobs_pending_count()).await {
+                    Ok(pending) => pending,
+                    Err(error) => {
+                        state.lock().await.record_cron_tick_error(error);
+                        continue;
+                    }
+                };
+            if pending == 0 {
+                continue;
+            }
+            let now = now_millis();
+            if let Err(error) = jobs_drain_detached(&state, now, 1).await {
+                state.lock().await.record_cron_tick_error(error);
+            }
+        }
+    })
+}
+
+/// Parse the `SNAPBACK_JOBS_DISABLED` switch with the same vocabulary as
+/// [`cron_autonomy_disabled`].
+pub fn jobs_autonomy_disabled(value: Option<&str>) -> bool {
+    matches!(
+        value.map(str::trim).map(str::to_ascii_lowercase).as_deref(),
+        Some("1") | Some("true")
+    )
+}
+
 type ConnectionRetirementSink = Arc<dyn Fn(BoundConnectionTerminalCapture) + Send + Sync + 'static>;
 
 /// Transport-level connection grants (ENG-23442). Connection ids used to be
@@ -36109,6 +36234,256 @@ globalThis.__snapbackHandlers = {
         .await
         .expect("an enabled scheduler must fire the armed due job within the window the disabled test holds open");
         scheduler.abort();
+    }
+
+    /// Fixture for the LLP 0070 first-slice acceptance (LLP 0115 CV-9): an
+    /// Ibex mutation that enqueues a one-off job targeting a declared Ibex
+    /// action which applies its durable effect through a nested mutation —
+    /// the Dispatch action→mutation shape the callee-class decision admits.
+    fn jobs_test_state() -> SharedSnapback {
+        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
+        let mut snapback = LocalSnapback::memory().expect("jobs test state");
+        snapback
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: "events".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "name".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply jobs schema");
+        let manifest = FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "scheduleEvent",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = {\
+                             async scheduleEvent(ctx, args) {\
+                               const enqueue = await ctx.jobs.enqueue(\
+                                 'notify', { name: args.name }, { delayMs: args.delayMs || 0 });\
+                               if (args.fail) throw new Error('rollback requested');\
+                               return enqueue;\
+                             } };"
+                            .to_owned(),
+                        export: "scheduleEvent".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "applyEvent",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = {\
+                             async applyEvent(ctx, args) {\
+                               const id = await ctx.db.insert('events', { name: args.name });\
+                               return { id };\
+                             } };"
+                            .to_owned(),
+                        export: "applyEvent".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "notify",
+                    FunctionKind::Action,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = {\
+                             async notify(ctx, args) {\
+                               return await ctx.runMutation('applyEvent', { name: args.name });\
+                             } };"
+                            .to_owned(),
+                        export: "notify".to_owned(),
+                    }),
+                ),
+            ],
+            ..FunctionManifest::default()
+        };
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "jobs fixture must install: {diagnostics:?}"
+        );
+        Arc::new(Mutex::new(snapback))
+    }
+
+    /// LLP 0070's first acceptance bullet, verbatim CV-9 exit criterion: a
+    /// rolled-back mutation provably schedules nothing — and the rejected
+    /// receipt carries no enqueue facts (the inspectable absence).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn rolled_back_mutation_schedules_nothing() {
+        let state = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            jobs_test_state()
+        })
+        .await
+        .expect("fixture builds off the async worker");
+        let (result, receipt) = with_snapback(&state, |snapback| {
+            snapback.invoke_mutation_recording(
+                "scheduleEvent",
+                HandlerInput {
+                    args: serde_json::json!({ "name": "boom", "delayMs": 0, "fail": true }),
+                    ..HandlerInput::default()
+                },
+            )
+        })
+        .await;
+        assert!(result.is_err(), "the failing handler must reject");
+        let receipt_value = receipt.into_value();
+        assert_eq!(receipt_value["outcome"], "rejected");
+        assert!(
+            receipt_value.get("enqueues").is_none(),
+            "a rejected mutation receipt never carries enqueue facts: {receipt_value}"
+        );
+        let inspect = with_snapback(&state, |snapback| snapback.jobs_inspect(50))
+            .await
+            .expect("jobs inspect");
+        assert_eq!(
+            inspect["jobs"].as_array().map(Vec::len),
+            Some(0),
+            "rollback must leave no job rows: {inspect}"
+        );
+        // Nothing is claimable at any clock: the forced drain over an empty
+        // ledger returns no receipts.
+        let drained = super::jobs_drain_detached(&state, u64::MAX >> 12, 1)
+            .await
+            .expect("drain runs");
+        assert!(drained.is_empty(), "nothing may drain after rollback");
+    }
+
+    /// CV-9's second exit criterion: an injected-clock forced drain claims due
+    /// one-off jobs — exactly once per attempt fence — executes the admitted
+    /// action callee (which applies its durable effect through a nested
+    /// mutation), and leaves receipts in the job/attempt ledger. No sleeps:
+    /// due-ness is a pure function of the supplied clock.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn forced_drain_claims_due_jobs_exactly_once_with_receipts() {
+        let state = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            jobs_test_state()
+        })
+        .await
+        .expect("fixture builds off the async worker");
+        let (result, receipt) = with_snapback(&state, |snapback| {
+            snapback.invoke_mutation_recording(
+                "scheduleEvent",
+                HandlerInput {
+                    args: serde_json::json!({ "name": "drill", "delayMs": 60_000 }),
+                    ..HandlerInput::default()
+                },
+            )
+        })
+        .await;
+        let output = result.expect("enqueueing mutation commits");
+        let job_id = output.result["jobId"]
+            .as_str()
+            .expect("enqueue returns the job id")
+            .to_owned();
+        let available_at = output.result["availableAtMs"]
+            .as_u64()
+            .expect("enqueue returns availableAtMs");
+        assert_eq!(output.result["deduplicated"], serde_json::json!(false));
+
+        // The confirmed mutation receipt embeds its enqueue association
+        // (0127 decision 7's mutation-side half).
+        let receipt_value = receipt.into_value();
+        assert_eq!(receipt_value["outcome"], "confirmed");
+        assert_eq!(
+            receipt_value["enqueues"][0]["jobId"],
+            serde_json::json!(job_id)
+        );
+        assert_eq!(receipt_value["enqueues"][0]["action"], "notify");
+        assert_eq!(
+            receipt_value["enqueues"][0]["availableAtMs"],
+            serde_json::json!(available_at)
+        );
+        let receipt_mutation_id = receipt_value["mutationId"]
+            .as_str()
+            .expect("receipt mutation id")
+            .to_owned();
+        let receipt_snapshot_version = receipt_value["snapshotVersion"]
+            .as_u64()
+            .expect("confirmed receipt snapshot version");
+
+        // The job row carries the producer association (the job-side half).
+        let shown = with_snapback(&state, {
+            let job_id = job_id.clone();
+            move |snapback| snapback.job_show(&job_id)
+        })
+        .await
+        .expect("job show")
+        .expect("job exists");
+        assert_eq!(shown["job"]["state"], "pending");
+        assert_eq!(
+            shown["job"]["producerMutationId"],
+            serde_json::json!(receipt_mutation_id)
+        );
+        assert_eq!(
+            shown["job"]["producerSnapshotVersion"],
+            serde_json::json!(receipt_snapshot_version)
+        );
+        assert_eq!(shown["job"]["producerFunction"], "scheduleEvent");
+
+        // Before the delay elapses (injected clock), nothing is due.
+        let early = super::jobs_drain_detached(&state, available_at - 1, 1)
+            .await
+            .expect("early drain");
+        assert!(
+            early.is_empty(),
+            "the delayed job must not be claimable early"
+        );
+
+        // At the injected due clock, the forced drain claims and executes.
+        let drained = super::jobs_drain_detached(&state, available_at, 1)
+            .await
+            .expect("due drain");
+        assert_eq!(drained.len(), 1, "exactly the one due job is claimed");
+        assert_eq!(drained[0].job_id, job_id);
+        assert_eq!(drained[0].attempt, 1);
+        assert_eq!(drained[0].fence, 1);
+        assert_eq!(drained[0].disposition, "succeeded");
+
+        // Exactly once per attempt fence: a second drain at the same clock
+        // claims nothing.
+        let again = super::jobs_drain_detached(&state, available_at, 1)
+            .await
+            .expect("repeat drain");
+        assert!(again.is_empty(), "a settled job must not be re-claimed");
+
+        // The action's nested mutation committed the durable effect.
+        let events = with_snapback(&state, |snapback| snapback.scan_table("events", 10, 0))
+            .await
+            .expect("scan events");
+        assert_eq!(events.total, 1, "the notify action's nested mutation lands");
+
+        // Job + attempt receipts are present and shaped.
+        let shown = with_snapback(&state, {
+            let job_id = job_id.clone();
+            move |snapback| snapback.job_show(&job_id)
+        })
+        .await
+        .expect("job show")
+        .expect("job exists");
+        assert_eq!(shown["job"]["state"], "succeeded");
+        assert_eq!(shown["job"]["attemptCount"], 1);
+        let attempts = shown["attempts"].as_array().expect("attempt ledger");
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(attempts[0]["attempt"], 1);
+        assert_eq!(attempts[0]["fence"], 1);
+        assert_eq!(attempts[0]["drive"], "forced-drain");
+        assert_eq!(attempts[0]["outcome"], "succeeded");
+        assert_eq!(attempts[0]["claimedAtMs"], serde_json::json!(available_at));
     }
 
     fn generation_test_manifest() -> FunctionManifest {

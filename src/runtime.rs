@@ -224,6 +224,7 @@ pub trait IbexActionHost {
 #[derive(Clone)]
 pub(crate) struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
+    pub job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     pub membership_commands: Vec<BufferedMembershipCommand>,
     pub reads: Vec<CapturedReadDependency>,
     pub result: Value,
@@ -308,12 +309,26 @@ impl RuntimeManager {
         let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext {
             writes,
+            job_enqueues,
             membership_commands,
             reads,
             ..
         } = invocation;
         let membership_plans = db.authorize_membership_commands(membership_commands)?;
-        db.dry_run_buffered_writes(&input, writes, membership_plans, reads, result, ctx_ledger)
+        db.dry_run_buffered_writes_with_jobs(
+            &input,
+            writes,
+            membership_plans,
+            reads,
+            result,
+            ctx_ledger,
+            job_enqueues,
+            Some(crate::jobs::JobProducer {
+                mutation_id: format!("dryrun_{}", crate::storage::new_id()),
+                function: "mutationDryRun".to_owned(),
+                principal: input.auth.user_id.clone(),
+            }),
+        )
     }
 
     // This is the explicit runtime boundary: keeping the independently named
@@ -376,6 +391,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
     let ctx_ledger = invocation.take_ctx_ledger()?;
     let IbexHostContext {
         writes,
+        job_enqueues,
         membership_commands,
         reads,
         ..
@@ -383,6 +399,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
     prepared.validate_admission("ibex mutation completion")?;
     Ok(ExecutedIbexMutation {
         writes,
+        job_enqueues,
         membership_commands,
         reads,
         result,
@@ -863,6 +880,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// This bit is host-owned and cannot be changed by handler code.
     protected_query_profile: bool,
     writes: Vec<BufferedWrite>,
+    /// Buffered `ctx.jobs.enqueue` intents (LLP 0070's first slice). Like
+    /// `writes`, these are effects of the mutation transaction: they commit
+    /// or roll back with it, never independently.
+    job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     /// Declaration-bound membership operations carry their host-derived writer
     /// separately from raw `ctx.db` writes all the way to the central commit seam.
     membership_commands: Vec<BufferedMembershipCommand>,
@@ -948,6 +969,7 @@ impl<'a> IbexHostContext<'a> {
             },
             protected_query_profile: false,
             writes: Vec::new(),
+            job_enqueues: Vec::new(),
             membership_commands: Vec::new(),
             membership_writer,
             reads,
@@ -1002,6 +1024,7 @@ impl<'a> IbexHostContext<'a> {
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
             writes: Vec::new(),
+            job_enqueues: Vec::new(),
             membership_commands: Vec::new(),
             membership_writer: MembershipWriter::System,
             reads,
@@ -1294,6 +1317,178 @@ impl<'a> IbexHostContext<'a> {
                 let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
                 self.writes.push(BufferedWrite::Delete { table, id });
                 Ok(Value::Bool(existed))
+            }
+            // Transactional one-off enqueue (LLP 0070 first slice). Mutations
+            // only: queries cannot enqueue, and actions enqueue only through
+            // an explicit mutation (LLP 0004's rule that actions and database
+            // commits are not one transaction). The enqueue is buffered like
+            // a write and inserted inside the mutation's commit transaction,
+            // so a rollback leaves no job.
+            // @ref LLP 0070#job-identity-and-enqueue — validation here plus
+            //   callee admission at staging plus insertion in the commit
+            //   transaction; the job id answers through the ctx-answer
+            //   ledger so job identity is replay-stable (LLP 0051 D1).
+            "jobs.enqueue" => {
+                match self.mode {
+                    IbexInvocationMode::Mutation => {}
+                    IbexInvocationMode::Query => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_JOB_ENQUEUE_UNAVAILABLE",
+                            "jobs",
+                            "queries cannot enqueue durable work",
+                        ));
+                    }
+                    IbexInvocationMode::Action => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_JOB_ENQUEUE_UNAVAILABLE",
+                            "jobs",
+                            "actions enqueue follow-up work only through an explicit mutation",
+                        ));
+                    }
+                }
+                if self.job_enqueues.len() >= crate::jobs::JOBS_MAX_ENQUEUES_PER_MUTATION {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_JOB_ENQUEUE_LIMIT_EXCEEDED",
+                        "jobs",
+                        format!(
+                            "one mutation may enqueue at most {} jobs in the paved v1 profile",
+                            crate::jobs::JOBS_MAX_ENQUEUES_PER_MUTATION
+                        ),
+                    ));
+                }
+                let action = required_string(&args, "action")?;
+                let job_args = args
+                    .get("args")
+                    .cloned()
+                    .unwrap_or(Value::Object(Map::new()));
+                if !job_args.is_object() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_JOB_ARGS_INVALID",
+                        "jobs",
+                        "ctx.jobs.enqueue args must be an object",
+                    ));
+                }
+                let options = args.get("options").cloned().unwrap_or(Value::Null);
+                let delay_ms = match options.get("delayMs") {
+                    None | Some(Value::Null) => 0,
+                    Some(value) => value.as_u64().ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_JOB_DELAY_INVALID",
+                            "jobs",
+                            "delayMs must be a non-negative integer of milliseconds",
+                        )
+                    })?,
+                };
+                if delay_ms > crate::jobs::JOBS_MAX_DELAY_MS {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_JOB_DELAY_INVALID",
+                        "jobs",
+                        format!(
+                            "delayMs exceeds the paved v1 horizon of {} ms",
+                            crate::jobs::JOBS_MAX_DELAY_MS
+                        ),
+                    ));
+                }
+                // availableAt = now + delay on the frozen invocation clock:
+                // the runAfter-equivalent, deterministic under replay because
+                // `now_ms` rides the ctx-answer ledger.
+                let available_at_ms = self.now_ms.saturating_add(delay_ms);
+                crate::manifest::validate_portable_timestamp_millis(available_at_ms)?;
+                let max_attempts = match options.get("maxAttempts") {
+                    None | Some(Value::Null) => crate::jobs::JOBS_DEFAULT_MAX_ATTEMPTS,
+                    Some(value) => {
+                        let requested = value.as_u64().unwrap_or(0);
+                        if requested < 1
+                            || requested > crate::jobs::JOBS_MAX_ATTEMPTS_CEILING as u64
+                        {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_JOB_ATTEMPT_POLICY_INVALID",
+                                "jobs",
+                                format!(
+                                    "maxAttempts must be an integer between 1 and {} (unlimited retry is invalid)",
+                                    crate::jobs::JOBS_MAX_ATTEMPTS_CEILING
+                                ),
+                            ));
+                        }
+                        requested as u32
+                    }
+                };
+                let idempotency_key = match options.get("idempotencyKey") {
+                    None | Some(Value::Null) => None,
+                    Some(Value::String(key)) => {
+                        if key.is_empty() || key.len() > crate::jobs::JOBS_MAX_IDEMPOTENCY_KEY_BYTES
+                        {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_JOB_IDEMPOTENCY_KEY_INVALID",
+                                "jobs",
+                                format!(
+                                    "idempotencyKey must be 1..={} bytes",
+                                    crate::jobs::JOBS_MAX_IDEMPOTENCY_KEY_BYTES
+                                ),
+                            ));
+                        }
+                        Some(key.clone())
+                    }
+                    Some(_) => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_JOB_IDEMPOTENCY_KEY_INVALID",
+                            "jobs",
+                            "idempotencyKey must be a string",
+                        ));
+                    }
+                };
+                // Canonicalize (and size-check) once here so the digest the
+                // reuse paths compare equals what commit will store.
+                let (_canonical, digest) = crate::jobs::canonical_args(&job_args)?;
+                let queue = crate::jobs::JOBS_DEFAULT_QUEUE.to_owned();
+                if let Some(key) = idempotency_key.as_deref() {
+                    // Read-your-enqueues: an identical buffered intent under
+                    // the same scoped key returns the buffered job.
+                    if let Some(buffered) = self.job_enqueues.iter().find(|enqueue| {
+                        enqueue.queue == queue
+                            && enqueue.action == action
+                            && enqueue.idempotency_key.as_deref() == Some(key)
+                    }) {
+                        let (_, buffered_digest) = crate::jobs::canonical_args(&buffered.args)?;
+                        if buffered_digest == digest && buffered.max_attempts == max_attempts {
+                            return Ok(json!({
+                                "jobId": buffered.job_id,
+                                "availableAtMs": buffered.available_at_ms,
+                                "deduplicated": true,
+                            }));
+                        }
+                        return Err(crate::jobs::idempotency_key_reused(&queue, &action, key));
+                    }
+                    // Snapshot lookup: identical existing job → return it.
+                    if let Some(existing) = self
+                        .db()
+                        .find_job_by_scoped_idempotency(&queue, &action, key)?
+                    {
+                        if existing.args_digest == digest && existing.max_attempts == max_attempts {
+                            return Ok(json!({
+                                "jobId": existing.job_id,
+                                "availableAtMs": existing.available_at_ms,
+                                "deduplicated": true,
+                            }));
+                        }
+                        return Err(crate::jobs::idempotency_key_reused(&queue, &action, key));
+                    }
+                }
+                let job_id = self.next_host_id()?;
+                self.job_enqueues.push(crate::jobs::BufferedJobEnqueue {
+                    job_id: job_id.clone(),
+                    queue,
+                    action,
+                    args: job_args,
+                    idempotency_key,
+                    max_attempts,
+                    available_at_ms,
+                });
+                Ok(json!({
+                    "jobId": job_id,
+                    "availableAtMs": available_at_ms,
+                    "deduplicated": false,
+                }))
             }
             // Declaration-bound membership authoring. The JS helper supplies a
             // stable declaration id and operation arguments; the host resolves
@@ -3842,6 +4037,8 @@ mod membership_bridge_tests {
         db.commit_buffered_writes_idempotent_guarded(
             &input(),
             BufferedCommitPayload {
+                job_enqueues: Vec::new(),
+                job_producer: None,
                 writes: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
@@ -4098,6 +4295,8 @@ globalThis.__snapbackHandlers = {
         db.commit_buffered_writes_idempotent_guarded(
             &input(),
             BufferedCommitPayload {
+                job_enqueues: Vec::new(),
+                job_producer: None,
                 writes: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),

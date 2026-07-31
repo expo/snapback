@@ -25,6 +25,7 @@
   "capabilityMaturity": {
     "args_contract_v1": "experimental",
     "inline_handler_v1": "experimental",
+    "jobs_one_off_v1": "experimental",
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
     "versioned_seed_install_v1": "experimental",
@@ -167,6 +168,7 @@
     "host_plan_runtime",
     "ibex_ctx_db_host_bridge",
     "inline_handler_v1",
+    "jobs_one_off_v1",
     "live_subscriptions",
     "mutation_read_set_validation",
     "permission_epoch_resync",

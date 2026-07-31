@@ -28,6 +28,7 @@ pub mod handler_wire;
 pub mod host_ops;
 pub mod identity;
 pub mod instance_lock;
+pub mod jobs;
 pub(crate) mod live_matcher;
 pub mod live_wire;
 pub mod local;

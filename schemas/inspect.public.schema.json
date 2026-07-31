@@ -239,70 +239,10 @@
           "type": "array"
         },
         "capabilityMaturity": {
-          "additionalProperties": false,
-          "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
-          "properties": {
-            "args_contract_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "auth.sessions.v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "bounded_children_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "bounded_response_stream_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "cron": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "cron_action_run_mutation": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "full_text_search_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "host_plan_runtime": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "ibex_ctx_db_host_bridge": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "inline_handler_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "live_subscriptions": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "migration_keyset_scan_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "mutation_read_set_validation": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "permission_epoch_resync": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "registered_bundle_boot_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "relational_query_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "result_contract_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "versioned_seed_install_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "versioned_seed_reset_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            },
-            "write_activity_v1": {
-              "$ref": "#/$defs/CapabilityMaturity"
-            }
+          "additionalProperties": {
+            "$ref": "#/$defs/CapabilityMaturity"
           },
+          "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
           "type": "object"
         },
         "cron": {
@@ -974,22 +914,6 @@
         "offline",
         "storageEngines",
         "nonclaims"
-      ],
-      "type": "object"
-    },
-    "FunctionArgsContract": {
-      "additionalProperties": false,
-      "description": "One closed object contract over a function's declared arguments:\ndeclaration-ordered fields, each carrying a value node from the same node\nvocabulary the result manifest uses (LLP 0131 — one node vocabulary, two\ncontract roots).",
-      "properties": {
-        "fields": {
-          "items": {
-            "$ref": "#/$defs/ResultObjectFieldContract"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "fields"
       ],
       "type": "object"
     },
@@ -1907,17 +1831,6 @@
     "PublicFunctionDefinition": {
       "description": "Public projection of [`FunctionDefinition`]: everything except the\nexecutable runtime body and the source span.",
       "properties": {
-        "argsContract": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/FunctionArgsContract"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The declared argument contract (LLP 0131) — a bounded declarative\nschema like the result contract, safe on the public projection."
-        },
         "argsContractHash": {
           "type": [
             "string",
@@ -2162,6 +2075,7 @@
       "enum": [
         "Query",
         "SearchQuery",
+        "JobStatusQuery",
         "Mutation",
         "Action",
         "RelationalQuery",
@@ -2710,28 +2624,6 @@
             "allowExtra"
           ],
           "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A reference to an entry in the closed, platform-owned registry of\nexported Rust-owned schemas. Valid only at argument positions in v1;\nnot an app-authorable spelling — `defineSearchQuery` constructs it\ninternally and no `v.*` builder emits it. The node contributes its\nauthority class and reference id (never the referenced artifact's\nbytes) to the canonical hash form; artifact drift is gated by the\nschema-export drift test. The explicit `authority` member is a closed\nenum with exactly one admitted value in v1, so a future app-schema\nreference (option E) is a distinct authority class with\ndigest-carrying identity rather than a silent reinterpretation.\n\n@ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is\nthe one new node kind; v1's registry has exactly\n`snapback:search-query-ast:v1`.",
-          "properties": {
-            "authority": {
-              "$ref": "#/$defs/SchemaRefAuthority"
-            },
-            "kind": {
-              "const": "platformSchemaRef",
-              "type": "string"
-            },
-            "schema": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind",
-            "authority",
-            "schema"
-          ],
-          "type": "object"
         }
       ]
     },
@@ -2860,13 +2752,6 @@
         "maxJournalDistance"
       ],
       "type": "object"
-    },
-    "SchemaRefAuthority": {
-      "description": "The closed authority classes a schema-reference node may name. V1 admits\nexactly `platform`; hash-by-reference-id is a property of this class.",
-      "enum": [
-        "platform"
-      ],
-      "type": "string"
     },
     "SearchCursorLimitsV1": {
       "additionalProperties": false,
@@ -3248,29 +3133,37 @@
     },
     "TargetCapabilityId": {
       "description": "The exact target-capability vocabulary understood by paired-v1 manifests.\nApp artifacts retain string fields for v0 compatibility; every v1 string\nis parsed through this enum before target support is consulted.\n\n@ref LLP 0058#the-two-admissible-tuples — the v1 registry is closed and\nLLP 0076 adds the ninth id with an exact positive runtime predicate.",
-      "enum": [
-        "auth.sessions.v1",
-        "bounded_response_stream_v1",
-        "bounded_children_v1",
-        "cron",
-        "cron_action_run_mutation",
-        "host_plan_runtime",
-        "ibex_ctx_db_host_bridge",
-        "inline_handler_v1",
-        "live_subscriptions",
-        "mutation_read_set_validation",
-        "permission_epoch_resync",
-        "registered_bundle_boot_v1",
-        "relational_query_v1",
-        "migration_keyset_scan_v1",
-        "full_text_search_v1",
-        "result_contract_v1",
-        "args_contract_v1",
-        "versioned_seed_install_v1",
-        "versioned_seed_reset_v1",
-        "write_activity_v1"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "auth.sessions.v1",
+            "bounded_response_stream_v1",
+            "bounded_children_v1",
+            "cron",
+            "cron_action_run_mutation",
+            "host_plan_runtime",
+            "ibex_ctx_db_host_bridge",
+            "inline_handler_v1",
+            "live_subscriptions",
+            "mutation_read_set_validation",
+            "permission_epoch_resync",
+            "registered_bundle_boot_v1",
+            "relational_query_v1",
+            "migration_keyset_scan_v1",
+            "full_text_search_v1",
+            "result_contract_v1",
+            "versioned_seed_install_v1",
+            "versioned_seed_reset_v1",
+            "write_activity_v1"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "jobs_one_off_v1",
+          "description": "Transactional one-off durable work, first slice (LLP 0070, Draft):\n`ctx.jobs.enqueue` from JS mutations, the paved default queue,\njob/attempt receipts, the declared job-status query, and the\ninjected-clock forced drain. Experimental for as long as LLP 0070 is\nDraft — its claim boundary bars any durable-background-work\ncapability-class claim, and this id asserts current-contract\ncompatibility only.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/inspect.public.schema.json",

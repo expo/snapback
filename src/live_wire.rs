@@ -573,6 +573,15 @@ pub enum Receipt {
         #[schemars(required, schema_with = "nullable_storage_version_schema")]
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         snapshot_version: Option<u64>,
+        /// Jobs this confirmed mutation durably enqueued in its own
+        /// transaction (LLP 0070 first slice; 0127 decision 7's
+        /// mutation-side association). Bounded facts only — jobId, action,
+        /// availableAtMs; never argument values. Omitted when empty, and a
+        /// rejected mutation never carries one: the receipt proves what was
+        /// scheduled with the write, and its absence on a rejection is the
+        /// inspectable rollback-schedules-nothing evidence.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        enqueues: Vec<crate::jobs::JobEnqueueFact>,
         transport: String,
         /// Adapter-supplied opaque correlation, echoed verbatim (capped).
         correlation: Value,
@@ -936,6 +945,9 @@ mod tests {
             rollback_reason: None,
             affected_tables: Some(vec!["todos".into()]),
             snapshot_version: Some(9),
+            // Empty enqueues stay off the wire: the pinned shape below is
+            // unchanged for every mutation that scheduled nothing.
+            enqueues: Vec::new(),
             transport: "http".into(),
             correlation: Value::Null,
             received_at_ms: 1,

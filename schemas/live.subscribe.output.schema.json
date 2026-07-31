@@ -141,6 +141,28 @@
       ],
       "type": "object"
     },
+    "JobEnqueueFact": {
+      "description": "The bounded per-enqueue fact echoed on the producing mutation's receipt —\nthe mutation-side half of the association (jobId/action/availableAt only;\nnever argument values).",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "availableAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "jobId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "jobId",
+        "action",
+        "availableAtMs"
+      ],
+      "type": "object"
+    },
     "MutationReceiptOutcome": {
       "enum": [
         "confirmed",
@@ -236,6 +258,13 @@
             },
             "correlation": {
               "description": "Adapter-supplied opaque correlation, echoed verbatim (capped)."
+            },
+            "enqueues": {
+              "description": "Jobs this confirmed mutation durably enqueued in its own\ntransaction (LLP 0070 first slice; 0127 decision 7's\nmutation-side association). Bounded facts only — jobId, action,\navailableAtMs; never argument values. Omitted when empty, and a\nrejected mutation never carries one: the receipt proves what was\nscheduled with the write, and its absence on a rejection is the\ninspectable rollback-schedules-nothing evidence.",
+              "items": {
+                "$ref": "#/$defs/JobEnqueueFact"
+              },
+              "type": "array"
             },
             "kind": {
               "const": "mutation",
