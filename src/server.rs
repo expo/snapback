@@ -7720,6 +7720,10 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             post(asset_attempt_cancel_route),
         ),
         RegisteredRoute::new(
+            app_auth_route("POST", "/assets/attempts/{id}/finalize"),
+            post(asset_attempt_finalize_route),
+        ),
+        RegisteredRoute::new(
             app_auth_route("HEAD", "/assets/tus/{id}"),
             head(asset_tus_head_route),
         ),
@@ -8769,7 +8773,11 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         // Attempt creation runs the generated upload-intent authorizer — a
         // Query-kind admission (LLP 0044 §Upload sessions).
-        "/assets/attempts" => Some(InvocationSource::HttpQuery),
+        // Create and finalize both run the generated authorizer (finalize
+        // through witness re-validation), so both are query-shaped.
+        "/assets/attempts" | "/assets/attempts/{id}/finalize" => {
+            Some(InvocationSource::HttpQuery)
+        }
         "/assets/attempts/{id}"
         | "/assets/attempts/{id}/cancel"
         | "/assets/tus/{id}" => Some(InvocationSource::AssetTransfer),
@@ -17841,6 +17849,27 @@ async fn asset_attempt_cancel_route(
     Ok(Json(task))
 }
 
+async fn asset_attempt_finalize_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+    input: Result<Json<crate::assets::AssetFinalizeRequestV1>, JsonRejection>,
+) -> Result<Json<crate::assets::AssetFinalizeResponseV1>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.attempt_id != id {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+            "assets",
+            "the finalize body names a different attempt than the route",
+        )));
+    }
+    let response = with_snapback(&state, move |snapback| {
+        snapback.asset_attempt_finalize(&authority, request)
+    })
+    .await?;
+    Ok(Json(response))
+}
+
 async fn asset_tus_head_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -21885,10 +21914,17 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ASSET_INTENT_UNKNOWN"
         | "SNAPBACK_ASSET_ATTEMPT_UNKNOWN"
         | "SNAPBACK_ASSET_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_ASSET_LENGTH_MISMATCH"
+        | "SNAPBACK_ASSET_DIGEST_MISMATCH" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_ASSET_ADMISSION_REVOKED" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
         "SNAPBACK_ASSET_INTENT_STALE"
         | "SNAPBACK_ASSET_INTENT_REVOKED"
         | "SNAPBACK_ASSET_OFFSET_CONFLICT"
         | "SNAPBACK_ASSET_ATTEMPT_TERMINAL"
+        | "SNAPBACK_ASSET_TRANSFER_INCOMPLETE"
+        | "SNAPBACK_ASSET_ADMISSION_STALE"
+        | "SNAPBACK_ASSET_ADMISSION_CONFLICT"
         | "SNAPBACK_ASSET_GENERATION_STALE" => StatusCode::CONFLICT,
         "SNAPBACK_ASSET_ATTEMPT_EXPIRED" => StatusCode::GONE,
         "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,

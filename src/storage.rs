@@ -10698,6 +10698,21 @@ fn validate_read_set(
     Ok(())
 }
 
+/// Asset admission witnesses are LLP 0007 captured read sets, and
+/// finalization re-validates them inside its publication transaction (LLP
+/// 0044 §Internal model) — same machinery, same conflict semantics, so
+/// witness movement surfaces as the ordinary `SNAPBACK_MUTATION_CONFLICT`
+/// the finalizer catches to trigger re-validation.
+pub(crate) fn validate_asset_witness(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    input: &HandlerInput,
+    witness: &[CapturedReadDependency],
+) -> SnapbackResult<()> {
+    let current_version = current_version_on(tx)?;
+    validate_captured_read_set(tx, schema, input, witness, current_version)
+}
+
 fn validate_captured_read_set(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,

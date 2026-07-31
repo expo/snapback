@@ -43,6 +43,15 @@ pub const ASSET_MAX_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
 pub const ASSET_TUS_VERSION: &str = "1.0.0";
 /// The checksum algorithms the TUS lane accepts on `Upload-Checksum`.
 pub const ASSET_TUS_CHECKSUM_ALGORITHMS: [&str; 1] = ["sha256"];
+/// v1 performs no canonical rewriting: canonical bytes are the received
+/// bytes. The policy tag participates in blob identity so a future rewriting
+/// policy can never alias digests across policies.
+pub const ASSET_CANONICALIZATION_NONE: &str = "none";
+/// Committed publication records retire after this window — the blob row is
+/// the durable evidence from then on — so the record ceiling can never silt
+/// up into a permanent upload limit (LLP 0044 §Publication and crash
+/// recovery).
+pub const ASSET_PUBLICATION_RETENTION_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // Closed state vocabularies (LLP 0044 §Lifecycle transitions). Name-keyed per
@@ -1275,6 +1284,312 @@ pub fn condemn_blob_if_unreferenced(
         rusqlite::params![blob_id, now_ms],
     )?;
     Ok(changed == 1)
+}
+
+/// The condemned-race resolution: a condemned blob row still occupies its
+/// identity slot in the uniqueness constraint, so a finalizer that raced GC
+/// deletes the row (in the same transaction as its own fresh insert) and
+/// returns the orphaned physical key for tracked cleanup. The caller must
+/// record a condemned publication for that key so a crash before file
+/// deletion leaves a discoverable orphan, never a silent one.
+pub fn resolve_condemned_identity(
+    tx: &Transaction<'_>,
+    app_id: &str,
+    digest_algorithm: &str,
+    digest: &str,
+    canonicalization_policy: &str,
+) -> SnapbackResult<Option<String>> {
+    let physical_key: Option<String> = tx
+        .query_row(
+            "DELETE FROM _snapback_asset_blobs_v1
+             WHERE app_id = ?1 AND digest_algorithm = ?2 AND digest = ?3
+               AND canonicalization_policy = ?4 AND condemned = 1
+               AND reference_count = 0
+             RETURNING physical_key",
+            rusqlite::params![app_id, digest_algorithm, digest, canonicalization_policy],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(physical_key)
+}
+
+pub fn load_blob(tx: &Transaction<'_>, blob_id: &str) -> SnapbackResult<Option<AssetBlobRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1",
+            [blob_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+// ---------------------------------------------------------------------------
+// Renditions. Primary bytes are represented exclusively by the `primary`
+// rendition record; one blob reference and one quota charge per rendition
+// row, never more.
+// ---------------------------------------------------------------------------
+
+pub const ASSET_RENDITION_PRIMARY: &str = "primary";
+
+pub fn insert_rendition(tx: &Transaction<'_>, record: &AssetRenditionRecordV1) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO _snapback_asset_renditions_v1 (
+             rendition_id, asset_id, variant_key, blob_id, state, record_json,
+             updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![
+            record.rendition_id,
+            record.asset_id,
+            record.variant_key,
+            record.blob_id,
+            state_str(record.state)?,
+            record_json(record)?,
+            record.updated_at_ms,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn load_rendition(
+    tx: &Transaction<'_>,
+    rendition_id: &str,
+) -> SnapbackResult<Option<AssetRenditionRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_renditions_v1 WHERE rendition_id = ?1",
+            [rendition_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+// ---------------------------------------------------------------------------
+// Publication records (LLP 0044 §Publication and crash recovery).
+// ---------------------------------------------------------------------------
+
+/// The closed publication transition table:
+/// `planned → staged | condemned`, `staged → committed | condemned`.
+pub fn publication_transition_allowed(
+    from: AssetPublicationState,
+    to: AssetPublicationState,
+) -> bool {
+    use AssetPublicationState as P;
+    matches!(
+        (from, to),
+        (P::Planned, P::Staged)
+            | (P::Planned, P::Condemned)
+            | (P::Staged, P::Committed)
+            | (P::Staged, P::Condemned)
+    )
+}
+
+pub fn insert_publication(
+    tx: &Transaction<'_>,
+    record: &AssetPublicationRecordV1,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO _snapback_asset_publications_v1 (
+             publication_id, app_id, planned_key, state, record_json,
+             updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![
+            record.publication_id,
+            record.app_id,
+            record.planned_key,
+            state_str(record.state)?,
+            record_json(record)?,
+            record.updated_at_ms,
+        ],
+    )?;
+    Ok(())
+}
+
+/// The re-drivable publication for an attempt, if any (`planned`/`staged`).
+/// Re-driven finalization resumes from this record instead of minting a
+/// second key for the same work.
+pub fn open_publication_for_attempt(
+    tx: &Transaction<'_>,
+    attempt_id: &str,
+) -> SnapbackResult<Option<AssetPublicationRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_publications_v1
+             WHERE state IN ('planned', 'staged')
+               AND json_extract(record_json, '$.attemptId') = ?1",
+            [attempt_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+pub fn publications_in_state(
+    tx: &Transaction<'_>,
+    state: AssetPublicationState,
+) -> SnapbackResult<Vec<AssetPublicationRecordV1>> {
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_publications_v1
+         WHERE state = ?1 ORDER BY updated_at_ms",
+    )?;
+    let rows = statement
+        .query_map([state_str(state)?], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    rows.iter().map(|json| decode_record(json)).collect()
+}
+
+pub fn transition_publication(
+    tx: &Transaction<'_>,
+    record: &mut AssetPublicationRecordV1,
+    to: AssetPublicationState,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    if !publication_transition_allowed(record.state, to) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_TRANSITION_INVALID",
+            "assets",
+            format!("publication cannot move {:?} → {to:?}", record.state),
+        ));
+    }
+    record.state = to;
+    record.updated_at_ms = now_ms;
+    let changed = tx.execute(
+        "UPDATE _snapback_asset_publications_v1
+         SET state = ?2, record_json = ?3, updated_at_ms = ?4
+         WHERE publication_id = ?1",
+        rusqlite::params![
+            record.publication_id,
+            state_str(record.state)?,
+            record_json(record)?,
+            record.updated_at_ms,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("publication {} does not exist to update", record.publication_id),
+        ));
+    }
+    Ok(())
+}
+
+/// Retirement deletes the row — the blob row (committed) or the deletion
+/// receipt (condemned) is the durable evidence from then on. Receipted by
+/// the caller.
+pub fn retire_publication(tx: &Transaction<'_>, publication_id: &str) -> SnapbackResult<()> {
+    tx.execute(
+        "DELETE FROM _snapback_asset_publications_v1 WHERE publication_id = ?1",
+        [publication_id],
+    )?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Asset-work ledger enqueue (LLP 0044 §Processing runner). Rows enqueue in
+// the same transaction as the state transition that requires the work, so
+// work is never lost between a transition and its enqueue. Claiming and
+// driving belong to the runner ticket; this is the transactional seam.
+// ---------------------------------------------------------------------------
+
+pub const ASSET_WORK_RETRY_CEILING: u64 = 5;
+pub const ASSET_WORK_DEADLINE_MS: u64 = 24 * 60 * 60 * 1000;
+
+pub fn enqueue_work(
+    tx: &Transaction<'_>,
+    kind: &str,
+    asset_id: &str,
+    attempt_id: Option<&str>,
+    lifecycle_generation: u64,
+    now_ms: u64,
+) -> SnapbackResult<String> {
+    let row = AssetWorkRowV1 {
+        work_id: AssetFsStore::new_opaque_key(),
+        kind: kind.to_owned(),
+        asset_id: asset_id.to_owned(),
+        attempt_id: attempt_id.map(str::to_owned),
+        lifecycle_generation,
+        state: AssetWorkState::Enqueued,
+        attempt_count: 0,
+        retry_ceiling: ASSET_WORK_RETRY_CEILING,
+        lease_owner: None,
+        lease_expires_at_ms: None,
+        next_eligible_at_ms: now_ms,
+        deadline_at_ms: now_ms + ASSET_WORK_DEADLINE_MS,
+        created_at_ms: now_ms,
+        updated_at_ms: now_ms,
+        failure: None,
+    };
+    tx.execute(
+        "INSERT INTO _snapback_asset_work_ledger_v1 (
+             work_id, kind, asset_id, state, next_eligible_at_ms, record_json,
+             updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![
+            row.work_id,
+            row.kind,
+            row.asset_id,
+            state_str(row.state)?,
+            row.next_eligible_at_ms,
+            record_json(&row)?,
+            row.updated_at_ms,
+        ],
+    )?;
+    Ok(row.work_id)
+}
+
+fn state_str<T: Serialize>(state: T) -> SnapbackResult<String> {
+    serde_json::to_value(state)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "asset state does not serialize to a name-keyed string",
+            )
+        })
+}
+
+// ---------------------------------------------------------------------------
+// Trusted content-type detection (LLP 0044 §Restricted staging and trusted
+// finalization): the deliverable type comes from bytes, never from the
+// client's declaration alone. Conservative magic-number set for the common
+// types; anything unrecognized is application/octet-stream.
+// ---------------------------------------------------------------------------
+
+pub fn detect_content_type(head: &[u8]) -> &'static str {
+    if head.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return "image/jpeg";
+    }
+    if head.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
+        return "image/png";
+    }
+    if head.starts_with(b"GIF87a") || head.starts_with(b"GIF89a") {
+        return "image/gif";
+    }
+    if head.len() >= 12 && head.starts_with(b"RIFF") && &head[8..12] == b"WEBP" {
+        return "image/webp";
+    }
+    if head.starts_with(b"%PDF") {
+        return "application/pdf";
+    }
+    if head.len() >= 12 && &head[4..8] == b"ftyp" {
+        // ISO base media (MP4/QuickTime family): distinguish by brand.
+        return if &head[8..11] == b"qt " || &head[8..12] == b"qt  " {
+            "video/quicktime"
+        } else {
+            "video/mp4"
+        };
+    }
+    if head.starts_with(&[0x1F, 0x8B]) {
+        return "application/gzip";
+    }
+    if head.starts_with(b"PK\x03\x04") {
+        return "application/zip";
+    }
+    "application/octet-stream"
 }
 
 /// The committed-schema registrations for this module, consumed by

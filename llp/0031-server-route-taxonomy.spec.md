@@ -1112,14 +1112,17 @@ registers the root-level AppData asset family:
   upload-intent authorizer, so its invocation source is query-shaped
   (`HttpQuery`) and its sessions carrier is the ordinary
   `OptionalSessionBearer`/`ResolvedCaller` app posture;
+- `POST /assets/attempts/{id}/finalize` (L1-06) — the trusted finalizer;
+  witness re-validation can re-run the authorizer, so it is query-shaped
+  (`HttpQuery`) like creation;
 - `GET /assets/attempts/{id}` (inspect), `POST /assets/attempts/{id}/cancel`;
 - `HEAD|PATCH|DELETE /assets/tus/{id}` — the TUS 1.0.0 resource, wrapped by
   Snapback admission (TUS is never the authority model).
 
-The non-create rows share the new authority-only `AssetTransfer` invocation
-source: the intent authorizer ran at attempt creation, and possession of an
-attempt URL is not authority — every operation re-resolves the caller and
-matches the admission's owner principal. All six rows are
+The inspect/cancel/TUS rows share the new authority-only `AssetTransfer`
+invocation source: the intent authorizer ran at attempt creation, and
+possession of an attempt URL is not authority — every operation re-resolves
+the caller and matches the admission's owner principal. All seven rows are
 `AppData`/`AppAuth` with the standard sessions overlay (legacy body
 authority rejected; covered by the session body-probe sweep, with the HEAD
 probe asserting status only since HEAD responses carry no body). The TUS

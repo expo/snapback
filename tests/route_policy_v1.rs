@@ -211,6 +211,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/assets/attempts"),
         ("GET", "/assets/attempts/{id}"),
         ("POST", "/assets/attempts/{id}/cancel"),
+        ("POST", "/assets/attempts/{id}/finalize"),
         ("HEAD", "/assets/tus/{id}"),
         ("PATCH", "/assets/tus/{id}"),
         ("DELETE", "/assets/tus/{id}"),
@@ -1482,6 +1483,17 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
                     "attemptId": "policy_probe",
                     "lifecycleGeneration": 1,
                     "discardAsset": false
+                }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/assets/attempts/{id}/finalize"),
+            SessionBodyProbe {
+                uri: "/assets/attempts/policy_probe/finalize",
+                base: json!({
+                    "attemptId": "policy_probe",
+                    "lifecycleGeneration": 1
                 }),
                 forbidden_fields: handler_fields(),
             },

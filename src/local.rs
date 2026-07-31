@@ -5865,6 +5865,973 @@ impl LocalSnapback {
         Ok(())
     }
 
+    /// The trusted finalizer (LLP 0044 §Restricted staging and trusted
+    /// finalization): nine steps from a transfer-complete attempt to a ready
+    /// asset, over the write-ahead publication protocol. Idempotent on
+    /// attempt id plus lifecycle generation — re-driving a crashed
+    /// finalization resumes from its publication record, and finalizing a
+    /// `complete` attempt returns its task state.
+    pub(crate) fn asset_attempt_finalize(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetFinalizeRequestV1,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        self.asset_attempt_finalize_inner(authority, request, None)
+    }
+
+    pub(crate) fn asset_attempt_finalize_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetFinalizeRequestV1,
+        crash_after: Option<AssetFinalizeCrashPoint>,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        use crate::assets as assets;
+
+        let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
+        if attempt.lifecycle_generation != request.lifecycle_generation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_GENERATION_STALE",
+                "assets",
+                "the request carries a stale lifecycle generation",
+            ));
+        }
+        if attempt.state == assets::AssetAttemptState::Complete {
+            let asset = self
+                .db
+                .asset_transaction(|tx| assets::load_asset(tx, &attempt.asset_id))?;
+            return Ok(crate::assets::AssetFinalizeResponseV1 {
+                task: asset_task_state(&attempt, asset.as_ref()),
+            });
+        }
+        if !attempt.state.is_current() {
+            return Err(asset_terminal_error(&attempt));
+        }
+        if attempt.acknowledged_offset != attempt.declared_length {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
+                "assets",
+                format!(
+                    "finalize requires a complete transfer ({} of {} bytes acknowledged)",
+                    attempt.acknowledged_offset, attempt.declared_length
+                ),
+            ));
+        }
+
+        // Intent removal is a revocation trigger: nothing further finalizes.
+        let intent = self.asset_intent(&attempt.intent_id).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_INTENT_REVOKED",
+                "assets",
+                "this attempt's intent was removed from the deployed artifact",
+            )
+        })?.clone();
+        // Whether the frozen generation's authorizer code is the deployed
+        // code. When the policy hash moved, an open attempt still finalizes
+        // under its frozen policy — but if the witness also moved, the frozen
+        // authorizer cannot re-run without artifact retention, so that
+        // combination refuses (fail-closed; retry re-admits under the new
+        // generation with the same asset id).
+        let frozen_code_available =
+            intent.intent_policy_hash == attempt.admission.intent_policy_hash;
+
+        let revoked = self.db.asset_transaction(|tx| {
+            use rusqlite::OptionalExtension as _;
+            let generation: Option<(u64, bool)> = tx
+                .query_row(
+                    "SELECT generation, revoked
+                     FROM _snapback_asset_intent_generations_v1 WHERE intent_id = ?1",
+                    [&attempt.intent_id],
+                    |row| Ok((row.get(0)?, row.get::<_, i64>(1)? != 0)),
+                )
+                .optional()?;
+            Ok(matches!(
+                generation,
+                Some((generation, true)) if generation == attempt.admission.policy_generation
+            ))
+        })?;
+        if revoked {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_INTENT_REVOKED",
+                "assets",
+                "this intent's policy generation is revoked; nothing further finalizes under it",
+            ));
+        }
+
+        // Defense in depth for the location policy: generation refuses
+        // strip-declared media on every v1 target, so bytes carrying this
+        // policy can only arrive through a hand-built manifest. The refusal
+        // is a policy the intent can never satisfy here, so the asset is
+        // rejected, not left retry-eligible.
+        if intent
+            .image
+            .as_ref()
+            .is_some_and(|image| image.location == crate::manifest::AssetLocationPolicy::Strip)
+        {
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Rejected,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
+                    "assets",
+                    "location stripping is not available on this target; no strip-declared \
+                     media can publish",
+                ),
+            );
+        }
+
+        // Byte verification over restricted staging: exact length, canonical
+        // SHA-256 digest, trusted detection from bytes.
+        let store = self.asset_store()?;
+        let staging_path = store.staging_path(&attempt.staging_key)?;
+        let staged = asset_hash_staging(&staging_path)?;
+        if staged.byte_length != attempt.declared_length {
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Pending,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_LENGTH_MISMATCH",
+                    "assets",
+                    format!(
+                        "staging holds {} bytes but the attempt declared {}",
+                        staged.byte_length, attempt.declared_length
+                    ),
+                ),
+            );
+        }
+        if let Some(declared_digest) = &request.declared_digest
+            && declared_digest != &staged.digest
+        {
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Pending,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_DIGEST_MISMATCH",
+                    "assets",
+                    "the declared whole-upload digest does not match the received bytes",
+                ),
+            );
+        }
+        let detected = assets::detect_content_type(&staged.head);
+        if !asset_media_type_admitted(&intent.accept.media_types, detected) {
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Pending,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED",
+                    "assets",
+                    format!(
+                        "detected content type {detected} is outside the intent's accept list"
+                    ),
+                )
+                .with_details(serde_json::json!({
+                    "declared": attempt.declared_content_type,
+                    "detected": detected,
+                })),
+            );
+        }
+        // Canonicalization is `none` in v1: canonical bytes are the received
+        // bytes, so expansion beyond the intent's byte bound cannot occur —
+        // the check lives where a rewriting policy would expand.
+        if staged.byte_length > intent.accept.max_bytes {
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Pending,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                    "assets",
+                    "canonical bytes exceed the intent's byte bound",
+                ),
+            );
+        }
+        // The integrity grade is honest: end-to-end verified only when every
+        // chunk carried a checksum or an authenticated whole-upload digest
+        // matched; a freshly computed digest alone names the received bytes.
+        let grade = if attempt.all_chunks_checksummed
+            || request.declared_digest.as_deref() == Some(staged.digest.as_str())
+        {
+            assets::AssetIntegrityGrade::EndToEndVerified
+        } else {
+            assets::AssetIntegrityGrade::ReceivedBytesCanonical
+        };
+
+        // Phase A — record intent first: a durable `planned` publication
+        // record (or the attempt's re-drivable record from a prior crash)
+        // commits before any canonical object write.
+        let now = now_millis();
+        let app_id = self.functions.app_id.clone();
+        let attempt_id = attempt.attempt_id.clone();
+        let digest = staged.digest.clone();
+        let mut publication = self.db.asset_transaction(|tx| {
+            let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                    "assets",
+                    format!("unknown attempt {attempt_id}"),
+                )
+            })?;
+            if record.state != assets::AssetAttemptState::Finalizing {
+                assets::transition_attempt(
+                    tx,
+                    &mut record,
+                    assets::AssetAttemptState::Finalizing,
+                    now,
+                )?;
+            }
+            match assets::open_publication_for_attempt(tx, &attempt_id)? {
+                Some(existing) if existing.digest == digest => Ok(existing),
+                Some(mut divergent) => {
+                    // A re-drive can only carry the same staged bytes; a
+                    // divergent digest means the record belongs to bytes that
+                    // no longer exist. Condemn it and plan afresh.
+                    assets::transition_publication(
+                        tx,
+                        &mut divergent,
+                        assets::AssetPublicationState::Condemned,
+                        now,
+                    )?;
+                    assets::enqueue_work(
+                        tx,
+                        "condemned-object-cleanup",
+                        &record.asset_id,
+                        Some(&attempt_id),
+                        record.lifecycle_generation,
+                        now,
+                    )?;
+                    let planned = asset_planned_publication(&app_id, &attempt_id, &digest, now);
+                    assets::insert_publication(tx, &planned)?;
+                    Ok(planned)
+                }
+                None => {
+                    let planned = asset_planned_publication(&app_id, &attempt_id, &digest, now);
+                    assets::insert_publication(tx, &planned)?;
+                    Ok(planned)
+                }
+            }
+        })?;
+        if crash_after == Some(AssetFinalizeCrashPoint::AfterPlanned) {
+            return Err(asset_test_crash());
+        }
+
+        // Phase B — idempotent object put: copy staging to the recorded
+        // opaque key and verify the copy by digest before anything durable
+        // points at it.
+        let blob_path = store.blob_path(&publication.planned_key)?;
+        if !blob_path.exists() {
+            std::fs::copy(&staging_path, &blob_path).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot publish canonical object: {error}"),
+                )
+            })?;
+        }
+        let copied = asset_hash_staging(&blob_path)?;
+        if copied.digest != digest || copied.byte_length != staged.byte_length {
+            let _ = std::fs::remove_file(&blob_path);
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "the published object did not verify against the canonical digest",
+            ));
+        }
+        if crash_after == Some(AssetFinalizeCrashPoint::AfterObjectPut) {
+            return Err(asset_test_crash());
+        }
+
+        // Phase C — the object write is acknowledged: `planned → staged`.
+        if publication.state == assets::AssetPublicationState::Planned {
+            publication = self.db.asset_transaction(|tx| {
+                let mut record = assets::open_publication_for_attempt(tx, &attempt_id)?
+                    .filter(|record| record.publication_id == publication.publication_id)
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_RECORD_INVALID",
+                            "assets",
+                            "the publication record disappeared mid-finalization",
+                        )
+                    })?;
+                if record.state == assets::AssetPublicationState::Planned {
+                    assets::transition_publication(
+                        tx,
+                        &mut record,
+                        assets::AssetPublicationState::Staged,
+                        now,
+                    )?;
+                }
+                Ok(record)
+            })?;
+        }
+        if crash_after == Some(AssetFinalizeCrashPoint::AfterStaged) {
+            return Err(asset_test_crash());
+        }
+
+        // Phase D — the publication transaction: witness re-validation, blob
+        // uniqueness, rendition + availability, quota settlement, receipts —
+        // one commit. Witness movement re-runs the authorizer and retries
+        // once with the fresh witness validated inside the retry transaction.
+        let schema = self.db.schema().clone();
+        let mut witness: Vec<crate::storage::CapturedReadDependency> =
+            serde_json::from_value(attempt.admission.witness.clone()).unwrap_or_default();
+        let witness_input = HandlerInput {
+            args: attempt.admission.args.clone(),
+            auth: crate::manifest::AuthInput {
+                user_id: Some(attempt.admission.owner_principal.clone()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut auth_moved = Self::asset_auth_pair(authority) != attempt.admission.auth;
+        let mut revalidations = 0u8;
+        let outcome = loop {
+            let publication_id = publication.publication_id.clone();
+            let witness_snapshot = witness.clone();
+            let staged_length = staged.byte_length;
+            let detected_type = detected.to_owned();
+            let app = app_id.clone();
+            let digest_value = digest.clone();
+            let result = self.db.asset_transaction(|tx| {
+                let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                        "assets",
+                        format!("unknown attempt {attempt_id}"),
+                    )
+                })?;
+                if record.state != assets::AssetAttemptState::Finalizing {
+                    return Err(asset_terminal_error(&record));
+                }
+                if !auth_moved {
+                    match crate::storage::validate_asset_witness(
+                        tx,
+                        &schema,
+                        &witness_input,
+                        &witness_snapshot,
+                    ) {
+                        Ok(()) => {}
+                        Err(error) if error.diagnostic.code == "SNAPBACK_MUTATION_CONFLICT" => {
+                            return Ok(AssetPublishOutcome::WitnessMoved);
+                        }
+                        Err(error) => return Err(error),
+                    }
+                } else {
+                    return Ok(AssetPublishOutcome::WitnessMoved);
+                }
+
+                let mut publication = assets::open_publication_for_attempt(tx, &attempt_id)?
+                    .filter(|found| found.publication_id == publication_id)
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_RECORD_INVALID",
+                            "assets",
+                            "the publication record disappeared mid-finalization",
+                        )
+                    })?;
+
+                let blob_record = assets::AssetBlobRecordV1 {
+                    blob_id: assets::AssetFsStore::new_opaque_key(),
+                    app_id: app.clone(),
+                    store: assets::ASSET_STORE_LOCAL_FS.to_owned(),
+                    physical_key: publication.planned_key.clone(),
+                    byte_length: staged_length,
+                    detected_content_type: detected_type.clone(),
+                    digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
+                    digest: digest_value.clone(),
+                    canonicalization_policy: assets::ASSET_CANONICALIZATION_NONE.to_owned(),
+                    reference_count: 1,
+                    condemned: false,
+                    created_at_ms: now,
+                };
+                let (blob_id, reused) = match assets::insert_blob(tx, &blob_record, now) {
+                    Ok(assets::BlobInsertOutcome::Created) => {
+                        publication.blob_id = Some(blob_record.blob_id.clone());
+                        assets::transition_publication(
+                            tx,
+                            &mut publication,
+                            assets::AssetPublicationState::Committed,
+                            now,
+                        )?;
+                        (blob_record.blob_id.clone(), false)
+                    }
+                    Ok(assets::BlobInsertOutcome::ConvergedOnWinner { blob_id }) => {
+                        // Dedup or a lost uniqueness race: adopt the winner,
+                        // condemn our own record; its object is tracked
+                        // cleanup, never a silent orphan.
+                        assets::transition_publication(
+                            tx,
+                            &mut publication,
+                            assets::AssetPublicationState::Condemned,
+                            now,
+                        )?;
+                        assets::enqueue_work(
+                            tx,
+                            "condemned-object-cleanup",
+                            &record.asset_id,
+                            Some(&attempt_id),
+                            record.lifecycle_generation,
+                            now,
+                        )?;
+                        (blob_id, true)
+                    }
+                    Err(error)
+                        if error.diagnostic.code == "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE" =>
+                    {
+                        // The identity slot is held by a condemned row: the
+                        // retry-under-fresh-key path deletes it, records its
+                        // orphaned object as a condemned publication, and
+                        // publishes our own object.
+                        if let Some(orphan_key) = assets::resolve_condemned_identity(
+                            tx,
+                            &app,
+                            assets::ASSET_DIGEST_ALGORITHM_SHA256,
+                            &digest_value,
+                            assets::ASSET_CANONICALIZATION_NONE,
+                        )? {
+                            let orphan = assets::AssetPublicationRecordV1 {
+                                publication_id: assets::AssetFsStore::new_opaque_key(),
+                                app_id: app.clone(),
+                                attempt_id: Some(attempt_id.clone()),
+                                planned_key: orphan_key,
+                                digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256
+                                    .to_owned(),
+                                digest: digest_value.clone(),
+                                canonicalization_policy: assets::ASSET_CANONICALIZATION_NONE
+                                    .to_owned(),
+                                state: assets::AssetPublicationState::Condemned,
+                                generation: record.lifecycle_generation,
+                                blob_id: None,
+                                created_at_ms: now,
+                                updated_at_ms: now,
+                            };
+                            assets::insert_publication(tx, &orphan)?;
+                            assets::enqueue_work(
+                                tx,
+                                "condemned-object-cleanup",
+                                &record.asset_id,
+                                Some(&attempt_id),
+                                record.lifecycle_generation,
+                                now,
+                            )?;
+                        }
+                        match assets::insert_blob(tx, &blob_record, now)? {
+                            assets::BlobInsertOutcome::Created => {}
+                            assets::BlobInsertOutcome::ConvergedOnWinner { .. } => {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE",
+                                    "assets",
+                                    "blob identity remained contended after condemned-row \
+                                     resolution",
+                                ));
+                            }
+                        }
+                        publication.blob_id = Some(blob_record.blob_id.clone());
+                        assets::transition_publication(
+                            tx,
+                            &mut publication,
+                            assets::AssetPublicationState::Committed,
+                            now,
+                        )?;
+                        (blob_record.blob_id.clone(), false)
+                    }
+                    Err(error) => return Err(error),
+                };
+
+                // The primary rendition is the publication in v1; required
+                // renditions gate `ready`, and the primary is the only (and
+                // required) member until the image pipeline ships.
+                let rendition = assets::AssetRenditionRecordV1 {
+                    rendition_id: assets::AssetFsStore::new_opaque_key(),
+                    asset_id: record.asset_id.clone(),
+                    variant_key: assets::ASSET_RENDITION_PRIMARY.to_owned(),
+                    blob_id: blob_id.clone(),
+                    state: assets::AssetRenditionState::Ready,
+                    recipe: assets::ASSET_RENDITION_PRIMARY.to_owned(),
+                    recipe_version: 1,
+                    media_facts: Some(serde_json::json!({
+                        "contentType": detected_type,
+                        "byteLength": staged_length,
+                    })),
+                    created_at_ms: now,
+                    updated_at_ms: now,
+                    failure: None,
+                };
+                assets::insert_rendition(tx, &rendition)?;
+
+                let mut asset = assets::load_asset(tx, &record.asset_id)?.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_UNKNOWN",
+                        "assets",
+                        format!("unknown asset {}", record.asset_id),
+                    )
+                })?;
+                asset.primary_rendition_id = Some(rendition.rendition_id.clone());
+                assets::transition_asset(tx, &mut asset, assets::AssetAvailability::Ready, now)?;
+
+                record.integrity_grade = grade;
+                assets::transition_attempt(
+                    tx,
+                    &mut record,
+                    assets::AssetAttemptState::Complete,
+                    now,
+                )?;
+
+                let lineage = attempt_id.clone();
+                for (event, details) in [
+                    (
+                        assets::AssetReceiptEventV1::BytesVerified,
+                        serde_json::json!({
+                            "integrityGrade": grade,
+                            "detectedContentType": detected_type,
+                            "byteLength": staged_length,
+                        }),
+                    ),
+                    (
+                        if reused {
+                            assets::AssetReceiptEventV1::BlobReused
+                        } else {
+                            assets::AssetReceiptEventV1::BlobCreated
+                        },
+                        serde_json::json!({ "blobId": blob_id }),
+                    ),
+                    (
+                        assets::AssetReceiptEventV1::RenditionProduced,
+                        serde_json::json!({
+                            "renditionId": rendition.rendition_id,
+                            "variantKey": assets::ASSET_RENDITION_PRIMARY,
+                        }),
+                    ),
+                    (
+                        assets::AssetReceiptEventV1::AssetReady,
+                        serde_json::json!({
+                            "lifecycleGeneration": asset.lifecycle_generation,
+                        }),
+                    ),
+                    (
+                        assets::AssetReceiptEventV1::AttemptCompleted,
+                        serde_json::json!({ "integrityGrade": grade }),
+                    ),
+                ] {
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(&lineage, event, &record.asset_id, Some(&attempt_id), now, details),
+                    )?;
+                }
+                Ok(AssetPublishOutcome::Published {
+                    attempt: Box::new(record),
+                    asset: Box::new(asset),
+                    reused,
+                })
+            })?;
+            match result {
+                AssetPublishOutcome::Published { attempt, asset, reused } => {
+                    break (*attempt, *asset, reused);
+                }
+                AssetPublishOutcome::WitnessMoved => {
+                    // Re-validate, then refuse only on denial: re-run the
+                    // authorizer under the frozen policy generation and
+                    // current authority; a materially identical admit (the
+                    // schema-validated output DTO — exactly `{ owner }`)
+                    // publishes, so benign churn never strands an upload.
+                    if !frozen_code_available {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_ADMISSION_STALE",
+                            "assets",
+                            "the admission witness moved and the frozen intent generation's \
+                             authorizer is no longer deployed; retry to re-admit this asset \
+                             under the current generation",
+                        ));
+                    }
+                    revalidations += 1;
+                    if revalidations > 2 {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_ADMISSION_CONFLICT",
+                            "assets",
+                            "admission re-validation kept conflicting with concurrent writes",
+                        ));
+                    }
+                    let definition = self.asset_intent_definition(&intent)?;
+                    let prepared = InvocationGate::prepare_function(authority.clone(), &definition)?;
+                    let module = match &intent.runtime {
+                        crate::manifest::FunctionRuntime::IbexModule(module) => module.clone(),
+                        _ => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
+                                "assets",
+                                "upload-intent authorizers run as Ibex modules in v1",
+                            ))
+                        }
+                    };
+                    let input = prepared.canonicalize_input(crate::manifest::HandlerInput {
+                        args: attempt.admission.args.clone(),
+                        ..Default::default()
+                    });
+                    let rerun = self.db.with_pinned_read_view(|db| {
+                        crate::runtime::run_ibex_asset_authorizer_prepared(
+                            &module, input.clone(), &prepared, db,
+                        )
+                    });
+                    let rerun = match rerun {
+                        Ok(rerun) => rerun,
+                        Err(denial) => {
+                            self.asset_fail_attempt(
+                                &attempt,
+                                assets::AssetAvailability::Pending,
+                                SnapbackError::error(
+                                    "SNAPBACK_ASSET_ADMISSION_REVOKED",
+                                    "assets",
+                                    "re-validation denied this admission under current authority",
+                                )
+                                .with_details(serde_json::json!({
+                                    "denial": denial.diagnostic.code,
+                                })),
+                            )?;
+                            unreachable!("asset_fail_attempt always errors");
+                        }
+                    };
+                    if rerun.owner != attempt.admission.owner_principal {
+                        self.asset_fail_attempt(
+                            &attempt,
+                            assets::AssetAvailability::Pending,
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_ADMISSION_REVOKED",
+                                "assets",
+                                "re-validation admitted a materially different decision",
+                            ),
+                        )?;
+                        unreachable!("asset_fail_attempt always errors");
+                    }
+                    witness = rerun.read_dependencies;
+                    auth_moved = false;
+                }
+            }
+        };
+        let (final_attempt, final_asset, reused) = outcome;
+
+        // Step 9 — staging cleanup after the publication committed; the
+        // reused path also removes its own now-condemned object. Both are
+        // idempotent, and the reconciliation sweep backstops a crash here.
+        store.delete_staging(&final_attempt.staging_key)?;
+        if reused {
+            let path = store.blob_path(&publication.planned_key)?;
+            match std::fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        format!("cannot remove condemned object: {error}"),
+                    ))
+                }
+            }
+        }
+        let attempt_ref = final_attempt.attempt_id.clone();
+        let asset_ref = final_attempt.asset_id.clone();
+        self.db.asset_transaction(|tx| {
+            assets::write_receipt(
+                tx,
+                &asset_receipt(
+                    &attempt_ref,
+                    assets::AssetReceiptEventV1::StagingCleaned,
+                    &asset_ref,
+                    Some(&attempt_ref),
+                    now_millis(),
+                    serde_json::json!({}),
+                ),
+            )
+        })?;
+
+        Ok(crate::assets::AssetFinalizeResponseV1 {
+            task: asset_task_state(&final_attempt, Some(&final_asset)),
+        })
+    }
+
+    /// Terminal refusal path shared by the byte/policy verification steps:
+    /// the attempt fails with the refusal recorded, the asset takes the
+    /// stated availability (`Pending` keeps it retry-eligible; `Rejected`
+    /// is reserved for a policy the intent can never satisfy), receipts are
+    /// written, and the refusal is returned. Always errors.
+    fn asset_fail_attempt(
+        &mut self,
+        attempt: &crate::assets::AssetAttemptRecordV1,
+        asset_outcome: crate::assets::AssetAvailability,
+        refusal: SnapbackError,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        use crate::assets as assets;
+        let now = now_millis();
+        let attempt_id = attempt.attempt_id.clone();
+        let refusal_facts = serde_json::json!({
+            "code": refusal.diagnostic.code,
+            "message": refusal.diagnostic.message,
+        });
+        let staging_key = self.db.asset_transaction(|tx| {
+            let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                    "assets",
+                    format!("unknown attempt {attempt_id}"),
+                )
+            })?;
+            record.failure = Some(refusal_facts.clone());
+            assets::transition_attempt(tx, &mut record, assets::AssetAttemptState::Failed, now)?;
+            assets::write_receipt(
+                tx,
+                &asset_receipt(
+                    &attempt_id,
+                    assets::AssetReceiptEventV1::BytesRejected,
+                    &record.asset_id,
+                    Some(&attempt_id),
+                    now,
+                    refusal_facts.clone(),
+                ),
+            )?;
+            assets::write_receipt(
+                tx,
+                &asset_receipt(
+                    &attempt_id,
+                    assets::AssetReceiptEventV1::AttemptFailed,
+                    &record.asset_id,
+                    Some(&attempt_id),
+                    now,
+                    refusal_facts.clone(),
+                ),
+            )?;
+            if asset_outcome == assets::AssetAvailability::Rejected {
+                let mut asset = assets::load_asset(tx, &record.asset_id)?.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_UNKNOWN",
+                        "assets",
+                        format!("unknown asset {}", record.asset_id),
+                    )
+                })?;
+                assets::transition_asset(
+                    tx,
+                    &mut asset,
+                    assets::AssetAvailability::Rejected,
+                    now,
+                )?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &attempt_id,
+                        assets::AssetReceiptEventV1::AssetRejected,
+                        &record.asset_id,
+                        Some(&attempt_id),
+                        now,
+                        refusal_facts.clone(),
+                    ),
+                )?;
+            }
+            Ok(record.staging_key.clone())
+        })?;
+        self.asset_store()?.delete_staging(&staging_key)?;
+        Err(refusal)
+    }
+
+    /// The publication-record maintenance pass (LLP 0044 §Publication and
+    /// crash recovery): recovery probes `planned` records at the
+    /// acknowledged-put crash cut, condemns work that is no longer
+    /// re-drivable, deletes condemned objects, and retires records whose
+    /// evidence has moved on — each repair receipted. Callable; the L1-11
+    /// runner drives it on a schedule.
+    // The L1-11 ledger runner is the production caller; until it lands the
+    // pass is exercised by the fault-injection tests only.
+    #[allow(dead_code)]
+    pub(crate) fn asset_publication_maintain(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<AssetPublicationMaintenanceReport> {
+        use crate::assets as assets;
+        let store = self.asset_store()?;
+        let mut report = AssetPublicationMaintenanceReport::default();
+
+        // Planned records: probe the recorded key.
+        let planned = self
+            .db
+            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Planned))?;
+        for mut record in planned {
+            let attempt = self.db.asset_transaction(|tx| {
+                record
+                    .attempt_id
+                    .as_deref()
+                    .map(|id| assets::load_attempt(tx, id))
+                    .transpose()
+                    .map(Option::flatten)
+            })?;
+            let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current());
+            let object_path = store.blob_path(&record.planned_key)?;
+            let object_verifies = object_path.exists()
+                && asset_hash_staging(&object_path)
+                    .map(|hashed| hashed.digest == record.digest)
+                    .unwrap_or(false);
+            if object_verifies {
+                let asset_id = attempt.as_ref().map(|a| a.asset_id.clone());
+                self.db.asset_transaction(|tx| {
+                    assets::transition_publication(
+                        tx,
+                        &mut record,
+                        assets::AssetPublicationState::Staged,
+                        now_ms,
+                    )?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &record.publication_id.clone(),
+                            assets::AssetReceiptEventV1::PublicationRepaired,
+                            asset_id.as_deref().unwrap_or("unknown"),
+                            record.attempt_id.as_deref(),
+                            now_ms,
+                            serde_json::json!({ "action": "staged", "probe": "object-verified" }),
+                        ),
+                    )
+                })?;
+                report.staged += 1;
+                continue;
+            }
+            if !re_drivable {
+                if object_path.exists() {
+                    // The object exists but does not verify: a torn put.
+                    std::fs::remove_file(&object_path).ok();
+                    report.objects_deleted += 1;
+                }
+                let asset_id = attempt.as_ref().map(|a| a.asset_id.clone());
+                self.db.asset_transaction(|tx| {
+                    assets::transition_publication(
+                        tx,
+                        &mut record,
+                        assets::AssetPublicationState::Condemned,
+                        now_ms,
+                    )?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &record.publication_id.clone(),
+                            assets::AssetReceiptEventV1::PublicationRepaired,
+                            asset_id.as_deref().unwrap_or("unknown"),
+                            record.attempt_id.as_deref(),
+                            now_ms,
+                            serde_json::json!({ "action": "condemned", "cause": "not-re-drivable" }),
+                        ),
+                    )
+                })?;
+                report.condemned += 1;
+            }
+        }
+
+        // Staged records whose work is dead: condemn.
+        let staged = self
+            .db
+            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Staged))?;
+        for mut record in staged {
+            let attempt = self.db.asset_transaction(|tx| {
+                record
+                    .attempt_id
+                    .as_deref()
+                    .map(|id| assets::load_attempt(tx, id))
+                    .transpose()
+                    .map(Option::flatten)
+            })?;
+            if attempt.as_ref().is_some_and(|a| a.state.is_current()) {
+                continue;
+            }
+            let asset_id = attempt.as_ref().map(|a| a.asset_id.clone());
+            self.db.asset_transaction(|tx| {
+                assets::transition_publication(
+                    tx,
+                    &mut record,
+                    assets::AssetPublicationState::Condemned,
+                    now_ms,
+                )?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &record.publication_id.clone(),
+                        assets::AssetReceiptEventV1::PublicationRepaired,
+                        asset_id.as_deref().unwrap_or("unknown"),
+                        record.attempt_id.as_deref(),
+                        now_ms,
+                        serde_json::json!({ "action": "condemned", "cause": "work-terminal" }),
+                    ),
+                )
+            })?;
+            report.condemned += 1;
+        }
+
+        // Condemned records: delete the object (if any), then retire.
+        let condemned = self
+            .db
+            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Condemned))?;
+        for record in condemned {
+            let object_path = store.blob_path(&record.planned_key)?;
+            // Never delete an object a live blob row owns (the reused-path
+            // convergence shares digests, not keys, so this is exact).
+            let owned_by_blob = self.db.asset_transaction(|tx| {
+                Ok(tx
+                    .query_row(
+                        "SELECT COUNT(*) FROM _snapback_asset_blobs_v1
+                         WHERE physical_key = ?1 AND condemned = 0",
+                        [&record.planned_key],
+                        |row| row.get::<_, u64>(0),
+                    )
+                    .unwrap_or(0)
+                    > 0)
+            })?;
+            if object_path.exists() && !owned_by_blob {
+                std::fs::remove_file(&object_path).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        format!("cannot delete condemned object: {error}"),
+                    )
+                })?;
+                report.objects_deleted += 1;
+            }
+            self.db.asset_transaction(|tx| {
+                assets::retire_publication(tx, &record.publication_id)?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &record.publication_id.clone(),
+                        assets::AssetReceiptEventV1::PublicationRepaired,
+                        "unknown",
+                        record.attempt_id.as_deref(),
+                        now_ms,
+                        serde_json::json!({ "action": "retired", "was": "condemned" }),
+                    ),
+                )
+            })?;
+            report.retired += 1;
+        }
+
+        // Committed records past the retention window: the blob row is the
+        // durable evidence; retire the record so the ceiling stays clear.
+        let committed = self
+            .db
+            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Committed))?;
+        for record in committed {
+            if now_ms.saturating_sub(record.updated_at_ms)
+                < crate::assets::ASSET_PUBLICATION_RETENTION_MS
+            {
+                continue;
+            }
+            self.db.asset_transaction(|tx| {
+                assets::retire_publication(tx, &record.publication_id)?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &record.publication_id.clone(),
+                        assets::AssetReceiptEventV1::PublicationRepaired,
+                        "unknown",
+                        record.attempt_id.as_deref(),
+                        now_ms,
+                        serde_json::json!({ "action": "retired", "was": "committed" }),
+                    ),
+                )
+            })?;
+            report.retired += 1;
+        }
+        Ok(report)
+    }
+
     /// Execute the only full revalidation path permitted to mint an
     /// AuthorizedLease. Query result, data head, authorization pair,
     /// activation, issuer, and target-scoped obligation state are captured
@@ -18215,6 +19182,115 @@ fn elapsed_ms(started: Instant) -> u64 {
 // Asset session helpers (LLP 0044, tickets L1-04/L1-05).
 // ---------------------------------------------------------------------------
 
+/// Test-only crash injection for the named fault cuts; the public finalize
+/// path always passes `None`, so production code cannot reach the sentinel.
+/// The names mirror LLP 0044's crash-cut vocabulary on purpose.
+#[allow(clippy::enum_variant_names)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AssetFinalizeCrashPoint {
+    AfterPlanned,
+    AfterObjectPut,
+    AfterStaged,
+}
+
+fn asset_test_crash() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_TEST_CRASH",
+        "assets",
+        "test-injected crash point",
+    )
+}
+
+enum AssetPublishOutcome {
+    Published {
+        attempt: Box<crate::assets::AssetAttemptRecordV1>,
+        asset: Box<crate::assets::AssetRecordV1>,
+        reused: bool,
+    },
+    WitnessMoved,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) struct AssetPublicationMaintenanceReport {
+    pub staged: u64,
+    pub condemned: u64,
+    pub retired: u64,
+    pub objects_deleted: u64,
+}
+
+struct AssetStagedBytes {
+    byte_length: u64,
+    /// Lowercase hex SHA-256 over the full byte stream.
+    digest: String,
+    /// The first bytes, for trusted content detection.
+    head: Vec<u8>,
+}
+
+/// Stream a staging or blob object through SHA-256, capturing length and the
+/// detection head, without loading the object into memory.
+fn asset_hash_staging(path: &std::path::Path) -> SnapbackResult<AssetStagedBytes> {
+    use sha2::Digest as _;
+    use std::io::Read as _;
+    let mut file = std::fs::File::open(path).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+            "assets",
+            format!("cannot open staged object: {error}"),
+        )
+    })?;
+    let mut hasher = sha2::Sha256::new();
+    let mut head = Vec::with_capacity(64);
+    let mut byte_length = 0u64;
+    let mut buffer = vec![0u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                format!("cannot read staged object: {error}"),
+            )
+        })?;
+        if read == 0 {
+            break;
+        }
+        if head.len() < 64 {
+            let take = (64 - head.len()).min(read);
+            head.extend_from_slice(&buffer[..take]);
+        }
+        byte_length += read as u64;
+        hasher.update(&buffer[..read]);
+    }
+    let digest = hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    Ok(AssetStagedBytes { byte_length, digest, head })
+}
+
+fn asset_planned_publication(
+    app_id: &str,
+    attempt_id: &str,
+    digest: &str,
+    now_ms: u64,
+) -> crate::assets::AssetPublicationRecordV1 {
+    crate::assets::AssetPublicationRecordV1 {
+        publication_id: crate::assets::AssetFsStore::new_opaque_key(),
+        app_id: app_id.to_owned(),
+        attempt_id: Some(attempt_id.to_owned()),
+        planned_key: crate::assets::AssetFsStore::new_opaque_key(),
+        digest_algorithm: crate::assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
+        digest: digest.to_owned(),
+        canonicalization_policy: crate::assets::ASSET_CANONICALIZATION_NONE.to_owned(),
+        state: crate::assets::AssetPublicationState::Planned,
+        generation: 1,
+        blob_id: None,
+        created_at_ms: now_ms,
+        updated_at_ms: now_ms,
+    }
+}
+
 fn asset_receipt(
     lineage: &str,
     event: crate::assets::AssetReceiptEventV1,
@@ -18378,14 +19454,15 @@ mod auth_room_kick_acceptance;
 #[cfg(test)]
 mod tests {
     use super::{
-        AuthorizationBlastRadiusStats, AuthorizationInvalidationAckInput,
+        AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats, AuthorizationInvalidationAckInput,
         BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
         BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
         DetachedMutationRead, EnsureAppMode, FAIL_NEXT_LIVE_SCOPE_REGISTRATION,
         FAIL_NEXT_SCOPE_RETIREMENT_AUTH, LiveInvalidationAdmission, LiveResumeInput,
         LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MaintenanceOperation, PublicInspect,
-        RetryEpisodeKey, RetryReservationKind, SnapbackError, StagedNestedMutation,
+        RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult,
+        StagedNestedMutation,
         next_secret_read_reset_generation, now_millis,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
         validate_bounded_children_schema_plan, validate_function_schema_references,
@@ -19215,6 +20292,672 @@ globalThis.__snapbackHandlers = {
             )
             .expect("tail chunk after restart");
         assert_eq!(attempt.acknowledged_offset, 10);
+    }
+
+    // -----------------------------------------------------------------
+    // Trusted finalization and the publication protocol (ticket L1-06).
+    // -----------------------------------------------------------------
+
+    fn asset_upload(
+        snapback: &mut LocalSnapback,
+        user: &str,
+        bytes: &[u8],
+        checksummed: bool,
+    ) -> crate::assets::AssetAttemptCreateResponseV1 {
+        let creator = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
+        let transfer = asset_dev_authority(snapback, user, InvocationSource::AssetTransfer);
+        let created = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(bytes.len() as u64)))
+            .expect("attempt creates");
+        let checksum = asset_chunk_checksum(bytes);
+        snapback
+            .asset_tus_patch(
+                &transfer,
+                &created.task.attempt_id,
+                0,
+                bytes,
+                checksummed.then_some(("sha256", checksum.as_str())),
+            )
+            .expect("bytes land");
+        created
+    }
+
+    fn asset_finalize(
+        snapback: &mut LocalSnapback,
+        user: &str,
+        attempt_id: &str,
+        declared_digest: Option<String>,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        let authority = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
+        snapback.asset_attempt_finalize(
+            &authority,
+            crate::assets::AssetFinalizeRequestV1 {
+                attempt_id: attempt_id.to_owned(),
+                lifecycle_generation: 1,
+                declared_digest,
+            },
+        )
+    }
+
+    fn asset_receipt_events(snapback: &mut LocalSnapback, asset_id: &str) -> Vec<String> {
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let mut statement = tx.prepare(
+                    "SELECT event FROM _snapback_asset_receipts_v1
+                     WHERE asset_id = ?1 ORDER BY at_ms, receipt_id",
+                )?;
+                let rows = statement
+                    .query_map([asset_id], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(rows)
+            })
+            .expect("receipts")
+    }
+
+    #[test]
+    fn asset_finalize_publishes_end_to_end_and_is_idempotent() {
+        let mut snapback = asset_test_snapback();
+        let app_id = snapback.functions.app_id.clone();
+        let created = asset_upload(&mut snapback, "user_a", b"helloworld", true);
+        let attempt_id = created.task.attempt_id.clone();
+        let asset_id = created.task.asset_id.clone();
+
+        let response = asset_finalize(&mut snapback, "user_a", &attempt_id, None)
+            .expect("finalize publishes");
+        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            response.task.attempt_state,
+            crate::assets::AssetAttemptState::Complete
+        );
+        assert_eq!(
+            response.task.integrity_grade,
+            crate::assets::AssetIntegrityGrade::EndToEndVerified,
+            "every chunk carried a checksum",
+        );
+        let rendition_id = response
+            .task
+            .primary_rendition_id
+            .clone()
+            .expect("primary rendition");
+
+        // The blob exists under its opaque key, staging is gone, quota
+        // settled at the minimum accounting unit, and the reservation
+        // released with the open attempt.
+        let store = snapback.asset_store().expect("store");
+        let (rendition, blob, publication_states, accounting) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let rendition = crate::assets::load_rendition(tx, &rendition_id)?
+                    .expect("rendition row");
+                let blob = crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob row");
+                let mut statement = tx.prepare(
+                    "SELECT state FROM _snapback_asset_publications_v1",
+                )?;
+                let states = statement
+                    .query_map([], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                let accounting = crate::assets::asset_accounting(tx, &app_id)?;
+                Ok((rendition, blob, states, accounting))
+            })
+            .expect("published records");
+        assert_eq!(rendition.variant_key, "primary");
+        assert_eq!(blob.byte_length, 10);
+        assert_eq!(blob.reference_count, 1);
+        assert_eq!(blob.detected_content_type, "application/octet-stream");
+        assert_eq!(blob.digest_algorithm, "sha256");
+        assert!(store.blob_path(&blob.physical_key).unwrap().exists());
+        assert_eq!(publication_states, vec!["committed".to_owned()]);
+        assert_eq!(accounting.reserved_bytes, 0, "completion released the reservation");
+        assert_eq!(
+            accounting.settled_bytes,
+            crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES,
+            "small assets settle at the minimum accounting unit",
+        );
+
+        let events = asset_receipt_events(&mut snapback, &asset_id);
+        for expected in [
+            "asset-reserved",
+            "attempt-created",
+            "bytes-verified",
+            "blob-created",
+            "rendition-produced",
+            "asset-ready",
+            "attempt-completed",
+            "staging-cleaned",
+        ] {
+            assert!(events.contains(&expected.to_owned()), "missing receipt {expected}: {events:?}");
+        }
+
+        // Re-driving a complete attempt is idempotent, not an error.
+        let again = asset_finalize(&mut snapback, "user_a", &attempt_id, None)
+            .expect("idempotent completion");
+        assert_eq!(again.task.availability, crate::assets::AssetAvailability::Ready);
+    }
+
+    #[test]
+    fn asset_finalize_grades_honestly_and_verifies_declared_digests() {
+        use sha2::Digest as _;
+        let mut snapback = asset_test_snapback();
+
+        // Checksum-less transfer: received-bytes canonical, never promoted.
+        let created = asset_upload(&mut snapback, "user_a", b"plain-bytes", false);
+        let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("checksum-less publishes at the weaker grade");
+        assert_eq!(
+            response.task.integrity_grade,
+            crate::assets::AssetIntegrityGrade::ReceivedBytesCanonical
+        );
+
+        // An authenticated whole-upload digest upgrades the grade.
+        let bytes = b"digest-declared";
+        let digest = sha2::Sha256::digest(bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let created = asset_upload(&mut snapback, "user_a", bytes, false);
+        let response =
+            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, Some(digest))
+                .expect("declared digest upgrades");
+        assert_eq!(
+            response.task.integrity_grade,
+            crate::assets::AssetIntegrityGrade::EndToEndVerified
+        );
+
+        // A mismatched declared digest refuses; the attempt fails and the
+        // asset stays pending (retry-eligible).
+        let created = asset_upload(&mut snapback, "user_a", b"other-bytes", false);
+        let error = asset_finalize(
+            &mut snapback,
+            "user_a",
+            &created.task.attempt_id,
+            Some("00".repeat(32)),
+        )
+        .expect_err("digest mismatch refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_DIGEST_MISMATCH");
+        let (attempt, asset) = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok((
+                    crate::assets::load_attempt(tx, &created.task.attempt_id)?.unwrap(),
+                    crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap(),
+                ))
+            })
+            .expect("records");
+        assert_eq!(attempt.state, crate::assets::AssetAttemptState::Failed);
+        assert_eq!(asset.availability, crate::assets::AssetAvailability::Pending);
+    }
+
+    #[test]
+    fn asset_finalize_refuses_incomplete_transfers_and_detects_types_from_bytes() {
+        let mut snapback = asset_test_snapback();
+
+        // Transfer incomplete: declared 10, acknowledged 5.
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let created = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(10)))
+            .expect("attempt");
+        let chunk = b"hello";
+        snapback
+            .asset_tus_patch(
+                &transfer,
+                &created.task.attempt_id,
+                0,
+                chunk,
+                Some(("sha256", &asset_chunk_checksum(chunk))),
+            )
+            .expect("half the bytes");
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("incomplete transfer refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_TRANSFER_INCOMPLETE");
+
+        // Trusted detection: PNG magic bytes are outside an
+        // octet-stream-only intent's accept list, whatever was declared.
+        let mut png = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+        png.extend_from_slice(&[0u8; 8]);
+        let created = asset_upload(&mut snapback, "user_a", &png, true);
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("detected type outside the accept list refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED");
+        let details = error.diagnostic.details;
+        assert_eq!(details["detected"], "image/png");
+
+        // The failed attempt leaves the asset pending; the retry path
+        // supersedes with corrected bytes and publishes.
+        let retry = crate::assets::AssetAttemptCreateRequestV1 {
+            retry_of_asset_id: Some(created.task.asset_id.clone()),
+            ..asset_create_request(Some(4))
+        };
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let retried = snapback
+            .asset_attempt_create(&creator, retry)
+            .expect("retry after failed finalize");
+        assert_eq!(retried.task.asset_id, created.task.asset_id);
+        let bytes = b"good";
+        snapback
+            .asset_tus_patch(
+                &transfer,
+                &retried.task.attempt_id,
+                0,
+                bytes,
+                Some(("sha256", &asset_chunk_checksum(bytes))),
+            )
+            .expect("corrected bytes");
+        let response = asset_finalize(&mut snapback, "user_a", &retried.task.attempt_id, None)
+            .expect("retry publishes the same asset id");
+        assert_eq!(response.task.asset_id, created.task.asset_id);
+        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+    }
+
+    #[test]
+    fn asset_finalize_dedups_within_the_app_and_charges_quota_twice() {
+        let mut snapback = asset_test_snapback();
+        let app_id = snapback.functions.app_id.clone();
+
+        let first = asset_upload(&mut snapback, "user_a", b"same-bytes", true);
+        let second = asset_upload(&mut snapback, "user_a", b"same-bytes", true);
+        let first_response =
+            asset_finalize(&mut snapback, "user_a", &first.task.attempt_id, None)
+                .expect("first publishes");
+        let second_response =
+            asset_finalize(&mut snapback, "user_a", &second.task.attempt_id, None)
+                .expect("second publishes");
+        assert_ne!(first_response.task.asset_id, second_response.task.asset_id);
+
+        let (blob_rows, refcount, accounting, cleanup_work) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let rows: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let refcount: u64 = tx.query_row(
+                    "SELECT reference_count FROM _snapback_asset_blobs_v1",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let accounting = crate::assets::asset_accounting(tx, &app_id)?;
+                let cleanup: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_work_ledger_v1
+                     WHERE kind = 'condemned-object-cleanup'",
+                    [],
+                    |row| row.get(0),
+                )?;
+                Ok((rows, refcount, accounting, cleanup))
+            })
+            .expect("dedup facts");
+        assert_eq!(blob_rows, 1, "identical canonical bytes share one blob");
+        assert_eq!(refcount, 2, "each primary rendition holds one reference");
+        assert_eq!(
+            accounting.settled_bytes,
+            2 * crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES,
+            "logical quota charges each asset, not physical dedup",
+        );
+        assert_eq!(cleanup_work, 1, "the loser's object cleanup enqueued transactionally");
+
+        let events = asset_receipt_events(&mut snapback, &second_response.task.asset_id);
+        assert!(events.contains(&"blob-reused".to_owned()), "{events:?}");
+    }
+
+    #[test]
+    fn asset_finalize_condemned_race_republishes_under_a_fresh_key() {
+        use sha2::Digest as _;
+        let mut snapback = asset_test_snapback();
+        let app_id = snapback.functions.app_id.clone();
+
+        let bytes = b"contended";
+        let digest = sha2::Sha256::digest(bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        // A condemned blob row occupies the identity slot (GC raced this
+        // finalize between digesting and publication).
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let record = crate::assets::AssetBlobRecordV1 {
+                    blob_id: "blob_condemned".to_owned(),
+                    app_id: app_id.clone(),
+                    store: crate::assets::ASSET_STORE_LOCAL_FS.to_owned(),
+                    physical_key: "0189000000000000000000000000race".to_owned(),
+                    byte_length: bytes.len() as u64,
+                    detected_content_type: "application/octet-stream".to_owned(),
+                    digest_algorithm: "sha256".to_owned(),
+                    digest: digest.clone(),
+                    canonicalization_policy: "none".to_owned(),
+                    reference_count: 1,
+                    condemned: false,
+                    created_at_ms: 1,
+                };
+                crate::assets::insert_blob(tx, &record, 1)?;
+                crate::assets::release_blob_reference(tx, "blob_condemned", 2)?;
+                assert!(crate::assets::condemn_blob_if_unreferenced(tx, "blob_condemned", 3)?);
+                Ok(())
+            })
+            .expect("condemned identity");
+
+        let created = asset_upload(&mut snapback, "user_a", bytes, true);
+        let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("condemned race republishes");
+        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+
+        let (live_blobs, condemned_rows, orphan_publications) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let live: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1 WHERE condemned = 0",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let condemned: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1 WHERE condemned = 1",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let orphans: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_publications_v1
+                     WHERE state = 'condemned'",
+                    [],
+                    |row| row.get(0),
+                )?;
+                Ok((live, condemned, orphans))
+            })
+            .expect("race facts");
+        assert_eq!(live_blobs, 1, "the fresh blob is live");
+        assert_eq!(condemned_rows, 0, "the condemned identity row was resolved");
+        assert_eq!(
+            orphan_publications, 1,
+            "the condemned row's object is tracked cleanup, never a silent orphan",
+        );
+    }
+
+    fn asset_profiles_schema() -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "profiles".to_owned(),
+                fields: vec![crate::manifest::FieldManifest {
+                    name: "name".to_owned(),
+                    field_type: crate::manifest::FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    /// Plant a phantom-sensitive witness on the attempt: admission observed
+    /// `profiles/phantom_1` absent.
+    fn asset_plant_missing_row_witness(snapback: &mut LocalSnapback, attempt_id: &str) {
+        let witness = serde_json::json!([{
+            "kind": "missingRow",
+            "table": "profiles",
+            "id": "phantom_1",
+        }]);
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let mut attempt =
+                    crate::assets::load_attempt(tx, attempt_id)?.expect("attempt");
+                attempt.admission.witness = witness.clone();
+                crate::assets::store_attempt(tx, &attempt)
+            })
+            .expect("witness planted");
+    }
+
+    fn asset_insert_phantom(snapback: &mut LocalSnapback) {
+        // A committed row needs a positive version at or below the global
+        // head; a fresh instance's head may still be zero, so advance it the
+        // way a first commit would.
+        let version = snapback.db.current_version().expect("head").max(1);
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _snapback_version SET version = MAX(version, ?1) WHERE id = 1",
+                    [version],
+                )?;
+                tx.execute(
+                    "INSERT INTO profiles (_id, _version, _createdAt, _updatedAt, name)
+                     VALUES ('phantom_1', ?1, 1, 1, 'ghost')",
+                    [version],
+                )?;
+                Ok(())
+            })
+            .expect("phantom row");
+    }
+
+    #[test]
+    fn asset_finalize_witness_rechecks_benign_churn_publishes_denial_refuses() {
+        // Case 1 — benign churn: the witness moved (phantom insertion
+        // invalidates an observed absence), the re-run authorizer admits the
+        // materially identical decision, the upload publishes.
+        let mut snapback = asset_test_snapback();
+        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        let created = asset_upload(&mut snapback, "user_a", b"churned", true);
+        asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
+        asset_insert_phantom(&mut snapback);
+        let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("benign churn publishes — a long upload never livelocks");
+        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+
+        // Case 2 — denial: the witness moved and the re-run decision is
+        // materially different (a different owner). Refuse; attempt fails;
+        // the asset stays pending.
+        let mut snapback = asset_test_snapback();
+        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        let created = asset_upload(&mut snapback, "user_a", b"revoked-bytes", true);
+        asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
+        asset_insert_phantom(&mut snapback);
+        let mut hostile = asset_test_intent();
+        hostile.runtime = FunctionRuntime::IbexModule(IbexModule {
+            source: r#"
+globalThis.__snapbackHandlers = {
+  async avatarUpload(ctx) { return { owner: "someone_else" }; }
+};
+"#
+            .to_owned(),
+            export: "avatarUpload".to_owned(),
+        });
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![hostile],
+            ..FunctionManifest::default()
+        });
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("a materially different decision refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ADMISSION_REVOKED");
+        let attempt = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_attempt(tx, &created.task.attempt_id)?.unwrap())
+            })
+            .expect("attempt");
+        assert_eq!(attempt.state, crate::assets::AssetAttemptState::Failed);
+
+        // Case 3 — the witness moved AND the frozen generation's code is no
+        // longer deployed: fail closed (retry re-admits under the current
+        // generation).
+        let mut snapback = asset_test_snapback();
+        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        let created = asset_upload(&mut snapback, "user_a", b"stale-bytes", true);
+        asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
+        asset_insert_phantom(&mut snapback);
+        let mut changed = asset_test_intent();
+        changed.intent_policy_hash = "sha256:new-policy".to_owned();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![changed],
+            ..FunctionManifest::default()
+        });
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("frozen code unavailable fails closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ADMISSION_STALE");
+
+        // Case 4 — intent removal is a revocation trigger.
+        let mut snapback = asset_test_snapback();
+        let created = asset_upload(&mut snapback, "user_a", b"orphan-intent", true);
+        snapback.load_functions(FunctionManifest::default());
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("intent removal revokes");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_REVOKED");
+    }
+
+    #[test]
+    fn asset_finalize_strip_policy_defense_rejects_the_asset() {
+        // Generation refuses strip-declared media on every v1 target; a
+        // hand-built manifest is the only road here, and finalization still
+        // refuses — and rejects the asset, because no retry can satisfy the
+        // policy on this target.
+        let mut strip = asset_test_intent();
+        strip.image = Some(crate::manifest::AssetImagePolicy {
+            location: crate::manifest::AssetLocationPolicy::Strip,
+            variants: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![strip],
+            ..FunctionManifest::default()
+        });
+        let created = asset_upload(&mut snapback, "user_a", b"gps-bytes", true);
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("strip-declared media cannot publish on this target");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED"
+        );
+        let asset = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
+            })
+            .expect("asset");
+        assert_eq!(asset.availability, crate::assets::AssetAvailability::Rejected);
+    }
+
+    #[test]
+    fn asset_finalize_crash_cuts_recover_via_publication_records() {
+        let mut snapback = asset_test_snapback();
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+        // Cut 1 — after `planned`, before the object put: the record is
+        // re-drivable while its attempt stays current, and a re-driven
+        // finalize completes from the same record.
+        let created = asset_upload(&mut snapback, "user_a", b"cut-one", true);
+        let error = snapback
+            .asset_attempt_finalize_inner(
+                &authority,
+                crate::assets::AssetFinalizeRequestV1 {
+                    attempt_id: created.task.attempt_id.clone(),
+                    lifecycle_generation: 1,
+                    declared_digest: None,
+                },
+                Some(AssetFinalizeCrashPoint::AfterPlanned),
+            )
+            .expect_err("injected crash");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_TEST_CRASH");
+        let report = snapback.asset_publication_maintain(now_millis()).expect("maintain");
+        assert_eq!(report.condemned, 0, "a re-drivable planned record survives");
+        let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("re-drive completes from the planned record");
+        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+
+        // Cut 2 — after the acknowledged object put, before `staged`: the
+        // attempt dies; recovery stages the verified object, condemns the
+        // dead work, deletes the object, and retires the record in one pass.
+        let created = asset_upload(&mut snapback, "user_a", b"cut-two", true);
+        let error = snapback
+            .asset_attempt_finalize_inner(
+                &authority,
+                crate::assets::AssetFinalizeRequestV1 {
+                    attempt_id: created.task.attempt_id.clone(),
+                    lifecycle_generation: 1,
+                    declared_digest: None,
+                },
+                Some(AssetFinalizeCrashPoint::AfterObjectPut),
+            )
+            .expect_err("injected crash");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_TEST_CRASH");
+        let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        snapback
+            .asset_attempt_cancel(
+                &transfer,
+                crate::assets::AssetAttemptCancelRequestV1 {
+                    attempt_id: created.task.attempt_id.clone(),
+                    lifecycle_generation: 1,
+                    discard_asset: false,
+                },
+            )
+            .expect("the work dies");
+        let report = snapback.asset_publication_maintain(now_millis()).expect("maintain");
+        assert_eq!(report.staged, 1, "the acknowledged put staged on probe");
+        assert_eq!(report.condemned, 1, "dead work condemned");
+        assert_eq!(report.retired, 1, "condemned record retired");
+        assert_eq!(report.objects_deleted, 1, "the orphan object deleted");
+
+        // Cut 3 — after `staged`, before the publication transaction: same
+        // dead-work resolution without the probe transition.
+        let created = asset_upload(&mut snapback, "user_a", b"cut-three", true);
+        let error = snapback
+            .asset_attempt_finalize_inner(
+                &authority,
+                crate::assets::AssetFinalizeRequestV1 {
+                    attempt_id: created.task.attempt_id.clone(),
+                    lifecycle_generation: 1,
+                    declared_digest: None,
+                },
+                Some(AssetFinalizeCrashPoint::AfterStaged),
+            )
+            .expect_err("injected crash");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_TEST_CRASH");
+        snapback
+            .asset_attempt_cancel(
+                &transfer,
+                crate::assets::AssetAttemptCancelRequestV1 {
+                    attempt_id: created.task.attempt_id.clone(),
+                    lifecycle_generation: 1,
+                    discard_asset: false,
+                },
+            )
+            .expect("the work dies");
+        let report = snapback.asset_publication_maintain(now_millis()).expect("maintain");
+        assert_eq!(report.condemned, 1);
+        assert_eq!(report.retired, 1);
+        assert_eq!(report.objects_deleted, 1);
+    }
+
+    #[test]
+    fn asset_publication_records_retire_after_the_retention_window() {
+        let mut snapback = asset_test_snapback();
+        let created = asset_upload(&mut snapback, "user_a", b"retained", true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("publishes");
+
+        let now = now_millis();
+        let report = snapback.asset_publication_maintain(now).expect("maintain");
+        assert_eq!(report.retired, 0, "inside the retention window nothing retires");
+
+        let later = now + crate::assets::ASSET_PUBLICATION_RETENTION_MS + 1;
+        let report = snapback.asset_publication_maintain(later).expect("maintain");
+        assert_eq!(report.retired, 1, "the committed record retires; the blob row is the evidence");
+        let blob_count: u64 = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1 WHERE condemned = 0",
+                    [],
+                    |row| row.get(0),
+                )?)
+            })
+            .expect("blobs");
+        assert_eq!(blob_count, 1, "retirement never touches the blob");
     }
 
     #[test]
