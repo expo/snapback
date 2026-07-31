@@ -87,7 +87,7 @@ successor keeps it.
 
 Attach the asset to a row in an ordinary mutation:
 
-```js fragment reason="handler excerpt; the commit hook is exercised by the src/local.rs reference suite"
+```js fragment reason="handler excerpt; the served handler-attach path is defect-blocked (issues/20260731-0044-handler-attach-admissions-dropped.md) — host-plan attachment is the conformance-proven lane until it lands"
 export const setAvatar = defineMutation({
   args: { profileId: v.id('profiles'), assetId: v.assetRef({ upload: 'avatarUpload' }) },
   handler: async (ctx, args) => {
@@ -182,7 +182,9 @@ and the explicit Missing nonclaims — backup/export, video finalization,
 custom read authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
 Live no-polling readiness ships as the reserved `_snapback.assetRecord`
-projection (subscribe via the headless client's `watch`), and the
-framework-neutral upload task is `client.assets.start` in
-`@expo/snapback-client`; the React/Expo hook and renderer are the
-remaining follow-up recorded in the L1-14 ticket.
+projection (subscribe via the headless client's `watch`/`watchStore`), and
+the framework-neutral upload task is `client.assets.start` in
+`@expo/snapback-client`; the React/Expo hook and renderer are
+`useSnapbackAssetUpload` / `useSnapbackAssetImage` in
+`@expo/snapback-react`, and the real-server JS conformance vectors are
+`tests/acceptance/asset-conformance-v1.mjs`.

@@ -2616,7 +2616,7 @@ successor keeps it.
 
 Attach the asset to a row in an ordinary mutation:
 
-```js fragment reason="handler excerpt; the commit hook is exercised by the src/local.rs reference suite"
+```js fragment reason="handler excerpt; the served handler-attach path is defect-blocked (issues/20260731-0044-handler-attach-admissions-dropped.md) — host-plan attachment is the conformance-proven lane until it lands"
 export const setAvatar = defineMutation({
   args: { profileId: v.id('profiles'), assetId: v.assetRef({ upload: 'avatarUpload' }) },
   handler: async (ctx, args) => {

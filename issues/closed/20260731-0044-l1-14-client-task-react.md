@@ -1,6 +1,6 @@
 # 0044 L1-14: headless client task and React/Expo projection
 
-**Status:** OPEN. **Authority:** LLP 0044 §Client upload surface,
+**Status:** RESOLVED (2026-07-31). **Authority:** LLP 0044 §Client upload surface,
 §Language-neutral protocol; LLP 0114 (React rules); LLP 0107
 (optimistic lifecycle).
 
@@ -39,3 +39,18 @@ flips the guide's attach fragment to transcluded-verified — live-ready,
 authorized-range, deletion, negative-auth, plus the membership-sharing
 fixture); sessions-custody transport for the asset routes (mirrors the
 server's sessions-mode projection admission, both fail closed today).
+
+---
+
+**RESOLVED 2026-07-31** (Lane 1, branch 0044-client-v1): W1a landed the
+React/Expo projection (`useSnapbackAssetUpload`, `useSnapbackAssetImage` +
+renderer, ThumbHash decode, authority blanking barrier) and W1b landed
+sessions-custody transport (bearer + auth-client protocol offer on every
+asset request, dev header as no-credential fallback) plus the real-server
+JS conformance vectors (`tests/acceptance/asset-conformance-v1.mjs`, all
+checks green). Evidence: the acceptance map's client rows are Covered.
+Boundaries recorded as their own tickets rather than absorbed: the served
+handler-attach admission defect
+(20260731-0044-handler-attach-admissions-dropped.md), the record-surface
+media-facts gap (20260731-0044-record-surface-media-facts.md); sessions-
+mode live establishment stays with W2e.
