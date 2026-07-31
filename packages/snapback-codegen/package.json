@@ -23,6 +23,7 @@
     "provider-introspection.mjs",
     "result-contracts.d.mts",
     "result-contracts.mjs",
+    "search-request-schema.mjs",
     "seed-artifact.d.mts",
     "seed-artifact.mjs",
     "provider-introspection.schema.json",
