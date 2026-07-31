@@ -2543,6 +2543,9 @@ pub struct LocalSnapback {
     /// staging-orphan sweep delete another instance's in-flight staging
     /// files — the sweep's ownership set is this instance's database.
     asset_memory_store_root: std::sync::OnceLock<std::path::PathBuf>,
+    /// P-05 keys this off the declared capability facts block; until the
+    /// image-pipeline capability flip, only tests enable it.
+    asset_image_finalization_override: Option<bool>,
     functions: FunctionManifest,
     // Complete pairs proven by this process. Durable deployment identities
     // are hashes, not manifest bodies, so they can never supply a missing
@@ -5261,6 +5264,19 @@ impl LocalSnapback {
             })
     }
 
+    /// Whether this target performs image finalization (the
+    /// `asset-image-finalization` fact). P-05 keys this off the declared
+    /// capability facts block when the image-pipeline composite flips;
+    /// until then only the test override enables it.
+    pub(crate) fn asset_image_finalization_enabled(&self) -> bool {
+        self.asset_image_finalization_override.unwrap_or(false)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_asset_image_finalization_override(&mut self, enabled: bool) {
+        self.asset_image_finalization_override = Some(enabled);
+    }
+
     pub(crate) fn asset_store(&self) -> SnapbackResult<crate::assets::AssetFsStore> {
         // File-backed instances root the store beside the database; memory
         // instances (tests, --memory) mint a per-instance temp root — the
@@ -6586,16 +6602,17 @@ impl LocalSnapback {
             ));
         }
 
-        // Defense in depth for the location policy: generation refuses
-        // strip-declared media on every v1 target, so bytes carrying this
-        // policy can only arrive through a hand-built manifest. The refusal
-        // is a policy the intent can never satisfy here, so the asset is
-        // rejected, not left retry-eligible.
-        if intent
-            .image
-            .as_ref()
-            .is_some_and(|image| image.location == crate::manifest::AssetLocationPolicy::Strip)
-        {
+        // Defense in depth for the location policy: without the
+        // image-finalization fact, generation refuses strip-declared media,
+        // so bytes carrying this policy can only arrive through a
+        // hand-built manifest — and finalization still refuses. With the
+        // fact, the strip canonicalization below is the policy's
+        // enforcement. The refusal is a policy the intent can never satisfy
+        // on this target, so the asset is rejected, not left retry-eligible.
+        let image_location = intent.image.as_ref().map(|image| image.location);
+        let strip_declared =
+            image_location == Some(crate::manifest::AssetLocationPolicy::Strip);
+        if strip_declared && !self.asset_image_finalization_enabled() {
             return self.asset_fail_attempt(
                 &attempt,
                 assets::AssetAvailability::Rejected,
@@ -6658,10 +6675,80 @@ impl LocalSnapback {
                 })),
             );
         }
-        // Canonicalization is `none` in v1: canonical bytes are the received
-        // bytes, so expansion beyond the intent's byte bound cannot occur —
-        // the check lives where a rewriting policy would expand.
-        if staged.byte_length > intent.accept.max_bytes {
+        // Canonicalization: strip-declared images rewrite (decode →
+        // corrective orientation → re-encode) so no deliverable canonical
+        // blob carries location metadata; everything else publishes the
+        // received bytes under policy `none`. Canonical bytes are what gets
+        // digested, deduplicated, and published.
+        let mut image_media_facts = serde_json::Map::new();
+        let canonical = if strip_declared {
+            let source = std::fs::read(&staging_path).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot read staging for canonicalization: {error}"),
+                )
+            })?;
+            match crate::assets_image::canonicalize_strip(
+                &source,
+                detected,
+                &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+            ) {
+                Ok(outcome) => {
+                    let canonical_path =
+                        store.canonical_staging_path(&attempt.staging_key)?;
+                    std::fs::write(&canonical_path, &outcome.canonical).map_err(
+                        |error| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                                "assets",
+                                format!("cannot stage canonical rewrite: {error}"),
+                            )
+                        },
+                    )?;
+                    let hashed = asset_hash_staging(&canonical_path)?;
+                    if let Some(orientation) = outcome.safe_exif.orientation {
+                        image_media_facts
+                            .insert("orientationApplied".into(), orientation.into());
+                    }
+                    if let Some(captured_at) = outcome.safe_exif.captured_at {
+                        image_media_facts.insert("capturedAt".into(), captured_at.into());
+                    }
+                    image_media_facts.insert("width".into(), outcome.width.into());
+                    image_media_facts.insert("height".into(), outcome.height.into());
+                    AssetCanonicalBytes {
+                        path: canonical_path,
+                        digest: hashed.digest,
+                        byte_length: hashed.byte_length,
+                        policy: assets::ASSET_CANONICALIZATION_STRIP_IMAGE_V1,
+                    }
+                }
+                // Deterministic over the received bytes — a hostile or
+                // unstrippable input refuses identically on every retry, so
+                // the asset rejects rather than staying retry-eligible.
+                Err(error) => {
+                    return self.asset_fail_attempt(
+                        &attempt,
+                        assets::AssetAvailability::Rejected,
+                        error,
+                    );
+                }
+            }
+        } else {
+            AssetCanonicalBytes {
+                path: staging_path.clone(),
+                digest: staged.digest.clone(),
+                byte_length: staged.byte_length,
+                policy: assets::ASSET_CANONICALIZATION_NONE,
+            }
+        };
+        if image_location.is_some() {
+            image_media_facts.insert(
+                "locationPolicy".into(),
+                if strip_declared { "strip" } else { "retain" }.into(),
+            );
+        }
+        if canonical.byte_length > intent.accept.max_bytes {
             return self.asset_fail_attempt(
                 &attempt,
                 assets::AssetAvailability::Pending,
@@ -6689,7 +6776,7 @@ impl LocalSnapback {
         let now = now_millis();
         let app_id = self.functions.app_id.clone();
         let attempt_id = attempt.attempt_id.clone();
-        let digest = staged.digest.clone();
+        let digest = canonical.digest.clone();
         let mut publication = self.db.asset_transaction(|tx| {
             let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
                 SnapbackError::error(
@@ -6746,7 +6833,7 @@ impl LocalSnapback {
         // points at it.
         let blob_path = store.blob_path(&publication.planned_key)?;
         if !blob_path.exists() {
-            std::fs::copy(&staging_path, &blob_path).map_err(|error| {
+            std::fs::copy(&canonical.path, &blob_path).map_err(|error| {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                     "assets",
@@ -6755,7 +6842,7 @@ impl LocalSnapback {
             })?;
         }
         let copied = asset_hash_staging(&blob_path)?;
-        if copied.digest != digest || copied.byte_length != staged.byte_length {
+        if copied.digest != digest || copied.byte_length != canonical.byte_length {
             let _ = std::fs::remove_file(&blob_path);
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
@@ -6814,7 +6901,9 @@ impl LocalSnapback {
         let outcome = loop {
             let publication_id = publication.publication_id.clone();
             let witness_snapshot = witness.clone();
-            let staged_length = staged.byte_length;
+            let canonical_length = canonical.byte_length;
+            let canonical_policy = canonical.policy;
+            let image_facts = image_media_facts.clone();
             let detected_type = detected.to_owned();
             let app = app_id.clone();
             let digest_value = digest.clone();
@@ -6861,11 +6950,11 @@ impl LocalSnapback {
                     app_id: app.clone(),
                     store: assets::ASSET_STORE_LOCAL_FS.to_owned(),
                     physical_key: publication.planned_key.clone(),
-                    byte_length: staged_length,
+                    byte_length: canonical_length,
                     detected_content_type: detected_type.clone(),
                     digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
                     digest: digest_value.clone(),
-                    canonicalization_policy: assets::ASSET_CANONICALIZATION_NONE.to_owned(),
+                    canonicalization_policy: canonical_policy.to_owned(),
                     reference_count: 1,
                     condemned: false,
                     created_at_ms: now,
@@ -6913,7 +7002,7 @@ impl LocalSnapback {
                             &app,
                             assets::ASSET_DIGEST_ALGORITHM_SHA256,
                             &digest_value,
-                            assets::ASSET_CANONICALIZATION_NONE,
+                            canonical_policy,
                         )? {
                             let orphan = assets::AssetPublicationRecordV1 {
                                 publication_id: assets::AssetFsStore::new_opaque_key(),
@@ -6923,8 +7012,7 @@ impl LocalSnapback {
                                 digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256
                                     .to_owned(),
                                 digest: digest_value.clone(),
-                                canonicalization_policy: assets::ASSET_CANONICALIZATION_NONE
-                                    .to_owned(),
+                                canonicalization_policy: canonical_policy.to_owned(),
                                 state: assets::AssetPublicationState::Condemned,
                                 generation: record.lifecycle_generation,
                                 blob_id: None,
@@ -6975,14 +7063,21 @@ impl LocalSnapback {
                     state: assets::AssetRenditionState::Ready,
                     recipe: assets::ASSET_RENDITION_PRIMARY.to_owned(),
                     recipe_version: 1,
-                    media_facts: Some(serde_json::json!({
-                        "contentType": detected_type,
-                        "byteLength": staged_length,
-                        // Metadata only, sanitized here; never a physical key.
-                        "filename": assets::sanitize_filename(
-                            attempt.declared_filename.as_deref(),
-                        ),
-                    })),
+                    media_facts: Some({
+                        let mut facts = serde_json::json!({
+                            "contentType": detected_type,
+                            "byteLength": canonical_length,
+                            // Metadata only, sanitized here; never a
+                            // physical key.
+                            "filename": assets::sanitize_filename(
+                                attempt.declared_filename.as_deref(),
+                            ),
+                        });
+                        facts.as_object_mut()
+                            .expect("json object")
+                            .extend(image_facts.clone());
+                        facts
+                    }),
                     created_at_ms: now,
                     updated_at_ms: now,
                     failure: None,
@@ -7014,7 +7109,8 @@ impl LocalSnapback {
                         serde_json::json!({
                             "integrityGrade": grade,
                             "detectedContentType": detected_type,
-                            "byteLength": staged_length,
+                            "byteLength": canonical_length,
+                            "canonicalizationPolicy": canonical_policy,
                         }),
                     ),
                     (
@@ -7036,6 +7132,7 @@ impl LocalSnapback {
                         assets::AssetReceiptEventV1::AssetReady,
                         serde_json::json!({
                             "lifecycleGeneration": asset.lifecycle_generation,
+                            "locationPolicy": image_facts.get("locationPolicy"),
                         }),
                     ),
                     (
@@ -14748,6 +14845,7 @@ impl LocalSnapback {
             stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             asset_memory_store_root: std::sync::OnceLock::new(),
+            asset_image_finalization_override: None,
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,
@@ -20502,6 +20600,16 @@ fn elapsed_ms(started: Instant) -> u64 {
 /// Test-only crash injection for the named fault cuts; the public finalize
 /// path always passes `None`, so production code cannot reach the sentinel.
 /// The names mirror LLP 0044's crash-cut vocabulary on purpose.
+/// What actually publishes: the canonical bytes' custody path, identity,
+/// and the policy that produced them (LLP 0044: dedup and delivery operate
+/// on canonical bytes, never the raw upload when a rewrite applies).
+struct AssetCanonicalBytes {
+    path: std::path::PathBuf,
+    digest: String,
+    byte_length: u64,
+    policy: &'static str,
+}
+
 #[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssetFinalizeCrashPoint {
@@ -23436,6 +23544,231 @@ globalThis.__snapbackHandlers = {
             })
             .expect("asset");
         assert_eq!(asset.availability, crate::assets::AssetAvailability::Rejected);
+    }
+
+    fn asset_image_intent(
+        location: crate::manifest::AssetLocationPolicy,
+        max_bytes: u64,
+    ) -> crate::manifest::AssetUploadIntentDefinition {
+        let mut intent = asset_test_intent();
+        // The shared create helper declares octet-stream; trusted detection
+        // decides the real type at finalize, which is what these tests pin.
+        intent.accept.media_types = vec![
+            "image/jpeg".to_owned(),
+            "image/gif".to_owned(),
+            "application/octet-stream".to_owned(),
+        ];
+        intent.accept.max_bytes = max_bytes;
+        intent.image = Some(crate::manifest::AssetImagePolicy {
+            location,
+            variants: Vec::new(),
+        });
+        intent
+    }
+
+    fn asset_image_snapback(
+        location: crate::manifest::AssetLocationPolicy,
+        max_bytes: u64,
+    ) -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.set_asset_image_finalization_override(true);
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_image_intent(location, max_bytes)],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "image intent manifest must load: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    fn asset_primary_rendition(
+        snapback: &mut LocalSnapback,
+        asset_id: &str,
+    ) -> crate::assets::AssetRenditionRecordV1 {
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_rendition_by_variant(
+                    tx,
+                    asset_id,
+                    crate::assets::ASSET_RENDITION_PRIMARY,
+                )?
+                .expect("primary rendition"))
+            })
+            .expect("rendition")
+    }
+
+    #[test]
+    fn asset_finalize_strip_publishes_canonical_without_gps() {
+        let fixture = crate::assets_image::fixtures::jpeg_with_gps_exif(48, 32, 6);
+        let mut snapback =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("strip publishes");
+
+        let rendition = asset_primary_rendition(&mut snapback, &created.task.asset_id);
+        let facts = rendition.media_facts.clone().expect("media facts");
+        assert_eq!(facts["locationPolicy"], "strip");
+        assert_eq!(facts["orientationApplied"], 6);
+        assert!(facts["capturedAt"].as_str().unwrap().contains("2026"));
+        // Orientation 6 swaps the axes.
+        assert_eq!(
+            (facts["width"].as_u64(), facts["height"].as_u64()),
+            (Some(32), Some(48))
+        );
+
+        let blob = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob"))
+            })
+            .expect("blob");
+        let store = snapback.asset_store().expect("store");
+        let canonical_bytes =
+            std::fs::read(store.blob_path(&blob.physical_key).expect("blob path"))
+                .expect("canonical object");
+        assert_eq!(
+            blob.canonicalization_policy,
+            crate::assets::ASSET_CANONICALIZATION_STRIP_IMAGE_V1
+        );
+        assert_eq!(blob.byte_length as usize, canonical_bytes.len());
+        // No EXIF survives in the deliverable canonical bytes.
+        let stripped = crate::assets_image::extract_safe_exif(&canonical_bytes);
+        assert_eq!(stripped.orientation, None);
+        assert_eq!(stripped.captured_at, None);
+        assert!(
+            !canonical_bytes.windows(2).any(|window| window == [0xFF, 0xE1]),
+            "no APP1 segment in the canonical object"
+        );
+    }
+
+    #[test]
+    fn asset_finalize_strip_vs_retain_blobs_differ_and_strip_dedups() {
+        let fixture = crate::assets_image::fixtures::jpeg_with_gps_exif(24, 24, 1);
+
+        let mut strip =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
+        let first = asset_upload(&mut strip, "user_a", &fixture, true);
+        asset_finalize(&mut strip, "user_a", &first.task.attempt_id, None)
+            .expect("first strip publishes");
+        let second = asset_upload(&mut strip, "user_a", &fixture, true);
+        asset_finalize(&mut strip, "user_a", &second.task.attempt_id, None)
+            .expect("second strip publishes");
+        let first_rendition = asset_primary_rendition(&mut strip, &first.task.asset_id);
+        let second_rendition =
+            asset_primary_rendition(&mut strip, &second.task.asset_id);
+        assert_eq!(
+            first_rendition.blob_id, second_rendition.blob_id,
+            "strip dedups with strip: one canonical blob, two assets"
+        );
+
+        let mut retain =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Retain, 64 * 1024);
+        let kept = asset_upload(&mut retain, "user_a", &fixture, true);
+        asset_finalize(&mut retain, "user_a", &kept.task.attempt_id, None)
+            .expect("retain publishes");
+        let kept_rendition = asset_primary_rendition(&mut retain, &kept.task.asset_id);
+        let kept_blob = retain
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_blob(tx, &kept_rendition.blob_id)?.expect("blob"))
+            })
+            .expect("blob");
+        let strip_blob = strip
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_blob(tx, &first_rendition.blob_id)?
+                    .expect("blob"))
+            })
+            .expect("blob");
+        assert_eq!(
+            kept_blob.canonicalization_policy,
+            crate::assets::ASSET_CANONICALIZATION_NONE
+        );
+        assert_ne!(
+            kept_blob.digest, strip_blob.digest,
+            "strip and retain of one source can never alias"
+        );
+        let facts = kept_rendition.media_facts.expect("media facts");
+        assert_eq!(facts["locationPolicy"], "retain");
+        // Retain evidence reaches the receipts too.
+        let receipts = retain
+            .db
+            .asset_transaction(|tx| {
+                crate::assets::receipts_for_asset(tx, &kept.task.asset_id, 64)
+            })
+            .expect("receipts");
+        assert!(receipts.iter().any(|receipt| {
+            receipt.event == crate::assets::AssetReceiptEventV1::AssetReady
+                && receipt.details["locationPolicy"] == "retain"
+        }));
+    }
+
+    #[test]
+    fn asset_finalize_strip_expansion_refuses() {
+        // A low-quality source re-encodes at canonical quality to more
+        // bytes than it arrived with; a bound between the two admits the
+        // upload and refuses the canonical expansion.
+        let source = crate::assets_image::fixtures::plain_jpeg_quality(64, 64, 10);
+        let canonical = crate::assets_image::canonicalize_strip(
+            &source,
+            "image/jpeg",
+            &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+        )
+        .expect("fixture canonicalizes");
+        assert!(
+            canonical.canonical.len() > source.len(),
+            "fixture must expand: {} -> {}",
+            source.len(),
+            canonical.canonical.len()
+        );
+        let bound = (source.len() + 1) as u64;
+        let mut snapback =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, bound);
+        let created = asset_upload(&mut snapback, "user_a", &source, true);
+        let error =
+            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+                .expect_err("expansion refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED");
+    }
+
+    #[test]
+    fn asset_finalize_strip_hostile_and_unsupported_reject_the_asset() {
+        // Truncated image bytes: deterministic decode failure → rejected.
+        let fixture = crate::assets_image::fixtures::plain_jpeg(32, 32);
+        let truncated = &fixture[..fixture.len() / 2];
+        let mut snapback =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
+        let created = asset_upload(&mut snapback, "user_a", truncated, true);
+        let error =
+            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+                .expect_err("hostile bytes reject");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_DECODE_FAILED");
+        let asset = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
+            })
+            .expect("asset");
+        assert_eq!(asset.availability, crate::assets::AssetAvailability::Rejected);
+
+        // A format with no strip canonicalization: structurally refused.
+        let gif = b"GIF89a\x01\x00\x01\x00\x00\x00\x00;";
+        let mut snapback =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
+        let created = asset_upload(&mut snapback, "user_a", gif, true);
+        let error =
+            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+                .expect_err("gif strip unsupported");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED"
+        );
     }
 
     #[test]

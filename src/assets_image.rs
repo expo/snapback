@@ -368,10 +368,15 @@ pub(crate) mod fixtures {
     }
 
     pub(crate) fn plain_jpeg(width: u32, height: u32) -> Vec<u8> {
+        plain_jpeg_quality(width, height, 90)
+    }
+
+    pub(crate) fn plain_jpeg_quality(width: u32, height: u32, quality: u8) -> Vec<u8> {
         let image = deterministic_rgb(width, height);
         let mut encoded = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut encoded);
-        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, 90);
+        let mut encoder =
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, quality);
         encoder.encode_image(&image).expect("fixture jpeg encodes");
         drop(encoder);
         drop(cursor);

@@ -48,6 +48,16 @@ pub const ASSET_TUS_CHECKSUM_ALGORITHMS: [&str; 1] = ["sha256"];
 /// policy can never alias digests across policies.
 pub const ASSET_CANONICALIZATION_NONE: &str = "none";
 
+/// The image strip rewrite (LLP 0044 §Restricted staging: privacy rewriting
+/// before digesting): decode → corrective orientation → re-encode. Dedup
+/// operates on the rewritten bytes, so strip and retain uploads of one
+/// source can never share a blob.
+pub const ASSET_CANONICALIZATION_STRIP_IMAGE_V1: &str = "strip-image.v1";
+
+/// Suffix for the canonical rewrite staged beside its source under the
+/// same staging key; the store treats the pair as one custody unit.
+pub const ASSET_CANONICAL_SUFFIX: &str = ".c14n";
+
 /// Grace period before an unreferenced pending/rejected asset is reclaimed
 /// (LLP 0044 §Deletion: pending-asset GC is mandatory, referenced failures
 /// stay visible for repair).
@@ -1456,6 +1466,14 @@ impl AssetFsStore {
         Ok(self.staging_dir.join(validated_key(staging_key)?))
     }
 
+    /// The canonical rewrite staged beside its source; same restricted
+    /// custody, same lifetime (`delete_staging` removes both).
+    pub fn canonical_staging_path(&self, staging_key: &str) -> SnapbackResult<PathBuf> {
+        let mut name = validated_key(staging_key)?.to_owned();
+        name.push_str(ASSET_CANONICAL_SUFFIX);
+        Ok(self.staging_dir.join(name))
+    }
+
     pub fn blob_path(&self, physical_key: &str) -> SnapbackResult<PathBuf> {
         Ok(self.blobs_dir.join(validated_key(physical_key)?))
     }
@@ -1484,23 +1502,36 @@ impl AssetFsStore {
                 )
             })?;
             if let Some(name) = entry.file_name().to_str() {
-                keys.push(name.to_owned());
+                // A canonical rewrite belongs to its source key: the orphan
+                // sweep must see one custody unit, or it would reap a live
+                // attempt's rewrite mid-finalization.
+                let key = name.strip_suffix(ASSET_CANONICAL_SUFFIX).unwrap_or(name);
+                if !keys.iter().any(|existing| existing == key) {
+                    keys.push(key.to_owned());
+                }
             }
         }
         Ok(keys)
     }
 
     pub fn delete_staging(&self, staging_key: &str) -> SnapbackResult<()> {
-        let path = self.staging_path(staging_key)?;
-        match std::fs::remove_file(&path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(SnapbackError::error(
-                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                "assets",
-                format!("cannot delete staging object: {error}"),
-            )),
+        for path in [
+            self.staging_path(staging_key)?,
+            self.canonical_staging_path(staging_key)?,
+        ] {
+            match std::fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        format!("cannot delete staging object: {error}"),
+                    ));
+                }
+            }
         }
+        Ok(())
     }
 }
 
