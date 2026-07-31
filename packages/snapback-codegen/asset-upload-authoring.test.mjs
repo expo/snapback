@@ -176,15 +176,40 @@ export const photoUpload = defineAssetUpload({
   assert.ok(codes(result).includes('SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED'));
 }
 
-// A strip-declared video intent refuses on every v1 target.
-await refusalCase(`
+// Since the W2d flip the local target advertises asset_video_finalization_v1,
+// so a strip-declared video intent ADMITS on local.
+{
+  const { result } = await runCase({
+    schema: baseSchema,
+    functions: `
 import { defineAssetUpload } from '${defineUrl}';
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
-`, 'SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED');
+`,
+  });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+}
+
+// A target without the video fact still refuses video strip.
+{
+  const { result } = await runCase({
+    schema: baseSchema,
+    functions: `
+import { defineAssetUpload } from '${defineUrl}';
+export const clipUpload = defineAssetUpload({
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  image: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`,
+    targetProfile: 'remote-service-sqlite-ibex',
+  });
+  assert.equal(result.ok, false, 'video strip must refuse where the fact is absent');
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED'));
+}
 
 // An image policy without any image/video media type is an authoring error.
 await refusalCase(`

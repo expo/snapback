@@ -233,6 +233,17 @@
           "minimum": 0,
           "type": "integer"
         },
+        "video": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetVideoFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The video-processing facts block; `None` is the honest Missing\nreport for a target without `asset-video-finalization`."
+        },
         "workLeaseMs": {
           "format": "uint64",
           "minimum": 0,
@@ -266,6 +277,67 @@
         "signedUrlMaxTtlMs",
         "advisoryLimits",
         "missing"
+      ],
+      "type": "object"
+    },
+    "AssetVideoFactsV1": {
+      "additionalProperties": false,
+      "description": "The declared video-processing facts (LLP 0044 §Generated upload intents:\nthe `asset-video-finalization` fact). Strip is box-structure surgery,\nnever transcoding; every ceiling is `Enforced`, single-sourced from\n`assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1`.",
+      "properties": {
+        "capabilityIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "containerBrands": {
+          "description": "Container brands the strip rewrite classifies; other brands refuse\nunder strip rather than passing unclassified metadata through.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "formats": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maxBoxCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxBoxDepth": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxMetadataBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxParseBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stepTimeBudgetMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "capabilityIds",
+        "formats",
+        "containerBrands",
+        "maxBoxDepth",
+        "maxBoxCount",
+        "maxMetadataBytes",
+        "stepTimeBudgetMs",
+        "maxParseBytes"
       ],
       "type": "object"
     },
@@ -619,7 +691,8 @@
             "asset_lifecycle_v1",
             "asset_image_finalization_v1",
             "asset_image_pipeline_v1",
-            "asset_reference_gc_v1"
+            "asset_reference_gc_v1",
+            "asset_video_finalization_v1"
           ],
           "type": "string"
         },

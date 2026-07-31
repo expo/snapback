@@ -53,6 +53,10 @@ pub const ASSET_CANONICALIZATION_NONE: &str = "none";
 /// operates on the rewritten bytes, so strip and retain uploads of one
 /// source can never share a blob.
 pub const ASSET_CANONICALIZATION_STRIP_IMAGE_V1: &str = "strip-image.v1";
+/// Video strip canonicalization: in-place location blanking over the ISO
+/// BMFF box tree (LLP 0044 W2d) — part of blob identity, so strip and
+/// retain video can never alias.
+pub const ASSET_CANONICALIZATION_STRIP_VIDEO_V1: &str = "strip-video.v1";
 
 /// Suffix for the canonical rewrite staged beside its source under the
 /// same staging key; the store treats the pair as one custody unit.
@@ -2814,6 +2818,48 @@ impl AssetImageFactsV1 {
     }
 }
 
+/// The declared video-processing facts (LLP 0044 §Generated upload intents:
+/// the `asset-video-finalization` fact). Strip is box-structure surgery,
+/// never transcoding; every ceiling is `Enforced`, single-sourced from
+/// `assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetVideoFactsV1 {
+    pub capability_ids: Vec<String>,
+    pub formats: Vec<String>,
+    /// Container brands the strip rewrite classifies; other brands refuse
+    /// under strip rather than passing unclassified metadata through.
+    pub container_brands: Vec<String>,
+    pub max_box_depth: u32,
+    pub max_box_count: u64,
+    pub max_metadata_bytes: u64,
+    pub step_time_budget_ms: u64,
+    pub max_parse_bytes: u64,
+}
+
+impl AssetVideoFactsV1 {
+    pub fn local_v1() -> Self {
+        let ceilings = crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1;
+        Self {
+            capability_ids: vec!["asset_video_finalization_v1".to_owned()],
+            formats: vec!["video/mp4".to_owned(), "video/quicktime".to_owned()],
+            container_brands: vec![
+                "isom".to_owned(),
+                "iso2".to_owned(),
+                "mp41".to_owned(),
+                "mp42".to_owned(),
+                "avc1".to_owned(),
+                "qt".to_owned(),
+            ],
+            max_box_depth: ceilings.max_box_depth,
+            max_box_count: ceilings.max_box_count,
+            max_metadata_bytes: ceilings.max_metadata_bytes,
+            step_time_budget_ms: ceilings.step_time_budget_ms,
+            max_parse_bytes: ceilings.max_parse_bytes,
+        }
+    }
+}
+
 /// The declared asset target facts (LLP 0044 §Capability facts; LLP 0012
 /// dated registration 2026-07-31). The lifecycle claim is store-parameterized
 /// — `lifecycle_stores` is part of the claim, and the v1 nonclaims are
@@ -2847,6 +2893,10 @@ pub struct AssetTargetFactsV1 {
     /// The image-processing facts block; `None` is the honest Missing
     /// report for a target without `asset-image-finalization`.
     pub image: Option<AssetImageFactsV1>,
+    /// The video-processing facts block; `None` is the honest Missing
+    /// report for a target without `asset-video-finalization`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video: Option<AssetVideoFactsV1>,
     /// Reference-tracked asset GC support (LLP 0044 §Deletion, opt-in):
     /// `None` is the honest Missing report; the bounds are Enforced —
     /// a schema-declared grace outside them refuses at generation.
@@ -2896,6 +2946,7 @@ impl AssetTargetFactsV1 {
             signed_url_default_ttl_ms: ASSET_SIGNED_URL_DEFAULT_TTL_MS,
             signed_url_max_ttl_ms: ASSET_SIGNED_URL_MAX_TTL_MS,
             image: Some(AssetImageFactsV1::local_v1()),
+            video: Some(AssetVideoFactsV1::local_v1()),
             reference_gc: Some(AssetReferenceGcFactsV1 {
                 capability_id: "asset_reference_gc_v1".to_owned(),
                 grace_min_ms: ASSET_REFERENCE_GC_GRACE_MIN_MS,
@@ -2904,7 +2955,6 @@ impl AssetTargetFactsV1 {
             lifecycle_callbacks: vec!["ready".to_owned(), "rejected".to_owned()],
             advisory_limits: Vec::new(),
             missing: vec![
-                "asset-video-finalization".to_owned(),
                 "asset-backup-export".to_owned(),
                 "asset-custom-read-authorizers".to_owned(),
                 "asset-deferred-length".to_owned(),

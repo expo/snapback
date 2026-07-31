@@ -5822,10 +5822,12 @@ pub enum TargetCapabilityId {
     AssetImagePipelineV1,
     #[serde(rename = "asset_reference_gc_v1")]
     AssetReferenceGcV1,
+    #[serde(rename = "asset_video_finalization_v1")]
+    AssetVideoFinalizationV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -5851,6 +5853,7 @@ impl TargetCapabilityId {
         Self::AssetImageFinalizationV1,
         Self::AssetImagePipelineV1,
         Self::AssetReferenceGcV1,
+        Self::AssetVideoFinalizationV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -5878,6 +5881,7 @@ impl TargetCapabilityId {
             Self::WriteActivityV1 => "write_activity_v1",
             Self::AssetLifecycleV1 => "asset_lifecycle_v1",
             Self::AssetImageFinalizationV1 => "asset_image_finalization_v1",
+            Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
             Self::AssetReferenceGcV1 => "asset_reference_gc_v1",
         }
@@ -5917,6 +5921,7 @@ impl TargetCapabilityId {
             | Self::WriteActivityV1
             | Self::AssetLifecycleV1
             | Self::AssetImageFinalizationV1
+            | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
             | Self::AssetReferenceGcV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
@@ -6054,6 +6059,17 @@ impl TargetCapabilityId {
                         .assets
                         .as_ref()
                         .is_some_and(|assets| assets.image.is_some())
+            }
+            // @ref LLP 0044#generated-upload-intents — the video facts
+            // block IS the `asset-video-finalization` fact: the registered
+            // in-place blanking implementation plus the declared Enforced
+            // container ceilings.
+            Self::AssetVideoFinalizationV1 => {
+                facts.asset_video_finalization_registered
+                    && manifest
+                        .assets
+                        .as_ref()
+                        .is_some_and(|assets| assets.video.is_some())
             }
             // The pipeline composite carries the finalization fact and sits
             // on the lifecycle composite; it never holds without both.
@@ -6263,6 +6279,7 @@ pub struct TargetCapabilityFacts {
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
+    asset_video_finalization_registered: bool,
 }
 
 impl TargetCapabilityFacts {
@@ -6286,6 +6303,7 @@ impl TargetCapabilityFacts {
             asset_lifecycle_local_fs_registered: true,
             asset_image_finalization_registered: true,
             asset_reference_gc_registered: true,
+            asset_video_finalization_registered: true,
             bounded_children_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
@@ -6932,6 +6950,7 @@ impl CapabilityManifest {
         facts.asset_lifecycle_local_fs_registered = false;
         facts.asset_image_finalization_registered = false;
         facts.asset_reference_gc_registered = false;
+        facts.asset_video_finalization_registered = false;
         manifest.refresh_supported_capabilities(facts);
         manifest
     }
@@ -7511,6 +7530,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::AssetReferenceGcV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::AssetVideoFinalizationV1,
                 CapabilityMaturity::Experimental,
             ),
         ]);

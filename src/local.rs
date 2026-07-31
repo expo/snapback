@@ -2546,6 +2546,7 @@ pub struct LocalSnapback {
     /// P-05 keys this off the declared capability facts block; until the
     /// image-pipeline capability flip, only tests enable it.
     asset_image_finalization_override: Option<bool>,
+    asset_video_finalization_override: Option<bool>,
     asset_quota_override: Option<u64>,
     functions: FunctionManifest,
     // Complete pairs proven by this process. Durable deployment identities
@@ -5284,6 +5285,23 @@ impl LocalSnapback {
         self.asset_image_finalization_override = Some(enabled);
     }
 
+    /// Whether this target performs video finalization (the
+    /// `asset-video-finalization` fact) — the declared-facts read, exactly
+    /// the image gate's shape.
+    pub(crate) fn asset_video_finalization_enabled(&self) -> bool {
+        static DECLARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        self.asset_video_finalization_override.unwrap_or_else(|| {
+            *DECLARED.get_or_init(|| {
+                crate::assets::AssetTargetFactsV1::local_v1().video.is_some()
+            })
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_asset_video_finalization_override(&mut self, enabled: bool) {
+        self.asset_video_finalization_override = Some(enabled);
+    }
+
     /// The app's reference-GC opt-in, admitted only where the declared
     /// target facts carry the reference-GC block: `None` disables the sweep
     /// entirely (LLP 0044 §Deletion — opt-in, never a default).
@@ -6788,18 +6806,9 @@ impl LocalSnapback {
         let image_location = intent.image.as_ref().map(|image| image.location);
         let strip_declared =
             image_location == Some(crate::manifest::AssetLocationPolicy::Strip);
-        if strip_declared && !self.asset_image_finalization_enabled() {
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Rejected,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
-                    "assets",
-                    "location stripping is not available on this target; no strip-declared \
-                     media can publish",
-                ),
-            );
-        }
+        // The capability defense for strip-declared media is keyed by the
+        // *detected* type below — image bytes need the image-finalization
+        // fact, video bytes the video one — so it runs after detection.
 
         // Byte verification over restricted staging: exact length, canonical
         // SHA-256 digest, trusted detection from bytes.
@@ -6857,7 +6866,80 @@ impl LocalSnapback {
         // received bytes under policy `none`. Canonical bytes are what gets
         // digested, deduplicated, and published.
         let mut image_media_facts = serde_json::Map::new();
-        let canonical = if strip_declared {
+        let detected_video_container =
+            matches!(detected, "video/mp4" | "video/quicktime");
+        let strip_capability_missing = if detected_video_container {
+            !self.asset_video_finalization_enabled()
+        } else {
+            !self.asset_image_finalization_enabled()
+        };
+        if strip_declared && strip_capability_missing {
+            // Defense in depth: generation refuses strip-declared media on a
+            // target without the matching rewriting fact, so bytes carrying
+            // this policy can only arrive through a hand-built manifest —
+            // and finalization still refuses. A policy the intent can never
+            // satisfy here, so the asset rejects, not retry-eligible.
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Rejected,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
+                    "assets",
+                    "location stripping is not available on this target; no strip-declared \
+                     media can publish",
+                ),
+            );
+        }
+        let canonical = if strip_declared && detected_video_container {
+            // Video strip: in-place location blanking over the box tree
+            // (never transcoding); the blanked file is the canonical byte
+            // stream, under its own policy tag so strip and retain video
+            // can never alias in blob identity.
+            let source = std::fs::read(&staging_path).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot read staging for canonicalization: {error}"),
+                )
+            })?;
+            match crate::assets_video::canonicalize_strip_video(
+                &source,
+                &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
+            ) {
+                Ok(outcome) => {
+                    let canonical_path =
+                        store.canonical_staging_path(&attempt.staging_key)?;
+                    std::fs::write(&canonical_path, &outcome.canonical).map_err(
+                        |error| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                                "assets",
+                                format!("cannot stage canonical rewrite: {error}"),
+                            )
+                        },
+                    )?;
+                    let hashed = asset_hash_staging(&canonical_path)?;
+                    asset_insert_video_facts(&mut image_media_facts, &outcome.facts);
+                    AssetCanonicalBytes {
+                        path: canonical_path,
+                        digest: hashed.digest,
+                        byte_length: hashed.byte_length,
+                        policy: assets::ASSET_CANONICALIZATION_STRIP_VIDEO_V1,
+                    }
+                }
+                // Deterministic over the received bytes — a hostile or
+                // unclassifiable container refuses identically on every
+                // retry, so the asset rejects rather than staying
+                // retry-eligible.
+                Err(error) => {
+                    return self.asset_fail_attempt(
+                        &attempt,
+                        assets::AssetAvailability::Rejected,
+                        error,
+                    );
+                }
+            }
+        } else if strip_declared {
             let source = std::fs::read(&staging_path).map_err(|error| {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_STORE_UNAVAILABLE",
@@ -6949,6 +7031,37 @@ impl LocalSnapback {
                             &mut image_media_facts,
                             &inspection.derived,
                         );
+                    }
+                    Err(error) => {
+                        return self.asset_fail_attempt(
+                            &attempt,
+                            assets::AssetAvailability::Rejected,
+                            error,
+                        );
+                    }
+                }
+            } else if image_location.is_some()
+                && self.asset_video_finalization_enabled()
+                && detected_video_container
+            {
+                // Retain-declared video publishes its received bytes
+                // unchanged, but the bounded container walk still derives
+                // duration/dimensions — and a hostile container refuses
+                // deterministically, exactly like strip: the video claim
+                // covers both policies or neither.
+                let source = std::fs::read(&staging_path).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        format!("cannot read staging for inspection: {error}"),
+                    )
+                })?;
+                match crate::assets_video::inspect_video(
+                    &source,
+                    &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
+                ) {
+                    Ok(facts) => {
+                        asset_insert_video_facts(&mut image_media_facts, &facts);
                     }
                     Err(error) => {
                         return self.asset_fail_attempt(
@@ -15914,6 +16027,7 @@ impl LocalSnapback {
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             asset_memory_store_root: std::sync::OnceLock::new(),
             asset_image_finalization_override: None,
+            asset_video_finalization_override: None,
             asset_quota_override: None,
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
@@ -21695,6 +21809,21 @@ fn asset_insert_derived_facts(
     facts.insert("dominantColor".into(), derived.dominant_color.clone().into());
 }
 
+fn asset_insert_video_facts(
+    facts: &mut serde_json::Map<String, serde_json::Value>,
+    video: &crate::assets_video::AssetVideoFacts,
+) {
+    if let Some(duration_ms) = video.duration_ms {
+        facts.insert("durationMs".into(), duration_ms.into());
+    }
+    if let Some(width) = video.width {
+        facts.insert("width".into(), width.into());
+    }
+    if let Some(height) = video.height {
+        facts.insert("height".into(), height.into());
+    }
+}
+
 #[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssetFinalizeCrashPoint {
@@ -25538,6 +25667,169 @@ globalThis.__snapbackHandlers = {
             receipt.event == crate::assets::AssetReceiptEventV1::AssetReady
                 && receipt.details["locationPolicy"] == "retain"
         }));
+    }
+
+    fn asset_video_intent(
+        location: crate::manifest::AssetLocationPolicy,
+    ) -> crate::manifest::AssetUploadIntentDefinition {
+        let mut intent = asset_test_intent();
+        // The shared create helper declares octet-stream; trusted detection
+        // decides the real container type at finalize.
+        intent.accept.media_types = vec![
+            "video/mp4".to_owned(),
+            "video/quicktime".to_owned(),
+            "application/octet-stream".to_owned(),
+        ];
+        intent.accept.max_bytes = 64 * 1024;
+        intent.image = Some(crate::manifest::AssetImagePolicy {
+            location,
+            variants: Vec::new(),
+        });
+        intent
+    }
+
+    fn asset_video_snapback(
+        location: crate::manifest::AssetLocationPolicy,
+    ) -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        // No override: the W2d flip makes the declared facts the gate.
+        assert!(snapback.asset_video_finalization_enabled());
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_video_intent(location)],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "video intent manifest must load: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    #[test]
+    fn asset_finalize_strip_video_publishes_canonical_without_location() {
+        let fixture = crate::assets_video::fixtures::mp4_with_gps();
+        let gps = crate::assets_video::fixtures::GPS.as_bytes();
+        assert!(fixture.windows(gps.len()).any(|window| window == gps));
+
+        let mut snapback =
+            asset_video_snapback(crate::manifest::AssetLocationPolicy::Strip);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("video strip publishes");
+
+        let rendition = asset_primary_rendition(&mut snapback, &created.task.asset_id);
+        let facts = rendition.media_facts.clone().expect("media facts");
+        assert_eq!(facts["locationPolicy"], "strip");
+        assert_eq!(facts["durationMs"], 2000);
+        assert_eq!(
+            (facts["width"].as_u64(), facts["height"].as_u64()),
+            (Some(640), Some(480))
+        );
+
+        let blob = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob"))
+            })
+            .expect("blob");
+        assert_eq!(
+            blob.canonicalization_policy,
+            crate::assets::ASSET_CANONICALIZATION_STRIP_VIDEO_V1
+        );
+        let store = snapback.asset_store().expect("store");
+        let canonical_bytes =
+            std::fs::read(store.blob_path(&blob.physical_key).expect("blob path"))
+                .expect("canonical object");
+        // In-place blanking: identical layout, zero location survivors.
+        assert_eq!(canonical_bytes.len(), fixture.len());
+        assert!(!canonical_bytes.windows(gps.len()).any(|window| window == gps));
+        assert!(
+            !canonical_bytes
+                .windows(4)
+                .any(|window| window == [0xA9, b'x', b'y', b'z']),
+            "no \u{a9}xyz atom in the canonical object"
+        );
+    }
+
+    #[test]
+    fn asset_finalize_video_retain_keeps_bytes_and_still_extracts_facts() {
+        let fixture = crate::assets_video::fixtures::mp4_with_gps();
+        let gps = crate::assets_video::fixtures::GPS.as_bytes();
+        let mut snapback =
+            asset_video_snapback(crate::manifest::AssetLocationPolicy::Retain);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("video retain publishes");
+        let rendition = asset_primary_rendition(&mut snapback, &created.task.asset_id);
+        let facts = rendition.media_facts.clone().expect("media facts");
+        assert_eq!(facts["locationPolicy"], "retain");
+        assert_eq!(facts["durationMs"], 2000);
+        let blob = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob"))
+            })
+            .expect("blob");
+        assert_eq!(
+            blob.canonicalization_policy,
+            crate::assets::ASSET_CANONICALIZATION_NONE
+        );
+        let store = snapback.asset_store().expect("store");
+        let kept_bytes =
+            std::fs::read(store.blob_path(&blob.physical_key).expect("blob path"))
+                .expect("retained object");
+        // Retain is honest: the declared policy keeps the location atom.
+        assert!(kept_bytes.windows(gps.len()).any(|window| window == gps));
+    }
+
+    #[test]
+    fn asset_finalize_strip_video_refuses_without_capability_or_classification() {
+        // Defense in depth on a target without the video fact: even a
+        // hand-built manifest cannot publish strip-declared video bytes.
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.set_asset_video_finalization_override(false);
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_video_intent(
+                crate::manifest::AssetLocationPolicy::Strip,
+            )],
+            ..FunctionManifest::default()
+        });
+        let fixture = crate::assets_video::fixtures::mp4_with_gps();
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("strip-declared video cannot publish without the fact");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED"
+        );
+
+        // Unclassifiable metadata refuses under strip — fail closed, never
+        // silently retain — and rejects the asset deterministically.
+        let mut snapback =
+            asset_video_snapback(crate::manifest::AssetLocationPolicy::Strip);
+        let mut unknown_payload = [0x11u8; 16].to_vec();
+        unknown_payload.extend_from_slice(b"vendor mystery");
+        let hostile = [
+            crate::assets_video::fixtures::ftyp(),
+            crate::assets_video::fixtures::boxed(b"uuid", &unknown_payload),
+        ]
+        .concat();
+        let created = asset_upload(&mut snapback, "user_a", &hostile, true);
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("unclassifiable container refuses under strip");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED"
+        );
+        let asset = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
+            })
+            .expect("asset");
+        assert_eq!(asset.availability, crate::assets::AssetAvailability::Rejected);
     }
 
     #[test]

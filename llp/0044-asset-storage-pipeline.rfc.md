@@ -1839,12 +1839,33 @@ row never doubles the observable effect), and callback failure isolated
 to the work row — a sessions-mode schema refuses callback declarations
 at generation until a sessions execution authority is designed.
 
+Also closed 2026-07-31, later same day (the completion-program W2d
+pass): **video finalization** (`asset_video_finalization_v1`) shipped on
+the local target. Strip for MP4/QuickTime is box-structure surgery,
+never transcoding: a bounded ISO BMFF walk (Enforced ceilings — box
+depth/count, metadata bytes, whole-file parse bound — with hostile
+fixtures for size lies, truncation, nested size-0, depth/count/metadata
+bombs) blanks location carriers **in place** (type renamed `free`,
+payload zeroed) so every stco/co64 chunk offset stays valid: `udta`
+`©xyz` and `loci`, `meta` `keys`/`ilst` entries whose key names refer to
+location, and the XMP `uuid` payload wholesale; any other `uuid` box or
+unsupported container brand refuses
+(`SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED`) — a metadata region that
+cannot be classified is never passed through. The blanked file is the
+canonical byte stream under blob policy `strip-video.v1`, so strip and
+retain video can never alias; safe facts (mvhd duration, tkhd
+dimensions) land in media facts on both policies, and a hostile retain
+container refuses deterministically like strip. Codegen now admits
+video strip on the local manifest (`assets.video` facts block) and
+still refuses it wherever the fact is withheld; transcoding, poster
+frames, and HLS remain nonclaims.
+
 Deferred with named owners, honestly: the React/Expo projection and
 real-server JS conformance vectors (ticket L1-14's recorded remainder);
 sessions-mode live-projection classification and sessions callback
 authority (the respective remainder notes); bounded-array `v.assetRef`
 (`issues/20260731-assetref-array-needs-portable-array-fields.md`); and
-S3 store qualification, store migration, video finalization, and the
+S3 store qualification, store migration, and the
 LLP 0070 runner generation, each already scoped as later capabilities
 above. The document stays Accepted; Implemented awaits the client
 remainder and a second target's evidence.

@@ -22364,7 +22364,14 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // (truthful 500): the first is a server resource condition, the
         // second an internal ledger-row defect — neither is client-fixable.
         "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED"
-        | "SNAPBACK_ASSET_IMAGE_DECODE_FAILED" => StatusCode::UNPROCESSABLE_ENTITY,
+        | "SNAPBACK_ASSET_IMAGE_DECODE_FAILED"
+        // Video container refusals are the same class: well-formed request,
+        // content unprocessable under the Enforced ceilings, structurally
+        // hostile, or carrying metadata the strip cannot classify — all
+        // client-fixable by different content or a retain declaration.
+        | "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED"
+        | "SNAPBACK_ASSET_VIDEO_PARSE_FAILED"
+        | "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
         "SNAPBACK_ASSET_INTENT_STALE"
         | "SNAPBACK_ASSET_INTENT_REVOKED"
         | "SNAPBACK_ASSET_OFFSET_CONFLICT"
@@ -36401,6 +36408,9 @@ globalThis.__snapbackHandlers = {
     const ASSET_UNPROCESSABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED",
         "SNAPBACK_ASSET_IMAGE_DECODE_FAILED",
+        "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED",
+        "SNAPBACK_ASSET_VIDEO_PARSE_FAILED",
+        "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED",
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
         "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
     ];
