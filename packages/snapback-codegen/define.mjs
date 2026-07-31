@@ -1025,6 +1025,25 @@ function queryDef(kind, spec) {
 export const defineLiveQuery = (spec) => queryDef('LiveQuery', spec);
 export const defineQuery = (spec) => queryDef('Query', spec);
 
+/**
+ * The generated declared job-status query (LLP 0070 first slice; LLP 0121
+ * option 3): an ordinary live query over one job's privacy-bounded lifecycle
+ * projection — never an ambient system table. Args are fixed (`jobId`), the
+ * projection shape is server-owned, and observability scope is the declared
+ * auth requirement. Requires the experimental `jobs_one_off_v1` target
+ * capability; codegen emits the acknowledgment because LLP 0070 is Draft.
+ */
+export function defineJobStatusQuery(spec = {}) {
+  assertKnownSpecFields(spec, 'JobStatusQuery', new Set(['auth']));
+  return {
+    [FN]: true,
+    __kind: 'LiveQuery',
+    ...authoredFunctionAuth(spec, 'JobStatusQuery'),
+    args: { jobId: v.string() },
+    jobStatusPlan: true,
+  };
+}
+
 export const owner = (field) => {
   assert(typeof field === 'string' && field.length > 0, 'owner() expects a field');
   return Object.freeze({ kind: 'owner', field });

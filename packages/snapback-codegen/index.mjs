@@ -146,6 +146,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'host_plan_runtime',
   'ibex_ctx_db_host_bridge',
   'inline_handler_v1',
+  'jobs_one_off_v1',
   'live_subscriptions',
   'mutation_read_set_validation',
   'permission_epoch_resync',
@@ -170,6 +171,7 @@ const TARGET_CAPABILITY_IDS = new Set([
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'bounded_children_v1',
   'inline_handler_v1',
+  'jobs_one_off_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
   'args_contract_v1',
@@ -1536,6 +1538,31 @@ export async function generateInProcess(backendDir, options = {}) {
         argOrder: Object.keys(def.args),
         reads: [plan.root, plan.joined],
         result: { kind: 'list', row: relationalRowDescriptor(plan, tables) },
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
+    } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.jobStatusPlan) {
+      // The declared job-status query (LLP 0070 first slice; LLP 0121
+      // option 3): a Rust-owned plan over the reserved job-status
+      // projection — reads no application table, so no schema checks apply.
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime: { HostPlan: { JobStatusQuery: {} } },
+        declaredReads: ['_snapback_jobs'],
+        declaredWrites: [],
+        authScopeField: null,
+        authorizationDependence: [],
+        syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: ['_snapback_jobs'],
+        result: { kind: 'list', row: { shape: 'unknown' } },
         serverRunnable: true,
         localRunnable: false,
         ...contractQueryLivenessFields(def),
@@ -4444,6 +4471,16 @@ function requiredCapabilities(fn) {
   ];
   if (fn.runtime?.HostPlan?.SearchQuery) {
     return [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
+  }
+  // @ref LLP 0070#non-goals-and-claim-boundary — the jobs surface is an
+  // experimental registry id while LLP 0070 is Draft; requiring it forces the
+  // artifact-level acknowledgment, and it can never imply a
+  // durable-background-work capability class.
+  if (fn.runtime?.HostPlan?.JobStatusQuery) {
+    const jobs = [runtimeCapability, 'jobs_one_off_v1'];
+    return fn.kind === 'LiveQuery'
+      ? ['live_subscriptions', ...jobs, ...contractCapabilities]
+      : [...jobs, ...contractCapabilities];
   }
   // @ref LLP 0080#2-portable-evaluation-semantics — a target that cannot
   //   execute the relational plan refuses at generation with a

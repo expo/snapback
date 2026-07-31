@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4f24e914400c33fe1ef54eca00b5ce9c839c7744"
+    "commit": "7a4c58a71389bc9c19bf1f5a9bef6a3ad5800636"
   },
   "nav": {
     ".": [
@@ -989,7 +989,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "99d76b12b5ead2766f23c02b7f86874925c8d86f1a797adb2f3c6bfee58842b2",
+      "sha256": "8341c84c88fdecd59982d5d01e6716762ac422c3724b1607cb98c235f8998302",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1480,7 +1480,7 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "0007063aa3abaef2d91552165b282d3af6e0e37d9386521e7a36fc268e676603",
+      "sha256": "ee493f2dd03c240ad21182c68d5127da58dfc9ae0d93c056d17dfbb338bcbdbb",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1503,21 +1503,17 @@
         "llp/0004-application-data-api.rfc.md",
         "llp/0037-schema-source-of-truth.decision.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
-        "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "packages/snapback-codegen/define.mjs",
-        "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs"
       ],
       "examples": [
         "demos/todo/snapback",
-        "demos/todo-v2/snapback",
-        "demos/signal-desk/snapback",
-        "packages/snapback-codegen/inline-result-contracts.test.mjs"
+        "demos/todo-v2/snapback"
       ],
-      "reviewed": "2026-07-31",
+      "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "48fca1c6a5e64ce3378ac768267ea7c2c747e8df041996b563ca8588fa1f136f",
+      "sha256": "00f595939f82418a532592c941d3783bc8f2f18eff7e7dd22455cf31c07203bc",
       "snippets": [
         {
           "lang": "js",
@@ -1532,12 +1528,17 @@
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "packages/snapback-codegen/inline-result-contracts.test.mjs"
+          "source": "demos/todo/snapback/functions.mjs"
         },
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/handlers.mjs"
         },
         {
           "lang": "json",
@@ -1557,16 +1558,6 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
-        },
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "demos/todo/snapback/functions.mjs"
-        },
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "demos/todo/snapback/handlers.mjs"
         }
       ]
     },
@@ -1597,7 +1588,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "5082769c6df84ac2bceacd68df1aa2eb8f685be37315798176286e85123a90a9",
+      "sha256": "54ee11c0ea4ba554a8b067b0ef38d91643a7c704a0623cb25c930811c329b116",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2045,39 +2036,24 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "sync.offline",
-        "sync.offline-js-arm"
+        "sync.offline"
       ],
       "authorities": [
         "llp/0043-offline-replay-retention.rfc.md",
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
-        "llp/0129-local-first-program.plan.md",
         "packages/snapback-contract/index.mjs",
-        "packages/snapback-contract/offline-replay.test.mjs",
-        "packages/snapback-client/index.mjs",
-        "packages/snapback-client/outbox-store.test.mjs"
+        "packages/snapback-contract/offline-replay.test.mjs"
       ],
       "examples": [
         "demos/card-game",
         "demos/todo-v2/surfaces/contract",
-        "demos/public-dashboard",
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
-      "reviewed": "2026-07-31",
+      "reviewed": "2026-07-26",
       "reviewedCommit": "8299c6ddb1c9019c08a72545c8e74998aeb2b5f5",
-      "sha256": "b589d74b2ccadfe32cf1712f8316686631170b29939b09f877268ddd3e3666e1",
+      "sha256": "4e4e7644d929b23702a93a7dea3210d6172e4bfe8d08be6e97f33a8c41b533c8",
       "snippets": [
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "packages/snapback-client/outbox-store.test.mjs"
-        },
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "packages/snapback-client/outbox-store.test.mjs"
-        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -2210,23 +2186,22 @@
       "realtime.live-queries",
       "realtime.snapshot-bundles",
       "sync.offline",
-      "sync.offline-js-arm",
       "testing.acceptance"
     ],
     "gaps": [
       "backend.assets",
       "backend.bounded-children-v1",
+      "backend.jobs-one-off",
       "backend.notifications",
       "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
-      "clients.poll-hosted",
-      "sync.offline-js-arm-protected"
+      "clients.poll-hosted"
     ]
   },
   "surfaces": {
-    "routes": 73,
+    "routes": 76,
     "hostOps": 19
   },
-  "contentHash": "951f2c1ea56457554d5cb635ab476a8d51ce375a5412e1e4716dd1c5ce56699e"
+  "contentHash": "b0f2c82ed28eac61a152f422747a23c61158559d451dcbc2c4e63e0d4a08c61c"
 }

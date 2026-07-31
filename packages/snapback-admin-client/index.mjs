@@ -271,6 +271,24 @@ export class AdminClient {
     return this.#req('POST', `/cron/${encodeURIComponent(name)}/run`);
   }
 
+  // The injected-clock one-off jobs drain (LLP 0070 first slice) — the
+  // set-based sibling of tickCron: `nowMs` is the injected clock, so
+  // acceptance suites drive due-ness deterministically instead of sleeping.
+  drainJobs({ nowMs, maxWaves } = {}) {
+    const body = {};
+    if (nowMs !== undefined) body.nowMs = nowMs;
+    if (maxWaves !== undefined) body.maxWaves = maxWaves;
+    return this.#req('POST', '/jobs/drain', body);
+  }
+
+  listJobs() {
+    return this.#req('GET', '/jobs');
+  }
+
+  showJob(jobId) {
+    return this.#req('GET', `/jobs/${encodeURIComponent(jobId)}`);
+  }
+
   cleanupEphemeral() {
     return this.#req('POST', '/ephemeral/cleanup');
   }

@@ -145,6 +145,7 @@ const inventories = [
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
       'rbac-authoring.test.mjs',
+      'jobs-authoring.test.mjs',
       'receipt-capability.test.mjs',
       'relation-activity-authoring.test.mjs',
       'relational-authoring.test.mjs',
