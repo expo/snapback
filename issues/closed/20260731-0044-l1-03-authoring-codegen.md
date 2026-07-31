@@ -1,6 +1,6 @@
 # 0044 L1-03: authoring surface and codegen
 
-**Status:** OPEN. **Authority:** LLP 0007 dated amendment (spellings);
+**Status:** RESOLVED. **Authority:** LLP 0007 dated amendment (spellings);
 LLP 0044 §Generated upload intents, §Typed references.
 
 packages/snapback-codegen: add defineAssetUpload({args, auth, reads,
@@ -18,3 +18,10 @@ lists non-sharing-declared tables reachable by the intent's fields.
 
 Done when: fixture apps generate, refusal cases have structured
 diagnostics, and generated references round-trip the schema gate.
+
+## Resolution (2026-07-31)
+
+Executed on branch 0044-lifecycle-v1: commit a468e69e. Evidence rows in
+tests/acceptance/asset-lifecycle-v1-evidence.md; suites green at each
+landing (asset lib, route_policy_v1, artifact_schemas_v0,
+name_keying_guard, capability_v0, check-guide where touched).

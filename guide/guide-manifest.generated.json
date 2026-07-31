@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "8ab6f337081522bc6e57301f2c8ae0e62d319f5c"
+    "commit": "6685e17aa5e11943f8d53db7923eb12580d36706"
   },
   "nav": {
     ".": [
@@ -84,6 +84,11 @@
         "id": "backend.versioned-seed",
         "order": 8,
         "title": "Versioned seeds"
+      },
+      {
+        "id": "backend.assets",
+        "order": 9,
+        "title": "Assets"
       },
       {
         "id": "backend.runtime-values",
@@ -578,6 +583,47 @@
         }
       ]
     },
+    "backend.assets": {
+      "path": "guide/backend/assets.md",
+      "title": "Assets",
+      "order": 9,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.assets"
+      ],
+      "authorities": [
+        "llp/0044-asset-storage-pipeline.rfc.md",
+        "src/assets.rs",
+        "src/local.rs",
+        "src/server.rs",
+        "packages/snapback-codegen/define.mjs",
+        "tests/acceptance/asset-lifecycle-v1-evidence.md"
+      ],
+      "examples": [],
+      "reviewed": "2026-07-31",
+      "reviewedCommit": "HEAD",
+      "sha256": "0880bd5b8b86e10dbf8dcdd8823bd25cbb12faff5a745009d2e341d50b581cf2",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        }
+      ]
+    },
     "backend.cron": {
       "path": "guide/backend/cron.md",
       "title": "Scheduled execution with cron",
@@ -989,7 +1035,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "d84462c38892bd0debf541f5d6663f03a0ae2500abce59239e350ed38171334a",
+      "sha256": "2a91ee4dbe6b83dc0158d003b76e3934ae7f59e6434ae028b00d18dac80ad2d1",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1597,7 +1643,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "5082769c6df84ac2bceacd68df1aa2eb8f685be37315798176286e85123a90a9",
+      "sha256": "5c5c253a0d81b6dfda6db03ae768500166c7bedb36105d8c369723e9f25ed5d4",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2167,6 +2213,7 @@
       "auth.sessions",
       "auth.target-honesty",
       "backend.actions",
+      "backend.assets",
       "backend.codegen",
       "backend.cron",
       "backend.functions",
@@ -2214,7 +2261,6 @@
       "testing.acceptance"
     ],
     "gaps": [
-      "backend.assets",
       "backend.bounded-children-v1",
       "backend.notifications",
       "backend.vector-search",
@@ -2226,7 +2272,7 @@
   },
   "surfaces": {
     "routes": 80,
-    "hostOps": 19
+    "hostOps": 24
   },
-  "contentHash": "f10ad56e5dc9936b4cf033da828b3162f0d6e77c44ffd04faf924d1847838b4e"
+  "contentHash": "c18ac5e89b45c38d05587a96c639818c9c3c05d69b95eb9971723f2b15a43184"
 }

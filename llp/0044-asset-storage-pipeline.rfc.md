@@ -1744,5 +1744,34 @@ direction to revise this document in place resolved the
 revive-versus-supersede choice that LLP 0127 routes to the author (its open
 question 8, file-storage arm; §Sequencing 4). The adjudication is recorded
 here and in `reviews/0044-asset-storage-pipeline.super-refine.md`; LLP
-0127's own queue entry remains as originally routed. The review loop is in
-progress; per LLP 0005 the loop proposes and the author decides.
+0127's own queue entry remains as originally routed. The review loop
+concluded with the SD-4 acceptance above.
+
+### Implementation status: `asset-lifecycle-v1` on the local target (2026-07-31)
+
+The first implementation slice is built: the lifecycle composite runs on
+the canonical local target (filesystem store parameter, TUS 1.0.0 lane,
+`private-strict` delivery) with the commit-boundary reference enforcement,
+the complete-witness finalizer, the write-ahead publication protocol, the
+asset-work ledger runner, the deletion cascade and mandatory GC classes,
+the `snapback assets` operator surface, and the honest per-target
+capability claims (`asset_lifecycle_v1` + `assets` facts on local;
+Missing elsewhere). Evidence: the ticket program
+`issues/closed/20260731-0044-l1-*`, the traceability map
+`tests/acceptance/asset-lifecycle-v1-evidence.md` (every acceptance row
+covered, deferred-with-owner, or a declared nonclaim), and the guide page
+`guide/backend/assets.md`.
+
+Deferred with named owners, honestly: the WS live projection and the
+client upload task/React projection (ticket L1-14 and
+`issues/20260731-0044-live-projection-follow-up.md` — the no-polling
+acceptance rows gate on them); frozen-generation authorizer retention
+(`issues/20260731-0044-frozen-generation-artifact-retention.md` — the
+implementation currently fails closed where 0044 would re-run frozen
+code); bounded-array `v.assetRef`
+(`issues/20260731-assetref-array-needs-portable-array-fields.md` — the
+portable field vocabulary has no array table fields yet); the image
+pipeline, signed/public delivery profiles, S3 store qualification, store
+migration, reference GC, and the LLP 0070 runner generation, each already
+scoped as later capabilities above. The document stays Accepted;
+Implemented awaits the client slice and the live projection.

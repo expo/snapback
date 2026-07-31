@@ -73,6 +73,9 @@ you never build around a feature because you didn't know it existed.
   term/phrase/prefix search with structured ASTs, deterministic ranking,
   authorization partitions, highlights, and current-keyset cursors
   (experimental).
+- [Assets](./backend/assets.md) — generated upload intents, TUS resumable
+  transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
+  private-strict delivery (local target; image pipeline still a GAP).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).

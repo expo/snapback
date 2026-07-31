@@ -1,0 +1,99 @@
+# LLP 0044 `asset-lifecycle-v1` acceptance evidence (local target)
+
+<!-- @ref LLP 0044#acceptance — the traceability meta-requirement this map satisfies -->
+
+This map records executable evidence for the Accepted LLP 0044 acceptance
+rows reachable from the `asset-lifecycle-v1` composite on the canonical
+local target (filesystem store, TUS lane, `private-strict` delivery). It
+does not amend the RFC. Every row is **covered** (named tests), **deferred**
+(named successor with a tracking artifact), or a **nonclaim** (the manifest
+reports the capability Missing). Rust tests live in `src/local.rs`
+(`local::tests::*`) unless another path is named; the suite runs with
+`SNAPBACK_ASSET_RUNNER_DISABLED=1` semantics — deterministic drives via
+`asset_runner_tick`/`asset_gc_sweep`/`asset_publication_maintain`, never the
+background loop.
+
+## Intents and admission
+
+| Acceptance row | Evidence |
+|---|---|
+| Generated reference cannot be widened; stale reference refuses before staging | `packages/snapback-codegen/asset-upload-authoring.test.mjs` (declaration fixes the policy; refusals are generation-time) plus `asset_attempt_refusals_are_structured` (`SNAPBACK_ASSET_INTENT_STALE` before any reservation) and `manifest` validation `asset_upload_intent_manifest_*` (4 tests). |
+| Location policy mandatory; strip refuses without the finalization fact; retain admits | `asset-upload-authoring.test.mjs` refusal cases (`SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED`, strip-unsupported against the embedded capability manifest, retain admits) — image and video media classes both. Defense in depth at the finalizer: `asset_finalize_strip_policy_defense_rejects_the_asset`. |
+
+## Client task and SDKs
+
+| Acceptance row | Evidence |
+|---|---|
+| Stable asset reference, local preview, pause/resume/cancel/retry, id across successor | **Deferred to L1-14** (framework-neutral client task). Server half covered: `asset_retry_supersedes_and_lineage_gates_access` (same asset id across the authorized successor), `asset_attempt_lifecycle_creates_transfers_resumes_and_cancels`. |
+| Authority change blanks task/preview; late stale work generation-fenced | **Deferred to L1-14** (client half). Server generation fencing covered: superseded-attempt refusal in `asset_retry_supersedes_and_lineage_gates_access`; runner fence in `asset_runner_generation_fence_cancels_stale_work_at_claim`. |
+| SDK conformance vectors | **Deferred to L1-14** (JS vectors first; SDK staging is LLP 0064's). |
+
+## Transfer
+
+| Acceptance row | Evidence |
+|---|---|
+| TUS resume after restart; cancellation/expiry/GC structured | `asset_transfer_resumes_across_restart_on_disk`, `asset_attempt_lifecycle_creates_transfers_resumes_and_cancels`, `asset_expired_attempt_refuses_and_receipts`, `asset_gc_reclaims_expired_attempts_pending_assets_orphans_and_tombstones`. |
+| Successor supersedes; racing writers converge; late completion fenced | `asset_retry_supersedes_and_lineage_gates_access` (structural single-current partial unique index from `assets::tests`). |
+| Deferred length refused; grades honest; checksummed corruption detected at transfer | `asset_attempt_refusals_are_structured` (`SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED`), `asset_checksums_gate_chunks_and_grade_basis_demotes_without_them`, `asset_finalize_grades_honestly_and_verifies_declared_digests` (weaker grade never reported as stronger). |
+| Persisted client task state carries no bearer material | **Deferred to L1-14** (the client owns persistence). The server-side analogue is covered: operator inspection carries no staging keys/admissions (`asset_host_ops_round_trip_put_inspect_list_retry_delete`). |
+
+## Staging, finalization, and publication
+
+| Acceptance row | Evidence |
+|---|---|
+| Staging unreachable; finalization verifies, detects, digests, publishes idempotently | Structural: no registered route serves staging (`tests/route_policy_v1.rs` registry parity) and store keys refuse path shapes (`assets::tests`). Behavior: `asset_finalize_publishes_end_to_end_and_is_idempotent`, `asset_finalize_refuses_incomplete_transfers_and_detects_types_from_bytes`. |
+| GPS strip on ready blobs | **Deferred to the image-pipeline program**: no v1 target admits a strip intent (generation refusal covered above), so no ready blob can carry the obligation; the finalizer defense test covers the impossible-path arrival. |
+| Required renditions gate ready | Machinery covered with only the primary in play (`asset_finalize_publishes_end_to_end_and_is_idempotent`); derived renditions arrive with the image pipeline. |
+| Fault injection at the named crash cuts; uniqueness loser converges; dedup-vs-GC race safe; retirement frees headroom | `asset_finalize_crash_cuts_recover_via_publication_records`, `asset_finalize_condemned_race_republishes_under_a_fresh_key`, `asset_finalize_dedups_within_the_app_and_charges_quota_twice`, `asset_publication_records_retire_after_the_retention_window`. Mid-migration cut: **deferred** — v1 has one store parameter; store migration lands with the second store (see Runner and cleanup). |
+| Deletion cascade exact; crash-mid-cascade recovers | `asset_delete_cascade_is_exact_on_shared_and_unshared_blobs` (shared and unshared blobs, primary counted exactly once, exact refcount/quota), `asset_delete_refuses_foreign_callers_references_and_recovers_from_crash`. |
+
+## Dedup and quota
+
+| Acceptance row | Evidence |
+|---|---|
+| Identical bytes: two assets, one blob, quota twice | `asset_finalize_dedups_within_the_app_and_charges_quota_twice`. Cross-app invisibility is structural in v1: blob identity and every query are app-scoped by the `(app, algo, digest, policy)` key and the single-app instance model. |
+| Reservations cannot overrun; releases fenced; settlement exact | `asset_attempt_refusals_are_structured` (bounds), `asset_expired_attempt_refuses_and_receipts` + `asset_gc_*` (release after store fencing), `asset_delete_cascade_*` (tombstone-commit release). |
+| Ceilings on durable record classes; minimum accounting unit | `asset_per_principal_ceiling_refuses_structured`; the enforced-limit vector is asserted against the manifest in `tests/capability_v0.rs`. |
+
+## References and attachment
+
+| Acceptance row | Evidence |
+|---|---|
+| Attach commits row+edge atomically; disagreement/wrong-owner/stale fail closed | `asset_handler_raw_write_refuses_and_attach_admission_commits_edge`, `asset_attach_wrong_intent_wrong_owner_and_deleted_asset_fail_closed`. |
+| `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path; host-plan both shapes; import refuses | `asset_handler_raw_write_refuses_...`, `asset_host_plan_and_seed_derive_admission_from_the_restriction` (restricted pass, wrong-owner/wrong-intent fail closed, unrestricted refuse; seed both shapes). Logical import has no code path while export/import is Missing — the refusal is structural, recorded as the intended consequence in LLP 0044 §Typed references. |
+| Edges follow patch/clear/row-delete; delete refuses while referenced | `asset_edges_follow_patch_clear_and_row_delete_in_the_same_changeset`, `asset_delete_refuses_foreign_callers_references_and_recovers_from_crash`. Reference-GC warning listing: **nonclaim** — opt-in reference GC is the later `asset_reference_gc_v1`; the via-references deployment warning half is covered in `asset-upload-authoring.test.mjs`. |
+
+## Read authorization and delivery
+
+| Acceptance row | Evidence |
+|---|---|
+| owner-only denies; via-references grants/revokes with edges; live blanking | `asset_read_authorization_decides_only_through_sharing_declarations`, `asset_read_decision_pins_the_empty_edge_range_so_first_attachment_moves_it`. Live-subscription blanking: **deferred** — the WS projection follow-up (`issues/20260731-0044-live-projection-follow-up.md`); the decision function and moved-dependency re-check are the covered substrate. |
+| Sharing declarations only; mixed table cannot bypass | `asset_read_authorization_decides_only_through_sharing_declarations` (the mixed-table stand-in confers nothing). |
+| Revocation triggers refuse; ordinary redeploy finalizes frozen | Partial: the revoked-generation refusal exists (`SNAPBACK_ASSET_INTENT_REVOKED`) and hash-moved-witness-unmoved publishes frozen (`asset_finalize_witness_rechecks_benign_churn_publishes_denial_refuses`); the operator/deploy revocation surfaces and frozen-code retention are open follow-ups (`issues/20260731-0044-frozen-generation-artifact-retention.md`). |
+| Complete witness: revocation, phantom insertion, deleted row, empty query; benign churn publishes | `asset_finalize_witness_rechecks_benign_churn_publishes_denial_refuses` with the `asset_plant_missing_row_witness`/`asset_insert_phantom` fixtures. |
+| Signing-key rotation; signed/public profiles | **Nonclaim**: `private-signed` and `public-immutable` are not v1 delivery profiles (`assetDeliveryProfiles: ["private-strict"]`); the manifest reports them absent rather than weakened. |
+| Strict delivery: per-request auth, no-store, alias identity, disposition, trusted facts | `asset_delivery_serves_full_and_range_windows_with_strict_facts`, `asset_delivery_forces_attachment_for_unrecognized_bytes_and_gates_readiness`, `asset_delete_cascade_is_exact_on_shared_and_unshared_blobs` (B stays deliverable after A's deletion under a shared blob). |
+| Range requests | `asset_delivery_serves_full_and_range_windows_with_strict_facts` (200/206/416/suffix; content-agnostic, so the video claim is the same range machinery). |
+
+## Liveness and processing
+
+| Acceptance row | Evidence |
+|---|---|
+| Availability/renditions update live with no polling | **Deferred** — the WS projection follow-up ticket; `GET /assets/records/{id}` is the covered read path. Progress-cannot-settle is covered: only finalization settles quota or readiness (`asset_finalize_*`; TUS patches change no durable availability). |
+| Image processing / hostile corpus | **Deferred to the image-pipeline program** (`asset_image_pipeline_v1` is not claimed; the manifest reports the finalization fact Missing). |
+| Only closed transitions occur | The closed guards refuse unlisted transitions at the persistence layer (`assets::tests` transition tables) and every lifecycle test drives only legal paths; refusal cases in `asset_attempt_refusals_are_structured` and `asset_host_ops_refuse_bad_input_and_ride_the_envelope`. |
+
+## Runner and cleanup
+
+| Acceptance row | Evidence |
+|---|---|
+| No-subscriber completion; per-item receipts; lease reclaim; retry ceiling; transactional enqueue; generation-fence cancel | `asset_runner_completes_enqueued_work_with_no_live_subscriber`, `asset_runner_reclaims_an_expired_lease_as_a_receipted_transition`, `asset_runner_retry_ceiling_produces_a_durable_exhausted_failure`, `asset_runner_generation_fence_cancels_stale_work_at_claim`, `asset_runner_deadline_and_unknown_kind_exhaust_without_retry_burn`. Lifecycle callbacks: **nonclaim in lifecycle-v1** (declared callbacks arrive with the processing capability). LLP 0070 runner generation: **deferred by design** — 0070 is Draft; the amendment it anticipates gates the second generation. |
+| GC classes each receipt and obey windows; cancel-and-discard | `asset_gc_reclaims_expired_attempts_pending_assets_orphans_and_tombstones`, `asset_attempt_lifecycle_creates_transfers_resumes_and_cancels` (discard path). |
+| Store migration | **Deferred** — one store parameter exists in v1; migration machinery (records, fenced switch) lands with the second store and must add the mid-migration crash cut then. |
+
+## Tooling and manifest
+
+| Acceptance row | Evidence |
+|---|---|
+| CLI/inspection uploads, inspects, retries, explains — no byte samples/staging keys/bearer URLs | `asset_host_ops_round_trip_put_inspect_list_retry_delete`, `asset_host_ops_refuse_bad_input_and_ride_the_envelope`; `snapback assets` subcommands ride the same operations over `post_host_op`. |
+| Manifest distinguishes composites, store parameter, profiles, grades, ceilings; nonclaims Missing | `tests/capability_v0.rs` (committed manifests: local claims `asset_lifecycle_v1` with `local-fs` and `private-strict`; served/workerd/Cloudflare withhold; the `missing` nonclaims list is present, never omitted). |

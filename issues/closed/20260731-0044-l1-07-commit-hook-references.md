@@ -1,6 +1,6 @@
 # 0044 L1-07: commit-boundary typed references and attach
 
-**Status:** OPEN. **Authority:** LLP 0007 dated amendment; LLP 0044
+**Status:** RESOLVED. **Authority:** LLP 0007 dated amendment; LLP 0044
 §Typed references and atomic attachment.
 
 Storage commit hook validating every v.assetRef field on every write
@@ -18,3 +18,10 @@ export/import is Missing.
 Done when: the references-and-attachment acceptance rows pass,
 including forged-string on all six paths, attach-vs-delete races, and
 host-plan restricted/unrestricted both shapes.
+
+## Resolution (2026-07-31)
+
+Executed on branch 0044-lifecycle-v1: commit 1151c564. Evidence rows in
+tests/acceptance/asset-lifecycle-v1-evidence.md; suites green at each
+landing (asset lib, route_policy_v1, artifact_schemas_v0,
+name_keying_guard, capability_v0, check-guide where touched).

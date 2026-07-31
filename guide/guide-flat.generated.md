@@ -52,7 +52,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment, private-strict delivery with ranges, deletion/GC, receipts (`asset_lifecycle_v1`); image pipeline and hosted targets remain design-only | files, images, upload, object storage, media | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`asset_lifecycle_v1` in supportedCapabilities; `assets` facts block) + src/assets.rs suite | llp/0044 | GAP (page pending the L1-13 landing; owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
+| backend.assets | Authenticated asset lifecycle on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment, private-strict delivery with ranges, deletion/GC, receipts (`asset_lifecycle_v1`); image pipeline and hosted targets remain design-only | files, images, upload, object storage, media | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`asset_lifecycle_v1` in supportedCapabilities; `assets` facts block) + src/assets.rs suite | llp/0044 | backend/assets.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.vector-search | Portable vector storage, ANN indexing, and semantic retrieval; no ordinary vector path ships today | vector, embeddings, similarity, semantic search, RAG, ANN | none | design-only | llp/0019-agentic-readiness.research.md (unmade product decision; no shipped witness) | llp/0019, llp/0007 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260729-guide-gap-vector-semantic-search-capability-row.md) |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
@@ -208,6 +208,11 @@ here (or listed here but gone from the code).
 | --- | --- |
 | host_ops.app.inspect | operating.host-ops |
 | host_ops.app.reset | operating.host-ops |
+| host_ops.asset.put | backend.assets |
+| host_ops.asset.inspect | backend.assets |
+| host_ops.asset.list | backend.assets |
+| host_ops.asset.retry | backend.assets |
+| host_ops.asset.delete | backend.assets |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
 | host_ops.function.explain | operating.host-ops |
@@ -304,6 +309,9 @@ you never build around a feature because you didn't know it existed.
   term/phrase/prefix search with structured ASTs, deterministic ranking,
   authorization partitions, highlights, and current-keyset cursors
   (experimental).
+- [Assets](./backend/assets.md) — generated upload intents, TUS resumable
+  transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
+  private-strict delivery (local target; image pipeline still a GAP).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -2508,6 +2516,159 @@ the closed seed request only under `input`.
 The local protocol is advertised as **experimental** while LLP 0109 remains in
 Review. The executable manifest is the advertisement gate: every required
 local row must pass, while hosted compiled-seed custody stays visibly GAP.
+
+---
+
+<!-- snapback-guide-source: guide/backend/assets.md -->
+---
+title: Assets
+id: backend.assets
+order: 9
+audience: agent-first
+capabilities: [backend.assets]
+authorities: [llp/0044-asset-storage-pipeline.rfc.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: []
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-31
+reviewed-commit: HEAD
+---
+
+# Assets
+
+> **Local target only, files-first.** `asset_lifecycle_v1` ships on the
+> local target with the filesystem store, TUS resumable transfer, and
+> `private-strict` delivery. The image pipeline
+> (`asset_image_pipeline_v1` — location stripping, renditions,
+> placeholders) is design-only, so a `location: "strip"` image or video
+> intent **refuses at generation** on every current target; only explicit
+> `location: "retain"` media intents and non-media files upload today.
+> Hosted targets report the whole capability Missing.
+
+Use an asset when your app stores a file: bytes live outside document rows
+under a Snapback-owned lifecycle — upload, trusted finalization, typed
+attachment, authorized delivery, deletion — and your tables hold only a
+typed reference.
+
+## Declare the upload intent and the reference field
+
+Upload authorization and policy are declared in source and compiled into a
+generated reference. The intent fixes what a client can never widen:
+accepted media types, byte bounds, delivery profile, and read-access
+policy. The authorizer runs server-side and returns the owner.
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export const avatarUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: ['profiles'],
+  accept: { mediaTypes: ['application/pdf', 'text/plain'], maxBytes: 10_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'via-references' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+Reference assets from tables with `v.assetRef`. A restricted field
+(`{ upload: 'avatarUpload' }`) admits only that intent's assets and is
+writable from host plans; an unrestricted field is attachable only through
+handler-side `ctx.assets.attach`. `assetSharing` declares who may read
+assets referenced from a table's rows — without it, a reference confers no
+read authority and the asset stays owner-only.
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export default defineSchema({
+  profiles: defineTable({
+    ownerId: v.principal(),
+    avatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
+    attachment: v.assetRef(),
+  })
+    .assetSharing({ kind: 'owner', field: 'ownerId' })
+    .sync(),
+});
+```
+
+`assetSharing` takes the closed union `{ kind: 'public-read' }`,
+`{ kind: 'owner', field }`, or `{ kind: 'membership', membership, roles? }`.
+Declaring `access: { read: 'via-references' }` on an intent whose fields
+can land in tables without the declaration emits
+`SNAPBACK_ASSET_SHARING_UNDECLARED` at generation, listing the tables.
+
+## Upload and attach
+
+The client flow is: create an attempt (the generated reference plus the
+declared byte length — deferred length refuses), transfer bytes over TUS
+1.0.0 (`PATCH /assets/tus/{id}`, checksum every chunk), then finalize.
+Finalization re-validates the admission witness, verifies length and
+integrity, detects the content type from bytes, computes the SHA-256
+canonical digest, dedups within the app, and publishes atomically. The
+asset id is stable from creation — an expired attempt's authorized
+successor keeps it.
+
+Attach the asset to a row in an ordinary mutation:
+
+```js fragment reason="handler excerpt; the commit hook is exercised by the src/local.rs reference suite"
+export const setAvatar = defineMutation({
+  args: { profileId: v.id('profiles'), assetId: v.assetRef({ upload: 'avatarUpload' }) },
+  handler: async (ctx, args) => {
+    await ctx.db.patch('profiles', args.profileId, {
+      avatar: await ctx.assets.attach(args.assetId, { upload: api.avatarUpload }),
+    });
+  },
+});
+```
+
+Enforcement lives at the storage commit boundary, not the helper: a raw
+id-shaped string written into a `v.assetRef` field fails the commit with
+`SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
+reference edge commits in the same changeset. Deleting an asset refuses
+while typed references remain.
+
+## Deliver
+
+`GET /assets/records/{id}` serves authorized metadata;
+`GET /assets/records/{id}/bytes/{variant}` serves bytes (variant
+`primary` in v1) under `private-strict`: every request re-authorizes
+through the declared read-access policy, responses carry
+`Cache-Control: private, no-store`, HTTP ranges work for media playback,
+and active-content types are never served inline. Revoking access or
+deleting the asset denies the next request.
+
+## Operate
+
+The CLI drives the same lifecycle for agents and fixtures (dev/test
+targets, admin authority):
+
+```sh
+snapback assets put photo.pdf --upload avatarUpload --user user_a --url http://127.0.0.1:4287
+snapback assets inspect <asset-id> --url http://127.0.0.1:4287
+snapback assets list --state ready --url http://127.0.0.1:4287
+snapback assets retry <asset-id> --url http://127.0.0.1:4287
+snapback assets delete <asset-id> --user user_a --url http://127.0.0.1:4287
+```
+
+`put` uploads chunk-checksummed and finalizes end-to-end verified.
+`inspect` prints the lifecycle — availability, receipts, quota, reference
+edges, runner claims — and never byte samples, staging keys, or bearer
+URLs. `retry` re-drives pending publication/ledger work under the
+generation fence; it never reopens a terminal attempt.
+
+Background maintenance (finalization re-drives, GC sweeps, publication
+reconciliation) runs on the asset runner; set
+`SNAPBACK_ASSET_RUNNER_DISABLED=1` to drive it deterministically in tests.
+
+## Evidence and limits
+
+The acceptance traceability map is
+[`tests/acceptance/asset-lifecycle-v1-evidence.md`](../../tests/acceptance/asset-lifecycle-v1-evidence.md);
+the manifest facts (stores, profiles, integrity grades, enforced limits,
+and the explicit Missing nonclaims — backup/export, video finalization,
+custom read authorizers, deferred length) live in
+`schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
+Live no-polling readiness over the WebSocket channel and the client upload
+task are the L1-14 follow-ups; until then poll `GET /assets/records/{id}`
+or use `snapback assets inspect`.
 
 ---
 
