@@ -917,6 +917,22 @@
       ],
       "type": "object"
     },
+    "FunctionArgsContract": {
+      "additionalProperties": false,
+      "description": "One closed object contract over a function's declared arguments:\ndeclaration-ordered fields, each carrying a value node from the same node\nvocabulary the result manifest uses (LLP 0131 — one node vocabulary, two\ncontract roots).",
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/ResultObjectFieldContract"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    },
     "FunctionKind": {
       "enum": [
         "Query",
@@ -1831,6 +1847,17 @@
     "PublicFunctionDefinition": {
       "description": "Public projection of [`FunctionDefinition`]: everything except the\nexecutable runtime body and the source span.",
       "properties": {
+        "argsContract": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionArgsContract"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The declared argument contract (LLP 0131) — a bounded declarative\nschema like the result contract, safe on the public projection."
+        },
         "argsContractHash": {
           "type": [
             "string",
@@ -2624,6 +2651,28 @@
             "allowExtra"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A reference to an entry in the closed, platform-owned registry of\nexported Rust-owned schemas. Valid only at argument positions in v1;\nnot an app-authorable spelling — `defineSearchQuery` constructs it\ninternally and no `v.*` builder emits it. The node contributes its\nauthority class and reference id (never the referenced artifact's\nbytes) to the canonical hash form; artifact drift is gated by the\nschema-export drift test. The explicit `authority` member is a closed\nenum with exactly one admitted value in v1, so a future app-schema\nreference (option E) is a distinct authority class with\ndigest-carrying identity rather than a silent reinterpretation.\n\n@ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is\nthe one new node kind; v1's registry has exactly\n`snapback:search-query-ast:v1`.",
+          "properties": {
+            "authority": {
+              "$ref": "#/$defs/SchemaRefAuthority"
+            },
+            "kind": {
+              "const": "platformSchemaRef",
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "authority",
+            "schema"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -2752,6 +2801,13 @@
         "maxJournalDistance"
       ],
       "type": "object"
+    },
+    "SchemaRefAuthority": {
+      "description": "The closed authority classes a schema-reference node may name. V1 admits\nexactly `platform`; hash-by-reference-id is a property of this class.",
+      "enum": [
+        "platform"
+      ],
+      "type": "string"
     },
     "SearchCursorLimitsV1": {
       "additionalProperties": false,
@@ -3152,6 +3208,7 @@
             "migration_keyset_scan_v1",
             "full_text_search_v1",
             "result_contract_v1",
+            "args_contract_v1",
             "versioned_seed_install_v1",
             "versioned_seed_reset_v1",
             "write_activity_v1"

@@ -1,6 +1,7 @@
 {
   "artifactKind": "providerBindingMetadata",
   "bindings": {
+    "actions": [],
     "ephemeral": [],
     "mutations": [
       {
@@ -19,7 +20,8 @@
         "optimistic": {
           "source": "none",
           "supported": false
-        }
+        },
+        "resultType": "unknown"
       },
       {
         "argumentsType": "{ \"displayName\": string; \"title\": string }",
@@ -39,7 +41,8 @@
         "optimistic": {
           "source": "none",
           "supported": false
-        }
+        },
+        "resultType": "unknown"
       },
       {
         "argumentsType": "{ \"displayName\": string; \"roomId\": string; \"userId\": string }",
@@ -57,7 +60,8 @@
         "optimistic": {
           "source": "none",
           "supported": false
-        }
+        },
+        "resultType": "unknown"
       },
       {
         "argumentsType": "{ \"roomId\": string }",
@@ -77,7 +81,8 @@
         "optimistic": {
           "source": "none",
           "supported": false
-        }
+        },
+        "resultType": "unknown"
       },
       {
         "argumentsType": "{ \"roomId\": string }",
@@ -93,7 +98,8 @@
         "optimistic": {
           "source": "none",
           "supported": false
-        }
+        },
+        "resultType": "unknown"
       },
       {
         "argumentsType": "{ \"body\": string; \"roomId\": string }",
@@ -111,7 +117,8 @@
         "optimistic": {
           "source": "none",
           "supported": false
-        }
+        },
+        "resultType": "unknown"
       }
     ],
     "queries": [
@@ -281,7 +288,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "3f738b2b561db4bcfef8a8fee49b2c2bab8a72122eecedb8834d9bbbdd199dce",
+    "inputsHash": "80eaf541789fea4fa7fd93a89b3846135f3c56eaf3c6a4336edfbc1779b65396",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

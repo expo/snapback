@@ -20,6 +20,7 @@
     }
   },
   "operations": {
+    "actions": [],
     "ephemeral": [],
     "mutations": [
       {
@@ -33,6 +34,15 @@
           "order": [
             "roomId"
           ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "implementationHash": "sha256:492c8c90461c98c7257a3e1b4f92d172f2a7d599f09fcde43b690bde88b3421b",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
         },
         "effects": {
           "invalidates": [
@@ -70,6 +80,15 @@
             "title",
             "displayName"
           ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:fcddc7065ebe083860637cdb540de7830f4f8fd3e39fdcc35b2175141813e590",
+          "implementationHash": "sha256:8663749bae51caa9877a5673121bd6301eca6b6eb41a5518fb121157e93f9d6a",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
         },
         "effects": {
           "invalidates": [
@@ -115,6 +134,15 @@
             "displayName"
           ]
         },
+        "contract": {
+          "argumentsHash": "sha256:6c9f22062e5fdea9039de87d19d2a59329892fed5f65ee844a988e8c169c5fad",
+          "implementationHash": "sha256:00ba53681c50dcefb576066362fe3415ff5b52eef98a3d747aa66f09cd80cdda",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
+        },
         "effects": {
           "invalidates": [
             "roomMembers",
@@ -146,6 +174,15 @@
           "order": [
             "roomId"
           ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "implementationHash": "sha256:d075ffcc905229a3bbc676cb8b1e940683dbd1bd6f2bfb2683ae4ba70d8f0952",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
         },
         "effects": {
           "invalidates": [
@@ -180,6 +217,15 @@
           "order": [
             "roomId"
           ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "implementationHash": "sha256:cddfff01f48bcfbac161237e3dbe640b4638e3c08173eb60088b203da3a26da6",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
         },
         "effects": {
           "invalidates": [
@@ -216,6 +262,15 @@
             "body"
           ]
         },
+        "contract": {
+          "argumentsHash": "sha256:6ecc978b30715503231053c657570f720785a72b13a20b6864c2372e933ff7b8",
+          "implementationHash": "sha256:cc851e1cd2f33f6662f6d193aab764e86ff182d737a58bafc7b14386a5aae687",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
+        },
         "effects": {
           "invalidates": [
             "messages",
@@ -242,6 +297,127 @@
         "arguments": {
           "fields": {},
           "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "implementationHash": "sha256:489d8c5778cf593acf131f993872c34c515d56e48a2b4299f926339e52887faa",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "deliveries"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "recipientId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "roomId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "messageId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "authorId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "authorName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "body",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "pageKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                },
+                {
+                  "name": "unread",
+                  "required": true,
+                  "value": {
+                    "kind": "boolean"
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "deliveries"
+          },
+          "resultHash": "sha256:a9e030667537e8452f3ac94278c957423a1a9a71089d99f0aa792ed540e36ae2",
+          "revision": "snapback.result-contract.v1"
         },
         "delivery": {
           "defaultLive": true,
@@ -335,6 +511,97 @@
           "fields": {},
           "order": []
         },
+        "contract": {
+          "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "implementationHash": "sha256:6eb415a2b0ccd1701c3d9eb9f62f974f65cc6bd504ecbfbb41b11f5303cd16df",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "roomParticipants"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "roomId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "userId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "displayName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "status",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "changedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "roomParticipants"
+          },
+          "resultHash": "sha256:5b83e7ad9bb8acde2777cf0ea39fa26df69e07581913044038b6b311eb81e0ef",
+          "revision": "snapback.result-contract.v1"
+        },
         "delivery": {
           "defaultLive": true,
           "initialSnapshot": true,
@@ -417,6 +684,127 @@
           "order": [
             "after"
           ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:5fb6da771a8e374b6a650bf0f7c24bdc27a3033b55784f0a88070244040b25ee",
+          "implementationHash": "sha256:788911e821ee659bc0e41a971eb1218bdf74523ace21806bb357e594b5ff56bf",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "deliveries"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "recipientId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "roomId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "messageId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "authorId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "authorName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "body",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "pageKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                },
+                {
+                  "name": "unread",
+                  "required": true,
+                  "value": {
+                    "kind": "boolean"
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "deliveries"
+          },
+          "resultHash": "sha256:a9e030667537e8452f3ac94278c957423a1a9a71089d99f0aa792ed540e36ae2",
+          "revision": "snapback.result-contract.v1"
         },
         "delivery": {
           "defaultLive": true,
@@ -517,6 +905,81 @@
             "roomId"
           ]
         },
+        "contract": {
+          "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "implementationHash": "sha256:9cb29f223665331c774d50078d3f10a42a5174196ad18418d1833e2ca07ef2b0",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdBy",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "rooms"
+          },
+          "resultHash": "sha256:5cf8a565f02e28547f98cef1e0f5897349ac8d8d911cd8b511d426a17623f7ac",
+          "revision": "snapback.result-contract.v1"
+        },
         "delivery": {
           "defaultLive": true,
           "initialSnapshot": true,
@@ -592,6 +1055,105 @@
           "order": [
             "roomId"
           ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "implementationHash": "sha256:c0ae31b3e2e97531c1647c6b354e5c5669740a85b3f78dcea956637db84a9c12",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "roomId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "authorId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "authorName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "body",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "pageKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "messages"
+          },
+          "resultHash": "sha256:f5697c69c17b52bbb7863b6c8802c9ec296adca6b314351d166f45e66898a22e",
+          "revision": "snapback.result-contract.v1"
         },
         "delivery": {
           "defaultLive": true,
@@ -673,6 +1235,127 @@
         "arguments": {
           "fields": {},
           "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "implementationHash": "sha256:07eab2e1a86a3f45ecd9af97d8893355befcdbcdd175d626d952f941ba0571a8",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "deliveries"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "recipientId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "roomId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "messageId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "authorId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "authorName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "body",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "pageKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                },
+                {
+                  "name": "unread",
+                  "required": true,
+                  "value": {
+                    "kind": "boolean"
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "deliveries"
+          },
+          "resultHash": "sha256:a9e030667537e8452f3ac94278c957423a1a9a71089d99f0aa792ed540e36ae2",
+          "revision": "snapback.result-contract.v1"
         },
         "delivery": {
           "defaultLive": true,
@@ -769,8 +1452,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:fa5f79109a8425ff",
-    "inputsHash": "3f738b2b561db4bcfef8a8fee49b2c2bab8a72122eecedb8834d9bbbdd199dce",
-    "schemaHash": "sha256:90aebbc8bf8129af"
+    "implementationHash": "sha256:f89922c9bcaec0b2",
+    "inputsHash": "80eaf541789fea4fa7fd93a89b3846135f3c56eaf3c6a4336edfbc1779b65396",
+    "schemaHash": "sha256:5abc519f07b7deef"
   }
 }

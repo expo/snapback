@@ -14,11 +14,17 @@ export type RoomMessagesResult = ReadonlyArray<{ "_createdAt": number; "_id": st
 export type UnreadDeliveriesArgs = Record<string, never>;
 export type UnreadDeliveriesResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "authorName": string; "body": string; "createdAt": number; "messageId": string; "pageKey": string; "recipientId": string; "roomId": string; "unread": boolean }>;
 export type AcceptInviteArgs = { "roomId": string };
+export type AcceptInviteResult = unknown;
 export type CreateRoomArgs = { "displayName": string; "title": string };
+export type CreateRoomResult = unknown;
 export type InviteMemberArgs = { "displayName": string; "roomId": string; "userId": string };
+export type InviteMemberResult = unknown;
 export type LeaveRoomArgs = { "roomId": string };
+export type LeaveRoomResult = unknown;
 export type MarkRoomReadArgs = { "roomId": string };
+export type MarkRoomReadResult = unknown;
 export type SendMessageArgs = { "body": string; "roomId": string };
+export type SendMessageResult = unknown;
 
 export interface ProviderQueryBindings {
   "firstInboxPage": { args: FirstInboxPageArgs; result: FirstInboxPageResult };
@@ -29,10 +35,12 @@ export interface ProviderQueryBindings {
   "unreadDeliveries": { args: UnreadDeliveriesArgs; result: UnreadDeliveriesResult };
 }
 export interface ProviderMutationBindings {
-  "acceptInvite": { args: AcceptInviteArgs };
-  "createRoom": { args: CreateRoomArgs };
-  "inviteMember": { args: InviteMemberArgs };
-  "leaveRoom": { args: LeaveRoomArgs };
-  "markRoomRead": { args: MarkRoomReadArgs };
-  "sendMessage": { args: SendMessageArgs };
+  "acceptInvite": { args: AcceptInviteArgs; result: AcceptInviteResult };
+  "createRoom": { args: CreateRoomArgs; result: CreateRoomResult };
+  "inviteMember": { args: InviteMemberArgs; result: InviteMemberResult };
+  "leaveRoom": { args: LeaveRoomArgs; result: LeaveRoomResult };
+  "markRoomRead": { args: MarkRoomReadArgs; result: MarkRoomReadResult };
+  "sendMessage": { args: SendMessageArgs; result: SendMessageResult };
+}
+export interface ProviderActionBindings {
 }

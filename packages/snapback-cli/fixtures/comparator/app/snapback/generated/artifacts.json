@@ -39,10 +39,10 @@
     "contract/writePrimaryAndActivity.mutation.ts",
     "contract/writePrimaryAndActivity.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:d374c885207f6de2",
+  "bundleHash": "sha256:4ac92b0409e6e524",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/51c975bde327e9f29fd28aa564b0d56be4696b9d0013abe02dc98c3a12d46862",
-    "key": "51c975bde327e9f29fd28aa564b0d56be4696b9d0013abe02dc98c3a12d46862",
+    "graphPath": "../../.snapback/codegen-cache/fb6975b298eefead0f39bed03f41f1802cb20f7482129a0a576b6364083d7cd9",
+    "key": "fb6975b298eefead0f39bed03f41f1802cb20f7482129a0a576b6364083d7cd9",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -81,7 +81,7 @@
       "sha256": "sha256:c3ed8bf8a8dc828176bdfa4535d5a9fb3ad10791eb39f9442954299013c59cdf"
     },
     {
-      "bytes": 6075,
+      "bytes": 6137,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -90,7 +90,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:a7ef71590c30cbbdc9915fbb11a76a4e4fd17caf15bba45b46f3a460bc029bae"
+      "sha256": "sha256:6f1846ae05430dde8f3d3a3f7a21aaaf43ecf7967962660e9bf8ecde72f13feb"
     },
     {
       "bytes": 16135,
@@ -102,7 +102,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:8c556ccec3d1d2c33b23f08b8f3e93c7d11d45bef37b0c2dfd1915b3a1356ade"
+      "sha256": "sha256:5eb78b97b51295d06d291a198d89946a727afa9d4fa3f1c4bbc5f607c6306497"
     },
     {
       "bytes": 577,
@@ -342,7 +342,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:0ced9fa118d9928f4c300d7346e07c3e6062965620a4b0b66fca000abfd8d1b3"
+      "sha256": "sha256:bfb12d94c6a96be65e0a12c4deb710ed7f625110ad65b8828f7fd1ea44a81dc7"
     },
     {
       "bytes": 258,
@@ -462,7 +462,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:a2673652ed861cdda50dfa9a335b97d9742fc8f589510533f9f9940dedc58bf4"
+      "sha256": "sha256:35cc25c1f698cbcd0311292f5d92e4f7cbd4697299f9cefc7b8496398435d011"
     },
     {
       "bytes": 20013,
@@ -474,7 +474,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:dd443268422048e403847241f182220c1d84acf0125b11f4c040a524a301d7f9"
+      "sha256": "sha256:1166d9ce46f2a87ef8b62e596a5001abc9db8f8da5ce0e1eb7fa8ddec228ecac"
     },
     {
       "bytes": 2343,
@@ -486,7 +486,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:d15deb18c016fab249c91c50f8a49e81697a7f523d7d460245b958834d555699"
+      "sha256": "sha256:6b904ac4d7a6cc8c4559ab2fc2a8b6370bd7f9d20dec0d8b12b3ebd7c4fbcd90"
     }
   ],
   "functions": [
@@ -527,14 +527,14 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "51c975bde327e9f29fd28aa564b0d56be4696b9d0013abe02dc98c3a12d46862",
+  "inputsHash": "fb6975b298eefead0f39bed03f41f1802cb20f7482129a0a576b6364083d7cd9",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@snapback/codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:1ba437889bcb4b3f",
+  "schemaHash": "sha256:53a68125cfea063a",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "app",
@@ -605,7 +605,7 @@
         }
       }
     ],
-    "inputsHash": "51c975bde327e9f29fd28aa564b0d56be4696b9d0013abe02dc98c3a12d46862",
+    "inputsHash": "fb6975b298eefead0f39bed03f41f1802cb20f7482129a0a576b6364083d7cd9",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

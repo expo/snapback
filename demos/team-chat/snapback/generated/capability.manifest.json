@@ -20,11 +20,56 @@
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
   ],
+  "capabilityMaturity": {
+    "args_contract_v1": "experimental",
+    "bounded_children_v1": "experimental",
+    "inline_handler_v1": "experimental",
+    "jobs_one_off_v1": "experimental",
+    "registered_bundle_boot_v1": "experimental",
+    "result_contract_v1": "experimental",
+    "versioned_seed_install_v1": "experimental",
+    "versioned_seed_reset_v1": "experimental",
+    "write_activity_v1": "experimental"
+  },
   "cron": true,
   "ephemeralHostedAdapter": false,
   "ephemeralLocalRoomAuthority": true,
   "ephemeralRealtime": true,
   "ephemeralWebSocketPublish": true,
+  "fullTextSearch": {
+    "accelerator": "none",
+    "analyzer": "snapback-category-unicode17-v1",
+    "analyzerTablesDigest": "sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d",
+    "authorizationFilters": [
+      "public-read",
+      "owner.v1"
+    ],
+    "capabilityId": "full_text_search_v1",
+    "counts": false,
+    "cursorTtlMs": 120000,
+    "facets": false,
+    "highlights": true,
+    "maintenance": "synchronous",
+    "maturity": "stable",
+    "nonclaims": [
+      "live-search",
+      "offline-search",
+      "postgres",
+      "relational-visibility",
+      "native-fts-acceleration",
+      "sensitive-fields"
+    ],
+    "offline": false,
+    "pagination": "current-keyset-v1",
+    "parser": "snapback-search-parser-v1",
+    "scoreMax": 22937600,
+    "scorer": "snapback-term-score-v1",
+    "storageEngines": [
+      "sqlite"
+    ],
+    "suggestions": false,
+    "unicodeVersion": "17.0.0"
+  },
   "hostedAuth": {
     "authenticationThrottle": "processLocal",
     "clientCredentialPosture": "bearerV1XssExposed",
@@ -106,7 +151,7 @@
     },
     {
       "name": "maximum_result_size",
-      "status": "Advisory"
+      "status": "Enforced"
     },
     {
       "name": "maximum_subscription_count",
@@ -152,15 +197,25 @@
   ],
   "supportedCapabilities": [
     "auth.sessions.v1",
+    "bounded_children_v1",
     "cron",
     "cron_action_run_mutation",
     "host_plan_runtime",
     "ibex_ctx_db_host_bridge",
+    "inline_handler_v1",
+    "jobs_one_off_v1",
     "live_subscriptions",
     "mutation_read_set_validation",
     "permission_epoch_resync",
+    "registered_bundle_boot_v1",
     "relational_query_v1",
-    "migration_keyset_scan_v1"
+    "migration_keyset_scan_v1",
+    "full_text_search_v1",
+    "result_contract_v1",
+    "args_contract_v1",
+    "versioned_seed_install_v1",
+    "versioned_seed_reset_v1",
+    "write_activity_v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",
