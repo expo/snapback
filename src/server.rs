@@ -7741,6 +7741,17 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_auth_route("DELETE", "/assets/tus/{id}"),
             delete(asset_tus_delete_route),
         ),
+        // Strict delivery serves (asset, rendition) aliases only — blob keys
+        // never appear in URLs — and re-authorizes every ordinary and range
+        // request (LLP 0044 §Delivery profiles).
+        RegisteredRoute::new(
+            app_auth_route("GET", "/assets/records/{id}/bytes/{variant}"),
+            get(asset_deliver_route),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("DELETE", "/assets/records/{id}"),
+            delete(asset_record_delete_route),
+        ),
         RegisteredRoute::new(
             RouteSpec::new(
                 "POST",
@@ -8785,9 +8796,12 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/assets/attempts/{id}"
         | "/assets/attempts/{id}/cancel"
         | "/assets/tus/{id}" => Some(InvocationSource::AssetTransfer),
-        // Metadata reads decide through the declared read-access policy
-        // (LLP 0044 §Asset read authorization) — query-shaped.
-        "/assets/records/{id}" => Some(InvocationSource::HttpQuery),
+        // Metadata reads, byte delivery, and owner deletion all decide
+        // through the declared read-access policy / owner authority
+        // (LLP 0044 §Asset read authorization) — query-shaped admission.
+        "/assets/records/{id}" | "/assets/records/{id}/bytes/{variant}" => {
+            Some(InvocationSource::HttpQuery)
+        }
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         // Bundle entries are evaluated exactly like HTTP queries; register
         // mode re-prepares LiveInitialQuery authorities per entry inside the
@@ -17975,6 +17989,128 @@ async fn asset_tus_delete_route(
     Ok(response)
 }
 
+/// Strict delivery: every ordinary and range request re-authorizes; the
+/// response carries trusted record facts only (never client declarations)
+/// and `private, no-store` so authorized bytes are never cached past the
+/// authorization that produced them (LLP 0044 §Delivery profiles).
+async fn asset_deliver_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path((id, variant)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let range_header = headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.asset_deliver(&authority, &id, &variant, range_header.as_deref())
+    })
+    .await?;
+    let delivery = match outcome {
+        crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
+            let mut response = StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+            response.headers_mut().insert(
+                header::CONTENT_RANGE,
+                HeaderValue::from_str(&format!("bytes */{total_length}"))
+                    .map_err(|_| ApiError::from(asset_delivery_header_error()))?,
+            );
+            return Ok(response);
+        }
+        crate::local::AssetDeliveryOutcome::Content(delivery) => delivery,
+    };
+
+    let mut file = tokio::fs::File::open(&delivery.file_path)
+        .await
+        .map_err(|error| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                format!("cannot open blob object: {error}"),
+            ))
+        })?;
+    if delivery.window_start > 0 {
+        use tokio::io::AsyncSeekExt;
+        file.seek(std::io::SeekFrom::Start(delivery.window_start))
+            .await
+            .map_err(|error| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot seek blob object: {error}"),
+                ))
+            })?;
+    }
+    let stream = futures_util::stream::try_unfold(
+        (file, delivery.window_length),
+        |(mut file, remaining)| async move {
+            if remaining == 0 {
+                return Ok(None);
+            }
+            let take = remaining.min(crate::assets::ASSET_DELIVERY_CHUNK_BYTES as u64) as usize;
+            let mut buffer = vec![0u8; take];
+            use tokio::io::AsyncReadExt;
+            let read = file.read(&mut buffer).await?;
+            if read == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "blob object shorter than its record",
+                ));
+            }
+            buffer.truncate(read);
+            Ok(Some((Bytes::from(buffer), (file, remaining - read as u64))))
+        },
+    );
+
+    let status = if delivery.partial {
+        StatusCode::PARTIAL_CONTENT
+    } else {
+        StatusCode::OK
+    };
+    let mut builder = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, &delivery.content_type)
+        .header(header::CONTENT_LENGTH, delivery.window_length)
+        .header(header::ETAG, &delivery.etag)
+        .header(header::CACHE_CONTROL, "private, no-store")
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+        .header(header::CONTENT_DISPOSITION, &delivery.disposition);
+    if delivery.partial {
+        let end = delivery.window_start + delivery.window_length - 1;
+        builder = builder.header(
+            header::CONTENT_RANGE,
+            format!(
+                "bytes {}-{}/{}",
+                delivery.window_start, end, delivery.total_length
+            ),
+        );
+    }
+    builder
+        .body(Body::from_stream(stream))
+        .map_err(|_| ApiError::from(asset_delivery_header_error()))
+}
+
+fn asset_delivery_header_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+        "assets",
+        "delivery response could not be constructed",
+    )
+}
+
+async fn asset_record_delete_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let record = with_snapback(&state, move |snapback| {
+        snapback.asset_delete(&authority, &id)
+    })
+    .await?;
+    Ok(Json(record))
+}
+
 /// Mutations respond with the MutationOutput fields plus the provider-core
 /// MutationReceipt (LLP 0034 §3.2, ENG-22478). A REJECTED mutation still
 /// produces a receipt; it rides the error envelope.
@@ -21948,7 +22084,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_TRANSFER_INCOMPLETE"
         | "SNAPBACK_ASSET_ADMISSION_STALE"
         | "SNAPBACK_ASSET_ADMISSION_CONFLICT"
-        | "SNAPBACK_ASSET_GENERATION_STALE" => StatusCode::CONFLICT,
+        | "SNAPBACK_ASSET_GENERATION_STALE"
+        | "SNAPBACK_ASSET_NOT_READY"
+        | "SNAPBACK_ASSET_REFERENCED" => StatusCode::CONFLICT,
+        "SNAPBACK_ASSET_VARIANT_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_ASSET_ATTEMPT_EXPIRED" => StatusCode::GONE,
         "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ASSET_QUOTA_EXCEEDED"

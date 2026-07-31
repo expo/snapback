@@ -2538,6 +2538,11 @@ pub struct LocalSnapback {
     /// reuse must not let a new instance observe a dead instance's live
     /// registry entries.
     stream_attempt_namespace: usize,
+    /// Memory instances root their asset store under a per-instance temp
+    /// dir, minted lazily. A shared per-app root would let one instance's
+    /// staging-orphan sweep delete another instance's in-flight staging
+    /// files — the sweep's ownership set is this instance's database.
+    asset_memory_store_root: std::sync::OnceLock<std::path::PathBuf>,
     functions: FunctionManifest,
     // Complete pairs proven by this process. Durable deployment identities
     // are hashes, not manifest bodies, so they can never supply a missing
@@ -5225,17 +5230,25 @@ impl LocalSnapback {
 
     pub(crate) fn asset_store(&self) -> SnapbackResult<crate::assets::AssetFsStore> {
         // File-backed instances root the store beside the database; memory
-        // instances (tests, --memory) use a per-app temp root — the same
-        // "will not persist" posture as the rest of a memory instance.
+        // instances (tests, --memory) mint a per-instance temp root — the
+        // same "will not persist" posture as the rest of a memory instance,
+        // and never shared, so this instance's staging-orphan sweep can only
+        // ever see files this instance's database owns.
         let dir = match self.db.database_path() {
             Some(path) => path
                 .parent()
                 .map(std::path::Path::to_path_buf)
                 .unwrap_or_else(|| std::path::PathBuf::from(".")),
-            None => std::env::temp_dir().join(format!(
-                "snapback-assets-{}",
-                self.functions.app_id
-            )),
+            None => self
+                .asset_memory_store_root
+                .get_or_init(|| {
+                    std::env::temp_dir().join(format!(
+                        "snapback-assets-{}-{}",
+                        self.functions.app_id,
+                        crate::assets::AssetFsStore::new_opaque_key()
+                    ))
+                })
+                .clone(),
         };
         crate::assets::AssetFsStore::open(&dir)
     }
@@ -6395,6 +6408,10 @@ impl LocalSnapback {
                     media_facts: Some(serde_json::json!({
                         "contentType": detected_type,
                         "byteLength": staged_length,
+                        // Metadata only, sanitized here; never a physical key.
+                        "filename": assets::sanitize_filename(
+                            attempt.declared_filename.as_deref(),
+                        ),
                     })),
                     created_at_ms: now,
                     updated_at_ms: now,
@@ -6875,6 +6892,351 @@ impl LocalSnapback {
             })?;
             report.retired += 1;
         }
+        Ok(report)
+    }
+
+    /// Resolve one strict-delivery request to a readable byte window.
+    /// Every request — ordinary or range — re-authorizes through the
+    /// declared read-access policy; nothing about a previous grant is
+    /// cached (LLP 0044 §Delivery profiles, `private-strict`).
+    pub(crate) fn asset_deliver(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        variant: &str,
+        range_header: Option<&str>,
+    ) -> SnapbackResult<AssetDeliveryOutcome> {
+        use crate::assets as assets;
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        let store = self.asset_store()?;
+        let now = now_millis();
+        let variant = variant.to_owned();
+        let range_header = range_header.map(str::to_owned);
+        self.db.asset_transaction(|tx| {
+            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+            if asset.availability == assets::AssetAvailability::Deleted {
+                // Deletion stops discovery and future canonical access on
+                // the next request; a tombstone serves nothing.
+                return Err(asset_unknown(asset_id)());
+            }
+            let decision =
+                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
+            if !decision.authorized {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "assets",
+                    "this asset is not readable by the caller",
+                ));
+            }
+            if asset.availability != assets::AssetAvailability::Ready {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_NOT_READY",
+                    "assets",
+                    "the asset has no deliverable bytes yet",
+                ));
+            }
+            let rendition = assets::load_rendition_by_variant(tx, asset_id, &variant)?
+                .filter(|r| r.state == assets::AssetRenditionState::Ready)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+                        "assets",
+                        format!("no ready rendition for variant {variant}"),
+                    )
+                })?;
+            let blob = assets::load_blob(tx, &rendition.blob_id)?
+                .filter(|b| !b.condemned)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        "the rendition's blob is not available",
+                    )
+                })?;
+            let range = assets::parse_byte_range(range_header.as_deref(), blob.byte_length);
+            if range == assets::ByteRangeOutcome::Unsatisfiable {
+                return Ok(AssetDeliveryOutcome::Unsatisfiable {
+                    total_length: blob.byte_length,
+                });
+            }
+            let (window_start, window_length, partial) = match range {
+                assets::ByteRangeOutcome::Partial { start, end } => {
+                    (start, end - start + 1, true)
+                }
+                _ => (0, blob.byte_length, false),
+            };
+            assets::write_receipt(
+                tx,
+                &asset_receipt(
+                    &asset.asset_id.clone(),
+                    assets::AssetReceiptEventV1::DeliveryAdmitted,
+                    &asset.asset_id,
+                    None,
+                    now,
+                    serde_json::json!({
+                        "profile": "private-strict",
+                        "variant": rendition.variant_key,
+                        "partial": partial,
+                        "windowStart": window_start,
+                        "windowLength": window_length,
+                    }),
+                ),
+            )?;
+            let filename = rendition
+                .media_facts
+                .as_ref()
+                .and_then(|facts| facts.get("filename"))
+                .and_then(|value| value.as_str())
+                .map(str::to_owned)
+                .unwrap_or_else(|| assets::sanitize_filename(None));
+            let disposition = if assets::forces_attachment_disposition(&blob.detected_content_type)
+            {
+                format!("attachment; filename=\"{filename}\"")
+            } else {
+                format!("inline; filename=\"{filename}\"")
+            };
+            Ok(AssetDeliveryOutcome::Content(Box::new(AssetDelivery {
+                file_path: store.blob_path(&blob.physical_key)?,
+                window_start,
+                window_length,
+                total_length: blob.byte_length,
+                content_type: blob.detected_content_type.clone(),
+                // Rendition-scoped so two assets sharing one deduplicated
+                // blob never expose equal validators (alias identity).
+                etag: format!("\"r-{}\"", rendition.rendition_id),
+                disposition,
+                partial,
+            })))
+        })
+    }
+
+    /// Explicit authorized delete: the one-transaction cascade of LLP 0044
+    /// §Lifecycle transitions. Idempotent on an already-deleted asset.
+    pub(crate) fn asset_delete(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+    ) -> SnapbackResult<Value> {
+        self.asset_delete_inner(authority, asset_id, false)
+    }
+
+    pub(crate) fn asset_delete_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        crash_mid_cascade: bool,
+    ) -> SnapbackResult<Value> {
+        use crate::assets as assets;
+        let caller = Self::asset_caller_principal(authority);
+        let now = now_millis();
+        let fenced_staging = self.db.asset_transaction(|tx| {
+            let mut asset =
+                assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+            if asset.availability == assets::AssetAvailability::Deleted {
+                return Ok(None);
+            }
+            if caller.as_deref() != Some(asset.owner_principal.as_str()) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "assets",
+                    "only the owner may delete this asset",
+                ));
+            }
+            if !assets::load_edges_for_asset(tx, asset_id)?.is_empty() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_REFERENCED",
+                    "assets",
+                    "typed references to this asset remain; clear them first",
+                ));
+            }
+            let staging =
+                asset_delete_cascade(tx, &mut asset, "explicit-delete", now)?;
+            if crash_mid_cascade {
+                return Err(asset_test_crash());
+            }
+            Ok(staging)
+        })?;
+        if let Some(staging_key) = fenced_staging {
+            self.asset_store()?.delete_staging(&staging_key)?;
+        }
+        self.db.asset_transaction(|tx| {
+            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+            Ok(serde_json::json!({
+                "assetId": asset.asset_id,
+                "availability": asset.availability,
+                "lifecycleGeneration": asset.lifecycle_generation,
+            }))
+        })
+    }
+
+    /// The mandatory GC sweep — one callable entry point for the L1-11
+    /// runner: expired attempts, staging orphans, pending-asset grace
+    /// reclamation, tombstone purge, blob condemnation/cleanup, and the
+    /// publication maintenance pass. Every reclamation receipts.
+    #[allow(dead_code)] // scheduled by the L1-11 runner; exercised in tests.
+    pub(crate) fn asset_gc_sweep(&mut self, now_ms: u64) -> SnapbackResult<AssetGcReport> {
+        use crate::assets as assets;
+        let store = self.asset_store()?;
+        let mut report = AssetGcReport::default();
+
+        // Attempt GC: expire overdue current attempts, then fence staging.
+        let expired = self
+            .db
+            .asset_transaction(|tx| assets::expired_current_attempts(tx, now_ms))?;
+        for mut attempt in expired {
+            self.db.asset_transaction(|tx| {
+                assets::transition_attempt(
+                    tx,
+                    &mut attempt,
+                    assets::AssetAttemptState::Expired,
+                    now_ms,
+                )?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &attempt.attempt_id.clone(),
+                        assets::AssetReceiptEventV1::AttemptExpired,
+                        &attempt.asset_id,
+                        Some(&attempt.attempt_id),
+                        now_ms,
+                        serde_json::json!({ "cause": "gc-sweep" }),
+                    ),
+                )
+            })?;
+            store.delete_staging(&attempt.staging_key)?;
+            report.expired_attempts += 1;
+        }
+
+        // Staging orphans: files no current attempt owns (crash leftovers).
+        let live: std::collections::HashSet<String> = self
+            .db
+            .asset_transaction(assets::live_staging_keys)?
+            .into_iter()
+            .collect();
+        for key in store.list_staging_keys()? {
+            if !live.contains(&key) {
+                store.delete_staging(&key)?;
+                report.staging_orphans_removed += 1;
+            }
+        }
+
+        // Pending-asset GC: unreferenced pending/rejected past grace transit
+        // `deleted`; referenced failures stay visible for repair.
+        let cutoff = now_ms.saturating_sub(assets::ASSET_PENDING_GRACE_MS);
+        let reclaimable = self
+            .db
+            .asset_transaction(|tx| assets::reclaimable_pending_assets(tx, cutoff))?;
+        for mut asset in reclaimable {
+            let staging = self.db.asset_transaction(|tx| {
+                let staging = asset_delete_cascade(tx, &mut asset, "pending-asset-gc", now_ms)?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &asset.asset_id.clone(),
+                        assets::AssetReceiptEventV1::GcReclaimed,
+                        &asset.asset_id,
+                        None,
+                        now_ms,
+                        serde_json::json!({
+                            "policy": "pending-asset-gc",
+                            "graceMs": assets::ASSET_PENDING_GRACE_MS,
+                        }),
+                    ),
+                )?;
+                Ok(staging)
+            })?;
+            if let Some(staging_key) = staging {
+                store.delete_staging(&staging_key)?;
+            }
+            report.pending_reclaimed += 1;
+        }
+
+        // Tombstone purge after retention: the receipts remain as evidence.
+        let tombstone_cutoff = now_ms.saturating_sub(assets::ASSET_TOMBSTONE_RETENTION_MS);
+        let purgeable = self
+            .db
+            .asset_transaction(|tx| assets::purgeable_tombstones(tx, tombstone_cutoff))?;
+        for asset_id in purgeable {
+            self.db.asset_transaction(|tx| {
+                tx.execute(
+                    "DELETE FROM _snapback_asset_renditions_v1
+                     WHERE asset_id = ?1 AND state = 'retired'",
+                    [&asset_id],
+                )?;
+                tx.execute(
+                    "DELETE FROM _snapback_asset_records_v1
+                     WHERE asset_id = ?1 AND availability = 'deleted'",
+                    [&asset_id],
+                )?;
+                Ok(())
+            })?;
+            report.tombstones_purged += 1;
+        }
+
+        // Blob GC: condemn transactionally, delete the object, then drop the
+        // condemned row — each step receipted and crash-recoverable (a
+        // condemned row with a missing file is resolved on the next sweep).
+        let blob_cutoff = now_ms.saturating_sub(assets::ASSET_BLOB_RETENTION_MS);
+        let condemnable = self
+            .db
+            .asset_transaction(|tx| assets::condemnable_blobs(tx, blob_cutoff))?;
+        for blob in condemnable {
+            let condemned = self.db.asset_transaction(|tx| {
+                let condemned = assets::condemn_blob_if_unreferenced(tx, &blob.blob_id, now_ms)?;
+                if condemned {
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &blob.blob_id.clone(),
+                            assets::AssetReceiptEventV1::GcReclaimed,
+                            &blob.blob_id,
+                            None,
+                            now_ms,
+                            serde_json::json!({
+                                "policy": "blob-gc",
+                                "action": "condemned",
+                                "retentionMs": assets::ASSET_BLOB_RETENTION_MS,
+                            }),
+                        ),
+                    )?;
+                }
+                Ok(condemned)
+            })?;
+            if condemned {
+                report.blobs_condemned += 1;
+            }
+        }
+        for blob in self.db.asset_transaction(assets::condemned_blobs)? {
+            let path = store.blob_path(&blob.physical_key)?;
+            if path.exists() {
+                std::fs::remove_file(&path).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        format!("cannot delete condemned blob object: {error}"),
+                    )
+                })?;
+                report.blob_objects_deleted += 1;
+            }
+            self.db.asset_transaction(|tx| {
+                assets::delete_blob_row(tx, &blob.blob_id)?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &blob.blob_id.clone(),
+                        assets::AssetReceiptEventV1::GcReclaimed,
+                        &blob.blob_id,
+                        None,
+                        now_ms,
+                        serde_json::json!({ "policy": "blob-gc", "action": "purged" }),
+                    ),
+                )
+            })?;
+            report.blob_rows_removed += 1;
+        }
+
+        report.publication = self.asset_publication_maintain(now_ms)?;
         Ok(report)
     }
 
@@ -13496,6 +13858,7 @@ impl LocalSnapback {
             db,
             stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            asset_memory_store_root: std::sync::OnceLock::new(),
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,
@@ -19268,6 +19631,118 @@ pub(crate) struct AssetPublicationMaintenanceReport {
     pub objects_deleted: u64,
 }
 
+/// One resolved strict-delivery window over an `(asset, rendition)` alias.
+#[derive(Debug)]
+pub(crate) struct AssetDelivery {
+    pub file_path: std::path::PathBuf,
+    pub window_start: u64,
+    pub window_length: u64,
+    pub total_length: u64,
+    pub content_type: String,
+    pub etag: String,
+    pub disposition: String,
+    pub partial: bool,
+}
+
+pub(crate) enum AssetDeliveryOutcome {
+    Content(Box<AssetDelivery>),
+    /// Syntactically valid but unsatisfiable range: 416 with the total.
+    Unsatisfiable { total_length: u64 },
+}
+
+#[derive(Debug, Default)]
+#[allow(dead_code)]
+pub(crate) struct AssetGcReport {
+    pub expired_attempts: u64,
+    pub staging_orphans_removed: u64,
+    pub pending_reclaimed: u64,
+    pub tombstones_purged: u64,
+    pub blobs_condemned: u64,
+    pub blob_objects_deleted: u64,
+    pub blob_rows_removed: u64,
+    pub publication: AssetPublicationMaintenanceReport,
+}
+
+fn asset_unknown(asset_id: &str) -> impl Fn() -> SnapbackError + '_ {
+    move || {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_UNKNOWN",
+            "assets",
+            format!("unknown asset {asset_id}"),
+        )
+    }
+}
+
+/// The one-transaction deletion cascade (LLP 0044 §Lifecycle transitions):
+/// fence the current attempt, retire every rendition row, decrement each
+/// rendition's blob reference — the primary exactly once, because primary
+/// bytes are only the `primary` rendition record — and transit the asset,
+/// whose generation bump fences in-flight work at its next generation
+/// check. Logical quota releases at this commit because settled usage
+/// counts only live renditions. Returns the fenced staging key; the caller
+/// removes the file after commit (orphans belong to the sweep).
+fn asset_delete_cascade(
+    tx: &rusqlite::Transaction<'_>,
+    asset: &mut crate::assets::AssetRecordV1,
+    cause: &str,
+    now_ms: u64,
+) -> SnapbackResult<Option<String>> {
+    use crate::assets as assets;
+    let mut fenced_staging = None;
+    if let Some(mut attempt) = assets::current_attempt(tx, &asset.asset_id)? {
+        assets::transition_attempt(tx, &mut attempt, assets::AssetAttemptState::Cancelled, now_ms)?;
+        assets::write_receipt(
+            tx,
+            &asset_receipt(
+                &attempt.attempt_id.clone(),
+                assets::AssetReceiptEventV1::AttemptCancelled,
+                &asset.asset_id,
+                Some(&attempt.attempt_id),
+                now_ms,
+                serde_json::json!({ "cause": cause }),
+            ),
+        )?;
+        fenced_staging = Some(attempt.staging_key);
+    }
+    let mut renditions_retired = 0u64;
+    let mut blobs_released = Vec::new();
+    for mut rendition in assets::renditions_for_asset(tx, &asset.asset_id)? {
+        use crate::assets::AssetRenditionState as R;
+        if rendition.state == R::Retired {
+            continue;
+        }
+        // Failed renditions hold no committed blob reference (their
+        // publication was condemned); every other live state does.
+        let holds_reference = matches!(rendition.state, R::Pending | R::Ready | R::Superseded);
+        assets::transition_rendition(tx, &mut rendition, R::Retired, now_ms)?;
+        if holds_reference {
+            let remaining = assets::release_blob_reference(tx, &rendition.blob_id, now_ms)?;
+            blobs_released.push(serde_json::json!({
+                "blobId": rendition.blob_id,
+                "remainingReferences": remaining,
+            }));
+        }
+        renditions_retired += 1;
+    }
+    assets::transition_asset(tx, asset, assets::AssetAvailability::Deleted, now_ms)?;
+    assets::write_receipt(
+        tx,
+        &asset_receipt(
+            &asset.asset_id.clone(),
+            assets::AssetReceiptEventV1::AssetDeleted,
+            &asset.asset_id,
+            None,
+            now_ms,
+            serde_json::json!({
+                "cause": cause,
+                "renditionsRetired": renditions_retired,
+                "blobsReleased": blobs_released,
+            }),
+        ),
+    )?;
+    Ok(fenced_staging)
+}
+
 struct AssetStagedBytes {
     byte_length: u64,
     /// Lowercase hex SHA-256 over the full byte stream.
@@ -21537,6 +22012,348 @@ globalThis.__snapbackHandlers = {
             })
             .expect("blobs");
         assert_eq!(blob_count, 1, "retirement never touches the blob");
+    }
+
+    // -----------------------------------------------------------------
+    // Strict delivery and the deletion/GC sweeps (tickets L1-09/L1-10).
+    // -----------------------------------------------------------------
+
+    fn asset_deliver_content(
+        snapback: &mut LocalSnapback,
+        user: &str,
+        asset_id: &str,
+        variant: &str,
+        range: Option<&str>,
+    ) -> SnapbackResult<crate::local::AssetDelivery> {
+        let authority = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
+        match snapback.asset_deliver(&authority, asset_id, variant, range)? {
+            crate::local::AssetDeliveryOutcome::Content(delivery) => Ok(*delivery),
+            crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => Err(SnapbackError::error(
+                "TEST_UNSATISFIABLE",
+                "assets",
+                format!("unsatisfiable over {total_length}"),
+            )),
+        }
+    }
+
+    fn asset_window_bytes(delivery: &crate::local::AssetDelivery) -> Vec<u8> {
+        use std::io::{Read, Seek};
+        let mut file = std::fs::File::open(&delivery.file_path).expect("blob object opens");
+        file.seek(std::io::SeekFrom::Start(delivery.window_start))
+            .expect("seek");
+        let mut bytes = vec![0u8; delivery.window_length as usize];
+        file.read_exact(&mut bytes).expect("window reads");
+        bytes
+    }
+
+    #[test]
+    fn asset_delivery_serves_full_and_range_windows_with_strict_facts() {
+        let mut snapback = asset_test_snapback();
+        // The test intent accepts application/octet-stream, so the payload
+        // stays unrecognized; the inline branch is covered at the unit
+        // level (`forces_attachment_disposition`).
+        let bytes: Vec<u8> = b"opaque-payload-window-bytes".to_vec();
+        let asset_id = asset_ready(&mut snapback, "user_a", &bytes);
+
+        let full = asset_deliver_content(&mut snapback, "user_a", &asset_id, "primary", None)
+            .expect("full delivery");
+        assert!(!full.partial);
+        assert_eq!(full.total_length, bytes.len() as u64);
+        assert_eq!(full.window_length, bytes.len() as u64);
+        assert_eq!(full.content_type, "application/octet-stream");
+        assert!(full.disposition.starts_with("attachment;"));
+        assert!(full.disposition.contains("photo.bin"));
+        assert!(full.etag.starts_with("\"r-"));
+        assert_eq!(asset_window_bytes(&full), bytes);
+
+        let range = asset_deliver_content(
+            &mut snapback,
+            "user_a",
+            &asset_id,
+            "primary",
+            Some("bytes=2-5"),
+        )
+        .expect("range delivery");
+        assert!(range.partial);
+        assert_eq!(range.window_start, 2);
+        assert_eq!(range.window_length, 4);
+        assert_eq!(asset_window_bytes(&range), bytes[2..6].to_vec());
+
+        let suffix = asset_deliver_content(
+            &mut snapback,
+            "user_a",
+            &asset_id,
+            "primary",
+            Some("bytes=-4"),
+        )
+        .expect("suffix range");
+        assert_eq!(suffix.window_start, bytes.len() as u64 - 4);
+        assert_eq!(suffix.window_length, 4);
+
+        // Syntactically valid but past the end: 416 with the total, per
+        // RFC 9110; the outcome carries what the handler needs.
+        let authority = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        match snapback
+            .asset_deliver(&authority, &asset_id, "primary", Some("bytes=999999-"))
+            .expect("outcome resolves")
+        {
+            crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
+                assert_eq!(total_length, bytes.len() as u64);
+            }
+            crate::local::AssetDeliveryOutcome::Content(_) => panic!("range past end must be unsatisfiable"),
+        }
+
+        // Unknown variants and unknown assets are 404-shaped; foreign
+        // callers are denied by the read policy on every request.
+        let missing = asset_deliver_content(&mut snapback, "user_a", &asset_id, "thumb", None)
+            .expect_err("unknown variant refuses");
+        assert_eq!(missing.diagnostic.code, "SNAPBACK_ASSET_VARIANT_UNKNOWN");
+        let foreign = asset_deliver_content(&mut snapback, "user_b", &asset_id, "primary", None)
+            .expect_err("foreign caller refuses");
+        assert_eq!(foreign.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+
+        let events = asset_receipt_events(&mut snapback, &asset_id);
+        assert!(
+            events.iter().filter(|e| *e == "delivery-admitted").count() >= 3,
+            "every admitted request receipts: {events:?}"
+        );
+    }
+
+    #[test]
+    fn asset_delivery_forces_attachment_for_unrecognized_bytes_and_gates_readiness() {
+        let mut snapback = asset_test_snapback();
+        // No magic prefix: detection yields application/octet-stream, which
+        // never serves inline (nosniff rides in the response headers).
+        let asset_id = asset_ready(&mut snapback, "user_a", b"opaque-unrecognized-bytes");
+        let delivery = asset_deliver_content(&mut snapback, "user_a", &asset_id, "primary", None)
+            .expect("delivers");
+        assert_eq!(delivery.content_type, "application/octet-stream");
+        assert!(delivery.disposition.starts_with("attachment;"));
+        assert!(delivery.disposition.contains("photo.bin"));
+
+        // A pending asset has no deliverable bytes yet.
+        let creator = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let pending = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(8)))
+            .expect("pending attempt");
+        let refused = asset_deliver_content(
+            &mut snapback,
+            "user_a",
+            &pending.task.asset_id,
+            "primary",
+            None,
+        )
+        .expect_err("pending refuses");
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_ASSET_NOT_READY");
+    }
+
+    #[test]
+    fn asset_delete_cascade_is_exact_on_shared_and_unshared_blobs() {
+        let mut snapback = asset_test_snapback();
+        let shared_bytes = b"dedup-shared-window".to_vec();
+        let asset_a = asset_ready(&mut snapback, "user_a", &shared_bytes);
+        let asset_b = asset_ready(&mut snapback, "user_a", &shared_bytes);
+        let asset_c = asset_ready(&mut snapback, "user_a", b"unshared-window");
+
+        let settled_before = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::asset_accounting(tx, "local-app"))
+            .expect("accounting")
+            .settled_bytes;
+
+        // Deleting A: the shared blob keeps B's reference; B still delivers
+        // through its own alias (URL identity under dedup).
+        let owner = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        snapback.asset_delete(&owner, &asset_a).expect("delete a");
+        let (availability, blob_refs): (String, u64) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset = crate::assets::load_asset(tx, &asset_a)?.expect("asset row");
+                let refs: u64 = tx.query_row(
+                    "SELECT reference_count FROM _snapback_asset_blobs_v1
+                     WHERE condemned = 0",
+                    [],
+                    |row| row.get(0),
+                )?;
+                Ok((
+                    serde_json::to_value(asset.availability)
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .to_owned(),
+                    refs,
+                ))
+            })
+            .map(|(a, r): (String, u64)| (a, r))
+            .expect("post-delete facts");
+        assert_eq!(availability, "deleted");
+        // Two blobs remain (shared + unshared); assert the shared one
+        // dropped to exactly one reference — the primary counted once.
+        let _ = blob_refs;
+        let shared_refs: u64 = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row(
+                    "SELECT reference_count FROM _snapback_asset_blobs_v1
+                     WHERE reference_count > 0 ORDER BY reference_count DESC LIMIT 1",
+                    [],
+                    |row| row.get(0),
+                )?)
+            })
+            .expect("shared refcount");
+        assert_eq!(shared_refs, 1, "shared blob keeps exactly B's reference");
+        asset_deliver_content(&mut snapback, "user_a", &asset_b, "primary", None)
+            .expect("B still delivers after A's deletion");
+
+        // Quota released at tombstone commit: settled usage dropped by
+        // exactly A's charge (the minimum accounting unit here).
+        let settled_after = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::asset_accounting(tx, "local-app"))
+            .expect("accounting")
+            .settled_bytes;
+        assert_eq!(
+            settled_before - settled_after,
+            crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES,
+            "one charge released, primary counted exactly once"
+        );
+
+        // Deleting C zero-references its blob; the sweep condemns, deletes
+        // the object, drops the row — and never touches the shared blob.
+        snapback.asset_delete(&owner, &asset_c).expect("delete c");
+        let far_future = now_millis() + crate::assets::ASSET_BLOB_RETENTION_MS + 1000;
+        let report = snapback.asset_gc_sweep(far_future).expect("sweep");
+        assert_eq!(report.blobs_condemned, 1);
+        assert_eq!(report.blob_objects_deleted, 1);
+        assert_eq!(report.blob_rows_removed, 1);
+        asset_deliver_content(&mut snapback, "user_a", &asset_b, "primary", None)
+            .expect("B survives blob GC of C");
+        // Deletion denies the next request outright.
+        let gone = asset_deliver_content(&mut snapback, "user_a", &asset_a, "primary", None)
+            .expect_err("deleted asset serves nothing");
+        assert_eq!(gone.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
+    }
+
+    #[test]
+    fn asset_delete_refuses_foreign_callers_references_and_recovers_from_crash() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"referenced-bytes");
+
+        // Foreign caller: denied before any cascade step.
+        let foreign = asset_dev_authority(&mut snapback, "user_b", InvocationSource::HttpQuery);
+        let refused = snapback
+            .asset_delete(&foreign, &asset_id)
+            .expect_err("foreign delete refuses");
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+
+        // While a typed edge remains, explicit delete refuses.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "posts".to_owned(),
+                id: "post_ref".to_owned(),
+                values: serde_json::Map::from_iter([
+                    ("title".to_owned(), json!("holds a reference")),
+                    ("photo".to_owned(), json!(asset_id.clone())),
+                ]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: Some("avatarUpload".to_owned()),
+            }],
+        )
+        .expect("attach commits");
+        let owner = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let referenced = snapback
+            .asset_delete(&owner, &asset_id)
+            .expect_err("referenced delete refuses");
+        assert_eq!(referenced.diagnostic.code, "SNAPBACK_ASSET_REFERENCED");
+
+        // Clearing the field removes the edge; a crash mid-cascade rolls
+        // the whole transaction back — nothing half-deleted survives.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Patch {
+                table: "posts".to_owned(),
+                id: "post_ref".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), Value::Null)]),
+            }],
+            Vec::new(),
+        )
+        .expect("clear commits");
+        let crashed = snapback
+            .asset_delete_inner(&owner, &asset_id, true)
+            .expect_err("injected crash");
+        assert_eq!(crashed.diagnostic.code, "SNAPBACK_ASSET_TEST_CRASH");
+        let (availability, rendition_state) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset = crate::assets::load_asset(tx, &asset_id)?.expect("asset");
+                let renditions = crate::assets::renditions_for_asset(tx, &asset_id)?;
+                Ok((
+                    serde_json::to_value(asset.availability).unwrap(),
+                    serde_json::to_value(renditions[0].state).unwrap(),
+                ))
+            })
+            .expect("facts");
+        assert_eq!(availability, json!("ready"), "crash rolled the cascade back");
+        assert_eq!(rendition_state, json!("ready"));
+
+        // The retried delete completes and is idempotent thereafter.
+        snapback.asset_delete(&owner, &asset_id).expect("delete");
+        let again = snapback
+            .asset_delete(&owner, &asset_id)
+            .expect("idempotent delete");
+        assert_eq!(again["availability"], json!("deleted"));
+    }
+
+    #[test]
+    fn asset_gc_reclaims_expired_attempts_pending_assets_orphans_and_tombstones() {
+        let mut snapback = asset_test_snapback();
+        let creator = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let created = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(16)))
+            .expect("attempt");
+        let store = snapback.asset_store().expect("store");
+        // A stray staging file no attempt owns — a crash leftover.
+        let orphan_key = crate::assets::AssetFsStore::new_opaque_key();
+        std::fs::write(store.staging_path(&orphan_key).expect("path"), b"orphan")
+            .expect("orphan written");
+
+        let after_grace =
+            now_millis() + crate::assets::ASSET_ATTEMPT_TTL_MS.max(
+                crate::assets::ASSET_PENDING_GRACE_MS,
+            ) + 1000;
+        let report = snapback.asset_gc_sweep(after_grace).expect("sweep");
+        assert_eq!(report.expired_attempts, 1, "overdue attempt expired");
+        assert!(report.staging_orphans_removed >= 1, "orphan removed");
+        assert_eq!(report.pending_reclaimed, 1, "pending asset reclaimed");
+        let events = asset_receipt_events(&mut snapback, &created.task.asset_id);
+        assert!(events.contains(&"attempt-expired".to_owned()));
+        assert!(events.contains(&"gc-reclaimed".to_owned()));
+        assert!(events.contains(&"asset-deleted".to_owned()));
+
+        // Past tombstone retention, the rows purge; receipts remain.
+        let after_retention = after_grace + crate::assets::ASSET_TOMBSTONE_RETENTION_MS + 1000;
+        let report = snapback.asset_gc_sweep(after_retention).expect("sweep 2");
+        assert_eq!(report.tombstones_purged, 1);
+        let row_count: u64 = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_records_v1 WHERE asset_id = ?1",
+                    [&created.task.asset_id],
+                    |row| row.get(0),
+                )?)
+            })
+            .expect("count");
+        assert_eq!(row_count, 0, "tombstone purged");
+        assert!(
+            !asset_receipt_events(&mut snapback, &created.task.asset_id).is_empty(),
+            "receipts outlive the purged rows as evidence"
+        );
     }
 
     #[test]

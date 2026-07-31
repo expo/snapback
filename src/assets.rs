@@ -47,6 +47,18 @@ pub const ASSET_TUS_CHECKSUM_ALGORITHMS: [&str; 1] = ["sha256"];
 /// bytes. The policy tag participates in blob identity so a future rewriting
 /// policy can never alias digests across policies.
 pub const ASSET_CANONICALIZATION_NONE: &str = "none";
+
+/// Grace period before an unreferenced pending/rejected asset is reclaimed
+/// (LLP 0044 §Deletion: pending-asset GC is mandatory, referenced failures
+/// stay visible for repair).
+pub const ASSET_PENDING_GRACE_MS: u64 = 24 * 60 * 60 * 1000;
+/// Retention fence before a zero-referenced blob may be condemned.
+pub const ASSET_BLOB_RETENTION_MS: u64 = 60 * 60 * 1000;
+/// How long a deleted-asset tombstone (and its receipts) stays queryable
+/// before the sweep purges the rows.
+pub const ASSET_TOMBSTONE_RETENTION_MS: u64 = 7 * 24 * 60 * 60 * 1000;
+/// Streaming chunk size for strict delivery.
+pub const ASSET_DELIVERY_CHUNK_BYTES: usize = 64 * 1024;
 /// Committed publication records retire after this window — the blob row is
 /// the durable evidence from then on — so the record ceiling can never silt
 /// up into a permanent upload limit (LLP 0044 §Publication and crash
@@ -1361,6 +1373,36 @@ impl AssetFsStore {
         Ok(self.blobs_dir.join(validated_key(physical_key)?))
     }
 
+    /// Every file currently in the staging namespace, by opaque key. The GC
+    /// sweep diffs this against live attempts to find crash orphans.
+    pub fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
+        let mut keys = Vec::new();
+        let entries = match std::fs::read_dir(&self.staging_dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(keys),
+            Err(error) => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot list staging: {error}"),
+                ));
+            }
+        };
+        for entry in entries {
+            let entry = entry.map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot list staging: {error}"),
+                )
+            })?;
+            if let Some(name) = entry.file_name().to_str() {
+                keys.push(name.to_owned());
+            }
+        }
+        Ok(keys)
+    }
+
     pub fn delete_staging(&self, staging_key: &str) -> SnapbackResult<()> {
         let path = self.staging_path(staging_key)?;
         match std::fs::remove_file(&path) {
@@ -1614,6 +1656,304 @@ pub fn load_rendition(
         )
         .optional()?;
     json.map(|json| decode_record(&json)).transpose()
+}
+
+/// The closed rendition transition table. `retired` is the deletion
+/// cascade's terminal state; every live state reaches it.
+pub fn rendition_transition_allowed(
+    from: AssetRenditionState,
+    to: AssetRenditionState,
+) -> bool {
+    use AssetRenditionState as R;
+    matches!(
+        (from, to),
+        (R::Pending, R::Ready)
+            | (R::Pending, R::Failed)
+            | (R::Ready, R::Superseded)
+            | (
+                R::Pending | R::Ready | R::Failed | R::Superseded,
+                R::Retired
+            )
+    )
+}
+
+pub fn store_rendition(tx: &Transaction<'_>, record: &AssetRenditionRecordV1) -> SnapbackResult<()> {
+    let changed = tx.execute(
+        "UPDATE _snapback_asset_renditions_v1
+         SET state = ?2, record_json = ?3, updated_at_ms = ?4
+         WHERE rendition_id = ?1",
+        rusqlite::params![
+            record.rendition_id,
+            state_str(record.state)?,
+            record_json(record)?,
+            record.updated_at_ms,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("rendition {} does not exist to update", record.rendition_id),
+        ));
+    }
+    Ok(())
+}
+
+pub fn transition_rendition(
+    tx: &Transaction<'_>,
+    record: &mut AssetRenditionRecordV1,
+    to: AssetRenditionState,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    if !rendition_transition_allowed(record.state, to) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_TRANSITION_INVALID",
+            "assets",
+            format!("rendition state cannot move {:?} → {to:?}", record.state),
+        ));
+    }
+    record.state = to;
+    record.updated_at_ms = now_ms;
+    store_rendition(tx, record)
+}
+
+pub fn renditions_for_asset(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+) -> SnapbackResult<Vec<AssetRenditionRecordV1>> {
+    let mut stmt = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_renditions_v1
+         WHERE asset_id = ?1 ORDER BY rendition_id",
+    )?;
+    let rows = stmt.query_map([asset_id], |row| row.get::<_, String>(0))?;
+    rows.map(|json| decode_record(&json?))
+        .collect::<SnapbackResult<Vec<_>>>()
+}
+
+/// Delivery resolves `(asset, variant)` aliases only; blob identity never
+/// appears in a URL (LLP 0044 §Delivery profiles, URL identity).
+pub fn load_rendition_by_variant(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+    variant_key: &str,
+) -> SnapbackResult<Option<AssetRenditionRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_renditions_v1
+             WHERE asset_id = ?1 AND variant_key = ?2
+               AND state IN ('pending', 'ready')",
+            rusqlite::params![asset_id, variant_key],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+// ---------------------------------------------------------------------------
+// Strict delivery header rules (LLP 0044 §Delivery profiles).
+// ---------------------------------------------------------------------------
+
+/// Content types with active-content risk are never served inline under any
+/// profile in v1 — a stored SVG must not become a same-origin script lane.
+/// Unrecognized bytes (`application/octet-stream`) also force attachment:
+/// trusted detection could not name them, so no browser should be invited
+/// to sniff and render them either (delivery adds `nosniff` besides).
+pub fn forces_attachment_disposition(content_type: &str) -> bool {
+    let essence = content_type
+        .split(';')
+        .next()
+        .unwrap_or(content_type)
+        .trim()
+        .to_ascii_lowercase();
+    matches!(
+        essence.as_str(),
+        "image/svg+xml"
+            | "text/html"
+            | "application/xhtml+xml"
+            | "text/xml"
+            | "application/xml"
+            | "text/javascript"
+            | "application/javascript"
+            | "application/octet-stream"
+    )
+}
+
+/// The original filename is metadata only, sanitized before it can appear in
+/// a `Content-Disposition` parameter; it is never a physical key.
+pub fn sanitize_filename(declared: Option<&str>) -> String {
+    let cleaned: String = declared
+        .unwrap_or("")
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | ' ') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let trimmed = cleaned.trim_matches([' ', '.']).to_owned();
+    if trimmed.is_empty() {
+        return "download".to_owned();
+    }
+    trimmed.chars().take(128).collect()
+}
+
+/// One parsed `Range` outcome. Multi-range and non-byte units are ignored
+/// (RFC 9110 permits serving the full representation); a syntactically valid
+/// but unsatisfiable range is 416. `If-Range` is not implemented in v1 —
+/// renditions are immutable, so a stale validator cannot observe torn bytes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ByteRangeOutcome {
+    Full,
+    /// Inclusive byte window.
+    Partial { start: u64, end: u64 },
+    Unsatisfiable,
+}
+
+pub fn parse_byte_range(header: Option<&str>, total_length: u64) -> ByteRangeOutcome {
+    let Some(header) = header else {
+        return ByteRangeOutcome::Full;
+    };
+    let Some(spec) = header.trim().strip_prefix("bytes=") else {
+        return ByteRangeOutcome::Full;
+    };
+    if spec.contains(',') {
+        return ByteRangeOutcome::Full;
+    }
+    let Some((raw_start, raw_end)) = spec.split_once('-') else {
+        return ByteRangeOutcome::Full;
+    };
+    let (raw_start, raw_end) = (raw_start.trim(), raw_end.trim());
+    if raw_start.is_empty() {
+        // Suffix range: the final N bytes.
+        let Ok(suffix) = raw_end.parse::<u64>() else {
+            return ByteRangeOutcome::Full;
+        };
+        if suffix == 0 || total_length == 0 {
+            return ByteRangeOutcome::Unsatisfiable;
+        }
+        let start = total_length.saturating_sub(suffix);
+        return ByteRangeOutcome::Partial { start, end: total_length - 1 };
+    }
+    let Ok(start) = raw_start.parse::<u64>() else {
+        return ByteRangeOutcome::Full;
+    };
+    if start >= total_length {
+        return ByteRangeOutcome::Unsatisfiable;
+    }
+    if raw_end.is_empty() {
+        return ByteRangeOutcome::Partial { start, end: total_length - 1 };
+    }
+    let Ok(end) = raw_end.parse::<u64>() else {
+        return ByteRangeOutcome::Full;
+    };
+    if end < start {
+        return ByteRangeOutcome::Unsatisfiable;
+    }
+    ByteRangeOutcome::Partial { start, end: end.min(total_length - 1) }
+}
+
+// ---------------------------------------------------------------------------
+// GC query helpers (LLP 0044 §Deletion, retention, and garbage collection).
+// The sweeps themselves live on `LocalSnapback`; these keep the SQL beside
+// the tables.
+// ---------------------------------------------------------------------------
+
+pub fn expired_current_attempts(
+    tx: &Transaction<'_>,
+    now_ms: u64,
+) -> SnapbackResult<Vec<AssetAttemptRecordV1>> {
+    let mut stmt = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_attempts_v1
+         WHERE state IN ('open', 'transferring', 'finalizing')
+           AND expires_at_ms < ?1",
+    )?;
+    let rows = stmt.query_map([now_ms], |row| row.get::<_, String>(0))?;
+    rows.map(|json| decode_record(&json?))
+        .collect::<SnapbackResult<Vec<_>>>()
+}
+
+/// Staging keys still owned by a live (current) attempt — every other file
+/// in the staging namespace is an orphan the sweep may remove.
+pub fn live_staging_keys(tx: &Transaction<'_>) -> SnapbackResult<Vec<String>> {
+    let mut stmt = tx.prepare(
+        "SELECT staging_key FROM _snapback_asset_attempts_v1
+         WHERE state IN ('open', 'transferring', 'finalizing')",
+    )?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+/// Unreferenced pending/rejected assets whose grace period has passed and
+/// that have no live attempt. Referenced failures stay visible for repair.
+pub fn reclaimable_pending_assets(
+    tx: &Transaction<'_>,
+    cutoff_ms: u64,
+) -> SnapbackResult<Vec<AssetRecordV1>> {
+    let mut stmt = tx.prepare(
+        "SELECT a.record_json FROM _snapback_asset_records_v1 a
+         WHERE a.availability IN ('pending', 'rejected')
+           AND a.updated_at_ms < ?1
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_reference_edges_v1 e
+               WHERE e.asset_id = a.asset_id)
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_attempts_v1 t
+               WHERE t.asset_id = a.asset_id
+                 AND t.state IN ('open', 'transferring', 'finalizing'))",
+    )?;
+    let rows = stmt.query_map([cutoff_ms], |row| row.get::<_, String>(0))?;
+    rows.map(|json| decode_record(&json?))
+        .collect::<SnapbackResult<Vec<_>>>()
+}
+
+/// Deleted-asset tombstones past retention with no remaining edges; the
+/// sweep purges these rows (and their retired renditions) outright.
+pub fn purgeable_tombstones(
+    tx: &Transaction<'_>,
+    cutoff_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    let mut stmt = tx.prepare(
+        "SELECT a.asset_id FROM _snapback_asset_records_v1 a
+         WHERE a.availability = 'deleted'
+           AND a.updated_at_ms < ?1
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_reference_edges_v1 e
+               WHERE e.asset_id = a.asset_id)",
+    )?;
+    let rows = stmt.query_map([cutoff_ms], |row| row.get::<_, String>(0))?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+pub fn condemnable_blobs(
+    tx: &Transaction<'_>,
+    cutoff_ms: u64,
+) -> SnapbackResult<Vec<AssetBlobRecordV1>> {
+    let mut stmt = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_blobs_v1
+         WHERE reference_count = 0 AND condemned = 0 AND updated_at_ms < ?1",
+    )?;
+    let rows = stmt.query_map([cutoff_ms], |row| row.get::<_, String>(0))?;
+    rows.map(|json| decode_record(&json?))
+        .collect::<SnapbackResult<Vec<_>>>()
+}
+
+pub fn condemned_blobs(tx: &Transaction<'_>) -> SnapbackResult<Vec<AssetBlobRecordV1>> {
+    let mut stmt = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_blobs_v1 WHERE condemned = 1",
+    )?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    rows.map(|json| decode_record(&json?))
+        .collect::<SnapbackResult<Vec<_>>>()
+}
+
+pub fn delete_blob_row(tx: &Transaction<'_>, blob_id: &str) -> SnapbackResult<()> {
+    tx.execute(
+        "DELETE FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1 AND condemned = 1",
+        [blob_id],
+    )?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -2038,5 +2378,73 @@ mod tests {
             serde_json::json!("received-bytes-canonical"),
         );
         assert!(serde_json::from_value::<AssetWorkState>(serde_json::json!(0)).is_err());
+    }
+
+    #[test]
+    fn byte_ranges_parse_per_rfc_9110_single_range_semantics() {
+        use ByteRangeOutcome as O;
+        assert_eq!(parse_byte_range(None, 100), O::Full);
+        assert_eq!(parse_byte_range(Some("bytes=0-99"), 100), O::Partial { start: 0, end: 99 });
+        assert_eq!(parse_byte_range(Some("bytes=2-5"), 100), O::Partial { start: 2, end: 5 });
+        // An end past the representation clamps (RFC 9110 §14.1.2).
+        assert_eq!(
+            parse_byte_range(Some("bytes=90-150"), 100),
+            O::Partial { start: 90, end: 99 }
+        );
+        assert_eq!(
+            parse_byte_range(Some("bytes=10-"), 100),
+            O::Partial { start: 10, end: 99 }
+        );
+        assert_eq!(
+            parse_byte_range(Some("bytes=-4"), 100),
+            O::Partial { start: 96, end: 99 }
+        );
+        // A suffix longer than the representation is the whole thing.
+        assert_eq!(
+            parse_byte_range(Some("bytes=-500"), 100),
+            O::Partial { start: 0, end: 99 }
+        );
+        assert_eq!(parse_byte_range(Some("bytes=100-"), 100), O::Unsatisfiable);
+        assert_eq!(parse_byte_range(Some("bytes=5-2"), 100), O::Unsatisfiable);
+        assert_eq!(parse_byte_range(Some("bytes=-0"), 100), O::Unsatisfiable);
+        // Multi-range and foreign units are ignored, never mis-served.
+        assert_eq!(parse_byte_range(Some("bytes=0-1,5-9"), 100), O::Full);
+        assert_eq!(parse_byte_range(Some("items=0-4"), 100), O::Full);
+        assert_eq!(parse_byte_range(Some("bytes=abc-"), 100), O::Full);
+    }
+
+    #[test]
+    fn active_content_and_unrecognized_types_force_attachment() {
+        assert!(forces_attachment_disposition("image/svg+xml"));
+        assert!(forces_attachment_disposition("TEXT/HTML; charset=utf-8"));
+        assert!(forces_attachment_disposition("application/xml"));
+        assert!(forces_attachment_disposition("application/octet-stream"));
+        assert!(!forces_attachment_disposition("image/png"));
+        assert!(!forces_attachment_disposition("image/jpeg"));
+        assert!(!forces_attachment_disposition("video/mp4"));
+    }
+
+    #[test]
+    fn filenames_sanitize_to_safe_metadata() {
+        assert_eq!(sanitize_filename(Some("photo.bin")), "photo.bin");
+        // Path separators are gone; residual dots/underscores are inert.
+        assert_eq!(sanitize_filename(Some("../../etc/passwd")), "_.._etc_passwd");
+        assert_eq!(sanitize_filename(Some("a\"b\r\nc.png")), "a_b__c.png");
+        assert_eq!(sanitize_filename(Some("  ..  ")), "download");
+        assert_eq!(sanitize_filename(None), "download");
+    }
+
+    #[test]
+    fn rendition_transitions_are_closed_and_reach_retired() {
+        use AssetRenditionState as R;
+        assert!(rendition_transition_allowed(R::Pending, R::Ready));
+        assert!(rendition_transition_allowed(R::Pending, R::Failed));
+        assert!(rendition_transition_allowed(R::Ready, R::Superseded));
+        for from in [R::Pending, R::Ready, R::Failed, R::Superseded] {
+            assert!(rendition_transition_allowed(from, R::Retired));
+        }
+        assert!(!rendition_transition_allowed(R::Retired, R::Ready));
+        assert!(!rendition_transition_allowed(R::Failed, R::Ready));
+        assert!(!rendition_transition_allowed(R::Superseded, R::Ready));
     }
 }
