@@ -5,7 +5,20 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-26 (candidate-only run-capsule verifier correction —
+**Revised:** 2026-07-30 (protocol amendment v0.9 — author decisions, Charlie
+Cheever, in-session: the four choice forks are pinned (assistance policy:
+one identical Claude Code + claude-fable-5 + default-tools agent across
+arms with per-arm vendor docs by digest; frontend hosting: one shared
+Cloudflare Pages host for both arms, provisioning untimed; application
+auth: idiomatic first-party per arm — Snapback built-in email-code, Convex
+Auth — provisioning untimed, wiring timed; comparator local leg: cloud
+development deployment primary, account-free local beta an optional
+preregistered sensitivity arm only) and the statistics, metric-definition,
+and gate-matrix candidates are ratified at their content digests. After
+v0.9 the only unpinned-blocks-timed-runs entries are the scoring anchors
+(preregistration before any evidence reveal, non-author-family scorer) and
+the run capsule (which carries the not-yet-provisioned Convex-account and
+frontend-host credential preconditions).) 2026-07-26 (candidate-only run-capsule verifier correction —
 manifest validation, filesystem walks, canonical JSON keys, and npm closure
 paths now share one host-independent UTF-16 code-unit order. The verifier
 contract lock was refreshed to

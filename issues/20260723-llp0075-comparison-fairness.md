@@ -19,11 +19,10 @@ affects the timed result.
 
 **Resolved when:**
 
-- **Convex local-leg topology:** the isolated cloud development deployment,
-  account-free local Convex (beta), or both with a preregistered sensitivity arm.
-  The topologies have different latency profiles; a beta comparator leg should
-  probably be the sensitivity arm, not the primary, to keep the comparison
-  idiomatic.
+- ~~**Convex local-leg topology**~~ **Decided 2026-07-30 (protocol
+  amendment v0.9, author):** the isolated cloud development deployment is
+  the primary; the account-free local beta is an optional preregistered
+  sensitivity arm only, exactly as this bullet leaned.
 - **Margin rationales:** why each of 1.25× / +2 min / +5 min / +2 / +3 is the
   largest acceptable competitive disadvantage, plus a minimum-detectable-effect
   note for the median-of-seven design and a preregistered rule for a CI that

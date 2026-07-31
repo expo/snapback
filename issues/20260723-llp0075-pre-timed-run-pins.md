@@ -20,6 +20,24 @@ these are the anti-gaming fail-closed gates. Each is an author decision; they
 land together as one versioned amendment. Fairness inputs come from
 `20260723-llp0075-comparison-fairness.md`.
 
+**Progress (2026-07-30, protocol amendment v0.9 — author decisions by
+Charlie Cheever, in-session):** six of the eight pins are closed. Pinned by
+decision: assistance policy (one identical Claude Code + `claude-fable-5` +
+default-tools agent across arms; per-arm vendor docs by digest), frontend
+hosting boundary (one shared Cloudflare Pages host for both arms;
+provisioning untimed, deploy timed), application auth (idiomatic
+first-party per arm — Snapback built-in email-code, Convex Auth;
+provisioning untimed, wiring timed), and the comparator local leg (cloud
+development deployment primary; account-free local beta an optional
+preregistered sensitivity arm only). Ratified at content digests:
+statistics implementation, metric definitions, machine gate matrix (all
+candidate tests passing 2026-07-30). **Still blocking timed runs:** the
+rubric scoring anchors (draft for author sign-off, preregistered before any
+evidence reveal, non-author-family scorer) and the run capsule — which
+carries the two credential preconditions that do not yet exist (a Convex
+account and the shared Cloudflare Pages token, to live in the usual
+git-ignored machine-local custody, never the repo).
+
 **Progress (2026-07-24):** executable, content-addressed candidates now exist
 for the statistics implementation, metric event/aggregation definitions,
 complete machine gate matrix, run-capsule verifier, and mechanical scoring
