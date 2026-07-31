@@ -165,6 +165,13 @@ esac
 # visibly and outside the 60 s runtime-ready deadline; startServer's cargo run
 # sees the same identity stamp and measures startup rather than a cold link.
 run cargo build --locked --bin snapback
+# The proof skips the bootstrap's cargo-link smoke by default
+# (SNAPBACK_BOOTSTRAP_CHECK=0), so qualify the final built binary directly:
+# create/destroy the restricted no-eval handler VM the server uses per
+# invocation. A stale Hermes-framework/binary pairing fails here in
+# milliseconds instead of as SNAPBACK_RUNTIME_CREATE_FAILED inside the first
+# JS acceptance suite (issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md).
+run "$ROOT/target/debug/snapback" runtime-qualify
 # @ref LLP 0041#runtime-distribution — the packaged CLI deliberately scrubs
 # LD_LIBRARY_PATH. On Linux, stage the freshly built debug executable in the
 # same bin/../lib closure as the public runtime package so these CLI proofs

@@ -134,6 +134,15 @@ writeFileSync(binary, \`#!/usr/bin/env node
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 ${process.platform === 'linux' ? "if (!existsSync(join(dirname(process.argv[1]), '..', 'lib', 'libhermesvm.so'))) process.exit(9);" : ''}
+if (process.argv[2] === 'runtime-qualify') {
+  console.log(JSON.stringify({
+    schemaVersion:'snapback.runtime-qualify.v1',
+    probe:'restricted-no-eval-handler-vm',
+    ok:true,
+    binary:{gitCommit:'current-cafebabe',gitDirty:true,crateVersion:'1.2.3',buildProfile:'debug'}
+  }));
+  process.exit(0);
+}
 console.log(JSON.stringify({binary:{
   gitCommit:'current-cafebabe',
   gitDirty:true,
@@ -153,8 +162,80 @@ chmodSync(binary, 0o755);
     assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_LINK_OK');
     assert.equal(result.recovery.currentCheckout.buildable, true);
     assert.equal(result.recovery.currentCheckout.runnable, true);
+    assert.equal(result.recovery.qualification.ok, true);
+    assert.equal(result.recovery.qualification.probe, 'restricted-no-eval-handler-vm');
     assert.equal(result.recovery.actualStamp.gitCommit, 'current-cafebabe');
     assert.deepEqual(probeTempDirectories(), before, 'success must clean its temporary Cargo target');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('a launchable binary that cannot create the armed handler VM is never LINK_OK', async () => {
+  // issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm: the
+  // exact reproduced state — link succeeds, the binary launches with loader
+  // overrides scrubbed, but every JS handler would refuse at
+  // RuntimeGuard::create because the selected Hermes framework lacks the
+  // promise-rejection checkpoint contract the linked glue requires.
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-vm-refused-'));
+  try {
+    writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
+    writeFileSync(join(scratch, 'Cargo.lock'), '');
+    if (process.platform === 'linux') {
+      writeFixture(
+        join(scratch, 'vendor', 'ibex', 'linux', 'lib', 'libhermesvm.so'),
+        'fixture Hermes closure',
+      );
+    }
+    const cargo = join(scratch, 'fake-cargo.mjs');
+    writeExecutable(cargo, `#!/usr/bin/env node
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+if (process.argv[2] === '--version') {
+  console.log('cargo 1.99.0-fixture');
+  process.exit(0);
+}
+const index = process.argv.indexOf('--target-dir');
+const binary = join(process.argv[index + 1], 'debug', 'snapback');
+mkdirSync(dirname(binary), {recursive:true});
+writeFileSync(binary, \`#!/usr/bin/env node
+if (process.argv[2] === 'runtime-qualify') {
+  console.error('Armed startup refused: Hermes promise rejection checkpoint tracking is unavailable');
+  console.log(JSON.stringify({
+    schemaVersion:'snapback.runtime-qualify.v1',
+    probe:'restricted-no-eval-handler-vm',
+    ok:false,
+    binary:{gitCommit:'current-cafebabe',gitDirty:true,crateVersion:'1.2.3',buildProfile:'debug'},
+    diagnostic:{code:'SNAPBACK_RUNTIME_CREATE_FAILED',severity:'error',subsystem:'runtime',message:'Ibex runtime could not be created',details:{}}
+  }));
+  process.exit(1);
+}
+console.log(JSON.stringify({binary:{
+  gitCommit:'current-cafebabe',
+  gitDirty:true,
+  crateVersion:'1.2.3',
+  buildProfile:'debug'
+}}));
+\`);
+chmodSync(binary, 0o755);
+`);
+    const before = probeTempDirectories();
+    const result = await runRuntimeLinkProbe({
+      root: scratch,
+      cargoCommand: cargo,
+      timeoutMs: 5_000,
+    });
+    assert.equal(result.ok, false, 'a launchable but VM-refusing binary must not pass');
+    assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED');
+    assert.match(result.diagnostic.message, /handler VM/);
+    assert.equal(result.recovery.currentCheckout.buildable, true);
+    assert.equal(result.recovery.currentCheckout.runnable, true);
+    assert.equal(result.recovery.qualification.ok, false);
+    assert.equal(result.recovery.qualification.report.diagnostic.code, 'SNAPBACK_RUNTIME_CREATE_FAILED');
+    assert.equal(result.recovery.reuse.allowed, false);
+    assert.match(result.recovery.reuse.reason, /armed handler VM/);
+    assert.ok(result.diagnostic.details.producerInputs, 'framework digests must ride the failure record');
+    assert.deepEqual(probeTempDirectories(), before, 'failure must clean its temporary Cargo target');
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

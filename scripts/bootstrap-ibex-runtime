@@ -32,7 +32,18 @@ copy_dir_contents() {
 
     mkdir -p "$dst"
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a "$src/" "$dst/"
+        # rsync -a preserves SOURCE mtimes, so a refreshed artifact could land
+        # looking older than the last cargo build and never trigger the
+        # rerun-if-changed relink — leaving a green launch smoke over a binary
+        # whose glue mismatches the new framework (armed handler-VM refusal at
+        # first JS invocation). Itemize the transfer and bump the mtime of
+        # every file rsync actually changed so cargo relinks before the
+        # qualification probe runs; an unchanged tree stays a fast no-op.
+        rsync -a --out-format='%n' "$src/" "$dst/" | while IFS= read -r entry; do
+            if [ -f "$dst/$entry" ]; then
+                touch "$dst/$entry"
+            fi
+        done
     else
         cp -R "$src/." "$dst/"
     fi
@@ -287,7 +298,7 @@ if [ "$RUN_CHECK" != "0" ]; then
         probe_message="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["diagnostic"]["message"])')"
         fail "$probe_code: $probe_message"
     fi
-    log "exact link + launch smoke passed with dynamic-loader overrides scrubbed"
+    log "exact link + launch + handler-VM qualification smoke passed with dynamic-loader overrides scrubbed"
 fi
 
 log "Ibex runtime bootstrap complete"

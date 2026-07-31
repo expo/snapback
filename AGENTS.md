@@ -152,9 +152,12 @@ silent wedge trap (ENG-22659).
   are specifically changing Ibex or Hermes. When the runtime state looks wrong,
   run `scripts/ibex-doctor` for a read-only coded diagnosis before repairing
   anything by hand.
-- The bootstrap validates by building and launching the `snapback` binary (with
-  `DYLD_*` scrubbed on macOS), not just `cargo check`, so the macOS
-  framework-load wedge is caught at bootstrap time. On macOS the binary carries
+- The bootstrap validates by building, launching, and handler-VM-qualifying
+  the `snapback` binary (with `DYLD_*` scrubbed on macOS), not just
+  `cargo check`, so both the macOS framework-load wedge and a Hermes
+  framework whose runtime contract mismatches the linked glue are caught at
+  bootstrap time (`snapback runtime-qualify` creates the same restricted
+  no-eval VM every JS handler uses). On macOS the binary carries
   an `LC_RPATH` emitted by `build.rs`, so `cargo run` finds
   `hermesvm.framework` without `DYLD_FRAMEWORK_PATH` even under SIP. Every
   bootstrap failure path fails with a stable `SNAPBACK_*` code (see LLP 0010,
@@ -163,5 +166,6 @@ silent wedge trap (ENG-22659).
   `SNAPBACK_IBEX_CARGO_BUILD_FAILED`, `SNAPBACK_IBEX_RUNTIME_LINK_FAILED`,
   `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`, `SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED`,
   `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`,
-  `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
+  `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`,
+  `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`, and
   `SNAPBACK_IBEX_HOST_UNSUPPORTED`.

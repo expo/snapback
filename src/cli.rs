@@ -722,6 +722,13 @@ pub enum HostCommand {
     // independently embedded facts without starting a server, so link probes
     // can classify the exact executable they just launched.
     BuildIdentity,
+    /// Create and destroy the same restricted no-eval handler VM that
+    /// `RuntimeGuard::create` uses per invocation, then print a JSON verdict.
+    /// The bootstrap smoke runs this against the final linked binary so its
+    /// OK verdict proves armed handler-VM readiness, not just dynamic
+    /// loading and process launch.
+    #[command(name = "runtime-qualify")]
+    RuntimeQualify,
     /// Reopen and verify one closed hosted-product-journey receipt plus its
     /// opaque retained evidence map. A success-shaped JSON document is never
     /// capability evidence until this command returns `verified`.
@@ -1036,6 +1043,29 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                     "buildDistribution": crate::identity::build_distribution(),
                 }))?
             );
+            Ok(())
+        }
+        Some(HostCommand::RuntimeQualify) => {
+            let result = startup_blocking(crate::runtime::qualify_handler_vm);
+            let report = match &result {
+                Ok(()) => json!({
+                    "schemaVersion": "snapback.runtime-qualify.v1",
+                    "probe": "restricted-no-eval-handler-vm",
+                    "ok": true,
+                    "binary": crate::identity::binary_identity(),
+                }),
+                Err(error) => json!({
+                    "schemaVersion": "snapback.runtime-qualify.v1",
+                    "probe": "restricted-no-eval-handler-vm",
+                    "ok": false,
+                    "binary": crate::identity::binary_identity(),
+                    "diagnostic": error.diagnostic,
+                }),
+            };
+            println!("{}", serde_json::to_string(&report)?);
+            if result.is_err() {
+                std::process::exit(1);
+            }
             Ok(())
         }
         Some(HostCommand::HostedJourneyVerify { receipt, artifacts }) => {

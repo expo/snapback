@@ -684,6 +684,20 @@ impl Drop for RuntimeGuard {
     }
 }
 
+/// Bootstrap-facing readiness probe: prove the restricted no-eval handler VM —
+/// the exact constructor `RuntimeGuard::create` uses per invocation, including
+/// the Hermes promise-rejection checkpoint prerequisite — can be created and
+/// destroyed in this process. Two cycles so a destroy-path defect cannot pass
+/// as ready. Dyld symbol resolution and a bare process launch cannot detect a
+/// Hermes framework whose runtime behavior contract mismatches the linked
+/// glue; this is the smallest probe that can.
+pub fn qualify_handler_vm() -> SnapbackResult<()> {
+    for _ in 0..2 {
+        RuntimeGuard::create().map(drop)?;
+    }
+    Ok(())
+}
+
 /// Mean microseconds to create + destroy a runtime (`ex_hermes_create` +
 /// host-call wiring + drop), with the host install already cached. Lets the M1
 /// harness attribute the per-invocation VM cost to *creation* (which a warm VM

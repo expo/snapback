@@ -1,6 +1,6 @@
 # Bootstrap smoke can pass while armed handler VM creation fails
 
-**Status:** Open
+**Status:** Closed (2026-07-30)
 **Date:** 2026-07-30
 **Systems:** native runtime bootstrap, Ibex/Hermes artifact selection,
 runtime readiness, demo harness
@@ -102,3 +102,45 @@ after the binary link while both the doctor and launch smoke remain green.
   smoke by default (`SNAPBACK_BOOTSTRAP_CHECK=0`).
 
 Tracked in LLP 0115 CV-2/CV-3.
+
+## Resolution (2026-07-30)
+
+- `snapback runtime-qualify` (new read-only CLI probe) creates and destroys
+  the restricted no-eval handler VM twice via the exact
+  `RuntimeGuard::create` constructor — including the Hermes
+  promise-rejection-checkpoint prerequisite — and prints a
+  `snapback.runtime-qualify.v1` verdict with the binary's build identity.
+- `scripts/runtime-link-smoke.mjs` runs that probe against the binary it
+  just linked, with dynamic-loader overrides scrubbed. A launchable binary
+  that cannot create the VM now fails with the stable
+  `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED` instead of
+  `SNAPBACK_IBEX_RUNTIME_LINK_OK`; the qualification verdict rides the
+  `snapback.runtime-recovery.v1` record beside the selected framework
+  digests (`producerInputs.nativeArtifacts`) and the binary stamp, so
+  ordering/artifact-coherence failures are diagnosable from the record.
+  Bootstrap invokes the smoke with `--target-dir $ROOT/target`, so the
+  qualified binary is the final linked binary.
+- Root cause of "framework newer than binary yet cargo no-ops" confirmed
+  and fixed: `copy_dir_contents` used `rsync -a`, which preserves source
+  mtimes and could defeat the mtime-based `rerun-if-changed` fingerprint on
+  the framework binary. The copy now itemizes the transfer
+  (`--out-format='%n'`) and touches every file rsync actually changed, so a
+  framework refresh always invalidates/relinks the final binary before the
+  qualification runs; an unchanged tree stays a no-op.
+- `scripts/verify-local-proof` qualifies its freshly built
+  `target/debug/snapback` directly, closing the
+  `SNAPBACK_BOOTSTRAP_CHECK=0` blind spot.
+- Acceptance: `tests/runtime_link_smoke_v0.mjs` adds "a launchable binary
+  that cannot create the armed handler VM is never LINK_OK" (the reproduced
+  incident state: build-identity fine, launch fine, `runtime-qualify`
+  refuses with the native checkpoint message), and the green-state test now
+  asserts the qualification verdict. 9/9 pass; the real chain
+  (`scripts/bootstrap-ibex-runtime`) was re-run end-to-end and emits the
+  qualification in its recovery record.
+- LLP 0010: `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED` added to the bootstrap
+  diagnostic codes; the CV-2 landing is recorded in the dated
+  runtime-readiness note. AGENTS.md bootstrap summary updated.
+- Remaining, deliberately out of this landing: the persisted digest-bound
+  readiness receipt (LLP 0115 CV-3), and the demo-harness
+  `configured`/`prebuilt` rung qualification —
+  issues/20260730-kit-rungs-skip-handler-vm-qualification.md.

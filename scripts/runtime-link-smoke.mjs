@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 import {
   createRuntimeRecoveryRecord,
   inspectRuntimeBinary,
+  qualifyRuntimeBinary,
   readCheckoutRuntimeIdentity,
 } from '../packages/snapback-cli/runtime-recovery.mjs';
 
@@ -334,14 +335,60 @@ export async function runRuntimeLinkProbe({
         }),
       };
     }
+    // Launch alone proved dynamic loading, not runtime readiness: every JS
+    // handler can still refuse at `RuntimeGuard::create` when the selected
+    // Hermes framework and the linked glue disagree on the restricted
+    // no-eval VM's behavior contract. Certify handler-VM creation against
+    // the exact binary this probe just linked; the recovery record carries
+    // the framework digests (producerInputs.nativeArtifacts) and the
+    // binary's build identity so artifact/link incoherence is diagnosable.
+    const qualification = qualifyRuntimeBinary(binary, environment);
+    const qualificationRecord = {
+      probe: 'restricted-no-eval-handler-vm',
+      ok: qualification.ok,
+      reason: qualification.reason,
+      report: qualification.report,
+    };
+    if (!qualification.ok) {
+      const code = 'SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED';
+      const diagnostic = {
+        code,
+        severity: 'error',
+        subsystem: 'runtime-link',
+        message: `the newly linked snapback binary launched but could not create its restricted no-eval handler VM: ${qualification.reason}`,
+        details: {
+          qualification: qualificationRecord,
+          stderr: qualification.stderr,
+          producerInputs: inputs,
+        },
+      };
+      return {
+        ok: false,
+        diagnostic,
+        recovery: createRuntimeRecoveryRecord({
+          selectedBinary: binary,
+          selectionRung: 'exact-link-probe',
+          expected,
+          actualStamp: inspected.stamp,
+          buildable: true,
+          runnable: true,
+          qualification: qualificationRecord,
+          reuseAllowed: false,
+          reuseReason: 'the linked binary cannot create the armed handler VM; refresh Hermes artifacts and relink before serving JS handlers',
+          diagnostic: { code, missingSymbols: [] },
+          producerInputs: inputs,
+          repairCommand: `${join(root, 'scripts/bootstrap-ibex-runtime')}`,
+        }),
+      };
+    }
     return {
       ok: true,
       diagnostic: {
         code: 'SNAPBACK_IBEX_RUNTIME_LINK_OK',
         severity: 'info',
         subsystem: 'runtime-link',
-        message: 'the current checkout linked and launched an exact disposable snapback binary',
-        details: { producerInputs: inputs },
+        message: 'the current checkout linked, launched, and handler-VM-qualified an exact disposable snapback binary',
+        details: { qualification: qualificationRecord, producerInputs: inputs },
       },
       recovery: createRuntimeRecoveryRecord({
         selectedBinary: keepTarget ? binary : null,
@@ -350,8 +397,9 @@ export async function runRuntimeLinkProbe({
         actualStamp: inspected.stamp,
         buildable: true,
         runnable: true,
+        qualification: qualificationRecord,
         reuseAllowed: true,
-        reuseReason: 'newly linked current-checkout binary launched successfully',
+        reuseReason: 'newly linked current-checkout binary launched and created its restricted no-eval handler VM',
         diagnostic: { code: 'SNAPBACK_IBEX_RUNTIME_LINK_OK', missingSymbols: [] },
         producerInputs: inputs,
       }),

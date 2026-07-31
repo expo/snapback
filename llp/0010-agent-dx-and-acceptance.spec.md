@@ -5,11 +5,16 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-30 (dated gap note: the Diary 0039 rerun proved the
-bootstrap link+launch smoke is satisfiable by a binary that cannot create the
-handler VM — see §Dated note: runtime readiness gap below; the VM-qualifying
-extension and the persisted readiness receipt are tracked as LLP 0115
-CV-2/CV-3 and will amend this Spec's bootstrap contract when they land);
+**Revised:** 2026-07-30 (CV-2 landed: the bootstrap smoke now runs
+`snapback runtime-qualify` against the final linked binary, so
+`SNAPBACK_IBEX_RUNTIME_LINK_OK` proves armed handler-VM readiness and the
+incident state fails with the new `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`;
+the artifact copy bumps changed-file mtimes so a framework refresh always
+relinks; `verify-local-proof` qualifies its built binary; the persisted
+readiness receipt (CV-3) and the demo-harness rung qualification remain
+open — see §Dated note: runtime readiness gap. Earlier same day, the dated
+gap note itself: the Diary 0039 rerun proved the bootstrap link+launch smoke
+was satisfiable by a binary that cannot create the handler VM);
 2026-07-27 (LLP 0108 amendment: generated review evidence covers
 inline-handler admission, effective result contracts, exact client inference,
 and pre-publication/pre-commit validation); 2026-07-23 (dated pointer note: LLP 0089 proposes the agent provisioning acceptance gate under this Spec's bar); 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterminism are unavailable by construction, including indirect locale-sensitive intrinsic methods; evaluated output must be strict JSON data rather than values `JSON.stringify` would silently coerce or drop; every privileged input read is an fd-attested, root-contained capability and handler paths are canonical backend-relative identities; the cache-busting generation worker pins an empty exec-argument set, repository cwd, minimal environment, disconnected data stdio, and one IPC result so caller `--eval`/preload/debug authority cannot contaminate it; node_modules package scopes stop at their boundary; canonical evaluated values join artifact identity, and every identity domain/item is byte-length-framed so source-legal NUL bytes cannot alias path/source boundaries; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
@@ -213,9 +218,17 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
 - `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` — the binary links but cannot load
   `hermesvm.framework` at launch without `DYLD_*` set, i.e. it is missing the
   `LC_RPATH` that `build.rs` emits (ENG-22664).
+- `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED` — the binary links and launches,
+  but `snapback runtime-qualify` could not create and destroy the restricted
+  no-eval handler VM (`RuntimeGuard::create`'s exact constructor, including
+  the Hermes promise-rejection-checkpoint prerequisite). The recovery record
+  carries the qualification verdict beside the framework digests
+  (`producerInputs.nativeArtifacts`) and the binary's build identity, so an
+  artifact/link-ordering incoherence is diagnosable from the record alone.
 
-The bootstrap validation step links and launches, not just `cargo check`, so the
-last two are caught at bootstrap time rather than at the first real run.
+The bootstrap validation step links, launches, and handler-VM-qualifies the
+final binary — not just `cargo check` — so the last three are caught at
+bootstrap time rather than at the first real JS invocation.
 
 Valet's local-dev orchestrator (a Vite plugin) already implemented most of this and
 is worth copying: spawn the server child process, codegen-on-save with debounced
@@ -836,6 +849,29 @@ The contract change itself (VM creation and one trivial execution after
 final framework selection, digest-bound readiness receipt, new bootstrap
 diagnostic code, invalidation on framework refresh) lands with the CV-2
 amendment, not this note.
+
+**CV-2 landing (2026-07-30).** The bootstrap contract now includes the
+qualification: `snapback runtime-qualify` creates and destroys the
+restricted no-eval handler VM twice (creation is the incident's exact
+failure point; the no-eval constructor admits no trivial execution beyond
+it) and prints a `snapback.runtime-qualify.v1` verdict.
+`scripts/runtime-link-smoke.mjs` runs it against the binary it just linked
+with loader overrides scrubbed, so `SNAPBACK_IBEX_RUNTIME_LINK_OK` now
+implies armed handler-VM readiness and the reproduced incident state fails
+with `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED` (acceptance:
+`tests/runtime_link_smoke_v0.mjs`). The qualification verdict rides the
+`snapback.runtime-recovery.v1` record beside the framework digests and
+binary identity. The missed-relink root cause is closed at the source:
+bootstrap's artifact copy no longer preserves source mtimes for changed
+files (`rsync --out-format` + touch), so a framework refresh always
+invalidates the `rerun-if-changed` fingerprint and relinks before the
+qualification runs. `scripts/verify-local-proof` qualifies its freshly
+built binary directly, closing its `SNAPBACK_BOOTSTRAP_CHECK=0` blind spot.
+Still open, deliberately: a persisted digest-bound readiness receipt
+(digests are captured and compared-by-record, not stored), and the demo
+harness's `configured`/`prebuilt`/`reused` rungs remain presence +
+`/health`-identity gates
+(issues/20260730-kit-rungs-skip-handler-vm-qualification.md).
 
 ## Open Questions
 

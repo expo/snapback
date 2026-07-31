@@ -25,6 +25,7 @@ export function createRuntimeRecoveryRecord({
   actualStamp = null,
   buildable = null,
   runnable = null,
+  qualification = null,
   reuseAllowed = false,
   reuseReason = null,
   diagnostic = null,
@@ -42,6 +43,7 @@ export function createRuntimeRecoveryRecord({
       buildable: nullableBoolean(buildable),
       runnable: nullableBoolean(runnable),
     },
+    qualification,
     reuse: {
       allowed: reuseAllowed === true,
       reason: reuseReason,
@@ -74,6 +76,47 @@ export function readCheckoutRuntimeIdentity(root) {
     gitDirty: statusResult.status === 0 ? statusResult.stdout.trim().length > 0 : null,
     crateVersion,
     buildProfile: null,
+  };
+}
+
+// @ref LLP 0010#native-runtime-bootstrap — launch and dyld symbol resolution
+// cannot prove the linked glue and the selected Hermes framework agree on
+// runtime behavior contracts (e.g. the promise-rejection checkpoint tracker
+// the restricted no-eval constructor requires). Ask the binary itself to
+// create and destroy the same handler VM `RuntimeGuard::create` uses per
+// invocation, with dynamic-loader overrides scrubbed like a served process.
+export function qualifyRuntimeBinary(binary, environment = process.env) {
+  if (!binary || !existsSync(binary)) {
+    return { ok: false, report: null, reason: 'selected binary does not exist' };
+  }
+  const cleanEnvironment = { ...environment };
+  for (const key of Object.keys(cleanEnvironment)) {
+    if (key.startsWith('DYLD_') || key === 'LD_LIBRARY_PATH') delete cleanEnvironment[key];
+  }
+  const result = spawnSync(binary, ['runtime-qualify'], {
+    encoding: 'utf8',
+    env: cleanEnvironment,
+    timeout: 30_000,
+  });
+  let report = null;
+  try {
+    report = JSON.parse(result.stdout);
+  } catch {
+    // A binary predating the probe (or crashing before the verdict) reports
+    // no structured verdict; it cannot be certified handler-VM ready.
+  }
+  if (result.status === 0 && report?.ok === true) {
+    return { ok: true, report, reason: null, stderr: '' };
+  }
+  return {
+    ok: false,
+    report,
+    reason: report?.diagnostic?.message
+      ?? result.error?.message
+      ?? (result.stderr?.trim()
+        ? result.stderr.trim().slice(-2_000)
+        : `runtime-qualify exited ${result.status ?? result.signal ?? 'without status'} without a structured verdict`),
+    stderr: result.stderr?.slice(-16_000) ?? '',
   };
 }
 
