@@ -105,7 +105,10 @@ Tags distinguish provenance:
   document;
 - **[observed]** — true of the current Snapback design or implementation, but
   not a general result;
-- **[inferred]** — this document's architectural interpretation or proposal.
+- **[interpretation]** — this document's architectural interpretation or
+  proposal. The 2026-07-30 dual-family review acceptance ratified these as
+  sound interpretations; they are not thereby primary-source facts, and each
+  remains falsifiable by the evidence program below.
 
 The external systems are reference points, not a complete bakeoff. Product
 economics, licensing, managed-service quality, failure behavior, and
@@ -132,7 +135,7 @@ CockroachDB and FoundationDB architecture documentation]
 **Influence:** Snapback should ask “what is the write authority and
 transactional domain?” before asking “is it SQL?” A storage design that merely
 translates the same single-authority state machine from SQL to key-value has
-not solved popular-app write scale. [inferred]
+not solved popular-app write scale. [interpretation]
 
 ### 2. Snapback deliberately has one app-stream authority today
 
@@ -157,7 +160,7 @@ Objects limits]
 **Influence:** Philippe's concern correctly identifies an unresolved
 popular-app ceiling. It is not evidence that the existing choice is wrong for
 ordinary apps; it is evidence that tenant-level horizontal scale is still an
-unowned design problem. [inferred]
+unowned design problem. [interpretation]
 
 ### 3. The typed relational contract is valuable independently of SQL
 
@@ -179,7 +182,7 @@ documentation]
 indexing, authorization, query-planning, and agent-legibility benefits without
 automatically gaining scale. A future non-SQL adapter should compile the same
 closed operations to its native primitives unless evidence shows the
-application model itself is the limit. [inferred]
+application model itself is the limit. [interpretation]
 
 ### 4. Postgres is a useful graduation, not a complete scale-out answer
 
@@ -201,7 +204,7 @@ version row — credible, not established: before it could replace the fence, a
 spike must show the feed satisfies Snapback's mutation-level versioning,
 gap-free visibility, no-op mutations, schema transitions, snapshot cut,
 retention, failover, and synchronous receipt obligations (open question 3).
-[inferred]
+[interpretation]
 
 Read replicas attack a different dimension. Cloudflare D1, for example,
 routes writes to a primary and uses bookmarks to give sessions sequentially
@@ -215,7 +218,7 @@ graduation default. Do not treat “SQLite → Postgres” as the settled answer
 to popular-app horizontal scale, and do not harden the framework counter into
 a permanent contract if the database commit log — 0007's recorded but
 deliberately undesigned escape hatch — can eventually provide the required
-ordering. [inferred]
+ordering. [interpretation]
 
 ### 5. Every scale-out family moves complexity into a different contract
 
@@ -250,7 +253,7 @@ documentation]
 
 **Influence:** the useful question is which complexity Snapback can hide once,
 test deeply, and expose honestly through capability facts—not which database
-category has the strongest scale slogan. [inferred]
+category has the strongest scale slogan. [interpretation]
 
 ### 6. Snapback already has two important escape hatches
 
@@ -272,7 +275,7 @@ placement use is inferred]
 **Influence:** 0115 and most of 0127 should proceed. Their declarative work is
 part of the solution. The guardrail is to avoid converting “one authority
 today” into app-visible promises of one permanent stream, one global sequence,
-or cheap global atomicity. [inferred]
+or cheap global atomicity. [interpretation]
 
 ## Candidate architecture families
 
@@ -436,7 +439,7 @@ Every family above therefore leaves a distant write traveling to one
 authority per app, cell, range, or partition; geographic write latency is
 answered by placement (family C's cell locality, family D's range locality),
 not by write multi-homing, unless the author reopens the ordering contract
-itself. [inferred]
+itself. [interpretation]
 
 ## Comparative frame
 

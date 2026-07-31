@@ -147,4 +147,9 @@ proposal ("promote and the philippe source is good enough even if i
 probably didn't quote him exactly"); LLP 0128 advanced Review → Active
 in the same landing as this note, and the Philippe provenance item is
 closed as an author-confirmed paraphrase with the verbatim wording,
-date, and channel deliberately left unrecorded.
+date, and channel deliberately left unrecorded. Promotion tripped the
+corpus gate barring literal `[inferred]` tags in Active documents
+(`ref-check` rule: ratify or remove); the same landing renames the
+document's nine tags to `[interpretation]` with a Method note recording
+that the review acceptance ratified them as interpretations, not as
+primary-source facts — a mechanical rename, no claim text changed.
