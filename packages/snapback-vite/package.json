@@ -5,12 +5,16 @@
   "description": "Managed Snapback Vite dev plugin: mode-aware backend lifecycle, /__snapback app-route proxy allowlist, and structured diagnostics.",
   "files": [
     "index.d.mts",
+    "allowlist.d.mts",
     "allowlist.mjs",
+    "channel-a-core.d.mts",
     "channel-a-core.mjs",
+    "channel-a.d.mts",
     "channel-a.mjs",
     "index.mjs",
     "lifecycle.mjs",
     "proxy.mjs",
+    "rqs-serializer.d.mts",
     "rqs-serializer.mjs"
   ],
   "exports": {
@@ -18,10 +22,22 @@
       "types": "./index.d.mts",
       "import": "./index.mjs"
     },
-    "./allowlist": "./allowlist.mjs",
-    "./channel-a": "./channel-a.mjs",
-    "./channel-a-core": "./channel-a-core.mjs",
-    "./rqs-serializer": "./rqs-serializer.mjs",
+    "./allowlist": {
+      "types": "./allowlist.d.mts",
+      "import": "./allowlist.mjs"
+    },
+    "./channel-a": {
+      "types": "./channel-a.d.mts",
+      "import": "./channel-a.mjs"
+    },
+    "./channel-a-core": {
+      "types": "./channel-a-core.d.mts",
+      "import": "./channel-a-core.mjs"
+    },
+    "./rqs-serializer": {
+      "types": "./rqs-serializer.d.mts",
+      "import": "./rqs-serializer.mjs"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {
