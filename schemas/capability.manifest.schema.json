@@ -8,6 +8,131 @@
       ],
       "type": "string"
     },
+    "AssetTargetFactsV1": {
+      "additionalProperties": false,
+      "description": "The declared asset target facts (LLP 0044 §Capability facts; LLP 0012\ndated registration 2026-07-31). The lifecycle claim is store-parameterized\n— `lifecycle_stores` is part of the claim, and the v1 nonclaims are\nreported Missing here, never omitted.",
+      "properties": {
+        "advisoryLimits": {
+          "description": "Every listed limit above is `Enforced` on this target; a limit a\ntarget cannot enforce must move to this graded list instead of\nsilently keeping the field.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "appLogicalQuotaBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "attemptTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "deliveryProfiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "digestAlgorithm": {
+          "type": "string"
+        },
+        "integrityGrades": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lifecycleStores": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maxChunkBytes": {
+          "description": "Per-file byte bounds are intent-declared facts, not a target\nceiling; the transfer chunk bound is the target's.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxOpenAttemptsPerApp": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxOpenAttemptsPerPrincipal": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minAccountingUnitBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "missing": {
+          "description": "LLP 0044's explicit v1 nonclaims, reported Missing rather than\nomitted: the manifest never implies them.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pendingGraceMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "publicationRetentionMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resumableLane": {
+          "type": "string"
+        },
+        "tombstoneRetentionMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "workLeaseMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "workRetryCeiling": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "lifecycleStores",
+        "deliveryProfiles",
+        "integrityGrades",
+        "resumableLane",
+        "digestAlgorithm",
+        "maxChunkBytes",
+        "appLogicalQuotaBytes",
+        "minAccountingUnitBytes",
+        "attemptTtlMs",
+        "maxOpenAttemptsPerApp",
+        "maxOpenAttemptsPerPrincipal",
+        "pendingGraceMs",
+        "tombstoneRetentionMs",
+        "publicationRetentionMs",
+        "workRetryCeiling",
+        "workLeaseMs",
+        "advisoryLimits",
+        "missing"
+      ],
+      "type": "object"
+    },
     "AuthMode": {
       "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.",
       "enum": [
@@ -332,38 +457,30 @@
     },
     "TargetCapabilityId": {
       "description": "The exact target-capability vocabulary understood by paired-v1 manifests.\nApp artifacts retain string fields for v0 compatibility; every v1 string\nis parsed through this enum before target support is consulted.\n\n@ref LLP 0058#the-two-admissible-tuples — the v1 registry is closed and\nLLP 0076 adds the ninth id with an exact positive runtime predicate.",
-      "oneOf": [
-        {
-          "enum": [
-            "auth.sessions.v1",
-            "bounded_response_stream_v1",
-            "bounded_children_v1",
-            "cron",
-            "cron_action_run_mutation",
-            "host_plan_runtime",
-            "ibex_ctx_db_host_bridge",
-            "inline_handler_v1",
-            "live_subscriptions",
-            "mutation_read_set_validation",
-            "permission_epoch_resync",
-            "registered_bundle_boot_v1",
-            "relational_query_v1",
-            "migration_keyset_scan_v1",
-            "full_text_search_v1",
-            "result_contract_v1",
-            "args_contract_v1",
-            "versioned_seed_install_v1",
-            "versioned_seed_reset_v1",
-            "write_activity_v1"
-          ],
-          "type": "string"
-        },
-        {
-          "const": "jobs_one_off_v1",
-          "description": "Transactional one-off durable work, first slice (LLP 0070, Draft):\n`ctx.jobs.enqueue` from JS mutations, the paved default queue,\njob/attempt receipts, the declared job-status query, and the\ninjected-clock forced drain. Experimental for as long as LLP 0070 is\nDraft — its claim boundary bars any durable-background-work\ncapability-class claim, and this id asserts current-contract\ncompatibility only.",
-          "type": "string"
-        }
-      ]
+      "enum": [
+        "auth.sessions.v1",
+        "bounded_response_stream_v1",
+        "bounded_children_v1",
+        "cron",
+        "cron_action_run_mutation",
+        "host_plan_runtime",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "mutation_read_set_validation",
+        "permission_epoch_resync",
+        "registered_bundle_boot_v1",
+        "relational_query_v1",
+        "migration_keyset_scan_v1",
+        "full_text_search_v1",
+        "result_contract_v1",
+        "args_contract_v1",
+        "versioned_seed_install_v1",
+        "versioned_seed_reset_v1",
+        "write_activity_v1",
+        "asset_lifecycle_v1"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/capability.manifest.schema.json",
@@ -375,6 +492,17 @@
     },
     "assetUpload": {
       "type": "boolean"
+    },
+    "assets": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AssetTargetFactsV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Declared asset facts (LLP 0044; LLP 0012 dated registration\n2026-07-31). Presence with a qualified store list is half the\n`asset_lifecycle_v1` predicate; absence is the honest Missing report\nfor targets without the subsystem."
     },
     "authImpersonation": {
       "type": "boolean"
@@ -396,10 +524,73 @@
       "type": "array"
     },
     "capabilityMaturity": {
-      "additionalProperties": {
-        "$ref": "#/$defs/CapabilityMaturity"
-      },
+      "additionalProperties": false,
       "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
+      "properties": {
+        "args_contract_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "asset_lifecycle_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "auth.sessions.v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "bounded_children_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "bounded_response_stream_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "cron": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "cron_action_run_mutation": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "full_text_search_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "host_plan_runtime": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "ibex_ctx_db_host_bridge": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "inline_handler_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "live_subscriptions": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "migration_keyset_scan_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "mutation_read_set_validation": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "permission_epoch_resync": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "registered_bundle_boot_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "relational_query_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "result_contract_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "versioned_seed_install_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "versioned_seed_reset_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "write_activity_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        }
+      },
       "type": "object"
     },
     "cron": {

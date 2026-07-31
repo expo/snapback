@@ -2137,6 +2137,79 @@ pub fn enqueue_work(
     Ok(row.work_id)
 }
 
+/// The declared asset target facts (LLP 0044 §Capability facts; LLP 0012
+/// dated registration 2026-07-31). The lifecycle claim is store-parameterized
+/// — `lifecycle_stores` is part of the claim, and the v1 nonclaims are
+/// reported Missing here, never omitted.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetTargetFactsV1 {
+    pub capability_id: String,
+    pub lifecycle_stores: Vec<String>,
+    pub delivery_profiles: Vec<String>,
+    pub integrity_grades: Vec<String>,
+    pub resumable_lane: String,
+    pub digest_algorithm: String,
+    /// Per-file byte bounds are intent-declared facts, not a target
+    /// ceiling; the transfer chunk bound is the target's.
+    pub max_chunk_bytes: u64,
+    pub app_logical_quota_bytes: u64,
+    pub min_accounting_unit_bytes: u64,
+    pub attempt_ttl_ms: u64,
+    pub max_open_attempts_per_app: u64,
+    pub max_open_attempts_per_principal: u64,
+    pub pending_grace_ms: u64,
+    pub tombstone_retention_ms: u64,
+    pub publication_retention_ms: u64,
+    pub work_retry_ceiling: u64,
+    pub work_lease_ms: u64,
+    /// Every listed limit above is `Enforced` on this target; a limit a
+    /// target cannot enforce must move to this graded list instead of
+    /// silently keeping the field.
+    pub advisory_limits: Vec<String>,
+    /// LLP 0044's explicit v1 nonclaims, reported Missing rather than
+    /// omitted: the manifest never implies them.
+    pub missing: Vec<String>,
+}
+
+impl AssetTargetFactsV1 {
+    pub fn local_v1() -> Self {
+        Self {
+            capability_id: "asset_lifecycle_v1".to_owned(),
+            lifecycle_stores: vec![ASSET_STORE_LOCAL_FS.to_owned()],
+            delivery_profiles: vec!["private-strict".to_owned()],
+            integrity_grades: vec![
+                "end-to-end-verified".to_owned(),
+                "received-bytes-canonical".to_owned(),
+            ],
+            resumable_lane: format!("tus-{ASSET_TUS_VERSION}"),
+            digest_algorithm: ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
+            max_chunk_bytes: ASSET_MAX_CHUNK_BYTES,
+            app_logical_quota_bytes: ASSET_APP_LOGICAL_QUOTA_BYTES,
+            min_accounting_unit_bytes: ASSET_MIN_ACCOUNTING_UNIT_BYTES,
+            attempt_ttl_ms: ASSET_ATTEMPT_TTL_MS,
+            max_open_attempts_per_app: ASSET_MAX_OPEN_ATTEMPTS_PER_APP,
+            max_open_attempts_per_principal: ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL,
+            pending_grace_ms: ASSET_PENDING_GRACE_MS,
+            tombstone_retention_ms: ASSET_TOMBSTONE_RETENTION_MS,
+            publication_retention_ms: ASSET_PUBLICATION_RETENTION_MS,
+            work_retry_ceiling: ASSET_WORK_RETRY_CEILING,
+            work_lease_ms: ASSET_WORK_LEASE_MS,
+            advisory_limits: Vec::new(),
+            missing: vec![
+                "asset-image-finalization".to_owned(),
+                "asset-video-finalization".to_owned(),
+                "asset-backup-export".to_owned(),
+                "asset-custom-read-authorizers".to_owned(),
+                "asset-deferred-length".to_owned(),
+                "asset-reference-gc".to_owned(),
+                "public-immutable".to_owned(),
+                "private-signed".to_owned(),
+            ],
+        }
+    }
+}
+
 pub const ASSET_WORK_KIND_CONDEMNED_CLEANUP: &str = "condemned-object-cleanup";
 #[cfg(test)]
 pub const ASSET_WORK_KIND_TEST_TRANSIENT_FAILURE: &str = "test-transient-failure";

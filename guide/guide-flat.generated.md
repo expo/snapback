@@ -52,7 +52,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset-byte upload, storage, delivery, deletion, and processing; no target ships this product surface yet | files, images, upload, object storage, media | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`assetUpload: false`; explicit `assets` gap) | llp/0044 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
+| backend.assets | Authenticated asset lifecycle on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment, private-strict delivery with ranges, deletion/GC, receipts (`asset_lifecycle_v1`); image pipeline and hosted targets remain design-only | files, images, upload, object storage, media | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`asset_lifecycle_v1` in supportedCapabilities; `assets` facts block) + src/assets.rs suite | llp/0044 | GAP (page pending the L1-13 landing; owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.vector-search | Portable vector storage, ANN indexing, and semantic retrieval; no ordinary vector path ships today | vector, embeddings, similarity, semantic search, RAG, ANN | none | design-only | llp/0019-agentic-readiness.research.md (unmade product decision; no shipped witness) | llp/0019, llp/0007 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260729-guide-gap-vector-semantic-search-capability-row.md) |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
@@ -158,6 +158,13 @@ here (or listed here but gone from the code).
 | /action/{name} | backend.actions |
 | /app/bundle | realtime.snapshot-bundles |
 | /app/ensure | backend.provisioning |
+| /assets/attempts | backend.assets |
+| /assets/attempts/{id} | backend.assets |
+| /assets/attempts/{id}/cancel | backend.assets |
+| /assets/attempts/{id}/finalize | backend.assets |
+| /assets/records/{id} | backend.assets |
+| /assets/records/{id}/bytes/{variant} | backend.assets |
+| /assets/tus/{id} | backend.assets |
 | /auth/agents/pair | auth.agent-principals |
 | /auth/agents/revoke-self | auth.agent-principals |
 | /auth/agents/rotate | auth.agent-principals |

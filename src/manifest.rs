@@ -5744,6 +5744,8 @@ pub enum TargetCapabilityId {
     VersionedSeedResetV1,
     #[serde(rename = "write_activity_v1")]
     WriteActivityV1,
+    #[serde(rename = "asset_lifecycle_v1")]
+    AssetLifecycleV1,
 }
 
 impl TargetCapabilityId {
@@ -5769,6 +5771,7 @@ impl TargetCapabilityId {
         Self::VersionedSeedInstallV1,
         Self::VersionedSeedResetV1,
         Self::WriteActivityV1,
+        Self::AssetLifecycleV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -5794,6 +5797,7 @@ impl TargetCapabilityId {
             Self::VersionedSeedInstallV1 => "versioned_seed_install_v1",
             Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
             Self::WriteActivityV1 => "write_activity_v1",
+            Self::AssetLifecycleV1 => "asset_lifecycle_v1",
         }
     }
 
@@ -5828,7 +5832,8 @@ impl TargetCapabilityId {
             | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
             | Self::VersionedSeedResetV1
-            | Self::WriteActivityV1 => CapabilityMaturity::Experimental,
+            | Self::WriteActivityV1
+            | Self::AssetLifecycleV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
         }
     }
@@ -5938,6 +5943,23 @@ impl TargetCapabilityId {
             // conformance receipt; hosted/default target facts remain false.
             Self::VersionedSeedInstallV1 => facts.versioned_seed_install_v1_registered,
             Self::VersionedSeedResetV1 => facts.versioned_seed_reset_v1_registered,
+            // @ref LLP 0044#capability-facts-and-implementation-slices — the
+            // lifecycle composite is store-parameterized: the claim requires
+            // the registered local-fs implementation AND declared asset
+            // facts naming at least one qualified store and the required
+            // private-strict profile. A target without strict delivery does
+            // not claim the composite.
+            Self::AssetLifecycleV1 => {
+                facts.asset_lifecycle_local_fs_registered
+                    && manifest.assets.as_ref().is_some_and(|assets| {
+                        assets.capability_id == "asset_lifecycle_v1"
+                            && !assets.lifecycle_stores.is_empty()
+                            && assets
+                                .delivery_profiles
+                                .iter()
+                                .any(|profile| profile == "private-strict")
+                    })
+            }
         }
     }
 }
@@ -6123,6 +6145,7 @@ pub struct TargetCapabilityFacts {
     registered_bundle_boot_v1_registered: bool,
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
+    asset_lifecycle_local_fs_registered: bool,
 }
 
 impl TargetCapabilityFacts {
@@ -6143,6 +6166,7 @@ impl TargetCapabilityFacts {
         // mandatory local row; LLP 0109 remains Review, so registry maturity
         // stays experimental until the author accepts the contract.
         Self {
+            asset_lifecycle_local_fs_registered: true,
             bounded_children_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
@@ -6400,6 +6424,12 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub full_text_search: Option<FullTextSearchFactsV1>,
+    /// Declared asset facts (LLP 0044; LLP 0012 dated registration
+    /// 2026-07-31). Presence with a qualified store list is half the
+    /// `asset_lifecycle_v1` predicate; absence is the honest Missing report
+    /// for targets without the subsystem.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assets: Option<crate::assets::AssetTargetFactsV1>,
 }
 
 /// The declared standard-pattern live posture (LLP 0065 §4).
@@ -6529,7 +6559,6 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "cloudflare".to_owned(),
         "hosted_untrusted_code".to_owned(),
         "external_auth".to_owned(),
-        "assets".to_owned(),
         "outbound_actions".to_owned(),
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
@@ -6611,7 +6640,7 @@ impl CapabilityManifest {
             mutation_isolation_mode: "handler-captured-read-set-validation".to_owned(),
             auth_impersonation: true,
             permission_diagnostics: false,
-            asset_upload: false,
+            asset_upload: true,
             outbound_actions: false,
             cron: true,
             notifications: false,
@@ -6619,6 +6648,7 @@ impl CapabilityManifest {
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
             full_text_search: Some(FullTextSearchFactsV1::local_v1()),
+            assets: Some(crate::assets::AssetTargetFactsV1::local_v1()),
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
@@ -6770,10 +6800,17 @@ impl CapabilityManifest {
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
         manifest.local_server_lifecycle = false;
         manifest.full_text_search = None;
+        // The asset subsystem's evidence is local-target only (LLP 0044:
+        // "local support does not imply hosted support"); the served-origin
+        // profile withholds the claim until its own suite runs.
+        manifest.assets = None;
+        manifest.asset_upload = false;
+        manifest.capability_gaps.push("assets".to_owned());
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts =
             TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
         facts.full_text_search_v1_registered = false;
+        facts.asset_lifecycle_local_fs_registered = false;
         manifest.refresh_supported_capabilities(facts);
         manifest
     }
@@ -6794,6 +6831,17 @@ impl CapabilityManifest {
         manifest
             .capability_gaps
             .push("v8_action_execution".to_owned());
+        // Same asset withholding as the served-origin profile: the twin
+        // proves handler execution, not the asset subsystem.
+        manifest.assets = None;
+        manifest.asset_upload = false;
+        manifest.capability_gaps.push("assets".to_owned());
+        manifest
+            .supported_capabilities
+            .retain(|capability| *capability != TargetCapabilityId::AssetLifecycleV1);
+        manifest
+            .capability_maturity
+            .remove(&TargetCapabilityId::AssetLifecycleV1);
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         manifest.vm_lifecycle = "fresh-process-per-invocation".to_owned();
         for limit in &mut manifest.resource_limits {
@@ -6844,6 +6892,11 @@ impl CapabilityManifest {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
         manifest.full_text_search = None;
+        // No asset subsystem on the DO target: bytes, staging, and strict
+        // delivery are unimplemented there (the committed gap row stands).
+        manifest.assets = None;
+        manifest.asset_upload = false;
+        manifest.capability_gaps.push("assets".to_owned());
         manifest.supported_artifact_versions = vec![ArtifactVersion::V0];
         manifest.supported_auth_modes = vec![AuthMode::Dev];
         manifest.supported_artifact_auth_pairs = vec![SupportedArtifactAuthPair {
