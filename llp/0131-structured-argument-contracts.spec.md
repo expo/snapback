@@ -5,7 +5,15 @@
 **Systems:** Authoring, Code generation, Runtime, Application data API, Search, Client integration, Contract, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+**Revised:** 2026-07-31 (implementation record and rulings — the wave-1
+lane C6/C2 landing recorded as this document's closing dated amendment:
+the Rust search-grammar narrowing blessed, explicit-null optionals ruled
+to the canonical-form projection, the `allowExtra` load-gate mechanism
+and the minted `SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID` code recorded,
+the reverse-pairing claim narrowed to descriptor-present enforcement,
+acceptance rows 8/9/12/13/14 evidence recorded, and drifted code cites
+refreshed; Status stays Accepted)
+2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 3 fix-verification,
 Codex round 4, the round-3 literal(null) claim retracted by its own
 family after empirical refutation — with the three conditions checked
@@ -119,7 +127,7 @@ feature (LLP 0117 finding 3; 0127 move 1). This Spec merges the lanes at
 argument positions:
 
 **Admitted at function-argument boundaries** (query, live query, mutation,
-action — the one gate applied at index.mjs:1253): the full LLP 0108
+action — the one gate applied at index.mjs:1271–1273): the full LLP 0108
 recursive v1 value vocabulary, with identical spellings, bounds, and
 rules — `v.null()`, `v.boolean()`, `v.string({maxBytes})`,
 `v.integer({min,max})`, `v.finiteReal({min,max})`, `v.principal()`,
@@ -140,7 +148,7 @@ descriptor node (§The argument-contract descriptor, frozen wire form).
 the legacy `result` validator position keep the current closed primitive
 map and their existing refusal codes — `SCHEMA_INVALID_VALIDATOR` for
 schema fields, `EPHEMERAL_INVALID_VALIDATOR` for ephemeral scope/value
-shapes (index.mjs:2622, 2629), `FUNCTION_INVALID_VALIDATOR` for the
+shapes (index.mjs:2683, 2690), `FUNCTION_INVALID_VALIDATOR` for the
 legacy `result` position. Widening them is CV-4b's and later work. The
 gate stays one recursive function with a per-position grammar parameter;
 the builders' dead `resultOnly` metadata — carried by five builders:
@@ -207,7 +215,7 @@ not deferred to the implementation:
 - **Manifest member.** `FunctionDefinition` gains `argsContract`
   (snake alias `args_contract`), carried beside the existing
   `resultContract`. Pairing mirrors the result side
-  (manifest.rs:1566–1580): a v2 `argsContractHash` without
+  (manifest.rs:1753–1767): a v2 `argsContractHash` without
   `argsContract`, or the reverse, refuses at load under
   `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID`.
 - **Root.** One JSON object with exactly one member, `fields`: the
@@ -216,7 +224,7 @@ not deferred to the implementation:
   `{"fields": []}` — still a closed object at ingress.
 - **Entry.** Each entry is `{"name", "required", "value"}`,
   member-for-member the existing `ResultObjectFieldContract`
-  (manifest.rs:3004–3008) — one entry shape for argument roots and
+  (manifest.rs:3249–3253) — one entry shape for argument roots and
   `object` nodes alike. `v.optional(inner)` normalizes to
   `required: false`. This corrects v0.2's `optional` entry member: the
   frozen form mirrors the result side exactly rather than inventing a
@@ -225,7 +233,7 @@ not deferred to the implementation:
   `kind`, camelCase variant names, unknown members and unknown kinds
   refused — verbatim the serde form `ResultValueContract` already has
   (`#[serde(tag = "kind", rename_all = "camelCase",
-  deny_unknown_fields)]`, manifest.rs:2957–3000, code-verified).
+  deny_unknown_fields)]`, manifest.rs:3150–3210, code-verified).
 - **Closed node table.** Members beside `kind`, exhaustive:
 
   | `kind` | members |
@@ -264,9 +272,9 @@ node vocabulary, never additional descriptor node kinds:
 - `v.relationIncarnationOf(...)` emits the `string` node with the
   profile-maximum byte bound — **not** `id(parentTable)`, which v0.2
   wrongly implied. Incarnation values on the wire are host-minted
-  UUIDv7 tokens (`Uuid::now_v7()`, src/storage.rs:13972), not parent
+  UUIDv7 tokens (`Uuid::now_v7()`, src/storage.rs:14188), not parent
   row ids, and generated TypeScript brands id nodes (`Id<Table>`,
-  index.mjs:5932): an `id(parentTable)` projection would type-admit a
+  index.mjs:6104): an `id(parentTable)` projection would type-admit a
   genuine parent row id — semantically wrong — while rejecting a held
   incarnation token. The `string` normalization matches both today's
   projection (`{shape: 'primitive', name: 'string'}`) and today's
@@ -372,7 +380,7 @@ that exception into one seam:
   preregistered numeric gate of acceptance 12 (open question 3,
   decided). Transports
   may bound lower — the 64 KiB live-socket frame cap at
-  `src/server.rs:5882` already does; the per-transport divergence is
+  `src/server.rs:6007` already does; the per-transport divergence is
   recorded under open question 3.
 - **Failure.** `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION`, carrying
   operation id and kind, `argsContractHash`, the failing path as a
@@ -551,7 +559,7 @@ reproduce the preimage. With the descriptor as preimage, the governing
 precedent is the result side: the host already recomputes
 `resultContractHash` from the carried contract and exact-compares,
 refusing `SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID` on mismatch
-(`manifest.rs:1566–1594`). The v2 args witness gets the same treatment:
+(`manifest.rs:1753–1781`). The v2 args witness gets the same treatment:
 at manifest load the host recomputes the hash from the carried
 `FunctionArgsContractV1` and exact-compares. A v2 hash without a
 descriptor, an unknown node kind, an unknown `PlatformSchemaRef`
@@ -570,8 +578,8 @@ admission, not per invocation.
 four verified consumers; each gets a normative migration rule:
 
 1. **`implementationHash` rotates too.** `implementationIdentity`
-   incorporates `argsContractHash` (index.mjs:4205) and is hashed into
-   `implementationHash` (index.mjs:4222–4224). This Spec keeps the feed
+   incorporates `argsContractHash` (index.mjs:4361) and is hashed into
+   `implementationHash` (index.mjs:4378–4380). This Spec keeps the feed
    — the args contract is part of what an implementation *is*, and
    dropping the feed to dodge churn would blind implementation identity
    to contract changes — so every function's `implementationHash` also
@@ -694,7 +702,7 @@ belongs to CV-6 / LLP 0130 SD-1's frame. It is removed from this Spec's
 normative scope. The `v.json()` escape is already loud today: any
 `unknown`-shaped projection — a declared `v.json()` argument included —
 emits the warning-severity `PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED`
-(provider-introspection.mjs:619–627). Any args-specific authoring
+(provider-introspection.mjs:628–648). Any args-specific authoring
 diagnostic, and its severity, routes to CV-6/SD-1.
 
 ## Acceptance
@@ -920,7 +928,7 @@ places them here, outside the ten author-adjudicated decisions):
    ceiling reduction (never a validation short-circuit) on failure; the
    capability-id half was already answered (`args_contract_v1`). The
    recorded per-transport divergence stands: the 64 KiB live-socket
-   frame cap (`src/server.rs:5882`) means a contract admitting a
+   frame cap (`src/server.rs:6007`) means a contract admitting a
    payload larger than one frame binds over HTTP but fails the live
    socket with a transport error, not the args-contract code;
    mitigation stays the proposed codegen advisory when a live-query
@@ -999,3 +1007,241 @@ client commits, and the 0108 result-formula cite is corrected to
 0108:380–381. A focused Codex round-4 delta review follows; the loop
 should adjudicate open questions 1–2 before implementation starts;
 acceptance criteria are §Acceptance verbatim.
+
+## Amendment (2026-07-31): implementation record and rulings
+
+Wave-1 lane C6 landed this Spec's implementation on main
+(`4ca67710`..`2bd3c4f9`, 2026-07-31); lane C2's enqueue seam completed
+acceptance 14 the same day (`804782a1`). The implementer recorded nine
+divergences and observations in
+issues/20260731-0131-implementation-divergences.md. Because this document
+is Accepted, they land here as one dated delta pass — recording what the
+shipped code actually does where it departs from the v0.4 text, making
+the two rulings the ticket requested, and refreshing drifted cites —
+rather than as silent drift. Paragraphs above that say "today" describe
+the pre-implementation baseline this Spec was accepted against; this
+section records the landed state. All cites below are verified against
+main at this amendment's date.
+
+### Ruling 1 (item 1) — the Rust search-grammar narrowing is blessed
+
+The implementation narrowed the search filter grammar beyond the v0.4
+text: `SearchFilterOpV1` is a closed eq-only enum
+(src/search/types.rs:181–186) and `SearchFilterValueV1` is a closed
+scalar union of string, number, and boolean (types.rs:193–199), carried
+by `SearchFilterV1` (types.rs:235–241). The narrowing was not
+Spec-mandated, but the fixture's carrier agreement (§The search fixture,
+point 4) was impossible without it: the published typings
+(packages/snapback-client/index.d.mts:145–167 — `op: 'eq'`,
+`value: string | number | boolean`) were narrower than the
+deserialization grammar, whose `op` was effectively open and whose
+`value` was an open `serde_json::Value` refused later by semantic
+validation. The accepted-query set is unchanged — non-eq operators and
+non-scalar values were already refused semantically — and the refusal
+moved to parse time under the same stable public code
+(`SNAPBACK_SEARCH_QUERY_INVALID`, now path-carrying through
+src/args_contract.rs:380–425). **Ruling: blessed.** The closed enum is
+the carrier-agreement mechanism this Spec's fixture exists to prove;
+widening the published typings instead would have advertised a query set
+the owning parser refuses. A new operator is a new parser profile and a
+new reference id under LLP 0073's version-binding rule, exactly as
+§Identity and hashing already requires.
+
+### Ruling 2 (item 2) — explicit-null optionals: canonical-form projection
+
+schemars encodes `Option<T>` as `type: ["T","null"]` not-required, so
+serde and the exported search.request.schema.json admit `"limit": null`,
+while derived TypeScript and the published typings spell
+`limit?: number`, rejecting explicit null. The implementation codified a
+canonical-form projection — an optional property whose schema is
+nullable derives as an optional non-null member — in
+packages/snapback-codegen/search-request-schema.mjs:22–26 (the stated
+rule), 73–84 (`nullablePairType`), 115–121 (TypeScript derivation; a
+required nullable property refuses derivation outright), and 153–168
+(descriptor derivation). **Ruling: the canonical-form projection is the
+Spec's.** The wire admits absent; the typed carriers spell `field?: T`;
+explicit null is outside the cross-carrier agreed set, and the corpus
+deliberately carries no explicit-null fixture because the carriers
+genuinely disagree there — such a fixture would force one carrier to
+lie. A future widening that admits explicit null must land as its own
+dated amendment with accept fixtures on every carrier (serde parse,
+exported schema, embedded expansions, generated and published
+TypeScript) before any carrier advertises it.
+
+### Item 3 — `allowExtra` refusal is enforced at manifest load, args lane
+
+The v0.4 node table says "the manifest schema gate refuses `true`". The
+generated manifest JSON Schema shares `ResultValueContract` nodes
+between the args and result lanes
+(schemas/functions.manifest.schema.json carries `allowExtra` as an
+ordinary boolean member) and cannot express a lane-conditional
+constraint. The refusal is enforced at manifest load instead: the shared
+node validator runs with a lane parameter, and `ContractLane::Args`
+refuses `allowExtra: true` at any argument position
+(src/manifest.rs:1490–1498) under
+`SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID`, reached from
+`validate_args_contract_definition` (manifest.rs:1558–1625) before
+activation. The JS generator never emits `true` (`effectiveArgsContract`,
+packages/snapback-codegen/result-contracts.mjs:57–68). Same fail-closed
+effect, different mechanism; the committed schema remains the shape gate
+for everything lane-unconditional.
+
+### Item 4 — code table addendum: `SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID`
+
+The implementation minted one code the §Diagnostics table does not
+carry. Folded in as the Spec's:
+
+| Code | Phase | Meaning |
+| --- | --- | --- |
+| `SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID` | runtime, load | args-lane structural defects of the carried descriptor: empty or duplicate argument entry names (src/manifest.rs:1566–1572) and `allowExtra: true` at any argument position (manifest.rs:1493–1498); minted at manifest.rs:1196–1205, classified 4xx author-input (src/server.rs:21866), registered in the served diagnostics inventory (server.rs:34975) |
+
+One correction against the commissioning ticket's own record: the ticket
+lists "missing-hash-beside-descriptor pairing" under this code, but the
+shipped code refuses that pairing defect under the existing
+`SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID` row (manifest.rs:1581–1591),
+exactly as the v0.4 table already records. The new code covers
+descriptor structure, not identity pairing.
+
+### Item 5 — reverse pairing narrowed to what the wire can distinguish
+
+§The argument-contract descriptor claims "a v2 `argsContractHash`
+without `argsContract`, or the reverse, refuses at load". As shipped,
+the descriptor-present half is fully enforced: a descriptor without a
+hash refuses (src/manifest.rs:1581–1591), a descriptor/hash
+recomputation mismatch refuses (manifest.rs:1592–1604), and every
+carried hash is format-gated (manifest.rs:1733–1752). The reverse — a
+v2 hash with no descriptor — is not enforceable: v1 and v2 hashes are
+both bare `sha256:hex` on the wire, and a legacy manifest (v1 hash, no
+descriptor) must keep loading (manifest.rs:1559–1563), so the reverse
+refusal is indistinguishable from legacy without a generation marker in
+the hash format or the manifest. The claim is narrowed accordingly:
+descriptor-present pairing refuses at load; hash-without-descriptor
+loads as legacy and its functions get no ingress seam — exactly the
+pre-v2 behavior every legacy app already has. Introducing a generation
+marker to close the residue would be its own dated change.
+
+### Item 7 and acceptance 14 — the acceptance rows' evidence, honestly
+
+Recorded beside §Acceptance. No row's claim is weakened, but three rows'
+evidence shapes are weaker than a literal reading implies, and two rows
+gained their evidence at the landing:
+
+- **Row 8 (bound edges):** covered ad hoc, not exhaustively. Unit tests
+  exercise selected bounds and refusal paths (wrong-kind nested
+  elements, closed roots, missing required, integer range via search
+  `limit`, union failure counts, bounded-pointer truncation —
+  src/args_contract.rs:543–813); an exhaustive at-bound/one-over pair
+  per bound type (depth, node budget, `maxItems`, object fields, union
+  variants, `maxBytes`, the complete-args ceiling) remains unwritten.
+- **Row 9 (lane matrix):** the hosted-evaluator leg is
+  inherited-by-construction rather than fixture-proven per lane: every
+  seam call site runs host-side before any evaluator dispatch
+  (src/local.rs:1756, 6213, 6345, 10041, 12484, 16573), and the
+  capability fact is per-target-instance (src/manifest.rs:5741–5744).
+- **Row 12 (hot-path budget):** the preregistered gate ran at the
+  landing and admitted the 1 MiB ceiling — p95 scalar 541 ns, 64 KiB
+  depth-8 structured 571 µs, ~1 MiB 703 µs (the commissioning ticket's
+  record); the benchmark is pinned as the release-gated test
+  `args_contract_hot_path_budget` (src/args_contract.rs:823–926).
+- **Row 13 (diagnostic stability rows):** exists as unit tests, not a
+  per-lane pinned fixture table: the generic code for search's scalar
+  args (src/args_contract.rs:700–735) and the owning parser's code with
+  the argument-position pointer prefix for the delegated node
+  (args_contract.rs:666–698).
+- **Row 14 (durable-job attempt authority):** evidenced at lane C2's
+  landing (`804782a1`): `admit_job_enqueues` (src/local.rs:1712) calls
+  `validate_function_args` per enqueue (local.rs:1756), pre-commit,
+  inside the producing mutation's transaction; violations refuse with
+  the per-lane code and no job row or partial write; contract-less
+  callees keep legacy behavior. Pinned by
+  `enqueue_validates_callee_args_contract_transactionally`
+  (src/server.rs:36546) across violating, conforming, and legacy-callee
+  legs.
+
+### Item 9 — cite refresh
+
+Line-number refreshes applied in place above where a present-tense
+claim's code moved under the C6/C2/SD-6 landings: the argument gate
+application (index.mjs:1253 → 1271–1273), the ephemeral refusal sites
+(index.mjs:2622, 2629 → 2683, 2690), the result-side pairing precedent
+(manifest.rs:1566–1580 → 1753–1767), the entry shape
+(manifest.rs:3004–3008 → 3249–3253), the node serde form
+(manifest.rs:2957–3000 → 3150–3210), the result recompute precedent
+(manifest.rs:1566–1594 → 1753–1781), the incarnation mint
+(src/storage.rs:13972 → 14188), the `Id<Table>` brand
+(index.mjs:5932 → 6104), the identity feed (index.mjs:4205 → 4361;
+4222–4224 → 4378–4380), the live-socket frame cap
+(src/server.rs:5882 → 6007, both occurrences), and the
+degraded-projection warning (provider-introspection.mjs:619–627 →
+628–648). Re-verified unchanged: src/value_expr.rs:121–128,
+src/handler_wire.rs:93–96, src/result_contract.rs:15–17 (mirrored at
+src/args_contract.rs:45–47),
+react-binding.mjs:125–133/248/1090–1098, canonical-client-value.mjs:
+225–235, LLP 0108:377–380 and 380–381, LLP 0070:124–131.
+
+Baseline cites are deliberately left as written — they are the recorded
+pre-implementation ground this Spec was reviewed against — with their
+landed replacements recorded here:
+
+- **Two-lane gate** (index.mjs:3314, map at 3323; classification 3326;
+  object-fields check 3342): the merged gate is
+  `validateAuthoringValidator`
+  (packages/snapback-codegen/index.mjs:3393) with a per-position grammar
+  parameter — argument-lane branches at 3402–3436, the closed primitive
+  map at 3437–3443, the object-fields requirement at 3456–3458. The
+  round-3 reachability narrative describes the pre-merge gate: the
+  merged gate admits `v.null`/`v.literal`/`v.array`/`v.union` at
+  argument positions by design, and the `resultOnly` deletion landed
+  with the one-time v2 re-key (zero matches remain in
+  packages/snapback-codegen/define.mjs), so the churn analysis that
+  metadata supported is now history.
+- **Bounds-blind descriptor and raw-builder v1 witness**
+  (index.mjs:3368–3387; `def?.args` at index.mjs:1956; v1 domain at
+  result-contracts.mjs:40): executed as specified —
+  `effectiveArgsContract` builds the carried descriptor
+  (packages/snapback-codegen/result-contracts.mjs:57–68), the v2
+  witness hashes its canonical form (result-contracts.mjs:43–48, domain
+  at 45), both applied at index.mjs:2016–2017; the string
+  `snapback:function-args:v1` no longer appears in the tree.
+- **Search fixture baseline** (authored `v.json()` at define.mjs:778;
+  hand-authored codegen interfaces at index.mjs:5942–5943; independent
+  client typings at index.d.mts:145; parser at
+  src/search/types.rs:183–213): executed — `defineSearchQuery`
+  (define.mjs:774) constructs the `PlatformSchemaRef` internally
+  (define.mjs:759–766); every JS carrier derives from the committed
+  exported schema through
+  packages/snapback-codegen/search-request-schema.mjs (TypeScript lines
+  spliced at index.mjs:6109, provider descriptor expansion at 3503,
+  embedded operation JSON Schema at 3558); the generation-time
+  top-level gate is `searchArgsSchemaProblems`
+  (search-request-schema.mjs:245–280, applied at index.mjs:1348); the
+  client typings (index.d.mts:145–167) carry the narrowed closed
+  grammar and are corpus-verified; the grammar types span
+  src/search/types.rs:158–274.
+- **Format-gate baseline** (manifest.rs:1546–1565): superseded — load
+  recomputes the v2 witness from the carried descriptor and
+  exact-compares (src/manifest.rs:1592–1604); the sha256 shape gate now
+  covers all three carried hashes (manifest.rs:1733–1752).
+- **Search parse baseline** (path-blind parse at sqlite.rs:1625; scalar
+  refusals at sqlite.rs:1631–1636): the request parse delegates through
+  the shared path-carrying seam (src/search/sqlite.rs:1628 →
+  src/args_contract.rs:389–393). The surviving legacy in-plan check is
+  the `limit` range refusal (sqlite.rs:1630–1635), which pre-v2 apps
+  (no descriptor) still hit under `SNAPBACK_SEARCH_QUERY_INVALID`;
+  v2-descriptor apps refuse `limit`/`after` at the seam first with the
+  generic code — the recorded LLP 0073 consequence, pinned at
+  src/args_contract.rs:700–735.
+- **Client pin baseline** (hard-pinned digest at
+  snapback-client/index.mjs:167, compared at 187): executed as cascade
+  item 2 requires — the pin is the generated
+  search-contract.generated.mjs artifact (imported at
+  packages/snapback-client/index.mjs:33–35), and skew refuses the coded
+  `SNAPBACK_SEARCH_REFERENCE_INVALID` (minted at index.mjs:168–180,
+  compared at 211).
+- **The seam itself:** src/args_contract.rs — `validate_function_args`
+  at 140, the mirrored budget constants at 45–47, the node-scoped
+  `PlatformSchemaRef` delegation at 331–341.
+
+This amendment closes issues/20260731-0131-implementation-divergences.md
+items 1–5, 7, and 9; item 6 was closed at lane C2's landing; item 8 is
+tracked residue owed elsewhere.
