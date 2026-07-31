@@ -4,6 +4,16 @@ import { createHash } from 'node:crypto';
 // @ref LLP 0108#final-author-reconciliation-after-round-3 — inline v1 is one
 // self-contained function expression. This extractor never obtains executable
 // authority from Function.prototype.toString() and never follows a source graph.
+//
+// @ref LLP 0118#1a-same-file-lexical-helper-closure-a-staged-slice-of-option-1 —
+// the one admitted widening (LLP 0115 CV-7, 0127 decision 6): a handler may
+// reference statically reachable top-level sibling *function declarations* in
+// the same authored file. Each operation's runtime module splices in exactly
+// its own reachable-helper subset, so the executable graph stays closed,
+// content-addressed, and defined by this file's bytes alone — no resolver, no
+// filesystem path enters identity, and context-reader helpers are admitted
+// with declared reads/writes remaining evidence (basis: 'declared'), never an
+// enforced ceiling.
 
 const INLINE_BUILDERS = new Set([
   'defineJsQuery',
@@ -259,8 +269,68 @@ function isDeclarationIdentifier(node) {
   return false;
 }
 
-function selfContainedProblems(expression, checker) {
+// Classify what a non-local identifier's symbol resolves to at module top
+// level. Only a single-declaration, bodied top-level function declaration is
+// an admissible helper; every other top-level binding is reported precisely
+// (a const/let/var/class/import cannot be spliced — under splice emission it
+// would be a temporal-dead-zone edge or a laundering channel such as
+// `const c = obj.constructor` at top level).
+function topLevelClassification(symbol, sourceFile) {
+  const declarations = symbol?.declarations ?? [];
+  if (declarations.length === 0) return null;
+  const functionDeclarations = declarations.filter((candidate) => (
+    ts.isFunctionDeclaration(candidate) && candidate.parent === sourceFile
+  ));
+  if (functionDeclarations.length > 0) {
+    const name = ts.isIdentifier(functionDeclarations[0].name ?? undefined)
+      ? functionDeclarations[0].name.text
+      : null;
+    if (declarations.length > 1) {
+      return { kind: 'inadmissible', name, reason: 'is declared more than once at module top level' };
+    }
+    const declaration = functionDeclarations[0];
+    if (!declaration.body) {
+      return { kind: 'inadmissible', name, reason: 'has no body' };
+    }
+    if (name === null) {
+      return { kind: 'inadmissible', name, reason: 'has no name' };
+    }
+    return { kind: 'helper', name, declaration };
+  }
+  for (const declaration of declarations) {
+    if (
+      ts.isVariableDeclaration(declaration)
+      && ts.isVariableDeclarationList(declaration.parent)
+      && ts.isVariableStatement(declaration.parent.parent)
+      && declaration.parent.parent.parent === sourceFile
+    ) {
+      const flags = declaration.parent.flags;
+      const flavor = (flags & ts.NodeFlags.Const) !== 0
+        ? 'const'
+        : (flags & ts.NodeFlags.Let) !== 0 ? 'let' : 'var';
+      return { kind: 'top-level-binding', declarationKind: flavor };
+    }
+    if (ts.isClassDeclaration(declaration) && declaration.parent === sourceFile) {
+      return { kind: 'top-level-binding', declarationKind: 'class' };
+    }
+    if (
+      ts.isImportSpecifier(declaration)
+      || ts.isImportClause(declaration)
+      || ts.isNamespaceImport(declaration)
+      || ts.isImportEqualsDeclaration(declaration)
+    ) {
+      return { kind: 'top-level-binding', declarationKind: 'import' };
+    }
+  }
+  return null;
+}
+
+function selfContainedProblems(expression, checker, sourceFile) {
   const referenced = new Set();
+  const freeTopLevel = new Map();
+  const helperRefs = new Map();
+  const inadmissibleRefs = [];
+  const inadmissibleSeen = new Set();
   const forbidden = [];
   const collect = (node) => {
     if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
@@ -325,13 +395,31 @@ function selfContainedProblems(expression, checker) {
           && declaration.end <= expression.end
         ),
       );
-      if (!local && !ALLOWED_GLOBALS.has(node.text)) referenced.add(node.text);
+      if (!local) {
+        // Resolve the symbol before the globals allowlist so a top-level
+        // sibling function declaration keeps its authored lexical meaning
+        // even when it shadows an admitted global name.
+        const classification = topLevelClassification(symbol, sourceFile);
+        if (classification?.kind === 'helper') {
+          helperRefs.set(classification.name, classification.declaration);
+        } else if (classification?.kind === 'inadmissible') {
+          if (!inadmissibleSeen.has(node.text)) {
+            inadmissibleSeen.add(node.text);
+            inadmissibleRefs.push({ node, name: node.text, reason: classification.reason });
+          }
+        } else if (!ALLOWED_GLOBALS.has(node.text)) {
+          referenced.add(node.text);
+          if (classification?.kind === 'top-level-binding') {
+            freeTopLevel.set(node.text, classification.declarationKind);
+          }
+        }
+      }
     }
     ts.forEachChild(node, inspect);
   };
   inspect(expression);
   const free = [...referenced].sort();
-  return { forbidden, free };
+  return { forbidden, free, freeTopLevel, helperRefs, inadmissibleRefs };
 }
 
 function canonicalAst(node, sourceFile) {
@@ -343,6 +431,40 @@ function canonicalAst(node, sourceFile) {
     return [current.kind, children.map(visit)];
   };
   return JSON.stringify(visit(node));
+}
+
+// A helper's canonical AST is taken over its emitted form (export/default
+// modifiers stripped), so toggling `export` on the authored declaration does
+// not change the helper's content identity or the spliced bytes.
+function canonicalHelperAst(emittedSource) {
+  const mini = ts.createSourceFile(
+    'helper.mjs',
+    emittedSource,
+    ts.ScriptTarget.ES2022,
+    true,
+    ts.ScriptKind.JS,
+  );
+  return canonicalAst(mini.statements[0], mini);
+}
+
+function helperContentHash(ast) {
+  return `sha256:${createHash('sha256')
+    .update(`snapback:inline-helper-content:v1\n${ast}`)
+    .digest('hex')}`;
+}
+
+function freeIdentifierHints(free, freeTopLevel) {
+  const hints = free
+    .filter((identifier) => freeTopLevel.has(identifier))
+    .map((identifier) => {
+      const declarationKind = freeTopLevel.get(identifier);
+      if (declarationKind === 'import') {
+        return `${identifier} is an imported binding; imports cannot be spliced into a runtime module`;
+      }
+      return `${identifier} is a top-level ${declarationKind}; only top-level function declarations are `
+        + `spliceable helpers — a ${declarationKind} would be a temporal-dead-zone or laundering edge`;
+    });
+  return hints.length > 0 ? ` (${hints.join('; ')})` : '';
 }
 
 export function extractInlineHandlers(source, {
@@ -382,6 +504,136 @@ export function extractInlineHandlers(source, {
   });
   const handlers = new Map();
   const replacements = [];
+
+  // Same-file helper admission (LLP 0118 option 1a). Helpers are analyzed
+  // lazily — only top-level function declarations actually reached from a
+  // handler expression are validated under the handler rules, so top-level
+  // functions used purely at definition time stay untouched. Analysis is
+  // memoized file-wide: a broken helper is reported once, not once per
+  // consuming operation.
+  const helperAnalyses = new Map();
+  const helperStack = [];
+  const reportedCycles = new Set();
+
+  const helperEmitSlice = (declaration) => {
+    let start = declaration.getStart(sourceFile);
+    for (const modifier of declaration.modifiers ?? []) {
+      if (
+        modifier.kind === ts.SyntaxKind.ExportKeyword
+        || modifier.kind === ts.SyntaxKind.DefaultKeyword
+      ) {
+        start = Math.max(start, modifier.end);
+      }
+    }
+    while (start < declaration.end && /\s/u.test(source[start])) start += 1;
+    return start;
+  };
+
+  const analyzeHelper = (name, declaration) => {
+    if (helperAnalyses.has(name)) return helperAnalyses.get(name);
+    const emitStart = helperEmitSlice(declaration);
+    const emittedSource = source.slice(emitStart, declaration.end);
+    const startPosition = sourceFile.getLineAndCharacterOfPosition(emitStart);
+    const ast = canonicalHelperAst(emittedSource);
+    const analysis = {
+      name,
+      source: emittedSource,
+      ast,
+      contentHash: helperContentHash(ast),
+      sourceSpan: {
+        file: path,
+        line: startPosition.line + 1,
+        column: startPosition.character + 1,
+      },
+      refs: [],
+    };
+    helperAnalyses.set(name, analysis);
+    helperStack.push(name);
+    const {
+      forbidden,
+      free,
+      freeTopLevel,
+      helperRefs,
+      inadmissibleRefs,
+    } = selfContainedProblems(declaration, checker, sourceFile);
+    // The 2026-07-28 adversarial refusals hold across the helper boundary: a
+    // sibling helper body is scanned under exactly the handler-expression
+    // rules, so alias/destructuring/computed-access reflection cannot be
+    // laundered through a spliced helper.
+    for (const problem of forbidden) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_INLINE_HELPER_SYNTAX_FORBIDDEN',
+        `helper ${name}: ${problem.reason}`,
+        path,
+        problem.node,
+        sourceFile,
+        { helper: name },
+      ));
+    }
+    if (free.length > 0) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_INLINE_HELPER_FREE_IDENTIFIER',
+        `helper ${name} references identifiers outside the admitted helper graph: `
+          + `${free.join(', ')}${freeIdentifierHints(free, freeTopLevel)}`,
+        path,
+        declaration,
+        sourceFile,
+        { helper: name, identifiers: free },
+      ));
+    }
+    for (const reference of inadmissibleRefs) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_INLINE_HELPER_INADMISSIBLE',
+        `helper ${name} references ${reference.name}, which ${reference.reason}`,
+        path,
+        reference.node,
+        sourceFile,
+        { helper: name, reference: reference.name },
+      ));
+    }
+    for (const [referencedName, referencedDeclaration] of helperRefs) {
+      analysis.refs.push(referencedName);
+      if (helperStack.includes(referencedName)) {
+        const cyclePath = [
+          ...helperStack.slice(helperStack.indexOf(referencedName)),
+          referencedName,
+        ];
+        const cycleKey = [...new Set(cyclePath)].sort().join(' ');
+        if (!reportedCycles.has(cycleKey)) {
+          reportedCycles.add(cycleKey);
+          diagnostics.push(diagnostic(
+            'SNAPBACK_INLINE_HELPER_CYCLE',
+            `helper cycle is outside inline handler admission: ${cyclePath.join(' -> ')}`,
+            path,
+            referencedDeclaration,
+            sourceFile,
+            { helpers: [...new Set(cyclePath)].sort() },
+          ));
+        }
+        continue;
+      }
+      analyzeHelper(referencedName, referencedDeclaration);
+    }
+    helperStack.pop();
+    return analysis;
+  };
+
+  const reachableHelpers = (directRefs) => {
+    const reachable = new Set();
+    const queue = [...directRefs.keys()];
+    while (queue.length > 0) {
+      const current = queue.pop();
+      if (reachable.has(current)) continue;
+      reachable.add(current);
+      for (const reference of helperAnalyses.get(current)?.refs ?? []) {
+        if (!reachable.has(reference)) queue.push(reference);
+      }
+    }
+    return [...reachable].sort().map((helperName) => {
+      const { name, source: helperSource, ast, contentHash, sourceSpan } = helperAnalyses.get(helperName);
+      return { name, source: helperSource, ast, contentHash, sourceSpan };
+    });
+  };
 
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement)) continue;
@@ -481,7 +733,13 @@ export function extractInlineHandlers(source, {
         ));
         continue;
       }
-      const { forbidden, free } = selfContainedProblems(expression, checker);
+      const {
+        forbidden,
+        free,
+        freeTopLevel,
+        helperRefs,
+        inadmissibleRefs,
+      } = selfContainedProblems(expression, checker, sourceFile);
       for (const problem of forbidden) {
         diagnostics.push(diagnostic(
           'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN',
@@ -495,14 +753,29 @@ export function extractInlineHandlers(source, {
       if (free.length > 0) {
         diagnostics.push(diagnostic(
           'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER',
-          `${name} references identifiers outside its handler expression: ${free.join(', ')}`,
+          `${name} references identifiers outside its handler expression: `
+            + `${free.join(', ')}${freeIdentifierHints(free, freeTopLevel)}`,
           path,
           expression,
           sourceFile,
           { function: name, identifiers: free },
         ));
       }
-      if (forbidden.length > 0 || free.length > 0) continue;
+      for (const reference of inadmissibleRefs) {
+        diagnostics.push(diagnostic(
+          'SNAPBACK_INLINE_HELPER_INADMISSIBLE',
+          `${name} references ${reference.name}, which ${reference.reason}`,
+          path,
+          reference.node,
+          sourceFile,
+          { function: name, reference: reference.name },
+        ));
+      }
+      if (forbidden.length > 0 || free.length > 0 || inadmissibleRefs.length > 0) continue;
+      for (const [helperName, helperDeclaration] of helperRefs) {
+        analyzeHelper(helperName, helperDeclaration);
+      }
+      const helpers = reachableHelpers(helperRefs);
 
       const expressionSource = source.slice(
         expression.getStart(sourceFile),
@@ -518,6 +791,7 @@ export function extractInlineHandlers(source, {
         token,
         expressionSource,
         ast,
+        helpers,
         sourceSpan: {
           file: path,
           line: start.line + 1,
@@ -545,4 +819,40 @@ export function renderInlineHandlerModule(name, expressionSource) {
   // Ibex's closed module ABI resolves handlers from this one registry. Each
   // generated runtime module owns exactly one operation.
   return `globalThis.__snapbackHandlers = { ${JSON.stringify(name)}: (${expressionSource}) };\n`;
+}
+
+// Splice emission (LLP 0118 option 1a / finding 7): each operation's runtime
+// module carries its own reachable-helper subset as hoisted function
+// declarations after the registration statement, so per-invocation evaluation
+// is bounded by the operation's own closure under the fresh-per-invocation
+// lifecycle. Helpers are emitted in sorted-name order for deterministic
+// regeneration; an operation with no helpers emits bytes identical to v1.
+// The returned segments map rendered lines back to authored source spans so
+// capability rescans over the spliced bytes keep precise refusal positions.
+export function renderInlineOperationModule(name, extracted) {
+  const registration = renderInlineHandlerModule(name, extracted.expressionSource);
+  const lineCount = (text) => text.split('\n').length - 1;
+  const segments = [{
+    kind: 'handler',
+    name,
+    startLine: 1,
+    endLine: lineCount(registration),
+    sourceSpan: extracted.sourceSpan,
+  }];
+  let source = registration;
+  let nextLine = lineCount(registration) + 1;
+  for (const helper of extracted.helpers ?? []) {
+    const text = `${helper.source}\n`;
+    const lines = lineCount(text);
+    segments.push({
+      kind: 'helper',
+      name: helper.name,
+      startLine: nextLine,
+      endLine: nextLine + lines - 1,
+      sourceSpan: helper.sourceSpan,
+    });
+    source += text;
+    nextLine += lines;
+  }
+  return { source, segments };
 }

@@ -73,7 +73,7 @@ import {
 } from './seed-artifact.mjs';
 import {
   extractInlineHandlers,
-  renderInlineHandlerModule,
+  renderInlineOperationModule,
 } from './inline-handlers.mjs';
 import {
   argsContractHash,
@@ -1160,26 +1160,37 @@ export async function generateInProcess(backendDir, options = {}) {
         );
         return null;
       }
-      const source = renderInlineHandlerModule(name, extracted.expressionSource);
-      for (const issue of scanUnsupportedHandlerSource(source, 'functions.mjs')) {
+      // The capability rescan runs over the complete spliced bytes — the
+      // handler registration plus every reachable helper — so an ambient
+      // dependency inside a shared helper refuses exactly like inline code,
+      // with the refusal mapped back to the helper's authored span.
+      const rendered = renderInlineOperationModule(name, extracted);
+      for (const issue of scanUnsupportedHandlerSource(rendered.source, 'functions.mjs')) {
+        const segment = rendered.segments.findLast(
+          (candidate) => issue.line >= candidate.startLine,
+        ) ?? rendered.segments[0];
         err(issue.code, 'bundle', `${name}: ${issue.message}`, {
           function: name,
           source: 'functions.mjs',
           token: issue.token,
+          ...(segment.kind === 'helper' ? { helper: segment.name } : {}),
           sourceSpan: {
             file: 'functions.mjs',
-            line: extracted.sourceSpan.line + issue.line - 1,
-            column: issue.line === 1
-              ? extracted.sourceSpan.column + issue.column - 1
+            line: segment.sourceSpan.line + issue.line - segment.startLine,
+            column: issue.line === segment.startLine
+              ? segment.sourceSpan.column + issue.column - 1
               : issue.column,
           },
         });
       }
       return {
-        source,
+        source: rendered.source,
         exportName: name,
         handlerForm: 'inline',
         inlineAst: extracted.ast,
+        inlineHelpers: (extracted.helpers ?? []).map(
+          ({ name: helperName, contentHash }) => ({ name: helperName, contentHash }),
+        ),
         sourceSpan: extracted.sourceSpan,
       };
     }
@@ -1427,6 +1438,7 @@ export async function generateInProcess(backendDir, options = {}) {
         runtime: { IbexModule: { source: handlerSource, export: handlerExportName } },
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
+        inlineHelpers: resolvedHandler?.inlineHelpers,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: readTables,
         declaredWrites: [],
@@ -1663,6 +1675,7 @@ export async function generateInProcess(backendDir, options = {}) {
         },
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
+        inlineHelpers: resolvedHandler?.inlineHelpers,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: reads,
         declaredWrites: writes,
@@ -1883,6 +1896,7 @@ export async function generateInProcess(backendDir, options = {}) {
         },
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
+        inlineHelpers: resolvedHandler?.inlineHelpers,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: [],
         declaredWrites: writes,
@@ -4153,13 +4167,34 @@ function decorateFunctions(appId, functions) {
     } catch (error) {
       throw new Error(`${fn.name}: ${error.message}`, { cause: error });
     }
+    // @ref LLP 0118#findings — finding 4: the v1 hash carries no dependency
+    // field by design, so helper-using operations move to the v2 format whose
+    // handler carries named helper-content edges (name + content hash, no
+    // paths, no graph encoding). Operations without helpers keep the exact v1
+    // encoding, so every existing implementation hash is unchanged and
+    // invalidation is exactly per-operation: an edit to a helper re-hashes
+    // only the operations whose reachable subsets contain it.
+    const inlineHelpers = fn.inlineAst !== undefined
+      && Array.isArray(fn.inlineHelpers)
+      && fn.inlineHelpers.length > 0
+      ? [...fn.inlineHelpers].sort((left, right) => (left.name < right.name ? -1 : 1))
+      : null;
+    const implementationFormatVersion = inlineHelpers ? 'v2' : 'v1';
     const implementationIdentity = {
-      format: 'snapback.function-implementation.v1',
+      format: `snapback.function-implementation.${implementationFormatVersion}`,
       app: appId,
       operation: fn.name,
       kind: fn.kind,
       handler: fn.inlineAst !== undefined
-        ? { form: 'inline', canonicalAst: fn.inlineAst }
+        ? {
+            form: 'inline',
+            canonicalAst: fn.inlineAst,
+            ...(inlineHelpers
+              ? {
+                  helpers: inlineHelpers.map(({ name, contentHash }) => ({ name, contentHash })),
+                }
+              : {}),
+          }
         : fn.runtime?.IbexModule
           ? {
               form: 'module',
@@ -4185,7 +4220,7 @@ function decorateFunctions(appId, functions) {
       handlerForm: fn.handlerForm
         ?? (fn.runtime?.IbexModule ? 'module' : 'plan'),
       implementationHash: `sha256:${sha256(
-        `snapback:function-implementation:v1\n${canonicalResultJson(implementationIdentity)}`,
+        `snapback:function-implementation:${implementationFormatVersion}\n${canonicalResultJson(implementationIdentity)}`,
       )}`,
       argsContractHash: fn.argsContractHash,
       resultContract: fn.resultContract,
