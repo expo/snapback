@@ -1815,13 +1815,36 @@ blob-JSON refcount staleness is resolved by making the columns the
 blob's only mutable representation (which also fixed two latent
 ineffective condemned filters on the delivery paths).
 
+Also closed 2026-07-31, later same day (the completion-program W2b/W2c
+passes): **`private-signed` and `public-immutable` delivery** shipped on
+the local target — every URL an `(asset, rendition)` alias, HMAC-SHA256
+tokens binding grantee basis and lifecycle generation with
+recomputed-generation invalidation at origin, instance signing-key
+custody with a receipted operator rotation that invalidates outstanding
+URLs, immutable public caching by rendition-id ETag, and the honest
+bearer-window semantics in acceptance. **Reference-tracked asset GC**
+(`asset_reference_gc_v1`) shipped as the schema-level opt-in
+(`defineSchema(..., { assets: { referenceGc: { graceMs } } })`): only
+typed reverse-reference edges protect, the grace clock is durable
+(started at unreferenced publication or last-edge removal, cleared by
+any attachment), reclamation rides the deletion cascade with
+policy-and-grace receipts, the enabling warning lists unprotected json
+fields, and the grace bounds are Enforced facts codegen checks.
+**Declared lifecycle callbacks** shipped dev-lane: `on: { ready?,
+rejected? }` names ordinary declared mutations pinned to the closed
+args contract `{ event, assetId, facts }`, enqueued transactionally
+with the transition, driven at-least-once by the runner under the asset
+owner's authority with client-mutation-ledger idempotency (a re-driven
+row never doubles the observable effect), and callback failure isolated
+to the work row — a sessions-mode schema refuses callback declarations
+at generation until a sessions execution authority is designed.
+
 Deferred with named owners, honestly: the React/Expo projection and
 real-server JS conformance vectors (ticket L1-14's recorded remainder);
-sessions-mode live-projection classification (the live-projection
-ticket's remainder note); bounded-array `v.assetRef`
+sessions-mode live-projection classification and sessions callback
+authority (the respective remainder notes); bounded-array `v.assetRef`
 (`issues/20260731-assetref-array-needs-portable-array-fields.md`); and
-signed/public delivery profiles, S3 store qualification, store
-migration, video finalization, reference GC, and the LLP 0070 runner
-generation, each already scoped as later capabilities above. The
-document stays Accepted; Implemented awaits the client remainder and a
-second target's evidence.
+S3 store qualification, store migration, video finalization, and the
+LLP 0070 runner generation, each already scoped as later capabilities
+above. The document stays Accepted; Implemented awaits the client
+remainder and a second target's evidence.

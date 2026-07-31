@@ -327,4 +327,172 @@ export const signedDoc = defineAssetUpload({
   );
 }
 
+// --- lifecycle callbacks (W2c): contract-pinned mutation references --------
+
+const callbackMutation = `
+export const onAssetReady = defineJsMutation({
+  args: { event: v.string(), assetId: v.string(), facts: v.json() },
+  handler: async (ctx, args) => {
+    await ctx.db.insert('callback_log', { event: args.event, assetId: args.assetId });
+    return null;
+  },
+  writes: ['callback_log'],
+});
+`;
+const callbackSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  callback_log: defineTable({
+    event: v.optional(v.string()),
+    assetId: v.optional(v.string()),
+  }).sync(),
+});
+`;
+
+{
+  // Valid: on.ready names a declared mutation with exactly the callback
+  // contract; the intent carries it and the policy hash moves.
+  const functions = `
+import { defineAssetUpload, defineJsMutation, v } from '${defineUrl}';
+${callbackMutation}
+export const docUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  on: { ready: 'onAssetReady' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { dir, result } = await runCase({ schema: callbackSchema, functions });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  const intent = manifest.assetUploadIntents.find((entry) => entry.name === 'docUpload');
+  assert.deepEqual(intent.on, { ready: 'onAssetReady' });
+}
+
+{
+  // An unknown or non-mutation callback target refuses.
+  const functions = `
+import { defineAssetUpload } from '${defineUrl}';
+export const docUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  on: { ready: 'noSuchMutation' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { result } = await runCase({ schema: callbackSchema, functions });
+  assert.equal(result.ok, false);
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_CALLBACK_INVALID'), JSON.stringify(result.diagnostics));
+}
+
+{
+  // A mutation with any other args contract refuses: the callback shape is
+  // closed — { event, assetId, facts } exactly.
+  const functions = `
+import { defineAssetUpload, defineJsMutation, v } from '${defineUrl}';
+export const onAssetReady = defineJsMutation({
+  args: { note: v.string() },
+  handler: async () => null,
+  writes: ['callback_log'],
+});
+export const docUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  on: { ready: 'onAssetReady' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { result } = await runCase({ schema: callbackSchema, functions });
+  assert.equal(result.ok, false);
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_CALLBACK_CONTRACT_INVALID'), JSON.stringify(result.diagnostics));
+}
+
+{
+  // Sessions-mode schemas refuse callback declarations at generation: the
+  // dev-lane owner authority is the only execution design v1 has.
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  callback_log: defineTable({
+    event: v.optional(v.string()),
+    assetId: v.optional(v.string()),
+  }).sync(),
+}, { auth: { mode: 'sessions' } });
+`;
+  const functions = `
+import { defineAssetUpload, defineJsMutation, v } from '${defineUrl}';
+${callbackMutation}
+export const docUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  on: { ready: 'onAssetReady' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { result } = await runCase({ schema, functions });
+  assert.equal(result.ok, false);
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_CALLBACK_SESSIONS_UNSUPPORTED'), JSON.stringify(result.diagnostics));
+}
+
+// --- reference GC (W2c): schema-level opt-in, bounds, and the warning ------
+
+{
+  // Valid: the schema manifest carries the policy; enabling warns about the
+  // json field that confers no protection.
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  posts: defineTable({
+    photo: v.optional(v.assetRef()),
+    metadata: v.optional(v.json()),
+  }).sync(),
+}, { assets: { referenceGc: { graceMs: 3_600_000 } } });
+`;
+  const functions = 'export {};\n';
+  const { dir, result } = await runCase({ schema, functions });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.assets, { referenceGc: { graceMs: 3_600_000 } });
+  const warning = result.diagnostics.find(
+    (d) => d.code === 'SNAPBACK_ASSET_REFERENCE_GC_UNPROTECTED_FIELDS',
+  );
+  assert.equal(warning?.severity, 'warning');
+  assert.deepEqual(warning.details.jsonFields, ['posts.metadata']);
+  assert.equal(warning.details.hasTypedAssetFields, true);
+}
+
+{
+  // A grace outside the target's Enforced bounds refuses at generation.
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  posts: defineTable({ photo: v.optional(v.assetRef()) }).sync(),
+}, { assets: { referenceGc: { graceMs: 10 } } });
+`;
+  const { result } = await runCase({ schema, functions: 'export {};\n' });
+  assert.equal(result.ok, false);
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_REFERENCE_GC_GRACE_INVALID'), JSON.stringify(result.diagnostics));
+}
+
+{
+  // A target without the reference-GC facts refuses the declaration.
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  posts: defineTable({ photo: v.optional(v.assetRef()) }).sync(),
+}, { assets: { referenceGc: { graceMs: 3_600_000 } } });
+`;
+  const { result } = await runCase({
+    schema,
+    functions: 'export {};\n',
+    targetProfile: 'remote-service-sqlite-ibex',
+  });
+  assert.equal(result.ok, false);
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_REFERENCE_GC_UNSUPPORTED'), JSON.stringify(result.diagnostics));
+}
+
 console.log('asset-upload-authoring.test.mjs passed');

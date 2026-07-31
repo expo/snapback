@@ -13879,7 +13879,7 @@ pub(crate) fn enforce_asset_reference_changes(
         }
         if change.op == ChangeOp::Delete {
             for edge in assets::load_edges_for_row(tx, &change.table, &change.id)? {
-                assets::delete_reference_edge(tx, &edge.edge_id)?;
+                assets::delete_reference_edge(tx, &edge, now_ms)?;
                 assets::write_receipt(
                     tx,
                     &AssetReceiptV1 {
@@ -13924,7 +13924,7 @@ pub(crate) fn enforce_asset_reference_changes(
                 continue;
             }
             if let Some(edge) = existing {
-                assets::delete_reference_edge(tx, &edge.edge_id)?;
+                assets::delete_reference_edge(tx, &edge, now_ms)?;
                 assets::write_receipt(
                     tx,
                     &AssetReceiptV1 {

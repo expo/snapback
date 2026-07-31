@@ -5284,6 +5284,28 @@ impl LocalSnapback {
         self.asset_image_finalization_override = Some(enabled);
     }
 
+    /// The app's reference-GC opt-in, admitted only where the declared
+    /// target facts carry the reference-GC block: `None` disables the sweep
+    /// entirely (LLP 0044 §Deletion — opt-in, never a default).
+    pub(crate) fn asset_reference_gc_grace_ms(&self) -> Option<u64> {
+        static DECLARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let target_supports = *DECLARED.get_or_init(|| {
+            crate::assets::AssetTargetFactsV1::local_v1()
+                .reference_gc
+                .is_some()
+        });
+        if !target_supports {
+            return None;
+        }
+        self.db
+            .schema()
+            .assets
+            .as_ref()?
+            .reference_gc
+            .as_ref()
+            .map(|policy| policy.grace_ms)
+    }
+
     /// Whether the declared facts advertise a delivery profile — the same
     /// single source the manifest embeds, so the runtime gate and the
     /// advertised claim can never disagree.
@@ -6723,6 +6745,16 @@ impl LocalSnapback {
                     .and_then(|json| serde_json::from_str(&json).ok())
             };
 
+        // Callbacks are declared intent policy: the ready callback runs
+        // under the frozen admitted policy exactly like every other policy
+        // fact the attempt finalizes under.
+        let on_ready: Option<String> = frozen_intent
+            .as_ref()
+            .unwrap_or(&intent)
+            .on
+            .as_ref()
+            .and_then(|on| on.ready.clone());
+
         let revoked = self.db.asset_transaction(|tx| {
             use rusqlite::OptionalExtension as _;
             let generation: Option<(u64, bool)> = tx
@@ -7376,6 +7408,27 @@ impl LocalSnapback {
                 })?;
                 asset.primary_rendition_id = Some(rendition.rendition_id.clone());
                 assets::transition_asset(tx, &mut asset, assets::AssetAvailability::Ready, now)?;
+                // A never-attached upload starts its reference-GC grace
+                // clock at publication; any attachment clears it.
+                assets::mark_unreferenced_if_edgeless(tx, &record.asset_id, now)?;
+                // The declared ready callback enqueues transactionally with
+                // the transition it observes (LLP 0044 §Processing runner:
+                // a row enqueues in the same transaction as the transition
+                // that requires it), under the frozen admitted policy.
+                if let Some(handler) = on_ready.as_deref() {
+                    assets::enqueue_work_with_params(
+                        tx,
+                        assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK,
+                        &record.asset_id,
+                        None,
+                        asset.lifecycle_generation,
+                        now,
+                        Some(serde_json::json!({
+                            "event": "ready",
+                            "handler": handler,
+                        })),
+                    )?;
+                }
 
                 // Optional variants enqueue transactionally with `ready`,
                 // carrying the post-transition generation so the runner's
@@ -7627,6 +7680,13 @@ impl LocalSnapback {
         use crate::assets as assets;
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
+        // The rejected callback resolves from the deployed intent; a removed
+        // intent simply has no callback to deliver.
+        let on_rejected: Option<String> = self
+            .asset_intent(&attempt.intent_id)
+            .ok()
+            .and_then(|intent| intent.on.as_ref())
+            .and_then(|on| on.rejected.clone());
         let refusal_facts = serde_json::json!({
             "code": refusal.diagnostic.code,
             "message": refusal.diagnostic.message,
@@ -7688,6 +7748,20 @@ impl LocalSnapback {
                         refusal_facts.clone(),
                     ),
                 )?;
+                if let Some(handler) = on_rejected.as_deref() {
+                    assets::enqueue_work_with_params(
+                        tx,
+                        assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK,
+                        &record.asset_id,
+                        Some(&attempt_id),
+                        asset.lifecycle_generation,
+                        now,
+                        Some(serde_json::json!({
+                            "event": "rejected",
+                            "handler": handler,
+                        })),
+                    )?;
+                }
             }
             Ok(record.staging_key.clone())
         })?;
@@ -8466,6 +8540,50 @@ impl LocalSnapback {
             reclaimed_asset_ids.push(asset.asset_id.clone());
         }
 
+        // Reference-tracked asset GC (opt-in, LLP 0044 §Deletion): ready
+        // assets whose grace clock ran out reclaim through the same
+        // deletion cascade, each reclamation receipted with the policy and
+        // the grace window it survived. The candidate query is a prefilter;
+        // edgelessness and the clock re-verify inside the reclamation
+        // transaction so a racing attachment always wins.
+        if let Some(grace_ms) = self.asset_reference_gc_grace_ms() {
+            let cutoff = now_ms.saturating_sub(grace_ms);
+            let candidates = self
+                .db
+                .asset_transaction(|tx| assets::reclaimable_reference_gc_assets(tx, cutoff))?;
+            for mut asset in candidates {
+                let reclaimed = self.db.asset_transaction(|tx| {
+                    let current = assets::load_asset(tx, &asset.asset_id)?;
+                    let still_eligible = current.as_ref().is_some_and(|current| {
+                        current.availability == assets::AssetAvailability::Ready
+                    }) && assets::load_edges_for_asset(tx, &asset.asset_id)?.is_empty();
+                    if !still_eligible {
+                        return Ok(false);
+                    }
+                    asset_delete_cascade(tx, &mut asset, "reference-gc", now_ms)?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &asset.asset_id.clone(),
+                            assets::AssetReceiptEventV1::GcReclaimed,
+                            &asset.asset_id,
+                            None,
+                            now_ms,
+                            serde_json::json!({
+                                "policy": "reference-gc",
+                                "graceMs": grace_ms,
+                            }),
+                        ),
+                    )?;
+                    Ok(true)
+                })?;
+                if reclaimed {
+                    report.reference_reclaimed += 1;
+                    reclaimed_asset_ids.push(asset.asset_id.clone());
+                }
+            }
+        }
+
         // Tombstone purge after retention: the receipts remain as evidence.
         let tombstone_cutoff = now_ms.saturating_sub(assets::ASSET_TOMBSTONE_RETENTION_MS);
         let purgeable = self
@@ -8844,6 +8962,95 @@ impl LocalSnapback {
                         })?;
                     }
                 }
+                let _ = now_ms;
+                Ok(())
+            }
+            // A declared lifecycle callback: an ordinary generated mutation
+            // invoked with typed facts (asset/rendition ids and safe
+            // metadata — never byte authority, staging keys, or bearer
+            // URLs) under the asset owner's dev-lane authority. Idempotency
+            // rides the client-mutation ledger: the stable id
+            // `asset-cb:{asset}:{event}:{generation}` makes a re-driven
+            // ledger row a replay, so the callback's observable effect
+            // never doubles (LLP 0044 §Processing runner).
+            assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK => {
+                let params = row.params.clone().unwrap_or_default();
+                let (Some(event), Some(handler)) = (
+                    params.get("event").and_then(serde_json::Value::as_str).map(str::to_owned),
+                    params
+                        .get("handler")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned),
+                ) else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_WORK_PARAMS_INVALID",
+                        "assets",
+                        "lifecycle-callback work carries no usable params",
+                    ));
+                };
+                let (asset, renditions) = self.db.asset_transaction(|tx| {
+                    let asset =
+                        crate::assets::load_asset(tx, &row.asset_id)?.ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_UNKNOWN",
+                                "assets",
+                                format!("unknown asset {}", row.asset_id),
+                            )
+                        })?;
+                    let renditions =
+                        crate::assets::renditions_for_asset(tx, &row.asset_id)?;
+                    Ok((asset, renditions))
+                })?;
+                let facts = serde_json::json!({
+                    "intentId": asset.intent_id,
+                    "availability": asset.availability,
+                    "lifecycleGeneration": asset.lifecycle_generation,
+                    "renditions": renditions
+                        .iter()
+                        .map(|rendition| {
+                            serde_json::json!({
+                                "key": rendition.variant_key,
+                                "state": rendition.state,
+                            })
+                        })
+                        .collect::<Vec<_>>(),
+                });
+                let input = crate::manifest::HandlerInput {
+                    args: serde_json::json!({
+                        "event": event,
+                        "assetId": row.asset_id,
+                        "facts": facts,
+                    }),
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some(asset.owner_principal.clone()),
+                        ..crate::manifest::AuthInput::default()
+                    },
+                    ..crate::manifest::HandlerInput::default()
+                };
+                let authority = self.prepare_legacy_dev_authority(
+                    InvocationSource::LocalMutation,
+                    ServerProfile::Dev,
+                    &input,
+                )?;
+                let idempotency_key = format!(
+                    "asset-cb:{}:{event}:{}",
+                    row.asset_id, row.lifecycle_generation
+                );
+                let (_preflight, staged) = self.stage_recorded_authorization_mutation(
+                    &handler,
+                    input,
+                    Some(idempotency_key),
+                    None,
+                    &[],
+                    "asset-runner",
+                    authority,
+                )?;
+                // The commit envelope carries the handler's own outcome
+                // inside: a throwing callback is a work failure (retried
+                // toward the ceiling), never a silent Done.
+                let (outcome, _receipt) =
+                    self.commit_staged_recorded_authorization_mutation(staged)?;
+                outcome?;
                 let _ = now_ms;
                 Ok(())
             }
@@ -21562,6 +21769,7 @@ pub(crate) struct AssetGcReport {
     pub expired_attempts: u64,
     pub staging_orphans_removed: u64,
     pub pending_reclaimed: u64,
+    pub reference_reclaimed: u64,
     pub tombstones_purged: u64,
     pub blobs_condemned: u64,
     pub blob_objects_deleted: u64,
@@ -22556,6 +22764,7 @@ globalThis.__snapbackHandlers = {
                 read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
             },
             image: None,
+            on: None,
             declared_reads: Vec::new(),
             runtime: FunctionRuntime::IbexModule(IbexModule {
                 source: ASSET_INTENT_SOURCE.to_owned(),
@@ -23148,6 +23357,346 @@ globalThis.__snapbackHandlers = {
             .db
             .asset_transaction(|tx| crate::assets::load_edges_for_row(tx, table, row_id))
             .expect("edges")
+    }
+
+    /// The reference fixture with the app's reference-GC opt-in declared
+    /// (LLP 0044 §Deletion: a schema declaration, not an intent knob).
+    fn asset_reference_gc_snapback(grace_ms: u64) -> LocalSnapback {
+        let mut snapback = asset_test_snapback();
+        let mut schema = asset_reference_schema();
+        schema.assets = Some(crate::manifest::SchemaAssetsPolicyV1 {
+            reference_gc: Some(crate::manifest::AssetReferenceGcPolicyV1 { grace_ms }),
+        });
+        snapback.db.apply_schema(schema).expect("schema");
+        snapback
+    }
+
+    fn asset_receipts_with_policy(
+        snapback: &mut LocalSnapback,
+        asset_id: &str,
+        policy: &str,
+    ) -> Vec<serde_json::Value> {
+        snapback
+            .db
+            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, asset_id, 200))
+            .expect("receipts")
+            .into_iter()
+            .filter(|receipt| {
+                receipt.event == crate::assets::AssetReceiptEventV1::GcReclaimed
+                    && receipt.details.get("policy").and_then(|value| value.as_str())
+                        == Some(policy)
+            })
+            .map(|receipt| receipt.details)
+            .collect()
+    }
+
+    #[test]
+    fn asset_reference_gc_reclaims_only_unreferenced_ready_past_grace() {
+        const GRACE_MS: u64 = 60_000;
+        let mut snapback = asset_reference_gc_snapback(GRACE_MS);
+        let now = now_millis();
+
+        // A never-attached ready asset starts its clock at publication; a
+        // referenced sibling never becomes a candidate.
+        let unattached = asset_ready(&mut snapback, "user_a", b"never-attached");
+        let attached = asset_ready(&mut snapback, "user_a", b"attached-bytes");
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "posts".to_owned(),
+                id: "post_gc".to_owned(),
+                values: serde_json::Map::from_iter([(
+                    "photo".to_owned(),
+                    json!(attached.clone()),
+                )]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: attached.clone(),
+                upload: Some("avatarUpload".to_owned()),
+            }],
+        )
+        .expect("attach commits");
+
+        // Inside the grace window nothing reclaims.
+        let report = snapback.asset_gc_sweep(now + GRACE_MS / 2).expect("sweep");
+        assert_eq!(report.reference_reclaimed, 0);
+
+        // Past grace: the unattached asset reclaims with the policy and the
+        // grace window on the receipt; the referenced one survives.
+        let report = snapback.asset_gc_sweep(now + GRACE_MS * 2).expect("sweep");
+        assert_eq!(report.reference_reclaimed, 1);
+        let details = asset_receipts_with_policy(&mut snapback, &unattached, "reference-gc");
+        assert_eq!(details.len(), 1);
+        assert_eq!(details[0]["graceMs"], json!(GRACE_MS));
+        let survivor = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::load_asset(tx, &attached))
+            .expect("load")
+            .expect("attached asset survives");
+        assert_eq!(survivor.availability, crate::assets::AssetAvailability::Ready);
+
+        // Clearing the field starts the clock; re-attaching clears it, so
+        // a racing attachment always wins over the sweep.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Patch {
+                table: "posts".to_owned(),
+                id: "post_gc".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), Value::Null)]),
+            }],
+            Vec::new(),
+        )
+        .expect("detach commits");
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Patch {
+                table: "posts".to_owned(),
+                id: "post_gc".to_owned(),
+                values: serde_json::Map::from_iter([(
+                    "photo".to_owned(),
+                    json!(attached.clone()),
+                )]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: attached.clone(),
+                upload: Some("avatarUpload".to_owned()),
+            }],
+        )
+        .expect("re-attach commits");
+        let report = snapback
+            .asset_gc_sweep(now_millis() + GRACE_MS * 3)
+            .expect("sweep");
+        assert_eq!(report.reference_reclaimed, 0, "re-attached asset is protected");
+
+        // Detach for good: the clock runs from the removal and the asset
+        // reclaims through the ordinary deletion cascade.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Patch {
+                table: "posts".to_owned(),
+                id: "post_gc".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), Value::Null)]),
+            }],
+            Vec::new(),
+        )
+        .expect("final detach commits");
+        let report = snapback
+            .asset_gc_sweep(now_millis() + GRACE_MS * 4)
+            .expect("sweep");
+        assert_eq!(report.reference_reclaimed, 1);
+        let reclaimed = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::load_asset(tx, &attached))
+            .expect("load");
+        assert!(
+            reclaimed.is_none()
+                || reclaimed.unwrap().availability
+                    == crate::assets::AssetAvailability::Deleted,
+            "detached asset reclaimed"
+        );
+    }
+
+    const ASSET_CALLBACK_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async onAssetReady(ctx, args) {
+    await ctx.db.insert('callback_log', { event: args.event, assetId: args.assetId });
+    return null;
+  },
+  async onAssetBoom() {
+    throw new Error('callback boom');
+  }
+};
+"#;
+
+    /// Two callback-declaring intents (a working handler and a throwing
+    /// one) plus a log table the working callback writes.
+    fn asset_callback_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let callback_policy = |ready: &str| crate::manifest::AssetCallbackPolicy {
+            ready: Some(ready.to_owned()),
+            rejected: None,
+        };
+        let mut ready_intent = asset_test_intent();
+        ready_intent.on = Some(callback_policy("onAssetReady"));
+        let mut boom_intent = asset_profile_intent(
+            "boomUpload",
+            crate::assets::AssetDeliveryProfile::PrivateStrict,
+        );
+        boom_intent.on = Some(callback_policy("onAssetBoom"));
+        let callback_fn = |name: &str| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: ASSET_CALLBACK_SOURCE.to_owned(),
+                    export: name.to_owned(),
+                }),
+            )
+        };
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![callback_fn("onAssetReady"), callback_fn("onAssetBoom")],
+            asset_upload_intents: vec![ready_intent, boom_intent],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "callback manifest must load: {diagnostics:?}"
+        );
+        let log_table = crate::manifest::TableManifest {
+            name: "callback_log".to_owned(),
+            fields: vec![
+                crate::manifest::FieldManifest {
+                    name: "event".to_owned(),
+                    field_type: crate::manifest::FieldType::String,
+                    optional: true,
+                },
+                crate::manifest::FieldManifest {
+                    name: "assetId".to_owned(),
+                    field_type: crate::manifest::FieldType::String,
+                    optional: true,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            membership: None,
+            asset_sharing: None,
+        };
+        snapback
+            .db
+            .apply_schema(SchemaManifest {
+                tables: vec![log_table],
+                ..SchemaManifest::default()
+            })
+            .expect("schema");
+        snapback
+    }
+
+    fn asset_callback_log_count(snapback: &mut LocalSnapback) -> u64 {
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row("SELECT COUNT(*) FROM callback_log", [], |row| {
+                    row.get::<_, u64>(0)
+                })?)
+            })
+            .expect("count")
+    }
+
+    #[test]
+    fn asset_lifecycle_callback_invokes_idempotently_and_isolates_failure() {
+        let mut snapback = asset_callback_snapback();
+        let now = now_millis();
+
+        // Ready enqueues the callback transactionally with the transition.
+        let asset_id = asset_ready(&mut snapback, "user_a", b"callback-bytes");
+        let rows = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &asset_id))
+            .expect("rows");
+        let callback_rows: Vec<_> = rows
+            .iter()
+            .filter(|row| row.kind == crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK)
+            .collect();
+        assert_eq!(callback_rows.len(), 1, "ready enqueued exactly one callback");
+
+        // The runner invokes the declared mutation with typed facts.
+        snapback
+            .asset_runner_tick(now_millis() + 1)
+            .expect("tick");
+        assert_eq!(asset_callback_log_count(&mut snapback), 1);
+        let generation = callback_rows[0].lifecycle_generation;
+
+        // A re-driven duplicate never doubles the observable effect: the
+        // stable idempotency key rides the client-mutation ledger.
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                crate::assets::enqueue_work_with_params(
+                    tx,
+                    crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK,
+                    &asset_id,
+                    None,
+                    generation,
+                    now + 2,
+                    Some(serde_json::json!({
+                        "event": "ready",
+                        "handler": "onAssetReady",
+                    })),
+                )
+                .map(|_| ())
+            })
+            .expect("duplicate enqueues");
+        snapback
+            .asset_runner_tick(now_millis() + 1)
+            .expect("tick");
+        assert_eq!(
+            asset_callback_log_count(&mut snapback),
+            1,
+            "replayed callback must not double its observable effect"
+        );
+
+        // A throwing callback retries toward its ceiling and never touches
+        // the asset: failure is isolated to the work row.
+        let boom_asset = asset_ready_under_intent(
+            &mut snapback,
+            "user_a",
+            b"boom-bytes",
+            "boomUpload",
+        );
+        snapback
+            .asset_runner_tick(now_millis() + 1)
+            .expect("tick");
+        let boom_rows = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &boom_asset))
+            .expect("rows");
+        let boom_row = boom_rows
+            .iter()
+            .find(|row| row.kind == crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK)
+            .expect("boom callback row");
+        assert!(boom_row.attempt_count >= 1, "failure counted an attempt");
+        assert!(matches!(
+            boom_row.state,
+            crate::assets::AssetWorkState::Enqueued
+                | crate::assets::AssetWorkState::Retrying
+                | crate::assets::AssetWorkState::Exhausted
+        ));
+        let boom = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::load_asset(tx, &boom_asset))
+            .expect("load")
+            .expect("asset");
+        assert_eq!(
+            boom.availability,
+            crate::assets::AssetAvailability::Ready,
+            "callback failure never degrades the asset"
+        );
+        assert_eq!(asset_callback_log_count(&mut snapback), 1);
+    }
+
+    #[test]
+    fn asset_reference_gc_disabled_schema_never_reclaims() {
+        let mut snapback = asset_reference_snapback();
+        let unattached = asset_ready(&mut snapback, "user_a", b"never-attached");
+        let report = snapback
+            .asset_gc_sweep(now_millis() + crate::assets::ASSET_REFERENCE_GC_GRACE_MAX_MS * 2)
+            .expect("sweep");
+        assert_eq!(report.reference_reclaimed, 0, "opt-in means opt-in");
+        let asset = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::load_asset(tx, &unattached))
+            .expect("load")
+            .expect("asset survives");
+        assert_eq!(asset.availability, crate::assets::AssetAvailability::Ready);
     }
 
     #[test]

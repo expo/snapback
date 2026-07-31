@@ -41,10 +41,10 @@
     "contract/rsvp.mutation.ts",
     "contract/rsvp.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:05c7bd6a86ea5896",
+  "bundleHash": "sha256:3c2ce961813bc120",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/6cd4ec1bc963a91e749a7153be210d0f9c291032f8b571c8132cb3b1dab835b6",
-    "key": "6cd4ec1bc963a91e749a7153be210d0f9c291032f8b571c8132cb3b1dab835b6",
+    "graphPath": "../../.snapback/codegen-cache/f87fd40bca4685b03f1f1ba409951552fd867a9ab05b0285a1e762ef6352ceb8",
+    "key": "f87fd40bca4685b03f1f1ba409951552fd867a9ab05b0285a1e762ef6352ceb8",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -81,7 +81,7 @@
       "sha256": "sha256:97225073139150e50d18810e5350a5ed0cb887c08f155d53894169179a0bc0c0"
     },
     {
-      "bytes": 7859,
+      "bytes": 8105,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -90,7 +90,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:0236c99d2805a255bbbb6318e5f0f48327503a99f27ae290c1c68b530f07bc9d"
+      "sha256": "sha256:554c95dec832c4e3e2518605aab63420f849190de3dafa5beebe5ba733b3c548"
     },
     {
       "bytes": 25706,
@@ -102,7 +102,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:2cecb0dbf6c1b8f72c7c70e9d5c36f9c35498e21f5cd8c134da4f422f512c56f"
+      "sha256": "sha256:048e4ac5e9db9f48cac11a8321b1a3228ea189de65466cab1ec75d33a60b2b0a"
     },
     {
       "bytes": 350,
@@ -342,7 +342,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:39078440974068bfd3a5fffa73b42ea12610f92fb3994f01f99289ddf17d9316"
+      "sha256": "sha256:e993e49061baf6e9625a2faa83b34d083f5244b365e95c81db21ac454de9a021"
     },
     {
       "bytes": 665,
@@ -486,7 +486,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:5b9609cf6f2bd34102bcd148d427a05ebe7e4e9b3b466275e042f50e22aae585"
+      "sha256": "sha256:1f2160883f1742c24f4f41f49d19ac2fe673cad07a455d3d5b53a077ef1a3ab0"
     },
     {
       "bytes": 31652,
@@ -498,7 +498,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:b6a2618ddb32b4046ac8cabe567ddca0c5377e3f8bd92025d466dac1bdeead94"
+      "sha256": "sha256:67be8958248e2d24faf1dbf14e2de64a1354d25b56db0974391e75ed09310f04"
     },
     {
       "bytes": 5112,
@@ -510,7 +510,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:3be93006932f049f89ad0c57ea1558b89c9d74fee49e8e119e07cf9e35011352"
+      "sha256": "sha256:c6f798cbffa3b61223a88eb8fd2bf2748ab5bb12177479f87595bb8cbb83d308"
     }
   ],
   "functions": [
@@ -561,14 +561,14 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "6cd4ec1bc963a91e749a7153be210d0f9c291032f8b571c8132cb3b1dab835b6",
+  "inputsHash": "f87fd40bca4685b03f1f1ba409951552fd867a9ab05b0285a1e762ef6352ceb8",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:d131f067041184d6",
+  "schemaHash": "sha256:e73476793d8fb765",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "shindig",
@@ -669,7 +669,7 @@
         }
       }
     ],
-    "inputsHash": "6cd4ec1bc963a91e749a7153be210d0f9c291032f8b571c8132cb3b1dab835b6",
+    "inputsHash": "f87fd40bca4685b03f1f1ba409951552fd867a9ab05b0285a1e762ef6352ceb8",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

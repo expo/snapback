@@ -18,10 +18,10 @@
     "contract/queryProbe.query.ts",
     "contract/queryProbe.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:e4047d01f3582213",
+  "bundleHash": "sha256:9184e444ca4c25ad",
   "cache": {
-    "graphPath": "../.snapback/codegen-cache/b7cb23d1048e154fcc7aedc8e0fd6d91213035fb7b68b3c5ab1e1a19e4128954",
-    "key": "b7cb23d1048e154fcc7aedc8e0fd6d91213035fb7b68b3c5ab1e1a19e4128954",
+    "graphPath": "../.snapback/codegen-cache/47fdd24cd54394c87283fa14c7e95002dcab9d7e764b6c361a2f7570acb4030d",
+    "key": "47fdd24cd54394c87283fa14c7e95002dcab9d7e764b6c361a2f7570acb4030d",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [
@@ -64,7 +64,7 @@
       "sha256": "sha256:5da6a76aedec4551cf725683060bda2fcb203ea23822b7a982e67be624002c88"
     },
     {
-      "bytes": 7834,
+      "bytes": 8080,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -73,7 +73,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:8fb063c3f72b571e554835f5375b8bbc003898a64c3c9d5b768cf26071f9912a"
+      "sha256": "sha256:06fb87d7b33025f8290bb41d1be269fef166131cb2cc7db372c3758e7040cc4c"
     },
     {
       "bytes": 1571,
@@ -85,7 +85,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:b040956ffb5be846ab9828aa5e561f62264d43b5ccd7167af76e9c9247d013ba"
+      "sha256": "sha256:43bab560e3513585b6552ede761e5a7c02731680aea6c0326214ef10c0f54bc0"
     },
     {
       "bytes": 379,
@@ -133,7 +133,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:de6205ac2cb6e7e6d3e6af4d46a566e172bb9048f73ec150d7bf6248b1dd1c6e"
+      "sha256": "sha256:5804cc814458eb7134c791daa892439bab1dadd22ac30da48ec6f73488457686"
     },
     {
       "bytes": 270,
@@ -193,7 +193,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:c1ccfd0df8ad6ef6e188d5e31bbc77c33c5a38d0daa382ba04c23b8d18e9f590"
+      "sha256": "sha256:ea7cdfbb6220e0a9e5f7e32a97fb6a4f05648fadc8b9d05c0d22fab2831c909b"
     },
     {
       "bytes": 2849,
@@ -205,7 +205,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:f1cae4500d5747f001981f3ddd6057e699c368fb80fe2510ecadbd383a0cfd43"
+      "sha256": "sha256:d5fc8fec8571fa2d27031e9bdea6b755c448474642955727df000b0e487eaf10"
     },
     {
       "bytes": 1837,
@@ -217,7 +217,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:72206557721172684305e75c18f6207bd52c5860c01fa0d660b49b9b3e360f20"
+      "sha256": "sha256:a78e0fcff4f432bbaf158af5c3269614f36e63cb47cb31376c399d60c22207c1"
     }
   ],
   "functions": [
@@ -233,14 +233,14 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "b7cb23d1048e154fcc7aedc8e0fd6d91213035fb7b68b3c5ab1e1a19e4128954",
+  "inputsHash": "47fdd24cd54394c87283fa14c7e95002dcab9d7e764b6c361a2f7570acb4030d",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:31e02739d39a21bd",
+  "schemaHash": "sha256:00bf27b93e98bd0e",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "all-aboard",
@@ -296,7 +296,7 @@
         }
       }
     ],
-    "inputsHash": "b7cb23d1048e154fcc7aedc8e0fd6d91213035fb7b68b3c5ab1e1a19e4128954",
+    "inputsHash": "47fdd24cd54394c87283fa14c7e95002dcab9d7e764b6c361a2f7570acb4030d",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

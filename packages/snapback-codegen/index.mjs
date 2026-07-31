@@ -32,7 +32,7 @@ import { parse as parseJavaScript } from 'acorn';
 import { computeEffectCeiling } from './effect-ceiling.mjs';
 import { build as esbuild } from 'esbuild';
 import ts from 'typescript';
-import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS } from './define.mjs';
+import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, v } from './define.mjs';
 import {
   decodeUtf8Source,
   resolveFileReadCapability,
@@ -2188,6 +2188,12 @@ export async function generateInProcess(backendDir, options = {}) {
       const lowered = mediaType.toLowerCase();
       return lowered.startsWith('image/') || lowered.startsWith('video/');
     };
+    // The closed callback args contract: a callback mutation declares
+    // exactly this shape, checked by contract hash so the pin is the same
+    // identity the invocation validates against.
+    const assetCallbackContractHash = argsContractHash(
+      effectiveArgsContract({ event: v.string(), assetId: v.string(), facts: v.json() }),
+    );
     const seenIntents = new Set();
     for (const { exportName, def } of assetUploadDefs) {
       if (!IDENT.test(exportName) || RESERVED_WORDS.has(exportName)) {
@@ -2254,6 +2260,47 @@ export async function generateInProcess(backendDir, options = {}) {
         );
         continue;
       }
+      // Declared lifecycle callbacks (LLP 0044 §Declarative processing):
+      // each names an ordinary declared mutation whose args contract is
+      // exactly the closed callback shape — typed facts, never byte
+      // authority. Sessions-mode callback execution has no authority
+      // design yet, so a sessions schema refuses at generation (the
+      // manifest-keyed idiom; runtime dev admission is the defense).
+      if (def.on !== undefined) {
+        if (authMode === 'sessions') {
+          err(
+            'SNAPBACK_ASSET_CALLBACK_SESSIONS_UNSUPPORTED',
+            'asset',
+            `${exportName}: lifecycle callbacks execute under the asset owner's dev-lane authority; a sessions-mode schema cannot declare them yet`,
+            { intent: exportName },
+          );
+          continue;
+        }
+        let callbacksValid = true;
+        for (const [event, handler] of Object.entries(def.on)) {
+          const target = functions.find((fn) => fn.name === handler);
+          if (!target || target.kind !== 'Mutation') {
+            err(
+              'SNAPBACK_ASSET_CALLBACK_INVALID',
+              'asset',
+              `${exportName}: on.${event} must name a declared mutation (got ${handler})`,
+              { intent: exportName, event, handler },
+            );
+            callbacksValid = false;
+            continue;
+          }
+          if (target.argsContractHash !== assetCallbackContractHash) {
+            err(
+              'SNAPBACK_ASSET_CALLBACK_CONTRACT_INVALID',
+              'asset',
+              `${exportName}: on.${event} mutation ${handler} must declare exactly the callback args { event: v.string(), assetId: v.string(), facts: v.json() }`,
+              { intent: exportName, event, handler },
+            );
+            callbacksValid = false;
+          }
+        }
+        if (!callbacksValid) continue;
+      }
       // Restriction targets: every v.assetRef({ upload }) must name a
       // declared intent; collected here so the check covers all intents.
       let resolvedAuthorizer;
@@ -2294,6 +2341,9 @@ export async function generateInProcess(backendDir, options = {}) {
         delivery: def.delivery,
         access: def.access,
         image: def.image ?? null,
+        // Spread-when-present keeps pre-existing intent policy hashes
+        // unchanged for intents that declare no callbacks.
+        ...(def.on ? { on: def.on } : {}),
         authRequirement: def.auth,
         argsContractHash: argsContractHash(def.args ?? {}),
       };
@@ -2323,6 +2373,7 @@ export async function generateInProcess(backendDir, options = {}) {
         delivery: def.delivery,
         access: def.access,
         ...(def.image ? { image: def.image } : {}),
+        ...(def.on ? { on: def.on } : {}),
         declaredReads: def.reads ?? [],
         runtime: {
           IbexModule: {
@@ -2372,6 +2423,67 @@ export async function generateInProcess(backendDir, options = {}) {
         // Both surfaces deliberately: the generated manifest carries the
         // deployment warning durably; the codegen result surfaces it to the
         // invoking operator/agent.
+        infoDiagnostics.push(warning);
+        diagnostics.push(warning);
+      }
+    }
+  }
+  // Schema-level reference GC (LLP 0044 §Deletion): admitted only where the
+  // target declares the asset_reference_gc_v1 facts, with the app's grace
+  // inside the Enforced bounds; enabling it warns about the field classes
+  // that confer no protection — only typed v.assetRef references do.
+  let schemaAssetsPolicy;
+  if (schemaDef.assets?.referenceGc) {
+    const declaredGc = canonicalCapability.manifest?.assets?.referenceGc;
+    const graceMs = schemaDef.assets.referenceGc.graceMs;
+    if (!declaredGc) {
+      err(
+        'SNAPBACK_ASSET_REFERENCE_GC_UNSUPPORTED',
+        'asset',
+        `schema declares assets.referenceGc but target ${canonicalCapability.manifest?.targetProfileId ?? targetProfile} does not advertise asset_reference_gc_v1`,
+        { targetProfile: canonicalCapability.manifest?.targetProfileId ?? targetProfile },
+      );
+    } else if (graceMs < declaredGc.graceMinMs || graceMs > declaredGc.graceMaxMs) {
+      err(
+        'SNAPBACK_ASSET_REFERENCE_GC_GRACE_INVALID',
+        'asset',
+        `assets.referenceGc.graceMs ${graceMs} is outside the target's Enforced bounds [${declaredGc.graceMinMs}, ${declaredGc.graceMaxMs}]`,
+        { graceMs, graceMinMs: declaredGc.graceMinMs, graceMaxMs: declaredGc.graceMaxMs },
+      );
+    } else {
+      schemaAssetsPolicy = { referenceGc: { graceMs } };
+      const unprotectedJsonFields = [];
+      let hasTypedAssetFields = false;
+      for (const table of Object.values(tables)) {
+        for (const tableField of table.fields) {
+          if (tableField.field_type?.AssetRef) {
+            hasTypedAssetFields = true;
+          } else if (
+            tableField.field_type === 'Json'
+            || tableField.field_type?.Json !== undefined
+          ) {
+            unprotectedJsonFields.push(`${table.name}.${tableField.name}`);
+          }
+        }
+      }
+      if (unprotectedJsonFields.length > 0 || !hasTypedAssetFields) {
+        const clauses = [];
+        if (unprotectedJsonFields.length > 0) {
+          clauses.push(`asset ids inside json fields confer no protection: ${unprotectedJsonFields.sort().join(', ')}`);
+        }
+        if (!hasTypedAssetFields) {
+          clauses.push('no table declares a typed v.assetRef field, so nothing protects any ready asset from reclamation');
+        }
+        const warning = {
+          code: 'SNAPBACK_ASSET_REFERENCE_GC_UNPROTECTED_FIELDS',
+          severity: 'warning',
+          subsystem: 'asset',
+          message: `assets.referenceGc: only typed v.assetRef references protect an asset (LLP 0044 §Deletion); ${clauses.join('; ')}`,
+          details: {
+            jsonFields: unprotectedJsonFields.sort(),
+            hasTypedAssetFields,
+          },
+        };
         infoDiagnostics.push(warning);
         diagnostics.push(warning);
       }
@@ -2479,6 +2591,7 @@ export async function generateInProcess(backendDir, options = {}) {
     appId,
     ...(appIdentity ? { app: appIdentity } : {}),
     ...(schemaDef.auth !== undefined ? { auth: { mode: authMode } } : {}),
+    ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),
     ...(schemaRequiredCapabilities.length > 0
       ? { requiredCapabilities: schemaRequiredCapabilities }
       : {}),

@@ -77,6 +77,31 @@
       ],
       "type": "object"
     },
+    "AssetReferenceGcFactsV1": {
+      "additionalProperties": false,
+      "description": "The reference-GC facts block (LLP 0044 §Capability facts: the\n`asset-reference-gc-v1` target support, distinct from the app's\nschema-level opt-in that actually enables the sweep).",
+      "properties": {
+        "capabilityId": {
+          "type": "string"
+        },
+        "graceMaxMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graceMinMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "graceMinMs",
+        "graceMaxMs"
+      ],
+      "type": "object"
+    },
     "AssetTargetFactsV1": {
       "additionalProperties": false,
       "description": "The declared asset target facts (LLP 0044 §Capability facts; LLP 0012\ndated registration 2026-07-31). The lifecycle claim is store-parameterized\n— `lifecycle_stores` is part of the claim, and the v1 nonclaims are\nreported Missing here, never omitted.",
@@ -127,6 +152,13 @@
           },
           "type": "array"
         },
+        "lifecycleCallbacks": {
+          "description": "Lifecycle-callback events the target can deliver (dev-lane only in\nv1; a sessions-mode schema refuses callback declarations at\ngeneration).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "lifecycleStores": {
           "items": {
             "type": "string"
@@ -170,6 +202,17 @@
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
+        },
+        "referenceGc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetReferenceGcFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Reference-tracked asset GC support (LLP 0044 §Deletion, opt-in):\n`None` is the honest Missing report; the bounds are Enforced —\na schema-declared grace outside them refuses at generation."
         },
         "resumableLane": {
           "type": "string"
@@ -575,7 +618,8 @@
             "write_activity_v1",
             "asset_lifecycle_v1",
             "asset_image_finalization_v1",
-            "asset_image_pipeline_v1"
+            "asset_image_pipeline_v1",
+            "asset_reference_gc_v1"
           ],
           "type": "string"
         },

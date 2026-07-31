@@ -64,6 +64,21 @@
       },
       "type": "object"
     },
+    "AssetReferenceGcPolicyV1": {
+      "additionalProperties": false,
+      "description": "The app's reference-GC opt-in: a ready asset with no typed\nreverse-reference edges is reclaimed after this grace period. Codegen\nrefuses a grace outside the target's declared Enforced bounds.",
+      "properties": {
+        "graceMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "graceMs"
+      ],
+      "type": "object"
+    },
     "AssetSharingManifest": {
       "description": "The closed asset-sharing declaration, reusing the shipped visibility\nunion rather than a not-yet-implemented general permission language.",
       "oneOf": [
@@ -692,6 +707,23 @@
       ],
       "type": "object"
     },
+    "SchemaAssetsPolicyV1": {
+      "additionalProperties": false,
+      "description": "Schema-level asset policy block (`defineSchema(..., { assets })`).",
+      "properties": {
+        "referenceGc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetReferenceGcPolicyV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
     "SearchCursorLimitsV1": {
       "additionalProperties": false,
       "properties": {
@@ -1066,6 +1098,17 @@
     "artifactKind": {
       "default": "schemaManifest",
       "type": "string"
+    },
+    "assets": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SchemaAssetsPolicyV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "App-level asset policy (LLP 0044 §Deletion: the reference-GC opt-in\nis a schema declaration — \"an app may enable\" — not an intent knob)."
     },
     "auth": {
       "anyOf": [

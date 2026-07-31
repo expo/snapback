@@ -457,6 +457,10 @@ export declare function defineSchema(
   options?: {
     ephemeral?: unknown;
     auth?: { mode: AuthMode };
+    /** App-level asset policy (LLP 0044 §Deletion): reference GC is the
+     * schema-declared opt-in; only typed `v.assetRef` references protect an
+     * asset, and the grace must sit inside the target's Enforced bounds. */
+    assets?: { referenceGc?: { graceMs: number } };
     requiredCapabilities?: TargetCapabilityId[];
   },
 ): unknown;
@@ -559,6 +563,12 @@ export interface AssetUploadSpec {
     location: 'strip' | 'retain';
     variants?: ReadonlyArray<{ key: string; width: number }>;
   };
+  /** Declared lifecycle callbacks: each names a declared mutation whose
+   * args are exactly `{ event: v.string(), assetId: v.string(),
+   * facts: v.json() }`, invoked at-least-once with replay-safe idempotency
+   * under the asset owner's authority — typed facts, never byte authority.
+   * Dev-lane only in v1; a sessions schema refuses at generation. */
+  on?: { ready?: string; rejected?: string };
   authorize?: (ctx: unknown, args?: unknown) => unknown;
   source?: string;
   exportName?: string;

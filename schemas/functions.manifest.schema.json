@@ -127,6 +127,25 @@
       ],
       "type": "object"
     },
+    "AssetCallbackPolicy": {
+      "additionalProperties": false,
+      "description": "Declared lifecycle callbacks: each names an ordinary generated mutation\ninvoked with typed facts under the asset owner's authority — never raw\nbyte authority (LLP 0044 §Declarative processing).",
+      "properties": {
+        "ready": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rejected": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "AssetDeliveryPolicy": {
       "additionalProperties": false,
       "properties": {
@@ -281,6 +300,17 @@
         },
         "name": {
           "type": "string"
+        },
+        "on": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetCallbackPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Declared lifecycle callbacks; absent stays canonical so pre-existing\nintent policy hashes are unchanged."
         },
         "runtime": {
           "$ref": "#/$defs/FunctionRuntime"

@@ -95,9 +95,10 @@ const SEARCH_MAINTENANCE_LIMIT_FIELDS = new Set([
 // @ref LLP 0044#generated-upload-intents — the closed authoring surface for
 //   one upload intent; the client cannot supply or widen any declared fact.
 const ASSET_UPLOAD_FIELDS = new Set([
-  'args', 'auth', 'reads', 'accept', 'delivery', 'access', 'image',
+  'args', 'auth', 'reads', 'accept', 'delivery', 'access', 'image', 'on',
   'authorize', 'source', 'exportName',
 ]);
+const ASSET_CALLBACK_EVENTS = ['ready', 'rejected'];
 const ASSET_ACCEPT_FIELDS = new Set(['mediaTypes', 'maxBytes']);
 const ASSET_DELIVERY_KINDS = new Set(['public-immutable', 'private-signed', 'private-strict']);
 const ASSET_READ_ACCESS = new Set(['owner-only', 'via-references']);
@@ -810,11 +811,30 @@ export function defineSchema(tables, options = {}) {
       assert(TARGET_CAPABILITIES.has(capability), `unknown required target capability ${String(capability)}`);
     }
   }
+  // @ref LLP 0044#deletion-retention-and-garbage-collection — reference GC
+  // is the app-level opt-in ("an app may enable"), so it is a schema
+  // declaration, not an intent knob; the grace is app-declared and codegen
+  // checks it against the target's Enforced bounds.
+  let assets;
+  if (options.assets !== undefined) {
+    assert(options.assets && typeof options.assets === 'object' && !Array.isArray(options.assets), 'defineSchema option "assets" must be an object');
+    exactObject(options.assets, 'defineSchema assets', new Set(['referenceGc']));
+    if (options.assets.referenceGc !== undefined) {
+      exactObject(options.assets.referenceGc, 'defineSchema assets.referenceGc', new Set(['graceMs']));
+      const graceMs = options.assets.referenceGc.graceMs;
+      assert(
+        Number.isSafeInteger(graceMs) && graceMs > 0,
+        'defineSchema assets.referenceGc.graceMs must be a positive safe integer',
+      );
+      assets = { referenceGc: { graceMs } };
+    }
+  }
   return {
     __schema: true,
     tables,
     ephemeral: ephemeralDef,
     ...(auth ? { auth } : {}),
+    ...(assets ? { assets } : {}),
     ...(options.requiredCapabilities !== undefined
       ? { requiredCapabilities: [...new Set(options.requiredCapabilities)] }
       : {}),
@@ -2570,6 +2590,21 @@ export function defineAssetUpload(spec) {
     assert(variants.length <= 8, 'AssetUpload image.variants is bounded to 8');
     image = { location: spec.image.location, ...(variants.length > 0 ? { variants } : {}) };
   }
+  let on;
+  if (spec.on !== undefined) {
+    exactObject(spec.on, 'AssetUpload on', new Set(ASSET_CALLBACK_EVENTS));
+    const entries = {};
+    for (const event of ASSET_CALLBACK_EVENTS) {
+      if (spec.on[event] === undefined) continue;
+      assert(
+        typeof spec.on[event] === 'string' && spec.on[event].length > 0,
+        `AssetUpload on.${event} must name a declared mutation export`,
+      );
+      entries[event] = spec.on[event];
+    }
+    assert(Object.keys(entries).length > 0, 'AssetUpload on must declare at least one callback');
+    on = entries;
+  }
   return {
     [ASSET_UPLOAD]: true,
     __kind: 'AssetUploadIntent',
@@ -2580,6 +2615,7 @@ export function defineAssetUpload(spec) {
     delivery,
     access,
     ...(image ? { image } : {}),
+    ...(on ? { on } : {}),
     ...(inline
       ? { authorize: spec.authorize }
       : { source: spec.source, exportName: spec.exportName }),

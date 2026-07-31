@@ -141,6 +141,46 @@
       ],
       "type": "object"
     },
+    "AssetReferenceGcFactsV1": {
+      "additionalProperties": false,
+      "description": "The reference-GC facts block (LLP 0044 §Capability facts: the\n`asset-reference-gc-v1` target support, distinct from the app's\nschema-level opt-in that actually enables the sweep).",
+      "properties": {
+        "capabilityId": {
+          "type": "string"
+        },
+        "graceMaxMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graceMinMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "graceMinMs",
+        "graceMaxMs"
+      ],
+      "type": "object"
+    },
+    "AssetReferenceGcPolicyV1": {
+      "additionalProperties": false,
+      "description": "The app's reference-GC opt-in: a ready asset with no typed\nreverse-reference edges is reclaimed after this grace period. Codegen\nrefuses a grace outside the target's declared Enforced bounds.",
+      "properties": {
+        "graceMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "graceMs"
+      ],
+      "type": "object"
+    },
     "AssetSharingManifest": {
       "description": "The closed asset-sharing declaration, reusing the shipped visibility\nunion rather than a not-yet-implemented general permission language.",
       "oneOf": [
@@ -252,6 +292,13 @@
           },
           "type": "array"
         },
+        "lifecycleCallbacks": {
+          "description": "Lifecycle-callback events the target can deliver (dev-lane only in\nv1; a sessions-mode schema refuses callback declarations at\ngeneration).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "lifecycleStores": {
           "items": {
             "type": "string"
@@ -295,6 +342,17 @@
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
+        },
+        "referenceGc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetReferenceGcFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Reference-tracked asset GC support (LLP 0044 §Deletion, opt-in):\n`None` is the honest Missing report; the bounds are Enforced —\na schema-declared grace outside them refuses at generation."
         },
         "resumableLane": {
           "type": "string"
@@ -2527,6 +2585,16 @@
         "artifactKind": {
           "type": "string"
         },
+        "assets": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaAssetsPolicyV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "auth": {
           "anyOf": [
             {
@@ -3113,6 +3181,23 @@
       ],
       "type": "object"
     },
+    "SchemaAssetsPolicyV1": {
+      "additionalProperties": false,
+      "description": "Schema-level asset policy block (`defineSchema(..., { assets })`).",
+      "properties": {
+        "referenceGc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetReferenceGcPolicyV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
     "SchemaRefAuthority": {
       "description": "The closed authority classes a schema-reference node may name. V1 admits\nexactly `platform`; hash-by-reference-id is a property of this class.",
       "enum": [
@@ -3536,7 +3621,8 @@
             "write_activity_v1",
             "asset_lifecycle_v1",
             "asset_image_finalization_v1",
-            "asset_image_pipeline_v1"
+            "asset_image_pipeline_v1",
+            "asset_reference_gc_v1"
           ],
           "type": "string"
         },

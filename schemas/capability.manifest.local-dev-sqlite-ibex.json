@@ -34,6 +34,10 @@
       "end-to-end-verified",
       "received-bytes-canonical"
     ],
+    "lifecycleCallbacks": [
+      "ready",
+      "rejected"
+    ],
     "lifecycleStores": [
       "local-fs"
     ],
@@ -45,11 +49,15 @@
       "asset-video-finalization",
       "asset-backup-export",
       "asset-custom-read-authorizers",
-      "asset-deferred-length",
-      "asset-reference-gc"
+      "asset-deferred-length"
     ],
     "pendingGraceMs": 86400000,
     "publicationRetentionMs": 604800000,
+    "referenceGc": {
+      "capabilityId": "asset_reference_gc_v1",
+      "graceMaxMs": 2592000000,
+      "graceMinMs": 60000
+    },
     "resumableLane": "tus-1.0.0",
     "signedUrlDefaultTtlMs": 900000,
     "signedUrlMaxTtlMs": 86400000,
@@ -80,6 +88,7 @@
     "asset_image_finalization_v1": "experimental",
     "asset_image_pipeline_v1": "experimental",
     "asset_lifecycle_v1": "experimental",
+    "asset_reference_gc_v1": "experimental",
     "bounded_children_v1": "experimental",
     "inline_handler_v1": "experimental",
     "jobs_one_off_v1": "experimental",
@@ -276,7 +285,8 @@
     "write_activity_v1",
     "asset_lifecycle_v1",
     "asset_image_finalization_v1",
-    "asset_image_pipeline_v1"
+    "asset_image_pipeline_v1",
+    "asset_reference_gc_v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",

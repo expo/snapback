@@ -796,6 +796,21 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
             OR json_extract(record_json, '$.condemned') IS NOT NULL",
         [],
     )?;
+    // Reference-GC grace clock (W2c): `unreferenced_since_ms` is set when a
+    // ready asset loses its last typed edge (or publishes with none) and
+    // cleared by any edge insert. Column-only mutable state, like the blob
+    // counters above. Idempotent add for pre-existing databases.
+    let has_column = {
+        let mut stmt = tx.prepare("SELECT 1 FROM pragma_table_info('_snapback_asset_records_v1') WHERE name = 'unreferenced_since_ms'")?;
+        stmt.exists([])?
+    };
+    if !has_column {
+        tx.execute(
+            "ALTER TABLE _snapback_asset_records_v1
+             ADD COLUMN unreferenced_since_ms INTEGER",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -1255,15 +1270,83 @@ pub fn insert_reference_edge(
             edge.created_at_ms as i64,
         ],
     )?;
+    // Any typed reference stops the reference-GC grace clock.
+    tx.execute(
+        "UPDATE _snapback_asset_records_v1
+         SET unreferenced_since_ms = NULL WHERE asset_id = ?1",
+        [&edge.asset_id],
+    )?;
     Ok(edge)
 }
 
-pub fn delete_reference_edge(tx: &Transaction<'_>, edge_id: &str) -> SnapbackResult<()> {
+/// Removes one typed edge and, when it was the asset's last, starts the
+/// reference-GC grace clock (LLP 0044 §Deletion: grace is measured from the
+/// moment the asset became unreferenced, durable across restarts).
+pub fn delete_reference_edge(
+    tx: &Transaction<'_>,
+    edge: &AssetReferenceEdgeV1,
+    now_ms: u64,
+) -> SnapbackResult<()> {
     tx.execute(
         "DELETE FROM _snapback_asset_reference_edges_v1 WHERE edge_id = ?1",
-        [edge_id],
+        [&edge.edge_id],
+    )?;
+    tx.execute(
+        "UPDATE _snapback_asset_records_v1
+         SET unreferenced_since_ms = ?2
+         WHERE asset_id = ?1
+           AND availability = 'ready'
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_reference_edges_v1
+               WHERE asset_id = ?1
+           )",
+        rusqlite::params![edge.asset_id, now_ms as i64],
     )?;
     Ok(())
+}
+
+/// Starts the grace clock for an asset that publishes `ready` with no typed
+/// edges (the never-attached upload); a later attachment clears it.
+pub fn mark_unreferenced_if_edgeless(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "UPDATE _snapback_asset_records_v1
+         SET unreferenced_since_ms = ?2
+         WHERE asset_id = ?1
+           AND availability = 'ready'
+           AND unreferenced_since_ms IS NULL
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_reference_edges_v1
+               WHERE asset_id = ?1
+           )",
+        rusqlite::params![asset_id, now_ms as i64],
+    )?;
+    Ok(())
+}
+
+/// Ready assets whose grace clock started at or before `cutoff` — the
+/// reference-GC candidates. The sweep re-verifies edgelessness inside the
+/// reclamation transaction; this query is the index-friendly prefilter.
+pub fn reclaimable_reference_gc_assets(
+    tx: &Transaction<'_>,
+    cutoff_ms: u64,
+) -> SnapbackResult<Vec<AssetRecordV1>> {
+    let mut stmt = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_records_v1
+         WHERE availability = 'ready'
+           AND unreferenced_since_ms IS NOT NULL
+           AND unreferenced_since_ms <= ?1
+         ORDER BY unreferenced_since_ms ASC",
+    )?;
+    let rows = stmt.query_map([cutoff_ms as i64], |row| row.get::<_, String>(0))?;
+    let mut assets = Vec::new();
+    for row in rows {
+        assets.push(decode_record::<AssetRecordV1>(&row?)?);
+    }
+    Ok(assets)
 }
 
 fn attach_refusal(code: &str, message: String, asset_id: &str) -> SnapbackError {
@@ -2764,6 +2847,16 @@ pub struct AssetTargetFactsV1 {
     /// The image-processing facts block; `None` is the honest Missing
     /// report for a target without `asset-image-finalization`.
     pub image: Option<AssetImageFactsV1>,
+    /// Reference-tracked asset GC support (LLP 0044 §Deletion, opt-in):
+    /// `None` is the honest Missing report; the bounds are Enforced —
+    /// a schema-declared grace outside them refuses at generation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_gc: Option<AssetReferenceGcFactsV1>,
+    /// Lifecycle-callback events the target can deliver (dev-lane only in
+    /// v1; a sessions-mode schema refuses callback declarations at
+    /// generation).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lifecycle_callbacks: Vec<String>,
     /// Every listed limit above is `Enforced` on this target; a limit a
     /// target cannot enforce must move to this graded list instead of
     /// silently keeping the field.
@@ -2803,19 +2896,43 @@ impl AssetTargetFactsV1 {
             signed_url_default_ttl_ms: ASSET_SIGNED_URL_DEFAULT_TTL_MS,
             signed_url_max_ttl_ms: ASSET_SIGNED_URL_MAX_TTL_MS,
             image: Some(AssetImageFactsV1::local_v1()),
+            reference_gc: Some(AssetReferenceGcFactsV1 {
+                capability_id: "asset_reference_gc_v1".to_owned(),
+                grace_min_ms: ASSET_REFERENCE_GC_GRACE_MIN_MS,
+                grace_max_ms: ASSET_REFERENCE_GC_GRACE_MAX_MS,
+            }),
+            lifecycle_callbacks: vec!["ready".to_owned(), "rejected".to_owned()],
             advisory_limits: Vec::new(),
             missing: vec![
                 "asset-video-finalization".to_owned(),
                 "asset-backup-export".to_owned(),
                 "asset-custom-read-authorizers".to_owned(),
                 "asset-deferred-length".to_owned(),
-                "asset-reference-gc".to_owned(),
             ],
         }
     }
 }
 
+/// The reference-GC facts block (LLP 0044 §Capability facts: the
+/// `asset-reference-gc-v1` target support, distinct from the app's
+/// schema-level opt-in that actually enables the sweep).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetReferenceGcFactsV1 {
+    pub capability_id: String,
+    pub grace_min_ms: u64,
+    pub grace_max_ms: u64,
+}
+
 pub const ASSET_WORK_KIND_CONDEMNED_CLEANUP: &str = "condemned-object-cleanup";
+/// A declared lifecycle callback: the row invokes an ordinary generated
+/// mutation with typed facts under the asset owner's authority — never raw
+/// byte authority (LLP 0044 §Declarative processing).
+pub const ASSET_WORK_KIND_LIFECYCLE_CALLBACK: &str = "lifecycle-callback";
+/// Reference-GC grace bounds, Enforced facts on the declaring target: a
+/// schema-declared grace outside them refuses at generation.
+pub const ASSET_REFERENCE_GC_GRACE_MIN_MS: u64 = 60_000;
+pub const ASSET_REFERENCE_GC_GRACE_MAX_MS: u64 = 30 * 24 * 60 * 60 * 1000;
 /// Optional declared image renditions produced off the canonical bytes by
 /// the runner; required ones ride finalization itself (LLP 0044 §step 8).
 pub const ASSET_WORK_KIND_IMAGE_VARIANT: &str = "image-variant";

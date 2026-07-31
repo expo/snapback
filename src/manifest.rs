@@ -202,6 +202,10 @@ pub struct SchemaManifest {
     pub app: Option<AppIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthManifest>,
+    /// App-level asset policy (LLP 0044 §Deletion: the reference-GC opt-in
+    /// is a schema declaration — "an app may enable" — not an intent knob).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assets: Option<SchemaAssetsPolicyV1>,
     #[serde(
         default,
         rename = "requiredCapabilities",
@@ -244,6 +248,7 @@ impl Default for SchemaManifest {
             app_id: local_app_id(),
             app: None,
             auth: None,
+            assets: None,
             required_capabilities: Vec::new(),
             schema_hash: None,
             inputs_hash: None,
@@ -339,6 +344,8 @@ pub struct PublicSchemaManifest {
     pub app_id: String,
     pub app: Option<AppIdentity>,
     pub auth: Option<AuthManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assets: Option<SchemaAssetsPolicyV1>,
     #[serde(rename = "requiredCapabilities")]
     pub required_capabilities: Vec<String>,
     #[serde(rename = "schemaHash")]
@@ -368,6 +375,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app_id,
             app,
             auth,
+            assets,
             required_capabilities,
             schema_hash,
             inputs_hash,
@@ -385,6 +393,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app_id,
             app,
             auth,
+            assets,
             required_capabilities,
             schema_hash,
             inputs_hash,
@@ -929,6 +938,10 @@ pub struct AssetUploadIntentDefinition {
     pub access: AssetAccessPolicy,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<AssetImagePolicy>,
+    /// Declared lifecycle callbacks; absent stays canonical so pre-existing
+    /// intent policy hashes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on: Option<AssetCallbackPolicy>,
     #[serde(default, rename = "declaredReads", alias = "declared_reads")]
     pub declared_reads: Vec<String>,
     pub runtime: FunctionRuntime,
@@ -936,6 +949,35 @@ pub struct AssetUploadIntentDefinition {
     pub handler_form: Option<String>,
     #[serde(default, rename = "sourceSpan", alias = "source_span")]
     pub source_span: Option<SourceSpan>,
+}
+
+/// Schema-level asset policy block (`defineSchema(..., { assets })`).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SchemaAssetsPolicyV1 {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_gc: Option<AssetReferenceGcPolicyV1>,
+}
+
+/// The app's reference-GC opt-in: a ready asset with no typed
+/// reverse-reference edges is reclaimed after this grace period. Codegen
+/// refuses a grace outside the target's declared Enforced bounds.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetReferenceGcPolicyV1 {
+    pub grace_ms: u64,
+}
+
+/// Declared lifecycle callbacks: each names an ordinary generated mutation
+/// invoked with typed facts under the asset owner's authority — never raw
+/// byte authority (LLP 0044 §Declarative processing).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetCallbackPolicy {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ready: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rejected: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1360,6 +1402,29 @@ impl FunctionManifest {
                     "asset",
                     format!("asset upload intent {} requires an Ibex authorizer", intent.name),
                 ));
+            }
+            // Declared lifecycle callbacks name ordinary generated mutations
+            // (defense in depth beside codegen's contract check; the loaded
+            // manifest is the authority the runner executes against).
+            if let Some(on) = &intent.on {
+                for callback in [on.ready.as_deref(), on.rejected.as_deref()]
+                    .into_iter()
+                    .flatten()
+                {
+                    let target = self.function(callback);
+                    let is_mutation =
+                        target.is_some_and(|function| function.kind == FunctionKind::Mutation);
+                    if !is_mutation {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_CALLBACK_INVALID",
+                            "asset",
+                            format!(
+                                "asset upload intent {} callback {callback} must name a declared mutation",
+                                intent.name
+                            ),
+                        ));
+                    }
+                }
             }
         }
         Ok(())
@@ -5755,10 +5820,12 @@ pub enum TargetCapabilityId {
     AssetImageFinalizationV1,
     #[serde(rename = "asset_image_pipeline_v1")]
     AssetImagePipelineV1,
+    #[serde(rename = "asset_reference_gc_v1")]
+    AssetReferenceGcV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 25] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -5783,6 +5850,7 @@ impl TargetCapabilityId {
         Self::AssetLifecycleV1,
         Self::AssetImageFinalizationV1,
         Self::AssetImagePipelineV1,
+        Self::AssetReferenceGcV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -5811,6 +5879,7 @@ impl TargetCapabilityId {
             Self::AssetLifecycleV1 => "asset_lifecycle_v1",
             Self::AssetImageFinalizationV1 => "asset_image_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
+            Self::AssetReferenceGcV1 => "asset_reference_gc_v1",
         }
     }
 
@@ -5848,7 +5917,8 @@ impl TargetCapabilityId {
             | Self::WriteActivityV1
             | Self::AssetLifecycleV1
             | Self::AssetImageFinalizationV1
-            | Self::AssetImagePipelineV1 => CapabilityMaturity::Experimental,
+            | Self::AssetImagePipelineV1
+            | Self::AssetReferenceGcV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
         }
     }
@@ -5990,6 +6060,20 @@ impl TargetCapabilityId {
             Self::AssetImagePipelineV1 => {
                 Self::AssetLifecycleV1.is_supported_by(manifest, facts)
                     && Self::AssetImageFinalizationV1.is_supported_by(manifest, facts)
+            }
+            // @ref LLP 0044#deletion-retention-and-garbage-collection —
+            // target support for the opt-in reference-tracked sweep: the
+            // registered implementation plus the declared grace-bound facts,
+            // on top of the lifecycle composite (typed reverse-reference
+            // evidence). The app's schema-level declaration separately
+            // enables it per deployment.
+            Self::AssetReferenceGcV1 => {
+                facts.asset_reference_gc_registered
+                    && Self::AssetLifecycleV1.is_supported_by(manifest, facts)
+                    && manifest
+                        .assets
+                        .as_ref()
+                        .is_some_and(|assets| assets.reference_gc.is_some())
             }
         }
     }
@@ -6178,6 +6262,7 @@ pub struct TargetCapabilityFacts {
     local_relation_activity_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
+    asset_reference_gc_registered: bool,
 }
 
 impl TargetCapabilityFacts {
@@ -6200,6 +6285,7 @@ impl TargetCapabilityFacts {
         Self {
             asset_lifecycle_local_fs_registered: true,
             asset_image_finalization_registered: true,
+            asset_reference_gc_registered: true,
             bounded_children_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
@@ -6845,6 +6931,7 @@ impl CapabilityManifest {
         facts.full_text_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
         facts.asset_image_finalization_registered = false;
+        facts.asset_reference_gc_registered = false;
         manifest.refresh_supported_capabilities(facts);
         manifest
     }
@@ -7420,6 +7507,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::AssetImagePipelineV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::AssetReferenceGcV1,
                 CapabilityMaturity::Experimental,
             ),
         ]);
@@ -8062,6 +8153,7 @@ mod asset_upload_intent_manifest_tests {
                 read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
             },
             image: None,
+            on: None,
             declared_reads: Vec::new(),
             runtime: FunctionRuntime::IbexModule(IbexModule {
                 source: "globalThis.__snapbackHandlers = {};".to_owned(),
