@@ -16,9 +16,11 @@ import { PassThrough } from 'node:stream';
 
 import {
   classifyRequiredWebSurface,
+  collectGatedGeneratedBackends,
   collectRequiredWebSurfaces,
   ensureRegistryInstall,
   ensureWorkspaceInstall,
+  materializeGeneratedBackend,
   requiredSurfaceStructuralErrors,
   runBoundedProcess,
   signalProcessTree,
@@ -105,6 +107,72 @@ try {
     /every required surface must declare `buildTargets`/,
     'required surface classification is mandatory even for non-web runners',
   );
+
+  // The gate materializes gitignored codegen graphs for exactly the demos it
+  // builds: derived from the gated surface inventory, deduplicated per demo,
+  // and only where a committed review manifest exists. All Aboard's outbound
+  // actions are part of its graph identity, so its flag must be set.
+  const gatedBackends = collectGatedGeneratedBackends(collectRequiredWebSurfaces());
+  assert.deepEqual(
+    gatedBackends.map(({ demoId, outboundActions }) => `${demoId}:${outboundActions}`),
+    ['all-aboard:true', 'cursors-web:false'],
+    'gated demos with committed review manifests are materialized before their builds',
+  );
+  const generatedDemoDir = join(scratch, 'generated-demos', 'fixture');
+  mkdirSync(join(generatedDemoDir, 'snapback', 'generated'), { recursive: true });
+  writeFileSync(join(generatedDemoDir, 'demo.snapback.json'), JSON.stringify({
+    surfaces: {
+      contract: { requirement: 'required', buildTargets: ['web'] },
+      react: { requirement: 'required', buildTargets: ['web'] },
+    },
+  }));
+  writeFileSync(
+    join(generatedDemoDir, 'snapback', 'generated', 'artifacts.json'),
+    JSON.stringify({ artifactKind: 'artifactIndex' }),
+  );
+  const fixtureBackends = collectGatedGeneratedBackends(
+    collectRequiredWebSurfaces({ demosDir: join(scratch, 'generated-demos') }),
+    { demosDir: join(scratch, 'generated-demos') },
+  );
+  assert.equal(fixtureBackends.length, 1, 'two gated surfaces of one demo share one backend materialization');
+  assert.equal(fixtureBackends[0].demoId, 'fixture');
+  assert.equal(fixtureBackends[0].outboundActions, false);
+
+  let codegenRuns = 0;
+  let driftRuns = 0;
+  const materialized = await materializeGeneratedBackend(fixtureBackends[0], {
+    runCodegen: async () => {
+      codegenRuns += 1;
+      return { ok: true };
+    },
+    runDriftCheck: async () => {
+      driftRuns += 1;
+      return { ok: true };
+    },
+  });
+  assert.equal(materialized.ok, true);
+  assert.equal(codegenRuns, 1);
+  assert.equal(driftRuns, 1, 'a fresh graph is still checked against the committed review manifest');
+
+  const staleManifest = await materializeGeneratedBackend(fixtureBackends[0], {
+    runCodegen: async () => ({ ok: true }),
+    runDriftCheck: async () => ({ ok: false, reason: 'exited 1; process tree terminated' }),
+  });
+  assert.equal(staleManifest.ok, false);
+  assert.match(staleManifest.reason, /committed review manifest is stale/);
+  assert.match(staleManifest.reason, /commit .*artifacts\.json/);
+
+  let driftAfterFailure = 0;
+  const failedCodegen = await materializeGeneratedBackend(fixtureBackends[0], {
+    runCodegen: async () => ({ ok: false, reason: 'exited 1; process tree terminated' }),
+    runDriftCheck: async () => {
+      driftAfterFailure += 1;
+      return { ok: true };
+    },
+  });
+  assert.equal(failedCodegen.ok, false);
+  assert.match(failedCodegen.reason, /codegen materialization failed/);
+  assert.equal(driftAfterFailure, 0, 'a failed codegen never consults the drift check');
 
   const valid = surface('valid');
   assert.equal(verifyInstalledExactContract(valid.surfaceDir).ok, true, 'valid lock-installed package passes');

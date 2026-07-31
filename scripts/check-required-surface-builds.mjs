@@ -26,12 +26,26 @@
 // ENG-22564 removes the old checkout mode completely: no exact.pin.json, no
 // SNAPBACK_EXACT_ROOT, and no sibling source tree used as a native-asset bridge.
 // A missing lockfile or surviving pin file is a hard failure.
+//
+// Demo backends commit only the deterministic review manifest
+// (snapback/generated/artifacts.json); the digest-keyed codegen cache and the
+// materialized generated graph are deliberately gitignored, and the surface
+// Vite configs verify them fail-closed (SNAPBACK_CODEGEN_CACHE_INVALID) before
+// building. A clean checkout therefore has review manifests but no graphs, so
+// this gate materializes each gated demo's graph with the repo's own codegen
+// before building, then refuses committed-review-manifest drift — the same
+// materialize-then-refuse-drift shape deployment-identity.yml uses. The full
+// all-demo regen ledger stays scripts/check-generated-artifacts; this gate
+// regenerates only the demos whose surfaces it builds.
 
 import { spawn } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { dirname, join, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// Dependency-free (node builtins only), so this import works on a clean
+// checkout before the workspace install this script performs.
+import { REVIEW_MANIFEST_FILE } from '../packages/snapback-codegen/review-surface.mjs';
 import { cleanupError, signalProcessTree } from './lib/process-tree.mjs';
 
 export { signalProcessTree } from './lib/process-tree.mjs';
@@ -40,6 +54,13 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEMOS_DIR = join(ROOT, 'demos');
 const BUILD_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_BUILD_TIMEOUT_MS ?? 300_000);
 const INSTALL_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_INSTALL_TIMEOUT_MS ?? 180_000);
+const CODEGEN_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_CODEGEN_TIMEOUT_MS ?? 120_000);
+
+// Demos whose committed backend authors outbound actions: their codegen embeds
+// the outbound-actions capability-manifest variant, so the flag is part of the
+// graph identity and must match regeneration everywhere. Mirrors the per-demo
+// env in scripts/check-generated-artifacts (the all-demo regen ledger).
+const OUTBOUND_ACTION_DEMOS = new Set(['all-aboard']);
 const LIST_ONLY = process.argv.includes('--list');
 const OUTPUT_TAIL_BYTES = 128 * 1024;
 
@@ -483,6 +504,70 @@ export async function ensureWorkspaceInstall({
   };
 }
 
+// One gated demo backend per demo that commits a codegen review manifest.
+// Derived from the same required-surface inventory as the builds themselves,
+// never from directory discovery.
+export function collectGatedGeneratedBackends(surfaces, { demosDir = DEMOS_DIR } = {}) {
+  const backends = [];
+  const seen = new Set();
+  for (const { demoId } of surfaces) {
+    if (seen.has(demoId)) continue;
+    seen.add(demoId);
+    const backendDir = join(demosDir, demoId, 'snapback');
+    const reviewManifestPath = join(backendDir, 'generated', REVIEW_MANIFEST_FILE);
+    if (!existsSync(reviewManifestPath)) continue;
+    backends.push({
+      demoId,
+      backendDir,
+      reviewManifestPath,
+      outboundActions: OUTBOUND_ACTION_DEMOS.has(demoId),
+    });
+  }
+  return backends;
+}
+
+// @ref LLP 0010#generated-artifacts — the committed review manifest is the
+// source-owned identity witness; the digest-keyed cache and materialized graph
+// it binds are gitignored and must be regenerated (never trusted, never
+// hand-restored) before any consumer builds against them. Refusing drift in
+// the committed manifest afterward keeps this a gate on committed state, not a
+// silent regeneration that papers over a stale checkout.
+export async function materializeGeneratedBackend(backend, {
+  runCodegen = () => runBoundedProcess(
+    process.execPath,
+    ['packages/snapback-codegen/index.mjs', relative(ROOT, backend.backendDir)],
+    {
+      cwd: ROOT,
+      env: backend.outboundActions
+        ? { ...process.env, SNAPBACK_OUTBOUND_ACTIONS: '1' }
+        : { ...process.env },
+      timeoutMs: CODEGEN_TIMEOUT_MS,
+    },
+  ),
+  runDriftCheck = () => runBoundedProcess(
+    'git',
+    ['diff', '--exit-code', '--', relative(ROOT, backend.reviewManifestPath)],
+    { cwd: ROOT, timeoutMs: CODEGEN_TIMEOUT_MS },
+  ),
+} = {}) {
+  const backendRelative = relative(ROOT, backend.backendDir);
+  log(`$ ${backend.outboundActions ? 'SNAPBACK_OUTBOUND_ACTIONS=1 ' : ''}node packages/snapback-codegen/index.mjs ${backendRelative}`);
+  const generated = await runCodegen();
+  if (!generated.ok) {
+    return { ...generated, reason: `codegen materialization failed: ${generated.reason}` };
+  }
+  const drift = await runDriftCheck();
+  if (!drift.ok) {
+    return {
+      ...drift,
+      reason:
+        `committed review manifest is stale for the current backend sources: ${drift.reason}; `
+        + `regenerate with \`${backend.outboundActions ? 'SNAPBACK_OUTBOUND_ACTIONS=1 ' : ''}node packages/snapback-codegen/index.mjs ${backendRelative}\` and commit ${relative(ROOT, backend.reviewManifestPath)}`,
+    };
+  }
+  return { ok: true };
+}
+
 async function main() {
   const surfaces = collectRequiredWebSurfaces().map(classifyRequiredWebSurface);
   if (surfaces.length === 0) {
@@ -510,6 +595,14 @@ async function main() {
 
   const workspaceInstall = await ensureWorkspaceInstall();
   if (!workspaceInstall.ok) fail(workspaceInstall.reason);
+
+  // Materialize the gitignored codegen graphs the surface builds fail-closed
+  // against, then refuse committed-review-manifest drift (see header comment).
+  for (const backend of collectGatedGeneratedBackends(surfaces)) {
+    const materialized = await materializeGeneratedBackend(backend);
+    if (!materialized.ok) fail(`${backend.demoId}: ${materialized.reason}`);
+    log(`OK: ${backend.demoId} generated graph materialized from the committed review manifest`);
+  }
 
   let built = 0;
   for (const surface of surfaces) {

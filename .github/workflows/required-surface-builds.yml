@@ -56,9 +56,12 @@ jobs:
 
       # Build-only gate: no engine, no submodules, no Hermes — just the web
       # production builds of every required surface. The script performs one
-      # frozen root-workspace install for local Snapback package edges, then
-      # each registry surface's own frozen install for its Exact pin; a
-      # lockfile that drifts fails, not resolves.
+      # frozen root-workspace install for local Snapback package edges,
+      # materializes each gated demo's gitignored codegen graph from its
+      # committed review manifest (refusing manifest drift — the surface
+      # builds verify the digest-keyed graph fail-closed, so a clean checkout
+      # must regenerate it first), then each registry surface's own frozen
+      # install for its Exact pin; a lockfile that drifts fails, not resolves.
       - name: Production-build every required demo web surface
         run: node scripts/check-required-surface-builds.mjs
 
