@@ -1,44 +1,51 @@
-# LLP 0137: React-web backend championship and native validation
+# LLP 0137: React-web improvement sweep and deferred backend championship
 
 **Type:** Plan
 **Status:** Draft
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
-**Author:** Charlie Cheever / Codex
+**Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (refine pass: specialist-challenger start gate unified on the required-Track-A-arms freeze rather than the ambiguous "matrix freeze"; historical-composite comparability scoped to category definitions, weights, and rating anchors across a six-contract mean versus LLP 0102's five; Track B gains the explicit both-contracts eligibility rule mirroring Track A's no-silent-zero treatment; all cross-references verified against the corpus — LLP 0102's ten-category/100-point composite and 4h/200-call, 8h/400-call budgets, LLP 0064's exact-native profile and Parity vocabulary, LLP 0115 CV-1, Diaries 0027–0039). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
-**Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, Diary 0027–0039
+**Revised:** 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
 
 ## Summary
 
-Run the next competitive evaluation as three related but non-interchangeable
-programs:
+The purpose of this program is to surface everything that would make Snapback
+better, using real applications and the strongest competitors as reference
+points. Proving that Snapback is better comes later: a competitive ranking is
+only worth running when the improvement backlog has thinned enough that its
+result would outlast it.
 
-1. a **primary React-web championship** across Snapback, Convex, Supabase, and
-   Firebase, using six substantial application contracts;
-2. a **smaller Expo validation** across the same backends, using two of those
-   contracts and independent iOS and Android receipts; and
-3. a **Snapback-only Exact multi-platform graduation exercise**, using one
-   frozen product contract across Contract/web, Exact Native/iOS, and Exact
-   Native/Android.
+The program therefore runs in two phases plus two platform tracks:
 
-The React-web program produces the backend ranking. Expo produces a separate
-mobile-suitability ranking. Exact answers whether Snapback can carry one
-application contract coherently across web and native; it does not contribute
-points to the backend ranking.
+1. **Phase 1 — improvement sweep (now).** Snapback builds all six application
+   contracts as an external npm consumer, in ascending ambition, filing every
+   gap, friction, and defect as an owned finding with an acceptance witness.
+   Fixes may land between arms — the sweep exists to feed the fix loop, not to
+   protect a score. Competitor comparison defaults to the frozen LLP 0102/0115
+   diary evidence; a fresh competitor probe runs only when it would change
+   what Snapback builds.
+2. **Phase 2 — backend championship (deferred).** The symmetric four-backend
+   matrix, historical composite, and ranking-grade controls are preserved in
+   this document and run only after the dry-well trigger fires. No backend
+   ranking is claimed before then.
 
-Firebase joins Snapback, Convex, and Supabase as a required primary backend
-because it is the most informative incumbent for retained offline behavior and
-integrated mobile services. InstantDB and SpacetimeDB may run as bounded
-specialist challengers after the required Track A arms freeze, but they are
-not silently mixed into the four-backend total order. Appwrite and other providers
-from LLP 0102 are not rerun without a dated amendment naming a new research
-question.
+**Track B (Expo)** applies the same sweep-first logic on mobile: Snapback
+implements A1 and A4 on Expo with independent iOS and Android receipts to
+surface mobile-specific gaps, with Firebase available as the reference probe.
+**Track C (Exact)** asks whether one frozen contract graduates across
+Contract/web, Exact Native/iOS, and Exact Native/Android; it was always an
+improvement instrument and is unchanged.
 
-Planning and fixture work may begin immediately. Timed Snapback arms may not
-begin until the terminal `@expo/snapback-*` package closure is publicly
-installable and one clean external smoke arm proves that the matrix can consume
-it without a Snapback checkout. This is the starting gun for execution, not a
-reason to defer protocol design.
+The six contracts carry explicit lineage to the LLP 0102 applications, so the
+sweep also answers "has Snapback measurably improved since the 0102 epoch?"
+from frozen diary evidence, at no new arm cost.
+
+Planning and fixture work may begin immediately. No Snapback arm is timed or
+diaried until the terminal `@expo/snapback-*` package closure is publicly
+installable and one clean external smoke arm proves the sweep can consume it
+without a Snapback checkout (G1) — installing Snapback the way a stranger
+would is itself the first gap-surfacing exercise.
 
 ## Why this is a successor rather than an LLP 0102 revision
 
@@ -46,93 +53,70 @@ LLP 0102 owns the completed seven-backend, five-app bakeoff and its frozen
 evidence. That program established a broad market map, a reusable evidence
 discipline, and a historical ranking. Amending it into a new experiment would
 blur the versions, assistance policy, package boundary, and result that its
-reports preserve.
-
-This Plan therefore inherits LLP 0102's rules for provider-native
-implementations, Stop-class defects, target isolation, immutable diaries,
-measurement records, independent rating audit, and separation of current
-product score from architectural potential. Where this Plan differs, this
-document controls prospectively.
+reports preserve. This Plan reuses 0102's frozen evidence as its default
+competitor reference and inherits its rules for provider-native
+implementations, Stop-class defects, target isolation, immutable diaries, and
+measurement records. Where this Plan differs, this document controls
+prospectively.
 
 LLP 0115 remains the owner of the Snapback × Convex parity rerun and its
 course-correction exits. LLP 0129 remains the owner of Snapback's local-first
-program. This Plan consumes their shipped state and measurements; it does not
-change their completion criteria or turn a competitive arm into implementation
-evidence for an unproved capability.
+program. This Plan consumes their shipped state and measurements and feeds its
+findings into their backlogs; it does not change their completion criteria.
 
 ## Research questions
 
-The primary question is:
+Phase 1 asks, in priority order:
 
-> After the current productization, breadth, React, and local-first work, which
-> backend would a competent builder choose today for a new React web
-> application, and why?
-
-The program also asks:
-
-- Has Snapback become as easy to install and start as Convex and Supabase?
-- Does Snapback match Convex's ordinary TypeScript and reactive authoring loop
-  without giving up explicit authority, settlement, and capability evidence?
-- Does Snapback match Supabase's relational, storage, search, vector, and
-  operational breadth without collapsing into provider-specific escape
-  hatches?
-- Does Snapback match Firebase's retained offline and mobile lifecycle outcomes
-  while preserving stronger conflict, revocation, and effect semantics?
-- Which remaining differences are product defects, missing table stakes,
-  deliberate tradeoffs, maturity gaps, documentation failures, or merely
-  stylistic preferences?
+- What does a competent external builder hit — in gaps, friction, defects,
+  missing table stakes, and documentation failures — when building six real
+  React web applications on public-package Snapback today?
+- For each finding: is it a defect, a missing capability, an experience
+  problem, a documentation failure, an operational gap, a maturity gap, or a
+  deliberate non-goal — and what is the smallest coherent Snapback-native fix
+  and the acceptance witness that would prove it?
+- Where Snapback's outcome is worse or unclear, what does the strongest
+  competitor's concrete outcome look like on the same product fact — from
+  frozen 0102/0115 evidence where it exists, from a fresh probe where it
+  doesn't?
+- Has Snapback measurably improved since the LLP 0102 epoch on the facts the
+  lineage contracts preserve?
 - Are Snapback's differentiators valuable in normal applications, or visible
-  only in adversarial acceptance tests?
-- Does the backend conclusion change on Expo?
-- Can one Snapback application contract graduate across Contract/web and Exact
-  Native on both mobile operating systems without claim inflation?
+  only in adversarial acceptance tests — and which must not regress while the
+  gaps close?
+- Does the picture change on Expo, and can one contract graduate across the
+  Exact Native carriers without claim inflation?
+
+Phase 2, when triggered, asks the deferred question:
+
+> After the improvement program, which backend would a competent builder
+> choose today for a new React web application, and why?
 
 ## Program boundaries
 
-### One backend ranking, two validation reports
+### Improvement evidence, not ranking evidence
 
-Only Track A produces the general backend ranking. Tracks B and C are reported
-beside it because platform behavior matters, but their scores never silently
-alter the web result.
+Phase 1 produces findings, diaries, and a gap ledger. It produces no backend
+ranking, no composite, and no "Snapback wins/loses" claims — its Snapback
+revision moves as fixes land, so its arms are not rank-comparable by design.
+Phase 2 evidence must be produced fresh under Phase 2's controls; Phase 1
+arms and probes are never re-labeled as championship arms.
 
-This separation prevents three confounds:
-
-- Expo lifecycle, native auth, and application packaging are not backend-only
-  properties;
-- Exact Native is a Snapback carrier and integration program, not another
-  backend; and
-- an iOS pass does not establish Android behavior, or vice versa, under LLP
-  0064.
+The platform tracks stay separate for the same reasons as before: Expo
+lifecycle, native auth, and packaging are not backend-only properties; Exact
+Native is a Snapback carrier, not another backend; and an iOS pass does not
+establish Android behavior, or vice versa, under LLP 0064.
 
 ### Comprehensive backends versus composable layers
 
-The required providers are products that plausibly supply the ordinary
+The reference providers are products that plausibly supply the ordinary
 application backend as one coherent offering. Databases and sync layers such
-as Neon, PlanetScale, ElectricSQL, PowerSync, Zero, LiveStore, or Turso are not
-ranked as though they independently supplied auth, functions, files,
-scheduling, effects, deployment, and operations.
+as Neon, PlanetScale, ElectricSQL, PowerSync, Zero, LiveStore, or Turso are
+not treated as though they independently supplied auth, functions, files,
+scheduling, effects, deployment, and operations. A future composable-stack
+study is its own program, not an amendment to this one by implication.
 
-A future composable-stack study may compare complete named assemblies. It must
-count every selected service, integration, policy surface, credential,
-deployment, and application-owned glue. It is not an amendment to this matrix
-by implication.
-
-## Track A — primary React-web championship
-
-### Required backends
-
-| Backend | Why it is required | Profile to freeze |
-| --- | --- | --- |
-| Snapback | Product under improvement; authority, settlement, ephemeral, and local-first thesis | public `@expo/snapback-*` packages; supported local target; first honestly supported hosted target or explicit GAP |
-| Convex | strongest integrated TypeScript functions, transactions, generated types, and reactive-query comparison | current official local and managed paths |
-| Supabase | strongest SQL/RLS, storage, search/vector, and operational escape-hatch comparison | current official local CLI stack and managed project |
-| Firebase | strongest retained-offline and integrated mobile-services comparison | current official emulator/local path and managed project |
-
-Provider versions, plans, regions, official starters, documentation snapshots,
-and target identities are frozen before implementation. A changed recommended
-path replaces the table's shorthand prospectively before evidence is revealed.
-
-### The six application contracts
+## The six application contracts
 
 The contracts share observable product facts, not a backend abstraction. Each
 uses a neutral React/TypeScript shell and the provider's idiomatic schema,
@@ -224,29 +208,97 @@ Exercises bounded composition and background work:
 - live operational dashboard with range filters; and
 - export, restore, and cleanup evidence.
 
-### Primary-matrix size
+### Contract lineage and the longitudinal baseline
 
-Six contracts by four backends produce twenty-four primary arms. Every backend
-must attempt every contract to be eligible for total ordering. A timeboxed or
-blocked arm remains evidence; it is not silently scored as an ordinary zero.
+Four contracts descend from LLP 0102 applications; two are new shapes:
 
-## Track B — Expo mobile validation
+| Contract | Lineage |
+| --- | --- |
+| A1 Offline field notebook | new — the LLP 0129 local-first floor had no 0102 counterpart |
+| A2 Group chat and presence | 0102 chat application (Diary 0028; Snapback rerun Diary 0034) |
+| A3 Issue and planning board | 0102 Linear-shaped application (Diary 0029) |
+| A4 Event and invitation | 0102 Partiful-shaped application (Diary 0030) |
+| A5 AI research room | 0102 research-room application (Diary 0031) |
+| A6 Operations ledger | new — sequence allocation, claims, and settlement receipts (LLP 0133, LLP 0135) had no 0102 counterpart |
 
-After Track A freezes, carry A1 (Offline field notebook) and A4 (Event and
-invitation) into Expo. Reusing the contracts isolates platform effects while
-covering the two most important mobile shapes: offline/background work and
-deep-link/assets/notification work.
+The sweep report must include a longitudinal Snapback comparison: for every
+product fact a lineage contract shares with its 0102 ancestor, compare the new
+Snapback arm's outcome, authoring cost, and friction against the frozen Diary
+0027–0039 evidence. No historical arm is rerun. This is also the cheapest
+detector of regressions the recent productization work may have introduced.
 
-Each backend gets two implementations, one per product contract, with
-independent `ios` and `android` receipts. Shared React Native source is
-expected; shared source never turns one operating-system receipt into two.
+## Phase 1 — the improvement sweep
+
+### Snapback arms
+
+Snapback implements all six contracts from a clean external repository against
+the public `@expo/snapback-*` closure, in ascending ambition: A2, A1, A3, A4,
+A5, A6. The order is chosen for learning, not fairness — early cheap arms
+shake out harness and packaging findings before the deep arms spend budget on
+them.
+
+Rules:
+
+- **External consumer posture.** No Snapback checkout, no repository-relative
+  imports, no knowledge unavailable to a public npm user; the guide and public
+  docs are the only sanctioned documentation. Every place the builder is
+  forced to break this posture is itself a finding.
+- **Fix loop.** Findings are filed continuously as filesystem tickets (or
+  LLPs, per the synthesis section's ownership rules). Fixes may land between
+  arms; each arm's diary records the exact package versions it ran against. An
+  arm is not restarted because a fix landed — a later re-verification of the
+  affected acceptance facts appends a dated entry instead.
+- **Budgets as instruments.** LLP 0102's ceilings — four active hours and 200
+  tool calls for A2, eight hours and 400 calls for the deep arms — are
+  recorded and act as circuit breakers, but exceeding one is a finding to
+  file (with what consumed the time), not a score to protect. A blocked arm
+  records its blocker and moves on.
+- **Differentiator watch.** Each arm also records what Snapback did *better*
+  than the reference evidence and what must not regress; the sweep protects
+  these while the gaps close.
+
+### Competitor references and probes
+
+The default competitor reference is frozen evidence: the LLP 0102 diaries and
+reports, the LLP 0115 rerun evidence, and current official provider
+documentation. That evidence already documents Convex, Supabase, and Firebase
+outcomes on the four lineage shapes.
+
+A **fresh competitor probe** — a provider-native implementation of one
+contract, or a bounded slice of one — is justified only when:
+
+1. the finding would change what Snapback builds, and frozen evidence cannot
+   settle what "good" looks like on the product fact in question;
+2. no frozen evidence covers the dimension (chiefly A1's local-first floor
+   and A6's sequence/claims shape, plus current-generation vector and file
+   pipelines on A5); or
+3. the provider's recommended path has materially changed since 0102 froze.
+
+Expected strongest-fit probes, pre-declared as guidance rather than
+commitments: Firebase on A1 (retained offline), Convex on A5 and A6
+(functions, scheduling, vector), Supabase on A5 (storage, pgvector, search),
+InstantDB on A1/A2 (compact React offline/room ergonomics), SpacetimeDB on A6
+(transactional reducers). Probes are timeboxed at the deep-arm ceiling, use
+official provider paths, receive the same diary and cleanup discipline, and
+produce reference observations — never ranking claims, and never reusable as
+Phase 2 championship arms.
+
+### Track B — Expo sweep
+
+After the web sweep covers A1 and A4, carry both onto Expo: Snapback
+implements each with independent `ios` and `android` receipts, from the same
+external-consumer posture. A Snapback Expo arm may use the supported local
+bridge from a simulator or emulator; hosted availability is recorded as a GAP
+finding, never an invented local equivalence. Simulator and emulator receipts
+qualify for the sweep; physical-device receipts are a separately reported
+production-support gate. Firebase is the pre-declared mobile reference probe,
+run only under the probe rules above.
 
 Each receipt must record:
 
 - exact Expo SDK, React Native, backend client, OS, device/simulator, and build
   artifact identities;
-- clean release or development-client launch through the frozen supported
-  path;
+- clean release or development-client launch through the supported path;
 - native auth entry and deep-link return where the app requires it;
 - initial authoritative data and a second-device realtime transition;
 - background, suspension, foreground, network loss, and reconnect behavior;
@@ -257,12 +309,7 @@ Each receipt must record:
 - authority rotation/logout and predecessor-data retirement; and
 - teardown of processes, credentials, projects/namespaces, and test data.
 
-Track B publishes a mobile-suitability ranking and per-OS GAP table. A backend
-must attempt both Expo contracts to be eligible for the mobile ordering; as in
-Track A, a timeboxed or blocked arm remains evidence and is not silently
-scored as an ordinary zero. Track B does not modify Track A's web composite.
-
-## Track C — Exact multi-platform graduation
+### Track C — Exact multi-platform graduation
 
 Use the frozen A1 product contract for one Snapback-only three-surface
 exercise:
@@ -270,10 +317,6 @@ exercise:
 1. Contract/web;
 2. Exact Native/iOS; and
 3. Exact Native/Android.
-
-This track is not “Snapback gets a special frontend” inside the championship.
-It asks whether Snapback's generated contract and local-first semantics survive
-three carriers.
 
 Claims follow LLP 0064 exactly:
 
@@ -284,48 +327,24 @@ Claims follow LLP 0064 exactly:
   ordered queue, replay/rebase, authority fencing, reconnect convergence, and
   release-artifact exclusion of server implementation.
 
-If the Exact Native surface is not ready when Tracks A and B complete, Track C
-records an honest program GAP and remains a separate successor gate. No polling
-gateway, Contract-on-Hermes instrument, or React Native carrier substitutes for
-an Exact Native profile.
-
-## Selective specialist challengers
-
-Specialist arms are optional and begin only after the required Track A arms
-freeze:
-
-- **InstantDB:** A1 and A2, to test compact React/offline/room ergonomics;
-- **SpacetimeDB:** A6, to test transactional reducers, contention, and live
-  operational views.
-
-These arms receive the same acceptance and diary discipline. They produce
-per-app challenger judgments, not a misleading six-provider overall order
-based on partial coverage.
-
-Adding another provider requires a dated amendment before its implementation
-begins. The amendment names the unique research question, contracts, budget,
-and whether it seeks full-ranking eligibility or specialist status.
+If the Exact Native surface is not ready when the sweep completes, Track C
+records an honest program GAP and remains a separate successor gate. No
+polling gateway, Contract-on-Hermes instrument, or React Native carrier
+substitutes for an Exact Native profile.
 
 ## Execution gates
 
-### G0 — protocol freeze
+### G0 — sweep freeze
 
-Before timed work:
-
-- freeze this Plan's reviewed revision;
-- freeze all six product contracts and acceptance identifiers;
-- materialize neutral React shells and the two Expo shells;
-- freeze provider profiles, versions, official docs, plans, regions, and target
-  lifecycle;
-- freeze agent model, reasoning setting, skills, assistance policy, machine
-  profiles, and time/tool budgets;
-- create expected-check-count manifests and secret-safe evidence schemas;
-- preflight credentials without revealing them; and
-- randomize backend order once per app.
+Before the first diaried arm: freeze the six product contracts and acceptance
+identifiers, the neutral React and Expo shells, the probe policy above, the
+evidence schemas and expected-check-count manifests, and the assistance
+policy; preflight credentials without revealing them. Phase 1 does not freeze
+a Snapback revision — that is Phase 2's control.
 
 ### G1 — public Snapback package consumption
 
-No timed Snapback arm starts until a clean external repository can:
+No diaried Snapback arm starts until a clean external repository can:
 
 - install the complete terminal `@expo/snapback-*` closure from the public npm
   channel by immutable version;
@@ -338,84 +357,53 @@ No timed Snapback arm starts until a clean external repository can:
 - finish with no process, listener, secret sidecar, checkout-relative import,
   or manual sibling dependency.
 
-The smoke arm is untimed qualification, not a championship result. Failure
-returns to LLP 0041/0115 CV-1; it does not lower a frozen timed score before
-the experiment has valid inputs.
+The smoke arm is untimed qualification, and every defect it surfaces is
+already sweep output. Failure returns to LLP 0041/0115 CV-1.
 
 ### G2 — fair target access
 
 Prefer fresh isolated targets. A shared hosted target follows LLP 0102's
 namespace, baseline, scoped-cleanup, and confidence rules. Missing hosted
-access is an explicit GAP or unavailable dependency, never an invented local
-equivalent. Hosted unavailability does not block local authoring evidence, but
-it receives no deployment, operations, regional, or cost credit.
+access is an explicit GAP finding, never an invented local equivalent.
 
 ### G3 — platform honesty
 
-Expo begins only after each selected provider's recommended React Native path
-and required build mode are pinned. Exact begins only against the profiles and
+Expo arms begin only after the provider's recommended React Native path and
+required build mode are pinned. Exact begins only against the profiles and
 receipt rules owned by LLP 0064 and the applicable Exact LLPs. Unsupported
 tuples stay visible.
 
 ## Execution stages
 
-### Stage 0 — review and freeze
-
-Review this Plan, resolve its open questions, build the neutral shells and
-verifiers, pass G0, and retain the freeze digest.
-
-### Stage 1 — package qualification
-
-Wait for public npm publication, then pass G1 from a clean external project on
-supported macOS and Linux hosts. Record publication and resolver propagation
-separately from product qualification.
-
-### Stage 2 — web calibration
-
-Run A1 and A2 across all four backends. Freeze a calibration report before
-proceeding. Calibration may repair a provider-neutral harness defect, but it
-may not change a product contract or Snapback implementation without a dated
-protocol amendment and complete restart of affected frozen arms.
-
-### Stage 3 — deep web round
-
-Run A3–A6 across all four backends. Snapback stays on one frozen product
-revision for all twenty-four primary arms. Preserve timeboxed failures and
-untimed learning extensions separately.
-
-### Stage 4 — Expo validation
-
-Run A1 and A4 on Expo for every required backend, retaining independent iOS and
-Android receipts. Freeze the mobile report before Exact results are revealed.
-
-### Stage 5 — Exact graduation
-
-Run A1 across Contract/web and the two Exact Native profiles, or record the
-precise unready gate. This stage never delays publication of the backend and
-Expo reports.
-
-### Stage 6 — specialist challengers
-
-Run the predeclared InstantDB and SpacetimeDB arms if their additional signal
-still justifies the cost after the primary reports freeze.
-
-### Stage 7 — synthesis and ranking
-
-Produce the complete evidence audit, rankings, qualitative comparison, and
-Snapback improvement program. Do not change the frozen baseline ranking after
-reading the synthesis.
-
-A later Snapback remediation epoch may rebuild the same contracts and publish
-an additive confirmation report. It preserves the original diaries, versions,
-timings, scores, and ranking.
+1. **Stage 0 — freeze.** Pass G0; build shells and verifiers; retain the
+   freeze digest.
+2. **Stage 1 — package qualification.** Pass G1 on supported macOS and Linux
+   hosts; file everything it surfaces.
+3. **Stage 2 — web sweep.** Run the six Snapback arms in order (A2, A1, A3,
+   A4, A5, A6), filing findings continuously and landing fixes between arms.
+4. **Stage 3 — probes.** Run fresh competitor probes as the probe policy
+   justifies them; probes may interleave with Stage 2 once their triggering
+   finding exists.
+5. **Stage 4 — Expo sweep.** Run the Snapback A1/A4 Expo arms and any
+   justified mobile probe; freeze the mobile findings before Exact results
+   are revealed.
+6. **Stage 5 — Exact graduation.** Run Track C or record the precise unready
+   gate; never delay the sweep report for it.
+7. **Stage 6 — synthesis.** Produce the gap ledger, longitudinal comparison,
+   differentiator inventory, and prioritized improvement program; assess the
+   dry-well trigger.
+8. **Stage 7 — championship (deferred).** When the trigger fires, execute
+   Phase 2 below under its own freeze.
 
 ## Diary and evidence protocol
 
-Create one numbered diary per Track A application when execution begins, using
-the next available diary number and the repository convention. Each backend
-appends an immutable dated entry. Expo observations append clearly labeled
-platform entries to A1 and A4. The Exact exercise gets its own diary because it
-evaluates carrier graduation rather than another backend arm.
+Create one numbered diary per application when its first arm begins, using the
+next available diary number and the repository convention. Snapback arms,
+probes, and Expo arms append immutable dated entries, clearly labeled; the
+Exact exercise gets its own diary. Corrections append an erratum; they never
+rewrite the original experience. Every arm retains a machine-readable capsule
+with an expected check count, target identity, cleanup proof, and
+transport/authority/settlement attribution.
 
 Every entry records:
 
@@ -432,39 +420,10 @@ Every entry records:
 - whether the builder would choose the backend for this app and why; and
 - concrete lessons for Snapback, including what must be preserved.
 
-Corrections append an erratum. They never rewrite the original experience.
-Every arm retains a machine-readable capsule with an expected check count,
-target identity, cleanup proof, and transport/authority/settlement attribution.
+## The gap ledger and improvement synthesis
 
-## Measurement and scoring
-
-### Raw outcomes first
-
-Before any composite, report:
-
-- product completeness by acceptance fact;
-- first-hour and total authoring cost;
-- correctness/evidence confidence;
-- dependency and local-runtime footprint;
-- representative latency and resource samples under a frozen machine profile;
-- hosted/deployment availability and list-price evidence; and
-- every workaround and application-owned service.
-
-Performance follows LLP 0035 and supports only the workload actually measured.
-Different machines, target classes, or regions prohibit a synthetic league
-table unless the frozen benchmark profile proves comparability.
-
-### Historical composite
-
-Track A retains LLP 0102's ten-category, 100-point holistic composite so the
-new result remains comparable to the earlier bakeoff. The backend score is the
-equal-weight mean over the six Track A contracts rather than LLP 0102's five
-apps; comparability is at the level of category definitions, weights, and
-rating anchors, not identical application portfolios. Revisions to a category
-definition require a parallel rescoring of the prior evidence or a clearly
-labeled second composite; they never overwrite the historical score.
-
-The report also shows an uncollapsed dimension ledger for:
+The sweep's primary deliverable is a gap ledger organized by the ten
+dimensions below, replacing any composite for Phase 1:
 
 - installed-product first hour;
 - TypeScript inference and contract fidelity;
@@ -477,120 +436,113 @@ The report also shows an uncollapsed dimension ledger for:
 - hosted deployment and operations; and
 - diagnostics, documentation, agent usability, and ecosystem escape hatches.
 
-The dimension ledger is the basis for the “better than both on every
-dimension” analysis. A weighted composite cannot hide a Stop-class defect or a
-table-stakes GAP.
+For every finding, the ledger states:
 
-### Separate platform reports
-
-Track B reports per-backend mobile product completeness, iOS/Android receipt
-coverage, mobile authoring cost, and a separate mobile-suitability composite.
-Track C reports profile graduation and qualitative carrier coherence; it has
-no backend composite.
-
-### Ranking and review
-
-Publish:
-
-- per-app Track A rankings;
-- the overall Track A backend order and practical ties;
-- sensitivity analysis under LLP 0102's method;
-- the separate Track B mobile order;
-- Track C graduation results;
-- specialist challenger judgments; and
-- an independent subjective-rating audit by a model family that did not build
-  the scored arms, retained alongside disagreements.
-
-Architectural potential remains a separate narrative and contributes zero
-points to the current-product ranking.
-
-## Snapback improvement synthesis
-
-For every dimension, state:
-
-1. what Snapback does better today;
-2. what Snapback does worse today;
-3. the strongest competitor outcome and its evidence;
-4. whether the gap is a defect, capability, experience, documentation,
+1. the concrete observation and its diary/capsule evidence;
+2. the strongest competitor outcome on the same product fact, with its source
+   (frozen evidence or probe);
+3. whether the gap is a defect, capability, experience, documentation,
    operations, maturity, benchmark-only issue, or deliberate non-goal;
-5. the Snapback property that must not regress;
-6. the smallest coherent Snapback-native improvement outcome;
-7. the acceptance witness that would prove it; and
-8. its owner: immediate repair, filesystem issue, existing LLP, new LLP, or
+4. the Snapback property that must not regress while fixing it;
+5. the smallest coherent Snapback-native improvement outcome;
+6. the acceptance witness that would prove it; and
+7. its owner: immediate repair, filesystem issue, existing LLP, new LLP, or
    explicit refusal.
 
-The final report must distinguish:
+The synthesis must distinguish table stakes, repeated first-hour and
+daily-loop friction, breadth gaps exposed by one advanced app, differentiators
+worth amplifying, maturity and ecosystem gaps code cannot close, hosted and
+operational gaps, mobile-only and Exact-only findings, and architectural
+rethink triggers. Do not create Convex-shaped, Supabase-shaped, or
+Firebase-shaped subsystems solely to make a fixture pass; match valuable
+outcomes through Snapback's authority, settlement, local-first, target, and
+capability model.
 
-- table stakes required to be a credible default;
-- repeated first-hour and daily-loop friction;
-- breadth gaps exposed by only one advanced app;
-- differentiators worth amplifying;
-- product maturity and ecosystem gaps that code alone cannot close;
-- hosted and operational gaps;
-- mobile-only and Exact-only findings; and
-- architectural rethink triggers.
+### Honesty controls
 
-Do not create Convex-shaped, Supabase-shaped, or Firebase-shaped subsystems
-solely to make a fixture pass. Match valuable outcomes through Snapback's
-authority, settlement, local-first, target, and capability model.
-
-## Bias controls
-
-- Freeze the complete primary matrix before its first timed arm.
-- Keep one Snapback revision across all required Track A arms.
-- Randomize provider order per app before implementation.
-- Give every backend the same product facts, not the same internal design.
-- Use official provider paths and starters; record source/community/human help.
-- Do not reward Snapback for repository access unavailable to a normal npm
-  consumer.
-- Do not penalize managed providers merely for being managed.
+- Give every implementation the same product facts, not the same internal
+  design; use official provider paths and record source/community/human help.
 - Do not count polling as push, optimistic UI as authority, cached seed as an
   offline mutation, or a rendered Expo screen as an OS lifecycle proof.
 - Preserve failed attempts, security Stops, credential incidents, and builder
-  mistakes with correct attribution.
-- Refresh current provider paths from primary sources at freeze and before the
-  final report.
-- Keep Track A, Track B, and Track C scores separate.
+  mistakes with correct attribution; findings are never softened because the
+  product under test is ours.
+- Performance observations follow LLP 0035 and support only the workload
+  actually measured.
+- Probe evidence and frozen evidence are always labeled with their source and
+  date; stale frozen evidence is flagged, not silently treated as current.
+
+## Phase 2 — the deferred backend championship
+
+Phase 2 is preserved here so the design survives until it is worth running.
+It begins only when the **dry-well trigger** fires: Charlie judges the
+improvement backlog thin enough that a ranking would outlast it — the default
+signal being a re-verification sweep across the six contracts that produces no
+new table-stakes or Stop-class findings.
+
+The frozen design, unchanged from this document's v2 revision:
+
+- **Backends:** Snapback, Convex, Supabase, Firebase, each on its current
+  official recommended path, frozen at Phase 2's own G0.
+- **Matrix:** a symmetric core — A1, A2 (calibration), A3, A4 across all four
+  backends — plus extension arms A5 (Snapback, Convex, Supabase) and A6
+  (Snapback, Convex); twenty-one timed arms. The three cut arms are designed
+  non-coverage, reinstatable only by dated amendment.
+- **Controls:** one frozen Snapback revision across all arms; atomic
+  per-contract rounds so no backend systematically builds last; provider
+  order randomized per round; LLP 0102's budget classes enforced as ceilings;
+  no repository access beyond a normal npm consumer.
+- **Scoring:** LLP 0102's ten-category, 100-point composite as an equal-weight
+  mean over the four core contracts — comparable to 0102 at the level of
+  category definitions, weights, and rating anchors — plus the uncollapsed
+  dimension ledger, per-contract verdicts (four-way core, per-shape
+  extension), a labeled six-contract Snapback–Convex head-to-head, sensitivity
+  analysis, practical-tie rules, and an independent subjective-rating audit by
+  a model family that did not build the scored arms. Extension and challenger
+  arms never enter the core composite. Stop-class defects are displayed beside
+  scores and disqualify go-to eligibility for the affected application.
+- **Track B ranking:** Snapback + Firebase Expo baseline with author-checkpoint
+  expansion to Convex/Supabase; mobile ordering scoped to actual coverage.
+- **Challengers:** InstantDB (A1, A2) and SpacetimeDB (A6) behind an author
+  checkpoint, producing per-app judgments only.
+
+All Phase 2 evidence is produced fresh under that freeze. A later Snapback
+remediation epoch may rebuild the same contracts and publish an additive
+confirmation report; it preserves the original diaries, versions, timings,
+scores, and ranking.
 
 ## Deliverables
 
-- six frozen application contracts and neutral React shells;
-- two Expo shells and one Exact multi-platform contract;
-- twenty-four required web arms or explicit terminal records;
-- up to eight Expo implementations with independent iOS and Android receipts;
+Phase 1:
+
+- six frozen application contracts, neutral React shells, and two Expo shells;
+- the G1 external-consumption qualification record and its findings;
+- six Snapback web arms, two Snapback Expo arm pairs with independent iOS and
+  Android receipts, and justified probes — each with immutable diary entries
+  and machine-readable capsules;
 - three Snapback Exact/Contract platform arms or precise GAP records;
-- optional specialist-arm evidence;
-- numbered immutable diaries;
-- machine-readable acceptance, target, cleanup, package, and measurement
-  capsules;
-- calibration, web-final, mobile, Exact, independent-audit, and evidence-audit
-  reports;
-- per-app and overall rankings with sensitivity analysis;
-- a full qualitative comparison; and
-- a prioritized Snapback improvement plan aimed at matching or exceeding
-  Convex and Supabase on every named dimension while preserving Snapback's
-  demonstrated advantages.
+- the gap ledger with owners and acceptance witnesses, the differentiator
+  must-not-regress inventory, the longitudinal comparison against frozen LLP
+  0102 lineage evidence, and the prioritized improvement program;
+- the stream of filed tickets and LLP updates the fix loop produced; and
+- a dated dry-well assessment.
+
+Phase 2, when triggered: the championship deliverables enumerated above —
+twenty-one arms or terminal records, the composite and rankings with
+sensitivity analysis, the head-to-head, the mobile and challenger reports, and
+the independent audit.
 
 ## Open questions
 
-1. Should Firebase be a full fourth backend, as proposed, or only a mandatory
-   A1/A4 offline-and-mobile reference? The full arm preserves ranking symmetry;
-   the selective arm saves substantial time.
-2. Should Track B require physical-device receipts before its final ranking,
-   or report simulator/emulator graduation first and physical-device evidence
-   as a production-support gate?
-3. Does Track B require hosted Snapback, or may a simulator/emulator use the
-   supported local bridge while hosted availability remains a scored GAP?
-4. Should the specialist arms execute automatically, or require an author
-   checkpoint after Track A shows whether they still add information?
-5. What exact active-time and tool-call budgets should replace or retain LLP
-   0102's four-hour calibration and eight-hour deep-app ceilings?
-6. Who is the independent rating reviewer, and when are their prompts and
-   builder-score blindness frozen?
+1. Who is the independent rating reviewer for Phase 2, and when are their
+   prompts and builder-score blindness frozen? (Deferred with Phase 2.)
+2. Should the dry-well trigger's default signal — a re-verification sweep with
+   no new table-stakes or Stop-class findings — be tightened or replaced once
+   the sweep's finding rate is observable?
 
 ## Status
 
 Draft. Planning, review, shell construction, and verifier work may proceed.
-Timed provider execution is blocked on G0. Timed Snapback execution is also
-blocked on G1, the public terminal-package qualification. No backend, mobile,
-or Exact ranking is claimed by this document.
+Diaried sweep execution is blocked on G0 and G1, the public terminal-package
+qualification. Phase 2 is additionally blocked on the dry-well trigger. No
+backend, mobile, or Exact ranking is claimed by this document.
