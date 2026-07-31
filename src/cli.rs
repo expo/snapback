@@ -2751,6 +2751,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     if let Some(worker) = jobs_worker {
         worker.abort();
+    }
     if let Some(runner) = asset_runner {
         runner.abort();
     }

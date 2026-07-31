@@ -1556,6 +1556,7 @@ impl<'a> IbexHostContext<'a> {
                     "availableAtMs": available_at_ms,
                     "deduplicated": false,
                 }))
+            }
             "assets.attach" => {
                 self.ensure_writable("attach")?;
                 let asset_id = required_string(&args, "assetId")?;

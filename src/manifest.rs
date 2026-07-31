@@ -5749,7 +5749,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 22] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,

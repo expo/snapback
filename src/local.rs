@@ -14168,6 +14168,8 @@ impl LocalSnapback {
     /// rows exist. The worker polls this only when its activity hint is set.
     pub(crate) fn jobs_pending_count(&self) -> SnapbackResult<u64> {
         self.db.pending_job_count()
+    }
+
     /// Asset-runner loop errors land in the same bounded diagnostics ring as
     /// cron tick errors; the ledger rows themselves carry per-item failure
     /// state, so this records only scheduler-machinery faults.
