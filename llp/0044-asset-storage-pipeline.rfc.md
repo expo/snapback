@@ -1860,10 +1860,38 @@ video strip on the local manifest (`assets.video` facts block) and
 still refuses it wherever the fact is withheld; transcoding, poster
 frames, and HLS remain nonclaims.
 
+Also closed 2026-07-31, later same day (the completion-program W2e
+pass): **sessions-mode live projection**. The reserved
+`_snapback.assetRecord` subscription now establishes under the sessions
+bearer/ResolvedCaller path with the same sealed-auth discipline as
+every protected query, and the old blanket
+`SNAPBACK_ASSET_LIVE_SESSIONS_UNSUPPORTED` refusal is retired. **No new
+LLP 0053 classification was needed**: 0053's §Asset read-authorization
+inputs (2026-07-31) already admits every input the projection reads —
+the asset-readable predicate node, the reverse-edge empty-range
+capture, the sealed `ctx.auth` projection (the sessions caller reaches
+the decision through the same `ResolvedAppAuthority` seam as every
+resolved identity) — and the sessions gap was purely implementation:
+three re-run seams (the auth-invalidation drain, the ordinary-frame
+fan-out, and resume resnapshot) routed a subscription's re-execution
+through manifest-function lookup, which cannot produce the native
+projection. Those seams now execute the reserved projection natively
+while keeping the full witnessed discipline: in sessions mode the
+projection is auth-scoped (protocol negotiation, query namespace,
+obligation registration), an auth-scoped subscription never receives a
+plain unwitnessed replace (movement routes through the
+obligation/snapshot lane with retry episodes and ACK tickets), and
+establishment without the negotiated protocol still fails closed
+(`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`). Proven end to end on
+a settled sessions instance: session-authority upload → witnessed
+ready snapshot with no polling, foreign-session blank establishment,
+and deletion blanking through the witnessed lane.
+
 Deferred with named owners, honestly: the React/Expo projection and
 real-server JS conformance vectors (ticket L1-14's recorded remainder);
-sessions-mode live-projection classification and sessions callback
-authority (the respective remainder notes); bounded-array `v.assetRef`
+sessions callback execution authority
+(`issues/20260731-0044-sessions-callback-authority.md` records the
+concrete design question); bounded-array `v.assetRef`
 (`issues/20260731-assetref-array-needs-portable-array-fields.md`); and
 S3 store qualification, store migration, and the
 LLP 0070 runner generation, each already scoped as later capabilities

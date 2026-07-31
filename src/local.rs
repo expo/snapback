@@ -6086,6 +6086,105 @@ impl LocalSnapback {
         self.live_delivery.last_deliveries += 1;
     }
 
+    /// The auth-scoped (sessions-mode) sibling of
+    /// [`Self::rerun_asset_record_subscription`]: the same native recompute
+    /// decides movement, but delivery rides the witnessed
+    /// obligation/snapshot lane — an auth-scoped subscription never receives
+    /// a plain replace, so quarantine, retry episodes, and ACK tickets apply
+    /// to the reserved projection exactly as to ordinary queries.
+    fn rerun_asset_record_subscription_witnessed(
+        &mut self,
+        subscription: &LiveSubscription,
+        admission: &AdmissionLease,
+        frame_version: u64,
+    ) {
+        let authority =
+            match self.prepare_live_rerun_authority(&subscription.authority, admission.clone()) {
+                Ok(authority) => authority,
+                Err(error) => {
+                    self.fail_subscription_fanout(
+                        subscription,
+                        "live_authority_ended",
+                        error,
+                        Some(frame_version),
+                        admission,
+                    );
+                    return;
+                }
+            };
+        let probe = match self.asset_record_query_invocation(&authority, &subscription.input) {
+            Ok(query) => query,
+            Err(error) => {
+                self.fail_subscription_fanout(
+                    subscription,
+                    "live_refresh_failed",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
+                return;
+            }
+        };
+        let moved = self
+            .subscriptions
+            .get(&subscription.id)
+            .is_none_or(|stored| stored.read_dependencies != probe.read_dependencies);
+        if !moved {
+            self.live_delivery.total_skipped += 1;
+            self.live_delivery.last_skipped += 1;
+            return;
+        }
+        let Some(floor) = self
+            .auth_invalidation
+            .as_ref()
+            .map(|state| state.witness(frame_version))
+        else {
+            self.fail_subscription_fanout(
+                subscription,
+                "authorization_invalidation_failed",
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "auth-scoped asset subscription requires installed invalidation state",
+                ),
+                Some(frame_version),
+                admission,
+            );
+            return;
+        };
+        let query = match self.invoke_authorization_resolution(subscription, floor, admission) {
+            Ok(query) => query,
+            Err(failure) => {
+                self.fail_subscription_fanout_with_retry(
+                    subscription,
+                    "live_refresh_failed",
+                    failure.error,
+                    failure.retry_episode_id,
+                    Some(frame_version),
+                    admission,
+                );
+                return;
+            }
+        };
+        let read_dependencies = query.read_dependencies.clone();
+        match self.deliver_authorization_snapshot(subscription, query, "replace", true, admission) {
+            Ok(()) => {
+                if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+                    stored.read_dependencies = read_dependencies;
+                }
+                self.live_delivery.total_deliveries += 1;
+                self.live_delivery.last_deliveries += 1;
+            }
+            Err(error) => self.fail_subscription_fanout(
+                subscription,
+                "authorization_invalidation_failed",
+                error,
+                Some(frame_version),
+                admission,
+            ),
+        }
+    }
+
     /// Asset system-table writes commit through `asset_transaction`, outside
     /// the app changeset that ordinarily feeds live fan-out. Every asset
     /// state transition an observer may care about funnels through here with
@@ -12047,18 +12146,14 @@ impl LocalSnapback {
         let effect_fence = invalidation.effect_fence.clone();
         let authority_subject = authority.resolved().invalidation_subject();
         let asset_record_live = name == ASSET_RECORD_LIVE_FUNCTION;
-        if asset_record_live && authority.active_mode() == AuthMode::Sessions {
-            // Fail closed: the sessions-mode auth-invalidation classification
-            // for the reserved projection is a recorded follow-up; admitting
-            // it here would route re-runs through machinery that cannot
-            // execute a native projection.
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_LIVE_SESSIONS_UNSUPPORTED",
-                "assets",
-                "the asset record projection is not yet admitted for sessions-mode \
-                 subscriptions",
-            ));
-        }
+        // Sessions-mode establishment is admitted (2026-07-31): LLP 0053's
+        // §Asset read-authorization inputs classification already covers every
+        // input the projection reads, and the sealed sessions caller flows
+        // through `asset_caller_principal` like any other resolved authority.
+        // The projection is deliberately not `authority_independent`, so in
+        // sessions mode it is auth-scoped below: protocol negotiation, a
+        // query namespace, obligation registration, and the witnessed
+        // re-run/drain lane all apply — never a plain unwitnessed replace.
         let function = if asset_record_live {
             asset_record_live_definition()?
         } else {
@@ -13657,11 +13752,15 @@ impl LocalSnapback {
                 &subscription.authority,
                 authority.admission_lease().clone(),
             )?;
-            let query = self.invoke_query_with_dependencies_prepared(
-                &subscription.function,
-                subscription.input.clone(),
-                rerun,
-            )?;
+            let query = if subscription.function == ASSET_RECORD_LIVE_FUNCTION {
+                self.asset_record_query_invocation(&rerun, &subscription.input)?
+            } else {
+                self.invoke_query_with_dependencies_prepared(
+                    &subscription.function,
+                    subscription.input.clone(),
+                    rerun,
+                )?
+            };
             let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
             let _publication = authority.effect_guard("live resume resnapshot publication")?;
             self.touch_connection(&input.connection_id, now_millis());
@@ -17021,11 +17120,19 @@ impl LocalSnapback {
             match self
                 .prepare_live_rerun_authority(&subscription.authority, admission.clone())
                 .and_then(|authority| {
-                    self.invoke_query_with_dependencies_prepared(
-                        &subscription.function,
-                        subscription.input.clone(),
-                        authority,
-                    )
+                    if subscription.function == ASSET_RECORD_LIVE_FUNCTION {
+                        // The reserved projection executes natively; the
+                        // manifest lookup below can never produce it. The
+                        // retry-episode and witness machinery wrapping this
+                        // closure applies to it unchanged.
+                        self.asset_record_query_invocation(&authority, &subscription.input)
+                    } else {
+                        self.invoke_query_with_dependencies_prepared(
+                            &subscription.function,
+                            subscription.input.clone(),
+                            authority,
+                        )
+                    }
                 }) {
                 Ok(query) => return Ok(query),
                 Err(error) => {
@@ -18168,7 +18275,20 @@ impl LocalSnapback {
             self.live_delivery.last_deliveries += 1;
         }
         for subscription in asset_record_subscriptions {
-            self.rerun_asset_record_subscription(&subscription, admission, frame_version);
+            if subscription.authorization.is_some() {
+                // Sessions-mode (auth-scoped) reserved subscriptions never
+                // receive a plain unwitnessed replace: recompute natively for
+                // the fingerprint check, then deliver through the witnessed
+                // obligation/snapshot lane exactly like every other
+                // auth-scoped query.
+                self.rerun_asset_record_subscription_witnessed(
+                    &subscription,
+                    admission,
+                    frame_version,
+                );
+            } else {
+                self.rerun_asset_record_subscription(&subscription, admission, frame_version);
+            }
         }
         Ok(())
     }
@@ -24396,6 +24516,186 @@ globalThis.__snapbackHandlers = {
         assert!(
             frames.iter().all(|frame| frame["kind"] != "live_replace"),
             "an unrelated commit must not deliver: {frames:?}"
+        );
+    }
+
+    fn asset_sessions_authority(user: &str, source: InvocationSource) -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            source,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            crate::auth::invocation::ResolvedAppAuthority::Session {
+                user_id: user.to_owned(),
+                session_id: format!("sess-{user}"),
+                provider: "test".to_owned(),
+                generation: 1,
+                authority_instance_id: format!("inst-{user}"),
+                session_not_after_ms: u64::MAX,
+                provider_not_after_ms: None,
+            },
+        )
+        .expect("sessions authority")
+    }
+
+    fn asset_sessions_live_input(
+        connection_id: &str,
+        asset_id: &str,
+        instance: u64,
+    ) -> LiveSubscribeInput {
+        LiveSubscribeInput {
+            connection_id: connection_id.to_owned(),
+            input: HandlerInput {
+                args: json!({ "assetId": asset_id }),
+                ..HandlerInput::default()
+            },
+            authorization_namespace: Some(test_authorization_namespace(instance)),
+            supersedes: None,
+            resume_from_token: None,
+        }
+    }
+
+    #[test]
+    fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
+        let (schema, mut functions) = sessions_activation_pair('b', false);
+        functions.asset_upload_intents = vec![asset_shared_intent()];
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let descriptor = install_test_invalidation(&mut snapback);
+
+        // Upload under sealed session authorities — the sessions instance
+        // admits no dev authority anywhere in this test.
+        let creator = asset_sessions_authority("user_a", InvocationSource::HttpQuery);
+        let transfer = asset_sessions_authority("user_a", InvocationSource::AssetTransfer);
+        let bytes = b"sessions-live";
+        let created = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(bytes.len() as u64)))
+            .expect("sessions attempt creates");
+        let checksum = asset_chunk_checksum(bytes);
+        snapback
+            .asset_tus_patch(
+                &transfer,
+                &created.task.attempt_id,
+                0,
+                bytes,
+                Some(("sha256", checksum.as_str())),
+            )
+            .expect("sessions bytes land");
+        let asset_id = created.task.asset_id.clone();
+        let attempt_id = created.task.attempt_id.clone();
+
+        // Establishment without the negotiated invalidation protocol fails
+        // closed — retiring the old blanket refusal opened no unwitnessed
+        // hole; the ordinary auth-scoped admission now governs.
+        let refused = snapback
+            .subscribe_live_prepared_with_invalidation(
+                ASSET_RECORD_LIVE_FUNCTION,
+                asset_sessions_live_input("conn-sess-a", &asset_id, 41),
+                asset_sessions_authority("user_a", InvocationSource::LiveInitialQuery),
+                LiveInvalidationAdmission {
+                    connection: None,
+                    effect_fence: None,
+                    session_mode: true,
+                },
+            )
+            .expect_err("sessions establishment requires the invalidation protocol");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+        );
+
+        // Owner establishes under the sealed sessions identity and sees the
+        // pending row.
+        let established = snapback
+            .subscribe_live_prepared_with_invalidation(
+                ASSET_RECORD_LIVE_FUNCTION,
+                asset_sessions_live_input("conn-sess-a", &asset_id, 42),
+                asset_sessions_authority("user_a", InvocationSource::LiveInitialQuery),
+                LiveInvalidationAdmission {
+                    connection: Some(descriptor.clone()),
+                    effect_fence: None,
+                    session_mode: true,
+                },
+            )
+            .expect("sessions-mode establishment admits the reserved projection");
+        let snapshot = established.snapshot.expect("initial sessions rows");
+        assert_eq!(snapshot.rows.len(), 1);
+        assert_eq!(snapshot.rows[0]["availability"], "pending");
+
+        // A foreign session establishes blank: owner-only through no edge,
+        // decided from the sealed resolved caller, not a client assertion.
+        let foreign = snapback
+            .subscribe_live_prepared_with_invalidation(
+                ASSET_RECORD_LIVE_FUNCTION,
+                asset_sessions_live_input("conn-sess-b", &asset_id, 43),
+                asset_sessions_authority("user_b", InvocationSource::LiveInitialQuery),
+                LiveInvalidationAdmission {
+                    connection: Some(descriptor),
+                    effect_fence: None,
+                    session_mode: true,
+                },
+            )
+            .expect("foreign session establishes");
+        assert_eq!(foreign.snapshot.expect("blank rows").rows.len(), 0);
+
+        // Publish under the session authority. The sessions subscriber
+        // receives the witnessed authorization-invalidation snapshot — never
+        // a plain live_replace.
+        snapback
+            .asset_attempt_finalize(
+                &creator,
+                crate::assets::AssetFinalizeRequestV1 {
+                    attempt_id: attempt_id.clone(),
+                    lifecycle_generation: 1,
+                    declared_digest: None,
+                },
+            )
+            .expect("sessions finalize publishes");
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "conn-sess-a")
+            .into_iter()
+            .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
+            .collect::<Vec<_>>();
+        let snapshot = frames
+            .iter()
+            .rev()
+            .find(|frame| {
+                frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
+            })
+            .unwrap_or_else(|| panic!("no witnessed snapshot frame: {frames:?}"));
+        let rows = snapshot["snapshot"]["rows"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["availability"], "ready");
+        assert!(
+            frames.iter().all(|frame| frame["kind"] != "live_replace"),
+            "an auth-scoped reserved subscription must never get a plain replace: {frames:?}"
+        );
+
+        // Deletion blanks the owner through the same witnessed lane.
+        snapback
+            .asset_delete(&creator, &asset_id)
+            .expect("sessions delete");
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "conn-sess-a")
+            .into_iter()
+            .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
+            .collect::<Vec<_>>();
+        let blanked = frames
+            .iter()
+            .rev()
+            .find(|frame| {
+                frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
+            })
+            .unwrap_or_else(|| panic!("no witnessed blank frame: {frames:?}"));
+        assert_eq!(
+            blanked["snapshot"]["rows"]
+                .as_array()
+                .map(Vec::len)
+                .unwrap_or_default(),
+            0,
+            "deletion blanks the sessions-mode live view"
         );
     }
 

@@ -35,3 +35,14 @@ establishment fails closed (`SNAPBACK_ASSET_LIVE_SESSIONS_UNSUPPORTED`)
 until the projection's auth-invalidation classification under LLP 0053's
 protected-query profile is written; the React store integration consumes
 the frames in L1-14's remainder.
+
+**W2e annotation (2026-07-31, later same day):** the recorded remainder
+above is closed. Sessions-mode establishment is admitted under the
+sealed session identity through the ordinary auth-scoped admission (the
+blanket refusal and its diagnostic are retired); re-runs execute the
+projection natively inside the witnessed obligation/snapshot lane at
+all three seams (drain, frame fan-out, resume resnapshot); no new LLP
+0053 classification was needed (llp/0044 §Status W2e note records why).
+Evidence: `asset_record_live_projection_sessions_mode_rides_the_witnessed_lane`.
+Sessions callback execution authority remains open as
+issues/20260731-0044-sessions-callback-authority.md.
