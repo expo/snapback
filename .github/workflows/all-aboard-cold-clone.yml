@@ -37,7 +37,6 @@ jobs:
           # ccheever/snapback + ccheever/ibex. (ENG-22480 phase 2: the extra
           # Contents: read grant on ccheever/exact is no longer needed — the
           # Exact side of this lane installs from the public npm registry.)
-          token: ${{ secrets.SUBMODULE_TOKEN }}
 
       - name: Verify checkout credentials were removed
         run: scripts/check-checkout-credentials

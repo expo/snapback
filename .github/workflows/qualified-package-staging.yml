@@ -31,7 +31,6 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
-          token: ${{ secrets.SUBMODULE_TOKEN }}
 
       - name: Verify checkout credentials were removed
         run: scripts/check-checkout-credentials
@@ -96,7 +95,6 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
-          token: ${{ secrets.SUBMODULE_TOKEN }}
 
       - name: Verify checkout credentials were removed
         run: scripts/check-checkout-credentials

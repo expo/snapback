@@ -29,7 +29,6 @@ jobs:
           # vendor/ibex is a private-repo submodule; the default GITHUB_TOKEN
           # only reads this repository. Fine-grained PAT, Contents: read on
           # ccheever/snapback + ccheever/ibex.
-          token: ${{ secrets.SUBMODULE_TOKEN }}
 
       - name: Verify checkout credentials were removed
         run: scripts/check-checkout-credentials
