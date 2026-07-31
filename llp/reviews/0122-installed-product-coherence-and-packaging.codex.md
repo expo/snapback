@@ -246,3 +246,37 @@ Revise only the affected delta:
 3. Add runtime-recovery-after-consolidation to the empirical agenda.
 
 Then request a focused Codex-family round-3 delta review.
+
+## Round 3 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-3 narrow delta (verify the Round 2 BLOCKING + two MATERIAL items against the v0.3 fix pass; changed text only), cross-family blind
+**Target SHA-256:** `185be0b16c4d3e2b409d3e848fafd2152d8b58e842531c9e7b59f52c18316219`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### Verbatim review
+
+## Resolution check
+
+1. **Option 7 name-bound migration — RESOLVED.** The revision now treats renaming as a publication-authority and proof-system migration, accurately covering the hard-coded package inventory and regex, exact-name schema `const`s, cold-install scope preset and alias derivation, ledger lineage, and required re-proof. See [LLP 0122](/Users/ccheever/projects/snapback/llp/0122-installed-product-coherence-and-packaging.research.md:506).
+
+2. **Admin-client authority boundary — RESOLVED.** Credential authority is correctly located server-side under every custody shape. Client-subpath reachability is distinguished from bundle inclusion, and client folding is costed separately from CLI folding. The byte-identity statement matches [src/admin.rs](/Users/ccheever/projects/snapback/src/admin.rs:291), which embeds and serves the package source directly.
+
+3. **Runtime-recovery empirical probe / closure claim — RESOLVED.** Probe 8 now explicitly covers missing or corrupt runtime detection, repair, relaunch, and retained provenance after Options 2–3 consolidation. “Closed” is appropriately qualified as closed by review rather than construction. See [LLP 0122](/Users/ccheever/projects/snapback/llp/0122-installed-product-coherence-and-packaging.research.md:608).
+
+## New concerns
+
+None in the v0.3 delta. The additional LLP 0123 option-number and guide snippet-location corrections also match the tree.
+
+## Verdict
+
+**READY** against the author’s exhausted-pre-empirical-analysis bar.
+
+## Recommended next step
+
+Record the Codex-family round-3 result, then let the author proceed to the remaining LLP 0005 disposition and the named empirical probes or owning-document decisions.

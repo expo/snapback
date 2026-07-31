@@ -249,3 +249,39 @@ Make a focused v0.3 revision:
 4. Repair the Workerd inventory pointer.
 
 Then run a narrow same-family delta review of those changes.
+
+
+## Round 3 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-3 narrow delta over the v0.3 fix pass (`git diff 97946b33`), cross-family blind
+**Target SHA-256:** `0048c61975114d847f9823d9e17908327dcb4392ffbdcfb16274dab63f47238e`
+**Instruction SHA-256:** `eb3707c8a3554072fcfc20d5493deda4c0e13c97eaf962f1170e6388fe9d09e0`
+**Status:** completed
+
+### Verbatim review
+
+### Resolution check
+
+- **BLOCKING — Option 2 strict-Host handoff: resolved.** The hazard is accurately traced through [`ensure_host_installed()`](/Users/ccheever/projects/snapback/src/runtime.rs:592), the one-shot pending token, its claim-and-zero path, and the subsequent Audit fallback. Option 2 now presents four mitigation shapes, requires posture-neutrality testing, and correctly classifies the naive design as regression-prone.
+- **MATERIAL — Option 4 guarantees: resolved.** Content addressing is correctly limited to selection and build-time validation. The text acknowledges Cargo’s mtime-based rerun mechanism and makes enforced store immutability—not directory naming—the load-bearing requirement.
+- **DETAIL — Native refusal transport: resolved.** The document no longer calls this cheap and accurately identifies the need for a new Ibex C-ABI error channel, including ownership, concurrency, sanitization, and compatibility costs.
+- **DETAIL — Workerd inventory pointer: resolved.** The inventory is routed to LLP 0048, while explicitly stating that OQ8 concerns readiness evidence and TOCTOU instead.
+
+### New concerns
+
+None in the v0.3 delta.
+
+### Verdict
+
+**READY.**
+
+The v0.3 changes genuinely resolve all four Round 2 findings and introduce no fresh defect against the author’s exhausted-pre-empirical-analysis bar.
+
+### Recommended next step
+
+The author may conclude the Codex-family review loop and advance LLP 0123 at their discretion. Any implementation of Option 2 should first land the Host-handoff correction with LLP 0009’s owners and include the required post-probe fail-closed posture test.

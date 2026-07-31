@@ -6,7 +6,42 @@
 generation, Runtime, Security
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.3, round-2 delta review corrections — Fable
+**Revised:** 2026-07-30 (v0.5, round-4 delta review corrections — Codex
+NOT READY: one blocking and one detail item, both inside the v0.4-changed
+sentences; Fable READY since round 2. Round-4 artifact:
+`reviews/0118-handler-composition-and-helper-reuse.codex.md`. Blocking:
+v0.4 still let "pure in effect" attach to deterministic-tier consumers;
+the doc now claims exactly two established properties —
+context-capability-freedom (statically provable over the closed graph)
+and ambient-nondeterminism denial (deterministic tier only,
+runtime-enforced) — and names side-effect-freedom (no mutation of
+arguments, captured bindings, or module-level state) as a third, distinct
+property needing its own analysis, e.g. a mutation-effect scan over the
+closed graph, before any purity label; the axis, Finding 11, open
+question 7, and §Confidence carry it. Detail: the ambient-clock
+accounting now includes bare `Date()` — codegen's static refusals cover
+`Math.random()`, `Date.now()`, and any-arity `new Date(...)` only, while
+the deterministic runtime's wrapped `Date` constructor denies bare
+`Date()` invocation and zero-arg `new Date()`
+(`DATE_CONSTRUCTOR_DENY_SOURCE`, `src/runtime.rs`), aliases falling
+through to that boundary by design; actions retain both.)
+2026-07-30 (v0.4, round-3 delta review correction — Codex NOT
+READY on one fresh blocking item, the round-2 blocking and detail items
+otherwise resolved; Fable READY since round 2. Round-3 artifact:
+`reviews/0118-handler-composition-and-helper-reuse.codex.md`. The one fix:
+the v0.3 "flow-pure" lane rooted its taint analysis solely in
+context-derived capabilities, which cannot prove semantic purity — `Date`
+and `Math` are admitted globals, and the action tier deliberately retains
+their ambient clock/entropy members at runtime
+(`ambient_restriction_source`, `src/runtime.rs`: the deterministic tier
+denies `Date.now`/`Math.random`/zero-arg `new Date()`, actions keep the
+ambient-powered surface; codegen's static refusal covers direct spellings
+only, aliases falling through to that tiered boundary by design). The
+lane is renamed **context-capability-free** — the property the closed
+graph can prove statically — with semantic purity stated as an
+additional, runtime-profile-dependent question; Finding 11, open question
+7, and §Confidence carry the propagation.)
+2026-07-30 (v0.3, round-2 delta review corrections — Fable
 READY, two phrasing details; Codex NOT READY, one blocking concern in the
 v0.2-added helper-class axis with all round-1 concerns resolved or
 substantially advanced. Round-2 deltas in
@@ -326,32 +361,73 @@ reach.
 
 The v0.2 draft of this axis defined its safe formulations on unverified
 ground; the round-2 review caught both errors, and this section now states
-them on code-verified facts. First, the pure lane cannot be defined by
+them on code-verified facts. First, the safe lane cannot be defined by
 signature shape ("no `ctx` parameter admitted," as v0.2 had it). That is not
 capability closure: `helper(ctx.db)`, `const {db} = ctx; helper(db)`, a
 bound method (`ctx.db.query.bind(ctx.db)`), or a module-scope store the
 helper later reads all deliver capability-bearing values to a helper whose
-signature never names `ctx`. The pure lane must be defined by capability
-*flow*: no value derived from the invocation context — the context object
-itself, any member reached from it, any function bound to or closing over
-one — reaches the helper through any channel (argument, closure,
-module-scope state, or return value). What static admission can prove about
-that property is bounded by 0108's closed-graph rules, and they help: the
-closed graph makes the taint roots complete — capabilities enter handler
-scope only through the handler's context parameter, because the 31 admitted
-globals are standard built-ins carrying no host authority and the
-free-identifier refusal bars naming anything else (`globalThis` is not on
-the list, so even host-bridge globals present in the VM are unreachable
-from admitted source), while the existing refusals of `eval`/`Function`,
-dynamic import, and the constructor/prototype reflection walks close every
-channel for minting authority outside the analysis's view. A conservative
-dataflow analysis over admitted source can therefore soundly
-over-approximate context derivation. What it cannot deliver cheaply is
-precision: aliasing, heap stores, and higher-order flow force coarse
-refusals, so a sound pure-lane gate looks like coarse taint — refuse any
-helper call reachable by a context-derived value and any module-scope store
-of one — and will refuse some genuinely capability-free calls. That is a
-real analysis to design and prove, not a reuse of the extractor's
+signature never names `ctx`. The lane must be defined by capability *flow*:
+no value derived from the invocation context — the context object itself,
+any member reached from it, any function bound to or closing over one —
+reaches the helper through any channel (argument, closure, module-scope
+state, or return value). The round-3 review then named what that property
+is and is not: it is **context-capability-freedom**, the property the
+closed graph can actually prove statically — not semantic purity, which
+fails for two independent reasons: the taint-root completeness claim
+holds only for context-derived authority (ambient nondeterminism is a
+separate surface, below), and capability flow says nothing about side
+effects (mutation of arguments, captured bindings, or module-level
+state; below). On the context side 0108's closed-graph rules do make the
+roots complete: host capabilities enter handler scope only through the handler's
+context parameter, because the 31 admitted globals are standard built-ins
+carrying no host authority and the free-identifier refusal bars naming
+anything else (`globalThis` is not on the list, so even host-bridge
+globals present in the VM are unreachable from admitted source), while the
+existing refusals of `eval`/`Function`, dynamic import, and the
+constructor/prototype reflection walks close every channel for minting
+authority outside the analysis's view. But two of those admitted globals
+carry ambient *nondeterminism*, and whether it functions is
+runtime-profile-dependent (code-verified). The spelling accounting:
+codegen statically refuses the direct spellings `Math.random()`
+(`BUNDLE_UNSUPPORTED_RANDOM`) and `Date.now()`/any-arity `new Date(...)`
+(`BUNDLE_UNSUPPORTED_TIME`) in every inline JS handler regardless of
+kind, steering authors to `ctx.runtime.now()`/`ctx.runtime.id()` —
+context capabilities a context-rooted gate does track; bare `Date()`
+invocation has no static branch, and aliased spellings deliberately fall
+through with it to the runtime boundary
+(`scanUnsupportedHandlerSource`, `packages/snapback-codegen/index.mjs`).
+At that boundary the deterministic tier (queries and mutations) denies
+`Date.now`/`Math.random` — the allowlist's `bannedEverywhere.members` —
+and installs a wrapped `Date` constructor that denies bare `Date()`
+invocation at any arity and zero-arg `new Date()` while keeping
+explicit-timestamp construction and the `Date.parse`/`Date.UTC` statics,
+all with `SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED`
+(`DATE_CONSTRUCTOR_DENY_SOURCE`/`ambient_restriction_source`,
+`src/runtime.rs`; the workerd strip denies the same surface on the V8
+leg), while actions keep the ambient-powered, nondeterministic surface by
+design — the denial block is guarded on non-action mode. A
+context-capability-free helper that reaches an aliased clock or entropy
+read therefore refuses at runtime under deterministic-tier consumers but
+runs under action consumers. What this establishes is exactly two
+properties: context-capability-freedom (statically provable over the
+closed graph) and, for deterministic-tier consumers only,
+runtime-enforced denial of ambient nondeterminism. Neither rules out
+side effects — a helper can satisfy both and still mutate its arguments,
+captured bindings, or module-level state — so side-effect-freedom is a
+third, distinct property, and no "pure" label is warranted in any
+profile without its own effect analysis (for example a mutation-effect
+scan over the closed graph) or an explicit decision to accept
+benign-mutation semantics. A follow-on that wants even the
+nondeterminism half for action consumers must add the ambient roots
+(`Date`, `Math`) to the taint set; absent that it claims
+context-capability-freedom only. A conservative dataflow
+analysis over admitted source can soundly over-approximate context
+derivation. What it cannot deliver cheaply is precision: aliasing, heap
+stores, and higher-order flow force coarse refusals, so a sound
+context-capability-freedom gate looks like coarse taint — refuse any
+helper call reachable by a context-derived value and any module-scope
+store of one — and will refuse some genuinely capability-free calls. That
+is a real analysis to design and prove, not a reuse of the extractor's
 free-identifier test. The fresh-per-invocation lifecycle bounds
 module-state laundering to a single invocation (module state dies with the
 VM) but does nothing for intra-invocation flows, which are the actual
@@ -397,23 +473,28 @@ declarations without refusal. The follow-on must price that as new work
 with a migration story, not inherit it as a property.
 
 The helper classes the follow-on must decide among, restated on that
-ground: flow-pure helpers (capability closure by conservative taint
-admission, as above); context-reader helpers (query-kind reads — Relay
-Board's factored form); mutation helpers (buffered writes — the kind
-backstop already refuses them in query consumers, and table-level
-containment would be the new mechanism); and action/egress helpers
-(external effects and `uses`-granted configuration — mode-gated today,
-with grants computed per invocation, so a helper cannot smuggle its own).
-Aliased capability arguments are the cross-class hazard the flow definition
-exists to catch: every class except flow-pure admits them by construction,
-which is precisely why authority must keep deriving from the consumer's
-declaration rather than the helper's body. Each option below must state
-which class it admits; option 7 is pure-only by construction, and options
-1, 1a, and 2 must choose. Which classes the first follow-on should admit —
-and whether declared reads/writes remain evidence or become an enforced
-ceiling — is open question 7. Note the asymmetry of the evidence:
-satisfying *both* diary instances requires admitting at least
-context-reader helpers, while pure-only sharing satisfies Streak Lab alone.
+ground: context-capability-free helpers (capability closure by
+conservative taint admission, as above — ambient nondeterminism denied
+under deterministic-tier consumers, retained under action consumers, and
+side-effect-freedom established for neither, so no class-level purity
+claim); context-reader
+helpers (query-kind reads — Relay Board's factored form); mutation helpers
+(buffered writes — the kind backstop already refuses them in query
+consumers, and table-level containment would be the new mechanism); and
+action/egress helpers (external effects and `uses`-granted configuration —
+mode-gated today, with grants computed per invocation, so a helper cannot
+smuggle its own). Aliased capability arguments are the cross-class hazard
+the flow definition exists to catch: every class except
+context-capability-free admits them by construction, which is precisely
+why authority must keep deriving from the consumer's declaration rather
+than the helper's body. Each option below must state which class it
+admits; option 7 is pure-only by curation (Snapback authors and reviews
+its source), and options 1, 1a, and 2 must choose. Which classes the first
+follow-on should admit — and whether declared reads/writes remain evidence
+or become an enforced ceiling — is open question 7. Note the asymmetry of
+the evidence: satisfying *both* diary instances requires admitting at
+least context-reader helpers, while a context-capability-free-only lane
+satisfies Streak Lab alone.
 
 ### 1. Revive 0108's bounded static bundling (CV-7's designated lead)
 
@@ -862,11 +943,24 @@ jointly with 0120's frame, not as an eighth option in this one.
 11. The two instances differ in semantic class — Streak Lab's helper is
     pure; Relay Board's shipped duplication is inline code using the
     runtime context, so its factored form would be a context-receiving
-    reader — and purity is a capability-flow property, not a signature
-    property: a no-`ctx`-parameter test admits `helper(ctx.db)` and its
-    aliases. Code-verified, today's opaque-handler enforcement is keyed to
-    the invocation's runtime kind and `uses` grant at the host boundary,
-    while declared reads/writes are evidence without a runtime ceiling
+    reader — and the statically provable safe lane is
+    context-capability-freedom, a capability-flow property, not a
+    signature property: a no-`ctx`-parameter test admits `helper(ctx.db)`
+    and its aliases, and even a sound context-rooted flow gate proves
+    less than semantic purity, for two independent reasons. First, `Date`
+    and `Math` are admitted globals whose ambient surface (`Date.now`,
+    `Math.random`, bare `Date()` invocation, zero-arg `new Date()`) is
+    runtime-denied only in the deterministic tier — actions retain it by
+    design (`src/runtime.rs`) — so an ambient-reading helper passes the
+    gate yet is nondeterministic under action consumers. Second,
+    capability flow rules out no side effect: a passing helper can still
+    mutate its arguments, captured bindings, or module-level state in
+    any profile, so side-effect-freedom is a third, distinct property
+    needing its own analysis before any "pure" label. Code-verified,
+    today's opaque-handler enforcement is keyed
+    to the invocation's runtime kind and `uses` grant at the host
+    boundary, while declared reads/writes are evidence without a runtime
+    ceiling
     (declared-basis ceilings without static proof, load-time validation
     skipping non-HostPlan runtimes, no declared-table comparison in the
     dispatcher). A shared helper therefore inherits its consumer's kind
@@ -895,7 +989,21 @@ runtimes (`validate_effect_ceiling`, `src/manifest.rs`), and mode-keyed
 host-call enforcement with no declared-table comparison for
 `db.query`/`db.insert`/`db.patch`/`db.delete`, plus the per-invocation
 `uses` grant and its `SNAPBACK_CONFIG_UNDECLARED` refusal
-(`handle_host_call`, `src/runtime.rs`); the retired warm pool —
+(`handle_host_call`, `src/runtime.rs`); the tiered ambient-nondeterminism
+surface — `Date` and `Math` on the extractor's `ALLOWED_GLOBALS`,
+codegen's kind-blind static refusal of the direct
+`Math.random()`/`Date.now()`/any-arity `new Date(...)` spellings (bare
+`Date()` invocation has no static branch) with aliases deliberately
+deferred to the runtime boundary (`scanUnsupportedHandlerSource`,
+`packages/snapback-codegen/index.mjs`), and the deterministic-tier-only
+runtime denial of the allowlist's `bannedEverywhere.members`
+(`Date.now`, `Math.random`) plus the wrapped `Date` constructor denying
+bare `Date()` invocation and zero-arg `new Date()` while keeping
+explicit-timestamp construction and `Date.parse`/`Date.UTC`, actions
+retaining the ambient surface
+(`DATE_CONSTRUCTOR_DENY_SOURCE`/`ambient_restriction_source`,
+`src/runtime.rs`; the matching wrapper and member denials in
+`packages/snapback-harness/workerd/strip.mjs`); the retired warm pool —
 `WarmVmPool` as a no-op
 (`src/warm_vm.rs`) with its `@ref` to LLP 0009's DK-4 retirement — and the
 manifest's `vmLifecycle: "fresh-per-invocation"` default (`src/manifest.rs`);
@@ -972,14 +1080,19 @@ a small increment while near-identical detection is not (option 5).
    its answer sizes both the urgency of CV-7 and the sufficiency of the
    same-file slice.
 7. **Which helper classes does the first mechanism admit, and under which
-   enforcement?** Flow-pure helpers, context-reader helpers, mutation
-   helpers, action/egress helpers — each widening admits more of the diary
-   evidence (Relay's factored form needs context reads) and enlarges the
-   authority-analysis surface (§the cross-cutting axis). Two sub-decisions
-   the axis's corrected facts expose: whether the pure lane's conservative
-   capability-flow admission is built at all (a new static analysis, not
-   the extractor's free-identifier test), and whether declared reads/writes
-   remain unenforced evidence — the shipped posture, under which a helper
+   enforcement?** Context-capability-free helpers, context-reader helpers,
+   mutation helpers, action/egress helpers — each widening admits more of
+   the diary evidence (Relay's factored form needs context reads) and
+   enlarges the authority-analysis surface (§the cross-cutting axis). Two
+   sub-decisions the axis's corrected facts expose: whether the
+   context-capability-free lane's conservative flow admission is built at
+   all (a new static analysis, not the extractor's free-identifier test) —
+   and, if built, whether it adds the ambient roots (`Date`, `Math`) to
+   the taint set for action consumers and the separate side-effect
+   analysis — both prerequisites to any purity label — or claims
+   context-capability-freedom only, never semantic purity — and whether
+   declared reads/writes remain unenforced evidence — the shipped
+   posture, under which a helper
    inherits only its consumer's kind- and grant-keyed boundaries — or
    become an enforced table-level ceiling, a new mechanism that would
    change behavior for the existing opaque-handler tier. The follow-on

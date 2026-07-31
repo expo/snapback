@@ -177,3 +177,110 @@ Target SHA-256 vector (v0.3 content):
   `185be0b16c4d3e2b409d3e848fafd2152d8b58e842531c9e7b59f52c18316219`
 - LLP 0123:
   `0048c61975114d847f9823d9e17908327dcb4392ffbdcfb16274dab63f47238e`
+
+### Round 3 results
+
+- **LLP 0117 — CONVERGED dual-READY.** Codex R3 READY: both round-2
+  MATERIAL items resolved (four-carrier inventory; `argsContractHash` as
+  identity witness; carrier 3 not viable on today's closed-script
+  surface); no new concerns. Fable was READY at round 2.
+- **LLP 0122 — CONVERGED dual-READY.** Codex R3 READY (rename honestly
+  priced as a proof-system migration; admin-client boundary corrected;
+  Probe 8 added). Fable R3 fix-verification READY (both one-liners
+  verified against the current tree).
+- **LLP 0123 — CONVERGED dual-READY.** Codex R3 READY: strict-Host
+  hazard accurately carried with four mitigation shapes and corrected
+  evidence classification; Option 4 relabeled; refusal-transport cost
+  honest; Workerd inventory routed to LLP 0048. Fable was READY at
+  round 2.
+- **LLP 0118 — continued.** Codex R3 NOT READY on one fresh item: the
+  v0.3 "flow-pure" taint roots omitted ambient nondeterminism
+  (`Date.now()`/`Math.random()` pass the gate but are not pure for
+  action consumers).
+
+## Rounds 4–5 — 2026-07-30 (LLP 0118 tail)
+
+- **v0.4** (target `4cef15838dd91c5bda7aa46b3fb4eb578582b0a270c9adc302471a9f3c3e63ea`):
+  lane renamed **context-capability-free**; the tiered ambient surface
+  code-verified (deterministic tier runtime-denies the ambient members;
+  actions deliberately retain them). Codex R4: item partially resolved;
+  one new BLOCKING (v0.4 sentences still equated the two established
+  properties with semantic purity — side effects not ruled out) plus a
+  DETAIL (bare `Date()` spelling missing from the accounting).
+- **v0.5** (target `a9a883ac8d020578e8fe18d7dc50b4b643ad84e6923769d474a616028774f15d`):
+  claim narrowed to exactly two established properties with
+  side-effect-freedom named as a third requiring its own analysis; the
+  `Date()` accounting made code-exact (static refusals vs the
+  deterministic-tier `DATE_CONSTRUCTOR_DENY_SOURCE` wrapper; aliases
+  fall through by design). **Codex R5 READY — LLP 0118 CONVERGED
+  dual-READY** (Fable READY since round 2).
+
+### Tier-1 convergence summary
+
+| Doc | Fable | Codex | Rounds to converge |
+| --- | --- | --- | --- |
+| 0117 | READY (R2) | READY (R3) | 3 |
+| 0118 | READY (R2) | READY (R5) | 5 |
+| 0122 | READY (R3 fix-verify) | READY (R3) | 3 |
+| 0123 | READY (R2) | READY (R3) | 3 |
+
+No reviewer finding was refuted by verification in any round of the
+program.
+
+## LLP 0116 delta review — 2026-07-30
+
+Per the approved program, the overview reviews last. 0116 was refreshed
+to v0.2 against the reviewed sibling texts (headlines trued up; new
+cross-cutting finding 7 records the program itself; OQ1 answered;
+Status → Review). One review per family, delta/synthesis scope:
+verify the overview accurately represents the reviewed siblings and the
+program record; reviewers may read the siblings, their Revised headers,
+and this journal, but not the other family's 0116 artifact.
+
+Target SHA-256 (v0.2): recorded with the review artifacts.
+
+### LLP 0116 results
+
+Round 1: Codex NOT READY (two MATERIAL sentence-level items, all nine
+index headlines verified accurate); Fable NOT READY by the thinnest
+margin (two factual one-liners in the Summary; the synthesis verified
+faithful). The Fable review was interrupted mid-round by a usage-credits
+outage and resumed in the same context after the author topped up; the
+artifact's Method line records this. v0.3 applied the merged eight-item
+fix list — including one correction to the Fable reviewer's own
+paraphrase (LLP 0125 pins the bakeoffs' `convex` 1.42.x package version;
+only 0121/0124 carry review-added dated docs pins), which the reviewer
+then confirmed correct. Round 2 fix-verifications: **Fable READY, Codex
+READY — LLP 0116 CONVERGED dual-READY** (target
+`37a5c1cc9724177ca17d9a0ee4f9a999732a0680b9557c9b15cc939b85850650`).
+
+## Program conclusion — 2026-07-30
+
+All ten documents converged dual-family READY against the author's bar:
+
+| Doc | Final version | Fable | Codex | Rounds |
+| --- | --- | --- | --- | --- |
+| 0116 | v0.3 | READY (R2 fix-verify) | READY (R2 fix-verify) | 2 |
+| 0117 | v0.3 | READY (R2) | READY (R3) | 3 |
+| 0118 | v0.5 | READY (R2) | READY (R5) | 5 |
+| 0119 | v0.2 | single round + fixes | single round + fixes | 1 |
+| 0120 | v0.2 | single round + fixes | single round + fixes | 1 |
+| 0121 | v0.2 | READY (R1) + fixes | single round + fixes | 1 |
+| 0122 | v0.3 | READY (R3 fix-verify) | READY (R3) | 3 |
+| 0123 | v0.3 | READY (R2) | READY (R3) | 3 |
+| 0124 | v0.2 | single round + fixes | single round + fixes | 1 |
+| 0125 | v0.2 | single round + fixes | single round + fixes | 1 |
+
+Across the whole program (roughly 150 enumerated findings over 33
+reviews and 16 fix passes), no reviewer finding was refuted by
+verification; three reviewer paraphrases were corrected during fix
+application, each confirmed by the paraphrase's own family afterward.
+
+Per LLP 0005 the loop proposes and the author decides: the proposed
+transition is Review → Active for all ten documents (Research-type
+terminal healthy status), with the Tier-2 documents' reviewers'
+recommended next steps recorded in their artifacts for the author's
+weighing. Residuals outside this program's scope: the LLP 0108
+Campfire→Relay misattribution correction (0108 ~line 793, deferred to
+its next revision), LLP 0115's author-gated OQ3–OQ7, and the named
+empirical agendas inside the series documents.

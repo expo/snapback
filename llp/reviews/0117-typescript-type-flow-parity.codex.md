@@ -243,3 +243,44 @@ The Round 1 concerns are substantively closed, but the new CV-5 and Option F tex
 Correct those two mechanism descriptions, then run a narrow Codex-family Round 3 delta check. No implementation experiment is needed.
 
 The required artifact append could not be persisted because this session’s filesystem is read-only; [the Codex review artifact](/Users/ccheever/projects/snapback/llp/reviews/0117-typescript-type-flow-parity.codex.md) remains unchanged.
+
+
+## Round 3 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol` (as shown in CLI banner), reasoning effort medium
+**Reasoning effort:** CLI default
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-3 narrow delta check of the v0.3 fix pass against this artifact's two Round 2 MATERIAL items only, cross-family blind
+**Target SHA-256:** `3abab2cfc974c008184e41d736dd8dc47bfeb90ea0fb3e0df3ef4d91841771e1`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### Verbatim review
+
+### Resolution checks
+
+1. **CV-5 carrier inventory and `argsContractHash` — resolved.**
+   - The inventory now correctly names four carriers, including the independent hand-authored public typings in `packages/snapback-client/index.d.mts:145`.
+   - `argsContractHash` is correctly described as a canonical identity witness computed over `def.args`, not a payload carrier.
+   - The text now assigns the future schema reference to an extended argument-contract descriptor, whose canonical form the hash would witness.
+
+2. **Option F carrier 3 — resolved.**
+   - The revision no longer presents first-class `.ts` definitions as currently available.
+   - It accurately records the fixed `schema.mjs`/`functions.mjs` roots and the import/export refusal for external TypeScript handler scripts.
+   - It correctly identifies carrier 3 as requiring a new authoring surface or type-only import lane.
+
+### New concerns in the v0.3 delta
+
+None. No fresh factual errors, unfair costings, smuggled decisions, or improperly labeled empirical claims found.
+
+### Verdict
+
+**READY**
+
+The two material Round 2 findings are genuinely resolved, and the document meets the author’s exhausted-pre-empirical-analysis bar.
+
+### Recommended next step
+
+Conclude the review loop and proceed to empirical implementation/prototyping for the candidate type-flow and argument-contract carriers.

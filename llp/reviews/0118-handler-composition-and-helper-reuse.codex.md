@@ -227,3 +227,116 @@ Revise only the helper-class analysis:
 4. Spell out mutation and action/egress helpers, including aliased capability arguments and declared grants/`uses`.
 
 Then run a focused Round 3 delta review.
+
+
+## Round 3 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-3 narrow delta (round-2 BLOCKING + DETAIL resolution check against the v0.3 fix pass, changed text only), cross-family blind
+**Target SHA-256:** `925535603827afcc6510bcdd03be7c0448cb1189053a2f0e5fb72b1f69044c35`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+### Verbatim review
+
+## Per-item resolution check
+
+- **Round-2 BLOCKING — Partially resolved.** The revision correctly rejects signature-based purity, includes the requested alias counterexamples, accurately describes current kind/`uses` enforcement, and correctly costs table-level caller ceilings as a **new mechanism**. However, the proposed capability-flow analysis still assumes an incomplete root set.
+- **Round-2 DETAIL — Resolved.** The hermetic-package analysis now correctly distinguishes lockfile package-artifact integrity from resolved-graph/per-file attestation at [LLP 0118:638](/Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:638).
+
+## New concern in the v0.3 delta
+
+**BLOCKING-FOR-BAR — “Flow-pure” considers only context-derived capability roots, so it does not prove purity across action consumers.**
+
+The revised axis says capabilities enter only through `ctx` and therefore proposes tainting only context-derived values at [LLP 0118:334](/Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:334). That is sufficient for the storage/config authority problem raised in Round 2, but not for the stronger “pure value transformation—no effects” class the document claims.
+
+`Date` and `Math` are admitted globals, while `Date.now` and `Math.random` are denied only for the deterministic tier. Actions intentionally retain an ambient-powered, nondeterministic surface at [runtime.rs:2966](/Users/ccheever/projects/snapback/src/runtime.rs:2966). Consequently, a shared helper using `Date.now()` or `Math.random()` passes the described no-context-flow gate yet is not pure. The statement that the closed graph makes the taint roots complete is therefore too broad.
+
+Resolve by either:
+
+- defining the lane narrowly as **context-capability-free**, without claiming semantic purity; or
+- adding runtime-profile-dependent ambient capability/effect roots to the analysis and explaining how action consumers are classified.
+
+No other fresh defects found in the v0.3 delta.
+
+## Verdict
+
+**NOT READY.**
+
+## Recommended next step
+
+Make the narrow purity-root correction above, propagate it to Finding 11/open question 7 if needed, then run a focused Round 4 delta check.
+
+## Round 4 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-4 focused delta (round-3 BLOCKING-FOR-BAR ambient-nondeterminism item resolution check against the v0.4 micro-fix, changed text only), cross-family blind
+**Target SHA-256:** `4cef15838dd91c5bda7aa46b3fb4eb578582b0a270c9adc302471a9f3c3e63ea`
+**Instruction SHA-256:** `e1a125a4878b8fd20e8ad809313d8faa7d4d2c3270887c0aaa80068367712a28`
+**Status:** completed
+
+### Verbatim review
+
+## Resolution check
+
+**Partially resolved.** The lane is correctly renamed **context-capability-free**, and the runtime-profile distinction matches the tree:
+
+- `Date` and `Math` are admitted globals.
+- Codegen rejects direct `Date.now()`, `Math.random()`, and `new Date(...)`, while aliases reach runtime.
+- Queries/mutations deny ambient time and entropy; actions retain them.
+
+## New v0.4 concerns
+
+- **BLOCKING-FOR-BAR:** The new text still overclaims semantic purity. [LLP 0118:386](/Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:386) and especially [LLP 0118:443](/Users/ccheever/projects/snapback/llp/0118-handler-composition-and-helper-reuse.research.md:443) imply that context-capability freedom becomes “pure in effect” for deterministic consumers. Denying ambient clock/entropy is necessary but insufficient: such a helper can still mutate arguments, captured state, or module state and therefore need not be a pure value transformation. Semantic purity requires a separate effect analysis, not merely a deterministic runtime profile.
+
+- **DETAIL:** The delta omits direct `Date()` calls. Codegen does not reject that spelling, while the deterministic runtime explicitly denies both `Date()` and zero-argument `new Date()` at [runtime.rs:2895](/Users/ccheever/projects/snapback/src/runtime.rs:2895). Actions retain both.
+
+## Verdict
+
+**NOT READY.**
+
+## Recommended next step
+
+Claim only **context-capability freedom** plus the narrower fact that deterministic consumers deny ambient clock/entropy. State that semantic purity additionally requires an effect analysis, and add `Date()` to the ambient-clock accounting. Then run a focused round-5 delta check.
+
+## Round 5 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (medium)
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, round-5 focused delta (resolution check of the round-4 BLOCKING semantic-purity-overclaim item and DETAIL bare-`Date()` accounting item against the v0.5 micro-fix, v0.5-changed text only), cross-family blind
+**Target SHA-256:** `a9a883ac8d020578e8fe18d7dc50b4b643ad84e6923769d474a616028774f15d`
+**Instruction SHA-256:** `e1fa54c763a85429ff98543f15b42eff1c2190d3f49a7a054911d4e133060084`
+**Status:** completed
+
+### Verbatim review
+
+## Resolution check
+
+1. **BLOCKING — semantic-purity overclaim: Resolved.**  
+   The v0.5 text consistently distinguishes:
+
+   - statically provable context-capability-freedom;
+   - deterministic-tier runtime denial of ambient nondeterminism; and
+   - separate side-effect-freedom requiring effect analysis before any purity label.
+
+   Finding 11, OQ7, the helper-class restatement, and Confidence preserve that distinction.
+
+2. **DETAIL — bare `Date()` accounting: Resolved.**  
+   The text matches the tree: codegen rejects direct `Math.random()`, `Date.now()`, and any-arity `new Date(...)`; bare `Date()` and aliases reach the runtime boundary. `DATE_CONSTRUCTOR_DENY_SOURCE` denies any-arity `Date()` calls and zero-argument construction in deterministic consumers, while actions retain the ambient surface.
+
+**New concerns:** None in the v0.5-changed text.
+
+**Verdict: READY.**
+
+**Recommended next step:** Record this focused round-5 resolution, then proceed to the author’s acceptance/status decision under LLP 0005.

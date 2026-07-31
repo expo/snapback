@@ -414,3 +414,91 @@ family as READY at that point without another subagent round. When
 editing the cross-reference, re-check LLP 0123's option numbering in
 the same tree state, since the sibling document is being revised
 concurrently.
+
+## Round 3 — 2026-07-30 (fix verification)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh general-purpose subagent
+**Effort:** session-inherited
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** round-3 fix-verification only (not a full review round):
+verified the two round-2 delta defects against the working tree at
+commit af9e48fc, plus a sanity skim of the full v0.2→v0.3 diff
+(`git diff 97946b33 -- llp/0122-…research.md`) with spot-checks of the
+new code-grounded claims; cross-family blind (the .codex.md artifact
+was not read)
+**Target SHA-256:** `185be0b16c4d3e2b409d3e848fafd2152d8b58e842531c9e7b59f52c18316219`
+**Instruction SHA-256:** `57e44096be0052fede6bb4a749d0f8b7823258d30cd0aaf49e4b09a438cd85b8`
+**Status:** completed
+
+## 1. Per-item verification
+
+1. **Round-2 concern 1 (LLP 0123 cross-reference): FIXED.** The
+   sentence now reads "is LLP 0123's
+   prebuilt-hermetic-runtime-distribution option (Option 3 after
+   0123's v0.2 renumbering)." Checked against the sibling document as
+   it now stands — LLP 0123 has since been revised to v0.3 — and the
+   numbering holds: `### Option 3 — Prebuilt hermetic runtime
+   distribution` (l. 434 of the current
+   `llp/0123-runtime-readiness-and-operational-edges.research.md`;
+   Option 2 remains "Server-side readiness: the process witnesses
+   itself"). The v0.3 revision of 0123 did not renumber again, so both
+   the option name, the number, and the "v0.2 renumbering" attribution
+   are correct in the current tree.
+2. **Round-2 concern 2 (facet-3 snippet location): FIXED.** The
+   rewritten facet-3 passage makes exactly the corrected claim and
+   every leg checks out against the guide corpus:
+   `guide/getting-started/the-authoring-loop.md` contains zero
+   `source=` fences, and its `examples:` frontmatter lists
+   `packages/snapback-cli/templates/todo-contract`,
+   `packages/snapback-cli/templates/react`, and
+   `packages/snapback-cli/sessions-dev-loop.test.mjs` — the packaged
+   templates and a package test, anchored via frontmatter as the text
+   now says; `guide/backend/standard-patterns.md` transcludes exactly
+   four snippets with
+   `source=packages/snapback-codegen/standard-patterns.test.mjs`; and
+   "more on the client and auth pages" is true (`guide/clients/
+   contract-adapter.md`, `guide/clients/headless.md`,
+   `guide/clients/react.md`, `guide/auth/protecting-data.md`,
+   `guide/auth/scoped-roles.md` all carry `source=packages/…` fences).
+   The passage's upgraded argument — the mechanism "verifiably renders
+   them on guide pages today" — is supported by those fences.
+
+## 2. Sanity skim of the rest of the v0.3 delta
+
+The remaining v0.3 edits (Option 7's rename recast as a name-bound
+proof-system migration, the admin-client custody re-costing, empirical
+probe 8, the closed-list-by-review qualification, the Revised header)
+respond to the other family's round and were skimmed, not re-reviewed.
+Nothing my round 2 verified clean was damaged: the round-1 fixes
+(declaration enumeration, 0041 verbatim quotes, `templates/` path,
+Related header, symbol attribution) are untouched by the diff, and the
+0041 alias-swap quote ("may replace this public alias without changing
+authored imports") survives inside the rewritten Option 7 text.
+Spot-checks of the new code-grounded claims all pass:
+`packages/snapback-publication-authority/protocol.mjs` hard-codes the
+nine `@ccheever/snapback-*` names and enforces the scope by regex
+(`/^@ccheever\/snapback-[a-z0-9-]+$/u`, l. 323);
+`scripts/snapback-package-cold-install-lib.mjs` refuses
+`ledger.scopePreset !== 'ccheever'` (l. 1234); and `src/admin.rs`
+l. 291 embeds the admin client with
+`include_str!("../packages/snapback-admin-client/index.mjs")`,
+supporting the byte-for-byte served-file claim. The v0.3 replacement of
+"the ledger machinery is name-parametric, so re-proving is mechanical"
+with the name-bound-machinery analysis is a strengthening grounded in
+that code, not a regression.
+
+## 3. Verdict
+
+**READY.** Both round-2 defects are fixed as specified and verified
+against the current tree; the sanity skim found no damage to previously
+verified text and no new defect. Per round 2's own terms — NOT READY
+solely on those two one-line items — this family's concerns are
+exhausted.
+
+## 4. Recommended next step
+
+No further Fable review round. The author may record this family as
+READY for LLP 0122 v0.3 (target SHA above) and proceed per the LLP 0005
+loop with the other family's disposition.
