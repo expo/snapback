@@ -72,6 +72,17 @@ A2-enforced cross-record equality binding `capabilityIds`,
 product-bypassed, conclusion unchanged (Codex D1 = Fable C18); the
 committed-prose locator tokens `llp-blob.v1`/`git` defined for
 `governingContractBaseline` (C20).)
+2026-07-31 (v0.5, round-4 review fix —
+`reviews/0134-capability-maturity-promotion.codex.md` round 4 NOT
+READY on exactly one item: N1, D1, and the locator tokens RESOLVED,
+N2's population-coverage residue MATERIAL. Applied as specified:
+`journalExtractRef` → `journalExtractRefs`, plural, exactly one
+successful extract per enumerated hosted deployment identity in the
+window; E6's local witness and A2's refusal clause both made
+cell-complete — a green observation for every local
+`targetProfileId × UTC-day` cell of the window, every enumerated
+local profile on every day, any uncovered cell failing E6 — with the
+day-gap reset rule restated as the same cell rule.)
 **Related:** LLP 0005, LLP 0058, LLP 0061, LLP 0076, LLP 0080, LLP 0081, LLP 0108, LLP 0109, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0115, LLP 0120, LLP 0127, LLP 0130, issue `20260731-cv8-piece2-stable-promotion-design`
 
 ## Summary
@@ -245,27 +256,34 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   - *Witness, hosted.* The supervisor journal's canonical renewal record
     for the id's claim family across the window — final carriers are
     renewable leases and renewals are journaled as canonical bytes
-    (LLP 0113 §4.2) — exported as a digest-bound
-    `MaturitySoakJournalExtractV1` extract (*Evidence records* below)
-    showing family-epoch continuity with zero withdrawals and zero
-    expiries.
+    (LLP 0113 §4.2) — exported as digest-bound
+    `MaturitySoakJournalExtractV1` extracts (*Evidence records* below),
+    exactly one successful extract per enumerated hosted deployment
+    identity in the window, each showing family-epoch continuity with
+    zero withdrawals and zero expiries. An enumerated hosted identity
+    with no successful extract, or with more than one, fails E6.
   - *Witness, local.* Local support lives in ephemeral processes that
     re-derive the fact at each start from the embedded carrier, so
-    continuity is witnessed by dated support-verification runs: at least
-    one green run per UTC calendar day executes the id's mandatory
+    continuity is witnessed by dated support-verification runs, and
+    coverage is per cell: for every enumerated local population
+    profile and every UTC calendar day of the window, at least one
+    green run on that profile that day executes the id's mandatory
     support suite — the same closed suite whose green rows gate the
     registered fact; for the 0110 pair, the embedded-carrier and
     qualification-receipt verification — at the then-current main HEAD
     and emits a conforming `MaturitySoakObservationV1` receipt
     (*Evidence records* below) binding profile, date, HEAD SHA,
     carrier/receipt digests, and outcome, retained under §4's records
-    root. A calendar day with no green run is a coverage gap.
+    root. A `targetProfileId × UTC-day` cell with no green observation
+    is a coverage gap, and any uncovered cell fails E6.
   - *Disqualifiers and reset.* Any support-fact regression on a
-    population member, claim-family withdrawal, maturity demotion of the
-    id, coverage gap, or population loss resets the window start, as does
-    a MATERIAL defect against the id's contract open at any point in the
-    window (MATERIAL in the review-severity sense the LLP 0005 loop
-    artifacts use). The defect corpus is closed: open filesystem tickets
+    population member, claim-family withdrawal, maturity demotion of
+    the id, coverage gap — an uncovered local
+    `targetProfileId × UTC-day` cell (*Witness, local*'s cell rule) —
+    or population loss resets the window start, as does a MATERIAL
+    defect against the id's contract open at any point in the window
+    (MATERIAL in the review-severity sense the LLP 0005 loop artifacts
+    use). The defect corpus is closed: open filesystem tickets
     under `issues/` (not `issues/closed/`), Linear issues in the Exact
     project with the Snapback label naming the id or its governing LLP,
     and the governing LLP's defect ledger where the LLP 0076/0077
@@ -326,13 +344,20 @@ missing or vacuous item refuses the promotion; there is no partial credit.
     extract's, and search's `capabilityIds` equals the receipt's
     `capabilityIds` exactly; each observation's `targetProfileId` is
     a member of `soakEvidence.window.targetPopulation` and its
-    `dateUtc` lies inside the window; the extract's `window` equals
-    the receipt's `soakEvidence.window` and its `deploymentIdentity`
-    is an enumerated population member; the search's `governingLlp`
-    equals the receipt's `governingLlp`. `soakEvidence`'s
-    `observationRefs`, `journalExtractRef`, and `defectSearchRef` are
-    closed evidence locators (§4) whose `schemaVersion` values name
-    exactly these schemas: `soak-observation.v1`, `soak-extract.v1`,
+    `dateUtc` lies inside the window; population coverage is
+    complete — for every enumerated local population profile and
+    every UTC day of the window, `observationRefs` resolves a green
+    observation for that `targetProfileId × UTC-day` cell, and any
+    uncovered cell fails E6; every extract's `window` equals the
+    receipt's `soakEvidence.window` and its `deploymentIdentity` is
+    an enumerated population member, and `journalExtractRefs`
+    resolves exactly one successful extract per enumerated hosted
+    deployment identity — an identity with none, or more than one,
+    fails E6; the search's `governingLlp` equals the receipt's
+    `governingLlp`. `soakEvidence`'s `observationRefs`,
+    `journalExtractRefs`, and `defectSearchRef` are closed evidence
+    locators (§4) whose `schemaVersion` values name exactly these
+    schemas: `soak-observation.v1`, `soak-extract.v1`,
     `defect-search.v1`.
   - *Binding.* The window, population, and the observation,
     journal-extract, and defect-search locators are all bound in the
@@ -435,7 +460,9 @@ the receipt never needs to name its own commit.
   consumerArmRefs,          // E5: diary/receipt evidence
   soakEvidence?,            // E6: { window: { start, end,
                             //   targetPopulation }, observationRefs,
-                            //   journalExtractRef?, defectSearchRef };
+                            //   journalExtractRefs?, defectSearchRef };
+                            //   exactly one successful extract per
+                            //   enumerated hosted deployment identity;
                             //   absent only on the grandfathered route
   supportEvidenceRefs,      // E7, or the grandfather evidence manifest
                             //   when route = "grandfathered-direct.v1"
@@ -758,7 +785,11 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   observation whose introducing commit's committer UTC date differs
   from its `dateUtc`, an E6 record violating its closed enums, element
   schemas, count constraints, success predicates, or cross-record
-  constraints (E6 *Evidence records*), or duplicate/conflicting
+  constraints (E6 *Evidence records*), an E6 evidence set with
+  incomplete population coverage — any local
+  `targetProfileId × UTC-day` cell of the window without a green
+  observation, or any enumerated hosted deployment identity without
+  exactly one successful journal extract — or duplicate/conflicting
   records for the same transition.
 - **A3 — First-promotion shape.** The first executed promotion lands as one
   commit containing both registry changes, the updated tests, the conforming
