@@ -7,7 +7,7 @@ export const groups = Object.freeze({});
 export const api = Object.freeze({
   "createEvent": {
     "appId": "partiful-matrix",
-    "argsContractHash": "sha256:11bc6dcdfece337b5d765023c0a5f0242538a3296d724021a9459d9d0343cddc",
+    "argsContractHash": "sha256:40761d54984cd2b571cebffe47b9b8ff072f43d913c695e6ec7bbd200dd88a4a",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -46,7 +46,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:createEvent",
-    "implementationHash": "sha256:64eb1b02feb382852e74b04130d5068dcd0ab4df53de33e2794510d54171f761",
+    "implementationHash": "sha256:9f23cdd2b20288d8109c250fe892ec6c253e025a31d9866ebb4675e488136d64",
     "kind": "Mutation",
     "name": "createEvent",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -55,7 +55,7 @@ export const api = Object.freeze({
   "ephemeral": {},
   "eventDetails": {
     "appId": "partiful-matrix",
-    "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
+    "argsContractHash": "sha256:c037c658aef337f3a2b9eb7f64468c4ab483a0e7ac3f5afe103c8db7958f2b01",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -70,7 +70,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventDetails",
-    "implementationHash": "sha256:a12a0fe9883ad380cd2be981f38e0051836486ef2627d94b08475ebeb5add2bb",
+    "implementationHash": "sha256:26dc60025c48cf06e775c880f9339702307826c14971a8b53c91f925a2a55db6",
     "kind": "LiveQuery",
     "name": "eventDetails",
     "resultContractHash": "sha256:6e8a1da359492e15583446874c01c70905672629a0178b17e55efb0b794f35aa",
@@ -78,7 +78,7 @@ export const api = Object.freeze({
   },
   "eventWall": {
     "appId": "partiful-matrix",
-    "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
+    "argsContractHash": "sha256:c037c658aef337f3a2b9eb7f64468c4ab483a0e7ac3f5afe103c8db7958f2b01",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -93,7 +93,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventWall",
-    "implementationHash": "sha256:d7983cc112d417b3d61228e7b3bafdf70c2b019476f08ac5d1a898e873f3bfe0",
+    "implementationHash": "sha256:3e646d6bd0efe0b3e743f9a9a494e86f7ccb551355faa1cf64f7bc86db0e03e2",
     "kind": "LiveQuery",
     "name": "eventWall",
     "resultContractHash": "sha256:da7850a1955d58adcc8e8ffd656e579e565f45a1244d4f5284d9345f395f93e6",
@@ -102,7 +102,7 @@ export const api = Object.freeze({
   "groups": {},
   "guestList": {
     "appId": "partiful-matrix",
-    "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
+    "argsContractHash": "sha256:c037c658aef337f3a2b9eb7f64468c4ab483a0e7ac3f5afe103c8db7958f2b01",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -117,7 +117,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:guestList",
-    "implementationHash": "sha256:4ed599fb6f3ee4464cf8608bb0924e38c803b794dce1b58a48924c423bfb5ce6",
+    "implementationHash": "sha256:a1a718a3d3fd4d9b00fa8f7f49b4803feaca220274221f8eb3be90e130abf017",
     "kind": "LiveQuery",
     "name": "guestList",
     "resultContractHash": "sha256:f3ec19b7f27f93fe3bb28136548d8c2499d55dc5bcab0a671945bd17f9f454f7",
@@ -125,7 +125,7 @@ export const api = Object.freeze({
   },
   "listEvents": {
     "appId": "partiful-matrix",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -133,7 +133,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:listEvents",
-    "implementationHash": "sha256:ca5ca8503609674aa32794c4ebff838343183f2782d05c3f6d66adfe03cfe3f6",
+    "implementationHash": "sha256:efa1ae95a37d3918179481c09f8346cab76cae03ef7a1422c63254c408fd49bb",
     "kind": "LiveQuery",
     "name": "listEvents",
     "resultContractHash": "sha256:6e8a1da359492e15583446874c01c70905672629a0178b17e55efb0b794f35aa",
@@ -141,7 +141,7 @@ export const api = Object.freeze({
   },
   "postMessage": {
     "appId": "partiful-matrix",
-    "argsContractHash": "sha256:5104e0a91c1d073390e5e9233f4726fa318f09e4ba263f0eb099add41062d7a6",
+    "argsContractHash": "sha256:86c805175f1bc391a2109e62230a982c0361ecdeaade42cd3f45521b7dab1cde",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -164,7 +164,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:postMessage",
-    "implementationHash": "sha256:9ed335af28be64707c2b1af408c6cbe1c0675a6af9d6835b9924261988c3b0e9",
+    "implementationHash": "sha256:4ef8e444d653c8a5713b8077aafd140e04732671c5bd73a22e3c8ed417ac8f24",
     "kind": "Mutation",
     "name": "postMessage",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -172,7 +172,7 @@ export const api = Object.freeze({
   },
   "rsvp": {
     "appId": "partiful-matrix",
-    "argsContractHash": "sha256:5c61185bbd96f8447561d40a7ca7abbbd9e01e8e1515be6424d298ee7dd6382f",
+    "argsContractHash": "sha256:100ff143fc384673a4134c0ce10846d3aa1f01b6a0d85006f22dd798f0e3b906",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -195,7 +195,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "partiful-matrix:rsvp",
-    "implementationHash": "sha256:ffc64e0c114dab7450b318f6e297878cac04cac7481c6f1e6bdf3f2660dcd649",
+    "implementationHash": "sha256:b6313a4af4fa6afb23d79f3fc11bc28af40099813356ce15b20d11c47fc2a98c",
     "kind": "Mutation",
     "name": "rsvp",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",

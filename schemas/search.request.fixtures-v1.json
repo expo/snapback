@@ -1,0 +1,329 @@
+{
+  "artifactKind": "searchRequestFixturesV1",
+  "fixtures": [
+    {
+      "expect": "accept",
+      "name": "minimal-term",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Term": {
+                "value": "hello"
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "accept",
+      "name": "every-clause-kind",
+      "request": {
+        "after": "cursor-bytes",
+        "limit": 10,
+        "query": {
+          "all": [
+            {
+              "Term": {
+                "field": "title",
+                "value": "hello"
+              }
+            },
+            {
+              "Phrase": {
+                "field": "body",
+                "values": [
+                  "warm",
+                  "milk"
+                ]
+              }
+            },
+            {
+              "Prefix": {
+                "value": "he"
+              }
+            },
+            {
+              "Any": [
+                {
+                  "Term": {
+                    "value": "left"
+                  }
+                },
+                {
+                  "Prefix": {
+                    "value": "ri"
+                  }
+                }
+              ]
+            },
+            {
+              "Not": {
+                "Term": {
+                  "value": "cold"
+                }
+              }
+            },
+            {
+              "Filter": {
+                "field": "status",
+                "op": "eq",
+                "value": "open"
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "accept",
+      "name": "filter-number-and-boolean-values",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Filter": {
+                "field": "count",
+                "op": "eq",
+                "value": 3
+              }
+            },
+            {
+              "Filter": {
+                "field": "done",
+                "op": "eq",
+                "value": true
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "accept",
+      "name": "empty-all-is-grammar-valid",
+      "request": {
+        "query": {
+          "all": []
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "missing-query",
+      "request": {},
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "query-wrong-kind",
+      "request": {
+        "query": 42
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "unknown-clause-variant",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Regex": {
+                "value": "h.*"
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "unknown-atom-member",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Term": {
+                "nope": 1,
+                "value": "x"
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "term-missing-value",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Term": {
+                "field": "title"
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "filter-op-outside-profile",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Filter": {
+                "field": "status",
+                "op": "neq",
+                "value": "open"
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "filter-null-value",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Filter": {
+                "field": "status",
+                "op": "eq",
+                "value": null
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "filter-structured-value",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Filter": {
+                "field": "status",
+                "op": "eq",
+                "value": {
+                  "open": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "undeclared-request-member",
+      "request": {
+        "extra": true,
+        "query": {
+          "all": []
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "after-wrong-kind",
+      "request": {
+        "after": 7,
+        "query": {
+          "all": []
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "limit-wrong-kind",
+      "request": {
+        "limit": "ten",
+        "query": {
+          "all": []
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "not-wraps-non-atom",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Not": {
+                "Filter": {
+                  "field": "s",
+                  "op": "eq",
+                  "value": "x"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "phrase-values-wrong-kind",
+      "request": {
+        "query": {
+          "all": [
+            {
+              "Phrase": {
+                "values": "hi"
+              }
+            }
+          ]
+        }
+      },
+      "typeLevel": true
+    },
+    {
+      "expect": "reject",
+      "name": "limit-negative",
+      "request": {
+        "limit": -1,
+        "query": {
+          "all": []
+        }
+      },
+      "typeLevel": false
+    },
+    {
+      "expect": "reject",
+      "name": "limit-fractional",
+      "request": {
+        "limit": 1.5,
+        "query": {
+          "all": []
+        }
+      },
+      "typeLevel": false
+    }
+  ],
+  "formatVersion": 1,
+  "schema": "search.request.schema.json"
+}

@@ -7,7 +7,7 @@ export const groups = Object.freeze({});
 export const api = Object.freeze({
   "applyReplyProgress": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:1b0bebbce2b60ce153f753b624b6a2646143486dca13059e0175dd2dd100db7d",
+    "argsContractHash": "sha256:be099cbde92abbae4058b9aa6d770402e1628ededa0549b63af47f61e7e0705a",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -30,7 +30,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:applyReplyProgress",
-    "implementationHash": "sha256:3b8cca61e679a783eec21560a95c055e1b1d3de0a678bbd7a09c7b809a3090c1",
+    "implementationHash": "sha256:660de439a46febef7f5a499c2723f22424a33b657913b6e14784286bfed6929b",
     "kind": "Mutation",
     "name": "applyReplyProgress",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -38,7 +38,7 @@ export const api = Object.freeze({
   },
   "cancelReply": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:aa8016dc7c3c635257fc054468505df054fb1372124e4578f88e127d4d4b6151",
+    "argsContractHash": "sha256:b71f113762336a1b1be347bb2df727fc048ad6d51bd960cff0de8fe3a847c598",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -53,7 +53,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:cancelReply",
-    "implementationHash": "sha256:64ca4a8fce8a0fc8be298560df23ce0af462172ef0812af62d9856e7c788e5d7",
+    "implementationHash": "sha256:ac478aadb1ac40372c4ab6e9614916100d039db68fdba686e2e15db765f2b5b5",
     "kind": "Mutation",
     "name": "cancelReply",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -61,7 +61,7 @@ export const api = Object.freeze({
   },
   "completeReply": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:f1c7f893333280646d4a5aafdb448e6f34c866335b62b32b0460f9c016922914",
+    "argsContractHash": "sha256:677d1aa6308f929205ce5bc5a2c751e6496cce4792da7096a01287f9e47d236d",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -84,7 +84,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:completeReply",
-    "implementationHash": "sha256:5e3f5f260f9449e2d3c5bb8369595ec802a91b2e13dd0dad1a2414bd977e90fa",
+    "implementationHash": "sha256:85f26d53518c91b267f6816bd017e04edbf019cdcf3cc2e3074a21eda2818a46",
     "kind": "Mutation",
     "name": "completeReply",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -92,7 +92,7 @@ export const api = Object.freeze({
   },
   "conversationBySlug": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:cce7d265b3b731990691dbfdda2132cd06cae60982c5cd52fb73076617435b70",
+    "argsContractHash": "sha256:3ecc9e02e84e94f703ae3cde98fb7ec81dc528b22923a674a5829c542117a2dc",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -107,7 +107,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:conversationBySlug",
-    "implementationHash": "sha256:d7929ac0314fbe59f213d4e78734fe1ab244da35f19f9f8fe39611ae004ec7ad",
+    "implementationHash": "sha256:ddef74324015869cef34ef11459e603369140a506016466257b2cf7a3076ad1e",
     "kind": "LiveQuery",
     "name": "conversationBySlug",
     "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
@@ -115,7 +115,7 @@ export const api = Object.freeze({
   },
   "conversationsWithModel": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:e667113f0e2f5107581cb3c84b276d2dccff07505b313a8768ffde235f042fa9",
+    "argsContractHash": "sha256:9711de0904a7da5915cf4f5771f6cdd88176e3dbda49d642661741f0d745a6bc",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -127,7 +127,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:conversationsWithModel",
-    "implementationHash": "sha256:9811ca48eb088eb255f25fa5b8c30b794d0dbd1ac9ce37402168bee90c18ed6e",
+    "implementationHash": "sha256:ece8a2eaad23f3ff830bd0dfd553f833b336b62a55d17f0d632893d1441ca9cc",
     "kind": "LiveQuery",
     "name": "conversationsWithModel",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -135,7 +135,7 @@ export const api = Object.freeze({
   },
   "createConversation": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:7d620fe27592e46cd87bc9a977eff6c47621172135bba87fa00dcde7dd02f07c",
+    "argsContractHash": "sha256:d56e971f74e7fd67a95647221d017074bd8e537a5bd7d022183df93ee8650c59",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -158,7 +158,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:createConversation",
-    "implementationHash": "sha256:f80dd1290feb7cb04fc033629e67e378e11beb15e0067d091385566b9a62aa61",
+    "implementationHash": "sha256:ff4f928ccce67c879c62027bb59c40f68fcd7e2985c1632543c6a174928ebee8",
     "kind": "Mutation",
     "name": "createConversation",
     "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
@@ -166,7 +166,7 @@ export const api = Object.freeze({
   },
   "deleteConversation": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:7cbe20de5451207f9ca520f157b9ba809aab1b37f9131b9c5ebd84ddf66ef702",
+    "argsContractHash": "sha256:fce66f36176a5b6d1335cb05b297832ece7b04811d8e220d5ae400ceba2c1055",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -181,7 +181,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:deleteConversation",
-    "implementationHash": "sha256:3837b3220eef00ddbed860ce5b4bdb98294a2a4ad7b9dbfb1611647edca0c6fc",
+    "implementationHash": "sha256:96c947c478374b2809aee196310d5709f242cf44fdff5740a884aa9a7b985c85",
     "kind": "Mutation",
     "name": "deleteConversation",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -190,7 +190,7 @@ export const api = Object.freeze({
   "ephemeral": {},
   "firstConversationPage": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -198,7 +198,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:firstConversationPage",
-    "implementationHash": "sha256:d686bb299c5b477a479f14ce89ffca0e7f68bed88c184d6b3fb74c238f5c1b8c",
+    "implementationHash": "sha256:0f682defa408b4ea0c701b015eede03ed8a07f4c0f4fb1beb9bfc5322a8e6be6",
     "kind": "LiveQuery",
     "name": "firstConversationPage",
     "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
@@ -206,7 +206,7 @@ export const api = Object.freeze({
   },
   "getConversation": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:7cbe20de5451207f9ca520f157b9ba809aab1b37f9131b9c5ebd84ddf66ef702",
+    "argsContractHash": "sha256:fce66f36176a5b6d1335cb05b297832ece7b04811d8e220d5ae400ceba2c1055",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -221,7 +221,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:getConversation",
-    "implementationHash": "sha256:abbb73340b813fa5fd1bedede609fe4aff1be9dabc3deb6b3de1a66dac868412",
+    "implementationHash": "sha256:317e37670b4bcefa38b6a4127529304470a701d53b56150cf8a85b1e1d53e555",
     "kind": "LiveQuery",
     "name": "getConversation",
     "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
@@ -230,7 +230,7 @@ export const api = Object.freeze({
   "groups": {},
   "listConversationCards": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -238,7 +238,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listConversationCards",
-    "implementationHash": "sha256:3d5c10c19b75757e03071d09dd87d56ded37607812477fb94c9306ece9add728",
+    "implementationHash": "sha256:bca3911b131cf4640834d3a62b2698e383fcc1c8cb49b53c6c3fd7ed2c82094a",
     "kind": "LiveQuery",
     "name": "listConversationCards",
     "resultContractHash": "sha256:73e2c21de357932195da9f4cd52a9af66ba29c4937e93d09471b2bea5ce74300",
@@ -246,7 +246,7 @@ export const api = Object.freeze({
   },
   "listConversations": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+    "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -254,7 +254,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listConversations",
-    "implementationHash": "sha256:66d69d0b1cfc45e7e47faa8beb1548683dc6d6fe56f3aef6a66bb63b7c0a3629",
+    "implementationHash": "sha256:fcbabc5981cedef2ec30106593843e43bccaed5e73b9bcddc99aa98aefc4149f",
     "kind": "LiveQuery",
     "name": "listConversations",
     "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
@@ -262,7 +262,7 @@ export const api = Object.freeze({
   },
   "listMessages": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:4ade7ee4668a7a44b84de926f53d7817c1bf86bb86f96715d06989a925a7aadf",
+    "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -277,7 +277,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:listMessages",
-    "implementationHash": "sha256:413f9e8a739dc7959fe2951df57683141b00cce72eb4712ba315652efe26e63b",
+    "implementationHash": "sha256:4945751b334ea05fd2f833e655fb047f5c17a5426bd360677c893d8fb04a2671",
     "kind": "LiveQuery",
     "name": "listMessages",
     "resultContractHash": "sha256:6ca8f2e561b5d7a148eda7a48ddbe1fc1c3196096a239faeb55192fde77ec69d",
@@ -285,7 +285,7 @@ export const api = Object.freeze({
   },
   "nextConversationPage": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:bb7e6b8e2f9e75c4903a4077737f5b93e40e8825ae565b685b44aabf65d54214",
+    "argsContractHash": "sha256:5fb6da771a8e374b6a650bf0f7c24bdc27a3033b55784f0a88070244040b25ee",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -300,7 +300,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:nextConversationPage",
-    "implementationHash": "sha256:7ac266ffef43f2537bedc34d593f15d472b4da421fe259e7f6a69009c63dd050",
+    "implementationHash": "sha256:159ecf5427af0463a6d3cbc78fe0d3c44d7d75f81c28b80c2901046f2daf9a9d",
     "kind": "LiveQuery",
     "name": "nextConversationPage",
     "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
@@ -308,7 +308,7 @@ export const api = Object.freeze({
   },
   "registerModel": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:1db65d7d8cf3cf1d5cab676e2b388c75c4eff473d0d105c3392944ad0d771903",
+    "argsContractHash": "sha256:901da5766a3ec3559eea4ff949edb34c58fb21db6a163594d343026f1692d969",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -330,7 +330,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:registerModel",
-    "implementationHash": "sha256:9e2908f98527f7900ee8c04533dabfccb8907126bd237140cfa1aba8791c1151",
+    "implementationHash": "sha256:cd72223aabe96532cbc6faa922f317f101cdcf05637b40977d434fe6089b5b7a",
     "kind": "Mutation",
     "name": "registerModel",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -338,7 +338,7 @@ export const api = Object.freeze({
   },
   "settleReply": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:29e14a77401303f5210b45a7001db446ef527cfe0f22eb5d892a40ceb294bd7c",
+    "argsContractHash": "sha256:4cde9ce06bf858dad789639276889f15bdfca4c22ff42227a757654a88ee477e",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -357,7 +357,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:settleReply",
-    "implementationHash": "sha256:6e272055c0bc1cafb5af38acfc5cc0c6cb0ffe92d60e12f3c0ed91612fdb7a6e",
+    "implementationHash": "sha256:bbf19a7a5dc4c0af724d8960750025ec902e9edfba38d7f8c77186f05383d045",
     "kind": "Mutation",
     "name": "settleReply",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -365,7 +365,7 @@ export const api = Object.freeze({
   },
   "startReply": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:c89748845de513203bc8fcd4ab8c84989afdadcff0940b7a00eff6a913011391",
+    "argsContractHash": "sha256:9388162a6232c243a7335ad47211d9de19df705ed2191e0ad9944c8c29e04d69",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -388,7 +388,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:startReply",
-    "implementationHash": "sha256:d043fc4379b1d39c669f42a898c944805eb4e9f2364337b213a71170e465d83a",
+    "implementationHash": "sha256:c34217c4d386cd4b5218df4985eb69d4c327ee80b390fb5ce33652f6aae1c871",
     "kind": "Mutation",
     "name": "startReply",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -396,7 +396,7 @@ export const api = Object.freeze({
   },
   "streamReply": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:4fd0982a44929fad1084e29c634b24a54d077124501879ce18ba254cd742c9f1",
+    "argsContractHash": "sha256:1f911f74614e3eac58795f9392d1a8162fe76947dfb80c3715cd708928790548",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -423,7 +423,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:streamReply",
-    "implementationHash": "sha256:6397cd87199e491c04c8a2eabbc353ea6d8b9ccff4f6a1f9528a4284fb37f464",
+    "implementationHash": "sha256:713005e763cd156a712efe2b7b1a1a30ad3cf0ba849cf3fd253bdb44ecf97fef",
     "kind": "Action",
     "name": "streamReply",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
@@ -431,7 +431,7 @@ export const api = Object.freeze({
   },
   "updateConversation": {
     "appId": "competitive-checkpoint",
-    "argsContractHash": "sha256:27ea6323f7bccd1e4fa37ca6ce3aa7785daf4692acaebf391c71ea30d5d9e37c",
+    "argsContractHash": "sha256:9b9d8229cbc31f77c9a79c2e3bf49d69666426c906dd5896d96820c191196a5b",
     "argumentSchema": {
       "additionalProperties": false,
       "properties": {
@@ -454,7 +454,7 @@ export const api = Object.freeze({
     },
     "artifactKind": "functionReference",
     "id": "competitive-checkpoint:updateConversation",
-    "implementationHash": "sha256:5f0dbf8d932333bdd5834489e064a86f7cd94096ac8724427b1e406d09dd6926",
+    "implementationHash": "sha256:5b6950ca7f4d36a3cd23f975ee262472dfe68d7ec29bdf96cc17211c6eb6ed79",
     "kind": "Mutation",
     "name": "updateConversation",
     "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
