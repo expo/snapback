@@ -1,7 +1,7 @@
 # LLP 0126: Local-first and local sync
 
 **Type:** Research
-**Status:** Review
+**Status:** Active
 **Systems:** Competitive evaluation, Sync, Realtime, Storage, Runtime, Client integration, Wire Protocol, Auth, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30

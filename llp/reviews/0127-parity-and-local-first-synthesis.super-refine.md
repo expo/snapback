@@ -93,3 +93,8 @@ into LLP 0115 v0.5 and the owning documents as the RFC's §Sequencing
 describes), with the ten routed author decisions in §Open questions
 awaiting adjudication — six of which visibly gate work the closing
 accounting enumerates.
+
+**Author adjudication — 2026-07-30.** Charlie Cheever accepted the
+proposal; LLP 0127 advanced Review → Accepted in the same landing as
+this note. The ten routed decisions remain individually open pending
+the author's per-decision calls.

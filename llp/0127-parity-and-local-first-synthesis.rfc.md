@@ -1,7 +1,7 @@
 # LLP 0127: Parity and local-first synthesis — few mechanisms, many fronts
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Sync, Storage, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30

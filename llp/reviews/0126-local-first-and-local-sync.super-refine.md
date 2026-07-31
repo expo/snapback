@@ -93,3 +93,7 @@ truncated Electric quote at its lines 36–37). Per LLP 0005 the loop
 proposes Review → Active; adjudication is the author's. The document
 now feeds the synthesis the author directed (coherent implementation
 direction across LLP 0116–0126).
+
+**Author adjudication — 2026-07-30.** Charlie Cheever accepted the
+proposal; LLP 0126 advanced Review → Active in the same landing as
+this note.
