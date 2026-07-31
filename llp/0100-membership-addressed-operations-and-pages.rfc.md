@@ -5,7 +5,19 @@
 **Systems:** Memberships, Authorization, Query planning, Pagination, Code generation, Live Queries, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-26
-**Revised:** 2026-07-26
+**Revised:** 2026-07-30 (v0.2, responding to the first cross-family review
+(`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`):
+Major 1 decided by the author — option (a), the non-disclosure claim is
+scoped to the byte-level result and the authorization-version observable is
+an accepted disclosure to authorized callers (§1/§3, with the no-op
+branch's commit semantics now stated); Minor 1 resolved by citation
+(LLP 0056 §Agents already classes delegated kicks as `authorityCreating`);
+Minor 2 — nonexistent-but-well-formed principals stated explicitly (§3);
+Minor 3 — the page-key idiom becomes a guide obligation and compound
+boundaries join Open questions (§5); Minor 4 — adapter custody clearing
+acknowledged as receipt-enforced convention (§6); plus the review's
+composability and probe-negative suggestions (§2, §Acceptance).)
+2026-07-26 (initial draft)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0037, LLP 0053, LLP 0055, LLP 0056, LLP 0063, LLP 0065
 
 ## Summary
@@ -92,11 +104,24 @@ The successful `removePrincipal` result is always `null`, whether it removed an
 existing row or proved the target pair absent. It never returns `removed`,
 `missing`, a previous role, a row id, or an affected-row count.
 
-The byte-level public result is the claim. As in LLP 0056's private lookup,
-exact timing indistinguishability is best-effort rather than guaranteed.
-Applications may expose a display roster through ordinary app data and its own
-visibility rules; observing that product state does not turn this host command
-into a general membership read.
+The byte-level public result is the claim, and it is deliberately scoped
+*(decided 2026-07-30, resolving the first review's Major 1 as its option
+(a))*: a present-target removal is a committed membership write and
+therefore advances the authorization version (LLP 0056 event 1), while the
+absent-target no-op commits no membership write and advances nothing. An
+**authorized** caller can distinguish the two through any
+authorization-epoch-bound observable — most directly, whether a previously
+minted cursor still verifies. This is an accepted disclosure to callers the
+transition matrix already authorizes to remove *every* role: it tells such
+a caller nothing their own display roster and removal authority do not
+already imply, and it never leaks to unauthorized callers, who are refused
+before target lookup. The alternative — advancing the epoch on the no-op
+too — was rejected because it turns absent-target probe spam into a global
+cursor-invalidation amplifier. As in LLP 0056's private lookup, exact
+timing indistinguishability is best-effort rather than guaranteed.
+Applications may expose a display roster through ordinary app data and its
+own visibility rules; observing that product state does not turn this host
+command into a general membership read.
 
 ### 2. Opting into principal-addressed removal
 
@@ -132,6 +157,12 @@ target occupies one hidden role because removal succeeds for `member` but
 refuses for `owner`. Once the caller class is admitted, every existing other
 row is removable under the transition matrix and an absent row is an
 idempotent success.
+
+The totality requirement constrains only activation: the declaration must
+carry **at least one** total other-principal removal transition for the
+option to generate. Other remove transitions — partial self-serve removes,
+`self` leaves — coexist unchanged; they are simply not principal-addressed
+carriers.
 
 If the declaration carries `lastHolder`, every caller role admitted by a
 principal-addressed removal transition must be the protected role. Therefore a
@@ -182,11 +213,26 @@ writes can commit against a stale result. The no-op linearizes at its captured
 snapshot; an insert that commits later is a later operation, while an insert
 that wins first invalidates and retries/refuses the stale mutation.
 
+The no-op branch's commit is exact: it commits the captured absence
+dependency and the mutation's companion application writes (the application
+cannot observe which branch ran, so companion writes must be written to be
+correct in both — the same idempotence the identical `null` result already
+demands), performs no membership write, records no transition (the
+provenance stream records transitions, and none occurred), and advances no
+authorization version — the §1-scoped disclosure. A **well-formed principal
+that names no user at all** takes exactly this branch: argument validation
+is shape-only and consults no user table, so the removal surface cannot
+become a user-directory existence probe.
+
 The command uses the existing closed `MembershipWriter` carrier. It is an
-authority-creating membership operation for delegated-agent consent purposes:
-the containing function requires `authorityCreating: true`, an explicit
-consented grant, and `provenance: "full"`. A delegated request that lacks that
-consent fails before the handler or target lookup runs.
+authority-creating membership operation for delegated-agent consent purposes
+— not an extension of the parent's taxonomy but a direct application of it:
+LLP 0056 §Agents already classes delegated role-management writes, kicks
+included, under LLP 0055's `authorityCreating` marker ("every seat,
+downgrade, and kick the delegate performs stays attributable"). The
+containing function therefore requires `authorityCreating: true`, an
+explicit consented grant, and `provenance: "full"`. A delegated request
+that lacks that consent fails before the handler or target lookup runs.
 
 ### 4. Membership-scoped keyset pages
 
@@ -249,6 +295,12 @@ non-null, and different from the resource field. Direction is exactly `asc` or
 `desc`; limit is a safe integer from 1 through 1,024. The strict next-page
 comparison uses the exact unique boundary, so no offset or synthesized
 tie-break is hidden.
+
+The single-column cursor is a real authoring constraint: chat-shaped tables
+that would naturally page on `(createdAt, id)` must instead maintain a
+per-resource unique page key. That idiom is a **guide obligation** — the
+helper's guide page documents the page-key pattern the day the helper lands
+(LLP 0061), not as an afterthought; compound boundaries are open question 4.
 
 The helper reuses the existing `sbpc1` MAC envelope and keyring. A new crypto
 family is unnecessary because the binding digest already distinguishes helper
@@ -316,7 +368,9 @@ continuation before any next-page candidate is read. The separate protected
 current-room query stays on conservative, obligation-backed `live_replace`;
 it quarantines/blanks the room boundary on removal. Product adapters must clear
 caller-owned accumulated page rows at that same authorization cut rather than
-retaining them as an ungoverned cache.
+retaining them as an ungoverned cache — a convention on application custody
+the host cannot enforce, stated with the same honesty §1 applies to timing:
+the product receipt is its only witness.
 
 Neither principal-addressed removal nor membership pages admit offline
 retention. A later retained profile requires the LLP 0053 lease, exact
@@ -367,6 +421,10 @@ LLPs 0071–0073, or claim hosted completeness.
 - An owner removes an active member without receiving a row id, role,
   existence bit, or count; removing the now-absent pair again returns the exact
   same `null`.
+- The absent-target no-op advances no authorization version and the
+  present-target removal does — the §1 scoped disclosure is exactly this
+  observable and nothing else (asserted via cursor validity across each
+  branch).
 - A non-owner and cross-resource owner receive the invariant role denial before
   target lookup.
 - A self target receives `SNAPBACK_MEMBERSHIP_TARGET_SELF` and must use
@@ -393,7 +451,9 @@ LLPs 0071–0073, or claim hosted completeness.
   and SQLite return byte-identical order for a duplicate-natural-sort fixture
   using unique generated page keys.
 - A non-member's first page is empty with no cursor and reveals no resource or
-  membership existence.
+  membership existence; the probe-shaped negative is explicit — a first page
+  for a **nonexistent** resource id and for an **existing room the caller has
+  not joined** are byte-identical.
 - Malformed, raw-boundary, cross-pair, cross-room, cross-principal, cross-app,
   cross-instance, expired, and post-membership-change cursors return one
   byte-identical invalid-cursor response.
@@ -452,7 +512,15 @@ semantic witness only and cannot by itself promote `STEP6.CHAT`.
    not.
 3. Is the conservative global authorization-epoch cursor invalidation cost
    acceptable until LLP 0053 declaration/subject narrowing graduates? This
-   draft says yes for correctness and instrumentation simplicity.
+   draft says yes for correctness and instrumentation simplicity. *(The same
+   conservatism is what makes the §1 scoped disclosure legible; the two were
+   decided together on 2026-07-30.)*
+4. Should a later version admit a compound cursor boundary
+   (e.g. `[resourceField, sortField, tieBreakField]`) so chat-shaped tables
+   can page on `(createdAt, id)` without a synthesized page key? V1
+   deliberately inherits the single-column contract from
+   `owned-keyset-pages.v1`; the guide owns the page-key idiom until this is
+   decided.
 
 ## Status and ratification boundary
 

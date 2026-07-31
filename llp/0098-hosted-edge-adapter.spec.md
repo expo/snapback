@@ -5,7 +5,19 @@
 **Systems:** Auth, Security, Deployment, Control plane, HTTP, TLS, Realtime, Operations, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-27 (§8.5: the served-origin LLP 0077 matrix ran for the
+**Revised:** 2026-07-30 (author decisions D1–D3 recorded, per Charlie
+Cheever: D1 — external language stays narrow ("control-plane-signed
+admission"), "attestation" carries no marketing weight and
+`hostedAuthCapable` stays unclaimed (§7); D2 — production profiles require
+`renewal: "online"`; `presignedWindow` is non-production-only and its cap
+tightens from 24 hours to 4 hours (§2.4, open question 1's policy half;
+the poll-vs-push delivery mechanism stays open); D3 — the drill profile
+keeps the documented stop-then-start handoff with bounded downtime, and
+any production `globallyFenced` claim requires enforced single-instance
+(refuse admission install when the platform reports more than one running
+instance) — commissioned as
+`issues/20260730-0098-single-instance-enforcement.md` (open question 3).)
+2026-07-27 (§8.5: the served-origin LLP 0077 matrix ran for the
 first time against the real public HTTPS origin and found D-2, a bound-key
 re-exchange 500 on client-controllable input, now fixed in LLP 0077;
 §8.3 resolved, the D4 volume retained the certificate across the wake) 2026-07-25
@@ -268,8 +280,17 @@ properties, so the attestation records which one is in force:
   withdrawal does not.
 
 A `presignedWindow` deployment MUST record the window bound in its receipt and
-MUST NOT be described as having control-plane withdrawal. The window is capped
-at 24 hours.
+MUST NOT be described as having control-plane withdrawal.
+
+*Decided 2026-07-30 (author):* a **production** profile MUST use
+`renewal: "online"` — withdrawal latency bounded by the remaining snapshot
+lifetime is part of what "production" means here. `presignedWindow` is
+admissible only for drills and maintenance windows, and its cap tightens
+from the original 24 hours to **4 hours** (the drill's own window; no
+deployment has needed more, and a longer no-withdrawal interval has no
+non-production justification). Which mechanism carries online delivery —
+machine-side poll or control-plane push to the loopback admission socket —
+remains open question 1's undecided half.
 
 ### 2.5 Delivery is not an app-origin route
 
@@ -488,7 +509,9 @@ binding. A platform that silently starts a second instance during a deploy
 breaks the guarantee **without breaking any check in §3**. Mitigation is the
 lock; the residual is a deploy strategy that runs two instances against two
 copies of the data, which is a different deployment, not a race. An operator
-MUST NOT configure rolling deploys for this profile.
+MUST NOT configure rolling deploys for this profile. *Decided 2026-07-30:*
+the documented posture is sufficient for the drill profile; a production
+`globallyFenced` claim requires the enforcement described in open question 3.
 
 **Added — the operator is inside the trust boundary.** §2's key authenticates
 the control plane to the deployment; it does not constrain what the control
@@ -496,6 +519,16 @@ plane says. A single-tenant operator who wants to serve under false facts can.
 The adapter's contribution is that they cannot do so *by accident*: every
 assertion is bound to an identity and a configuration digest, so drift, staleness
 and rollback — the realistic failure modes — refuse.
+
+*Decided 2026-07-30 (author, the D1 language ruling):* this residual keeps
+its plain statement, and externally the mechanism is described in the
+narrow form — a **control-plane-signed admission** — rather than under the
+word "attestation" carrying marketing weight. "Attestation" may name the
+mechanism in technical prose exactly as this Spec already uses it (a fact
+bound to an identity, with the asserter's honesty explicitly not implied),
+but no public capability language attaches to it and `hostedAuthCapable`
+remains unclaimed. This is the LLP 0074 no-overclaim posture, ratified
+rather than relaxed.
 
 **Added — the terminator is unverified.** Certificate validity, hostname
 resolution, first-contact enforcement, and `X-Forwarded-For` overwrite
@@ -899,20 +932,26 @@ capability.
 
 ## Open questions
 
-1. Which mechanism should carry `renewal: "online"` delivery in a production
+1. *(Policy half decided 2026-07-30 — production requires `online`, and
+   `presignedWindow` is non-production-only with a 4-hour cap; §2.4.)*
+   Which mechanism should carry `renewal: "online"` delivery in a production
    profile — a machine-side agent polling a control-plane endpoint, or a
-   control-plane push to the loopback admission socket? The drill uses
-   `presignedWindow`; production wants online, and the choice interacts with
-   whether the deployment may make outbound control-plane connections.
+   control-plane push to the loopback admission socket? The choice interacts
+   with whether the deployment may make outbound control-plane connections.
 2. Should `configurationSha256` cover the terminator's own configuration bytes
    when the terminator ships inside the same release artifact? Doing so would
    convert the "terminator is unverified" residual into a digest binding for
    co-packaged terminators, at the cost of a release rebuild per terminator
    tweak.
-3. Does a second instance ever become admissible for this profile under a
-   documented handoff (stop-then-start with lock transfer), or does
-   `globallyFenced` require the deployment to accept bounded downtime on every
-   deploy? The drill accepts downtime.
+3. *(Decided 2026-07-30 — the drill profile keeps the documented
+   stop-then-start handoff and accepts bounded downtime on every deploy; a
+   **production** `globallyFenced` claim additionally requires the profile to
+   *enforce* single-instance — refuse to install an admission while the
+   platform reports more than one running instance — commissioned as
+   `issues/20260730-0098-single-instance-enforcement.md`.)* Does a second
+   instance ever become admissible for this profile under a documented
+   handoff (stop-then-start with lock transfer), or does `globallyFenced`
+   require the deployment to accept bounded downtime on every deploy?
 
 ## Status
 

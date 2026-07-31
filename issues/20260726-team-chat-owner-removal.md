@@ -35,6 +35,15 @@ The proposal remains Draft. This issue stays open until the RFC is independently
 reviewed, ratified, implemented, and exercised by the Team Chat product
 receipts.
 
+**Progress 2026-07-30:** Major 1 decided by Charlie Cheever (in-session):
+option (a) — the non-disclosure claim is scoped to the byte-level result
+and the authorization-version observable is an accepted disclosure to
+authorized callers. The v0.2 revision applies that decision plus all four
+Minors and the review's suggestions (LLP 0100 Revised header records the
+item-by-item mapping). The remaining gate is ratification under the stated
+boundary — LLP 0056 accepted first, or the composed-slice maintainer
+ruling — then implementation and the product receipts.
+
 **Progress 2026-07-27:** first independent cross-family review round done —
 `llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
 (Claude family; the draft is Codex-authored). Verdict: revise and stay

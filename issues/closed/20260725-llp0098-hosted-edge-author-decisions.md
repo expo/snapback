@@ -1,6 +1,17 @@
 # LLP 0098 hosted-edge adapter — author decisions
 
-**Status:** Open (awaiting author)
+**Status:** Resolved 2026-07-30 — all three decisions made by Charlie
+Cheever (in-session, this date) and recorded as dated amendments in
+LLP 0098: **D1** — ratify the narrow external language
+("control-plane-signed admission"); "attestation" carries no marketing
+weight and `hostedAuthCapable` stays unclaimed (§7). **D2** — production
+requires `renewal: "online"`; `presignedWindow` is non-production-only,
+cap tightened 24h → 4h (§2.4); the poll-vs-push delivery mechanism stays
+open question 1's remaining half. **D3** — documented handoff stays
+sufficient for the drill; a production `globallyFenced` claim requires
+enforced single-instance, commissioned as
+`issues/20260730-0098-single-instance-enforcement.md`. D4 was already
+resolved 2026-07-25.
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 5

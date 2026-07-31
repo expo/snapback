@@ -37,6 +37,13 @@ The proposal remains Draft. This issue stays open until the RFC is independently
 reviewed, ratified, implemented, and exercised by the Team Chat product
 receipts.
 
+**Progress 2026-07-30:** the v0.2 revision landed (Major 1 decided by the
+author as its option (a); this ticket's two Minors applied — the page-key
+idiom is now a stated guide obligation and compound boundaries are LLP 0100
+open question 4; the probe-shaped first-page negative joined acceptance).
+Remaining gate: ratification under the stated LLP 0056 boundary, then
+implementation and the product receipts.
+
 **Progress 2026-07-27:** first independent cross-family review round done —
 `llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
 (Claude family; the draft is Codex-authored). The pages surface (§4–§6) drew
