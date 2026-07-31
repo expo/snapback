@@ -1516,9 +1516,16 @@ fn validate_value_contract_node(
                 ));
             }
             if !schema_ref_registry_v1().contains(&schema.as_str()) {
-                return Err(invalid_args_contract(
-                    function,
-                    format!("argument schemaRef names unregistered schema {schema}"),
+                // @ref LLP 0131#diagnostics — a manifest naming an id the
+                // host does not carry refuses under the load-time identity
+                // code, beside recomputation mismatch and unknown node kind.
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+                    "runtime",
+                    format!(
+                        "function {} references unregistered platform schema {schema}",
+                        function.name
+                    ),
                 ));
             }
         }
