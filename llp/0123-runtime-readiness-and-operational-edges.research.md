@@ -5,7 +5,14 @@
 **Systems:** Competitive evaluation, Developer experience, Runtime, Bootstrap, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.3, round-2 delta review corrections — Fable
+**Revised:** 2026-07-31 (dated note in Option 2: the landed CV-2
+qualification shape — a separate-process `snapback runtime-qualify`
+subcommand — is posture-neutral toward serving processes by process
+isolation, pinned by `tests/runtime_qualify_posture_v0.rs`; the standing
+first-VM-only-Enforce fact is ticketed with LLP 0009's owners as
+`issues/20260731-first-vm-only-strict-host-context.md`, and an
+in-serving-process boot witness still requires a ratified mitigation
+shape); 2026-07-30 (v0.3, round-2 delta review corrections — Fable
 READY (three NITs); Codex NOT READY on the strict-Host handoff hazard in
 the v0.2-added Option 2 and on Option 4's content-addressing precision,
 with all round-1 concerns resolved. Round-2 deltas in
@@ -401,6 +408,37 @@ shapes:
 Whichever shape is chosen, the design needs a post-probe test proving
 that invocations after qualification retain the same fail-closed
 enforcement posture as before it.
+
+**Dated note (2026-07-31): the landed CV-2 shape is posture-neutral by
+process isolation — code-verified while executing LLP 0115 CV-3.** The
+hazard above was written against a probe running *inside a serving
+process*. The qualification that actually landed (`814acd77`) is a CLI
+subcommand: `snapback runtime-qualify` runs `qualify_handler_vm()` in
+its own short-lived process (`src/cli.rs` `HostCommand::RuntimeQualify`;
+the only caller of `qualify_handler_vm`), and every consumer —
+`qualifyRuntimeBinary` (`packages/snapback-cli/runtime-recovery.mjs`,
+`spawnSync`), `scripts/runtime-link-smoke.mjs`, bootstrap, doctor,
+`scripts/verify-local-proof`, and the demo harness's rung
+re-qualification — invokes it as a separate child with loader overrides
+scrubbed. The one-shot strict-Host handoff it consumes belongs to that
+disposable process, which then exits; no server startup path runs the
+probe in-process, so a serving process's first `RuntimeGuard::create()`
+still claims its own freshly armed strict token exactly as before the
+landing. This is effectively the "qualify through the same handoff
+path" shape realized at process granularity, with no re-arm step needed
+because the probe never shares a process with serving. The required
+post-probe test exists: `tests/runtime_qualify_posture_v0.rs` runs the
+qualification exactly as consumers do, then proves the current
+process's first (strict-claimed) and second (diagnostic-fallback)
+handler VMs present identical fail-closed ambient enforcement. Two
+boundaries stay explicitly open: (1) the standing fact that only the
+first VM per process holds the Enforce-mode context predates CV-2, is
+unchanged by it, and is now ticketed with LLP 0009's owners
+(`issues/20260731-first-vm-only-strict-host-context.md`); (2) any
+future *in-serving-process* boot witness (the LLP 0030/0031 `/health`
+option this section analyzes) still requires one of the four mitigation
+shapes ratified with LLP 0009's owners — the landed subcommand's
+neutrality does not transfer to an in-process probe.
 
 The companion sub-option is invocation-error fidelity.
 `SNAPBACK_RUNTIME_CREATE_FAILED` today carries only the fixed strings
