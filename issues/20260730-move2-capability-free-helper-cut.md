@@ -61,6 +61,44 @@ and mutation, with the module graph still closed and content-addressed, and
 the 0108 refusal properties preserved under its adversarial fixtures
 extended to cross-module cases").
 
+Progress (2026-07-31, wave-1 code lane C1). The full option-1a slice is
+implemented on the wave1 worktree branch, pending landing. What landed
+there: (1) same-file sharing of statically reachable top-level sibling
+function declarations for inline handlers — lazy admission (helpers used
+only at definition time stay untouched), symbol-resolved before the
+globals allowlist so authored lexical scope wins, context-reader helpers
+admitted per 0127 decision 6 with declared reads/writes remaining
+evidence (`packages/snapback-codegen/inline-handlers.mjs`); (2) splice
+emission — each operation's runtime module carries exactly its own
+reachable-helper subset as hoisted function declarations after the v1
+registration line, sorted-name deterministic, zero-helper emission
+byte-identical to v1 (`renderInlineOperationModule`); (3) the v2
+implementation-identity format (`snapback.function-implementation.v2`)
+whose inline handler carries named helper-content edges
+({name, contentHash} over the export-stripped canonical helper AST, no
+paths, no graph encoding) with exact per-operation invalidation; v1
+hashes unchanged for all helper-free operations; (4) the 2026-07-28
+adversarial refusals re-proved cross-helper (11 fixtures:
+alias/computed/destructured/assignment-destructured constructor,
+prototype reflection, argument laundering, eval, dynamic import, class,
+ambient this — all refusing at the helper with
+`SNAPBACK_INLINE_HELPER_SYNTAX_FORBIDDEN`), plus the top-level-const
+laundering channel held closed; (5) capability rescan over the complete
+spliced bytes with refusals mapped to the helper's authored source span;
+(6) precise inadmissibility diagnostics: `SNAPBACK_INLINE_HELPER_CYCLE`
+(mutual recursion; self-recursion stays admitted),
+`SNAPBACK_INLINE_HELPER_FREE_IDENTIFIER` (TDZ/laundering hints naming
+the top-level const/let/var/class/import kind),
+`SNAPBACK_INLINE_HELPER_INADMISSIBLE` (duplicate/bodyless declarations).
+Both diary shapes are proven de-duplicated in
+`packages/snapback-codegen/inline-helper-sharing.test.mjs` (Streak Lab's
+civilFromDay/dayNumber written once, used by query + mutation; Relay
+Board's boardCards context-reader shared by boardView/boardSummary/
+watchBoard). Still open on this ticket: work item (5), the respecified
+benchmark receipts (per-invocation evaluation latency/memory against
+LLP 0035's ~3.9 ms baseline), and absorbing the mechanism into LLP
+0108's normative text at landing time. Landing closes this ticket.
+
 Decision boundary. This ticket is the start of move 2, NOT CV-7's exit.
 0127 decision 6 is DECIDED (2026-07-30): the context-reader-admitting
 slice — which both diary instances need (0118 places that need inside the
