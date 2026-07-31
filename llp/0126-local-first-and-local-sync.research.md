@@ -5,7 +5,24 @@
 **Systems:** Competitive evaluation, Sync, Realtime, Storage, Runtime, Client integration, Wire Protocol, Auth, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:**
+**Revised:** 2026-07-30 (v0.2 — round-1 dual-family review corrections
+from llp/reviews/0126-local-first-and-local-sync.fable.md and
+llp/reviews/0126-local-first-and-local-sync.codex.md: all eight Codex
+items (A–H) and all ten Fable concerns (C1–C10) verified against their
+sources and applied; none rejected. Execution identity recast as
+source/plan hash plus a five-element execution-identity tuple; the
+lease described as server-MACed with its offline verification locus
+stated; the embedded-runtime lane split into co-packaged/sidecar/
+in-process hosting shapes with costs, mobile downgraded to a spike
+(open question 10); the option board re-lettered A–G with new
+client-mutator (C) and governed-replica (B2) lanes and every lean
+recast as conditions plus an evidence gate; InstantDB reclassified to
+approach 3 and the offline-leader record corrected; the LLP 0053
+retainability-invariant attribution fixed in the arm section and open
+question 2; three quotations restored to source wording; the
+five-to-zero count narrowed to LLP 0084's tally with Turso's
+whole-database/page scope; category-(c) primary sources named; the
+ideals coverage matrix added.)
 **Related:** LLP 0003, LLP 0034, LLP 0059, LLP 0073, LLP 0074, LLP 0081, LLP 0082, LLP 0083, LLP 0084, LLP 0085, LLP 0093, LLP 0112, LLP 0114, LLP 0115, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0123, LLP 0125, Diary 0027, Diary 0028, Diary 0029, Diary 0039
 
 A companion to the Convex-parity research series (LLP 0116; 0117–0125):
@@ -18,36 +35,51 @@ direction.
 
 ## Summary
 
-Local-first is the one front where the bakeoff diaries recorded GAPs
-against nearly every backend — including both Snapback and Convex — and
-where the rerun then measured nothing: Diary 0039 bounds itself to
+Local-first is the front where the bakeoff diaries recorded GAPs
+against most backends — including both Snapback and Convex, with two
+exceptions: Firebase passed offline cleanly in all three diaries, and
+InstantDB in two (Diary 0028's Instant cold-offline GAP was an
+environment limit, not provider evidence) — and where the rerun then
+measured nothing: Diary 0039 bounds itself to
 "local development, authoring, generated contracts, transactions,
 realtime, ephemeral state, search, and scheduled work." The 55/45 score
-contains no local-first signal. This front is therefore an opportunity
-claim, not a loss claim: a trustworthy local-first story competes
-against recorded absence, not against a Convex strength.
+contains no local-first signal. Against Convex this front is therefore
+an opportunity claim, not a loss claim: a trustworthy local-first story
+competes against Convex's recorded absence, not a Convex strength —
+though the bar the diaries actually applied is Firebase's and
+InstantDB's recorded offline results, not zero.
 
 Three facts shape the analysis. First, the field has converged away
 from its founding bet: two funded teams retreated first-party from
 CRDT-core architectures (ElectricSQL 2024, Jazz 2026), the most
-successful CRDT vendor tells customers to resolve business conflicts at
-read time, and five surveyed peers sync query-scoped state deltas while
-zero sync client-visible event logs (LLP 0022, 0084, 0085). Snapback's
-pinned server-authoritative-rebase posture (LLP 0008) is the
-destination the field retreated *to*. Second, Snapback already owns a
-designed and partially shipped local-first stack — LLP 0008's sync
+heavily funded CRDT vendor in the surveyed corpus tells customers to
+resolve business conflicts at read time (LLP 0084), and five surveyed
+peers ship materialized state to clients — four scoped by query,
+subscription, or bucket; Turso by whole database/page — while zero
+ship client-visible event logs (the count is LLP 0084's, folding in
+LLP 0022's three peers). The retreats corroborate the posture LLP 0008
+pins — server authority, tentative client writes, state-delta
+delivery — without arriving at Snapback's exact model: Electric kept
+read-path sync with writes outside its core, and Jazz v2 keeps an
+embedded replica, offline writes, and deep history under
+trusted-server policy (LLP 0022, 0085). Second, Snapback already owns
+a designed and partially shipped local-first stack — LLP 0008's sync
 contract, LLP 0043's shipped Contract-side retention/replay slice,
 LLP 0090's persisted resume, LLP 0051's local-execution design — that
 the bakeoffs' scored path (the browser JS client driving protected
 opaque queries) does not reach. Third, Snapback has one structural
-possibility no surveyed peer can pin: handlers are closed,
-content-addressed, and deterministic-tier-enforced; the runtime is an
-embeddable Rust+Hermes binary with sealed per-platform packages; the
-store is SQLite. That composes into running the *same* content-
-addressed mutations locally and settling by server re-execution —
-"same code both sides" without a second implementation of business
-logic. This document treats that approach in depth alongside eight
-others, and decides nothing.
+possibility no surveyed peer has the ingredients for: handlers are
+closed, content-addressed, and deterministic-tier-enforced; the
+runtime is a packaged Rust+Hermes binary with co-packaged,
+digest-attested per-platform packages (sealing them into one atomic
+delivery is LLP 0123's prospective move); the store is SQLite. Those
+ingredients could compose into running the *same* content-addressed
+mutations locally and settling by server re-execution — "same code
+both sides" without a second implementation of business logic — as a
+testable hypothesis, not a shipped property: the content hash pins
+source/plan identity, and execution equivalence additionally needs the
+execution-identity tuple approach 9 defines. This document treats that
+approach in depth alongside eight others, and decides nothing.
 
 ## Method and provenance
 
@@ -63,6 +95,19 @@ Four labels, used throughout:
   in-repo verification (Replicache/Zero, Linear, cr-sqlite, Couch/
   Pouch, OT history, Figma, Ink & Switch). Labeled, contour-level only,
   flagged where the contour is uncertain; never treated as evidence.
+  Where the primary source is well known it is named at the point of
+  use: Rocicorp's official "How Replicache Works" documentation
+  (undated living docs; Zero announced 2024); the Automerge
+  documentation and Kleppmann & Beresford's 2017 JSON-CRDT paper; the
+  Yjs documentation and the 2016 YATA paper; Apache CouchDB's
+  replication/conflicts documentation; Evan Wallace's "How Figma's
+  multiplayer technology works" (Figma engineering blog, 2019); the
+  vlcn-io/cr-sqlite repository; Ink & Switch's "Local-first software"
+  (2019). Linear's engine is known only from public engineering talks
+  by cofounder Tuomas Artman that this pass cannot confidently date —
+  that contour is marked uncertain rather than cited. None of these
+  has had a dated in-repo verification pass; naming a source does not
+  promote the claim out of category (c).
 - **(d) Code-verified** — checked against the working tree 2026-07-30,
   cited by path (line numbers as of that date).
 
@@ -75,14 +120,34 @@ collaboration; (5) longevity; (6) security and privacy by default;
 (7) ultimate user ownership. Its proposed mechanism was CRDTs.
 
 The in-repo record splits the list from the mechanism. What adopters of
-the CRDT platforms actually valued — "instant local reads, sync for
-free, permissions shaping what syncs, deep history" (Jazz's founder,
-LLP 0085) — is ideals 1–3, which every approach below can serve; the
+the CRDT platforms actually valued — per LLP 0085's own summary of the
+founder's retreat account: instant local reads, sync for free,
+permissions shaping what syncs, deep history — "the experience," not
+the cryptography (only "the experience" is quoted there) — is ideals
+1–3, which the approaches below serve to different degrees (the matrix
+maps them; approach 6 cannot make the network optional across a
+restart, and approach 8 leaves multi-device to explicit transfer). The
 strong cryptographic form of 6–7 is what Jazz retreated from, and
-LLP 0084's market finding is that demand for radical serverless
-operation concentrates in mesh verticals Snapback deliberately refuses
-(LLP 0074's "not a mesh database" boundary). This document evaluates
-approaches against ideals 1–4 plus Snapback's evidence bar.
+LLP 0084's inferred market characterization is that demand for
+serverless operation concentrates in offline-critical
+physical-operations verticals — mesh markets Snapback deliberately
+refuses (LLP 0074's "not a mesh database" boundary). This document
+evaluates approaches against ideals 1–4 plus Snapback's evidence bar.
+
+How each approach family reaches ideals 1–4, coarsely (qualifiers in
+each approach's own section govern):
+
+| Approach | 1 no spinners | 2 multi-device | 3 net optional | 4 collab |
+| --- | --- | --- | --- | --- |
+| 1 CRDT merge | yes | yes | yes | yes |
+| 2 OT | yes | via server | partial | yes |
+| 3 rebase | yes | via server | store + queue | yes |
+| 4 SQLite repl. | yes | via server | reads; writes vary | via server |
+| 5 oplog replay | yes | via server | with local log | via server |
+| 6 reactive cache | warm only | via server | no (restart) | yes |
+| 7 Couch/Pouch | yes | yes | yes | weak merge |
+| 8 local-only | yes | explicit transfer | trivially | no |
+| 9 embedded runtime | yes | via server | run, settle later | settlement |
 
 ## The field's approaches
 
@@ -91,8 +156,10 @@ approaches against ideals 1–4 plus Snapback's evidence bar.
 **Mechanism.** Replicas apply writes locally and immediately; data
 types carry metadata (element ids, counters, version vectors) so any
 two replicas merge to the same state without coordination. **(c)** The
-Automerge lineage (JSON documents, full history) and Yjs lineage
-(sequence CRDTs for collaborative text) are the mature references.
+Automerge lineage (JSON documents, full history; the Automerge docs
+and Kleppmann & Beresford's 2017 JSON-CRDT paper) and Yjs lineage
+(sequence CRDTs for collaborative text; the Yjs docs and the 2016
+YATA paper) are the mature references.
 
 **Exemplars (b).** Classic Jazz was the purest platform form: CoValues
 owned by cryptographic Groups, every mutation a signed transaction,
@@ -133,9 +200,10 @@ offline symmetry, peer sync, no merge code in the common case.
 
 **Snapback fit.** Poorest of the nine as a core: it replaces the commit
 boundary, read-set validation, server-side authorization, and receipts
-in one move, against the field's own record (LLP 0022 §1: "automatic
-semantic conflict resolution is the wall"). As a sidecar for specific
-data types it stays live — option D.
+in one move, against the field's own record as LLP 0022 synthesizes it
+(its `[inferred]` §1 theme: "automatic semantic conflict resolution is
+the wall"). As a sidecar for specific data types it stays live —
+option E.
 
 ### 2. Operational transforms
 
@@ -151,12 +219,14 @@ the type is one hand-verified sequence (text). General app state went
 two ways: CRDTs where decentralization was the point, and server-
 authoritative rebase where a server exists anyway — which needs no
 transform functions because the server re-executes intent against
-current state. **(c)** Figma's public account says it rejected OT and
-ships server-authoritative per-property LWW with client prediction.
+current state. **(c)** Figma's public account (Evan Wallace, "How
+Figma's multiplayer technology works," Figma engineering blog, 2019)
+says it rejected OT and ships server-authoritative per-property LWW
+with client prediction.
 
 **Snapback fit.** Not a candidate for row sync. If collaborative text
 ships (LLP 0008's rich-text reference app), the choices are a text CRDT
-sidecar or an OT server for that one type — option D's territory.
+sidecar or an OT server for that one type — option E's territory.
 
 ### 3. Server-authoritative mutation-rebase engines
 
@@ -168,18 +238,21 @@ rewinds speculative results and replays pending mutations on each
 authoritative update. Conflicts mostly vanish into "your intent ran
 later against newer state"; the rest surface as app semantics.
 
-**Exemplars.** **(c)** Replicache is the cleanest published form:
-client-side JS mutators run speculatively, a push endpoint applies the
-same-named mutations authoritatively, pull-driven rebase reconciles —
-server reconciliation in the rollback-netcode tradition; Zero is the
-successor generation with query-driven partial sync. Linear's engine,
-per public talks: an IndexedDB-persisted local object graph
-bootstrapped then maintained by deltas from a server-ordered log, local
-writes enqueued as transactions. Contours only; unverified here.
+**Exemplars.** **(c)** Replicache is the cleanest published form
+(Rocicorp's official "How Replicache Works" documentation): client-side
+JS mutators run speculatively, a push endpoint applies the same-named
+mutations authoritatively, pull-driven rebase reconciles — server
+reconciliation in the rollback-netcode tradition; Zero is the successor
+generation (announced 2024) with query-driven partial sync. Linear's
+engine, per public engineering talks by cofounder Tuomas Artman (no
+confidently datable citation; contour uncertain): an IndexedDB-
+persisted local object graph bootstrapped then maintained by deltas
+from a server-ordered log, local writes enqueued as transactions.
+Contours only; unverified here.
 **(b)** InstantDB is a verified adjacent form: a pending-mutation queue
-over an immutable committed store, server-final, attribute-level LWW,
-rejection = drop the queue entry so "undo works out of the box"
-(LLP 0082).
+over an immutable committed store persisted to IndexedDB/AsyncStorage
+(offline reads), server-final, attribute-level LWW, rejection = drop
+the queue entry so "undo works out of the box" (LLP 0082).
 
 **What it buys.** Ideals 1–3 without surrendering server authority:
 rich permissions, meaningful revocation, invariants enforced in one
@@ -207,18 +280,20 @@ Snapback's durable store is already SQLite (LLP 0003). The
 sub-approaches differ in what crosses the wire and who owns writes.
 
 - **cr-sqlite — CRDTs inside SQLite.** **(c)** A loadable extension
-  making tables conflict-free replicated relations with column-level
-  LWW; peers exchange changesets. Activity level uncertain at this
-  writing. Inherits approach 1's invariant and authorization problems
-  wholesale — the merge just lives in SQL.
+  (the vlcn-io/cr-sqlite repository) making tables conflict-free
+  replicated relations with column-level LWW; peers exchange
+  changesets. Activity level uncertain at this writing. Inherits
+  approach 1's invariant and authorization problems wholesale — the
+  merge just lives in SQL.
 - **ElectricSQL Shapes — read-path partial replicas.** **(b)** A Shape
   is a table plus a WHERE clause streamed out of Postgres over HTTP
-  with immutable log offsets, so reads are CDN-cacheable (verified to
-  ~1M concurrent clients); writes are explicitly out of core ("a sync
-  engine, not a local-first software platform"), handled by your API
-  with optimistic state in a separate rebased layer; auth is a
-  gatekeeper-minted shape-scoped JWT, client filters can only narrow
-  (LLP 0022).
+  with immutable log offsets, so reads are CDN-cacheable (benchmarked
+  100k→1M concurrent clients — a vendor benchmark LLP 0022 confirmed
+  as claimed, not independently reproduced); writes are explicitly out
+  of core ("a sync engine, not a local-first software platform"),
+  handled by your API with optimistic state in a separate rebased
+  layer; auth is a gatekeeper-minted shape-scoped JWT, client filters
+  can only narrow (LLP 0022).
 - **PowerSync — authorization-scoped bucket sync, in production.**
   **(b)** Buckets are server-maintained operation logs derived from
   trusted JWT claims; checkpoints apply atomically, and the client
@@ -226,9 +301,10 @@ sub-approaches differ in what crosses the wire and who owns writes.
   never resolves conflicts locally. Writes queue in a client FIFO
   uploaded to *your* backend; conflict model LWW per field,
   delete-wins, backend-authoritative — "identical in spirit" to
-  LLP 0008's pin (LLP 0022). Its restrictive first-generation sync
-  rules had to be replaced wholesale by Sync Streams; 0022's recorded
-  lesson: design for the expressive shape early.
+  LLP 0008's pin (LLP 0022). Its restrictive first-generation Sync
+  Rules are now officially "legacy" after the second-generation Sync
+  Streams shipped (GA 2026-06-09); 0022's `[inferred]` lesson: design
+  for the expressive (Sync Streams) shape from day one.
 - **Turso embedded replicas.** **(b)** Whole-database read-local/
   write-remote replicas, plus explicit push/pull Sync with
   last-push-wins and rollback-and-replay. Its "partial sync" is page
@@ -245,10 +321,12 @@ sub-approach that composes is the Electric/PowerSync shape: a declared,
 server-filtered partial replica with membership derived from trusted
 claims — structurally Snapback's own syncable-live subset (LLP 0008)
 arriving from the other direction. The genuinely novel separable piece
-is Electric's cacheable HTTP read lane over immutable offsets;
-LLP 0008 DK-3 already preserves that option by keeping client-
-comparable versions on the wire, with D1's bookmark Sessions API as
-copyable prior art (LLP 0083).
+is Electric's cacheable HTTP read lane over immutable offsets
+(LLP 0022 — the cacheability idea is Electric's); LLP 0008 DK-3
+already preserves that option by keeping client-comparable versions on
+the wire, and D1's Sessions API bookmarks are the copyable prior art
+for wire-carried read positions — sequential consistency across
+replicas, not caching (LLP 0083).
 
 ### 5. Oplog / event-sourcing replication with deterministic replay
 
@@ -258,9 +336,11 @@ Lineage: replicated state machines, game lockstep/rollback netcode,
 event-sourced app architectures.
 
 **The field's verdict (b).** LLP 0084's count: five surveyed systems
-sync materialized query-scoped state deltas, zero sync client-visible
-event logs — logs survive *inside* engines (PowerSync buckets, Ditto
-version vectors, D1's log-plus-snapshot bookmarks) but not as the
+ship materialized state to clients — four scoped by query,
+subscription, or bucket; Turso by whole database/page (LLP 0022) —
+and zero ship client-visible event logs. Logs survive *inside* engines
+(PowerSync buckets, Ditto version vectors, the SRS PITR bookmarks that
+fell out of D1's log-plus-snapshot storage — LLP 0083) but not as the
 client contract. LLP 0008 considered and rejected event-log sync as the
 primary model: ordinary apps should not author events and projections.
 
@@ -275,8 +355,12 @@ delta-resume client named as future work in LLP 0008.
 
 **Mechanism.** No replica of record: the client caches subscribed query
 results in memory, overlays optimistic writes, and the server settles —
-Convex, InstantDB, and Snapback's current clients. Offline capability
-is whatever a warm session's cache gives; a cold boot has nothing.
+Convex and Snapback's current clients. Offline capability is whatever a
+warm session's cache gives; a cold boot has nothing. (InstantDB's
+subscription surface looks similar but does not belong here: its triple
+store is persisted to IndexedDB/AsyncStorage with offline reads —
+LLP 0082 — so it is approach 3 with a durable cache, as this document's
+approach-3 paragraph already describes.)
 
 **Diary evidence — the best-measured approach in the corpus.** Convex's
 warm-session story was praised: "The default mutation retry contract is
@@ -289,12 +373,17 @@ GAP" — "a strong result for intermittent transport within one running
 app session, but it is not local-first durability across a
 process/browser restart" (Diary 0027; Diary 0028 confirms the cache is
 online-only JavaScript memory). SpacetimeDB recorded three offline GAPs
-(Diary 0027); Supabase and Appwrite recorded the cold-boot GAP; the one
-strong browser result was Firebase — "Firestore's browser persistence
-was the strongest offline result so far," with the sting that
-"Revocation did not erase bytes already stored in Firestore's browser
-cache… Firebase leaves sensitive-cache retirement to the application"
-(Diary 0028).
+(Diary 0027); Supabase and Appwrite recorded the cold-boot GAP. The
+corpus's offline leaders sit outside this approach family: Firebase
+passed the offline scenarios in all three diaries — within Diary 0028
+"Firestore's
+browser persistence was the strongest offline result so far," with the
+sting that "Revocation did not erase bytes already stored in
+Firestore's browser cache… Firebase leaves sensitive-cache retirement
+to the application" — and InstantDB's persisted cache was strong in
+Diaries 0027 and 0029 ("The offline requirements alone put InstantDB
+and Firebase ahead" — Diary 0027; 0028's Instant cold-offline GAP was
+an environment limit, "not direct provider evidence").
 
 **What it buys / costs.** The cheapest path to ideals 1 (warm) and 4;
 no replica, no merge, no migration-skew surface. It is not local-first
@@ -307,8 +396,10 @@ persistence plus the queue — is option A.
 
 ### 7. Couch/Pouch-style document replication
 
-**(c, dated; the historical baseline.)** CouchDB replication with
-PouchDB in the browser was the first mainstream database-that-syncs:
+**(c, dated; the historical baseline; the conflict behavior is
+documented in Apache CouchDB's replication/conflicts documentation.)**
+CouchDB replication with PouchDB in the browser was the first
+mainstream database-that-syncs:
 per-document revision trees, master-master, offline by default. Why the
 conflict model disappointed: concurrent edits produce sibling
 revisions, and Couch deterministically picks an *arbitrary* winner that
@@ -353,10 +444,15 @@ the pin between the two sides:
   one self-contained expression per operation — no imports, no free
   identifiers, a closed 31-global allowlist — and the implementation
   identity hash (`snapback.function-implementation.v1`,
-  `packages/snapback-codegen/index.mjs`) covers the canonical AST,
-  args/result contract hashes, reads/writes, and auth (LLP 0118). A
-  replica can know, by hash, that it executed byte-identical logic to
-  what the server will settle.
+  `packages/snapback-codegen/index.mjs`) covers the canonical AST (or
+  module source hash, or host plan), args/result contract hashes,
+  reads/writes, and auth facts (LLP 0118). What the hash proves is
+  *source/plan identity*: a replica can know it holds byte-identical
+  admitted source to what the server will settle. It does not bind the
+  runtime binary or Hermes build, the client evaluator's identity, the
+  host-call answer surface, store semantics, or the schema epoch
+  beyond the hashed fields — two runtimes can admit the same hash and
+  still behave differently.
 - **The deterministic tier is enforced, not requested (d).** Queries
   and mutations run in a no-eval VM that denies ambient nondeterminism
   at runtime (`ambient_restriction_source`, `src/runtime.rs`; the
@@ -366,24 +462,93 @@ the pin between the two sides:
   remaining host answers; LLP 0008's replay environment
   (`{generatedIds, now}` on the wire) is the settlement-side half,
   grounded in Valet production behavior.
-- **The runtime is an embeddable artifact (d).** The server is one
-  binary (`src/main.rs` is four lines into `snapback::cli`;
-  `Cargo.toml` `default-run = "snapback"`), and sealed per-platform
-  runtime packages exist — `packages/snapback-runtime-darwin-arm64`
-  pairs `bin/snapback` with `hermesvm.framework`,
-  `packages/snapback-runtime-linux-x64` adds a binary+Hermes digest
-  attestation, and `HERMES_LINK_STATIC=1` exists unused (LLP 0123). The
+- **The runtime is a packaged, hostable artifact (d).** The server is
+  one binary (`src/main.rs` is four lines into `snapback::cli`;
+  `Cargo.toml` `default-run = "snapback"`), and co-packaged,
+  digest-attested per-platform runtime packages exist —
+  `packages/snapback-runtime-darwin-arm64` pairs `bin/snapback` with
+  `hermesvm.framework`, `packages/snapback-runtime-linux-x64` adds a
+  binary+Hermes digest attestation, and `HERMES_LINK_STATIC=1` exists
+  unused; sealing the pair into one atomically installed delivery is
+  LLP 0123's prospective move, not a shipped property. This proves
+  packaging and hostability — it does not yet prove an
+  application-embeddable runtime (the hosting-shape split below). The
   store is SQLite on both sides (LLP 0003; DK-9's reference client
   store is SQLite).
 
-Convex cannot offer this: its functions execute only in its runtime,
-and clients hold caches, not logic. Replicache-class systems run client
-mutators but pin nothing — the halves are same-by-convention. Jazz v2
-keeps an embedded replica with offline writes but has no
-server-function story at all (LLP 0085). A content-addressed,
-deterministic, both-sides handler tier is a lane only Snapback is
-positioned to claim; LLP 0051 §D6 already names the composed result
-"Parity by construction."
+**What "same code both sides" would actually take — the
+execution-identity tuple.** The hash alone proves one element of a
+larger identity. A parity proof between a local execution and its
+server settlement needs the whole tuple:
+
+1. *source/plan identity* — the implementation hash (shipped,
+   LLP 0118);
+2. *runtime/evaluator identity* — which binary, Hermes build, or IR
+   evaluator ran each side; LLP 0123's binary+Hermes digest
+   attestation is the shipped seed for naming the native half, and an
+   IR evaluator needs its own version identity;
+3. *deterministic-tier semantics* — the enforced ambient denials plus
+   a portable-semantics profile both sides accept, pinned by a
+   conformance-corpus version (LLP 0051 D5's designed machinery);
+4. *the host-call answer surface* — the captured environment
+   (`{generatedIds, now}`, LLP 0008) and LLP 0051 D1's ctx-answer
+   ledger for the remaining host answers;
+5. *store semantics and schema epoch* — the schema/artifact activation
+   the execution ran against.
+
+"Same code both sides" is therefore a testable architectural
+hypothesis whose precondition is this tuple, not a property the
+content hash already delivers. What the hash does deliver — and what
+no surveyed peer has — is element 1 in checkable form.
+
+Convex cannot offer even that element: its functions execute only in
+its runtime, and clients hold caches, not logic. Replicache-class
+systems run client mutators but pin nothing — the halves are
+same-by-convention. Jazz v2 keeps an embedded replica with offline
+writes but has no server-function story at all (LLP 0085). Among the
+surveyed systems, a content-addressed, deterministic, both-sides
+handler tier is a lane only Snapback has the ingredients to claim —
+contingent on the rest of the tuple; LLP 0051 §D6 already names the
+composed result "Parity by construction."
+
+**Three hosting shapes, not one.** "Run the runtime on the client" is
+three different products, with different costs:
+
+- *Co-packaged desktop distribution.* Ship the existing server binary
+  and Hermes framework inside a desktop app's bundle. Nearest to what
+  exists (the runtime packages are npm-shaped versions of exactly this
+  pair). Costs: installer size (~48 MB binary plus the framework),
+  per-platform code-signing and notarization of a bundled binary and
+  framework, and an update channel that must version the runtime with
+  the app.
+- *Sidecar process.* The app spawns the binary locally and talks to it
+  over loopback HTTP/IPC. Costs beyond co-packaging: process lifecycle
+  (start, health, orphan cleanup, crash-restart), IPC serialization
+  and its latency floor, port/socket custody against other local
+  processes, and update/rollback choreography — swapping the sidecar
+  binary while a client-custodied outbox exists is exactly LLP 0081's
+  quarantine seam, now driven by the app's updater. What it buys:
+  crash isolation by process boundary, and the server's own memory
+  ceiling rather than the app's.
+- *In-process embedding.* Link the Rust library into the app and drive
+  it through a stable embeddable ABI that does not exist today
+  (`snapback::cli` is a binary entry, not an embedding surface).
+  Costs: designing and freezing that ABI, app-owned lifecycle, loss of
+  crash isolation (a runtime abort takes the app), shared memory
+  ceilings and eviction under OS pressure, and framework code-signing
+  inside the app's own signature.
+
+Cutting across all three: local database custody and locking (which
+process owns the replica file; DK-9's Web-Lock rule has no native
+analogue yet), crash recovery between the speculative journal and the
+local SQLite commit, secure at-rest custody and the device-loss story
+(LLP 0043 leaves mobile encryption open), background
+suspension/battery budgets on laptops and mobile, and platform store
+policies for shipping an embedded server. Mobile is not "plausible" on
+this record: Hermes is proven there as React Native's engine, but the
+Rust host, suspension behavior, store-policy fit, and disk custody are
+all unassessed — mobile carriage is a named spike question (open
+question 10), not a lane.
 
 **What breaks, honestly.**
 
@@ -430,10 +595,20 @@ positioned to claim; LLP 0051 §D6 already names the composed result
   lens migrations are the field's more ambitious answer (LLP 0085).
 - *The evidence story.* A local commit's receipt is self-attested; it
   must be marked speculative and never presented as settlement. The
-  server-signed-fact template exists — the AuthorizedLease is exactly a
-  server-signed fact in client custody (LLP 0043/0053) — and settlement
-  receipts already carry `snapshotVersion` (`src/live_wire.rs`,
-  `Receipt::Mutation`). The composed contract: speculative receipts
+  template that exists is a *server-issued, server-MACed fact in
+  client custody* — the AuthorizedLease — and its trust shape must be
+  stated precisely: the client cannot cryptographically verify the MAC
+  offline. Client custody checks structure, binding equality, expiry,
+  rollback state, and an unkeyed hash of the exact stored bytes;
+  `mac`/`key_id` verification belongs to the server keyring when the
+  lease is presented back (LLP 0043's ENG-24992 amendment; LLP 0053
+  §The lease, "Verification locus"). The client is trusting retained
+  server-issued facts, not verifying attestations — offline-verifiable
+  evidence (true signatures) would be a new mechanism with its own
+  key-distribution and rotation costs, not shipped precedent.
+  Settlement receipts already carry `snapshotVersion`
+  (`src/live_wire.rs`, `Receipt::Mutation`). The composed contract:
+  speculative receipts
   carry content address plus captured environment; settlement receipts
   bind them to the authoritative commit version; capability claims
   follow LLP 0012's rule ("no local execution means no local-first/
@@ -450,17 +625,21 @@ positioned to claim; LLP 0051 §D6 already names the composed result
 **The browser, separately and honestly.** Browsers do not run the
 Rust+Hermes runtime. The realistic ladder: (i) the LLP 0051 D2
 mutation-IR evaluator — host-plan mutations are data, evaluable by a
-small JS interpreter; the only rung with an in-repo design, and what
+small IR evaluator implemented in JS for the browser (an IR
+interpreter, not an embedded JS engine — LLP 0051 §Rejected refuses
+"QuickJS (or any JS engine) on clients for Parity"); the only rung
+with an in-repo design, and what
 LLP 0043's derived optimistic overlays already assume; (ii) WASM
 handler artifacts (0051 D3) for logic past the IR; (iii) compiling the
 full runtime to WASM — feasibility, size, and performance unassessed
 here, no in-repo evidence either way. The store side is proven
 (wa-sqlite carried Valet's browser replica, LLP 0008). So the full
-embedded-runtime form is native-first — desktop now (the runtime
-packages exist for macOS/Linux hosts), mobile plausibly (Hermes is
-React Native's engine; the Rust host on iOS/Android is unproven) —
-while the browser gets the IR/WASM tiers. A design that pretends one
-lane covers both platforms is wrong on day one.
+embedded-runtime form is desktop-hosted first — co-packaged or sidecar
+on macOS/Linux hosts, where the runtime packages exist; in-process
+embedding is undemonstrated on every platform, and mobile is an open
+spike question (open question 10), not a plausibility claim — while
+the browser gets the IR/WASM tiers. A design that pretends one lane
+covers both platforms is wrong on day one.
 
 ## What Snapback has today (code-verified 2026-07-30)
 
@@ -551,8 +730,12 @@ protected offline GAP sit on its central promises, not at the edge"
 then measured none of this (Diary 0039's scope note). This is LLP
 0116's cross-cutting finding 2 on a new front — execution lag and arm
 coverage, not design absence — with one designed exception: protected
-*opaque* queries are non-retainable by design (LLP 0053's shrinkage
-obligation), not by lag.
+*opaque* queries are non-retainable by design, not by lag — the gate
+is LLP 0053's retainability invariant ("Retainable ⇒ declared
+authorization dependence ⇒ enumerated events"), which opaque JS
+queries cannot satisfy; its shrink-delivery obligation is the delivery
+mechanism for authorization-negative updates, not the retainability
+gate.
 
 ## Cross-cutting axes
 
@@ -562,11 +745,13 @@ and pay in revocation semantics and permission expressiveness — the
 in-repo record is unusually strong (Ditto's `_id`-only predicates;
 Jazz's forward-only revocation; both first-party). Server-authoritative
 answers must instead decide what a disconnected client may *show*:
-Snapback is alone among the surveyed systems in having a signed,
+Snapback is alone among the surveyed systems in having a server-MACed,
 expiring, fail-closed retention authority (the lease) rather than an
-unbounded cache. The embedded-runtime lane adds a third question — what
-a locally *executed* result is worth — answered only by
-speculative-versus-settled receipt discipline.
+unbounded cache — noting the trust shape: the client custodies and
+trusts the server-issued fact but cannot cryptographically verify it
+offline (LLP 0043/0053). The embedded-runtime lane adds a third
+question — what a locally *executed* result is worth — answered only
+by speculative-versus-settled receipt discipline.
 
 **Conflict semantics: merge, rebase, refusal.** Merge converges and
 cannot refuse (the capacity problem). Rebase re-executes intent and can
@@ -636,10 +821,11 @@ reductio); Convex models presence as durable heartbeat rows
 Diary 0039) rides the split. Every option below applies to the durable
 lane only.
 
-**Storage and runtime footprint per platform.** Native targets can
-carry the full embedded runtime (the darwin-arm64 package's server
-binary is ~48 MB plus the Hermes framework — fine for desktop, heavy
-but plausible for mobile); browsers cannot, and get the IR/WASM ladder
+**Storage and runtime footprint per platform.** Desktop hosts can
+carry the full runtime as a co-packaged or sidecar artifact (the
+darwin-arm64 package's server binary is ~48 MB plus the Hermes
+framework); mobile carriage is unassessed and gated on the open-
+question-10 spike; browsers cannot, and get the IR/WASM ladder
 plus wa-sqlite/IndexedDB stores (proven by Valet and the shipped
 `rqs-store.mjs`). Web storage hazards are already codified: quota
 degradation to memory, Web-Lock serialized same-origin custody,
@@ -652,92 +838,166 @@ the hosted shape — one routed machine, one durability owner (LLP 0111,
 0099): replicas multiply, authority does not. A CRDT core would demand
 multi-master and collide with the entire hosted design. What
 local-first adds is read fan-out and resume storms, where Electric's
-CDN-cacheable read lane (LLP 0022) and D1-style bookmarks (LLP 0083)
-are the copyable prior art, already reserved by 0008 DK-3.
+CDN-cacheable read lane (LLP 0022) and D1's Sessions-API bookmarks
+(wire-carried read positions for consistency, LLP 0083) are the
+copyable prior art, already reserved by 0008 DK-3.
 
 ## Option space for Snapback
 
-Options compose; none is chosen. Each carries its evidence-model
-consequence per LLP 0115's governing constraint 1.
+Options compose; none is chosen, and the ordering is not a ranking.
+Each carries its evidence-model consequence per LLP 0115's governing
+constraint 1, and each closes with the *conditions* that would favor
+it and the *evidence gate* it must pass. None of the cost/risk
+language below is a sizing or a decision — finding 11 stands: nothing
+here is measured.
 
 **Option A — Incremental cache hardening (finish approach 6; absorb
 the shipped lanes into the JS/React arm).** Persist the external
 store's rows via the existing `rqsStore` seam by default; wire LLP 0043
 M1 leases and the M2 outbox into `@snapback/client` and the LLP 0114
 hooks; mint `clientMutationId` client-side against the existing
-settlement ledger. *Benefit:* closes the diaries' exact GAP rows (cold
+settlement ledger. *Benefit:* targets the diaries' exact GAP rows (cold
 retained boot, restart-safe queue, reconnect settlement) on the arm
-agents actually score, and beats Convex's measured cold-boot GAP with
-machinery that already exists. *Cost:* protected opaque queries stay
+agents actually score — the rows Convex also failed — with machinery
+that already exists; whether it closes them is confirmable only by an
+acceptance rerun. *Cost:* protected opaque queries stay
 non-retainable (LLP 0053); no local execution, so optimistic overlays
-stay caller-supplied or IR-derived. *Risk:* low — every piece has an
-owner and most have code. *Evidence:* strengthens it (leases, receipts,
-capability facts are the design). *Lean:* highest confidence-per-cost
-on the board.
+stay caller-supplied or IR-derived. *Evidence:* strengthens the model
+(leases, receipts, capability facts are the design). *Conditions
+favoring:* every piece has a named owner and most have code — a
+structural argument for the smallest integration risk on the board,
+not a sizing. *Evidence gate:* a diary-grade offline acceptance rerun
+on the JS/React arm.
 
-**Option B — SQLite replication adoption.** A cr-sqlite/Electric/
-PowerSync-class lane: replicate rows into client SQLite and let the app
-read it. *Benefit:* arbitrary local reads (eventually search) and
-ecosystem familiarity. *Cost:* in raw form it bypasses the
-authorized-result unit, egress contract validation, and read-set
-capture — the three load-bearing evidence boundaries — and must
-reinvent revocation eviction; scoped to declared shapes it converges
-back into Snapback's own syncable-live subset, i.e. into option A/C
-territory with extra moving parts. *Risk:* the highest
-evidence-regression risk here. *Lean:* unattractive as a lane; its one
-distinctly valuable piece — the cacheable immutable-offset read lane —
-is separable and already a preserved 0008 option.
+**Option B — SQLite replication adoption, in two forms that must not
+be conflated.**
 
-**Option C — Embedded-runtime rebase (approach 9, staged).** Stage 1:
+*B1 — raw replica.* Replicate rows into client SQLite and let the app
+read (and possibly write) it with SQL — the cr-sqlite shape.
+*Benefit:* arbitrary local reads (eventually search) and ecosystem
+familiarity. *Cost:* bypasses the authorized-result unit, egress
+contract validation, and read-set capture — the three load-bearing
+evidence boundaries — and must reinvent revocation eviction.
+*Evidence:* the highest evidence-regression risk on the board — a
+property of the rawness, not of replication itself. *Conditions
+favoring:* none identified; its one distinctly valuable piece — the
+cacheable immutable-offset read lane — is separable and already a
+preserved 0008 option. *Evidence gate:* not applicable as scoped.
+
+*B2 — governed partial replica.* A server-produced,
+authorization-filtered replica of declared shapes, delivered under the
+same membership rules as the syncable-live subset, that the client
+reads through generated query/result facades and never writes raw —
+the Electric/PowerSync shape landed on Snapback's own terms.
+*Benefit:* read acceleration and cold-boot reads without a write-path
+bypass; converges with option A's retained rows rather than competing
+with them. *Cost:* replica lifecycle — hydration, and eviction on
+revocation governed by the same lease/LLP 0053 machinery that governs
+retained rows; facade discipline so raw handles never leak; and the
+declared-shape boundary (opaque queries stay out). Egress contract
+validation is not inherently bypassed when facade reads are
+presentation-only, and read-set capture is needed only where a local
+read becomes mutation evidence. *Evidence:* neutral-to-positive if
+the facade and lease rules hold. *Conditions favoring:* demand for
+local reads beyond retained query results (reporting, search feeders)
+without local execution. *Evidence gate:* a design pass in
+LLP 0008/0043 territory proving the facade boundary, then hydration
+and footprint measurement (finding 11).
+
+**Option C — App-authored client mutators (Replicache-class).** Let
+the app register client-side JS mutators that run speculatively
+against the client store, with server rebase as settlement — approach
+3 exactly as the incumbent model ships it (Replicache's published
+form), with no embedded Snapback runtime and no same-code pin: the
+halves are same-by-convention, and the lane sits explicitly below
+`Parity` (LLP 0012's honesty rule names the claim). *Benefit:* the
+closest lane to the incumbent mental model; offline writes with
+arbitrary client logic on every platform including the browser, at a
+fraction of option D's cost. *Cost:* two implementations of business
+logic can drift silently — the exact weakness approach 9 exists to
+remove; speculative results can diverge from settlement more than
+IR-derived overlays do; the mutator surface needs its own client-side
+authorization story. *Evidence:* neutral if claimed as
+`Online`-plus-speculation and never `Parity`. *Conditions favoring:*
+demand for offline writes with client-arbitrary logic before the
+option D program matures. *Evidence gate:* a diary-grade test of
+divergence-at-settlement ergonomics on the scenarios that scored
+Convex.
+
+**Option D — Embedded-runtime rebase (approach 9, staged).** Stage 1:
 the LLP 0051 D2 IR evaluator as the local execution tier — browser-
 safe, already designed, and it earns honest `Parity` for IR-complete
 surfaces under the rule 0043 already enforces. Stage 2: WASM handler
-artifacts (D3). Stage 3: the full embedded Rust+Hermes replica on
-native targets with speculative journaling and settle-by-re-execution.
-*Benefit:* the only lane with a durable structural moat — same-code-
-both-sides pinned by content address — plus eventual local search and
-true native local-first. *Cost:* the largest program on the board; the
-unowned designs in approach 9 (settle-time trust policy,
-read-satisfiability artifact, schema-at-capture, speculative receipts)
-must each land in an owning document first. *Risk:* scope — this is
-exactly the "having to own a lot of stuff" Electric cited when it
-retreated; the mitigation is that Snapback's owners already cover most
-of that surface. *Evidence:* the strongest extension available —
+artifacts (D3). Stage 3a: desktop sidecar — the packaged binary
+spawned next to the app, carrying the hosting-shape costs named in
+approach 9. Stage 3b: in-process embedding behind a stable ABI that
+does not exist today; mobile only after the open-question-10 spike.
+*Benefit:* the only lane whose endpoint is a structural moat —
+same-source-both-sides pinned by content address, with execution
+equivalence a testable hypothesis gated on the execution-identity
+tuple — plus eventual local search and true native local-first.
+*Cost:* the largest program on the board; the unowned designs in
+approach 9 (settle-time trust policy, read-satisfiability artifact,
+schema-at-capture, speculative receipts, the tuple itself) must each
+land in an owning document first. *Risk:* scope — this is exactly the
+"having to own a lot of stuff" Electric cited when it retreated; the
+mitigation is that Snapback's owners already cover most of that
+surface. *Evidence:* the strongest extension available —
 content-addressed speculative receipts settled by authoritative
 re-execution would out-evidence every surveyed peer, in the pattern of
-LLP 0116 finding 4. *Lean:* the differentiating long-term bet,
-contingent on staging discipline; stage 1 is cheap and independently
-valuable.
+LLP 0116 finding 4 — if the tuple lands. *Conditions favoring:* the
+strategic judgment that differentiation must be structural (LLP 0074's
+frame) plus demonstrated staging discipline; stage 1 is the smallest
+independently valuable piece, though "cheap" is a hypothesis until
+sized. *Evidence gate:* per stage — a stage-1 sizing spike, a working
+desktop sidecar behind an acceptance suite for 3a, and the named
+spikes for 3b and mobile.
 
-**Option D — CRDT sidecar for specific data types.** Admit a
+**Option E — CRDT sidecar for specific data types.** Admit a
 merge-typed field or lane (text first) under its own capability id,
 keeping the row core rebase-authoritative — the composition the retreat
 survivors converged on. *Benefit:* unlocks collaborative text
 (LLP 0008's reference app) without re-litigating the core. *Cost:* a
 second wire discipline, a GC/compaction story, authorization semantics
 for partial text state. *Risk:* moderate; text CRDTs are mature.
-*Evidence:* neutral if the lane carries its own claims. *Lean:*
-demand-gated — no diary asked for it yet.
+*Evidence:* neutral if the lane carries its own claims. *Conditions
+favoring:* a scheduled collaborative-text surface — no diary asked for
+it yet. *Evidence gate:* the rich-text reference app decision (open
+question 9).
 
-**Option E — Explicit-sync minimal lane.** Package what is already
+**Option F — Explicit-sync minimal lane.** Package what is already
 true: a local Snapback is a full-authority local app; add paved
 backup/export/restore and say "single-authority" honestly. *Benefit:*
-near-zero cost; serves single-user and agent-workspace cases; makes
-the local binary's story legible. *Cost:* not sync; must never be
-marketed as local-first collaboration. *Evidence:* positive (receipted
-backups exist on the hosted profile to copy). *Lean:* do regardless.
+serves single-user and agent-workspace cases; makes the local binary's
+story legible; composes with every other option and forecloses none.
+*Cost:* not sync; must never be marketed as local-first collaboration;
+"near-zero" is a hypothesis until the backup/export surface is sized.
+*Evidence:* positive (receipted backups exist on the hosted profile to
+copy). *Conditions favoring:* no-regrets under every branch of the
+board — it packages existing truths. *Evidence gate:* a paved
+backup/restore walkthrough proven by an acceptance script.
 
-**Option F — Do nothing, with honest nonclaims.** Keep `Online` as the
+**Option G — Do nothing, with honest nonclaims.** Keep `Online` as the
 JS-arm truth, keep the nonclaims the diaries praised, and record a
-dated decision that local-first is deferred. *Benefit:* zero cost, and
-LLP 0084's market finding (offline demand concentrates in mesh
-verticals Snapback refuses) gives it a defensible economic reading.
-*Cost:* concedes the front on which three diaries said "would not
-choose it," contradicts LLP 0074's named differentiator ("retained
-local-first execution… claimed only as a graduation path" — which this
-option cancels), and wastes the shipped Contract slice. *Risk:*
-strategic, not technical. *Lean:* honest but expensive in strategy
-terms; if chosen it must be a dated 0074 decision, not a silent lapse.
+dated decision that local-first is deferred. *Benefit:* zero
+engineering cost, and LLP 0084's inferred market characterization
+(demand for serverless operation concentrates in offline-critical
+physical-operations verticals Snapback refuses) gives it a defensible
+economic reading. *Cost:* concedes the front the bakeoff verdicts
+weighed heavily — "Not yet for this Todo. The offline requirements
+alone put InstantDB and Firebase ahead" (Diary 0027); "I would not
+rank it first for this chat today" (Diary 0028); "For a local-first
+issue tracker today, no" (Diary 0029) — each verdict hedged toward
+repairability, and this option forfeits the repair. It also cancels a
+named LLP 0074 differentiator: 0074's surviving conjunction includes
+"retained local-first execution," and its Parity bullet records that
+"the React/Expo local-first story is not yet built and is claimed
+only as a graduation path" — deferral cancels the graduation path and
+weakens the conjunction. And it wastes the shipped Contract slice.
+*Risk:* strategic, not technical. *Conditions favoring:* a deliberate
+strategy call that the parity program's measured fronts outrank an
+unmeasured one. *Evidence gate:* none technical — if chosen it must be
+a dated 0074 decision, not a silent lapse.
 
 ## Findings
 
@@ -745,15 +1005,22 @@ terms; if chosen it must be a dated 0074 decision, not a silent lapse.
    as decisive.** Diary 0039's scope excludes it; Diaries 0027/0028/
    0029 recorded offline GAPs as a primary reason not to choose
    Snapback — and recorded the same cold-boot GAP for Convex ("not
-   local-first durability across a process/browser restart"). The
-   front is open against recorded absence.
-2. **The field retreated to Snapback's model.** Two dated first-party
-   retreats (Electric 2024, Jazz 2026), Ditto's read-time-derivation
-   guidance from inside the CRDT camp, and a five-to-zero count for
-   query-scoped state deltas over client-visible event logs (LLP 0022,
-   0084, 0085). LLP 0008's pin — server-authoritative rebase,
-   LWW-per-field defaults, typed conflicts — is corroborated, not
-   contrarian.
+   local-first durability across a process/browser restart"). Against
+   Convex the front is open against recorded absence; the diaries'
+   measured bar is Firebase (clean in all three) and InstantDB
+   (strong in two).
+2. **The field retreated toward Snapback's posture — not to its exact
+   model.** Two dated first-party retreats (Electric 2024, Jazz 2026),
+   Ditto's read-time-derivation guidance from inside the CRDT camp,
+   and LLP 0084's five-to-zero count — five surveyed peers ship
+   materialized state to clients (four query/subscription/bucket-
+   scoped; Turso whole-database/page-scoped per LLP 0022), zero ship
+   client-visible event logs. The record corroborates server
+   authority, tentative client writes, and state-delta delivery —
+   LLP 0008's pin — while the survivors differ in shape: Electric kept
+   read-path sync with writes outside its core; Jazz v2 keeps an
+   embedded replica, offline writes, and deep history under
+   trusted-server policy.
 3. **Snapback's gap is arm coverage, not design absence — with one
    designed exception.** Retention/replay is shipped on the Contract
    arm (guide `sync.offline`; `Parity` under LLP 0043's proof rule;
@@ -768,20 +1035,25 @@ terms; if chosen it must be a dated 0074 decision, not a silent lapse.
    persisted render-first resume. Missing: default persistence, a
    client-held outbox, client-minted mutation identity, any local
    execution.
-5. **The embedded-runtime lane is real and unique to Snapback.**
-   Closed content-addressed handlers (LLP 0118), an enforced
-   deterministic tier, an embeddable binary with sealed per-platform
-   packages (LLP 0123), SQLite both sides, and a designed local
-   execution tier (LLP 0051) compose into rebase with pinned
-   same-code-both-sides — a property Convex, Replicache-class systems,
-   and Jazz v2 each lack a piece of. It is native-first; the browser
-   gets the IR/WASM ladder.
+5. **The embedded-runtime lane's ingredients are real and, among the
+   surveyed systems, unique to Snapback.** Closed content-addressed
+   handlers (LLP 0118), an enforced deterministic tier, a packaged
+   binary with co-packaged, digest-attested per-platform packages
+   (LLP 0123; sealing prospective), SQLite both sides, and a designed
+   local execution tier (LLP 0051) are the ingredients of rebase with
+   same-code-both-sides — a hypothesis whose precondition is the
+   execution-identity tuple (approach 9), with the content hash
+   supplying the source/plan element Convex, Replicache-class systems,
+   and Jazz v2 each lack. It is desktop-hosted first; in-process
+   embedding is undemonstrated, mobile is a spike question, and the
+   browser gets the IR/WASM ladder.
 6. **Authority is the sorting axis.** Rich permissions, meaningful
    revocation, and trusted facts all price out serverless enforcement
    (Ditto's `_id`-only predicates; Jazz's forward-only revocation).
-   The lease is the only surveyed retention authority that is signed,
-   expiring, and fail-closed; disconnected fail-closed means retained
-   data expires to deletion.
+   The lease is the only surveyed retention authority that is
+   server-issued (MACed), expiring, and fail-closed — trusted custody,
+   not client-verifiable attestation; disconnected fail-closed means
+   retained data expires to deletion.
 7. **Partial replication under authorization is the hard part, and the
    analyzable subset is the natural unit.** Turso proves local SQLite
    alone does not solve it; PowerSync needed a second rule generation;
@@ -800,8 +1072,8 @@ terms; if chosen it must be a dated 0074 decision, not a silent lapse.
    mutations has no owner. PowerSync's schemaless views and Triplit's
    compatibility-classified refusals are minable prior art.
 10. **Local-first can extend the evidence model rather than erode
-    it.** Speculative-versus-settled receipts, server-signed leases,
-    and content-addressed code identity are additive evidence; the
+    it.** Speculative-versus-settled receipts, server-MACed leases,
+    and content-addressed source identity are additive evidence; the
     options that erase boundaries to erase costs (raw replication,
     unbounded caches) reproduce the failure shape LLP 0116 finding 5
     names across the series.
@@ -830,12 +1102,16 @@ decision.
 
 Low-to-medium: all category-(c) general background. Replicache/Zero,
 Linear, cr-sqlite, Couch/Pouch, Figma, and OT history are stated at
-contour level from knowledge-cutoff material, unverified against
-primary sources here; where a specific number, date, or mechanism
+contour level from knowledge-cutoff material; well-known primary
+sources are named in the method section and at the point of use, but
+none has had a dated in-repo verification pass, and the Linear contour
+is explicitly uncertain. Where a specific number, date, or mechanism
 detail would be load-bearing, it is deliberately omitted rather than
-risked. Hermes-to-WASM feasibility and mobile embedding of the Rust
-host are explicitly unassessed. The option-space leans are structural
-arguments, not measurements (finding 11).
+risked. Hermes-to-WASM feasibility, in-process embedding, and mobile
+carriage of the Rust host are explicitly unassessed. The option-space
+conditions and evidence gates are structural arguments, not
+measurements (finding 11), and the execution-identity tuple is design
+vocabulary this document introduces, not shipped machinery.
 
 ## Open questions
 
@@ -844,8 +1120,11 @@ arguments, not measurements (finding 11).
    the diaries score and LLP 0074 names as the graduation path?
 2. Can protected opaque JS queries ever earn retainability, or is
    retention permanently scoped to declared/analyzable shapes plus
-   leases? (LLP 0053's non-shrinkage obligation is the blocker — the
-   same diagnosis question as LLP 0119's quarantine sub-question.)
+   leases? (LLP 0053's retainability invariant — "Retainable ⇒
+   declared authorization dependence ⇒ enumerated events" — is the
+   gate an opaque query cannot pass; the shrink-delivery obligation is
+   the delivery mechanism, not the blocker. The same diagnosis
+   question as LLP 0119's quarantine sub-question.)
 3. What is the settle-time trust policy for client-captured `now` and
    ids under local execution — accept (0008's current replay pin),
    clamp, or flag in the receipt — and which document owns it?
@@ -868,9 +1147,15 @@ arguments, not measurements (finding 11).
 8. Should "ephemeral state does not sync offline" be pinned as a named
    contract line (an LLP 0013 amendment) rather than an emergent
    property of the current implementations?
-9. What triggers option D — is the collaborative rich-text reference
+9. What triggers option E — is the collaborative rich-text reference
    app still the forcing function LLP 0008 assumed, and who decides
    when it is scheduled?
+10. Can the embedded runtime reach mobile at all? Hermes is proven
+    there as React Native's engine, but the Rust host, background
+    suspension, store-policy fit, battery budget, and at-rest disk
+    custody are all unassessed; a dated spike with named success
+    criteria must precede any mobile plausibility claim, and until it
+    runs the mobile lane is a question, not an option.
 
 ## Relationship to LLP 0115, the series, and owning documents
 
@@ -895,8 +1180,10 @@ claim rule; **LLP 0090** (Accepted) owns persisted resume; **LLP 0051**
 **LLP 0081** (Implemented, local profile) owns migration × offline
 seams; **LLP 0073** owns search claims; **LLP 0034/0093/0094/0095** own
 the wire; **LLP 0112/0114/0107** own the React surface and its honesty
-rules; **LLP 0013** owns the ephemeral lane; **LLP 0064** owns client
-capability classes; **LLP 0074** owns the strategic frame and the
+rules; **LLP 0013** owns the ephemeral lane; **LLP 0012** owns the capability
+classes (Online/Parity and the honesty rule), with **LLP 0064** owning
+the native client surfaces that carry them; **LLP 0074** owns the
+strategic frame and the
 graduation-path claim this document tests. Substantive design for any
 option lands in those documents or a new owned Spec, not here.
 
