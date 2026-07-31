@@ -50,6 +50,28 @@ joint real production consumer outside the acceptance corpus and
 comparator fixtures; `voidedReceiptRef` as a closed locator; fast-path
 registry visibility, revocation, and lapse semantics; the
 `result_contract_v1` manifest count corrected to five.)
+2026-07-31 (v0.4, round-3 review fixes —
+`reviews/0134-capability-maturity-promotion.fable.md` round 3 READY,
+three DETAILs C18–C20;
+`reviews/0134-capability-maturity-promotion.codex.md` round 3 NOT
+READY, MATERIAL residues N1/N2 plus MINOR D1. Merged and applied once
+per item: E4(b)'s audited tree cryptographically bound — the receipt
+gains `stagedTreeManifestSha256`, the digest of the canonical
+self-excluding staged-tree manifest (sorted path→blob-SHA-256, the
+receipt file's own path excluded), recomputed and exact-compared by
+A5 on the transition commit (N1), with the post-hoc commit derivation
+scoped to A5's validated landed-history transition instead of a
+"unique child" graph claim (Fable C19); the three E6 evidence schemas
+fully closed — outcome/materiality/disposition enums, element schemas
+for `carrierDigests`, `familyEpochs`, `renewalRecordDigests`,
+`scopes`, and `findings`, nonnegative counts with the
+zero-withdrawal/expiry and zero-open-MATERIAL success predicates, and
+A2-enforced cross-record equality binding `capabilityIds`,
+`targetProfileId`, and the window to the receipt (N2); Signal Desk's
+`defineWriteWithActivity` census corrected to two declarations, both
+product-bypassed, conclusion unchanged (Codex D1 = Fable C18); the
+committed-prose locator tokens `llp-blob.v1`/`git` defined for
+`governingContractBaseline` (C20).)
 **Related:** LLP 0005, LLP 0058, LLP 0061, LLP 0076, LLP 0080, LLP 0081, LLP 0108, LLP 0109, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0115, LLP 0120, LLP 0127, LLP 0130, issue `20260731-cv8-piece2-stable-promotion-design`
 
 ## Summary
@@ -143,8 +165,9 @@ review loop's history, a consumer arm, a window that spans revisions,
 lineage that predates the candidate — bound by closed evidence locators
 rather than re-witnessed at one SHA; E4's promotion-tree audit is
 witnessed on the staged promotion tree and anchored by
-`candidateParentSha` plus its own digest (§4's staged-tree rule); E8 is
-the author's dated act. A
+`candidateParentSha`, its own digest, and the receipt's staged-tree
+manifest digest (§4's staged-tree rule); E8 is the author's dated
+act. A
 missing or vacuous item refuses the promotion; there is no partial credit.
 
 - **E1 — Governing-contract standing.** The id's governing LLP is Accepted
@@ -186,9 +209,11 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   permitted (§5). Its receipt is itself carried by the promotion
   commit, so it anchors on `candidateParentSha` plus its own content
   digest, and its locator's `sourceSha` is `candidateSourceSha` (§4's
-  staged-tree rule); A5's final-tree run on the transition commit is
-  the post-hoc witness that the staged tree and the landed tree agree.
-  Both receipts are E4 evidence.
+  staged-tree rule); the tree it audited is bound whole by the
+  receipt's staged-tree manifest digest, which A5 recomputes on the
+  transition commit and exact-compares, proving the audited staged
+  tree and the landed tree byte-identical (§4's staged-tree rule,
+  A5). Both receipts are E4 evidence.
 - **E5 — At least one real consumer arm.** A real consumer outside the
   acceptance corpus and comparator fixtures consumes the capability
   through its governing production authority lane, exercising the
@@ -232,9 +257,9 @@ missing or vacuous item refuses the promotion; there is no partial credit.
     registered fact; for the 0110 pair, the embedded-carrier and
     qualification-receipt verification — at the then-current main HEAD
     and emits a conforming `MaturitySoakObservationV1` receipt
-    (*Evidence records* below) binding date, HEAD SHA, carrier/receipt
-    digests, and outcome, retained under §4's records root. A calendar
-    day with no green run is a coverage gap.
+    (*Evidence records* below) binding profile, date, HEAD SHA,
+    carrier/receipt digests, and outcome, retained under §4's records
+    root. A calendar day with no green run is a coverage gap.
   - *Disqualifiers and reset.* Any support-fact regression on a
     population member, claim-family withdrawal, maturity demotion of the
     id, coverage gap, or population loss resets the window start, as does
@@ -250,21 +275,61 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   - *Rerun.* At least one full E2+E3 rerun inside the window.
   - *Evidence records.* Each E6 evidence class is a closed
     canonical-JSON document with its own suffix under §4's records
-    root, A2-validated like every other maturity record.
+    root, A2-validated like every other maturity record: unknown
+    members refused, every count a nonnegative integer, every enum
+    closed.
     `MaturitySoakObservationV1` (`*.soak-observation.json`):
-    `{ schemaVersion: 1, capabilityIds, dateUtc, headSha,
-    suiteProducer, carrierDigests, outcome }` — one per local
-    observation day. An observation is credited only when the commit
-    introducing it carries a committer UTC date equal to its `dateUtc`
-    (A2 refuses the mismatch), so a window cannot be back-fabricated
-    by rerunning the suite at historical HEADs after the fact.
+    `{ schemaVersion: 1, capabilityIds, targetProfileId, dateUtc,
+    headSha, suiteProducer, carrierDigests, outcome }` — one per
+    local observation day. `outcome` is the closed enum
+    `"green" | "red"`; only a green observation credits its day, and
+    a committed red one is a witnessed support-fact regression
+    (*Disqualifiers and reset*). `carrierDigests` entries are
+    `{ path, sha256 }` pairs — `path` repo-relative at `headSha`,
+    `sha256` over that file's exact bytes — at least one entry. An
+    observation is credited only when the commit introducing it
+    carries a committer UTC date equal to its `dateUtc` (A2 refuses
+    the mismatch), so a window cannot be back-fabricated by rerunning
+    the suite at historical HEADs after the fact.
     `MaturitySoakJournalExtractV1` (`*.soak-extract.json`):
     `{ schemaVersion: 1, capabilityIds, claimFamily,
     deploymentIdentity, window, familyEpochs, renewalRecordDigests,
     withdrawalCount, expiryCount }` — the hosted journal extract.
+    `claimFamily` names a member of LLP 0113 §4's closed family
+    union. `familyEpochs` entries are `{ epoch, firstRenewalUtc,
+    lastRenewalUtc }`, `epoch` a nonnegative integer, entries sorted
+    ascending by `epoch` and jointly covering the window with no
+    gap. `renewalRecordDigests` entries are SHA-256 digests of the
+    journal's canonical renewal-record bytes (LLP 0113 §4.2), one
+    per journaled renewal in journal order, at least one entry. The
+    success predicate is `withdrawalCount == 0` and
+    `expiryCount == 0`; a nonzero count is a witnessed disqualifier
+    and A2 refuses the extract as E6 evidence.
     `MaturityDefectSearchV1` (`*.defect-search.json`):
     `{ schemaVersion: 1, capabilityIds, governingLlp, searchDateUtc,
-    scopes, findings }` — the defect search. `soakEvidence`'s
+    scopes, findings }` — the defect search. `scopes` entries are
+    drawn from the closed tokens `"issues.v1"`,
+    `"linear-exact-snapback.v1"`, and `"llp-defect-ledger.v1"`, each
+    at most once; the first two are mandatory, the third mandatory
+    exactly when the governing LLP carries an LLP 0076/0077-style
+    defect ledger. `findings` entries are
+    `{ scope, ref, materiality, disposition }`: `scope` one of the
+    scope tokens, `ref` that scope's stable identifier (ticket path,
+    Linear issue key, or ledger row), `materiality` the closed enum
+    `"material" | "minor"` (the review-severity sense), and
+    `disposition` the closed enum
+    `"open-in-window" | "not-open-in-window"`. The success predicate
+    is zero findings both `"material"` and `"open-in-window"`;
+    `searchDateUtc` must not precede the window end, so the search
+    observes the whole window; A2 refuses a violation of either.
+    *Cross-record constraints, A2-enforced:* every observation's,
+    extract's, and search's `capabilityIds` equals the receipt's
+    `capabilityIds` exactly; each observation's `targetProfileId` is
+    a member of `soakEvidence.window.targetPopulation` and its
+    `dateUtc` lies inside the window; the extract's `window` equals
+    the receipt's `soakEvidence.window` and its `deploymentIdentity`
+    is an enumerated population member; the search's `governingLlp`
+    equals the receipt's `governingLlp`. `soakEvidence`'s
     `observationRefs`, `journalExtractRef`, and `defectSearchRef` are
     closed evidence locators (§4) whose `schemaVersion` values name
     exactly these schemas: `soak-observation.v1`, `soak-extract.v1`,
@@ -363,6 +428,10 @@ the receipt never needs to name its own commit.
                             //   Implemented addenda
   corpusRunRefs,            // E2 + E3, per target profile
   claimAuditRefs,           // E4: candidate + promotion-tree audits
+  stagedTreeManifestSha256, // E4(b): digest of the canonical
+                            //   self-excluding staged-tree manifest
+                            //   (the staged-tree rule below; A5
+                            //   recomputes and exact-compares)
   consumerArmRefs,          // E5: diary/receipt evidence
   soakEvidence?,            // E6: { window: { start, end,
                             //   targetPopulation }, observationRefs,
@@ -383,10 +452,13 @@ them), never a bare digest:
 { path, sha256, schemaVersion, producer, sourceSha }
 ```
 
-`path` is repo-relative; `sha256` is the artifact digest; `schemaVersion`
-names the referenced artifact's own closed schema (`diary.v1` for prose
-diary evidence); `producer` names the emitting suite or tool; `sourceSha`
-is the revision that produced the artifact. A digest without a locator
+`path` is repo-relative; `sha256` is the artifact digest;
+`schemaVersion` names the referenced artifact's own closed schema
+(`diary.v1` for prose diary evidence; `llp-blob.v1` for committed LLP
+prose bound as exact blob bytes — the `governingContractBaseline`
+case); `producer` names the emitting suite or tool, and is `git` for
+committed-blob evidence no suite emitted; `sourceSha` is the revision
+that produced the artifact. A digest without a locator
 cannot be reopened or interpreted; a locator that fails to resolve, or
 resolves to different bytes, is a conforming validator's refusal (A2).
 
@@ -396,12 +468,29 @@ promotion-tree audit — cannot record the promotion commit's SHA,
 because that SHA depends on the receipt's own bytes. The staged-tree
 rule: such an artifact's `sourceSha` is `candidateSourceSha`
 (= `candidateParentSha`), and the artifact is anchored by that parent
-plus its own `sha256`. The promotion commit's SHA is derivable post
-hoc — it is the unique child of `candidateParentSha` whose tree holds
-the receipt at its recorded digest — and once known it is recorded as a
-dated follow-up line in the governing LLP's promotion addendum, a
-documentation act after landing, never inside the receipt or any other
-file the promotion commit carries.
+plus its own `sha256`. The parent and the artifact's bytes do not by
+themselves bind the *tree* the audit claims to have covered, so the
+tree is bound whole: the receipt's `stagedTreeManifestSha256` is the
+SHA-256 of the canonical staged-tree manifest — the canonical-JSON
+array of `[path, sha256]` pairs, sorted bytewise by repo-relative
+path, one pair per file in the staged promotion tree, each `sha256`
+over that file's exact bytes, with exactly one path excluded: the
+receipt file's own. The self-exclusion breaks the circularity — the
+manifest is computed over the finished staged tree minus the receipt,
+its digest is written into the receipt, and the receipt then joins
+the tree — and A5's transition-commit run recomputes the landed
+tree's manifest by the same rule (same exclusion, same ordering, same
+serialization) and exact-compares the digest, so the audited staged
+tree and the landed tree are provably byte-identical. The promotion
+commit's SHA remains derivable post hoc, scoped to landed main
+history: it is the transition commit A5 identifies for the pushed
+range — uniqueness there is A5's admission rule, exactly one
+transition per `parent..HEAD` range, not a git-graph invariant, since
+an abandoned side-ref attempt may share the parent and carry receipt
+bytes — and once known it is recorded as a dated follow-up line in
+the governing LLP's promotion addendum, a documentation act after
+landing, never inside the receipt or any other file the promotion
+commit carries.
 
 The receipt is document evidence, not a runtime object. No target parses it,
 no supervisor signs it, and no wire carrier transports it; the registry
@@ -574,11 +663,13 @@ not for want of declarations (Signal Desk carries three real
 `demos/signal-desk/snapback/functions.mjs`: `incidentTasks`,
 `incidentComments`, `incidentActivity`) but because their only
 consumers are the comparator fixtures and the acceptance harness,
-while the demo's sole `defineWriteWithActivity` declaration is a
-review-gated proving declaration its product adapter deliberately
-bypasses — `write-with-activity.v1`'s existing-owner-only admission
-made it "unusable by every anonymous rerun arm" (LLP 0120 open
-question 5) — so the pair has no joint real production consumer
+while the demo's two `defineWriteWithActivity` declarations —
+`addTaskWithActivity`, the review-gated proving declaration, and
+`toggleTaskWithActivity`, an acceptance-only closed profile — are
+both deliberately bypassed by its product adapter —
+`write-with-activity.v1`'s existing-owner-only admission made the
+proving declaration "unusable by every anonymous rerun arm" (LLP 0120
+open question 5) — so the pair has no joint real production consumer
 outside the acceptance corpus and comparator fixtures, and no
 provenanced write arm at all; and CV-8 piece 1 already routes the
 pair through the default path ("execute the 0113 path — yielding honest
@@ -600,8 +691,10 @@ positive-predicate evidence, and `governingContractBaseline` — a full
 closed evidence locator (§4), never a bare digest: `path` is the
 governing LLP file; `sourceSha` names the baseline commit, the last
 main-history commit with committer UTC date on or before 2026-07-30
-that touched that file; and `sha256` is the SHA-256 of the file's
-exact committed blob bytes at that commit. There is no extraction or
+that touched that file; `sha256` is the SHA-256 of the file's exact
+committed blob bytes at that commit; and its `schemaVersion` and
+`producer` are `llp-blob.v1` and `git` (§4's committed-prose
+tokens). There is no extraction or
 normalization step — "normative text" is not a digest concept;
 materiality adjudication below, not the digest, filters evidence
 notes. The reserved receipt's `supportEvidenceRefs` cites that
@@ -663,8 +756,10 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   declared route, an evidence locator that fails to resolve to its
   recorded bytes, a digest mismatch with the registry comments, a soak
   observation whose introducing commit's committer UTC date differs
-  from its `dateUtc`, or duplicate/conflicting records for the same
-  transition.
+  from its `dateUtc`, an E6 record violating its closed enums, element
+  schemas, count constraints, success predicates, or cross-record
+  constraints (E6 *Evidence records*), or duplicate/conflicting
+  records for the same transition.
 - **A3 — First-promotion shape.** The first executed promotion lands as one
   commit containing both registry changes, the updated tests, the conforming
   receipt, the governing-LLP addendum, and the guide/board rows — verified
@@ -685,7 +780,12 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   registry changes, the test updates, the governing-LLP addendum, and the
   guide/board rows. Final-tree tests, including the post-flip admission
   behavior, run on the transition commit itself, not only on its parent.
-  A1 plus A2 cover the one-sided and malformed cases.
+  For promotions, the same transition-commit run recomputes the landed
+  tree's canonical self-excluding staged-tree manifest (§4's
+  staged-tree rule) and exact-compares its digest against the
+  receipt's `stagedTreeManifestSha256`; a mismatch refuses the range —
+  the landed tree is not the tree E4(b) audited. A1 plus A2 cover the
+  one-sided and malformed cases.
 
 This Spec's own Review → Accepted transition may ride LLP 0130 SD-4 if it
 converges dual-family READY with zero unresolved MATERIAL concerns, within
