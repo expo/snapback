@@ -16,6 +16,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { SnapbackClient } from '@snapback/client';
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@snapback/contract/auth-coordinator';
+
 import { runDev, scaffoldApp } from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
@@ -96,6 +102,79 @@ try {
   assert.equal(session.activeMode, 'sessions');
   assert.equal(session.modeState, 'settled');
   assert.equal(session.appDataAvailability, 'available');
+
+  // issues/20260729-sessions-client-inspect-omits-protocol-offer: the official
+  // public inspection method negotiates the active sessions profile without
+  // hand-authored headers, while sensitive operator inspection remains
+  // separately authorized behind the exact secret-read lease — and the two
+  // refusals carry distinct typed diagnostics.
+  {
+    const coordinator = new AuthCoordinator({
+      appId: carrier.schema.appId,
+      storage: createMemoryAuthCustodyStorage({ state: {} }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    const sessionsClient = new SnapbackClient(dev.serverUrl, {
+      authCoordinator: coordinator,
+      adminToken: null,
+      clientStoreId: 'sessions-dev-loop-inspect',
+    });
+    try {
+      const publicProjection = await sessionsClient.inspect();
+      assert.equal(publicProjection.schema.appId, carrier.schema.appId);
+      assert.equal(publicProjection.artifactKind, 'runtimeState');
+      assert.equal(
+        publicProjection.storage.sqlitePath,
+        undefined,
+        'the public projection must stay trimmed: no operational storage path',
+      );
+
+      // The same request without the negotiated offer refuses with the typed
+      // missing-offer diagnostic, value-free.
+      const offerless = await fetch(`${dev.serverUrl}/inspect`);
+      assert.equal(offerless.status, 400);
+      const offerlessText = await offerless.text();
+      const offerlessBody = JSON.parse(offerlessText);
+      assert.equal(
+        offerlessBody.diagnostic.code,
+        'SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED',
+      );
+      assert.match(
+        offerlessBody.diagnostic.message,
+        /x-snapback-auth-client-protocol: 1/u,
+        'the missing-offer refusal names its repair',
+      );
+      assert.doesNotMatch(
+        offerlessText,
+        new RegExp(carrier.schema.appId.replace(/[/\\^$*+?.()|[\]{}]/gu, '\\$&'), 'u'),
+        'the missing-offer refusal is value-free',
+      );
+
+      // Sensitive operator inspection is never silently substituted: the same
+      // negotiated client identity cannot read it without the exact
+      // secret-read lease, and the refusal is a distinct typed diagnostic.
+      const operator = await fetch(`${dev.serverUrl}/_snapback/api/inspect`, {
+        headers: { 'x-snapback-auth-client-protocol': '1' },
+      });
+      assert.equal(operator.status, 401);
+      const operatorText = await operator.text();
+      const operatorBody = JSON.parse(operatorText);
+      assert.equal(
+        operatorBody.diagnostic.code,
+        'SNAPBACK_ADMIN_SECRET_READ_REQUIRED',
+      );
+      assert.notEqual(operatorBody.diagnostic.code, offerlessBody.diagnostic.code);
+      assert.doesNotMatch(
+        operatorText,
+        /sqlite|appId|schemaHash/u,
+        'the missing-lease refusal is value-free',
+      );
+    } finally {
+      await sessionsClient.closeAuth?.();
+      await coordinator.close();
+    }
+  }
 
   const restarted = await dev.verbs.restart({ requestId: 'sessions-restart' });
   assert.equal(restarted.state, 'generated-and-loaded');

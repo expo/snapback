@@ -12,7 +12,7 @@ import {
 } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 21 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 22 });
 const originalFetch = globalThis.fetch;
 const APP_ID = 'snapback.test/auth-handshake';
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
@@ -914,6 +914,55 @@ try {
     await coordinatorB.close();
     await coordinatorA.close();
     return { delayedWakeups: queuedBroadcasts.length, requests: calls };
+  });
+
+  // issues/20260729: public inspection is part of the pre-auth bootstrap
+  // surface. The official method must repeat the exact auth-client offer with
+  // no hand-authored headers, and signed-out custody must not veto it.
+  await suite.check('public inspection negotiates the active auth profile without hand-authored headers', async () => {
+    const calls = [];
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      const requestHeaders = new Headers(init.headers ?? {});
+      calls.push({
+        path,
+        offer: requestHeaders.get(PROTOCOL_HEADERS.authClient),
+        authorization: requestHeaders.get('authorization'),
+      });
+      if (path === '/inspect') {
+        return response({ appId: APP_ID, schemaVersion: 'snapback.v1' });
+      }
+      throw new Error(`unexpected path ${path}`);
+    };
+    // Fresh signed-out browser custody: the probe proceeds anonymously with
+    // the offer, before any handshake or sign-in.
+    const signedOutCoordinator = new AuthCoordinator({
+      appId: APP_ID,
+      storage: createMemoryAuthCustodyStorage(),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    const signedOut = new SnapbackClient('http://stub', {
+      authCoordinator: signedOutCoordinator,
+    });
+    const projection = await signedOut.inspect();
+    assertEqual(projection.appId, APP_ID);
+    assertEqual(calls, [{ path: '/inspect', offer: '1', authorization: null }]);
+    await signedOut.closeAuth();
+    await signedOutCoordinator.close();
+
+    // Settled sessions custody: the same offer plus the custody bearer, with
+    // no handshake round-trip (public inspection is handshake-exempt).
+    calls.length = 0;
+    const settled = await coordinatedClient({ bearerToken: BEARER_SENTINEL });
+    await settled.inspect();
+    assertEqual(calls, [{
+      path: '/inspect',
+      offer: '1',
+      authorization: `Bearer ${BEARER_SENTINEL}`,
+    }]);
+    await settled.closeAuth();
+    return { probes: 2 };
   });
 } finally {
   globalThis.fetch = originalFetch;

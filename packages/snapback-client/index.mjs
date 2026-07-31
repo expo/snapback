@@ -3605,12 +3605,23 @@ export class SnapbackClient {
       }
       if (this.authorityFence && (capture || session || !this.agentAuthority)) {
         // authSession may have bootstrapped or transitioned custody.
-        capture = this.authorityFence.capture();
+        if (capture || session || authHandshakeRequired(path)) {
+          capture = this.authorityFence.capture();
+        } else {
+          // Handshake-exempt public probes (`/health`, `/inspect`) are the
+          // pre-auth bootstrap surface: signed-out custody must not veto
+          // them. They proceed anonymously — same protocol-offer headers, no
+          // bearer — instead of failing closed on unsettled custody.
+          // @ref LLP 0058#bootstrap-handshake — the exact offer rides every
+          // online boundary; settled custody is required only for
+          // app-visible authenticated work.
+          try { capture = this.authorityFence.capture(); } catch { capture = null; }
+        }
         if (
           expectedAuthorityCapture
           && !sameAuthorityCapture(capture, expectedAuthorityCapture)
         ) throw staleAuthorityError();
-        bearerUsed = this.authorityFence.credentialFor(capture).bearer;
+        if (capture) bearerUsed = this.authorityFence.credentialFor(capture).bearer;
       }
 
       const sessionsMode = session?.activeMode === 'sessions';
