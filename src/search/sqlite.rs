@@ -1728,13 +1728,30 @@ pub fn query_search_on(
                     )
                 })
             })?;
-        if source != authoritative {
+        // The recheck compares RFC 8785 canonical content digests, not struct
+        // representation: an integral Real spells `5` in a retained source
+        // record but reloads from SQLite as `5.0`, and both canonicalize to
+        // "5". The stored record must match its own digest (tamper) and that
+        // digest must match the authoritative derivation (drift); the released
+        // page then uses the authoritative derivation, never the stored bytes.
+        let source_digest = live_source_content_digest(
+            &source.row_id,
+            source.source_version,
+            &source.partition,
+            &source.stored,
+            &source.filters,
+            &source.source_fields,
+            &source.tokens,
+        )?;
+        if source_digest != source.content_digest
+            || source.content_digest != authoritative.content_digest
+        {
             return Err(diagnostic(
                 "SNAPBACK_SEARCH_INDEX_CORRUPT",
                 "search source content failed its authoritative digest recheck",
             ));
         }
-        sources.push(source);
+        sources.push(authoritative);
     }
 
     let mut ranked = Vec::<(u32, IndexedSource, Vec<SearchOccurrence>)>::new();
@@ -2661,5 +2678,216 @@ mod tests {
                 .map(|index| format!("incident-{index:04}"))
                 .collect::<Vec<_>>()
         );
+    }
+
+    /// Reuses the fixture table/index names so the shared `run` plan applies,
+    /// but declares a `Real` field participating as a stored field. (A `Real`
+    /// equality filter is rejected at declaration time — "must use a portable
+    /// exact scalar type" — so stored fields are the whole Real surface.)
+    fn real_field_schema() -> SchemaManifest {
+        SchemaManifest {
+            required_capabilities: vec![SEARCH_CAPABILITY.to_owned()],
+            tables: vec![TableManifest {
+                name: "incidents".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "minutes".to_owned(),
+                        field_type: FieldType::Real,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                search_indexes: vec![SearchIndexManifestV1 {
+                    format_version: 1,
+                    name: "search_incidents".to_owned(),
+                    semantic_version: "incident-search.v1".to_owned(),
+                    analyzer: SEARCH_ANALYZER.to_owned(),
+                    analyzer_tables_digest:
+                        crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST.to_owned(),
+                    text_fields: BTreeMap::from([(
+                        "title".to_owned(),
+                        SearchTextFieldV1 {
+                            weight: 8,
+                            classification: SearchFieldClassV1::Public,
+                        },
+                    )]),
+                    field_classifications: BTreeMap::from([(
+                        "minutes".to_owned(),
+                        SearchFieldClassV1::Public,
+                    )]),
+                    equality_filters: Vec::new(),
+                    stored_fields: vec!["minutes".to_owned(), "title".to_owned()],
+                    highlight_fields: vec!["title".to_owned()],
+                    visibility: SearchVisibilityV1::PublicRead,
+                    tie_break: "score-desc-row-id-asc.v1".to_owned(),
+                    source_limits: Default::default(),
+                    query_limits: Default::default(),
+                    cursor_limits: Default::default(),
+                    maintenance_limits: Default::default(),
+                }],
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn term_request(term: &str) -> HandlerInput {
+        HandlerInput {
+            args: serde_json::to_value(SearchRequestV1 {
+                query: SearchQueryAstV1 {
+                    all: vec![SearchClauseV1::Term(SearchTermV1 {
+                        value: term.to_owned(),
+                        field: None,
+                    })],
+                },
+                limit: Some(10),
+                after: None,
+            })
+            .expect("request serializes"),
+            ..HandlerInput::default()
+        }
+    }
+
+    #[test]
+    fn integral_real_stored_and_filter_values_release_from_the_insert_path() {
+        // Regression for issues/20260730-search-real-integral-digest-corruption:
+        // insert/seed-maintained rows keep the in-memory document, so an
+        // integral value in a Real field must not read as index corruption at
+        // authoritative release.
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(real_field_schema())
+            .expect("apply real-field search schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "incidents".to_owned(),
+                vec![
+                    json!({"_id": "recipe-1", "title": "Skillet lasagna", "minutes": 5})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                    json!({"_id": "recipe-2", "title": "Lasagna soup", "minutes": 7.5})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ],
+            )]),
+        })
+        .expect("seed integral and fractional Real rows");
+        let page = run(&db, &term_request("lasagna"), None)
+            .expect("integral Real stored/filter values must release");
+        assert_eq!(page.rows.len(), 2);
+        let minutes = page
+            .rows
+            .iter()
+            .map(|row| (row["rowId"].as_str().unwrap(), row["fields"]["minutes"].clone()))
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(minutes["recipe-1"], json!(5.0));
+        assert_eq!(minutes["recipe-2"], json!(7.5));
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "incidents".to_owned(),
+                id: "recipe-3".to_owned(),
+                values: Map::from_iter([
+                    ("title".to_owned(), Value::String("Lasagna bake".to_owned())),
+                    ("minutes".to_owned(), json!(45)),
+                ]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("official insert of an integral Real value");
+        let page = run(&db, &term_request("lasagna"), None)
+            .expect("insert-maintained integral Real row must release");
+        assert_eq!(page.rows.len(), 3);
+    }
+
+    #[test]
+    fn legacy_integral_spelling_in_source_records_still_releases() {
+        // Pre-normalization databases retain source records whose stored/filter
+        // payloads spell an integral Real as `5` while the authoritative row
+        // reloads as `5.0`. RFC 8785 canonicalizes both to "5", so the digest
+        // recheck must release them rather than reporting corruption.
+        let directory = tempfile::tempdir().expect("legacy spelling fixture");
+        let path = directory.path().join("search.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("open file search database");
+        db.apply_schema(real_field_schema())
+            .expect("apply real-field search schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "incidents".to_owned(),
+                vec![
+                    json!({"_id": "recipe-1", "title": "Skillet lasagna", "minutes": 5})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ],
+            )]),
+        })
+        .expect("seed integral Real row");
+        drop(db);
+
+        let raw = Connection::open(&path).expect("open legacy-spelling fixture");
+        let rewritten = raw
+            .execute(
+                "UPDATE _snapback_search_sources
+                 SET row_json=replace(row_json,'5.0','5'),
+                     filters_json=replace(filters_json,'5.0','5')
+                 WHERE table_name='incidents' AND index_name='search_incidents'
+                   AND row_id='recipe-1'",
+                [],
+            )
+            .expect("rewrite retained payloads to the legacy integral spelling");
+        assert_eq!(rewritten, 1);
+        // The out-of-band rewrite trips the tamper trigger; a real legacy
+        // database was written by ordinary maintenance and carries no marker.
+        raw.execute(
+            "UPDATE _snapback_search_generations
+             SET status='active',corruption_reason=NULL
+             WHERE table_name='incidents' AND index_name='search_incidents'",
+            [],
+        )
+        .expect("clear the trigger-owned quarantine marker");
+        drop(raw);
+
+        let legacy = LocalDatabase::open(&path).expect("open legacy-spelling database");
+        let page = run(&legacy, &term_request("lasagna"), None)
+            .expect("legacy integral spelling must pass the canonical digest recheck");
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(page.rows[0]["fields"]["minutes"], json!(5.0));
+        drop(legacy);
+
+        // A genuine value change in the retained payload is still corruption.
+        let raw = Connection::open(&path).expect("open value-tamper fixture");
+        raw.execute(
+            "UPDATE _snapback_search_sources
+             SET row_json=replace(row_json,'5','9'),
+                 filters_json=replace(filters_json,'5','9')
+             WHERE table_name='incidents' AND index_name='search_incidents'
+               AND row_id='recipe-1'",
+            [],
+        )
+        .expect("tamper the retained Real value");
+        raw.execute(
+            "UPDATE _snapback_search_generations
+             SET status='active',corruption_reason=NULL
+             WHERE table_name='incidents' AND index_name='search_incidents'",
+            [],
+        )
+        .expect("exercise the digest recheck rather than the quarantine marker");
+        drop(raw);
+        let tampered = LocalDatabase::open(&path).expect("open value-tampered database");
+        let error = run(&tampered, &term_request("lasagna"), None)
+            .expect_err("a genuinely divergent Real value must fail closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_INDEX_CORRUPT");
     }
 }

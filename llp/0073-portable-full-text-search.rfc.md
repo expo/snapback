@@ -16,6 +16,10 @@ agreed and a representation-sensitive struct equality at the release recheck
 recheck) compared an unnormalized insert-path in-memory document against the
 SQLite-reloaded row; the fix is code plus this one-sentence pin
 (issues/20260730-search-real-integral-digest-corruption.md has the trace).
+The code fix landed the same day: storage admission normalizes Real values
+to their SQLite round-trip representation, and the release recheck compares
+canonical content digests — healing pre-fix retained records with integral
+spellings — while releasing the authoritative derivation.
 (b) Open question 11 added: bounded range filters, the rerun's first
 practical filter gap. (c) Open question 12 added: which projection surfaces
 are bound by the byte-for-byte carrier-agreement acceptance bullet — the
@@ -443,7 +447,15 @@ Partition pushdown narrows work but never authorizes release. Within the same
 pinned per-request application snapshot that produces a page, the server reads
 each candidate's current authoritative source row, proves that its indexed
 source version and partition equal the posting, and evaluates the generated
-public/owner predicate before returning any field or existence fact. A
+public/owner predicate before returning any field or existence fact. An
+implementation may strengthen that recheck to the full source content, but the
+comparison is over RFC 8785 canonical bytes/digests — never in-memory value
+representation, which is not part of the contract (an integral Real
+legitimately spells `5` in a retained record and `5.0` after a SQLite reload)
+— and the released fields come from the authoritative derivation, not the
+retained payload. The local implementation does exactly this: it proves the
+retained record matches its own content digest and that digest matches the
+one recomputed from the authoritative row. A
 visibility-field or indexed-content change rewrites the posting synchronously
 with the source mutation. Authority-instance, policy-artifact, reset, restore,
 or generation changes invalidate the cursor; ordinary owner-row changes need

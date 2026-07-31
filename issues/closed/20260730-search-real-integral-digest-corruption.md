@@ -1,6 +1,6 @@
 # Stored search `Real` fields corrupt on integral values
 
-**Status:** Open
+**Status:** Closed (2026-07-30)
 **Date:** 2026-07-30
 **Systems:** portable full-text search, SQLite storage, canonical search-source
 digests, schema validation
@@ -100,3 +100,40 @@ stored/filter scalar bytes in LLP 0073.
 
 - `diaries/0037-pantry-search-main-rerun.diary.md`
 - `/Users/ccheever/projects/snapback-workout-matrix-20260729/apps/06-pantry-search`
+
+## Resolution (2026-07-30)
+
+Both halves of the traced fix direction landed:
+
+- `src/storage.rs` `normalize_json_value` now pins `Real` values to their
+  SQLite round-trip (f64) representation at admission, so insert/seed-path
+  in-memory documents can no longer diverge from the same row reloaded from a
+  REAL column. This also fixes the latent asymmetry for any other subsystem
+  comparing in-memory vs. reloaded documents.
+- The release recheck in `src/search/sqlite.rs` no longer uses
+  representation-sensitive struct equality. It proves the retained source
+  record matches its own RFC 8785 content digest (tamper) and that this digest
+  matches the digest recomputed from the authoritative row (drift), then
+  releases the authoritative derivation. Pre-fix databases whose retained
+  records spell integral Reals as `5` are healed by canonical equality; the
+  diagnostic message ("failed its authoritative digest recheck") now
+  accurately describes its trigger.
+- Equality filters: a `Real` equality filter is already rejected at schema
+  load with the field-level
+  `SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID` ("must use a portable exact
+  scalar type"), and query-time Real filter values are rejected with
+  `SNAPBACK_SEARCH_QUERY_INVALID` — both precise refusals, not corruption.
+  Stored fields were the whole exposed Real surface.
+- Regression tests
+  (`integral_real_stored_and_filter_values_release_from_the_insert_path`,
+  `legacy_integral_spelling_in_source_records_still_releases` in
+  `src/search/sqlite.rs`): seed + official-insert paths with integral and
+  fractional Reals release 3/3; the legacy integer spelling releases after
+  the fix; a genuine value tamper of the same payload still fails closed with
+  `SNAPBACK_SEARCH_INDEX_CORRUPT`. Existing token/stored-field tamper tests
+  keep passing (digest recheck preserves fail-closed authentication).
+- LLP 0073 §Authorization and result release now pins the canonical-bytes
+  comparison and authoritative-derivation release; the Revised header notes
+  the code landing.
+
+Verified: `cargo test --lib` 1422/1422 in the fix worktree.

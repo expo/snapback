@@ -14662,6 +14662,16 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
 fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<Value> {
     match field_type {
         FieldType::Json => Ok(value),
+        // @ref LLP 0073#authorization-and-result-release — a validator-accepted
+        // integral Real (JSON `5`) would otherwise stay an integer in the
+        // in-memory document while the same row reloads from a SQLite REAL
+        // column as `5.0`; admission pins the round-trip representation so
+        // in-memory and reloaded documents never diverge.
+        FieldType::Real if !value.is_null() => value
+            .as_f64()
+            .and_then(Number::from_f64)
+            .map(Value::Number)
+            .ok_or_else(|| type_error("real", &value)),
         _ => {
             json_to_sql_value(&value, Some(field_type))?;
             Ok(value)
