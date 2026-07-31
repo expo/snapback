@@ -485,7 +485,16 @@ recursive JCS canonicalization in every staged, exact-public, and final
 
 The installed CLI is the authority for `executorPackages`: it recomputes the
 complete executing CLI and client package-file graph in the comparator process
-and refuses a receipt that differs. The outer release validator binds the
+and refuses a receipt that differs. Because the packaged green fixture's
+committed generated output is inside that digested closure and local target
+start regenerates it in place, fixture freshness is load-bearing:
+`scripts/check-generated-artifacts` regenerates
+`packages/snapback-cli/fixtures/comparator/app/snapback` and requires the
+whole generated directory to reproduce byte-for-byte from the committed state.
+A stale committed fixture makes the first packaged comparator run mutate the
+executing closure mid-run and fail with
+`SNAPBACK_COMPARATOR_RECEIPT_INVALID` (recurrences d5ad77c0, 345cb070,
+ffe1cf51). The outer release validator binds the
 resulting full receipt and requires exact package names/version/algorithm,
 closed normalized file lists with package-owned sentinel files, and
 non-vacuous distinct digest shapes. It does not describe the retained
