@@ -5,7 +5,56 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.4, research-series integration: LLP 0116–0125
+**Revised:** 2026-07-30 (v0.6, decisions recorded: the author
+adjudicated all ten LLP 0127-routed decisions on 2026-07-30; open
+question 8's registry records each as DECIDED. In place: OQ5 answered
+by decision 1 (LLP 0074's parallel gate; 0111 to be amended), OQ3 by
+decision 5 (post-A+E deferral confirmed with a recorded provisional
+lean), OQ6 by decision 7 (absorb/delegate split confirmed;
+enqueue-receipt association owner = LLP 0070), OQ7 by decision 8
+(LLP 0044 revived; vector Spec beside 0073; parallel start under 0074
+— the §Sequencing-1 carve-out un-gates). Every v0.5 "pending
+decision N" marking is resolved: CV-16/CV-17 confirmed, the 0094/0095
+and wide-409 delegations and the burst-profiling rerun precondition
+confirmed (decision 7); CV-1's custody path decided (decision 4: the
+admin surface folds into the CLI, the acceptance helpers are published
+as a real package); move 2's first slice admits context-readers
+(decision 6); move 6's shipping order fixed (decision 3: sequence
+primitive, then 3a). The successor Plan's number is pinned: v0.5 said
+"number unassigned"; it landed as LLP 0129
+(llp/0129-local-first-program.plan.md — 0128 was taken by a concurrent
+doc). New in CV-1/move 5's orbit per decision 9: the terminal npm
+scope is @expo/snapback-*, the scope migration lands before the
+starter/GA front door, and slice 5-rebuild is sequenced after or with
+that migration. Decision 10 (settle-time trust: server re-derivation
+default) lands with LLP 0129's settlement Spec. Per the LLP 0063-style
+delegation, this revision was agent-executed under the author's
+2026-07-30 direction.)
+2026-07-30 (v0.5, LLP 0127 absorption: the six-move structure
+of the now-Accepted synthesis RFC (LLP 0127, Review → Accepted 2026-07-30)
+is recorded as the board's coherence layer, following 0127 §Sequencing's
+own absorption points — a new §The move layer, a Move column on the status
+board, and per-item refinements from the series' verified findings (CV-7
+same-file-first with the v0.4 group-bundle claim superseded; CV-8
+piece-2-gates-piece-3 on the 0113 route plus the move 6 frame; CV-9 named
+as slice 3-jobs with its ticket riders; CV-6 strictness sequenced
+post-A+E; CV-1 split into slices 5-types/5-rebuild). Proposed additions
+recorded pending 0127 decision 7: CV-16 (rejection unions), CV-17
+(typed-interior pilot), the 0094/0095 wire-shape and wide-409 delegation,
+and burst profiling as a rerun precondition. The §Sequencing-1
+product-breadth carve-out is recorded pending decision 8; the reactive
+watch item carries move 4's 1a pre-registration per 0127 §Sequencing 7;
+the local-first program is cross-referenced as a successor Plan in
+concurrent drafting, number unassigned at revision time, pending
+decision 2. Open questions 3–7 gain their 0127 routings and a new
+registry (open question 8) indexes the ten routed decisions — every one
+individually open as of this revision: accepting 0127 accepted the
+synthesis direction, not any individual decision, and nothing in this
+revision decides one. Status facts verified: LLP 0116–0125 and LLP 0126
+are Active post-review-program; LLP 0110 remains in Review. Per the
+LLP 0063-style delegation, this revision was agent-executed under the
+author's 2026-07-30 direction.)
+2026-07-30 (v0.4, research-series integration: LLP 0116–0125
 adopted as this plan's analysis layer — the status board gains a per-item
 Analysis column and §Analysis layer defines the division of labor; verified
 corrections applied: CV-7's indexed-read duplication evidence re-attributed
@@ -49,7 +98,7 @@ representation-sensitive struct equality is what fails; CV-12 split into
 range-filter design vs. already-roadmapped target execution. Open questions 1
 and 2 recorded as answered; a new npm-channel-gating question added; the rerun
 checkpoint gains a React-surface measurement requirement.)
-**Related:** LLP 0004, LLP 0010, LLP 0028, LLP 0030, LLP 0031, LLP 0041, LLP 0046, LLP 0061, LLP 0062, LLP 0070, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, Diary 0032–0039
+**Related:** LLP 0004, LLP 0009, LLP 0010, LLP 0028, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0044, LLP 0046, LLP 0053, LLP 0061, LLP 0062, LLP 0070, LLP 0073, LLP 0074, LLP 0076, LLP 0079, LLP 0080, LLP 0086, LLP 0094, LLP 0095, LLP 0101, LLP 0102, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, LLP 0126, LLP 0127, LLP 0129, Diary 0032–0039
 
 ## Summary
 
@@ -88,6 +137,16 @@ publication, VM-qualification receipts); and (3) contradictions between
 owners that need an author decision before execution (the 0111-vs-0074 npm
 default-channel gate; LLP 0113's inability to mint stable maturity).
 
+v0.5 absorbs LLP 0127 (RFC, Accepted 2026-07-30), which synthesized the
+analysis layer into six moves and proposed this plan's absorption points
+in its own §Sequencing. The moves become the board's coherence layer
+(§The move layer); the tranches, owners, and exit are unchanged. The
+absorption carried one load-bearing caveat throughout v0.5: 0127's ten
+routed author decisions remained individually open. v0.6 closes it —
+the author adjudicated all ten on 2026-07-30 (registry: open
+question 8), and every "pending decision N" marking below is resolved
+in place.
+
 ## Governing constraints
 
 1. **No evidence regression.** The rerun's Snapback wins — Cursor Garden's
@@ -125,6 +184,105 @@ option spaces. Scope stays bounded: the series' product-breadth front
 (LLP 0124, file storage and vector search) sits outside this plan's
 seven-app frame and is handled as open question 7 rather than absorbed.
 
+## The move layer (v0.5)
+
+LLP 0127 (RFC, Accepted 2026-07-30) synthesized the research series and
+the local-first deep-dive (LLP 0126, Active) into six moves — few
+mechanisms, many fronts — and proposed, in its §Sequencing, exactly how
+this plan absorbs them. v0.5 records that structure as the board's
+coherence layer: the moves map onto the existing tranches rather than
+replacing them, each CV item keeps its owner and analysis pointer, and
+the move names the mechanism a CV item shares with its siblings.
+
+**Absorption caveat, resolved (v0.6).** Accepting 0127 accepted the
+synthesis direction; the ten author decisions its §Open questions
+routed ("0127 decision N" below) remained individually open through
+v0.5. On 2026-07-30 the author adjudicated all ten. Open question 8 is
+the registry of record; the decision-gated markings in this section
+and below are resolved in place, each naming its decision.
+
+| Move (0127) | Shared mechanism | On this board | Beyond this board |
+| --- | --- | --- | --- |
+| 1 — Contracts reference; nothing respells | one declared-contract vocabulary; composite contracts reference declared shapes | Tranche B: CV-4a/4b, CV-5, CV-6; CV-16/CV-17 (confirmed, 0127 decision 7) | grammar/E-placement proposals adjudicated in the CV-4 Spec's own loop |
+| 2 — The closed graph grows; custody does not shrink | same-file helper slice, splice emission, v2 named-content hash | Tranche C: CV-7 (stdlib + drift diagnostic as complements) | first-slice scope decided (0127 decision 6: context-readers admitted; declared reads/writes stay evidence) |
+| 3 — Deterministic re-execution is one substrate | closed content-addressed handlers re-executed with receipts | Tranche C: CV-9 (0127 slice 3-jobs, startable now) | displaced-in-space half (option A, option D's two parallel ladders, the five owner-landings) = LLP 0129 (shape confirmed, 0127 decision 2); settle-time trust decided (decision 10: server re-derivation default; settlement Spec under 0129) |
+| 4 — Liveness is a property of facts, not a fee on functions | proven push kept; felt cost removed at the client surface and search | Tranche D: CV-11, with CV-10/CV-12a/12b riding as specified | watch-item 1a pre-registration (§Watch items); flicker-diagnosis lane in LLP 0053 |
+| 5 — One sealed artifact, actually adopted | sealed self-qualifying runtime pair; published closure actually used | Tranche A: CV-1 (slices 5-types/5-rebuild), CV-2 (slice 5-qual), CV-3; Tranche E: CV-13, CV-15 | sealed-artifact components under their owners (LLP 0041, 0010, 0030/0031, 0009) — cross-references, not work items |
+| 6 — Bounded profiles are the unit of everything | one declared bounded-shape grammar for reads, aggregates, admission | Tranche C: CV-8 (sequence-primitive + 3a design passes ride its frame; order decided — 0127 decision 3: sequence primitive, then 3a) | profile grammar doubles as the successor Plan's proposed replica-admission vocabulary (0126 OQ4 — a proposal, not a dependency) |
+
+CV-14 is claimed by no move and rides its custody trigger exactly as
+before. The couplings are 0127's, recorded here rather than re-derived
+(0127 §The composition map): move 2 is hard prerequisite ground for
+move 3; move 5's sealed pair is move 3's desktop carrier and the
+execution-identity tuple's runtime-identity element; move 1's grammar
+carries move 3's receipts and move 4's typed consumption; the
+move 6 → move 4 line is a shared principle, not a dependency — no
+shared descriptor artifact exists yet.
+
+**Startable now with no decision made** (0127's closing accounting):
+move 1's CV-4a+CV-5 slice; move 2's capability-free-only cut (the full
+1a slice waits on decision 6); slice 3-jobs (0121 OQ2 decided inside
+it); move 4's live-search design pass and the React-surface rerun arm;
+slices 5-qual and 5-types; move 6's sequence-primitive and 3a design
+passes (shipping order is decision 3's call). Blocked, honestly:
+decision 1 blocks move 5's packaging-shape exits and the rerun's
+published-channel mode; decision 4 blocks slice 5-rebuild and with it
+CV-1's exit; decision 2 gates the successor Plan's displaced-in-space
+half; decision 3 gates when move 6's surface stops being bypassable;
+decision 6 bounds how much of move 2's first slice exists; decisions 7
+and 8 gate confirmations and the breadth starts, no move slice;
+decision 9 gates nothing until the author elects to pay it; decision 10
+joins decision 2 on the successor program's exit.
+
+**v0.6: the blocked list clears.** All ten decisions were adjudicated
+2026-07-30 (registry: open question 8). Decision 1 un-gates move 5's
+packaging-shape exits and the rerun's published-channel mode; decision
+4 un-gates slice 5-rebuild and with it CV-1's exit (now sequenced
+after or with decision 9's scope migration); decision 2 gives the
+successor program — LLP 0129 — its authority; decision 3 fixes
+move 6's shipping order (sequence primitive, then 3a); decision 6
+admits context-readers into move 2's first slice; decisions 7 and 8
+confirm the absorptions, delegations, and breadth starts; decision 9
+is elected and scheduled (the `@expo/snapback-*` scope migration lands
+before the starter/GA front door); decision 10 lands with LLP 0129's
+settlement Spec.
+
+**Delegations and successor pointers (confirmed, v0.6).**
+
+- *The local-first successor Plan* (0127 §Sequencing 5; confirmed by
+  0127 decision 2). The local-first program — move 3's staging
+  (option A, then option D's two parallel platform ladders) plus the
+  five owner-landings, with 0126 option F as a proposed cheap rider —
+  gets its own sequencing document rather than a tranche here: this
+  board deliberately contains no offline item, and widening it would
+  couple two programs with different exit criteria. The successor Plan
+  landed as **LLP 0129** (`llp/0129-local-first-program.plan.md`;
+  0128 was taken by a concurrent doc), pinning the cross-reference
+  v0.5 carried by role. Decision 2 (2026-07-30) confirmed its shape,
+  authority, and first arm — the JS/React browser arm — and the
+  two-parallel-ladder staging with IR-rung-first resourcing; option C
+  (client mutators) is NOT admitted and sits behind a named trigger:
+  admit only if the IR rung proves insufficient for browser-side write
+  expressiveness after measurement. This gives LLP 0074's
+  graduation-path claim its consumer instead of a restatement.
+- *The 0094/0095 delegation* (0127 §Sequencing 3; confirmed by 0127
+  decision 7, 2026-07-30). The action/mutation wire-shape choice among 0125's
+  option-3 paths (preserving the partial-effect distinction) and the
+  wide-409 unified app-visible conflict taxonomy (0125 option 1/OQ1)
+  are delegated to LLP 0094/0095 for dated decisions — recorded here,
+  tracked there.
+- *Burst profiling* (same proposal; confirmed by decision 7): a rerun
+  precondition (§Sequencing item 5), not a CV item.
+- *Product breadth* (0127 §Sequencing 4; decided by 0127 decision 8).
+  Scope stays fixed here; the owner starts proceed under LLP 0074 in
+  parallel with Tranche A per the §Sequencing item 1 carve-out, now
+  un-gated: LLP 0044 is revived (not superseded), and the vector
+  design gets a new owned Spec beside LLP 0073 — 0073 stays the FTS
+  owner, the vector Spec copies its staged-admission pattern, and
+  exact k-NN is the base profile first, with ANN admitted later as a
+  separate capability with proved-superset translation — see open
+  question 7.
+
 ## Retired gaps — do not re-litigate
 
 The first bakeoff's highest-profile complaints are fixed on current main and
@@ -144,25 +302,27 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 
 ## Status board
 
-| Item | Title | Tranche | Owning doc(s) | Analysis | Size | State |
-| --- | --- | --- | --- | --- | --- | --- |
-| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; blocked in part on the npm-gating decision (OQ5) |
-| CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 0010 | 0123 | M | Open (issue filed 2026-07-30) |
-| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 0010, 0030, 0031 | 0123 | M | Open |
-| CV-4a | Structured collection validators for arguments | B (P1) | new Spec + 0004 alignment | 0117 | M | Open |
-| CV-4b | Structured collection stored fields | B (P1) | new Spec + 0004/0007/0081 | 0117 | L | Open |
-| CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 0073, 0037 | 0117 | M | Open (re-scoped v0.3) |
-| CV-6 | Precise mutation results as the paved default | B (P1) | 0108 amendment, guide | 0117 | S | Open (severity/strictness decision, OQ3) |
-| CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 0108 follow-on | 0118 | L | Open (design exists in 0108's superseded sections) |
-| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review; stable-promotion design does not exist yet) |
-| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice) |
-| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Open (issue filed 2026-07-30; reclassified) |
-| CV-11 | Live/re-executing search story | D (P1) | 0073 + 0112/0114 | 0119 | L | Open (genuine design hole) |
-| CV-12a | Portable range filters | D (P1) | 0073 (new design) | — | M | Open |
-| CV-12b | Search target expansion | D (P2) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
-| CV-13 | Inline handlers primary in "Your first backend" | E (P2) | guide (0061) | 0122 | S | Open (guide-gap issue filed 2026-07-30) |
-| CV-14 | Semantic review summary for dense manifests | E (P2) | custody owner (confirm at start; 0062 family) | — | M | Open |
-| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 0010 harness | 0123 | S | Open |
+| Item | Title | Tranche | Move | Owning doc(s) | Analysis | Size | State |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types startable now |
+| CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Open (issue filed 2026-07-30; 0127 slice 5-qual) |
+| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Open |
+| CV-4a | Structured collection validators for arguments | B (P1) | 1 | new Spec + 0004 alignment | 0117 | M | Open (startable; first slice with CV-5) |
+| CV-4b | Structured collection stored fields | B (P1) | 1 | new Spec + 0004/0007/0081 | 0117 | L | Open |
+| CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 1 | 0073, 0037 | 0117 | M | Open (re-scoped v0.3) |
+| CV-6 | Precise mutation results as the paved default | B (P1) | 1 | 0108 amendment, guide | 0117 | S | Open (OQ3 answered — decision 5: deferral confirmed, provisional lean recorded; sequenced post-A+E) |
+| CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Open (design exists in 0108's superseded sections; first slice admits context-readers per 0127 decision 6) |
+| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, verified 2026-07-30; decision 3: sequence primitive first, then 3a; stable-promotion design written as part of move 6) |
+| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice = 0127 slice 3-jobs, startable; receipt-association owner = 0070 per decision 7) |
+| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Open (issue filed 2026-07-30; reclassified) |
+| CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Open (genuine design hole; design pass startable) |
+| CV-12a | Portable range filters | D (P1) | 4 (rider) | 0073 (new design) | — | M | Open |
+| CV-12b | Search target expansion | D (P2) | 4 (rider) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
+| CV-13 | Inline handlers primary in "Your first backend" | E (P2) | 5 | guide (0061) | 0122 | S | Open (guide-gap issue filed 2026-07-30) |
+| CV-14 | Semantic review summary for dense manifests | E (P2) | — | custody owner (confirm at start; 0062 family) | — | M | Open (claimed by no move; rides its custody trigger) |
+| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Open |
+| CV-16 | Declaration-closed rejection unions as result-contract variants | B (P1) | 1 | 0108 family (0125 option 2) | 0125 | M | Confirmed (0127 decision 7, 2026-07-30) |
+| CV-17 | Typed-interior pilot (0117 option F) | B (P1) | 1 | 0108 clarification + codegen | 0117 | S | Confirmed (0127 decision 7, 2026-07-30) |
 
 ## Work items
 
@@ -206,20 +366,25 @@ published closure actually usable and used."
 **Named gaps the owners do not cover.** (1) The **admin client**
 (`packages/snapback-admin-client`) is inventoried by 0041 but excluded from
 the nine-package closure; Dispatch's acceptance imports it for authenticated
-cron inspection, so any arm proving the admin surface externally needs a
-decision: add it to the closure, fold it into the client/CLI, or endorse the
-served `/_snapback/admin/client.mjs` path. (2) The **acceptance test
+cron inspection, so any arm proving the admin surface externally needed a
+decision among: add it to the closure, fold it into the client/CLI, or
+endorse the served `/_snapback/admin/client.mjs` path. Resolved (0127
+decision 4, 2026-07-30): the admin surface **folds into the CLI** —
+command-shaped, outside app graphs — and the served path remains the
+documented external-tooling fallback. (2) The **acceptance test
 helpers**
 (`demos/_kit/server-process.mjs`, `demos/_kit/harness.mjs` — server lifecycle
-and vacuous-pass-guarded checks) are published by no document; decide publish
-vs. fold vs. endorse-vendoring. Without both decisions this item's exit is
-unsatisfiable. (3) A **sequencing conflict**: LLP 0111 serializes
+and vacuous-pass-guarded checks) are published by no document; the
+publish-vs-fold-vs-endorse-vendoring call is resolved (decision 4): they
+are **published as a real package**. With both custody calls made, this
+item's exit is satisfiable. (3) A **sequencing conflict**: LLP 0111 serializes
 default-channel (`latest`) promotion behind the full hosted Fly qualification
 journey, while LLP 0074 makes npm publication a parallel gate independent of
 hosted milestones. Exact-version candidate-tag installs are available
 pre-hosted under 0111 steps 1–2, but a pinned candidate tag is not the boring
-default install P0-1 describes. This is open question 5, and it is an author
-decision, not a work item. (4) A **types-condition defect** in the
+default install P0-1 describes. This was open question 5; decision 1
+(2026-07-30) resolved it — 0074's parallel gate governs, and LLP 0111 is
+to be amended (see the answered OQ5). (4) A **types-condition defect** in the
 published client (new in v0.4): the `./online` subpath export ships
 without a `types` condition — the gap three bakeoff arms hit
 independently — and the `./rqs*` subpaths share the pattern; LLP 0122
@@ -231,6 +396,36 @@ gates; close the two artifact gaps; then rebuild at least one full workout
 arm in a clean external repository from published artifacts only, and give the
 matrix harness an install-from-published-channel mode so future runs exercise
 the public path.
+
+**v0.5 (0127 move 5).** 0127 names this item's halves as separate
+workstreams so the block stays visible instead of averaging into a
+bundle: *slice 5-types* — the `types`-condition sweep closing named
+gap 4 and exit clause 4 — is startable today; *slice 5-rebuild* — the
+external workout-arm rebuild — is blocked on the admin-client/
+test-helper custody decision (named gaps 1–2, now 0127 decision 4,
+open), and its default-channel half on OQ5 (0127 decision 1, open).
+The starter-as-front-door and the other cheap coherence moves 0127
+lists under 0122's analysis proceed under the owners (LLP 0041/0114/
+0061), with this plan holding cross-references only.
+
+**v0.6 (decisions 1, 4, 9).** The blocks clear. Custody (decision 4):
+CLI-fold plus published helpers, as recorded in the named gaps above.
+Channel (decision 1): LLP 0074's parallel gate governs; LLP 0111 is to
+be amended to decouple the local closure's default channel from hosted
+qualification, and hosted capability stays a candidate-tag nonclaim
+until the hosted journey lands. Naming (decision 9): the terminal npm
+scope is **`@expo/snapback-*`** — the repository is moving to the
+expo/snapback GitHub org, which publicly commits Snapback as an Expo
+product. The `@snapback` org release request is filed in parallel as a
+free option (the scope currently has zero public packages); nothing
+gates on it, and if granted it becomes deprecation-stub aliases
+pointing at the `@expo` names, never a second migration. The scope
+migration is a proof-system migration — protocol name table, schema
+consts, cold-install preset, ledger lineage — scheduled before the
+starter/GA front-door moment. Sequencing note, not a new decision:
+slice 5-rebuild runs after or with the scope migration so the
+external-rebuild proof binds the terminal name, not the throwaway
+alias.
 
 **Exit.** (1) At least one full workout arm (Campfire or Streak Lab) rebuilt
 in a clean external repository using only published artifacts — including its
@@ -351,6 +546,19 @@ semantics, and LLP 0081 migration interaction. None of this is de-risked by
 0108. Exit: Pantry's structured stored fields expressed natively with defined
 index and sync behavior.
 
+**v0.5 (0127 move 1).** Three proposals now ride the new Spec, each
+pending its own adjudication in that Spec's loop — recorded here,
+decided nowhere yet: one grammar spanning arguments, stored fields,
+results, and failure variants rather than an argument-lane subset
+(0117 OQ1; 0127 proposes one grammar — "the two-lane structure was the
+bug, not a feature"); schema-referencing contract nodes
+(`v.doc(...)`-class, 0117 option E/OQ2) placed in the CV-4 Spec —
+expansion into the same frozen, hashed contracts that ship today, zero
+inference; and the ingress seam framed as an evidence *addition* (0117
+option A/finding 4), consistent with this item's v0.2 finding that no
+server-side args validation exists even for scalars. The CV-4a + CV-5
+slice is startable today per 0127's closing accounting.
+
 #### CV-5. Type the portable search query AST (schema export + carrier alignment)
 
 **Evidence, corrected in v0.3 (Codex review finding 6, code-verified).** The
@@ -379,6 +587,11 @@ operation contract, and generated client types all derive from or verify
 against it; accepted/rejected AST fixtures agree across all carriers; no
 `unknown` remains at the search argument boundary.
 
+**v0.5 (0127 move 1).** The first-conformance-fixture sequencing is
+confirmed, with one carrier clarification absorbed from 0117 §CV-5:
+`argsContractHash` witnesses the extended descriptor; it is not itself
+a carrier.
+
 #### CV-6. Make precise mutation results the paved default
 
 **Evidence, corrected from v0.1.** The repair-explaining diagnostic is not
@@ -403,6 +616,58 @@ template level already shipped, and that is enough.
 diagnostic that is hard to ignore (severity per OQ3's resolution); the two
 known offenders carry exact contracts in the next rerun.
 
+**v0.5 (0127 move 1; §Sequencing 2).** Strictness is sequenced after
+the merged grammar and reference nodes land, per 0117's ordering
+dependency — strictness before cheapness raises the tax on the surface
+agents already dislike. The decision itself is OQ3, routed as 0127
+decision 5 — decided in v0.6: the deferral is confirmed, with a
+recorded provisional lean (refusal behind a per-app toggle, default-on
+for new apps, default-off for existing), explicitly subject to the
+rerun's severity-causality measurement; see open question 3.
+
+#### CV-16. Declaration-closed rejection unions (confirmed, 0127 decision 7)
+
+**Provenance.** Absorbed from open question 6 cluster (a) per 0127
+§Sequencing 3; 0127 decision 7 (2026-07-30) confirmed the
+absorb/delegate split, making this a confirmed CV item.
+
+**Evidence.** App-thrown domain codes collapse to
+`SNAPBACK_HANDLER_FAILED` through the JS lane's closed allowlist, while
+the host-plan `elseError`/`guard` channel already emits app-authored
+codes verbatim (LLP 0125 finding 4) — the asymmetry is the gap.
+
+**Work.** Declaration-closed rejection unions as result-contract
+variants riding the CV-4-era grammar work (0125 option 2): declared
+failure variants in the same contract vocabulary, with the generated
+failure union reaching client types. Owner: the LLP 0108 family;
+substantive design lands there. The adjacent remainders are
+deliberately not here: the action/mutation wire-shape choice and the
+wide-409 taxonomy are delegated to LLP 0094/0095 (§The move layer,
+confirmed by the same decision 7).
+
+**Exit.** An app-declared rejection code thrown in a JS-lane handler
+reaches the client typed, without widening the undeclared-failure
+collapse; the declared union appears in the generated client types.
+
+#### CV-17. Typed-interior pilot (confirmed, 0127 decision 7)
+
+**Provenance.** Absorbed from open question 6 cluster (b)'s
+interior-typing half per 0127 §Sequencing 3; confirmed by 0127
+decision 7 (2026-07-30).
+
+**Evidence.** Contract/handler mismatch is a runtime discovery today;
+0117 verified a generated per-app typed builder module viable on the
+current surface — checker consuming, never minting, the contract.
+
+**Work.** A small pilot of 0117 option F: generate the handler-facing
+type surface from the declared artifacts so the interior is typed and
+mismatch is a dev-time squiggle, plus the dated LLP 0108 clarification
+that contract-*checking* is not the inference 0108 forbids (0117 OQ4).
+
+**Exit.** One workout arm's handlers get interior types derived from
+their declared contracts; a seeded contract/handler mismatch surfaces
+at typecheck time, with no change to contract authority or hashing.
+
 ### Tranche C — P1: generalize composition without losing evidence
 
 #### CV-7. Helper reuse: revive 0108's bounded static bundling
@@ -424,20 +689,54 @@ to research because the review loop timed out at NOT READY, not because the
 design was rejected.
 
 **Work.** Revive and close those sections as the 0108 follow-on rather than
-designing from scratch. Two consequences the follow-on must own explicitly:
-the v1 content hash carries no dependency graph, so helper imports force a
-v2 hash format; and shared helpers effectively require the group-bundle model
-(one bundle per original static graph), which reopens the warm-pool-key
-question and the DK-4 benchmark gate. The 2026-07-28 adversarial-closure
-rules (alias/destructuring/computed-access refusals) must be re-proved across
-module boundaries. The non-negotiable invariants are unchanged: closed
-content-addressed graph, no `Function.prototype.toString()` capture, no
-runtime inference, no ambient checkout access.
+designing from scratch. One consequence the follow-on must own
+explicitly: the v1 content hash carries no dependency graph, so helper
+reuse forces a v2 hash format — 0127 absorbs 0118's verified shape: a
+list of named helper-content hashes, no paths, no graph encoding, with
+exact per-operation invalidation. A v0.5 correction supersedes the
+v0.4 claim that shared helpers effectively require the group-bundle
+model: both motivating diary instances are same-file (0118 finding 10,
+absorbed via 0127 §Sequencing 2), so the first mechanism is the
+same-file lexical slice (0118 option 1a) with resolve-and-splice
+emission, which dominates the superseded group-bundle under the
+shipped fresh-per-invocation lifecycle (0118 finding 7); the
+warm-pool-key/DK-4 phrasing is retired-era, and the follow-on absorbs
+that text. Decision order: graph scope first (same-file), then
+emission (splice). The 2026-07-28 adversarial-closure rules
+(alias/destructuring/computed-access refusals) are re-proved at file
+scope, and the benchmark is respecified as per-invocation evaluation
+latency and memory against LLP 0035's ~3.9 ms baseline. The
+non-negotiable invariants are unchanged: closed content-addressed
+graph, no `Function.prototype.toString()` capture, no runtime
+inference, no ambient checkout access.
+
+**v0.5 scope bound (0127 move 2).** The slice as specified admits
+context-reader helpers — required to satisfy both diary instances —
+which is the helper-class cutline, 0127 decision 6, open; a
+capability-free-only cut is startable today but covers only the
+Streak Lab instance, which the pinned civil-date/money stdlib
+complement independently dissolves. The stdlib and the exact-duplicate
+drift diagnostic land regardless as independent complements
+(0118 options 7 and 5); multi-file bounded imports (option 1 proper)
+wait for measured pressure the seven small apps do not yet show
+(0118 OQ6). Per 0127 §Sequencing 2 the same-file slice satisfies this
+item's exit as written, which bears on its L sizing.
+
+**v0.6 (0127 decision 6, decided).** The cutline is decided:
+context-reader helpers ARE admitted in the first mechanism — the full
+0118 option 1a same-file slice, covering Relay Board's indexed-read
+helpers as well as Streak Lab's — and declared reads/writes REMAIN
+evidence (basis: 'declared'), not enforced ceilings; ceiling
+enforcement is sequenced as its own later decision, decoupled from the
+helper slice. The capability-free-only qualifier on the startable cut
+is obsolete.
 
 **Exit.** Streak Lab's calendar helper written once and used by both its
 query and mutation, with the module graph still closed and content-addressed,
 and the 0108 refusal properties preserved under its adversarial fixtures
-extended to cross-module cases.
+extended to cross-module cases. (Under the 1a slice, "cross-module"
+reads as the helper crossing operation-module boundaries at splice
+time — no authored multi-file graph is implied.)
 
 #### CV-8. Relational shapes: promote what exists, decide aggregates
 
@@ -482,6 +781,36 @@ pattern where they do not; no experimental capability claimed; the
 sequence-counter and aggregate limitations either lifted by design or
 documented as refusals.
 
+**v0.5 (0127 move 6; §Sequencing 2).** Piece 2 gates piece 3 on the
+LLP 0113 route (0120 finding 9): a new profile terminates at
+experimental until the stable-promotion design exists — unless the
+author rules LLP 0080's direct-to-stable act still available, which is
+part of 0127 decision 3, open. For piece 3's frame, 0127 proposes a
+demand-ordered ladder, smallest first: the sequence-allocation
+primitive as its own small owned design (0120 OQ2 — it should not wait
+for the aggregate decision; Relay's `moveCard` counter and 0125's
+burst contention both implicate it), snapshot-batch composition of
+admitted bounded nodes (0120 option 3a) for the `boardView` shape,
+aggregates only with explicit result-semantics and noninterference
+contracts (0120 finding 8 — a count can disclose rows it does not
+return), and enforced cumulative examined-entry budgets (option 2a,
+never the diagnostic-only 2b) as the honest general tier. The
+sequence-primitive and 3a composite design passes ride this item's
+frame and are startable now; their shipping order is 0127 decision 3,
+open. The same profile grammar is 0127's proposed answer to 0126 OQ4
+(the successor Plan's replica-admission vocabulary) — a proposal, not
+a dependency. Substantive design lands in LLP 0080 (its OQ7),
+LLP 0110, LLP 0113, and the new primitive design — not here.
+
+**v0.6 (0127 decision 3, decided).** The shipping order is fixed: the
+sequence-allocation primitive ships first, then the 3a snapshot-batch
+composite; the contracted-aggregate profile decision is deferred until
+3a usage evidence exists. Maturity route: LLP 0113's qualification
+route is the default for new profiles, with piece 2's missing
+stable-promotion design written as part of move 6; LLP 0080-style
+direct-to-stable stays reserved for surfaces with witnessed shipped
+implementations predating the rule.
+
 #### CV-9. Transactional one-off scheduling
 
 **Evidence, corrected from v0.1.** The design for this primitive is not
@@ -515,6 +844,25 @@ rolled-back mutation provably schedules nothing (0070's own first acceptance
 bullet); an injected-clock forced drain claims due one-off jobs with receipts
 in the job/attempt ledger, giving one-off work a deterministic seam
 equivalent to — not literally identical to — the cron run ledger's.
+
+**v0.5 (0127 move 3; §Sequencing 2).** This item is 0127's *slice
+3-jobs*, startable now with the callee-class decision (0121 OQ2) made
+inside it. The paved-default-queue conditional and the
+inspection-surface question travel with the slice ticket (0121's own
+proposal); 0127 proposes answering inspection with a generated
+*declared* job-status query carrying an ordinary contract (a move 1
+rider), not an ambient system table, and binding the enqueue to its
+producing write — the job row carries producer `mutationId` and
+`snapshotVersion`, or the mutation receipt embeds its enqueues
+(0121 option 3). The receipt-association owner (0121 OQ4: LLP 0070,
+the 0108 family, or a new owned Spec) was part of 0127 decision 7 — a
+landing choice the slice does not wait on. Hosted one-off
+stays blocked-on per 0070; exactly-once is not claimed
+(0121 finding 11).
+
+**v0.6 (0127 decision 7, decided).** The enqueue-receipt association
+shape is owned by LLP 0070, with its wire projection flowing to
+LLP 0094 like every other receipt — 0121 OQ4 resolved.
 
 ### Tranche D — P1: mature portable search
 
@@ -567,6 +915,18 @@ is — no simulated reactivity, no capability drift.
 **Exit.** Either a shipped live-search path under its own capability id with
 the same rank/highlight/cursor contract and an eviction/invalidation evidence
 story, or a dated LLP 0073 decision recording why non-live remains the claim.
+
+**v0.5 (0127 move 4).** For the 0073-frame design pass, 0127 proposes
+coarse re-execution on invalidation under its own capability id (0119
+option 4): per-index subscription/concurrency budgets, first-page-only
+liveness as the plausible v1, and option 5's posting-delta precision
+as a later refinement of the same delivery model, not a rival. That
+the remainder is composition rather than invention is the option's
+hypothesis, to be proven by the design itself. The design pass is
+startable now and lands alongside the rerun arm that consumes the 0114
+React surface and a registered 0112 group (§Sequencing item 5). The
+claim posture is unchanged: `full_text_search_v1` stays non-live and
+says so until the path ships.
 
 #### CV-12. Filters and targets (split: design vs. execution)
 
@@ -621,13 +981,28 @@ so exact-but-explicitly-configured provenance is not misread as weak.
    also prerequisites for running future matrix arms against published
    artifacts. CV-2 → CV-3 are ordered (the receipt exists before the tools
    converge on it), and CV-2 carries the invalidation half so that ordering is
-   sound. CV-1's candidate-tag publication and artifact-gap decisions can
-   proceed now; its default-channel exit waits on open question 5.
+   sound. CV-1's custody calls are made (decision 4), its
+   default-channel exit is un-gated (decision 1; the answered open
+   question 5), and slice 5-rebuild is sequenced after or with
+   decision 9's `@expo/snapback-*` scope migration so the
+   external-rebuild proof binds the terminal name. The carve-out is
+   confirmed by 0127 decision 8 (0127 §Sequencing 4): the
+   product-breadth owner starts of open question 7 — reviving LLP 0044
+   (decision 8: revive, not supersede) and minting the vector-search
+   Spec beside LLP 0073 — proceed under LLP 0074's umbrella in
+   parallel with Tranche A, because the blocked app classes do not
+   wait on the parity tranches; they sit outside this plan's board and
+   exit either way, so "alone" continues to bind the parity work
+   itself.
 2. **Tranches B and C in parallel after A.** They touch different owners.
    CV-4a ships before CV-4b. Within C, CV-8's piece 1 continues immediately —
    LLP 0110 is already in Review — while piece 2 (the stable-promotion
    design) and piece 3 (the aggregate decision) are authorable now; CV-9
-   rides LLP 0070's first implementation slice.
+   rides LLP 0070's first implementation slice. Decision 7 confirmed
+   CV-16 and CV-17; they ride Tranche B's grammar work. Piece 3's
+   shipping order is decided (decision 3): the sequence primitive
+   first, then 3a, with the contracted-aggregate profile decision
+   deferred until 3a usage evidence exists.
 3. **Tranche D after CV-5.** CV-10 is a small code fix and may land any time;
    CV-11/CV-12a build on the typed AST; CV-12b executes 0073's roadmap as its
    gates (LLP 0046 for PostgreSQL) clear.
@@ -642,6 +1017,16 @@ so exact-but-explicitly-configured provenance is not misread as weak.
    and a 0112 registered group, or the plan's watch trigger on the reactive
    boundary is unmeasurable. Tranche D/E completion is not gated on the
    rerun, but the rerun is the plan's measurement, not an optional extra.
+   v0.5 (0127 §Measurement): two rerun preconditions ride this
+   checkpoint — a normalized-profile burst benchmark before any
+   performance claim (0125 option 5; the §Sequencing-3 disposition,
+   confirmed by 0127 decision 7), and, for the local-first
+   hardening claim whose program lives in LLP 0129, option
+   A's diary-grade offline acceptance on the JS/React arm (0126's
+   evidence gate; the arm is confirmed by 0127 decision 2).
+   0127's proposal for open question 4 —
+   offline/cold-boot scoring as a new dimension on existing arms — is
+   recorded at that question, which stays open.
 
 ## Exit criterion for the plan
 
@@ -660,7 +1045,13 @@ The plan is done when a full matrix rerun shows:
 
 An honest 50/50 with intact differentiators satisfies this Plan; the
 larger strategic frame (hosted profiles, commercial surface, Expo
-distribution) remains LLP 0074's and is not re-scored here.
+distribution) remains LLP 0074's and is not re-scored here. The
+local-first program's exit deliberately does not live here either: per
+0127 §Sequencing 5 (successor-Plan shape confirmed by 0127 decision 2;
+the program is LLP 0129),
+widening this board would couple two programs with different exit
+criteria; the programs share substrate — moves 2, 5, and 6 — and this
+plan holds the cross-reference (§The move layer).
 
 ## Watch items (no action now)
 
@@ -676,6 +1067,16 @@ distribution) remains LLP 0074's and is not re-scored here.
   (those belong to CV-4/6/7 and CV-11). Revisit only if the rerun — measured
   through the React surface per §Sequencing item 5 — still scores the
   boundary itself as a loss after CV-11 and the query-group surface ship.
+  v0.5 (0127 §Sequencing 7): this watch item now carries move 4's
+  pre-registered answer. If the trigger fires, 0127 pre-registers
+  option 1a — one authored kind with split callable/subscribable
+  capability facts, scoped per target — on its stated mechanism
+  assumption: the subscribable fact is minted from a declaration
+  (0127's assumed home is the function's manifest-entry capability
+  fact), never classified from plan shape. The pre-registration is
+  0127's own judgment, informed by — not selected by — 0119 finding 6;
+  accepting it is an author call, the trigger condition is unchanged,
+  and no owner changes until it fires.
 - **Graph generation speed and consumer-facing projections.** The 7× generated
   graph is fine while generation is fast and consumers never read internals;
   watch for either assumption failing.
@@ -691,44 +1092,142 @@ distribution) remains LLP 0074's and is not re-scored here.
 2. **CV-9 receipt semantics — ANSWERED (v0.2).** LLP 0070's receipt family
    (immutable job + append-only attempts), not the cron run ledger, whose
    identity model rejects runtime-created entries.
-3. **CV-6 strictness.** Should omitted result contracts remain a degradation
-   (raised from today's `severity: 'info'`), or become a refusal behind a
-   per-app strictness toggle? Owner's call, landed as an LLP 0108 amendment.
+3. **CV-6 strictness — ANSWERED (v0.6, 0127 decision 5).** The
+   post-A+E deferral is confirmed: the strictness call lands after
+   move 1's A+E land, per 0117's ordering dependency. The author's
+   provisional lean is recorded — refusal behind a per-app strictness
+   toggle, default-on for new apps and default-off for existing ones —
+   explicitly subject to the rerun's severity-causality measurement
+   before the LLP 0108 amendment lands. (v0.5 routed this as 0127
+   decision 5, then open.)
 4. **Rerun scope.** Should the post-A–C rerun reuse the seven contracts
    unchanged for comparability, or add an eighth contract targeting the new
    surfaces (structured inputs + one-off scheduling) at the cost of
    diary-to-diary comparability? (Either way, §Sequencing item 5's
-   React-surface measurement requirement stands.)
-5. **npm default-channel gating (new in v0.2).** LLP 0111 serializes `latest`
-   promotion of the nine-package closure behind the full hosted Fly
-   qualification journey; LLP 0074 makes npm publication a parallel gate.
-   These cannot both govern CV-1. (The eight-package `0.1.0` closure reached
-   `latest` on 2026-07-26, the day before 0111's gate was written, so the
-   conflict is live for the nine-package promotion and every closure after
-   it.) Decide: amend 0111 to decouple the local closure's default channel
-   from hosted qualification, or scope CV-1's exit to exact-version
-   candidate-tag installs until the hosted journey lands.
-6. **Unowned remainders from the research series (new in v0.4).** Two
-   verified gap clusters have no CV item and no owner tasked with closing
-   them: (a) concurrency's remainder — action/mutation failure-shape
-   unification, domain-typed rejections (app-thrown codes still collapse
-   to `SNAPBACK_HANDLER_FAILED` through the closed allowlist), and a
-   current-main burst measurement (LLP 0125; adjacent owners 0094, 0108,
-   0059, 0003); (b) the type-flow mechanisms outside CV-4/CV-6 —
-   return-type-inference relief and generated interior handler-context
-   typing (LLP 0117). Decide per cluster: absorb as new CV items (a
-   likely CV-16/CV-17 in Tranches B/E under the same governing
-   constraints), or delegate to the owning documents and track nothing
-   here. Absorbing widens a plan whose exit is the rerun; delegating
-   risks the items falling between programs — and the diaries scored
-   both clusters, so the successor diary will re-measure them either
-   way.
-7. **Product-breadth scope boundary (new in v0.4).** LLP 0124 verified
-   that file storage has a stale Draft owner (LLP 0044, zero
-   implementation) and vector search has no owning design document at
-   all. Both sit outside this plan's seven-app frame, and this plan's
-   exit criterion already cedes the strategic frame to LLP 0074. Decide:
-   revive LLP 0044 and mint a vector-search owner under 0074's umbrella
-   (the series' lean, which keeps this plan's scope fixed), or widen
-   this plan with a breadth tranche. Until decided, neither capability
-   has a path from GAP to owned design.
+   React-surface measurement requirement stands.) v0.5: 0127
+   §Sequencing 6 proposes an answer, on record and undecided — keep
+   the seven contracts unchanged (the new mechanisms are scoreable
+   inside them), add offline/cold-boot scenario scoring as a new
+   dimension on existing arms (the bakeoff generation scored it
+   decisive and the rerun measured none of it, 0126 finding 1), and
+   admit at most one new product-breadth contract once open
+   question 7's owners ship something scoreable.
+5. **npm default-channel gating — ANSWERED (v0.6, 0127 decision 1).**
+   LLP 0074's parallel gate is adopted: LLP 0111 is to be amended to
+   decouple the local closure's default channel from hosted
+   qualification, and hosted capability stays a nonclaim —
+   exact-version candidate-tag installs only — until the hosted
+   journey lands. This un-blocks CV-1's default-channel exit, move 5's
+   packaging-shape exits, and the rerun's published-channel mode. (The
+   conflict, for the record: 0111 serialized `latest` promotion of the
+   nine-package closure behind the full hosted Fly journey while 0074
+   made npm publication a parallel gate; the eight-package `0.1.0`
+   closure had already reached `latest` on 2026-07-26, the day before
+   0111's gate was written. v0.5 routed this as 0127 decision 1, then
+   open.)
+6. **Unowned remainders from the research series — ANSWERED (v0.6,
+   0127 decision 7).** The §Sequencing-3 absorb/delegate split is
+   confirmed exactly as v0.5 recorded it: cluster (a)'s rejection
+   unions are absorbed as CV-16 (riding the CV-4-era grammar; owner
+   the LLP 0108 family, 0125 option 2) and cluster (b)'s
+   typed-interior pilot as CV-17 (0117 option F), both in Tranche B;
+   the action/mutation wire-shape choice (partial-effect distinction
+   preserved) and 0125's wide-409 remainder, the unified app-visible
+   conflict taxonomy (0125 option 1/OQ1), are delegated to
+   LLP 0094/0095 for dated decisions; burst profiling is a rerun
+   precondition, not a CV item; cluster (b)'s return-inference half is
+   answered by move 1's declaration compression (option E, riding the
+   CV-4 Spec) rather than a CV item, with infer-then-freeze (C) as
+   0117's named bridge only if post-A+E measurement still scores bulk
+   as decisive. The decision also names the enqueue-receipt
+   association owner: LLP 0070, with its wire projection flowing to
+   LLP 0094 like every other receipt (0121 OQ4 resolved). The
+   CV-16/CV-17 rows and the related §Sequencing amendments are no
+   longer marked proposed.
+7. **Product-breadth scope boundary — ANSWERED (v0.6, 0127
+   decision 8).** The first branch, as v0.5 recorded 0127's proposal:
+   this plan's scope stays fixed (no breadth tranche), and the owner
+   starts proceed now under LLP 0074's umbrella in parallel with
+   Tranche A (the §Sequencing item 1 carve-out, now un-gated).
+   Specifics decided: LLP 0044 is **revived**, not superseded, as the
+   file-storage owner (0124 OQ1 resolved toward revival; local store
+   first with the object-store seam designed and the
+   delivery-authorization axis held open per 0124 OQ7); the vector
+   design lands in a **new owned Spec beside LLP 0073** — 0073 stays
+   the FTS owner, and the vector Spec copies its staged-admission
+   pattern; **exact k-NN is the base profile first**, with ANN
+   admitted later as a separate capability with proved-superset
+   translation (resolving 0124 OQ3's reserved order).
+8. **The ten 0127-routed author decisions (new in v0.5) — ALL TEN
+   DECIDED (v0.6, 2026-07-30).** LLP 0127's acceptance accepted the
+   synthesis direction; the author adjudicated the ten routed
+   decisions themselves on 2026-07-30. The registry of record:
+   1. *npm channel gate* — DECIDED: LLP 0074's parallel gate adopted;
+      LLP 0111 to be amended to decouple the local closure's default
+      channel from hosted qualification; hosted capability stays a
+      candidate-tag nonclaim until the hosted journey lands (= OQ5).
+   2. *Local-first program* — DECIDED: successor-Plan shape confirmed
+      as LLP 0129; the JS/React browser arm is the first carrier;
+      two-parallel-ladder staging with IR-rung-first resourcing
+      confirmed; option C (client mutators) NOT admitted, held behind
+      a named trigger — admit only if the IR rung proves insufficient
+      for browser-side write expressiveness after measurement.
+   3. *Aggregates* — DECIDED: the sequence-allocation primitive ships
+      first, then 3a snapshot-batch; the contracted-aggregate profile
+      decision is deferred until 3a usage evidence exists. Maturity
+      route: 0113's qualification route is the default for new
+      profiles, with the missing stable-promotion design written as
+      part of move 6; 0080-style direct-to-stable is reserved for
+      surfaces with witnessed shipped implementations predating the
+      rule.
+   4. *Custody* — DECIDED: the admin surface folds into the CLI
+      (command-shaped, out of app graphs; the served path remains the
+      documented external-tooling fallback); the acceptance test
+      helpers are published as a real package.
+   5. *CV-6 strictness* — DECIDED: the post-A+E deferral is
+      confirmed; provisional lean recorded (refusal behind a per-app
+      toggle, default-on for new apps, default-off for existing),
+      explicitly subject to the rerun's severity-causality
+      measurement (= OQ3).
+   6. *Helper cutline* — DECIDED: context-reader helpers are admitted
+      in the first mechanism; declared reads/writes remain evidence
+      (basis: 'declared'), not enforced ceilings; ceiling enforcement
+      is sequenced as its own later decision, decoupled from the
+      helper slice.
+   7. *OQ6 delegation + receipt owner* — DECIDED: the §Sequencing-3
+      absorb/delegate split is confirmed (CV-16 rejection unions and
+      CV-17 typed-interior pilot confirmed as CV items; the 0094/0095
+      wire-shape and wide-409 delegations confirmed; burst profiling
+      confirmed as a rerun precondition); the enqueue-receipt
+      association shape is owned by LLP 0070, with its wire
+      projection flowing to LLP 0094 like every other receipt
+      (= OQ6).
+   8. *Product breadth* — DECIDED: LLP 0044 is revived, not
+      superseded; the vector design lives in a new owned Spec beside
+      LLP 0073 (0073 stays the FTS owner; the vector Spec copies its
+      staged-admission pattern); the parallel start under LLP 0074 is
+      confirmed — the §Sequencing-1 carve-out un-gates; exact k-NN is
+      the base profile first, ANN admitted later as a separate
+      capability with proved-superset translation (= OQ7).
+   9. *Naming* — DECIDED: the terminal npm scope is
+      `@expo/snapback-*` — the repository is moving to the
+      expo/snapback GitHub org, publicly committing Snapback as an
+      Expo product. The `@snapback` org release request is filed in
+      parallel as a free option (the scope currently has zero public
+      packages); nothing gates on it, and if granted it becomes
+      deprecation-stub aliases pointing at `@expo` names, never a
+      second migration. The scope migration is a proof-system
+      migration (protocol name table, schema consts, cold-install
+      preset, ledger lineage), scheduled before the starter/GA
+      front-door moment. Sequencing note, not a new decision: slice
+      5-rebuild runs after or with the scope migration so the proof
+      binds the terminal name, not the throwaway alias.
+   10. *Settle-time trust* — DECIDED: server re-derivation is the
+       default for client-captured `now`/ids at settlement;
+       client-captured values are carried in receipts as labeled
+       claims, never authority; bounded-skew acceptance only as
+       per-field declared opt-in; owned by a new settlement Spec
+       under LLP 0129's program.
+
+   Every decision-gated element in this plan named its number; this
+   revision resolves those markers in place.
