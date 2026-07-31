@@ -1,12 +1,27 @@
 # LLP 0135: Sequence allocation and snapshot-batch composition
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Application data API, Relational queries, Mutations, Code
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.4, round-3 fixes: round 3 of the loop
+**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+authorization: dual-family READY — Fable round 3, Codex round 4 —
+with the three conditions checked and satisfied: (1) zero unresolved
+MATERIAL concerns in either family's final round (Codex round 4
+verified both round-3 MATERIALs resolved, no fresh defects; Fable's
+round-3 details D-R1–D-R5 were applied in v0.4); (2) within the
+decided scope of its commission (move6's sequence-allocation and
+snapshot-batch designs plus the 3a composition per LLP 0129's
+ledger); (3) no evidence boundary weakened — the thrown-error
+disclosure channel was acknowledged and classified rather than
+claimed away, lane-Q withholding was strengthened to
+mutation-atomic, and every empirical claim keeps its code citation.
+Recorded per SD-4's honesty rule: the author's standing acceptance
+made in advance. Review artifacts:
+reviews/0135-sequence-allocation-and-snapshot-batch.{fable,codex}.md.)
+2026-07-31 (v0.4, round-3 fixes: round 3 of the loop
 returned a split verdict
 (`reviews/0135-sequence-allocation-and-snapshot-batch.fable.md`
 round 3: READY — all five round-2 Fable items verified resolved
