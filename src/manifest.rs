@@ -7098,6 +7098,12 @@ mod membership_manifest_grammar_tests {
                 TargetCapabilityId::InlineHandlerV1,
                 CapabilityMaturity::Experimental,
             ),
+            // LLP 0070 first slice: experimental while the RFC is Draft (its
+            // claim boundary bars any stable/capability-class reading).
+            (
+                TargetCapabilityId::JobsOneOffV1,
+                CapabilityMaturity::Experimental,
+            ),
             (
                 TargetCapabilityId::RegisteredBundleBootV1,
                 CapabilityMaturity::Experimental,

@@ -21348,6 +21348,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
             StatusCode::NOT_FOUND
         }
         "SNAPBACK_UNKNOWN_CRON_JOB"
+        | "SNAPBACK_JOB_UNKNOWN"
         | "SNAPBACK_UNKNOWN_SUBSCRIPTION"
         | "SNAPBACK_AUTH_MODE_DEV"
         // @ref LLP 0055#principal-kinds — an operation naming a principal that is
@@ -21442,6 +21443,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SEED_VERSION_REUSED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
+        // Scoped idempotency-key reuse and races are binding conflicts on
+        // the (queue, action, key) identity (LLP 0070 first slice).
+        "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED"
+        | "SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
@@ -21517,6 +21522,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
         | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_VALUE_TOO_LARGE"
+        | "SNAPBACK_JOB_ARGS_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
         | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
@@ -21741,6 +21747,15 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HOST_OP_UNKNOWN"
         | "SNAPBACK_INVALID_FLOAT"
         | "SNAPBACK_INVALID_IDENTIFIER"
+        | "SNAPBACK_JOB_ACTION_UNKNOWN"
+        | "SNAPBACK_JOB_ARGS_INVALID"
+        | "SNAPBACK_JOB_ATTEMPT_POLICY_INVALID"
+        | "SNAPBACK_JOB_CALLEE_NOT_ADMITTED"
+        | "SNAPBACK_JOB_DELAY_INVALID"
+        | "SNAPBACK_JOB_ENQUEUE_LIMIT_EXCEEDED"
+        | "SNAPBACK_JOB_ENQUEUE_UNAVAILABLE"
+        | "SNAPBACK_JOB_IDEMPOTENCY_KEY_INVALID"
+        | "SNAPBACK_JOB_STATUS_ARGS_INVALID"
         // @ref LLP 0056#declaring-a-membership-table — every membership
         //   declaration-shape and activation refusal is a client fault (a bad
         //   schema or nonconforming data), never a server error.
@@ -34627,6 +34642,18 @@ globalThis.__snapbackHandlers = {
             "environment variable disabling autonomous cron claiming; manual admin ticks still run",
         ),
         (
+            "SNAPBACK_JOBS_DISABLED",
+            "environment variable disabling the autonomous one-off jobs worker; the admin forced drain still claims due jobs (LLP 0070 first slice)",
+        ),
+        (
+            "SNAPBACK_JOB_ATTEMPTS_EXHAUSTED",
+            "terminal disposition code recorded on dead-lettered job rows when an expired final attempt is swept; a job/attempt-ledger fact, never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_JOB_LEASE_EXPIRED",
+            "attempt-ledger outcome code recorded when a successor claim supersedes an expired lease; a receipt fact, never an HTTP diagnostic",
+        ),
+        (
             "SNAPBACK_CRON_DISPATCH_CONCURRENCY",
             "environment variable configuring bounded cron dispatch",
         ),
@@ -34968,6 +34995,15 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HOST_OP_UNIMPLEMENTED",
         "SNAPBACK_HOST_OP_UNKNOWN",
         "SNAPBACK_INVALID_FLOAT",
+        "SNAPBACK_JOB_ACTION_UNKNOWN",
+        "SNAPBACK_JOB_ARGS_INVALID",
+        "SNAPBACK_JOB_ATTEMPT_POLICY_INVALID",
+        "SNAPBACK_JOB_CALLEE_NOT_ADMITTED",
+        "SNAPBACK_JOB_DELAY_INVALID",
+        "SNAPBACK_JOB_ENQUEUE_LIMIT_EXCEEDED",
+        "SNAPBACK_JOB_ENQUEUE_UNAVAILABLE",
+        "SNAPBACK_JOB_IDEMPOTENCY_KEY_INVALID",
+        "SNAPBACK_JOB_STATUS_ARGS_INVALID",
         "SNAPBACK_INVALID_IDENTIFIER",
         "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH",
         "SNAPBACK_MEMBERSHIP_ACTIVATION_DANGLING_RESOURCE",
@@ -35165,6 +35201,7 @@ globalThis.__snapbackHandlers = {
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_AUTH_AGENT_UNKNOWN",
+        "SNAPBACK_JOB_UNKNOWN",
         "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
@@ -35178,6 +35215,8 @@ globalThis.__snapbackHandlers = {
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED",
+        "SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED",
         "SNAPBACK_PROJECTION_FANOUT_EXCEEDED",
         "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE",
         "SNAPBACK_MIGRATION_RESYNC_REQUIRED",
@@ -35258,6 +35297,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BUNDLE_LIMIT_TIME",
         "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE",
+        "SNAPBACK_JOB_ARGS_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
         "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE",
         "SNAPBACK_VALUE_TOO_LARGE",
@@ -35383,6 +35423,12 @@ globalThis.__snapbackHandlers = {
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        // LLP 0070 first slice: internal job-ledger invariants — a corrupt
+        // stored state, an exhausted per-job fence, or enqueues reaching
+        // commit without producer provenance are Snapback faults, never 4xx.
+        "SNAPBACK_JOB_FENCE_EXHAUSTED",
+        "SNAPBACK_JOB_PRODUCER_MISSING",
+        "SNAPBACK_JOB_STATE_INVALID",
         // LLP 0097 ephemeral-branch invariant code (branches.rs). Not yet wired
         // into any request path; it is an internal branch/promotion invariant
         // umbrella, so its truthful HTTP projection is the fail-safe 500 until a
