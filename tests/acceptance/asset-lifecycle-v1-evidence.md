@@ -24,9 +24,9 @@ background loop.
 
 | Acceptance row | Evidence |
 |---|---|
-| Stable asset reference, local preview, pause/resume/cancel/retry, id across successor | **Deferred to L1-14** (framework-neutral client task). Server half covered: `asset_retry_supersedes_and_lineage_gates_access` (same asset id across the authorized successor), `asset_attempt_lifecycle_creates_transfers_resumes_and_cancels`. |
-| Authority change blanks task/preview; late stale work generation-fenced | **Deferred to L1-14** (client half). Server generation fencing covered: superseded-attempt refusal in `asset_retry_supersedes_and_lineage_gates_access`; runner fence in `asset_runner_generation_fence_cancels_stale_work_at_claim`. |
-| SDK conformance vectors | **Deferred to L1-14** (JS vectors first; SDK staging is LLP 0064's). |
+| Stable asset reference, local preview, pause/resume/cancel/retry, id across successor | **Covered (headless task)** — `packages/snapback-client/assets.test.mjs`: closed-snapshot transitions, optimistic preview surviving to ready, pause/resume, retry preserving the asset id across the successor attempt. Server half covered: `asset_retry_supersedes_and_lineage_gates_access` (same asset id across the authorized successor), `asset_attempt_lifecycle_creates_transfers_resumes_and_cancels`. |
+| Authority change blanks task/preview; late stale work generation-fenced | **Partially covered** — persisted facts partition by authority identity (`assets.test.mjs`); the provider-replacement blanking UI leg rides the React projection (L1-14 remainder). Server generation fencing covered: superseded-attempt refusal in `asset_retry_supersedes_and_lineage_gates_access`; runner fence in `asset_runner_generation_fence_cancels_stale_work_at_claim`. |
+| SDK conformance vectors | **Deferred** (L1-14 remainder): the real-server JS vectors. The headless task's scripted-route suite (`assets.test.mjs`) covers the client half — per-PATCH sha256 checksums, whole-upload digest, deferred-length refusal — pending the live-target run. SDK staging is LLP 0064's. |
 
 ## Transfer
 
@@ -35,7 +35,7 @@ background loop.
 | TUS resume after restart; cancellation/expiry/GC structured | `asset_transfer_resumes_across_restart_on_disk`, `asset_attempt_lifecycle_creates_transfers_resumes_and_cancels`, `asset_expired_attempt_refuses_and_receipts`, `asset_gc_reclaims_expired_attempts_pending_assets_orphans_and_tombstones`. |
 | Successor supersedes; racing writers converge; late completion fenced | `asset_retry_supersedes_and_lineage_gates_access` (structural single-current partial unique index from `assets::tests`). |
 | Deferred length refused; grades honest; checksummed corruption detected at transfer | `asset_attempt_refusals_are_structured` (`SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED`), `asset_checksums_gate_chunks_and_grade_basis_demotes_without_them`, `asset_finalize_grades_honestly_and_verifies_declared_digests` (weaker grade never reported as stronger). |
-| Persisted client task state carries no bearer material | **Deferred to L1-14** (the client owns persistence). The server-side analogue is covered: operator inspection carries no staging keys/admissions (`asset_host_ops_round_trip_put_inspect_list_retry_delete`). |
+| Persisted client task state carries no bearer material | **Covered** — `assets.test.mjs` pins the exact closed member set and greps the serialized fact for bearer/staging/signing material. The server-side analogue is covered: operator inspection carries no staging keys/admissions (`asset_host_ops_round_trip_put_inspect_list_retry_delete`). |
 
 ## Staging, finalization, and publication
 
@@ -67,7 +67,7 @@ background loop.
 
 | Acceptance row | Evidence |
 |---|---|
-| owner-only denies; via-references grants/revokes with edges; live blanking | `asset_read_authorization_decides_only_through_sharing_declarations`, `asset_read_decision_pins_the_empty_edge_range_so_first_attachment_moves_it`. Live-subscription blanking: **deferred** — the WS projection follow-up (`issues/20260731-0044-live-projection-follow-up.md`); the decision function and moved-dependency re-check are the covered substrate. |
+| owner-only denies; via-references grants/revokes with edges; live blanking | `asset_read_authorization_decides_only_through_sharing_declarations`, `asset_read_decision_pins_the_empty_edge_range_so_first_attachment_moves_it`. Live-subscription blanking: **covered** — `asset_record_live_projection_publishes_wakes_and_blanks_with_no_polling` (edge removal blanks the live view; deletion blanks the owner). |
 | Sharing declarations only; mixed table cannot bypass | `asset_read_authorization_decides_only_through_sharing_declarations` (the mixed-table stand-in confers nothing). |
 | Revocation triggers refuse; ordinary redeploy finalizes frozen | Partial: the revoked-generation refusal exists (`SNAPBACK_ASSET_INTENT_REVOKED`) and hash-moved-witness-unmoved publishes frozen (`asset_finalize_witness_rechecks_benign_churn_publishes_denial_refuses`); the operator/deploy revocation surfaces and frozen-code retention are open follow-ups (`issues/20260731-0044-frozen-generation-artifact-retention.md`). |
 | Complete witness: revocation, phantom insertion, deleted row, empty query; benign churn publishes | `asset_finalize_witness_rechecks_benign_churn_publishes_denial_refuses` with the `asset_plant_missing_row_witness`/`asset_insert_phantom` fixtures. |
@@ -79,7 +79,7 @@ background loop.
 
 | Acceptance row | Evidence |
 |---|---|
-| Availability/renditions update live with no polling | **Deferred** — the WS projection follow-up ticket; `GET /assets/records/{id}` is the covered read path. Progress-cannot-settle is covered: only finalization settles quota or readiness (`asset_finalize_*`; TUS patches change no durable availability). |
+| Availability/renditions update live with no polling | **Covered** — the reserved `_snapback.assetRecord` projection: `asset_record_live_projection_publishes_wakes_and_blanks_with_no_polling` (publish delivers ready with no polling; the first attachment wakes a blank subscriber through the pinned empty-range capture) and `asset_record_live_projection_refuses_bad_input_and_unrelated_commit_stays_quiet` (fingerprint dedup; no delivery on unrelated commits). Sessions-mode establishment fails closed pending its auth-invalidation classification (the live-projection ticket's recorded remainder). Progress-cannot-settle is covered: only finalization settles quota or readiness (`asset_finalize_*`; TUS patches change no durable availability). |
 | Image processing / hostile corpus | **Deferred to the image-pipeline program** (`asset_image_pipeline_v1` is not claimed; the manifest reports the finalization fact Missing). |
 | Only closed transitions occur | The closed guards refuse unlisted transitions at the persistence layer (`assets::tests` transition tables) and every lifecycle test drives only legal paths; refusal cases in `asset_attempt_refusals_are_structured` and `asset_host_ops_refuse_bad_input_and_ride_the_envelope`. |
 
