@@ -65,6 +65,7 @@ const inventories = [
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
       'lifecycle-disposal.test.mjs',
+      'outbox-store.test.mjs',
       'package.test.mjs',
       'reservation-retry.test.mjs',
       'rqs-digest-parity.test.mjs',
@@ -130,6 +131,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'args-contract-goldens.test.mjs',
       'auth-artifacts.test.mjs',
       'auth-crypto-vectors.test.mjs',
       'authoring-validation.test.mjs',
@@ -139,6 +141,7 @@ const inventories = [
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'identifier-validation.test.mjs',
+      'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
       'maintained-projections.test.mjs',
       'operation-schemas.test.mjs',
@@ -152,6 +155,7 @@ const inventories = [
       'remote-service-publication.test.mjs',
       'retainability-profile.test.mjs',
       'review-surface.test.mjs',
+      'search-ast-fixtures.test.mjs',
       'search-result-contracts.test.mjs',
       'seed-artifact.test.mjs',
       'standard-patterns.test.mjs',
@@ -342,7 +346,14 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // gains the app-data-only façade posture suite (planted admin token,
 // redirect-terminal credentialed requests, per-class ingress bounds, bare
 // artifact fetch path).
-assert.equal(total, 127, 'reviewed package/admin test count changed');
+// 127 -> 132 (2026-07-31, wave-1 lane landings reconciled): @snapback/client
+// gains the M2 outbox store suite (`2a7bf058`, LLP 0129 Phase 0);
+// @snapback/codegen gains jobs authoring (`64dc60ef`, LLP 0070 first slice —
+// its landing updated the file list but not this reviewed total), same-file
+// inline-helper sharing (`4d72c407`, LLP 0118 option 1a), and the
+// one-argument-grammar goldens plus search-AST fixtures (`16595117`,
+// LLP 0131). Reconciled by the SD-6 scope migration's baseline pass.
+assert.equal(total, 132, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
