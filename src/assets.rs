@@ -286,9 +286,17 @@ pub struct AssetBlobRecordV1 {
     pub digest_algorithm: String,
     pub digest: String,
     pub canonicalization_policy: String,
+    pub created_at_ms: u64,
+}
+
+/// A blob's mutable state — reference count and condemnation — lives only in
+/// the table columns; `AssetBlobRecordV1` carries immutable metadata, so the
+/// JSON copy can never go stale. Readers that need the live state use this.
+#[derive(Clone, Debug)]
+pub struct AssetBlobLive {
+    pub record: AssetBlobRecordV1,
     pub reference_count: u64,
     pub condemned: bool,
-    pub created_at_ms: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -722,6 +730,17 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
              revoked INTEGER NOT NULL DEFAULT 0,
              updated_at_ms INTEGER NOT NULL
          );",
+    )?;
+    // Blob record_json once carried referenceCount/condemned copies of the
+    // mutable columns; the columns are the only representation now, and
+    // `deny_unknown_fields` would refuse the legacy members. Idempotent strip
+    // at open keeps pre-existing rows decodable.
+    tx.execute(
+        "UPDATE _snapback_asset_blobs_v1
+         SET record_json = json_remove(record_json, '$.referenceCount', '$.condemned')
+         WHERE json_extract(record_json, '$.referenceCount') IS NOT NULL
+            OR json_extract(record_json, '$.condemned') IS NOT NULL",
+        [],
     )?;
     Ok(())
 }
@@ -1621,7 +1640,7 @@ pub fn insert_blob(
              blob_id, app_id, store, physical_key, digest_algorithm, digest,
              canonicalization_policy, byte_length, reference_count, condemned,
              record_json, updated_at_ms
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?11)",
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1, 0, ?9, ?10)",
         rusqlite::params![
             record.blob_id,
             record.app_id,
@@ -1631,7 +1650,6 @@ pub fn insert_blob(
             record.digest,
             record.canonicalization_policy,
             record.byte_length,
-            record.reference_count,
             record_json,
             now_ms,
         ],
@@ -1737,6 +1755,28 @@ pub fn load_blob(tx: &Transaction<'_>, blob_id: &str) -> SnapbackResult<Option<A
         )
         .optional()?;
     json.map(|json| decode_record(&json)).transpose()
+}
+
+pub fn load_blob_live(
+    tx: &Transaction<'_>,
+    blob_id: &str,
+) -> SnapbackResult<Option<AssetBlobLive>> {
+    let row: Option<(String, u64, bool)> = tx
+        .query_row(
+            "SELECT record_json, reference_count, condemned
+             FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1",
+            [blob_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    row.map(|(json, reference_count, condemned)| {
+        Ok(AssetBlobLive {
+            record: decode_record(&json)?,
+            reference_count,
+            condemned,
+        })
+    })
+    .transpose()
 }
 
 // ---------------------------------------------------------------------------
@@ -2695,8 +2735,6 @@ mod tests {
             digest_algorithm: ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
             digest: digest.to_owned(),
             canonicalization_policy: "none".to_owned(),
-            reference_count: 1,
-            condemned: false,
             created_at_ms: 1,
         }
     }
@@ -2729,6 +2767,61 @@ mod tests {
             )
             .expect("count");
         assert_eq!(count, 2, "the loser adopted the winner's reference");
+    }
+
+    #[test]
+    fn blob_mutable_state_is_single_representation_and_legacy_json_migrates() {
+        let mut conn = Connection::open_in_memory().expect("db");
+        let tx = test_tx(&mut conn);
+        create_infra(&tx).expect("infra");
+
+        let record = blob_record("d9", "k9");
+        assert!(matches!(
+            insert_blob(&tx, &record, 1).expect("insert"),
+            BlobInsertOutcome::Created
+        ));
+        let stored: String = tx
+            .query_row(
+                "SELECT record_json FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1",
+                [&record.blob_id],
+                |row| row.get(0),
+            )
+            .expect("json");
+        assert!(
+            !stored.contains("referenceCount") && !stored.contains("condemned"),
+            "mutable state must not enter record_json: {stored}"
+        );
+        release_blob_reference(&tx, &record.blob_id, 2).expect("release");
+        assert!(condemn_blob_if_unreferenced(&tx, &record.blob_id, 3).expect("condemn"));
+        let live = load_blob_live(&tx, &record.blob_id).expect("load").expect("row");
+        assert_eq!(live.reference_count, 0);
+        assert!(live.condemned);
+        assert_eq!(live.record.digest, record.digest);
+
+        // A legacy row whose JSON still carries the removed members decodes
+        // after the idempotent open-time strip.
+        tx.execute(
+            "INSERT INTO _snapback_asset_blobs_v1 (
+                 blob_id, app_id, store, physical_key, digest_algorithm, digest,
+                 canonicalization_policy, byte_length, reference_count, condemned,
+                 record_json, updated_at_ms
+             ) VALUES ('legacy', 'app_1', 'local-fs', 'klegacy', 'sha256',
+                       'dlegacy', 'none', 42, 3, 0, ?1, 4)",
+            [format!(
+                "{{\"blobId\":\"legacy\",\"appId\":\"app_1\",\"store\":\"local-fs\",\
+                 \"physicalKey\":\"klegacy\",\"byteLength\":42,\
+                 \"detectedContentType\":\"application/octet-stream\",\
+                 \"digestAlgorithm\":\"sha256\",\"digest\":\"dlegacy\",\
+                 \"canonicalizationPolicy\":\"none\",\"referenceCount\":1,\
+                 \"condemned\":false,\"createdAtMs\":1}}"
+            )],
+        )
+        .expect("legacy row");
+        assert!(load_blob(&tx, "legacy").is_err(), "legacy json refuses pre-migration");
+        create_infra(&tx).expect("re-open migration");
+        let migrated = load_blob_live(&tx, "legacy").expect("load").expect("row");
+        assert_eq!(migrated.reference_count, 3, "columns are the authority");
+        assert_eq!(migrated.record.byte_length, 42);
     }
 
     #[test]

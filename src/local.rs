@@ -7153,8 +7153,6 @@ impl LocalSnapback {
                     digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
                     digest: digest_value.clone(),
                     canonicalization_policy: canonical_policy.to_owned(),
-                    reference_count: 1,
-                    condemned: false,
                     created_at_ms: now,
                 };
                 let (blob_id, reused) = match assets::insert_blob(tx, &blob_record, now) {
@@ -7930,8 +7928,9 @@ impl LocalSnapback {
                         )
                     })?
             };
-            let blob = assets::load_blob(tx, &rendition.blob_id)?
+            let blob = assets::load_blob_live(tx, &rendition.blob_id)?
                 .filter(|b| !b.condemned)
+                .map(|b| b.record)
                 .ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_ASSET_STORE_UNAVAILABLE",
@@ -8562,8 +8561,9 @@ impl LocalSnapback {
                             "the primary rendition record is missing",
                         )
                     })?;
-                    let blob = assets::load_blob(tx, &primary.blob_id)?
+                    let blob = assets::load_blob_live(tx, &primary.blob_id)?
                         .filter(|blob| !blob.condemned)
+                        .map(|blob| blob.record)
                         .ok_or_else(|| {
                             SnapbackError::error(
                                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
@@ -21500,8 +21500,6 @@ fn asset_commit_prepared_variant(
         digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
         digest: prepared.digest.clone(),
         canonicalization_policy: assets::ASSET_CANONICALIZATION_NONE.to_owned(),
-        reference_count: 1,
-        condemned: false,
         created_at_ms: now,
     };
     let blob_id = match assets::insert_blob(tx, &blob_record, now)? {
@@ -23768,7 +23766,8 @@ globalThis.__snapbackHandlers = {
             .asset_transaction(|tx| {
                 let rendition = crate::assets::load_rendition(tx, &rendition_id)?
                     .expect("rendition row");
-                let blob = crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob row");
+                let blob = crate::assets::load_blob_live(tx, &rendition.blob_id)?
+                    .expect("blob row");
                 let mut statement = tx.prepare(
                     "SELECT state FROM _snapback_asset_publications_v1",
                 )?;
@@ -23780,11 +23779,11 @@ globalThis.__snapbackHandlers = {
             })
             .expect("published records");
         assert_eq!(rendition.variant_key, "primary");
-        assert_eq!(blob.byte_length, 10);
-        assert_eq!(blob.reference_count, 1);
-        assert_eq!(blob.detected_content_type, "application/octet-stream");
-        assert_eq!(blob.digest_algorithm, "sha256");
-        assert!(store.blob_path(&blob.physical_key).unwrap().exists());
+        assert_eq!(blob.record.byte_length, 10);
+        assert_eq!(blob.reference_count, 1, "the live column is the authority");
+        assert_eq!(blob.record.detected_content_type, "application/octet-stream");
+        assert_eq!(blob.record.digest_algorithm, "sha256");
+        assert!(store.blob_path(&blob.record.physical_key).unwrap().exists());
         assert_eq!(publication_states, vec!["committed".to_owned()]);
         assert_eq!(accounting.reserved_bytes, 0, "completion released the reservation");
         assert_eq!(
@@ -24006,8 +24005,6 @@ globalThis.__snapbackHandlers = {
                     digest_algorithm: "sha256".to_owned(),
                     digest: digest.clone(),
                     canonicalization_policy: "none".to_owned(),
-                    reference_count: 1,
-                    condemned: false,
                     created_at_ms: 1,
                 };
                 crate::assets::insert_blob(tx, &record, 1)?;
