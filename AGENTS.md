@@ -157,7 +157,10 @@ silent wedge trap (ENG-22659).
   `cargo check`, so both the macOS framework-load wedge and a Hermes
   framework whose runtime contract mismatches the linked glue are caught at
   bootstrap time (`snapback runtime-qualify` creates the same restricted
-  no-eval VM every JS handler uses). On macOS the binary carries
+  no-eval VM every JS handler uses), and it persists the qualification as a
+  digest-bound readiness receipt (`<binary>.runtime-readiness.json`) that
+  doctor, the demo harness rungs, and `scripts/verify-local-proof` re-verify
+  before trusting a served binary. On macOS the binary carries
   an `LC_RPATH` emitted by `build.rs`, so `cargo run` finds
   `hermesvm.framework` without `DYLD_FRAMEWORK_PATH` even under SIP. Every
   bootstrap failure path fails with a stable `SNAPBACK_*` code (see LLP 0010,
@@ -167,5 +170,6 @@ silent wedge trap (ENG-22659).
   `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`, `SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED`,
   `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`,
   `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`,
-  `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`, and
+  `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`,
+  `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`, and
   `SNAPBACK_IBEX_HOST_UNSUPPORTED`.

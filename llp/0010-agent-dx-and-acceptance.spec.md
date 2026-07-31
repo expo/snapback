@@ -5,7 +5,18 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-30 (CV-2 landed: the bootstrap smoke now runs
+**Revised:** 2026-07-31 (CV-3 landed: the qualification verdict is now a
+persisted digest-bound readiness receipt — `<binary>.runtime-readiness.json`,
+`snapback.runtime-readiness.v1` — issued by every kept-target probe run and
+by `verify-local-proof`, re-verified by digest recomputation on every
+consumption; doctor checks the SERVED binary read-only; the demo harness's
+`configured`/`prebuilt` rungs verify-or-requalify and the `reused` rung
+binds `/health` identity to a coherent local receipt; one shared
+`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` code joins the registry; the
+harness's old `unpinned` identity verdict splits into
+`pinned-binary-dirty-checkout` / `unpinned-binary` (LLP 0115 CV-15) — see
+§Dated note: runtime readiness gap, "CV-3 landing");
+2026-07-30 (CV-2 landed: the bootstrap smoke now runs
 `snapback runtime-qualify` against the final linked binary, so
 `SNAPBACK_IBEX_RUNTIME_LINK_OK` proves armed handler-VM readiness and the
 incident state fails with the new `SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`;
@@ -225,6 +236,20 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
   carries the qualification verdict beside the framework digests
   (`producerInputs.nativeArtifacts`) and the binary's build identity, so an
   artifact/link-ordering incoherence is diagnosable from the record alone.
+- `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` — the persisted runtime readiness
+  receipt (`<binary>.runtime-readiness.json`,
+  `snapback.runtime-readiness.v1`) for the selected binary is absent, stale,
+  or incoherent: never issued since the binary was built, malformed, not
+  carrying an OK qualification verdict, digest-mismatched against the binary
+  (rebuilt after qualification), or digest-mismatched against the current
+  Hermes artifacts (framework refreshed/swapped after issuance). One code for
+  every consumer — doctor's read-only served-binary check, the demo
+  harness's `configured`/`prebuilt`/`reused` rungs, and
+  `scripts/verify-local-proof` — with the machine classification in
+  `details.reason` and both recoveries named
+  (`packages/snapback-cli/runtime-readiness.mjs issue` for a
+  qualify-and-reissue in milliseconds; `scripts/bootstrap-ibex-runtime` for
+  the full repair).
 
 The bootstrap validation step links, launches, and handler-VM-qualifies the
 final binary — not just `cargo check` — so the last three are caught at
@@ -871,7 +896,43 @@ Still open, deliberately: a persisted digest-bound readiness receipt
 (digests are captured and compared-by-record, not stored), and the demo
 harness's `configured`/`prebuilt`/`reused` rungs remain presence +
 `/health`-identity gates
-(issues/20260730-kit-rungs-skip-handler-vm-qualification.md).
+(issues/closed/20260730-kit-rungs-skip-handler-vm-qualification.md).
+
+**CV-3 landing (2026-07-31).** Both residues above are closed. The
+qualification is now persisted: `packages/snapback-cli/runtime-readiness.mjs`
+issues a `snapback.runtime-readiness.v1` receipt at
+`<binary>.runtime-readiness.json` — custody by colocation, so the receipt
+shares the binary's lifecycle — binding the binary's sha256, the current
+Hermes artifact digests (the same candidate set as
+`producerInputs.nativeArtifacts`, root-relative), the binary build identity,
+and the `snapback.runtime-qualify.v1` verdict. Trust never derives from
+presence: every consumption recomputes both digest sides, so a rebuild after
+qualification (`binary-drift`) or a framework refresh after issuance
+(`framework-drift`) invalidates the receipt with no bookkeeping, and a
+receipt is never issued for a failed qualification. Issuers: the
+runtime-link probe for every kept target (bootstrap's smoke and the demo
+harness's `cargo` rung), and `scripts/verify-local-proof` directly (before
+its doctor step and after its final `cargo build`). Consumers, one shared
+code (`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`, registry above):
+`scripts/ibex-doctor` verifies the SERVED binary
+(`SNAPBACK_SERVER_BINARY`, else `target/debug/snapback`) read-only —
+closing its documented structural blindness to a stale served binary — and
+names both recoveries; the demo harness's `configured`/`prebuilt` rungs
+verify before spawning and self-heal an invalid receipt by re-qualifying
+the exact resolved binary (a binary that cannot qualify fails with
+`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`; prebuilt falls back to the
+`cargo` rung, configured is a hard coded error); the `reused` rung — which
+cannot re-qualify a running process — binds the live `/health` identity to
+a locally receipted, digest-coherent runtime or refuses reuse. Acceptance:
+`tests/runtime_readiness_receipt_v0.mjs`, the receipt/tamper/rung fixtures
+in `tests/runtime_link_smoke_v0.mjs` and
+`demos/_kit/tests/server-process-lifecycle.mjs`, and the LLP 0123
+posture-neutrality regression `tests/runtime_qualify_posture_v0.rs`
+(external qualification leaves serving-process enforcement fail-closed;
+the landed subcommand shape is posture-neutral by process isolation —
+LLP 0123's 2026-07-31 note has the finding, and the standing
+first-VM-only-Enforce fact stays with LLP 0009 via
+issues/20260731-first-vm-only-strict-host-context.md).
 
 ## Open Questions
 

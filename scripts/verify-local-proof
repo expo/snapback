@@ -50,6 +50,7 @@ run node --test tests/action_fetch_fence_v0.mjs
 run node tests/ci_workflows_v0.mjs
 run node tests/cargo_target_headroom_v0.mjs
 run node --test tests/runtime_link_smoke_v0.mjs
+run node --test tests/runtime_readiness_receipt_v0.mjs
 run node scripts/check-package-test-inventory.mjs
 # @ref LLP 0115#cv-1-prove-the-public-external-packagestarter-loop — CV-1 named
 # gap 4 (the `@snapback/client/online` TS7016 class): every published subpath
@@ -80,6 +81,15 @@ run node scripts/check-guide.mjs
 # the All Aboard `headsgn` typo at compile time.
 run node scripts/check-contract-meta.mjs
 run node scripts/check-contract-meta.test.mjs
+# LLP 0115 CV-3: the doctor below verifies the served binary's persisted
+# readiness receipt read-only, so a pre-existing binary must carry a coherent
+# one before the green path can pass. Qualify-and-issue is milliseconds; a
+# binary that cannot create its handler VM fails HERE with the named code
+# instead of deep inside the first JS acceptance suite.
+if [ -x "$ROOT/target/debug/snapback" ]; then
+    run node packages/snapback-cli/runtime-readiness.mjs issue \
+        --binary "$ROOT/target/debug/snapback" --root "$ROOT" --issuer verify-local-proof
+fi
 # LLP 0032 P7: the bring-up doctor's green path (read-only; red paths are
 # proven by hand in fresh worktrees).
 run scripts/ibex-doctor
@@ -173,10 +183,13 @@ run cargo build --locked --bin snapback
 # The proof skips the bootstrap's cargo-link smoke by default
 # (SNAPBACK_BOOTSTRAP_CHECK=0), so qualify the final built binary directly:
 # create/destroy the restricted no-eval handler VM the server uses per
-# invocation. A stale Hermes-framework/binary pairing fails here in
-# milliseconds instead of as SNAPBACK_RUNTIME_CREATE_FAILED inside the first
-# JS acceptance suite (issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md).
-run "$ROOT/target/debug/snapback" runtime-qualify
+# invocation, and persist the digest-bound readiness receipt the harness
+# rungs and doctor re-verify (LLP 0115 CV-3). A stale Hermes-framework/binary
+# pairing fails here in milliseconds instead of as
+# SNAPBACK_RUNTIME_CREATE_FAILED inside the first JS acceptance suite
+# (issues/closed/20260730-bootstrap-smoke-does-not-create-armed-handler-vm.md).
+run node packages/snapback-cli/runtime-readiness.mjs issue \
+    --binary "$ROOT/target/debug/snapback" --root "$ROOT" --issuer verify-local-proof
 # @ref LLP 0041#runtime-distribution — the packaged CLI deliberately scrubs
 # LD_LIBRARY_PATH. On Linux, stage the freshly built debug executable in the
 # same bin/../lib closure as the public runtime package so these CLI proofs

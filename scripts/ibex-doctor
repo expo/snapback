@@ -296,6 +296,41 @@ if [ "$FINDINGS" -eq 0 ] && command -v cargo >/dev/null 2>&1 && command -v node 
     fi
 fi
 
+# --- 7. Served-binary readiness receipt (read-only; LLP 0115 CV-3) -----------
+
+# The exact-link probe above proves the CHECKOUT can produce a good binary; it
+# is structurally blind to a stale SERVED binary. The persisted readiness
+# receipt (`<binary>.runtime-readiness.json`, issued at bootstrap/qualify
+# time) closes that gap: verify digest coherence between the served binary,
+# the current Hermes artifacts, and the recorded qualification — read-only,
+# never re-qualifying or writing anything.
+if command -v node >/dev/null 2>&1; then
+    SERVED_BINARY="${SNAPBACK_SERVER_BINARY:-$ROOT/target/debug/snapback}"
+    if [ -f "$SERVED_BINARY" ]; then
+        receipt_status=0
+        receipt_json="$(node "$ROOT/packages/snapback-cli/runtime-readiness.mjs" verify \
+            --binary "$SERVED_BINARY" --root "$ROOT" --json)" || receipt_status=$?
+        if printf '%s' "$receipt_json" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+            receipt_reason="$(printf '%s' "$receipt_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("reason") or "unknown")')"
+            if [ "$receipt_status" -eq 0 ]; then
+                note "OK served binary readiness receipt is digest-coherent ($SERVED_BINARY)"
+            else
+                receipt_message="$(printf '%s' "$receipt_json" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("diagnostic") or {}).get("message") or "")')"
+                report ERROR SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID \
+                    "readiness receipt $receipt_reason for the served binary $SERVED_BINARY: $receipt_message"
+                hint "node $ROOT/packages/snapback-cli/runtime-readiness.mjs issue --binary $SERVED_BINARY  # re-qualify and reissue in milliseconds"
+                hint "$ROOT/scripts/bootstrap-ibex-runtime  # full repair: refresh artifacts, relink, qualify, reissue"
+            fi
+        else
+            report ERROR SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID \
+                "the readiness receipt verifier failed without a structured report (exit $receipt_status)"
+            hint "node $ROOT/packages/snapback-cli/runtime-readiness.mjs verify --binary $SERVED_BINARY"
+        fi
+    else
+        note "INFO no served snapback binary at $SERVED_BINARY yet; scripts/bootstrap-ibex-runtime issues its readiness receipt at build time"
+    fi
+fi
+
 # --- Verdict -----------------------------------------------------------------
 
 if [ "$JSON_MODE" = 1 ]; then

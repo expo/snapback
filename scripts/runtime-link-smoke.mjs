@@ -30,6 +30,11 @@ import {
   qualifyRuntimeBinary,
   readCheckoutRuntimeIdentity,
 } from '../packages/snapback-cli/runtime-recovery.mjs';
+import {
+  RUNTIME_READINESS_INVALID_CODE,
+  issueRuntimeReadinessReceipt,
+  runtimeArtifactCandidates,
+} from '../packages/snapback-cli/runtime-readiness.mjs';
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
@@ -93,16 +98,9 @@ function producerInputs(root, cargoCommand, cargoArgs, environment) {
       ))
       .sort(([left], [right]) => left.localeCompare(right)),
   );
-  const candidates = process.platform === 'darwin'
-    ? [
-        join(root, 'vendor/ibex/ios/Frameworks/hermes-headers/hermes/hermes.h'),
-        join(root, 'vendor/ibex/ios/Frameworks/hermesvm.framework/hermesvm'),
-        join(root, 'vendor/ibex/ios/Frameworks/hermes.framework/hermes'),
-      ]
-    : [
-        join(root, 'vendor/ibex/linux/hermes-headers/hermes/hermes.h'),
-        join(root, 'vendor/ibex/linux/lib/libhermesvm.so'),
-      ];
+  // One digest vocabulary: the same candidate set the persisted readiness
+  // receipt records and re-verifies (LLP 0115 CV-3).
+  const candidates = runtimeArtifactCandidates(root);
   return {
     root,
     manifest: join(root, 'Cargo.toml'),
@@ -381,6 +379,48 @@ export async function runRuntimeLinkProbe({
         }),
       };
     }
+    // A kept target is a binary that will be SERVED (bootstrap's
+    // `--target-dir target --keep-target`, the kit's cargo rung), so persist
+    // the qualification as the CV-3 readiness receipt beside it. The
+    // disposable path (doctor) stays read-only and persists nothing.
+    let receiptPath = null;
+    if (keepTarget) {
+      try {
+        ({ receiptPath } = issueRuntimeReadinessReceipt({
+          root,
+          binaryPath: binary,
+          qualification: qualificationRecord,
+          issuer: 'runtime-link-smoke',
+        }));
+      } catch (error) {
+        const code = RUNTIME_READINESS_INVALID_CODE;
+        const diagnostic = {
+          code,
+          severity: 'error',
+          subsystem: 'runtime-readiness',
+          message: `the binary qualified but its readiness receipt could not be persisted: ${error.message}`,
+          details: { qualification: qualificationRecord, producerInputs: inputs },
+        };
+        return {
+          ok: false,
+          diagnostic,
+          recovery: createRuntimeRecoveryRecord({
+            selectedBinary: binary,
+            selectionRung: 'exact-link-probe',
+            expected,
+            actualStamp: inspected.stamp,
+            buildable: true,
+            runnable: true,
+            qualification: qualificationRecord,
+            reuseAllowed: false,
+            reuseReason: 'qualification passed but no persisted readiness receipt exists; downstream consumers would refuse this runtime',
+            diagnostic: { code, missingSymbols: [] },
+            producerInputs: inputs,
+            repairCommand: `${join(root, 'scripts/bootstrap-ibex-runtime')}`,
+          }),
+        };
+      }
+    }
     return {
       ok: true,
       diagnostic: {
@@ -388,7 +428,7 @@ export async function runRuntimeLinkProbe({
         severity: 'info',
         subsystem: 'runtime-link',
         message: 'the current checkout linked, launched, and handler-VM-qualified an exact disposable snapback binary',
-        details: { qualification: qualificationRecord, producerInputs: inputs },
+        details: { qualification: qualificationRecord, receiptPath, producerInputs: inputs },
       },
       recovery: createRuntimeRecoveryRecord({
         selectedBinary: keepTarget ? binary : null,

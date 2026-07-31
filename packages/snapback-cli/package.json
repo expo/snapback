@@ -19,6 +19,7 @@
     "mcp-control.mjs",
     "runtime-recovery.d.mts",
     "runtime-recovery.mjs",
+    "runtime-readiness.mjs",
     "adapters/fly-machines-vm-driver.mjs",
     "hosted-schemas",
     "fixtures/comparator/green.config.mjs",
@@ -53,6 +54,10 @@
     "./runtime-recovery": {
       "types": "./runtime-recovery.d.mts",
       "default": "./runtime-recovery.mjs"
+    },
+    "./runtime-readiness": {
+      "types": "./runtime-readiness.d.mts",
+      "default": "./runtime-readiness.mjs"
     },
     "./package.json": "./package.json"
   },

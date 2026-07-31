@@ -21,6 +21,11 @@ import {
   runRuntimeLinkProbe,
   stageLinuxLoaderClosure,
 } from '../scripts/runtime-link-smoke.mjs';
+import {
+  runtimeArtifactCandidates,
+  runtimeReadinessReceiptPath,
+  verifyRuntimeReadinessReceipt,
+} from '../packages/snapback-cli/runtime-readiness.mjs';
 
 function writeExecutable(path, contents) {
   mkdirSync(dirname(path), { recursive: true });
@@ -241,6 +246,134 @@ chmodSync(binary, 0o755);
   }
 });
 
+test('a kept target persists a readiness receipt; a framework swap after issuance is refused', async () => {
+  // LLP 0115 CV-3: the probe's OK on a kept (served) binary must leave the
+  // digest-bound receipt every consumer re-verifies, and a Hermes artifact
+  // refreshed after issuance must invalidate it rather than be served.
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-receipt-'));
+  try {
+    writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
+    writeFileSync(join(scratch, 'Cargo.lock'), '');
+    for (const candidate of runtimeArtifactCandidates(scratch)) {
+      writeFixture(candidate, `fixture artifact ${candidate}`);
+    }
+    const cargo = join(scratch, 'fake-cargo.mjs');
+    writeExecutable(cargo, `#!/usr/bin/env node
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+if (process.argv[2] === '--version') {
+  console.log('cargo 1.99.0-fixture');
+  process.exit(0);
+}
+const index = process.argv.indexOf('--target-dir');
+const binary = join(process.argv[index + 1], 'debug', 'snapback');
+mkdirSync(dirname(binary), {recursive:true});
+writeFileSync(binary, \`#!/usr/bin/env node
+if (process.argv[2] === 'runtime-qualify') {
+  console.log(JSON.stringify({
+    schemaVersion:'snapback.runtime-qualify.v1',
+    probe:'restricted-no-eval-handler-vm',
+    ok:true,
+    binary:{gitCommit:'receipt-cafebabe',gitDirty:false,crateVersion:'1.2.3',buildProfile:'debug'}
+  }));
+  process.exit(0);
+}
+console.log(JSON.stringify({binary:{
+  gitCommit:'receipt-cafebabe',
+  gitDirty:false,
+  crateVersion:'1.2.3',
+  buildProfile:'debug'
+}}));
+\`);
+chmodSync(binary, 0o755);
+`);
+    const target = join(scratch, 'kept-target');
+    const result = await runRuntimeLinkProbe({
+      root: scratch,
+      cargoCommand: cargo,
+      timeoutMs: 5_000,
+      targetDirectory: target,
+      keepTarget: true,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostic));
+    const binary = join(target, 'debug', 'snapback');
+    assert.equal(result.diagnostic.details.receiptPath, runtimeReadinessReceiptPath(binary));
+    assert.equal(existsSync(runtimeReadinessReceiptPath(binary)), true, 'the kept binary must carry its receipt');
+
+    const coherent = verifyRuntimeReadinessReceipt({ root: scratch, binaryPath: binary });
+    assert.equal(coherent.ok, true, JSON.stringify(coherent.diagnostic));
+    assert.equal(coherent.receipt.qualification.ok, true);
+    assert.equal(coherent.receipt.buildIdentity.gitCommit, 'receipt-cafebabe');
+
+    // The rerun incident's shape, post-receipt: refresh a Hermes artifact
+    // under the already-qualified binary. Consumption must refuse.
+    const [artifact] = runtimeArtifactCandidates(scratch).filter((path) => existsSync(path));
+    writeFileSync(artifact, 'a swapped framework the qualification never saw');
+    const swapped = verifyRuntimeReadinessReceipt({ root: scratch, binaryPath: binary });
+    assert.equal(swapped.ok, false);
+    assert.equal(swapped.reason, 'framework-drift');
+    assert.equal(swapped.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('a VM-refusing kept binary gets no receipt', async () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-no-receipt-'));
+  try {
+    writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
+    writeFileSync(join(scratch, 'Cargo.lock'), '');
+    if (process.platform === 'linux') {
+      writeFixture(
+        join(scratch, 'vendor', 'ibex', 'linux', 'lib', 'libhermesvm.so'),
+        'fixture Hermes closure',
+      );
+    }
+    const cargo = join(scratch, 'fake-cargo.mjs');
+    writeExecutable(cargo, `#!/usr/bin/env node
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+if (process.argv[2] === '--version') {
+  console.log('cargo 1.99.0-fixture');
+  process.exit(0);
+}
+const index = process.argv.indexOf('--target-dir');
+const binary = join(process.argv[index + 1], 'debug', 'snapback');
+mkdirSync(dirname(binary), {recursive:true});
+writeFileSync(binary, \`#!/usr/bin/env node
+if (process.argv[2] === 'runtime-qualify') {
+  console.log(JSON.stringify({
+    schemaVersion:'snapback.runtime-qualify.v1',
+    probe:'restricted-no-eval-handler-vm',
+    ok:false,
+    diagnostic:{code:'SNAPBACK_RUNTIME_CREATE_FAILED',severity:'error',subsystem:'runtime',message:'Ibex runtime could not be created'}
+  }));
+  process.exit(1);
+}
+console.log(JSON.stringify({binary:{gitCommit:'x',gitDirty:false,crateVersion:'1.2.3',buildProfile:'debug'}}));
+\`);
+chmodSync(binary, 0o755);
+`);
+    const target = join(scratch, 'kept-target');
+    const result = await runRuntimeLinkProbe({
+      root: scratch,
+      cargoCommand: cargo,
+      timeoutMs: 5_000,
+      targetDirectory: target,
+      keepTarget: true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED');
+    assert.equal(
+      existsSync(runtimeReadinessReceiptPath(join(target, 'debug', 'snapback'))),
+      false,
+      'a failed qualification must never leave a readiness receipt',
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('a caller-owned target directory is never recursively deleted', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-owned-target-'));
   const target = join(scratch, 'caller-target');
@@ -381,6 +514,10 @@ test('repository doctor surfaces the exact-link failure and recovery record', ()
     copyFileSync(new URL('../scripts/ibex-doctor', import.meta.url), join(scripts, 'ibex-doctor'));
     copyFileSync(new URL('../scripts/runtime-link-smoke.mjs', import.meta.url), join(scripts, 'runtime-link-smoke.mjs'));
     copyFileSync(new URL('../packages/snapback-cli/runtime-recovery.mjs', import.meta.url), runtimeModule);
+    copyFileSync(
+      new URL('../packages/snapback-cli/runtime-readiness.mjs', import.meta.url),
+      join(dirname(runtimeModule), 'runtime-readiness.mjs'),
+    );
     chmodSync(join(scripts, 'ibex-doctor'), 0o755);
     chmodSync(join(scripts, 'runtime-link-smoke.mjs'), 0o755);
     writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
@@ -437,6 +574,19 @@ process.exit(1);
     assert(
       report.checks.some((check) => check.code === 'SNAPBACK_IBEX_RUNTIME_LINK_FAILED'),
       JSON.stringify(report),
+    );
+    // LLP 0115 CV-3: the doctor also verifies the SERVED binary's persisted
+    // readiness receipt — read-only. The stale binary here carries none, so
+    // the shared receipt code is reported and no receipt is created.
+    assert(
+      report.checks.some((check) => check.code === 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID'
+        && check.severity === 'ERROR'),
+      JSON.stringify(report),
+    );
+    assert.equal(
+      existsSync(`${stale}.runtime-readiness.json`),
+      false,
+      'doctor must stay read-only: detection never issues a receipt',
     );
     assert.equal(report.runtimeRecovery.schemaVersion, 'snapback.runtime-recovery.v1');
     assert.equal(report.runtimeRecovery.selectedBinary, realpathSync(stale));
