@@ -5,7 +5,27 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.2, round-1 fixes: round 1 of the Wave-1
+**Revised:** 2026-07-31 (v0.3, round-2 fixes: round 2 of the Wave-1
+Spec loop returned READY from Fable
+(`reviews/0133-local-settlement.fable.md`: both round-1 MATERIALs and
+all eight DETAILs resolved; fresh findings one DETAIL + two NITs,
+none blocking) and NOT READY from Codex
+(`reviews/0133-local-settlement.codex.md`: M1/M3–M6 and D1–D2
+resolved; one surviving MATERIAL, the round-1 M2 residue — raw
+call-index id-map pairing lets equal-count divergent branches map a
+speculative row's mint onto an unrelated authoritative row).
+Applied: the Codex M2 residue — §Divergence class 1's id-map pairing
+rekeyed from ctx call index to logical mint identity, (mint site,
+occurrence), with count-or-site mismatch left unmapped into the
+existing cascade path, never a guessed pairing; sketch 3 gained the
+equal-count/different-mint-site adversarial variant and OQ2's
+residue narrowed to the within-site occurrence case. Fable D9 —
+lane-L intent records, claims included, are immutable after capture;
+a retry re-presents the identical recorded claim set or fails closed
+in the reused family (§Re-derivation). Fable N1 — sketch 9 names the
+bridge-marking surface: the store seam's exposed layer status via
+the seam extension and OQ1's projection.) 2026-07-31 (v0.2,
+round-1 fixes: round 1 of the Wave-1
 Spec loop returned NOT READY from both families
 (`reviews/0133-local-settlement.fable.md`: 2 MATERIAL + 8 DETAIL;
 `reviews/0133-local-settlement.codex.md`: 6 MATERIAL + 3 DETAIL).
@@ -223,7 +243,10 @@ Rules:
   `clientMutationId` is a fresh full settlement; under re-derivation
   the fresh run re-derives again, so no captured value can go stale
   across retries. In lane Q the retry re-presents the same captured
-  environment, per the pin.
+  environment, per the pin. In lane L the intent record, claims
+  included, is immutable after capture: a retry re-presents the
+  identical recorded claim set — never a local re-capture — or fails
+  closed in the reused family (§Exactly-once identity).
 
 ## Exactly-once identity under the new semantics
 
@@ -400,18 +423,39 @@ Divergence classes:
 
 1. **Id divergence (lane L default).** The receipt carries a
    normative **id-map** for the ids the local run minted.
-   *Construction:* pairing is by ctx id-call index — the local run's
-   i-th `ctx.runtime.id()` answer maps to the settlement run's i-th.
-   A pairing exists only where the two runs' id-call sequences align:
-   on call-count divergence the unpaired speculative ids are recorded
-   **unmapped**, and a speculative id whose authoritative counterpart
-   was never minted (the settlement branch did not reach the mint, or
-   the mutation was rejected) is unmapped too. An unmapped id takes
-   the cascade path below exactly like a rejected mint — never a
-   guessed pairing. Stated residue: equal call counts across a
-   divergent branch can pair ids of different semantic roles;
-   call-index pairing cannot detect that case, and OQ2's typed
-   references are its graduation path.
+   *Construction:* pairing is by **logical mint identity** — (mint
+   site, occurrence) — never raw call index. The mint site is the
+   stable identity of the minting instruction within the executed
+   artifact: for the shipped HostPlan form, the plan-step identity
+   plus the within-step mint slot (an `Insert`/`InsertEach` row id or
+   an expression-evaluated `ctx.runtime.id()` answer position — the
+   shipped `PlanIdSource` answers positionally, and every answer is
+   already anchored at exactly one such site); for the LLP 0051 D2 IR
+   evaluator, the IR instruction's stable identity. The occurrence
+   index counts that site's mints in execution order (fan-out
+   iterations at one site). A lane-L submission's recorded claim set
+   carries each minted id's (mint site, occurrence) — the recorded-
+   answer format is versioned (LLP 0051 D5) precisely so the lane-L
+   recording can carry this — and the settlement run records its own
+   mint sequence first-hand. The two are server-comparable because
+   both runs execute the identical artifact: the elements-1/5
+   mismatch dependency (§What settlement consumes) already requires
+   that a submission whose executed identity differs from the
+   server's active artifact never silently settles as matched. The
+   local run's mint at (site, occurrence) maps to the authoritative
+   mint at the same (site, occurrence) and to nothing else. Every
+   mismatch leaves ids **unmapped**, never re-paired: a speculative
+   mint at a site the settlement run never reached (divergent branch,
+   or the mutation was rejected), the unpaired occurrences of a site
+   whose per-site count diverged, and every mint of a claim set that
+   recorded no mint sites at all. An unmapped id takes the cascade
+   path below exactly like a rejected mint — never a guessed
+   pairing — so equal mint counts across divergent branches can no
+   longer cross-map unrelated rows' ids. Stated residue, narrowed:
+   within one site, occurrence pairing is positional, so a fan-out
+   whose source collection diverged between runs can pair different
+   items' mints at the same (site, occurrence); OQ2's typed
+   references graduate that residue too.
    *Rewrite:* the client (a) lets overlay retirement replace retained
    rows with the authoritative ones, and (b) rewrites
    **not-yet-submitted** pending intents whose args reference a
@@ -563,12 +607,21 @@ Falsifiable, per house rule; each lands with the implementing slice.
    submitted with the dangling id. Transitive variant: a third intent
    references the second's minted id; the second's cascade failure is
    terminal, so the third cascades too. Divergence variant: the
-   settlement run's id-call count differs from the local run's; the
-   unpaired ids come back unmapped and dependents cascade. Leaf-rule
+   settlement run's mint sequence differs from the local run's; every
+   speculative mint without an authoritative mint at the same
+   (mint-site, occurrence) comes back unmapped and dependents
+   cascade. Adversarial equal-count variant: local and settlement
+   runs take divergent branches that each mint exactly one id, at
+   different mint sites — row A's insert locally, an unrelated row
+   B's insert authoritatively; the speculative mint comes back
+   unmapped — no cross-site pairing — and the dependent referencing
+   speculative row A cascades instead of being rewritten to row B and
+   submitted against the wrong row. Leaf-rule
    variant: a minted id copied into a non-reference arg field is
    rewritten — the documented false positive, pinning the rule's
-   exact scope. Falsified by a guessed pairing or a dependent
-   submitted past an unmapped or failed predecessor.
+   exact scope. Falsified by a guessed pairing (any cross-site
+   mapping) or a dependent submitted past an unmapped or failed
+   predecessor.
 4. **Bounded skew.** A declared field within `maxSkewMs` settles with
    the claimed value, disposition `accepted-bounded-skew`, capability
    fact present; the same field out of bound settles re-derived and
@@ -612,7 +665,10 @@ Falsifiable, per house rule; each lands with the implementing slice.
    view converges at delivery ≥ the receipt's `snapshotVersion`.
    Delivery before confirmation: the matcher suppresses the layer and
    confirmation splices it. Delayed delivery: the bridge persists,
-   marked speculative, without flickering to pre-mutation state.
+   marked speculative — the mark is the store seam's exposed layer
+   status, carried to applications by §Divergence's seam extension
+   under OQ1's projection, not per-row provenance — without
+   flickering to pre-mutation state.
    Falsified if settlement alone is treated as convergence or a
    confirmed layer outlives the conservative fallback.
 10. **Reservation-stale retry.** A settlement attempt that loses its
@@ -645,9 +701,10 @@ handlers may execute locally (row 2's territory).
    id-map rewrite surface is contract-visible rather than
    leaf-equality-based? Interacts with row 2's bounded-profile
    admission vocabulary. The leaf-equality rule above is the stated
-   floor, with its two error classes and the call-index pairing
-   residue explicitly scoped (§Divergence, class 1); OQ2 is the
-   graduation path that removes them.
+   floor, with its two error classes and the within-site occurrence
+   residue of (mint-site, occurrence) pairing explicitly scoped
+   (§Divergence, class 1); OQ2 is the graduation path that removes
+   them.
 3. The capability-fact spelling and guide row for
    `settlement.bounded_skew`, with LLP 0012's claim classes and the
    guide conventions.
