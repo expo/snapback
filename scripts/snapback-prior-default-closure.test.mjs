@@ -22,7 +22,7 @@ import {
 } from '../packages/snapback-publication-authority/protocol.mjs';
 import {
   PUBLIC_NPM_REGISTRY,
-  PROMOTION_PACKAGE_NAMES,
+  LEGACY_PROMOTION_PACKAGE_NAMES,
 } from './snapback-publish-core.mjs';
 import {
   validatePriorDefaultClosureReceipt,
@@ -49,7 +49,7 @@ function fixture(root, dependencies = {}) {
   const packageRoot = join(root, 'package-source', 'package');
   mkdirSync(packageRoot, { recursive: true });
   mkdirSync(artifactRoot, { recursive: true });
-  const firstName = PROMOTION_PACKAGE_NAMES[0];
+  const firstName = LEGACY_PROMOTION_PACKAGE_NAMES[0];
   const manifestBytes = Buffer.from(JSON.stringify({
     name: firstName,
     version: '0.1.0',
@@ -63,7 +63,7 @@ function fixture(root, dependencies = {}) {
   execFileSync('tar', ['-czf', tarball, '-C', join(root, 'package-source'), 'package']);
   const tarballBytes = readFileSync(tarball);
   const priorVector = Object.fromEntries(
-    PROMOTION_PACKAGE_NAMES.map((name, index) => [
+    LEGACY_PROMOTION_PACKAGE_NAMES.map((name, index) => [
       name,
       index === 0 ? '0.1.0' : null,
     ]),
@@ -74,7 +74,7 @@ function fixture(root, dependencies = {}) {
     peerDependencies: {},
     devDependencies: {},
   };
-  const packages = PROMOTION_PACKAGE_NAMES.map((name, index) => (
+  const packages = LEGACY_PROMOTION_PACKAGE_NAMES.map((name, index) => (
     index === 0
       ? {
         name,

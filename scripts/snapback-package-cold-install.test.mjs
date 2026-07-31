@@ -665,8 +665,8 @@ function retainedComparatorReceiptFixture({
   version,
   runtimeBinarySha256 = '9'.repeat(64),
   executorPackageNames = {
-    cli: '@snapback/cli',
-    client: '@snapback/client',
+    cli: '@expo/snapback-cli',
+    client: '@expo/snapback-client',
   },
 }) {
   const startedAtMs = 1_785_280_000_000;
@@ -946,8 +946,8 @@ function githubReceiptProvenance({
     sourceCheckout: { headSha: revision, dirty: false },
     proofHarnessCheckout: { headSha: runHeadSha, dirty: false },
     githubProof: {
-      repository: 'ccheever/snapback',
-      workflowRef: `ccheever/snapback/.github/workflows/${workflow}@${ref}`,
+      repository: 'expo/snapback',
+      workflowRef: `expo/snapback/.github/workflows/${workflow}@${ref}`,
       ref,
       eventName: workflow === 'qualified-package-staging.yml'
         ? 'push'
@@ -962,7 +962,7 @@ function githubReceiptProvenance({
       separatelyProvisionedCleanMachine: true,
       githubRunId: runId,
       githubRunAttempt: runAttempt,
-      githubRepository: 'ccheever/snapback',
+      githubRepository: 'expo/snapback',
       githubWorkflowSha: runHeadSha,
       proofHarnessRevision: runHeadSha,
     },
@@ -1303,7 +1303,7 @@ function closedCandidateFixture() {
     revision,
     registry: PUBLIC_NPM_REGISTRY,
     tag: `bakeoff-0-1-1-${revision.slice(0, 12)}`,
-    scopePreset: 'ccheever',
+    scopePreset: 'identity',
     version,
     runtimePlatforms: ['darwin-arm64', 'linux-x64'],
     qualifiedLedgerSha256: '2'.repeat(64),
@@ -1322,10 +1322,10 @@ function closedCandidateFixture() {
       devDependencies: {},
       tarball: `package-${publicationOrder}.tgz`,
       sha256: 'a'.repeat(64),
-      runtimeBinarySha256: sourceName.startsWith('@snapback/runtime-')
+      runtimeBinarySha256: sourceName.startsWith('@expo/snapback-runtime-')
         ? 'b'.repeat(64)
         : null,
-      runtimeSupportSha256: sourceName.startsWith('@snapback/runtime-')
+      runtimeSupportSha256: sourceName.startsWith('@expo/snapback-runtime-')
         ? 'c'.repeat(64)
         : null,
       files: 2,
@@ -1341,7 +1341,7 @@ function closedCandidateFixture() {
   return candidate;
 }
 
-test('all dependency classes require normative source-keyed exact npm aliases', () => {
+test('all dependency classes require direct exact terminal internal versions', () => {
   for (const section of [
     'dependencies',
     'optionalDependencies',
@@ -1349,35 +1349,55 @@ test('all dependency classes require normative source-keyed exact npm aliases', 
     'devDependencies',
   ]) {
     const valid = {
-      name: '@ccheever/snapback-react',
+      name: '@expo/snapback-react',
       [section]: {
-        '@snapback/client': 'npm:@ccheever/snapback-client@0.1.1',
+        '@expo/snapback-client': '0.1.1',
       },
     };
     assert.equal(validateInternalDependencyClosure(valid, '0.1.1'), undefined);
     for (const [dependency, value] of [
+      ['@expo/snapback-client', '^0.1.1'],
+      ['@expo/snapback-client', 'latest'],
+      ['@expo/snapback-client', '0.1.0'],
+      ['@expo/snapback-client', 'npm:@expo/snapback-client@0.1.1'],
+      ['@snapback/client', 'npm:@ccheever/snapback-client@0.1.1'],
       ['@ccheever/snapback-client', '0.1.1'],
-      ['@ccheever/snapback-client', '^0.1.1'],
-      ['@ccheever/snapback-client', 'latest'],
-      ['@snapback/client', 'npm:@ccheever/snapback-client@latest'],
-      ['@snapback/client', 'npm:@ccheever/snapback-client@0.1.0'],
+      ['@expo/snapback-unknown', '0.1.1'],
     ]) {
       assert.throws(
         () => validateInternalDependencyClosure({
-          name: '@ccheever/snapback-react',
+          name: '@expo/snapback-react',
           [section]: { [dependency]: value },
         }, '0.1.1'),
-        /normative|exact alias|candidate vector/u,
+        /pre-migration|candidate vector|package inventory/u,
       );
     }
   }
+  // Recorded legacy closures (decision-9 lineage) still validate under the
+  // retired ccheever preset: @snapback source keys with exact npm aliases.
+  assert.equal(
+    validateInternalDependencyClosure({
+      name: '@ccheever/snapback-react',
+      dependencies: {
+        '@snapback/client': 'npm:@ccheever/snapback-client@0.1.1',
+      },
+    }, '0.1.1', 'ccheever'),
+    undefined,
+  );
+  assert.throws(
+    () => validateInternalDependencyClosure({
+      name: '@ccheever/snapback-react',
+      dependencies: { '@snapback/client': 'npm:@ccheever/snapback-client@latest' },
+    }, '0.1.1', 'ccheever'),
+    /exact alias/u,
+  );
 });
 
 test('public-install ledger validation requires the complete immutable closure', () => {
   const sourceNames = [
-    '@snapback/runtime-darwin-arm64',
-    '@snapback/runtime-linux-x64',
-    '@snapback/contract',
+    '@expo/snapback-runtime-darwin-arm64',
+    '@expo/snapback-runtime-linux-x64',
+    '@expo/snapback-contract',
   ];
   const ledger = {
     schemaVersion: 'snapback.package-publication.v1',
@@ -1386,11 +1406,11 @@ test('public-install ledger validation requires the complete immutable closure',
     revision: '0'.repeat(40),
     registry: PUBLIC_NPM_REGISTRY,
     tag: 'latest',
-    scopePreset: 'ccheever',
+    scopePreset: 'identity',
     version: '0.1.0',
     packages: sourceNames.map((sourceName) => ({
       sourceName,
-      name: `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`,
+      name: sourceName,
       version: '0.1.0',
       status: 'published',
       sha256: 'a'.repeat(64),
@@ -1539,17 +1559,17 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
         version: qualified.version,
         executorPackageNames: {
           cli: qualified.packages.find(
-            (row) => row.sourceName === '@snapback/cli',
+            (row) => row.sourceName === '@expo/snapback-cli',
           ).name,
           client: qualified.packages.find(
-            (row) => row.sourceName === '@snapback/client',
+            (row) => row.sourceName === '@expo/snapback-client',
           ).name,
         },
         runtimeBinarySha256: qualified.packages.find((row) => (
           row.sourceName === (
             platform === 'darwin'
-              ? '@snapback/runtime-darwin-arm64'
-              : '@snapback/runtime-linux-x64'
+              ? '@expo/snapback-runtime-darwin-arm64'
+              : '@expo/snapback-runtime-linux-x64'
           )
         )).runtimeBinarySha256,
       }),
@@ -1635,18 +1655,18 @@ test('latest-root proof binds the root closure and complete default-tag vector',
   const candidate = closedCandidateFixture();
   const tree = {
     dependencies: {
-      '@snapback/cli': {
+      '@expo/snapback-cli': {
         version: candidate.version,
         dependencies: {
-          '@snapback/client': {
+          '@expo/snapback-client': {
             version: candidate.version,
             dependencies: {
-              '@snapback/contract': { version: candidate.version },
+              '@expo/snapback-contract': { version: candidate.version },
             },
           },
-          '@snapback/codegen': { version: candidate.version },
-          '@snapback/runtime-darwin-arm64': { version: candidate.version },
-          '@snapback/runtime-linux-x64': {},
+          '@expo/snapback-codegen': { version: candidate.version },
+          '@expo/snapback-runtime-darwin-arm64': { version: candidate.version },
+          '@expo/snapback-runtime-linux-x64': {},
         },
       },
     },
@@ -1658,7 +1678,7 @@ test('latest-root proof binds the root closure and complete default-tag vector',
   const resolution = validateLatestRootResolution({
     tree,
     ledger: candidate,
-    hostRuntime: '@snapback/runtime-darwin-arm64',
+    hostRuntime: '@expo/snapback-runtime-darwin-arm64',
     tagVector,
   });
   assert.equal(resolution.selected, candidate.version);
@@ -1666,59 +1686,59 @@ test('latest-root proof binds the root closure and complete default-tag vector',
   assert.deepEqual(
     resolution.omittedOptionalPlatformRuntimes,
     [{
-      sourceName: '@snapback/runtime-linux-x64',
+      sourceName: '@expo/snapback-runtime-linux-x64',
       treePath: [
-        '@snapback/cli',
-        '@snapback/runtime-linux-x64',
+        '@expo/snapback-cli',
+        '@expo/snapback-runtime-linux-x64',
       ],
     }],
   );
   const missingRequired = structuredClone(tree);
-  missingRequired.dependencies['@snapback/cli'].dependencies['@snapback/client'] = {};
+  missingRequired.dependencies['@expo/snapback-cli'].dependencies['@expo/snapback-client'] = {};
   assert.throws(
     () => validateLatestRootResolution({
       tree: missingRequired,
       ledger: candidate,
-      hostRuntime: '@snapback/runtime-darwin-arm64',
+      hostRuntime: '@expo/snapback-runtime-darwin-arm64',
       tagVector,
     }),
-    /dependency @snapback\/client has no installed version/u,
+    /dependency @expo\/snapback-client has no installed version/u,
   );
   const missingHostRuntime = structuredClone(tree);
-  missingHostRuntime.dependencies['@snapback/cli'].dependencies[
-    '@snapback/runtime-darwin-arm64'
+  missingHostRuntime.dependencies['@expo/snapback-cli'].dependencies[
+    '@expo/snapback-runtime-darwin-arm64'
   ] = {};
   assert.throws(
     () => validateLatestRootResolution({
       tree: missingHostRuntime,
       ledger: candidate,
-      hostRuntime: '@snapback/runtime-darwin-arm64',
+      hostRuntime: '@expo/snapback-runtime-darwin-arm64',
       tagVector,
     }),
-    /dependency @snapback\/runtime-darwin-arm64 has no installed version/u,
+    /dependency @expo\/snapback-runtime-darwin-arm64 has no installed version/u,
   );
   const duplicateOmission = structuredClone(tree);
-  duplicateOmission.dependencies['@snapback/cli'].dependencies[
-    '@snapback/client'
-  ].dependencies['@snapback/runtime-linux-x64'] = {};
+  duplicateOmission.dependencies['@expo/snapback-cli'].dependencies[
+    '@expo/snapback-client'
+  ].dependencies['@expo/snapback-runtime-linux-x64'] = {};
   assert.throws(
     () => validateLatestRootResolution({
       tree: duplicateOmission,
       ledger: candidate,
-      hostRuntime: '@snapback/runtime-darwin-arm64',
+      hostRuntime: '@expo/snapback-runtime-darwin-arm64',
       tagVector,
     }),
-    /dependency @snapback\/runtime-linux-x64 has no installed version/u,
+    /dependency @expo\/snapback-runtime-linux-x64 has no installed version/u,
   );
   const materializedOpposite = structuredClone(tree);
-  materializedOpposite.dependencies['@snapback/runtime-linux-x64'] = {
+  materializedOpposite.dependencies['@expo/snapback-runtime-linux-x64'] = {
     version: candidate.version,
   };
   assert.throws(
     () => validateLatestRootResolution({
       tree: materializedOpposite,
       ledger: candidate,
-      hostRuntime: '@snapback/runtime-darwin-arm64',
+      hostRuntime: '@expo/snapback-runtime-darwin-arm64',
       tagVector,
     }),
     /materialized the opposite platform runtime/u,
@@ -1727,7 +1747,7 @@ test('latest-root proof binds the root closure and complete default-tag vector',
     () => validateLatestRootResolution({
       tree,
       ledger: candidate,
-      hostRuntime: '@snapback/runtime-darwin-arm64',
+      hostRuntime: '@expo/snapback-runtime-darwin-arm64',
       tagVector: { ...tagVector, [candidate.packages[0].name]: '0.1.0' },
     }),
     /default-tag vector drifted/u,
@@ -1738,18 +1758,18 @@ test('latest-root host classification retries only one coherent signed prior roo
   const candidate = closedCandidateFixture();
   const makeTree = (version) => ({
     dependencies: {
-      '@snapback/cli': {
+      '@expo/snapback-cli': {
         version,
         dependencies: {
-          '@snapback/client': {
+          '@expo/snapback-client': {
             version,
             dependencies: {
-              '@snapback/contract': { version },
+              '@expo/snapback-contract': { version },
             },
           },
-          '@snapback/codegen': { version },
-          '@snapback/runtime-darwin-arm64': { version },
-          '@snapback/runtime-linux-x64': {},
+          '@expo/snapback-codegen': { version },
+          '@expo/snapback-runtime-darwin-arm64': { version },
+          '@expo/snapback-runtime-linux-x64': {},
         },
       },
     },
@@ -1761,14 +1781,14 @@ test('latest-root host classification retries only one coherent signed prior roo
   assert.equal(classifyLatestRootObservation({
     tree: makeTree(candidate.version),
     ledger: candidate,
-    hostRuntime: '@snapback/runtime-darwin-arm64',
+    hostRuntime: '@expo/snapback-runtime-darwin-arm64',
     tagVector,
     expectedPriorRootVersion: '0.1.0',
   }).classification, 'candidate-complete');
   assert.deepEqual(classifyLatestRootObservation({
     tree: makeTree('0.1.0'),
     ledger: candidate,
-    hostRuntime: '@snapback/runtime-darwin-arm64',
+    hostRuntime: '@expo/snapback-runtime-darwin-arm64',
     tagVector,
     expectedPriorRootVersion: '0.1.0',
   }), {
@@ -1781,19 +1801,19 @@ test('latest-root host classification retries only one coherent signed prior roo
     [{ dependencies: {} }, /no exact top-level CLI root/u],
     [(() => {
       const value = makeTree(candidate.version);
-      delete value.dependencies['@snapback/cli'].dependencies['@snapback/client'];
+      delete value.dependencies['@expo/snapback-cli'].dependencies['@expo/snapback-client'];
       return value;
-    })(), /omits @snapback\/client/u],
+    })(), /omits @expo\/snapback-client/u],
     [(() => {
       const value = makeTree('0.1.0');
-      value.dependencies['@snapback/cli'].dependencies['@snapback/client'].version = '9.9.9';
+      value.dependencies['@expo/snapback-cli'].dependencies['@expo/snapback-client'].version = '9.9.9';
       return value;
     })(), /mixed or unsigned dependency/u],
   ]) {
     assert.throws(() => classifyLatestRootObservation({
       tree,
       ledger: candidate,
-      hostRuntime: '@snapback/runtime-darwin-arm64',
+      hostRuntime: '@expo/snapback-runtime-darwin-arm64',
       tagVector,
       expectedPriorRootVersion: '0.1.0',
     }), pattern);
@@ -1801,7 +1821,7 @@ test('latest-root host classification retries only one coherent signed prior roo
   assert.throws(() => classifyLatestRootObservation({
     tree: makeTree('0.1.0'),
     ledger: candidate,
-    hostRuntime: '@snapback/runtime-darwin-arm64',
+    hostRuntime: '@expo/snapback-runtime-darwin-arm64',
     tagVector: { ...tagVector, [candidate.packages[0].name]: '0.1.0' },
     expectedPriorRootVersion: '0.1.0',
   }), /default-tag vector drifted/u);
@@ -1842,7 +1862,7 @@ function latestRootPropagationFixture({
     operationId,
     platform,
     candidateLedgerSha256: candidate.candidateLedgerSha256,
-    package: '@ccheever/snapback-cli',
+    package: '@expo/snapback-cli',
     candidateRootVersion: candidate.version,
     expectedPriorRootVersion: '0.1.0',
     registry: PUBLIC_NPM_REGISTRY,
@@ -1871,7 +1891,7 @@ test('latest-root propagation witness closes policy, authority, caches, and time
   const candidate = closedCandidateFixture();
   const operationId = 'release-propagation-test';
   const platform = 'darwin-arm64';
-  const resolution = { root: '@snapback/cli', selected: candidate.version };
+  const resolution = { root: '@expo/snapback-cli', selected: candidate.version };
   const witness = latestRootPropagationFixture({
     candidate,
     operationId,
@@ -1934,27 +1954,27 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
   const runHeadSha = 'f'.repeat(40);
   const record = (platform, architecture, receiptSha256) => {
     const hostRuntime = platform === 'darwin'
-      ? '@snapback/runtime-darwin-arm64'
-      : '@snapback/runtime-linux-x64';
+      ? '@expo/snapback-runtime-darwin-arm64'
+      : '@expo/snapback-runtime-linux-x64';
     const latestRootResolution = {
-      root: '@snapback/cli',
+      root: '@expo/snapback-cli',
       selected: candidate.version,
       installed: Object.fromEntries([
-        '@snapback/cli',
-        '@snapback/client',
-        '@snapback/codegen',
-        '@snapback/contract',
+        '@expo/snapback-cli',
+        '@expo/snapback-client',
+        '@expo/snapback-codegen',
+        '@expo/snapback-contract',
         hostRuntime,
       ].map((sourceName) => [sourceName, candidate.version])),
       omittedOptionalPlatformRuntimes: [{
         sourceName: platform === 'darwin'
-          ? '@snapback/runtime-linux-x64'
-          : '@snapback/runtime-darwin-arm64',
+          ? '@expo/snapback-runtime-linux-x64'
+          : '@expo/snapback-runtime-darwin-arm64',
         treePath: [
-          '@snapback/cli',
+          '@expo/snapback-cli',
           platform === 'darwin'
-            ? '@snapback/runtime-linux-x64'
-            : '@snapback/runtime-darwin-arm64',
+            ? '@expo/snapback-runtime-linux-x64'
+            : '@expo/snapback-runtime-darwin-arm64',
         ],
       }],
       defaultTagVector: Object.fromEntries(candidate.packages.map((row) => [
@@ -2024,10 +2044,10 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
         version: candidate.version,
         executorPackageNames: {
           cli: candidate.packages.find(
-            (row) => row.sourceName === '@snapback/cli',
+            (row) => row.sourceName === '@expo/snapback-cli',
           ).name,
           client: candidate.packages.find(
-            (row) => row.sourceName === '@snapback/client',
+            (row) => row.sourceName === '@expo/snapback-client',
           ).name,
         },
         runtimeBinarySha256: candidate.packages.find(
@@ -2054,7 +2074,7 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     expectedPriorRootVersion: '0.1.0',
     candidateLedgerSha256: candidate.candidateLedgerSha256,
     candidateRootVersion: candidate.version,
-    repository: 'ccheever/snapback',
+    repository: 'expo/snapback',
     workflow: 'public-package-proof.yml',
     workflowId: 42,
     workflowPath: '.github/workflows/public-package-proof.yml@refs/heads/main',
@@ -2132,14 +2152,14 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     /package evidence drifted/u,
   );
   const installedDrift = structuredClone(records);
-  installedDrift[0].receipt.latestRootResolution.installed['@snapback/codegen'] = '0.1.0';
+  installedDrift[0].receipt.latestRootResolution.installed['@expo/snapback-codegen'] = '0.1.0';
   assert.throws(
     () => finalValidation(installedDrift),
     /candidate closure digest drifted/u,
   );
   const materializedOpposite = structuredClone(records);
   materializedOpposite[0].receipt.latestRootResolution.installed[
-    '@snapback/runtime-linux-x64'
+    '@expo/snapback-runtime-linux-x64'
   ] = candidate.version;
   assert.throws(
     () => finalValidation(materializedOpposite),
@@ -2155,11 +2175,11 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
 
 test('aggregate proof requires one public clean receipt for every runtime tuple', () => {
   const sourceNames = [
-    '@snapback/runtime-darwin-arm64',
-    '@snapback/runtime-linux-x64',
-    '@snapback/contract',
-    '@snapback/client',
-    '@snapback/cli',
+    '@expo/snapback-runtime-darwin-arm64',
+    '@expo/snapback-runtime-linux-x64',
+    '@expo/snapback-contract',
+    '@expo/snapback-client',
+    '@expo/snapback-cli',
   ];
   const ledger = {
     schemaVersion: 'snapback.package-publication.v1',
@@ -2168,11 +2188,11 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     revision: '0123456789abcdef0123456789abcdef01234567',
     registry: PUBLIC_NPM_REGISTRY,
     tag: 'latest',
-    scopePreset: 'ccheever',
+    scopePreset: 'identity',
     version: '0.1.0',
     packages: sourceNames.map((sourceName) => ({
       sourceName,
-      name: `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`,
+      name: sourceName,
       version: '0.1.0',
       status: 'published',
       sha256: 'a'.repeat(64),
@@ -2193,7 +2213,7 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     publicationMode: 'publish',
     installSource: 'public',
     registry: PUBLIC_NPM_REGISTRY,
-    scopePreset: 'ccheever',
+    scopePreset: 'identity',
     version: '0.1.0',
     machine: {
       ...githubReceiptProvenance({
@@ -2204,8 +2224,8 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
       platform,
       architecture,
       runtimePackage: platform === 'darwin'
-        ? '@snapback/runtime-darwin-arm64'
-        : '@snapback/runtime-linux-x64',
+        ? '@expo/snapback-runtime-darwin-arm64'
+        : '@expo/snapback-runtime-linux-x64',
     },
     packages: ledger.packages.map((entry) => ({
       sourceName: entry.sourceName,
@@ -2217,8 +2237,8 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
       sourceRevision: ledger.revision,
       version: ledger.version,
       executorPackageNames: {
-        cli: '@ccheever/snapback-cli',
-        client: '@ccheever/snapback-client',
+        cli: '@expo/snapback-cli',
+        client: '@expo/snapback-client',
       },
     }),
     checks: {
@@ -2259,8 +2279,8 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     ledger,
     expectedSourceNames: sourceNames,
     expectedPlatforms: new Map([
-      ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-      ['linux-x64', '@snapback/runtime-linux-x64'],
+      ['darwin-arm64', '@expo/snapback-runtime-darwin-arm64'],
+      ['linux-x64', '@expo/snapback-runtime-linux-x64'],
     ]),
     receipts,
   });
@@ -2276,8 +2296,8 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
       ledger,
       expectedSourceNames: sourceNames,
       expectedPlatforms: new Map([
-        ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-        ['linux-x64', '@snapback/runtime-linux-x64'],
+        ['darwin-arm64', '@expo/snapback-runtime-darwin-arm64'],
+        ['linux-x64', '@expo/snapback-runtime-linux-x64'],
       ]),
       receipts: receipts.slice(0, 1),
     }),
@@ -2288,8 +2308,8 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
       ledger,
       expectedSourceNames: sourceNames,
       expectedPlatforms: new Map([
-        ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-        ['linux-x64', '@snapback/runtime-linux-x64'],
+        ['darwin-arm64', '@expo/snapback-runtime-darwin-arm64'],
+        ['linux-x64', '@expo/snapback-runtime-linux-x64'],
       ]),
       receipts: receipts.map((record, index) => index === 0
         ? {
@@ -2318,8 +2338,8 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
         ledger,
         expectedSourceNames: sourceNames,
         expectedPlatforms: new Map([
-          ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-          ['linux-x64', '@snapback/runtime-linux-x64'],
+          ['darwin-arm64', '@expo/snapback-runtime-darwin-arm64'],
+          ['linux-x64', '@expo/snapback-runtime-linux-x64'],
         ]),
         receipts: harnessDrift,
       }),

@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 
 import {
   aggregatePublicPackageProofs,
+  ledgerNameGeneration,
   parseBoundedJsonBytes,
   readBoundedFileBytes,
 } from './snapback-package-cold-install-lib.mjs';
@@ -72,20 +73,23 @@ const platformReceiptRecords = options.platformReceipts.map((path) => ({
   path,
   ...readJsonRecord(path, 'platform receipt'),
 }));
+// The aggregation follows the ledger's source-name generation: terminal
+// @expo/snapback-* identity closures, or recorded legacy @snapback/* alias
+// closures (decision-9 lineage).
+const generation = ledgerNameGeneration(ledger.scopePreset);
 const expectedSourceNames = [
-  '@snapback/runtime-darwin-arm64',
-  '@snapback/runtime-linux-x64',
-  '@snapback/contract',
-  '@snapback/client',
-  '@snapback/codegen',
-  '@snapback/vite',
-  '@snapback/react',
-  '@snapback/app-cli',
-  '@snapback/cli',
+  ...generation.platformRuntimes,
+  generation.contract,
+  generation.client,
+  generation.codegen,
+  generation.vite,
+  generation.react,
+  generation.appCli,
+  generation.cli,
 ];
 const expectedPlatforms = new Map([
-  ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-  ['linux-x64', '@snapback/runtime-linux-x64'],
+  ['darwin-arm64', generation.platformRuntimes[0]],
+  ['linux-x64', generation.platformRuntimes[1]],
 ]);
 
 let receipt;

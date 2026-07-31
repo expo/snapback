@@ -75,7 +75,7 @@ jobs:
           SNAPBACK_PACKAGE_OUT: ${{ runner.temp }}/snapback-linux-package
         run: |
           node scripts/snapback-publish.mjs \
-            --scope-preset ccheever \
+            --scope-preset identity \
             --runtime-platforms host \
             --version 0.1.0-linux-ci.1 \
             --tag llp0063 \

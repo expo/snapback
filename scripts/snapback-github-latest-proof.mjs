@@ -29,7 +29,7 @@ import {
   validateLatestRootPropagationWitness,
 } from './snapback-package-cold-install-lib.mjs';
 
-export const LATEST_PROOF_REPOSITORY = 'ccheever/snapback';
+export const LATEST_PROOF_REPOSITORY = 'expo/snapback';
 export const LATEST_PROOF_WORKFLOW = 'public-package-proof.yml';
 const COLLECTION_KEYS = [
   'authorizedLeaseSha256',
@@ -66,7 +66,7 @@ const ARTIFACT_KEYS = [
 ];
 const usage = `usage:
   node scripts/snapback-github-latest-proof.mjs dispatch
-    --repository ccheever/snapback --workflow public-package-proof.yml
+    --repository expo/snapback --workflow public-package-proof.yml
     --ref <branch> --expected-head-sha <sha>
     --expected-prior-root-version <version>
     --authorized-lease-sha256 <sha256> --publication-epoch <integer>
@@ -75,7 +75,7 @@ const usage = `usage:
     [--timeout-ms <1000..560000>]
 
   node scripts/snapback-github-latest-proof.mjs verify-collection
-    --repository ccheever/snapback --workflow public-package-proof.yml
+    --repository expo/snapback --workflow public-package-proof.yml
     --ref <branch> --expected-head-sha <sha>
     --expected-prior-root-version <version>
     --authorized-lease-sha256 <sha256> --publication-epoch <integer>

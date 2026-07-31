@@ -21,7 +21,7 @@ import {
 } from '../packages/snapback-publication-authority/protocol.mjs';
 import {
   PUBLIC_NPM_REGISTRY,
-  PROMOTION_PACKAGE_NAMES,
+  promotionNamesForScopePreset,
   validateCandidateLedger,
 } from './snapback-publish-core.mjs';
 import {
@@ -90,7 +90,7 @@ function fail(message) {
 function leaseShape(ledger, priorVector) {
   const candidates = new Map(ledger.packages.map((row) => [row.name, row]));
   return {
-    packages: PROMOTION_PACKAGE_NAMES.map((name) => ({
+    packages: promotionNamesForScopePreset(ledger.scopePreset).map((name) => ({
       name,
       expectedPriorVersion: priorVector[name],
       newVersion: candidates.get(name)?.version,
@@ -130,7 +130,12 @@ function normalizedDependencySections(manifest) {
 }
 
 function dependencyAliases({ manifest, lease, ownerName }) {
-  const selected = new Set(PROMOTION_PACKAGE_NAMES);
+  // The lease shape carries exactly one name generation. Terminal
+  // @expo/snapback-* artifacts key internal edges directly by the registry
+  // identity at an exact version; legacy @ccheever artifacts keyed them by
+  // the @snapback source alias (decision-9 lineage).
+  const leaseNames = new Set(lease.packages.map((row) => row.name));
+  const terminal = [...leaseNames].every((name) => name.startsWith('@expo/snapback-'));
   const aliases = [];
   const sections = normalizedDependencySections(manifest);
   for (const section of DEPENDENCY_SECTIONS) {
@@ -138,7 +143,42 @@ function dependencyAliases({ manifest, lease, ownerName }) {
       if (/^(?:workspace:|file:|link:)/u.test(value)) {
         fail(`${ownerName} contains non-registry ${section}.${dependency}`);
       }
-      if (selected.has(dependency) || dependency.startsWith('@ccheever/snapback-')) {
+      if (terminal) {
+        if (
+          dependency.startsWith('@snapback/')
+          || dependency.startsWith('@ccheever/snapback-')
+          || value.includes('@snapback/')
+          || value.includes('@ccheever/snapback-')
+          || value.startsWith('npm:')
+        ) {
+          fail(`${ownerName} contains a pre-migration key or alias ${section}.${dependency}`);
+        }
+        if (!leaseNames.has(dependency)) {
+          if (dependency.startsWith('@expo/snapback-')) {
+            fail(`${ownerName} contains an internal key outside the lease ${section}.${dependency}`);
+          }
+          continue;
+        }
+        if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value)) {
+          fail(`${ownerName} contains non-exact Snapback dependency ${section}.${dependency}`);
+        }
+        const binding = validatePriorDependencyAlias({
+          lease,
+          ownerName,
+          dependency,
+          target: dependency,
+          version: value,
+        });
+        aliases.push({
+          section,
+          dependency,
+          target: dependency,
+          version: value,
+          sectionVector: binding.sectionVector,
+        });
+        continue;
+      }
+      if (leaseNames.has(dependency) || dependency.startsWith('@ccheever/snapback-')) {
         fail(`${ownerName} contains direct public internal key ${section}.${dependency}`);
       }
       const match = value.match(
@@ -387,7 +427,8 @@ export function validatePriorDefaultClosureReceipt({
   // — promotion independently reopens retained prior tarballs and their full
   // dependency closure instead of trusting a requester-reported alias list.
   validateCandidateLedger(ledger);
-  validateObservedPriorVector(expectedPriorVector);
+  const promotionNames = promotionNamesForScopePreset(ledger.scopePreset);
+  validateObservedPriorVector(expectedPriorVector, { packageNames: promotionNames });
   requireExactKeys(receipt, RECEIPT_KEYS, 'prior default closure receipt');
   const startedAt = parseTimestamp(receipt.startedAt, 'prior closure startedAt');
   const completedAt = parseTimestamp(receipt.completedAt, 'prior closure completedAt');
@@ -423,11 +464,11 @@ export function validatePriorDefaultClosureReceipt({
       fail('receipt was not completed immediately before lease issue');
     }
   }
-  validateObservedPriorVector(receipt.initialVector);
-  validateObservedPriorVector(receipt.finalVector);
+  validateObservedPriorVector(receipt.initialVector, { packageNames: promotionNames });
+  validateObservedPriorVector(receipt.finalVector, { packageNames: promotionNames });
   if (
     !Array.isArray(receipt.packages)
-    || receipt.packages.length !== PROMOTION_PACKAGE_NAMES.length
+    || receipt.packages.length !== promotionNames.length
   ) {
     fail('receipt package inventory is incomplete');
   }
@@ -435,7 +476,7 @@ export function validatePriorDefaultClosureReceipt({
     fail('receipt path is required to reopen retained tarballs');
   }
   const lease = leaseShape(ledger, expectedPriorVector);
-  for (const [index, name] of PROMOTION_PACKAGE_NAMES.entries()) {
+  for (const [index, name] of promotionNames.entries()) {
     validatePackageEvidence({
       row: receipt.packages[index],
       index,
@@ -469,8 +510,8 @@ function runNpm(args, { cacheRoot, cwd }) {
   return result.stdout;
 }
 
-function observeVector(cacheRoot, cwd) {
-  return Object.fromEntries(PROMOTION_PACKAGE_NAMES.map((name) => {
+function observeVector(cacheRoot, cwd, promotionNames) {
+  return Object.fromEntries(promotionNames.map((name) => {
     const output = runNpm(
       ['view', name, 'dist-tags', '--json'],
       { cacheRoot, cwd },
@@ -492,7 +533,8 @@ export function materializePriorDefaultClosure({
   // — expensive prior qualification is bracketed and completed before the
   // authority allocates the fixed mutation/proof/rollback lease.
   validateCandidateLedger(ledger);
-  validateObservedPriorVector(priorVector);
+  const promotionNames = promotionNamesForScopePreset(ledger.scopePreset);
+  validateObservedPriorVector(priorVector, { packageNames: promotionNames });
   if (!/^[0-9a-f]{40,64}$/u.test(producerRevision ?? '')) {
     fail('producer revision must be a lowercase Git object identity');
   }
@@ -512,7 +554,7 @@ export function materializePriorDefaultClosure({
   const startedAt = new Date().toISOString();
   let artifactsCommitted = false;
   try {
-    const initialVector = observeVector(cacheRoot, temporaryRoot);
+    const initialVector = observeVector(cacheRoot, temporaryRoot, promotionNames);
     if (canonicalJcs(initialVector) !== canonicalJcs(priorVector)) {
       fail('initial official default-tag vector differs from the proposed lease');
     }
@@ -591,7 +633,7 @@ export function materializePriorDefaultClosure({
         dependencyAliases: scanned.aliases,
       });
     }
-    const finalVector = observeVector(cacheRoot, temporaryRoot);
+    const finalVector = observeVector(cacheRoot, temporaryRoot, promotionNames);
     if (
       canonicalJcs(finalVector) !== canonicalJcs(initialVector)
       || canonicalJcs(finalVector) !== canonicalJcs(priorVector)

@@ -32,7 +32,24 @@ export const BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS = Object.freeze([
   'Reflect.ownKeys(globalThis)',
 ]);
 
+// @ref LLP 0115#open-questions — decision 9: the terminal npm scope is
+// @expo/snapback-*, published under the `identity` preset (source name and
+// registry name are one identity). Pre-migration artifacts recorded the
+// `ccheever` preset's @snapback/* -> @ccheever/snapback-* alias pairs; the
+// LEGACY tables keep those artifacts verifiable as lineage.
 export const PACKAGE_INVENTORY = Object.freeze([
+  ['@expo/snapback-runtime-darwin-arm64', '@expo/snapback-runtime-darwin-arm64'],
+  ['@expo/snapback-runtime-linux-x64', '@expo/snapback-runtime-linux-x64'],
+  ['@expo/snapback-contract', '@expo/snapback-contract'],
+  ['@expo/snapback-client', '@expo/snapback-client'],
+  ['@expo/snapback-codegen', '@expo/snapback-codegen'],
+  ['@expo/snapback-react', '@expo/snapback-react'],
+  ['@expo/snapback-app-cli', '@expo/snapback-app-cli'],
+  ['@expo/snapback-cli', '@expo/snapback-cli'],
+  ['@expo/snapback-vite', '@expo/snapback-vite'],
+]);
+
+export const LEGACY_PACKAGE_INVENTORY = Object.freeze([
   ['@snapback/runtime-darwin-arm64', '@ccheever/snapback-runtime-darwin-arm64'],
   ['@snapback/runtime-linux-x64', '@ccheever/snapback-runtime-linux-x64'],
   ['@snapback/contract', '@ccheever/snapback-contract'],
@@ -45,6 +62,18 @@ export const PACKAGE_INVENTORY = Object.freeze([
 ]);
 
 export const PROMOTION_PACKAGE_NAMES = Object.freeze([
+  '@expo/snapback-runtime-darwin-arm64',
+  '@expo/snapback-runtime-linux-x64',
+  '@expo/snapback-contract',
+  '@expo/snapback-client',
+  '@expo/snapback-codegen',
+  '@expo/snapback-vite',
+  '@expo/snapback-react',
+  '@expo/snapback-app-cli',
+  '@expo/snapback-cli',
+]);
+
+export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-runtime-darwin-arm64',
   '@ccheever/snapback-runtime-linux-x64',
   '@ccheever/snapback-contract',
@@ -55,6 +84,29 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-app-cli',
   '@ccheever/snapback-cli',
 ]);
+
+export const RELEASE_SCOPE_PRESETS = Object.freeze(['identity', 'ccheever']);
+
+export function inventoryForScopePreset(scopePreset) {
+  if (scopePreset === 'identity') return PACKAGE_INVENTORY;
+  if (scopePreset === 'ccheever') return LEGACY_PACKAGE_INVENTORY;
+  throw new TypeError(`unsupported ledger scope preset ${scopePreset}`);
+}
+
+export function promotionNamesForScopePreset(scopePreset) {
+  if (scopePreset === 'identity') return PROMOTION_PACKAGE_NAMES;
+  if (scopePreset === 'ccheever') return LEGACY_PROMOTION_PACKAGE_NAMES;
+  throw new TypeError(`unsupported ledger scope preset ${scopePreset}`);
+}
+
+export function sourceNamesForScopePreset(scopePreset) {
+  return Object.fromEntries(
+    inventoryForScopePreset(scopePreset).map(([sourceName]) => [
+      sourceName.slice(sourceName.lastIndexOf('/') + 1).replace(/^snapback-/u, ''),
+      sourceName,
+    ]),
+  );
+}
 
 const PACKAGED_COMPARATOR_CHECKS = Object.freeze([
   Object.freeze({
@@ -506,6 +558,10 @@ export function validatePublicationReceiptProvenance(
     expectedWorkflow,
     expectedOperationId = undefined,
     expectedWorkflowHead = undefined,
+    // The repository slug followed the decision-9 org move; receipts recorded
+    // before the move carry the ccheever/snapback slug and stay verifiable by
+    // passing it explicitly.
+    expectedRepository = 'expo/snapback',
   },
 ) {
   requireExactKeys(receipt?.sourceCheckout, SOURCE_CHECKOUT_KEYS, 'receipt source checkout');
@@ -524,12 +580,12 @@ export function validatePublicationReceiptProvenance(
   const proof = receipt.githubProof;
   const proofHarness = receipt.proofHarnessCheckout;
   if (
-    proof.repository !== 'ccheever/snapback'
+    proof.repository !== expectedRepository
     || !/^[0-9]+$/u.test(proof.runId ?? '')
     || !/^[1-9][0-9]*$/u.test(proof.runAttempt ?? '')
     || !/^[0-9a-f]{40}$/u.test(proof.runHeadSha ?? '')
     || proof.workflowRef
-      !== `ccheever/snapback/.github/workflows/${expectedWorkflow}@${proof.ref}`
+      !== `${expectedRepository}/.github/workflows/${expectedWorkflow}@${proof.ref}`
     || !/^refs\/(?:heads|tags)\/[A-Za-z0-9._/-]+$/u.test(proof.ref ?? '')
     || !['push', 'workflow_dispatch'].includes(proof.eventName)
     || receipt.machine?.runnerEnvironment !== 'github-hosted'
@@ -777,9 +833,10 @@ export const PACKAGE_DEPENDENCY_SECTIONS = Object.freeze([
   'devDependencies',
 ]);
 
-export function validateInternalDependencyClosure(row, version) {
-  const publicNames = new Set(PACKAGE_INVENTORY.map(([, name]) => name));
-  const publicBySource = new Map(PACKAGE_INVENTORY);
+export function validateInternalDependencyClosure(row, version, scopePreset = 'identity') {
+  const inventory = inventoryForScopePreset(scopePreset);
+  const publicNames = new Set(inventory.map(([, name]) => name));
+  const publicBySource = new Map(inventory);
   for (const section of PACKAGE_DEPENDENCY_SECTIONS) {
     const entries = row[section] ?? {};
     if (entries === null || typeof entries !== 'object' || Array.isArray(entries)) {
@@ -788,6 +845,31 @@ export function validateInternalDependencyClosure(row, version) {
     for (const [dependency, value] of Object.entries(entries)) {
       if (/^(?:workspace:|file:|link:)/u.test(String(value))) {
         throw new TypeError(`${row.name}.${section}.${dependency} is not registry-closed`);
+      }
+      if (scopePreset === 'identity') {
+        // Terminal scope: the source key is the registry identity. Any
+        // remaining alias syntax or legacy-scope string is refused loudly
+        // rather than silently ignored.
+        if (
+          dependency.startsWith('@snapback/')
+          || dependency.startsWith('@ccheever/snapback-')
+          || String(value).includes('@snapback/')
+          || String(value).includes('@ccheever/snapback-')
+          || String(value).startsWith('npm:')
+        ) {
+          throw new TypeError(
+            `${row.name}.${section}.${dependency} carries a pre-migration scope or alias`,
+          );
+        }
+        if (dependency.startsWith('@expo/snapback-')) {
+          if (!publicBySource.has(dependency)) {
+            throw new TypeError(`${row.name}.${section}.${dependency} is outside the package inventory`);
+          }
+          if (String(value) !== version) {
+            throw new TypeError(`${row.name}.${section}.${dependency} escapes the candidate vector`);
+          }
+        }
+        continue;
       }
       if (
         publicNames.has(dependency)
@@ -823,10 +905,11 @@ export function validateInternalDependencyClosure(row, version) {
 }
 
 function validatePackageRows(ledger, keys, statuses) {
-  if (!Array.isArray(ledger.packages) || ledger.packages.length !== PACKAGE_INVENTORY.length) {
+  const inventory = inventoryForScopePreset(ledger.scopePreset);
+  if (!Array.isArray(ledger.packages) || ledger.packages.length !== inventory.length) {
     throw new TypeError('ledger is not the exact nine-package closure');
   }
-  for (const [index, [sourceName, name]] of PACKAGE_INVENTORY.entries()) {
+  for (const [index, [sourceName, name]] of inventory.entries()) {
     const row = ledger.packages[index];
     requireExactKeys(row, keys, `package row ${index}`);
     if (
@@ -848,7 +931,8 @@ function validatePackageRows(ledger, keys, statuses) {
     if (typeof row.tarball !== 'string' || !/^[A-Za-z0-9._-]+\.tgz$/u.test(row.tarball)) {
       throw new TypeError(`${row.name}.tarball is invalid`);
     }
-    const runtime = sourceName.startsWith('@snapback/runtime-');
+    const runtime = sourceName.startsWith('@snapback/runtime-')
+      || sourceName.startsWith('@expo/snapback-runtime-');
     for (const [field, value] of [
       ['runtimeBinarySha256', row.runtimeBinarySha256],
       ['runtimeSupportSha256', row.runtimeSupportSha256],
@@ -856,14 +940,16 @@ function validatePackageRows(ledger, keys, statuses) {
       if (runtime) assertSha256(value, `${row.name}.${field}`);
       else if (value !== null) throw new TypeError(`${row.name}.${field} must be null`);
     }
-    validateInternalDependencyClosure(row, ledger.version);
+    validateInternalDependencyClosure(row, ledger.version, ledger.scopePreset);
   }
 }
 
 function validateCommonLedger(ledger) {
   if (
     ledger.registry !== PUBLIC_NPM_REGISTRY
-    || ledger.scopePreset !== 'ccheever'
+    // `identity` is the terminal @expo/snapback-* release preset; `ccheever`
+    // stays accepted so pre-migration ledgers remain verifiable lineage.
+    || !RELEASE_SCOPE_PRESETS.includes(ledger.scopePreset)
     || ledger.sourceDirty !== false
     || !/^[0-9a-f]{40}$/u.test(ledger.revision ?? '')
   ) {
@@ -970,8 +1056,8 @@ export function validateRetainedComparatorReceipt(packageReceipt, {
   version,
   expectedRuntimeBinarySha256 = null,
   expectedExecutorPackageNames = {
-    cli: '@snapback/cli',
-    client: '@snapback/client',
+    cli: '@expo/snapback-cli',
+    client: '@expo/snapback-client',
   },
 } = {}) {
   const receipt = packageReceipt?.comparatorReceipt;
@@ -1348,10 +1434,11 @@ function identityProjection(identity) {
 }
 
 export function comparatorExecutorPackageNames(ledger) {
+  const sourceNames = sourceNamesForScopePreset(ledger?.scopePreset);
   const rows = new Map((ledger?.packages ?? []).map((row) => [row.sourceName, row.name]));
   const names = {
-    cli: rows.get('@snapback/cli'),
-    client: rows.get('@snapback/client'),
+    cli: rows.get(sourceNames.cli),
+    client: rows.get(sourceNames.client),
   };
   if (!names.cli || !names.client) {
     throw new TypeError('publication ledger lacks comparator executor packages');
@@ -1392,9 +1479,10 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
     if (!['darwin-arm64', 'linux-x64'].includes(platform) || byPlatform.has(platform)) {
       throw new TypeError(`duplicate or unsupported staged platform receipt: ${platform}`);
     }
+    const runtimeSourceNames = sourceNamesForScopePreset(ledger.scopePreset);
     const hostRuntime = platform === 'darwin-arm64'
-      ? '@snapback/runtime-darwin-arm64'
-      : '@snapback/runtime-linux-x64';
+      ? runtimeSourceNames['runtime-darwin-arm64']
+      : runtimeSourceNames['runtime-linux-x64'];
     validateColdInstallBrowserEvidence(receipt);
     validateRetainedComparatorReceipt(receipt, {
       sourceRevision: ledger.revision,

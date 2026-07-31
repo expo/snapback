@@ -10,13 +10,29 @@ import {
 // — this module is the one package-owned wire/signature authority shared by
 // the standing service and the registry publisher.
 const LEASE_DOMAIN_V2 = Buffer.from('snapback-authorized-publication-lease-v2\0');
-export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v3\0');
+const LEASE_DOMAIN_V3 = Buffer.from('snapback-authorized-publication-lease-v3\0');
+export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v4\0');
 export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v3\0');
 export const RECEIPT_DOMAIN = Buffer.from(
   'snapback-publication-authority-transition-receipt-v2\0',
 );
 export const PACKAGE_COUNT = 9;
+// @ref LLP 0115#open-questions — decision 9: the terminal npm scope is
+// @expo/snapback-*. v4 leases bind the terminal names; v2/v3 leases keep
+// binding the recorded @ccheever/snapback-* interim scope so pre-migration
+// artifacts stay verifiable (lineage, not history rewriting).
 export const PROMOTION_PACKAGE_NAMES = Object.freeze([
+  '@expo/snapback-runtime-darwin-arm64',
+  '@expo/snapback-runtime-linux-x64',
+  '@expo/snapback-contract',
+  '@expo/snapback-client',
+  '@expo/snapback-codegen',
+  '@expo/snapback-vite',
+  '@expo/snapback-react',
+  '@expo/snapback-app-cli',
+  '@expo/snapback-cli',
+]);
+export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-runtime-darwin-arm64',
   '@ccheever/snapback-runtime-linux-x64',
   '@ccheever/snapback-contract',
@@ -27,6 +43,19 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-app-cli',
   '@ccheever/snapback-cli',
 ]);
+// Decision-9 lineage record: terminal name -> the identities every
+// pre-migration ledger, lease, and receipt recorded for the same package.
+export const PACKAGE_NAME_LINEAGE = Object.freeze(Object.fromEntries(
+  PROMOTION_PACKAGE_NAMES.map((name) => {
+    const suffix = name.slice('@expo/snapback-'.length);
+    return [name, Object.freeze({
+      sourceName: `@snapback/${suffix}`,
+      publishedName: `@ccheever/snapback-${suffix}`,
+    })];
+  }),
+));
+const TERMINAL_NAME_PATTERN = /^@expo\/snapback-[a-z0-9-]+$/u;
+const LEGACY_NAME_PATTERN = /^@ccheever\/snapback-[a-z0-9-]+$/u;
 
 export const LEASE_KEYS = Object.freeze([
   'authorityInstallationId',
@@ -313,19 +342,26 @@ export function leaseSha256(lease) {
   return sha256Hex(canonicalJcs(lease));
 }
 
-export function validateLeasePackages(packages, field = 'publication lease') {
+export function validateLeasePackages(
+  packages,
+  field = 'publication lease',
+  { packageNames = PROMOTION_PACKAGE_NAMES } = {},
+) {
+  const namePattern = packageNames === LEGACY_PROMOTION_PACKAGE_NAMES
+    ? LEGACY_NAME_PATTERN
+    : TERMINAL_NAME_PATTERN;
   if (!Array.isArray(packages) || packages.length !== PACKAGE_COUNT) {
     throw new Error(`${field} must bind exactly ${PACKAGE_COUNT} packages`);
   }
   const names = new Set();
   for (const [index, row] of packages.entries()) {
     requireExactKeys(row, LEASE_PACKAGE_KEYS, `${field} package ${index}`);
-    if (!/^@ccheever\/snapback-[a-z0-9-]+$/u.test(row?.name ?? '')) {
+    if (!namePattern.test(row?.name ?? '')) {
       throw new Error(`invalid package name at index ${index}`);
     }
     if (names.has(row.name)) throw new Error(`duplicate package ${row.name}`);
     names.add(row.name);
-    if (row.name !== PROMOTION_PACKAGE_NAMES[index]) {
+    if (row.name !== packageNames[index]) {
       throw new Error(`${field} package order/inventory drift at index ${index}`);
     }
     if (
@@ -352,14 +388,15 @@ export function validatePublicationLease({
   priorDefaultClosureReceiptSha256,
   now = Date.now(),
 }) {
+  const isV4 = lease?.schemaVersion === 'snapback.authorized-publication-lease.v4';
   const isV3 = lease?.schemaVersion === 'snapback.authorized-publication-lease.v3';
   const isV2 = lease?.schemaVersion === 'snapback.authorized-publication-lease.v2';
   requireExactKeys(
     lease,
-    isV3 ? LEASE_KEYS : LEASE_V2_KEYS,
+    isV3 || isV4 ? LEASE_KEYS : LEASE_V2_KEYS,
     'publication lease',
   );
-  if (!isV2 && !isV3) {
+  if (!isV2 && !isV3 && !isV4) {
     throw new Error('unsupported publication lease schema');
   }
   validateAuthorityBinding(lease, { authorityInstallationId, authorityOrigin });
@@ -372,7 +409,7 @@ export function validatePublicationLease({
   if (lease.candidateLedgerSha256 !== candidateLedgerSha256) {
     throw new Error('publication lease candidate ledger mismatch');
   }
-  if (isV3) {
+  if (isV3 || isV4) {
     assertHexSha256(
       lease.priorDefaultClosureReceiptSha256,
       'priorDefaultClosureReceiptSha256',
@@ -398,9 +435,13 @@ export function validatePublicationLease({
   if (now !== null && (now < issuedAt || now >= expiresAt)) {
     throw new Error('publication lease is not current');
   }
-  validateLeasePackages(lease.packages);
+  validateLeasePackages(lease.packages, 'publication lease', {
+    packageNames: isV4
+      ? PROMOTION_PACKAGE_NAMES
+      : LEGACY_PROMOTION_PACKAGE_NAMES,
+  });
   verifyEnvelope(
-    isV3 ? LEASE_DOMAIN : LEASE_DOMAIN_V2,
+    isV4 ? LEASE_DOMAIN : (isV3 ? LEASE_DOMAIN_V3 : LEASE_DOMAIN_V2),
     lease,
     publicKey,
     'publication lease',
@@ -409,14 +450,15 @@ export function validatePublicationLease({
 }
 
 export function signPublicationLease({ unsigned, privateKey }) {
+  const isV4 = unsigned?.schemaVersion === 'snapback.authorized-publication-lease.v4';
   const isV3 = unsigned?.schemaVersion === 'snapback.authorized-publication-lease.v3';
   const isV2 = unsigned?.schemaVersion === 'snapback.authorized-publication-lease.v2';
-  if (!isV2 && !isV3) {
+  if (!isV2 && !isV3 && !isV4) {
     throw new Error('unsupported unsigned publication lease schema');
   }
   requireExactKeys(
     { ...unsigned, signature: '' },
-    isV3 ? LEASE_KEYS : LEASE_V2_KEYS,
+    isV3 || isV4 ? LEASE_KEYS : LEASE_V2_KEYS,
     'unsigned publication lease',
   );
   validateAuthorityBinding(unsigned);
@@ -427,7 +469,7 @@ export function signPublicationLease({ unsigned, privateKey }) {
   return {
     ...unsigned,
     signature: signEnvelope(
-      isV3 ? LEASE_DOMAIN : LEASE_DOMAIN_V2,
+      isV4 ? LEASE_DOMAIN : (isV3 ? LEASE_DOMAIN_V3 : LEASE_DOMAIN_V2),
       unsigned,
       privateKey,
     ),
@@ -435,16 +477,18 @@ export function signPublicationLease({ unsigned, privateKey }) {
 }
 
 export function validatePublicationLeaseIssueRequest(request, expectedBinding = {}) {
+  const isV4 =
+    request?.schemaVersion === 'snapback.publication-lease-issue-request.v4';
   const isV3 =
     request?.schemaVersion === 'snapback.publication-lease-issue-request.v3';
   const isV2 =
     request?.schemaVersion === 'snapback.publication-lease-issue-request.v2';
   requireExactKeys(
     request,
-    isV3 ? ISSUE_REQUEST_KEYS : ISSUE_REQUEST_V2_KEYS,
+    isV3 || isV4 ? ISSUE_REQUEST_KEYS : ISSUE_REQUEST_V2_KEYS,
     'publication lease issue request',
   );
-  if (!isV2 && !isV3) {
+  if (!isV2 && !isV3 && !isV4) {
     throw new Error('unsupported publication lease issue request schema');
   }
   validateAuthorityBinding(request, expectedBinding);
@@ -457,7 +501,7 @@ export function validatePublicationLeaseIssueRequest(request, expectedBinding = 
     assertHexSha256(request.expectedHeadSha256, 'expectedHeadSha256');
   }
   assertHexSha256(request.candidateLedgerSha256, 'candidateLedgerSha256');
-  if (isV3) {
+  if (isV3 || isV4) {
     assertHexSha256(
       request.priorDefaultClosureReceiptSha256,
       'priorDefaultClosureReceiptSha256',
@@ -474,7 +518,11 @@ export function validatePublicationLeaseIssueRequest(request, expectedBinding = 
       || request.lifetimeSeconds > 15 * 60) {
     throw new Error('lifetimeSeconds must be in [1, 900]');
   }
-  validateLeasePackages(request.packages, 'publication lease issue request');
+  validateLeasePackages(request.packages, 'publication lease issue request', {
+    packageNames: isV4
+      ? PROMOTION_PACKAGE_NAMES
+      : LEGACY_PROMOTION_PACKAGE_NAMES,
+  });
   return request;
 }
 

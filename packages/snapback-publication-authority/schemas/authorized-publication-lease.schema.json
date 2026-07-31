@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/authorized-publication-lease.v3.json",
-  "title": "AuthorizedPublicationLeaseV3",
+  "$id": "https://snapback.dev/schemas/authorized-publication-lease.v4.json",
+  "title": "AuthorizedPublicationLeaseV4",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -22,7 +22,7 @@
     "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.authorized-publication-lease.v3" },
+    "schemaVersion": { "const": "snapback.authorized-publication-lease.v4" },
     "authorityInstallationId": { "$ref": "#/$defs/id" },
     "authorityOrigin": {
       "oneOf": [
@@ -54,7 +54,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-runtime-darwin-arm64" }
+                "name": { "const": "@expo/snapback-runtime-darwin-arm64" }
               }
             }
           ]
@@ -65,7 +65,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-runtime-linux-x64" }
+                "name": { "const": "@expo/snapback-runtime-linux-x64" }
               }
             }
           ]
@@ -76,7 +76,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-contract" }
+                "name": { "const": "@expo/snapback-contract" }
               }
             }
           ]
@@ -87,7 +87,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-client" }
+                "name": { "const": "@expo/snapback-client" }
               }
             }
           ]
@@ -98,7 +98,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-codegen" }
+                "name": { "const": "@expo/snapback-codegen" }
               }
             }
           ]
@@ -109,7 +109,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-vite" }
+                "name": { "const": "@expo/snapback-vite" }
               }
             }
           ]
@@ -120,7 +120,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-react" }
+                "name": { "const": "@expo/snapback-react" }
               }
             }
           ]
@@ -131,7 +131,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-app-cli" }
+                "name": { "const": "@expo/snapback-app-cli" }
               }
             }
           ]
@@ -142,7 +142,7 @@
             {
               "type": "object",
               "properties": {
-                "name": { "const": "@ccheever/snapback-cli" }
+                "name": { "const": "@expo/snapback-cli" }
               }
             }
           ]
@@ -170,7 +170,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "pattern": "^@ccheever/snapback-[a-z0-9-]+$"
+          "pattern": "^@expo/snapback-[a-z0-9-]+$"
         },
         "expectedPriorVersion": {
           "oneOf": [{ "$ref": "#/$defs/semver" }, { "type": "null" }]

@@ -183,8 +183,8 @@ export class PublicationLeaseAuthority {
         authorityInstallationId: this.authorityInstallationId,
         authorityOrigin: this.authorityOrigin,
       });
-      if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v3') {
-        throw new Error('standing authority only issues v3 publication leases');
+      if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v4') {
+        throw new Error('standing authority only issues v4 publication leases');
       }
       if (request.signingKeyId !== this.signingKeyId) {
         throw new Error('publication authority signing key id mismatch');
@@ -237,7 +237,7 @@ export class PublicationLeaseAuthority {
       const issuedAt = new Date(now).toISOString();
       const expiresAt = new Date(now + request.lifetimeSeconds * 1_000).toISOString();
       const unsigned = {
-        schemaVersion: 'snapback.authorized-publication-lease.v3',
+        schemaVersion: 'snapback.authorized-publication-lease.v4',
         authorityInstallationId: this.authorityInstallationId,
         authorityOrigin: this.authorityOrigin,
         signingKeyId: this.signingKeyId,

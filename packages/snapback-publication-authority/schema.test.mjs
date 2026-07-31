@@ -90,7 +90,7 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     now: () => Date.parse('2026-07-28T20:00:00.000Z'),
   });
   const request = {
-    schemaVersion: 'snapback.publication-lease-issue-request.v3',
+    schemaVersion: 'snapback.publication-lease-issue-request.v4',
     authorityInstallationId,
     authorityOrigin,
     signingKeyId: publicationAuthoritySigningKeyId(publicKey),

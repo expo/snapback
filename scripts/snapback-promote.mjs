@@ -263,14 +263,14 @@ async function readVector(names) {
 
 async function observePublicLatestRootInstallability({ expectedVector }) {
   const cliLeaseRow = lease.packages.find(
-    (row) => row.name === '@ccheever/snapback-cli',
+    (row) => row.name === '@expo/snapback-cli',
   );
   if (!cliLeaseRow) {
     throw new Error('public latest-root probe has no CLI lease row');
   }
   const runtimePackages = new Map([
-    ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-    ['linux-x64', '@snapback/runtime-linux-x64'],
+    ['darwin-arm64', '@expo/snapback-runtime-darwin-arm64'],
+    ['linux-x64', '@expo/snapback-runtime-linux-x64'],
   ]);
   const hostRuntime = runtimePackages.get(`${process.platform}-${process.arch}`);
   if (!hostRuntime) {
@@ -285,7 +285,7 @@ async function observePublicLatestRootInstallability({ expectedVector }) {
     version: '1.0.0',
     private: true,
     dependencies: {
-      '@snapback/cli': 'npm:@ccheever/snapback-cli@latest',
+      '@expo/snapback-cli': 'latest',
     },
   }, null, 2)}\n`);
   let rootVersion = null;
@@ -313,8 +313,8 @@ async function observePublicLatestRootInstallability({ expectedVector }) {
     const rootManifestPath = join(
       appRoot,
       'node_modules',
-      '@snapback',
-      'cli',
+      '@expo',
+      'snapback-cli',
       'package.json',
     );
     if (existsSync(rootManifestPath)) {
@@ -484,7 +484,7 @@ function loadLatestProofPlan() {
     throw new Error('latest-root proof helper checkout provenance drifted');
   }
   const cliLeaseRow = lease.packages.find(
-    (row) => row.name === '@ccheever/snapback-cli',
+    (row) => row.name === '@expo/snapback-cli',
   );
   if (
     !cliLeaseRow

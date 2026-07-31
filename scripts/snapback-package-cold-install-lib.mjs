@@ -14,6 +14,7 @@ import {
   parseBoundedJsonBytes,
   readBoundedFileBytes,
   readBoundedJsonFile,
+  sourceNamesForScopePreset,
   validateColdInstallBrowserEvidence,
   validateCandidateLedger,
   validatePublicationReceiptProvenance,
@@ -36,6 +37,7 @@ export {
   parseBoundedJsonBytes,
   readBoundedFileBytes,
   readBoundedJsonFile,
+  sourceNamesForScopePreset,
   validateColdInstallBrowserEvidence,
   validateRetainedComparatorReceipt,
 };
@@ -1057,8 +1059,9 @@ Options:
                     (default: https://registry.npmjs.org)
   --root-selector <exact|latest>
                     Install all exact aliases (default), or first install only
-                    @ccheever/snapback-cli@latest and verify its selected
-                    closure/default-tag vector before expanding the proof
+                    the ledger's CLI root at its latest tag and verify its
+                    selected closure/default-tag vector before expanding the
+                    proof
   --expected-prior-root-version <version>
                     Signed prior CLI version eligible for bounded retry;
                     required only with --root-selector latest
@@ -1231,8 +1234,11 @@ export function validatePublicPublicationLedger(ledger, expectedSourceNames) {
   if (ledger.sourceDirty !== false) {
     throw new TypeError('public install refuses a dirty-source publication ledger');
   }
-  if (ledger.scopePreset !== 'ccheever') {
-    throw new TypeError('public install requires the decided ccheever public aliases');
+  // `identity` is the decision-9 terminal @expo/snapback-* closure; the
+  // retired `ccheever` alias preset stays accepted read-side so pre-migration
+  // publication ledgers remain verifiable lineage.
+  if (!['identity', 'ccheever'].includes(ledger.scopePreset)) {
+    throw new TypeError('public install requires a decided public scope preset');
   }
   if (ledger.registry !== PUBLIC_NPM_REGISTRY) {
     throw new TypeError('public install requires the official npm registry');
@@ -1275,7 +1281,9 @@ export function validatePublicPublicationLedger(ledger, expectedSourceNames) {
     ) {
       throw new TypeError(`publication ledger has no registry sha256 for ${sourceName}`);
     }
-    const expectedPublicName = `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`;
+    const expectedPublicName = ledger.scopePreset === 'ccheever'
+      ? `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`
+      : sourceName;
     if (entry.name !== expectedPublicName) {
       throw new TypeError(`publication ledger alias drift for ${sourceName}`);
     }
@@ -1296,23 +1304,49 @@ export function validateStagedPublicationLedger(ledger) {
   return ledger;
 }
 
-const SNAPBACK_PLATFORM_RUNTIMES = [
-  '@snapback/runtime-darwin-arm64',
-  '@snapback/runtime-linux-x64',
-];
+/**
+ * The install-tree inspection is keyed by the ledger's source-name
+ * generation: the terminal @expo/snapback-* identity closure, or the
+ * recorded legacy @snapback/* -> @ccheever/snapback-* alias closure
+ * (decision-9 lineage — both recorded generations stay checkable).
+ */
+export function ledgerNameGeneration(scopePreset) {
+  const sourceNames = sourceNamesForScopePreset(scopePreset);
+  return {
+    scopePreset,
+    prefix: scopePreset === 'ccheever' ? '@snapback/' : '@expo/snapback-',
+    cli: sourceNames.cli,
+    client: sourceNames.client,
+    codegen: sourceNames.codegen,
+    contract: sourceNames.contract,
+    react: sourceNames.react,
+    vite: sourceNames.vite,
+    appCli: sourceNames['app-cli'],
+    platformRuntimes: [
+      sourceNames['runtime-darwin-arm64'],
+      sourceNames['runtime-linux-x64'],
+    ],
+    publishedCli: scopePreset === 'ccheever'
+      ? '@ccheever/snapback-cli'
+      : sourceNames.cli,
+    publishedScope: scopePreset === 'ccheever' ? '@ccheever' : '@expo',
+    repository: scopePreset === 'ccheever' ? 'ccheever/snapback' : 'expo/snapback',
+  };
+}
 
 function collectInstalledSnapbackVersions(
   node,
   hostRuntime,
+  generation,
   output = new Map(),
   omittedPlatformRuntimes = [],
   parentPath = [],
 ) {
   for (const [dependency, child] of Object.entries(node?.dependencies ?? {})) {
     const treePath = [...parentPath, dependency];
-    if (dependency.startsWith('@snapback/')) {
+    if (dependency.startsWith(generation.prefix)) {
       if (typeof child?.version !== 'string') {
-        const expectedOmittedRuntime = SNAPBACK_PLATFORM_RUNTIMES.find(
+        const expectedOmittedRuntime = generation.platformRuntimes.find(
           (sourceName) => sourceName !== hostRuntime,
         );
         const platformFilteredOptional = (
@@ -1322,7 +1356,7 @@ function collectInstalledSnapbackVersions(
           && !Array.isArray(child)
           && Object.keys(child).length === 0
           && parentPath.length === 1
-          && parentPath[0] === '@snapback/cli'
+          && parentPath[0] === generation.cli
         );
         if (!platformFilteredOptional) {
           throw new TypeError(`latest-root dependency ${dependency} has no installed version`);
@@ -1342,6 +1376,7 @@ function collectInstalledSnapbackVersions(
     collectInstalledSnapbackVersions(
       child,
       hostRuntime,
+      generation,
       output,
       omittedPlatformRuntimes,
       treePath,
@@ -1378,15 +1413,20 @@ function validateLatestTagVector(ledger, tagVector) {
   }
 }
 
-function validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes) {
-  const expectedOmittedRuntime = SNAPBACK_PLATFORM_RUNTIMES.find(
+function validatePlatformRuntimeOmission(
+  hostRuntime,
+  installed,
+  omittedPlatformRuntimes,
+  generation,
+) {
+  const expectedOmittedRuntime = generation.platformRuntimes.find(
     (sourceName) => sourceName !== hostRuntime,
   );
   if (
     omittedPlatformRuntimes.length !== 1
     || omittedPlatformRuntimes[0].sourceName !== expectedOmittedRuntime
     || omittedPlatformRuntimes[0].treePath.length !== 2
-    || omittedPlatformRuntimes[0].treePath[0] !== '@snapback/cli'
+    || omittedPlatformRuntimes[0].treePath[0] !== generation.cli
     || omittedPlatformRuntimes[0].treePath[1] !== expectedOmittedRuntime
   ) {
     throw new TypeError('latest root did not prove the opposite platform runtime omission');
@@ -1414,7 +1454,8 @@ export function classifyLatestRootObservation({
   expectedPriorRootVersion,
 }) {
   validateCandidateLedger(ledger);
-  if (!SNAPBACK_PLATFORM_RUNTIMES.includes(hostRuntime)) {
+  const generation = ledgerNameGeneration(ledger.scopePreset);
+  if (!generation.platformRuntimes.includes(hostRuntime)) {
     throw new TypeError('latest-root proof selected an unsupported host runtime');
   }
   if (
@@ -1429,7 +1470,7 @@ export function classifyLatestRootObservation({
   if (tree === null || typeof tree !== 'object' || Array.isArray(tree)) {
     throw new TypeError('latest-root npm tree is malformed');
   }
-  const topLevelRoot = tree.dependencies?.['@snapback/cli'];
+  const topLevelRoot = tree.dependencies?.[generation.cli];
   if (
     topLevelRoot === null
     || typeof topLevelRoot !== 'object'
@@ -1441,9 +1482,9 @@ export function classifyLatestRootObservation({
   const {
     installed,
     omittedPlatformRuntimes,
-  } = collectInstalledSnapbackVersions(tree, hostRuntime);
-  validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes);
-  if (installed.get('@snapback/cli') !== topLevelRoot.version) {
+  } = collectInstalledSnapbackVersions(tree, hostRuntime, generation);
+  validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes, generation);
+  if (installed.get(generation.cli) !== topLevelRoot.version) {
     throw new TypeError('latest-root npm tree has an ambiguous CLI root');
   }
   for (const [sourceName, version] of installed) {
@@ -1455,10 +1496,10 @@ export function classifyLatestRootObservation({
     }
   }
   for (const sourceName of [
-    '@snapback/cli',
-    '@snapback/client',
-    '@snapback/codegen',
-    '@snapback/contract',
+    generation.cli,
+    generation.client,
+    generation.codegen,
+    generation.contract,
     hostRuntime,
   ]) {
     if (!installed.has(sourceName)) {
@@ -1501,19 +1542,20 @@ export function validateLatestRootResolution({
   tagVector,
 }) {
   validateCandidateLedger(ledger);
-  if (!SNAPBACK_PLATFORM_RUNTIMES.includes(hostRuntime)) {
+  const generation = ledgerNameGeneration(ledger.scopePreset);
+  if (!generation.platformRuntimes.includes(hostRuntime)) {
     throw new TypeError('latest-root proof selected an unsupported host runtime');
   }
   const {
     installed,
     omittedPlatformRuntimes,
-  } = collectInstalledSnapbackVersions(tree, hostRuntime);
-  validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes);
+  } = collectInstalledSnapbackVersions(tree, hostRuntime, generation);
+  validatePlatformRuntimeOmission(hostRuntime, installed, omittedPlatformRuntimes, generation);
   for (const sourceName of [
-    '@snapback/cli',
-    '@snapback/client',
-    '@snapback/codegen',
-    '@snapback/contract',
+    generation.cli,
+    generation.client,
+    generation.codegen,
+    generation.contract,
     hostRuntime,
   ]) {
     if (installed.get(sourceName) !== ledger.version) {
@@ -1528,7 +1570,7 @@ export function validateLatestRootResolution({
   }
   validateLatestTagVector(ledger, tagVector);
   return {
-    root: '@snapback/cli',
+    root: generation.cli,
     selected: ledger.version,
     installed: Object.fromEntries([...installed.entries()].sort()),
     omittedOptionalPlatformRuntimes: omittedPlatformRuntimes,
@@ -1584,6 +1626,7 @@ export function validateLatestRootPropagationWitness({
   expectedCandidateLedgerSha256,
   expectedOperationId,
   expectedPlatform,
+  expectedPackageName = '@expo/snapback-cli',
   latestRootResolution,
 }) {
   requireExactObjectKeys(
@@ -1594,7 +1637,7 @@ export function validateLatestRootPropagationWitness({
   if (
     witness.schemaVersion !== 'snapback.latest-root-host-retry.v1'
     || witness.status !== 'candidate-complete'
-    || witness.package !== '@ccheever/snapback-cli'
+    || witness.package !== expectedPackageName
     || witness.registry !== PUBLIC_NPM_REGISTRY
     || witness.cachePolicy !== 'unique-empty-per-attempt'
     || witness.lifecycleScripts !== 'disabled'
@@ -1700,6 +1743,7 @@ export function validateFinalLatestReceipts({
   if (!Array.isArray(records) || records.length !== 2) {
     throw new TypeError('final promotion requires two latest-root receipts');
   }
+  const generation = ledgerNameGeneration(ledger.scopePreset);
   requireExactObjectKeys(githubCollection, [
     'artifacts',
     'authorizedLeaseSha256',
@@ -1727,7 +1771,7 @@ export function validateFinalLatestReceipts({
   if (
     githubCollection?.schemaVersion
       !== 'snapback.github-latest-root-proof-collection.v3'
-    || githubCollection.repository !== 'ccheever/snapback'
+    || githubCollection.repository !== generation.repository
     || githubCollection.workflow !== 'public-package-proof.yml'
     || githubCollection.ledgerRevision !== ledger.revision
     || githubCollection.candidateLedgerSha256 !== ledger.candidateLedgerSha256
@@ -1757,15 +1801,16 @@ export function validateFinalLatestReceipts({
     const receipt = record.receipt;
     const platform = `${receipt?.machine?.platform}-${receipt?.machine?.architecture}`;
     const hostRuntime = platform === 'darwin-arm64'
-      ? '@snapback/runtime-darwin-arm64'
+      ? generation.platformRuntimes[0]
       : platform === 'linux-x64'
-        ? '@snapback/runtime-linux-x64'
+        ? generation.platformRuntimes[1]
         : null;
     validatePublicationReceiptProvenance(receipt, {
       expectedRevision: ledger.revision,
       expectedWorkflow: 'public-package-proof.yml',
       expectedOperationId: githubCollection.operationId,
       expectedWorkflowHead: githubCollection.expectedHeadSha,
+      expectedRepository: generation.repository,
     });
     if (
       receipt?.schemaVersion !== 'snapback.package-cold-install.v2'
@@ -1798,6 +1843,7 @@ export function validateFinalLatestReceipts({
       expectedCandidateLedgerSha256: ledger.candidateLedgerSha256,
       expectedOperationId: githubCollection.operationId,
       expectedPlatform: platform,
+      expectedPackageName: generation.publishedCli,
       latestRootResolution: receipt.latestRootResolution,
     });
     validateColdInstallBrowserEvidence(receipt);
@@ -1838,13 +1884,13 @@ export function validateFinalLatestReceipts({
       }
     }
     const resolution = receipt.latestRootResolution;
-    const expectedOmittedRuntime = SNAPBACK_PLATFORM_RUNTIMES.find(
+    const expectedOmittedRuntime = generation.platformRuntimes.find(
       (sourceName) => sourceName !== hostRuntime,
     );
     const omittedPlatformRuntimes = resolution.omittedOptionalPlatformRuntimes;
     const omission = omittedPlatformRuntimes?.[0];
     if (
-      resolution.root !== '@snapback/cli'
+      resolution.root !== generation.cli
       || resolution.defaultTagVector === null
       || typeof resolution.defaultTagVector !== 'object'
       || Array.isArray(resolution.defaultTagVector)
@@ -1858,7 +1904,7 @@ export function validateFinalLatestReceipts({
       || omission.sourceName !== expectedOmittedRuntime
       || !Array.isArray(omission.treePath)
       || omission.treePath.length !== 2
-      || omission.treePath[0] !== '@snapback/cli'
+      || omission.treePath[0] !== generation.cli
       || omission.treePath[1] !== expectedOmittedRuntime
     ) {
       throw new TypeError(`final latest-root tag vector is incomplete: ${platform}`);
@@ -1895,10 +1941,10 @@ export function validateFinalLatestReceipts({
       ledger.packages.map((row) => [row.sourceName, row]),
     );
     for (const sourceName of [
-      '@snapback/cli',
-      '@snapback/client',
-      '@snapback/codegen',
-      '@snapback/contract',
+      generation.cli,
+      generation.client,
+      generation.codegen,
+      generation.contract,
       hostRuntime,
     ]) {
       if (installed[sourceName] !== candidateBySource.get(sourceName)?.version) {

@@ -19,7 +19,7 @@ import {
 
 const NOW = Date.parse('2026-07-28T22:05:00.000Z');
 const CONTEXT = {
-  repository: 'ccheever/snapback',
+  repository: 'expo/snapback',
   workflow: 'public-package-proof.yml',
   ref: 'agent/release',
   expectedHeadSha: 'a'.repeat(40),
@@ -86,7 +86,7 @@ test('helper arguments close the signed prior retry authority', () => {
 function receipt(platform = 'darwin', architecture = 'arm64') {
   const platformId = `${platform}-${architecture}`;
   const latestRootResolution = {
-    root: '@snapback/cli',
+    root: '@expo/snapback-cli',
     selected: CONTEXT.candidateRootVersion,
   };
   const attemptStartedAt = '2026-07-28T22:00:10.000Z';
@@ -106,7 +106,7 @@ function receipt(platform = 'darwin', architecture = 'arm64') {
       operationId: CONTEXT.operationId,
       platform: platformId,
       candidateLedgerSha256: CONTEXT.candidateLedgerSha256,
-      package: '@ccheever/snapback-cli',
+      package: '@expo/snapback-cli',
       candidateRootVersion: CONTEXT.candidateRootVersion,
       expectedPriorRootVersion: CONTEXT.expectedPriorRootVersion,
       registry: 'https://registry.npmjs.org',
@@ -225,7 +225,7 @@ test('admits only the exact GitHub-hosted latest-root run correlation', () => {
     (candidate) => { candidate.githubProof.runId = '999'; },
     (candidate) => { candidate.githubProof.runAttempt = '1'; },
     (candidate) => { candidate.githubProof.runHeadSha = 'd'.repeat(40); },
-    (candidate) => { candidate.githubProof.workflowRef = 'ccheever/snapback/.github/workflows/evil.yml@refs/heads/main'; },
+    (candidate) => { candidate.githubProof.workflowRef = 'expo/snapback/.github/workflows/evil.yml@refs/heads/main'; },
     (candidate) => { candidate.machine.runnerEnvironment = 'local'; },
     (candidate) => { candidate.latestRootPropagation.expectedPriorRootVersion = '0.0.9'; },
     (candidate) => { candidate.latestRootPropagation.retryDelayMs = 0; },

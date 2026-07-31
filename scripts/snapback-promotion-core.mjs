@@ -1,4 +1,5 @@
 import {
+  LEGACY_PROMOTION_PACKAGE_NAMES,
   PACKAGE_COUNT,
   PROMOTION_PACKAGE_NAMES,
   assertHexSha256,
@@ -229,7 +230,7 @@ export async function waitForPromotedInstallability({
     throw new TypeError('promoted installability barrier bounds are invalid');
   }
   const names = lease.packages.map((row) => row.name);
-  const cliRow = lease.packages.find((row) => row.name === '@ccheever/snapback-cli');
+  const cliRow = lease.packages.find((row) => row.name === '@expo/snapback-cli');
   if (!cliRow || !vectorsEqual(expectedVector, vectorFromLease(lease, 'new'), names)) {
     throw new TypeError('promoted installability barrier expected vector is invalid');
   }
@@ -433,7 +434,7 @@ export function validateClosedLatestProofPlan({
   requireExactKeys(plan, LATEST_PROOF_PLAN_KEYS, 'latest-root proof plan');
   if (
     plan.schemaVersion !== 'snapback.latest-root-proof-plan.v3'
-    || plan.repository !== 'ccheever/snapback'
+    || plan.repository !== 'expo/snapback'
     || plan.workflow !== 'public-package-proof.yml'
     || plan.operationId !== expectedOperationId
     || plan.authorizedLeaseSha256 !== expectedAuthorizedLeaseSha256
@@ -492,10 +493,12 @@ export function validatePriorDependencyAlias({
   const rows = new Map(lease.packages.map((row) => [row.name, row]));
   const owner = rows.get(ownerName);
   const targetRow = rows.get(target);
-  const expectedSourceKey = target.replace(
-    '@ccheever/snapback-',
-    '@snapback/',
-  );
+  // Terminal-scope artifacts key internal edges by the registry identity
+  // itself; legacy @ccheever artifacts keyed them by the @snapback source
+  // alias (decision-9 lineage — both recorded shapes stay checkable).
+  const expectedSourceKey = target.startsWith('@ccheever/snapback-')
+    ? target.replace('@ccheever/snapback-', '@snapback/')
+    : target;
   const ownerAlreadyAtCandidate = (
     owner?.expectedPriorVersion === owner?.newVersion
   );
@@ -607,7 +610,7 @@ export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
       );
     }
     if (
-      receipt.github.repository !== 'ccheever/snapback'
+      receipt.github.repository !== 'expo/snapback'
       || receipt.github.workflow !== 'public-package-proof.yml'
       || receipt.github.operationId !== operationId
       || !/^[0-9a-f]{64}$/u.test(receipt.github.authorizedLeaseSha256 ?? '')
@@ -706,14 +709,23 @@ export function validatePostPromotionLedger(ledger) {
   ) {
     throw new Error('pre-close authority head drifted');
   }
+  // A post-promotion ledger binds exactly one name generation: the terminal
+  // @expo/snapback-* identity closure, or the recorded legacy
+  // @ccheever/snapback-* alias closure (decision-9 lineage).
+  const generationNames = ledger.packages?.[0]?.name?.startsWith('@ccheever/')
+    ? LEGACY_PROMOTION_PACKAGE_NAMES
+    : PROMOTION_PACKAGE_NAMES;
   const packageNames = new Set();
   for (const [index, row] of ledger.packages.entries()) {
     requireExactKeys(row, POST_PROMOTION_PACKAGE_KEYS, `post-promotion package ${index}`);
-    if (!PROMOTION_PACKAGE_NAMES.includes(row.name) || packageNames.has(row.name)) {
+    if (!generationNames.includes(row.name) || packageNames.has(row.name)) {
       throw new Error(`post-promotion package ${index} is invalid`);
     }
     packageNames.add(row.name);
-    if (row.sourceName !== `@snapback/${row.name.slice('@ccheever/snapback-'.length)}`) {
+    const expectedSourceName = generationNames === LEGACY_PROMOTION_PACKAGE_NAMES
+      ? `@snapback/${row.name.slice('@ccheever/snapback-'.length)}`
+      : row.name;
+    if (row.sourceName !== expectedSourceName) {
       throw new Error(`post-promotion package ${index} source alias drifted`);
     }
     for (const field of ['candidateTarballSha256', 'registryTarballSha256']) {
@@ -731,7 +743,7 @@ export function validatePostPromotionLedger(ledger) {
   for (const [index, event] of ledger.tagEvents.entries()) {
     if (
       event?.phase !== 'promote'
-      || event.package !== PROMOTION_PACKAGE_NAMES[index]
+      || event.package !== generationNames[index]
     ) {
       throw new Error(`post-promotion tag event ${index} drifted`);
     }

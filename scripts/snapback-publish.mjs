@@ -52,7 +52,7 @@ const commonPackages = [
 const allPackages = [...runtimePackages.values(), ...commonPackages];
 
 const usage = `usage: node scripts/snapback-publish.mjs [--version <semver>]
-  [--scope-preset <identity|ccheever>] [--tag <tag>] [--out <dir>]
+  [--scope-preset <identity>] [--tag <tag>] [--out <dir>]
   [--runtime-platforms <host|all|comma-list>]
   [--qualified-ledger <path>] [--platform-receipt <path>]
   [--publish] [--otp <code>] [--allow-dirty]
@@ -114,7 +114,10 @@ function parseArgs(argv) {
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(options.version)) {
     fail(`invalid version ${options.version}`, 2);
   }
-  if (!['identity', 'ccheever'].includes(options.scopePreset)) {
+  if (options.scopePreset !== 'identity') {
+    // Decision 9 (LLP 0115): the terminal @expo/snapback-* names publish
+    // under the identity preset. The retired `ccheever` alias preset only
+    // survives read-side, for validating pre-migration ledgers.
     fail(`unsupported scope preset ${options.scopePreset}`, 2);
   }
   const hostPlatform = `${process.platform}-${process.arch}`;
@@ -146,7 +149,7 @@ function run(command, args, options = {}) {
 
 function publishedName(sourceName, preset) {
   if (preset === 'identity') return sourceName;
-  return `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`;
+  throw new Error(`unsupported scope preset ${preset}`);
 }
 
 function sha256(path) {
@@ -272,11 +275,11 @@ function stage(options) {
       for (const section of PACKAGE_DEPENDENCY_SECTIONS) {
         for (const [dependency, value] of Object.entries(manifest[section] ?? {})) {
           if (
-            [...nameMap.values()].includes(dependency)
-            || dependency.startsWith('@ccheever/snapback-')
+            dependency.startsWith('@ccheever/snapback-')
+            || dependency.startsWith('@snapback/')
           ) {
             fail(
-              `${sourceManifest.name} uses direct public internal key ${section}.${dependency}`,
+              `${sourceManifest.name} uses a pre-migration internal key ${section}.${dependency}`,
             );
           }
           if (!nameMap.has(dependency)) {
@@ -343,8 +346,8 @@ if (options.publish && process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
 if (options.publish && options.runtimePlatforms.length !== runtimePackages.size) {
   fail('real publish requires --runtime-platforms all so the CLI never points at a missing supported runtime');
 }
-if (options.publish && options.scopePreset !== 'ccheever') {
-  fail('real publication is limited to the decided @ccheever public closure');
+if (options.publish && options.scopePreset !== 'identity') {
+  fail('real publication is limited to the decided @expo/snapback-* terminal closure');
 }
 if (options.publish && !options.qualifiedLedger) {
   fail('real publication requires --qualified-ledger; it never restages release bytes');
@@ -424,7 +427,7 @@ if (options.publish) {
   rows = stage(options);
 }
 const qualifiedShape = !options.publish
-  && options.scopePreset === 'ccheever'
+  && options.scopePreset === 'identity'
   && options.runtimePlatforms.length === runtimePackages.size
   && /^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/.test(options.tag)
   && options.tag === `bakeoff-${options.version.replaceAll('.', '-')}-${revision.slice(0, 12)}`;
@@ -436,7 +439,7 @@ const ledger = options.publish ? {
   version: options.version,
   tag: options.tag,
   registry: publicRegistry,
-  scopePreset: 'ccheever',
+  scopePreset: 'identity',
   runtimePlatforms: [...qualifiedLedger.runtimePlatforms],
   qualifiedLedgerSha256: qualifiedLedger.stagedLedgerSha256,
   qualifiedPlatformReceipts,

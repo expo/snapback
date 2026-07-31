@@ -42,6 +42,7 @@ import {
   LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS,
   LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS,
   LATEST_ROOT_PROPAGATION_WALL_BOUND_MS,
+  ledgerNameGeneration,
   measureGitCheckoutIdentity,
   parseArguments,
   readBoundedJsonFile,
@@ -1977,22 +1978,26 @@ if (proofHarnessRevision === null) {
 }
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
+// The proof follows the ledger's name generation: terminal @expo/snapback-*
+// identity closures, or recorded legacy @snapback/* alias closures
+// (decision-9 lineage).
+const generation = ledgerNameGeneration(ledger.scopePreset);
 const runtimePackages = new Map([
-  ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
-  ['linux-x64', '@snapback/runtime-linux-x64'],
+  ['darwin-arm64', generation.platformRuntimes[0]],
+  ['linux-x64', generation.platformRuntimes[1]],
 ]);
 const hostPlatform = `${process.platform}-${process.arch}`;
 const hostRuntime = runtimePackages.get(hostPlatform);
 if (!hostRuntime) fail(`cold-install proof has no runtime package for ${hostPlatform}`);
 const allExpectedPackages = [
   ...runtimePackages.values(),
-  '@snapback/contract',
-  '@snapback/client',
-  '@snapback/codegen',
-  '@snapback/vite',
-  '@snapback/react',
-  '@snapback/app-cli',
-  '@snapback/cli',
+  generation.contract,
+  generation.client,
+  generation.codegen,
+  generation.vite,
+  generation.react,
+  generation.appCli,
+  generation.cli,
 ];
 let publicEntries = null;
 if (installSource === 'public') {
@@ -2022,20 +2027,22 @@ for (const entry of ledger.packages ?? []) {
   }
 }
 if (rootSelector === 'latest') {
-  dependencies['@snapback/cli'] = 'npm:@ccheever/snapback-cli@latest';
+  dependencies[generation.cli] = generation.scopePreset === 'ccheever'
+    ? `npm:${generation.publishedCli}@latest`
+    : 'latest';
 } else {
   Object.assign(dependencies, exactDependencies);
 }
 
 const expectedPackages = [
   hostRuntime,
-  '@snapback/contract',
-  '@snapback/client',
-  '@snapback/codegen',
-  '@snapback/vite',
-  '@snapback/react',
-  '@snapback/app-cli',
-  '@snapback/cli',
+  generation.contract,
+  generation.client,
+  generation.codegen,
+  generation.vite,
+  generation.react,
+  generation.appCli,
+  generation.cli,
 ];
 for (const name of expectedPackages) {
   if (!exactDependencies[name]) fail(`publication closure omits ${name}`);
@@ -2093,7 +2100,7 @@ try {
   }, null, 2)}\n`);
   writeFileSync(
     join(appRoot, '.npmrc'),
-    `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+    `registry=${PUBLIC_NPM_REGISTRY}\n${generation.publishedScope}:registry=${installRegistry}\n`,
   );
   // Materialize the real Partitime backend source into the external checkout.
   // From this point onward the proof runs only against that copy and tarballs.
@@ -2112,7 +2119,7 @@ try {
   }, null, 2)}\n`);
   writeFileSync(join(appRoot, 'generate.mjs'), `
 import { readFileSync } from 'node:fs';
-import { generate } from '@snapback/codegen';
+import { generate } from '${generation.codegen}';
 for (const targetProfile of ['local-dev-sqlite-ibex', 'remote-service-sqlite-ibex']) {
   const result = await generate(new URL('./snapback', import.meta.url).pathname, { targetProfile });
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
@@ -2125,9 +2132,9 @@ if (profile.publication.profilePath !== 'snapback/generated-remote-service/remot
 if (profile.dataTier.caseCount < 29) throw new Error('bundled data-tier corpus is incomplete');
 `);
   writeFileSync(join(appRoot, 'browser-entry.mjs'), `
-import { createMemorySnapbackClientStore } from '@snapback/contract';
-import { SnapbackClient } from '@snapback/client';
-import { useSnapbackQuery } from '@snapback/react';
+import { createMemorySnapbackClientStore } from '${generation.contract}';
+import { SnapbackClient } from '${generation.client}';
+import { useSnapbackQuery } from '${generation.react}';
 globalThis.__snapbackPackageProof = [createMemorySnapbackClientStore, SnapbackClient, useSnapbackQuery];
 `);
   writeFileSync(join(appRoot, 'bundle.mjs'), `
@@ -2269,7 +2276,7 @@ await build({
           operationId,
           platform: hostPlatform,
           candidateLedgerSha256: ledger.candidateLedgerSha256,
-          package: '@ccheever/snapback-cli',
+          package: generation.publishedCli,
           candidateRootVersion: ledger.version,
           expectedPriorRootVersion,
           registry: PUBLIC_NPM_REGISTRY,
@@ -2393,8 +2400,7 @@ await build({
   const comparatorConfigPath = join(
     appRoot,
     'node_modules',
-    '@snapback',
-    'cli',
+    ...generation.cli.split('/'),
     'fixtures',
     'comparator',
     'green.config.mjs',
@@ -2452,7 +2458,7 @@ await build({
   writeFileSync(scaffoldManifestPath, `${JSON.stringify(scaffoldManifest, null, 2)}\n`);
   writeFileSync(
     join(scaffoldRoot, '.npmrc'),
-    `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+    `registry=${PUBLIC_NPM_REGISTRY}\n${generation.publishedScope}:registry=${installRegistry}\n`,
   );
   await runAsyncOrFail('npm', [
     'install',
@@ -2520,7 +2526,7 @@ await build({
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
     writeFileSync(
       join(fixtureRoot, '.npmrc'),
-      `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+      `registry=${PUBLIC_NPM_REGISTRY}\n${generation.publishedScope}:registry=${installRegistry}\n`,
     );
     await runAsyncOrFail('npm', [
       'install',
@@ -2533,9 +2539,9 @@ await build({
       timeout: 360_000,
     });
     const fixtureSnapbackPackages = [
-      '@snapback/client',
-      '@snapback/react',
-      '@snapback/vite',
+      generation.client,
+      generation.react,
+      generation.vite,
     ].filter((name) => Object.hasOwn(manifest.dependencies ?? {}, name));
     for (const name of fixtureSnapbackPackages) {
       const installed = join(fixtureRoot, 'node_modules', ...name.split('/'));
@@ -2596,7 +2602,7 @@ await build({
     reactManifest.scripts?.dev !== 'snapback dev snapback --client . --client-command vite'
     || reactManifest.scripts?.['snapback:dev'] !== reactManifest.scripts?.dev
     || reactManifest.scripts?.['client:dev'] !== 'vite'
-    || !Object.hasOwn(reactManifest.dependencies ?? {}, '@snapback/vite')
+    || !Object.hasOwn(reactManifest.dependencies ?? {}, generation.vite)
     || !reactMain.includes("from 'virtual:snapback/dev'")
     || reactMain.includes('ensureApp(')
     || !reactViteConfig.includes("server: { mode: 'attach' }")

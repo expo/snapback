@@ -103,19 +103,22 @@ export async function fetchPublicationAuthorityJson(
   }
 }
 
-export function validateObservedPriorVector(vector) {
+export function validateObservedPriorVector(
+  vector,
+  { packageNames = PROMOTION_PACKAGE_NAMES } = {},
+) {
   if (vector === null || typeof vector !== 'object' || Array.isArray(vector)) {
     throw new Error('prior vector must be an object');
   }
   const actual = Object.keys(vector).sort();
-  const expected = [...PROMOTION_PACKAGE_NAMES].sort();
+  const expected = [...packageNames].sort();
   if (
     actual.length !== expected.length
     || actual.some((name, index) => name !== expected[index])
   ) {
     throw new Error('prior vector must contain the exact nine-package inventory');
   }
-  for (const name of PROMOTION_PACKAGE_NAMES) {
+  for (const name of packageNames) {
     const value = vector[name];
     if (
       value !== null
@@ -165,7 +168,7 @@ export function createPublicationLeaseIssueRequest({
     };
   });
   return validatePublicationLeaseIssueRequest({
-    schemaVersion: 'snapback.publication-lease-issue-request.v3',
+    schemaVersion: 'snapback.publication-lease-issue-request.v4',
     authorityInstallationId: head.authorityInstallationId,
     authorityOrigin: head.authorityOrigin,
     signingKeyId: head.signingKeyId,

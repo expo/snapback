@@ -9,6 +9,7 @@ import test from 'node:test';
 import { PublicationLeaseAuthority } from './authority.mjs';
 import {
   canonicalJcs,
+  LEGACY_PROMOTION_PACKAGE_NAMES,
   PROMOTION_PACKAGE_NAMES,
   publicationAuthoritySigningKeyId,
   publicationAuthorityTransition,
@@ -43,7 +44,7 @@ function fixture() {
     now: () => NOW,
   });
   const request = {
-    schemaVersion: 'snapback.publication-lease-issue-request.v3',
+    schemaVersion: 'snapback.publication-lease-issue-request.v4',
     authorityInstallationId: AUTHORITY_INSTALLATION_ID,
     authorityOrigin: AUTHORITY_ORIGIN,
     signingKeyId: publicationAuthoritySigningKeyId(publicKey),
@@ -100,10 +101,11 @@ test('issue allocates and signs one exact short-lived nine-package epoch', () =>
   assert.equal(authority.head().publicationEpoch, 1);
 });
 
-test('authority dual-reads historical v2 state but single-writes v3 leases', () => {
+test('authority dual-reads historical v2 state but single-writes v4 leases', () => {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const signingKeyId = publicationAuthoritySigningKeyId(publicKey);
-  const packages = PROMOTION_PACKAGE_NAMES.map((name) => ({
+  // Historical v2 artifacts bind the recorded legacy @ccheever scope.
+  const packages = LEGACY_PROMOTION_PACKAGE_NAMES.map((name) => ({
     name,
     expectedPriorVersion: '0.1.0',
     newVersion: '0.1.1',
@@ -172,13 +174,18 @@ test('authority dual-reads historical v2 state but single-writes v3 leases', () 
   const head = authority.head();
   const next = authority.issue({
     ...issueRequest,
-    schemaVersion: 'snapback.publication-lease-issue-request.v3',
+    schemaVersion: 'snapback.publication-lease-issue-request.v4',
     operationId: 'release-after-v2-test',
     expectedPublicationEpoch: head.publicationEpoch,
     expectedHeadSha256: head.headSha256,
     priorDefaultClosureReceiptSha256: '2'.repeat(64),
+    packages: PROMOTION_PACKAGE_NAMES.map((name) => ({
+      name,
+      expectedPriorVersion: '0.1.0',
+      newVersion: '0.1.1',
+    })),
   });
-  assert.equal(next.schemaVersion, 'snapback.authorized-publication-lease.v3');
+  assert.equal(next.schemaVersion, 'snapback.authorized-publication-lease.v4');
   assert.equal(next.publicationEpoch, 2);
   assert.throws(
     () => authority.issue({
@@ -187,7 +194,7 @@ test('authority dual-reads historical v2 state but single-writes v3 leases', () 
       expectedPublicationEpoch: 2,
       expectedHeadSha256: authority.head().headSha256,
     }),
-    /only issues v3/u,
+    /only issues v4/u,
   );
 });
 

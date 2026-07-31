@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/publication-lease-issue-request.v3.json",
-  "title": "PublicationLeaseIssueRequestV3",
+  "$id": "https://snapback.dev/schemas/publication-lease-issue-request.v4.json",
+  "title": "PublicationLeaseIssueRequestV4",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -21,7 +21,7 @@
     "packages"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.publication-lease-issue-request.v3" },
+    "schemaVersion": { "const": "snapback.publication-lease-issue-request.v4" },
     "authorityInstallationId": {
       "type": "string",
       "pattern": "^[A-Za-z0-9._:-]{8,160}$"
@@ -106,7 +106,7 @@
         {
           "type": "object",
           "properties": {
-            "name": { "const": "@ccheever/snapback-runtime-darwin-arm64" }
+            "name": { "const": "@expo/snapback-runtime-darwin-arm64" }
           }
         }
       ]
@@ -117,7 +117,7 @@
         {
           "type": "object",
           "properties": {
-            "name": { "const": "@ccheever/snapback-runtime-linux-x64" }
+            "name": { "const": "@expo/snapback-runtime-linux-x64" }
           }
         }
       ]
@@ -127,7 +127,7 @@
         { "$ref": "#/$defs/package" },
         {
           "type": "object",
-          "properties": { "name": { "const": "@ccheever/snapback-contract" } }
+          "properties": { "name": { "const": "@expo/snapback-contract" } }
         }
       ]
     },
@@ -136,7 +136,7 @@
         { "$ref": "#/$defs/package" },
         {
           "type": "object",
-          "properties": { "name": { "const": "@ccheever/snapback-client" } }
+          "properties": { "name": { "const": "@expo/snapback-client" } }
         }
       ]
     },
@@ -145,7 +145,7 @@
         { "$ref": "#/$defs/package" },
         {
           "type": "object",
-          "properties": { "name": { "const": "@ccheever/snapback-codegen" } }
+          "properties": { "name": { "const": "@expo/snapback-codegen" } }
         }
       ]
     },
@@ -154,7 +154,7 @@
         { "$ref": "#/$defs/package" },
         {
           "type": "object",
-          "properties": { "name": { "const": "@ccheever/snapback-vite" } }
+          "properties": { "name": { "const": "@expo/snapback-vite" } }
         }
       ]
     },
@@ -163,7 +163,7 @@
         { "$ref": "#/$defs/package" },
         {
           "type": "object",
-          "properties": { "name": { "const": "@ccheever/snapback-react" } }
+          "properties": { "name": { "const": "@expo/snapback-react" } }
         }
       ]
     },
@@ -172,7 +172,7 @@
         { "$ref": "#/$defs/package" },
         {
           "type": "object",
-          "properties": { "name": { "const": "@ccheever/snapback-app-cli" } }
+          "properties": { "name": { "const": "@expo/snapback-app-cli" } }
         }
       ]
     },
@@ -181,7 +181,7 @@
         { "$ref": "#/$defs/package" },
         {
           "type": "object",
-          "properties": { "name": { "const": "@ccheever/snapback-cli" } }
+          "properties": { "name": { "const": "@expo/snapback-cli" } }
         }
       ]
     }

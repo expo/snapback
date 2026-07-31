@@ -28,15 +28,15 @@ import {
 } from './snapback-promotion-core.mjs';
 
 const names = [
-  '@ccheever/snapback-runtime-darwin-arm64',
-  '@ccheever/snapback-runtime-linux-x64',
-  '@ccheever/snapback-contract',
-  '@ccheever/snapback-client',
-  '@ccheever/snapback-codegen',
-  '@ccheever/snapback-vite',
-  '@ccheever/snapback-react',
-  '@ccheever/snapback-app-cli',
-  '@ccheever/snapback-cli',
+  '@expo/snapback-runtime-darwin-arm64',
+  '@expo/snapback-runtime-linux-x64',
+  '@expo/snapback-contract',
+  '@expo/snapback-client',
+  '@expo/snapback-codegen',
+  '@expo/snapback-vite',
+  '@expo/snapback-react',
+  '@expo/snapback-app-cli',
+  '@expo/snapback-cli',
 ];
 const authorityInstallationId = 'snapback-publication-promotion';
 const authorityOrigin = 'https://publication-authority.example';
@@ -56,7 +56,7 @@ test('promotion executable imports the lease digest used by plan preflight', () 
 function fixture() {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const unsigned = {
-    schemaVersion: 'snapback.authorized-publication-lease.v2',
+    schemaVersion: 'snapback.authorized-publication-lease.v4',
     authorityInstallationId,
     authorityOrigin,
     signingKeyId: publicationAuthoritySigningKeyId(publicKey),
@@ -66,6 +66,7 @@ function fixture() {
     candidateLedgerSha256: 'a'.repeat(64),
     candidateTag: 'bakeoff-0-1-1-deadbeefcafe',
     defaultTag: 'latest',
+    priorDefaultClosureReceiptSha256: 'e'.repeat(64),
     issuedAt: '2026-07-28T19:00:00.000Z',
     expiresAt: '2026-07-28T19:15:00.000Z',
     packages: names.map((name, index) => ({
@@ -170,7 +171,7 @@ test('lease is signature, candidate, time, and nine-package bound', () => {
       priorDefaultClosureReceiptSha256: 'b'.repeat(64),
       now: Date.parse('2026-07-28T19:05:00.000Z'),
     }),
-    /legacy publication lease does not bind a prior closure/u,
+    /prior closure mismatch/u,
   );
 });
 
@@ -401,7 +402,7 @@ test('only an already-candidate prior package may bind aliases to the new vector
     validatePriorDependencyAlias({
       lease,
       ownerName: names[5],
-      dependency: '@snapback/cli',
+      dependency: '@expo/snapback-cli',
       target: names[8],
       version: '0.1.1',
     }),
@@ -411,7 +412,7 @@ test('only an already-candidate prior package may bind aliases to the new vector
     () => validatePriorDependencyAlias({
       lease,
       ownerName: names[2],
-      dependency: '@snapback/client',
+      dependency: '@expo/snapback-client',
       target: names[3],
       version: '0.1.1',
     }),
@@ -421,7 +422,7 @@ test('only an already-candidate prior package may bind aliases to the new vector
     validatePriorDependencyAlias({
       lease,
       ownerName: names[2],
-      dependency: '@snapback/client',
+      dependency: '@expo/snapback-client',
       target: names[3],
       version: '0.1.0',
     }),
@@ -1074,7 +1075,7 @@ test('promoted installability retries only the prior CLI root and retains the cl
       return {
         ok: true,
         rootVersion: '0.1.1',
-        closure: { root: '@snapback/cli', selected: '0.1.1' },
+        closure: { root: '@expo/snapback-cli', selected: '0.1.1' },
         error: null,
         retryablePriorRoot: false,
       };
@@ -1119,7 +1120,7 @@ test('promoted installability can require separated stable candidate closures', 
       return {
         ok: true,
         rootVersion: '0.1.1',
-        closure: { root: '@snapback/cli', selected: '0.1.1', probe: probes },
+        closure: { root: '@expo/snapback-cli', selected: '0.1.1', probe: probes },
         error: null,
         retryablePriorRoot: false,
       };
@@ -1152,7 +1153,7 @@ test('stable candidate observations must be consecutive and mixed states stay te
   const candidate = (probe) => ({
     ok: true,
     rootVersion: '0.1.1',
-    closure: { root: '@snapback/cli', selected: '0.1.1', probe },
+    closure: { root: '@expo/snapback-cli', selected: '0.1.1', probe },
     error: null,
     retryablePriorRoot: false,
   });
@@ -1292,7 +1293,7 @@ test('an already-candidate CLI root never makes a malformed closure retryable', 
   const base = fixture();
   const unsigned = unsignedLease(base.lease);
   const cliRow = unsigned.packages.find(
-    (row) => row.name === '@ccheever/snapback-cli',
+    (row) => row.name === '@expo/snapback-cli',
   );
   cliRow.expectedPriorVersion = cliRow.newVersion;
   const lease = signPublicationLease({ unsigned, privateKey: base.privateKey });
@@ -1341,7 +1342,7 @@ test('promoted installability preserves hosted-proof and rollback lease budget',
         return {
           ok: true,
           rootVersion: '0.1.1',
-          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          closure: { root: '@expo/snapback-cli', selected: '0.1.1' },
           error: null,
           retryablePriorRoot: false,
         };
@@ -1375,7 +1376,7 @@ test('stable candidate barrier reserves both probes and their separating delay',
         return {
           ok: true,
           rootVersion: '0.1.1',
-          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          closure: { root: '@expo/snapback-cli', selected: '0.1.1' },
           error: null,
           retryablePriorRoot: false,
         };
@@ -1412,7 +1413,7 @@ test('stable candidate barrier rechecks reserve after its first successful probe
         return {
           ok: true,
           rootVersion: '0.1.1',
-          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          closure: { root: '@expo/snapback-cli', selected: '0.1.1' },
           error: null,
           retryablePriorRoot: false,
         };
@@ -1461,7 +1462,7 @@ test('stable candidate barrier rechecks downstream reserve after final evidence 
         return {
           ok: true,
           rootVersion: '0.1.1',
-          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          closure: { root: '@expo/snapback-cli', selected: '0.1.1' },
           error: null,
           retryablePriorRoot: false,
         };
@@ -1515,7 +1516,7 @@ test('promoted installability rechecks its reserve after pre-probe fences', asyn
         return {
           ok: true,
           rootVersion: '0.1.1',
-          closure: { root: '@snapback/cli', selected: '0.1.1' },
+          closure: { root: '@expo/snapback-cli', selected: '0.1.1' },
           error: null,
           retryablePriorRoot: false,
         };
@@ -1584,7 +1585,7 @@ test('latest proof plan cannot inject a local command or substitute GitHub ident
   const plan = {
     schemaVersion: 'snapback.latest-root-proof-plan.v3',
     authorizedLeaseSha256: '5'.repeat(64),
-    repository: 'ccheever/snapback',
+    repository: 'expo/snapback',
     workflow: 'public-package-proof.yml',
     ref: 'main',
     expectedHeadSha: '1'.repeat(40),
@@ -1662,7 +1663,7 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
     sha256: fill.repeat(64),
     github: {
       authorizedLeaseSha256: leaseSha256(lease),
-      repository: 'ccheever/snapback',
+      repository: 'expo/snapback',
       workflow: 'public-package-proof.yml',
       workflowId: 42,
       workflowPath: '.github/workflows/public-package-proof.yml@refs/heads/main',

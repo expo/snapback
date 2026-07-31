@@ -23,7 +23,7 @@ let testSigningKeyId;
 
 function issueRequest() {
   return {
-    schemaVersion: 'snapback.publication-lease-issue-request.v3',
+    schemaVersion: 'snapback.publication-lease-issue-request.v4',
     authorityInstallationId: AUTHORITY_INSTALLATION_ID,
     authorityOrigin: AUTHORITY_ORIGIN,
     signingKeyId: testSigningKeyId,
