@@ -239,3 +239,34 @@ LLP 0130 SD-4 does not fire because three unresolved MATERIAL concerns remain. T
 Next step: revise LLP 0136 in place to close those three carriers, pin auth-refusal precedence, then run another Codex-family delta review before seeking dual-family READY.
 
 I could not append this Round 2 to the review artifact because the workspace is read-only.
+
+## Round 3 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-3 targeted — reviewer given its own Rounds 1-2 above and the v0.3 resolution summary for its four Round-2 items; read-only sandbox, blind to this Spec's fable artifact
+**Target SHA-256:** `2338ccbfea18bb448892de9d96b8bada473ca9844f65790bfdf10cf310e31484`
+**Session id:** `019fb777-3cca-7c00-9b9e-ba361a670401`
+**Status:** completed
+
+### Verbatim review
+
+Verified exact SHA-256 `2338ccb…e31484`. I read the prior Codex review and did not read `.fable.md`.
+
+## Verdict
+
+**READY**
+
+1. **Negotiation carrier — Resolved.** The carrier is real and closed-shape-honest: known/unknown/absent behavior, immutable lineage binding, capability-preflight omission for old targets, coarse closed-DTO failure, and the dated LLP 0094 §0C.5 amendment route are all explicit.
+
+2. **Cursor invalidation — Resolved.** `resync_required` atomically clears the cursor and marks the page non-current before resubscription; acceptance case 3 tests the observable store behavior.
+
+3. **Ceiling carrier — Resolved.** `TableManifest.searchLiveLimits` provides one table-level authority, generation rejects conflicting/per-index inputs, and work bounds use correct sum-wise arithmetic across indexes and touched tables.
+
+4. **Precedence — Resolved.** Subscribe admission pins the search-specific guard ahead of all generic auth-invalidation gates, while preserving the earlier LLP 0058 route-layer refusal for not-ready targets; cases 2 and 4 are consistently conditioned.
+
+**Fresh defects:** None found in the v0.3 delta.
+
+**Next step:** Append this as the dated Codex Round-3 section in `llp/reviews/0136-live-search.codex.md`; the author may then apply LLP 0130 SD-4 and decide whether to accept LLP 0136. I could not append it because this workspace is read-only.

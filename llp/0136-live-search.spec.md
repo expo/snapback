@@ -1,12 +1,27 @@
 # LLP 0136: Live search by coarse re-execution
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Search, Live Queries, Client integration, Code generation, Auth,
 Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.2 — round-1 dual-family fixes; verbatim
+**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+authorization: dual-family READY — Fable round 2, Codex round 3 —
+with the three conditions checked and satisfied: (1) zero unresolved
+MATERIAL concerns in either family's final round (Codex round 3
+verified all four round-2 items resolved, no fresh defects; Fable's
+round-2 notes N1–N6 were applied in v0.3); (2) within the decided
+scope of its commission (move4's live-search design half per the
+0127 synthesis and 0119's option space); (3) no evidence boundary
+weakened — v1 scoped down honestly to non-auth-scoped subscriptions
+with the auth-scoped lane refused at admission rather than claimed,
+ceiling defaults held provisional behind measurement gates, and the
+wire changes routed as dated LLP 0091/0094 amendments instead of
+silent edits. Recorded per SD-4's honesty rule: the author's
+standing acceptance made in advance. Review artifacts:
+reviews/0136-live-search.{fable,codex}.md.);
+2026-07-31 (v0.2 — round-1 dual-family fixes; verbatim
 reviews in `reviews/0136-live-search.fable.md` and
 `reviews/0136-live-search.codex.md`, both NOT READY (Fable C1–C10 plus
 suggestions; Codex 1–8 plus suggestions), merged, verified against the

@@ -288,3 +288,27 @@ SD-4 is not met: M1 remains MATERIAL, and the lane-Q delta introduces another MA
 ## Next step
 
 Revise §1.7 and §5.1 to separate immediate console disclosure from uncaught thrown errors, deciding whether thrown messages are sanitized/value-free or explicitly acknowledged as protocol disclosure. Then define a mutation-atomic lane-Q withholding rule with an LLP 0008/0043 fold and acceptance coverage, and rerun the Codex-family delta review.
+
+## Round 4 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-4 targeted — reviewer given its own Rounds 1–3, instructed to check v0.4's resolutions of its two Round-3 items (the thrown-error acknowledgment posture and the mutation-atomic lane-Q rule) and the changed text only for fresh defects; read-only sandbox, blind to this Spec's fable artifact
+**Target SHA-256:** `8df9437107429dd423dd86a6fef3b4ce221e8952cfeee2d42d5a3315aca4ad4b`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Reviewed exact v0.4 SHA-256 `8df9437107429dd423dd86a6fef3b4ce221e8952cfeee2d42d5a3315aca4ad4b`. I did not read the `.fable.md`.
+
+**Verdict: READY**
+
+1. **Thrown-error channel — RESOLVED.** The protocol-carried, app-authored disclosure is now classified honestly; durable/result no-trace claims are narrow and falsifiable, and the two abort mechanisms have valid, explicitly separate vectors.
+
+2. **Lane-Q mutation atomicity — RESOLVED.** Whole-changeset withholding across every row and projection preserves LLP 0043 M2/LLP 0008 atomicity; §4.7 and the mixed cross-projection vector adequately pin the fold.
+
+No fresh defects found in the v0.4 delta.
+
+**Next step:** Append this Round-4 verdict to the Codex review artifact, then the author may proceed with the SD-4 status decision. The read-only workspace prevented me from appending it directly.
