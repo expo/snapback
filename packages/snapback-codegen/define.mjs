@@ -104,7 +104,7 @@ const ASSET_READ_ACCESS = new Set(['owner-only', 'via-references']);
 const ASSET_LOCATION_POLICIES = new Set(['strip', 'retain']);
 const ASSET_IMAGE_FIELDS = new Set(['location', 'variants']);
 const ASSET_VARIANT_FIELDS = new Set(['key', 'width']);
-// @ref LLP 0007#dated-amendment-asset-references-sharing-declarations-and-admission
+// @ref LLP 0007#dated-amendment-asset-references-sharing-declarations-and-admission-2026-07-31
 //   — the sharing declaration reuses the shipped closed visibility union.
 const ASSET_SHARING_KINDS = new Set(['public-read', 'owner', 'membership']);
 

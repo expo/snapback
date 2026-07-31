@@ -1585,9 +1585,10 @@ fn validate_filter_values(table: &TableManifest, query: &SearchQueryAstV1) -> Sn
             )
         })?;
         let valid = match &declared.field_type {
-            FieldType::String | FieldType::Principal | FieldType::Id { .. } => {
-                filter.value.is_string()
-            }
+            FieldType::String
+            | FieldType::Principal
+            | FieldType::Id { .. }
+            | FieldType::AssetRef { .. } => filter.value.is_string(),
             FieldType::Boolean => filter.value.is_boolean(),
             FieldType::Integer => filter.value.as_i64().is_some(),
             FieldType::Real | FieldType::Json | FieldType::RelationIncarnation { .. } => false,

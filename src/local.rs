@@ -18305,6 +18305,9 @@ fn asset_append_staging_chunk(
     chunk: &[u8],
 ) -> SnapbackResult<()> {
     use std::io::{Seek, SeekFrom, Write};
+    // Deliberately not `truncate`: chunks land at their exact offset, and a
+    // re-received tail after a crash overwrites in place.
+    #[allow(clippy::suspicious_open_options)]
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(false)
@@ -18816,6 +18819,402 @@ mod tests {
             );
             assert!(snapback.function_kind(export).is_none());
         }
+    }
+
+    // -----------------------------------------------------------------
+    // Asset upload sessions (LLP 0044; tickets L1-04/L1-05).
+    // -----------------------------------------------------------------
+
+    const ASSET_INTENT_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async avatarUpload(ctx) {
+    return { owner: (ctx.auth && ctx.auth.userId) ? ctx.auth.userId : "owner_1" };
+  }
+};
+"#;
+
+    fn asset_test_intent() -> crate::manifest::AssetUploadIntentDefinition {
+        crate::manifest::AssetUploadIntentDefinition {
+            id: "app:avatarUpload".to_owned(),
+            name: "avatarUpload".to_owned(),
+            exported_name: Some("avatarUpload".to_owned()),
+            implementation_hash: Some("sha256:test-impl".to_owned()),
+            args_contract_hash: Some("sha256:test-args".to_owned()),
+            intent_policy_hash: "sha256:test-policy".to_owned(),
+            auth_requirement: None,
+            accept: crate::manifest::AssetAcceptPolicy {
+                media_types: vec!["application/octet-stream".to_owned()],
+                max_bytes: 64 * 1024,
+            },
+            delivery: crate::manifest::AssetDeliveryPolicy {
+                kind: crate::assets::AssetDeliveryProfile::PrivateStrict,
+            },
+            access: crate::manifest::AssetAccessPolicy {
+                read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
+            },
+            image: None,
+            declared_reads: Vec::new(),
+            runtime: FunctionRuntime::IbexModule(IbexModule {
+                source: ASSET_INTENT_SOURCE.to_owned(),
+                export: "avatarUpload".to_owned(),
+            }),
+            handler_form: Some("inline".to_owned()),
+            source_span: None,
+        }
+    }
+
+    fn asset_test_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_test_intent()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "intent manifest must load: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    fn asset_dev_authority(
+        snapback: &LocalSnapback,
+        user: &str,
+        source: InvocationSource,
+    ) -> PreparedAuthority {
+        let input = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some(user.to_owned()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        InvocationGate::prepare_admitted_dev_input(
+            source,
+            ServerProfile::Dev,
+            &input,
+            snapback.admission.admit_dev().expect("dev admission"),
+        )
+        .expect("dev authority")
+    }
+
+    fn asset_create_request(
+        length: Option<u64>,
+    ) -> crate::assets::AssetAttemptCreateRequestV1 {
+        crate::assets::AssetAttemptCreateRequestV1 {
+            intent_id: "app:avatarUpload".to_owned(),
+            intent_policy_hash: "sha256:test-policy".to_owned(),
+            args: serde_json::json!({}),
+            declared_filename: Some("photo.bin".to_owned()),
+            declared_length: length,
+            declared_content_type: Some("application/octet-stream".to_owned()),
+            retry_of_asset_id: None,
+        }
+    }
+
+    fn asset_chunk_checksum(chunk: &[u8]) -> String {
+        use sha2::Digest as _;
+        base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            sha2::Sha256::digest(chunk),
+        )
+    }
+
+    #[test]
+    fn asset_attempt_lifecycle_creates_transfers_resumes_and_cancels() {
+        let mut snapback = asset_test_snapback();
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let transfer =
+            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+
+        let response = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(10)))
+            .expect("attempt creates");
+        assert_eq!(response.transfer.tus_resumable, "1.0.0");
+        assert_eq!(response.task.attempt_state, crate::assets::AssetAttemptState::Open);
+        // The authorizer's owner is the caller's dev identity, captured with
+        // a witness (auth facts at minimum) and the frozen policy identity.
+        let attempt_id = response.task.attempt_id.clone();
+
+        let chunk1 = b"hello";
+        let attempt = snapback
+            .asset_tus_patch(
+                &transfer,
+                &attempt_id,
+                0,
+                chunk1,
+                Some(("sha256", &asset_chunk_checksum(chunk1))),
+            )
+            .expect("first chunk lands");
+        assert_eq!(attempt.acknowledged_offset, 5);
+        assert_eq!(attempt.state, crate::assets::AssetAttemptState::Transferring);
+        assert!(attempt.all_chunks_checksummed);
+        assert_eq!(attempt.admission.owner_principal, "user_a");
+
+        // Offset conflict refuses without applying bytes.
+        let conflict = snapback
+            .asset_tus_patch(&transfer, &attempt_id, 3, b"xx", None)
+            .expect_err("offset conflict refuses");
+        assert_eq!(conflict.diagnostic.code, "SNAPBACK_ASSET_OFFSET_CONFLICT");
+
+        // Resume from the acknowledged offset (HEAD is the resume probe).
+        let head = snapback
+            .asset_tus_head(&transfer, &attempt_id)
+            .expect("head resumes");
+        assert_eq!(head.acknowledged_offset, 5);
+
+        let chunk2 = b"world";
+        let attempt = snapback
+            .asset_tus_patch(
+                &transfer,
+                &attempt_id,
+                5,
+                chunk2,
+                Some(("sha256", &asset_chunk_checksum(chunk2))),
+            )
+            .expect("second chunk lands");
+        assert_eq!(attempt.acknowledged_offset, 10);
+
+        // The staging bytes are exactly the appended stream.
+        let store = snapback.asset_store().expect("store");
+        let staged =
+            std::fs::read(store.staging_path(&attempt.staging_key).unwrap()).unwrap();
+        assert_eq!(staged, b"helloworld");
+
+        let task = snapback
+            .asset_attempt_cancel(
+                &transfer,
+                crate::assets::AssetAttemptCancelRequestV1 {
+                    attempt_id: attempt_id.clone(),
+                    lifecycle_generation: attempt.lifecycle_generation,
+                    discard_asset: true,
+                },
+            )
+            .expect("cancel-and-discard");
+        assert_eq!(task.attempt_state, crate::assets::AssetAttemptState::Cancelled);
+        assert_eq!(task.availability, crate::assets::AssetAvailability::Deleted);
+        assert!(!store.staging_path(&attempt.staging_key).unwrap().exists());
+    }
+
+    #[test]
+    fn asset_attempt_refusals_are_structured() {
+        let mut snapback = asset_test_snapback();
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+        // Deferred length is a structured refusal, not a parse error.
+        let error = snapback
+            .asset_attempt_create(&creator, asset_create_request(None))
+            .expect_err("deferred length refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED"
+        );
+
+        // A stale generated reference refuses before staging.
+        let mut stale = asset_create_request(Some(1));
+        stale.intent_policy_hash = "sha256:old-policy".to_owned();
+        let error = snapback
+            .asset_attempt_create(&creator, stale)
+            .expect_err("stale reference refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_STALE");
+
+        // Media bounds and accept-list enforcement.
+        let error = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(1024 * 1024)))
+            .expect_err("over-bounds refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED");
+        let mut wrong_type = asset_create_request(Some(1));
+        wrong_type.declared_content_type = Some("video/mp4".to_owned());
+        let error = snapback
+            .asset_attempt_create(&creator, wrong_type)
+            .expect_err("undeclared media type refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED");
+
+        let error = snapback.asset_intent("missing").expect_err("unknown intent");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_UNKNOWN");
+    }
+
+    #[test]
+    fn asset_retry_supersedes_and_lineage_gates_access() {
+        let mut snapback = asset_test_snapback();
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let transfer =
+            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let stranger =
+            asset_dev_authority(&snapback, "user_b", InvocationSource::AssetTransfer);
+
+        let first = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(10)))
+            .expect("first attempt");
+
+        // Possession of the attempt URL is not authority.
+        let error = snapback
+            .asset_tus_head(&stranger, &first.task.attempt_id)
+            .expect_err("foreign caller refused");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+
+        // Retry supersedes: same asset id, predecessor cancelled in the same
+        // transaction, successor open.
+        let mut retry = asset_create_request(Some(10));
+        retry.retry_of_asset_id = Some(first.task.asset_id.clone());
+        let second = snapback
+            .asset_attempt_create(&creator, retry)
+            .expect("successor attempt");
+        assert_eq!(second.task.asset_id, first.task.asset_id);
+        assert_ne!(second.task.attempt_id, first.task.attempt_id);
+        let predecessor = snapback
+            .asset_tus_head(&transfer, &first.task.attempt_id)
+            .expect_err("superseded predecessor is terminal");
+        assert_eq!(predecessor.diagnostic.code, "SNAPBACK_ASSET_ATTEMPT_TERMINAL");
+    }
+
+    #[test]
+    fn asset_checksums_gate_chunks_and_grade_basis_demotes_without_them() {
+        let mut snapback = asset_test_snapback();
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let transfer =
+            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let created = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(10)))
+            .expect("attempt");
+        let attempt_id = created.task.attempt_id;
+
+        let error = snapback
+            .asset_tus_patch(&transfer, &attempt_id, 0, b"hello", Some(("sha256", "bogus")))
+            .expect_err("bad checksum refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID");
+        let error = snapback
+            .asset_tus_patch(
+                &transfer,
+                &attempt_id,
+                0,
+                b"hello",
+                Some(("crc32", "AAAA")),
+            )
+            .expect_err("unsupported algorithm refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID");
+        let head = snapback
+            .asset_tus_head(&transfer, &attempt_id)
+            .expect("offset unchanged after refusals");
+        assert_eq!(head.acknowledged_offset, 0);
+
+        // A checksum-less chunk is admitted but demotes the grade basis
+        // (LLP 0044: the weaker grade is never reported as the stronger).
+        let attempt = snapback
+            .asset_tus_patch(&transfer, &attempt_id, 0, b"hello", None)
+            .expect("checksum-less chunk admitted");
+        assert!(!attempt.all_chunks_checksummed);
+    }
+
+    #[test]
+    fn asset_per_principal_ceiling_refuses_structured() {
+        let mut snapback = asset_test_snapback();
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        for _ in 0..crate::assets::ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL {
+            snapback
+                .asset_attempt_create(&creator, asset_create_request(Some(1)))
+                .expect("attempt under the ceiling");
+        }
+        let error = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(1)))
+            .expect_err("ceiling refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_CEILING_EXCEEDED");
+    }
+
+    #[test]
+    fn asset_expired_attempt_refuses_and_receipts() {
+        let mut snapback = asset_test_snapback();
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let transfer =
+            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let created = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(10)))
+            .expect("attempt");
+        let attempt_id = created.task.attempt_id;
+
+        // Force the TTL into the past; the next touch lazily expires it.
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let mut attempt = crate::assets::load_attempt(tx, &attempt_id)?
+                    .expect("attempt exists");
+                attempt.expires_at_ms = 1;
+                crate::assets::store_attempt(tx, &attempt)?;
+                Ok(())
+            })
+            .expect("ttl rewind");
+        let error = snapback
+            .asset_tus_head(&transfer, &attempt_id)
+            .expect_err("expired attempt refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ATTEMPT_EXPIRED");
+        let receipts: u64 = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_receipts_v1
+                     WHERE attempt_id = ?1 AND event = 'attempt-expired'",
+                    [&attempt_id],
+                    |row| row.get(0),
+                )?)
+            })
+            .expect("receipt count");
+        assert_eq!(receipts, 1);
+    }
+
+    #[test]
+    fn asset_transfer_resumes_across_restart_on_disk() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("resume.sqlite3");
+        let (attempt_id, transfer_user) = {
+            let mut snapback = LocalSnapback::open(&db_path).expect("open");
+            snapback.load_functions(FunctionManifest {
+                asset_upload_intents: vec![asset_test_intent()],
+                ..FunctionManifest::default()
+            });
+            let creator =
+                asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+            let transfer =
+                asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+            let created = snapback
+                .asset_attempt_create(&creator, asset_create_request(Some(10)))
+                .expect("attempt");
+            let chunk = b"hello";
+            snapback
+                .asset_tus_patch(
+                    &transfer,
+                    &created.task.attempt_id,
+                    0,
+                    chunk,
+                    Some(("sha256", &asset_chunk_checksum(chunk))),
+                )
+                .expect("chunk before restart");
+            (created.task.attempt_id, "user_a")
+        };
+
+        // A fresh process over the same instance resumes from the last
+        // acknowledged offset — authority lineage, never a transport
+        // connection, is what binds the resume.
+        let mut snapback = LocalSnapback::open(&db_path).expect("reopen");
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_test_intent()],
+            ..FunctionManifest::default()
+        });
+        let transfer =
+            asset_dev_authority(&snapback, transfer_user, InvocationSource::AssetTransfer);
+        let head = snapback
+            .asset_tus_head(&transfer, &attempt_id)
+            .expect("resume after restart");
+        assert_eq!(head.acknowledged_offset, 5);
+        let chunk = b"world";
+        let attempt = snapback
+            .asset_tus_patch(
+                &transfer,
+                &attempt_id,
+                5,
+                chunk,
+                Some(("sha256", &asset_chunk_checksum(chunk))),
+            )
+            .expect("tail chunk after restart");
+        assert_eq!(attempt.acknowledged_offset, 10);
     }
 
     #[test]
@@ -25256,6 +25655,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
