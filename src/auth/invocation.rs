@@ -743,6 +743,11 @@ pub enum InvocationSource {
     /// discharging live invalidation obligations. Owned by the invalidation
     /// program (LLP 0059 item 6), independent of the descriptor plane.
     InvalidationAcknowledgement,
+    /// `/assets/attempts/{id}` and `/assets/tus/{id}`: upload-attempt
+    /// inspection, cancellation, and TUS transfer (LLP 0044 §Upload
+    /// sessions). Authority-only — the intent authorizer ran at attempt
+    /// creation; possession of an attempt URL is never authority.
+    AssetTransfer,
     ConnectionOpen,
     ConnectionClose,
     EphemeralRegister,
@@ -827,6 +832,7 @@ impl InvocationSource {
             | Self::AgentGrantManagement
             | Self::MutationSettlementAcknowledgement
             | Self::InvalidationAcknowledgement
+            | Self::AssetTransfer
             | Self::ConnectionOpen
             | Self::ConnectionClose
             | Self::EphemeralRegister
@@ -1597,6 +1603,7 @@ fn source_allows_authority(
         InvocationSource::LiveInitialQuery
         | InvocationSource::MutationSettlementAcknowledgement
         | InvocationSource::InvalidationAcknowledgement
+        | InvocationSource::AssetTransfer
         | InvocationSource::ConnectionClose
         | InvocationSource::LiveResume
         | InvocationSource::LiveUnsubscribe
@@ -2237,6 +2244,7 @@ mod tests {
                 InvocationSource::LiveInitialQuery
                 | InvocationSource::MutationSettlementAcknowledgement
                 | InvocationSource::InvalidationAcknowledgement
+                | InvocationSource::AssetTransfer
                 | InvocationSource::ConnectionClose
                 | InvocationSource::LiveResume
                 | InvocationSource::LiveUnsubscribe

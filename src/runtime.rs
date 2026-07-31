@@ -475,6 +475,64 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     })
 }
 
+pub(crate) struct AssetAuthorizerRun {
+    pub owner: String,
+    pub read_dependencies: Vec<crate::storage::CapturedReadDependency>,
+}
+
+/// Run an asset upload-intent authorizer (LLP 0044 §Generated upload
+/// intents) under the protected profile with a fresh realm, capturing the
+/// complete LLP 0007 read-set as the admission witness. The authorizer's
+/// output contract is closed: exactly `{ owner: <non-empty principal> }` —
+/// it is not a query, so the array rule does not apply, and any other shape
+/// refuses.
+pub(crate) fn run_ibex_asset_authorizer_prepared(
+    module: &IbexModule,
+    input: HandlerInput,
+    prepared: &PreparedInvocation,
+    db: DbRead<'_>,
+) -> SnapbackResult<AssetAuthorizerRun> {
+    prepared.validate_admission("asset authorizer execution")?;
+    let mut invocation = IbexHostContext::new_with_projection(
+        db,
+        input,
+        prepared.projection().clone(),
+        prepared.admission_lease().clone(),
+        MembershipWriter::from_resolved_with_authority_creating(
+            prepared.authority().resolved(),
+            prepared.authority_creating_consent(),
+        ),
+        false,
+    )?;
+    invocation.protected_query_profile = true;
+    let value = run_ibex_handler_with_context(module, &mut invocation, None);
+    if let Some(denial) = invocation.take_terminal_denial() {
+        return Err(denial);
+    }
+    let value = value?;
+    let invalid = || {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_AUTHORIZER_RESULT_INVALID",
+            "assets",
+            "an upload-intent authorizer must return exactly { owner: <non-empty principal> }",
+        )
+    };
+    let object = value.as_object().ok_or_else(invalid)?;
+    if object.len() != 1 {
+        return Err(invalid());
+    }
+    let owner = object
+        .get("owner")
+        .and_then(serde_json::Value::as_str)
+        .filter(|owner| !owner.is_empty())
+        .ok_or_else(invalid)?;
+    prepared.validate_admission("asset authorizer completion")?;
+    Ok(AssetAuthorizerRun {
+        owner: owner.to_owned(),
+        read_dependencies: invocation.reads,
+    })
+}
+
 #[repr(C)]
 pub(crate) struct HermesRuntimeOpaque {
     _private: [u8; 0],

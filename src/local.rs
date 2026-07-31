@@ -5202,6 +5202,669 @@ impl LocalSnapback {
         )
     }
 
+    // -----------------------------------------------------------------
+    // Asset upload sessions (LLP 0044 §Upload sessions; L1-04/L1-05).
+    // -----------------------------------------------------------------
+
+    fn asset_intent(
+        &self,
+        intent_id: &str,
+    ) -> SnapbackResult<&crate::manifest::AssetUploadIntentDefinition> {
+        self.functions
+            .asset_upload_intents
+            .iter()
+            .find(|intent| intent.id == intent_id || intent.name == intent_id)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_UNKNOWN",
+                    "assets",
+                    format!("unknown upload intent {intent_id}"),
+                )
+            })
+    }
+
+    pub(crate) fn asset_store(&self) -> SnapbackResult<crate::assets::AssetFsStore> {
+        // File-backed instances root the store beside the database; memory
+        // instances (tests, --memory) use a per-app temp root — the same
+        // "will not persist" posture as the rest of a memory instance.
+        let dir = match self.db.database_path() {
+            Some(path) => path
+                .parent()
+                .map(std::path::Path::to_path_buf)
+                .unwrap_or_else(|| std::path::PathBuf::from(".")),
+            None => std::env::temp_dir().join(format!(
+                "snapback-assets-{}",
+                self.functions.app_id
+            )),
+        };
+        crate::assets::AssetFsStore::open(&dir)
+    }
+
+    /// The synthesized authorizer definition: kind Query for admission
+    /// constraints, but executed through the dedicated asset runner (the
+    /// authorizer's closed output contract is an object, not rows). Never
+    /// inserted into any public function listing.
+    fn asset_intent_definition(
+        &self,
+        intent: &crate::manifest::AssetUploadIntentDefinition,
+    ) -> SnapbackResult<crate::manifest::FunctionDefinition> {
+        serde_json::from_value(serde_json::json!({
+            "id": intent.id,
+            "name": format!("__assetIntentAuthorizer__{}", intent.name),
+            "kind": "Query",
+            "runtime": serde_json::to_value(&intent.runtime).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    format!("intent runtime does not serialize: {error}"),
+                )
+            })?,
+            "authRequirement": intent.auth_requirement,
+        }))
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                format!("intent authorizer definition does not synthesize: {error}"),
+            )
+        })
+    }
+
+    fn asset_caller_principal(authority: &PreparedAuthority) -> Option<String> {
+        match authority.resolved() {
+            ResolvedAppAuthority::Session { user_id, .. } => Some(user_id.clone()),
+            ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.clone()),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                effective_user_id,
+                ..
+            } => Some(
+                effective_user_id
+                    .clone()
+                    .unwrap_or_else(|| actor_user_id.clone()),
+            ),
+            ResolvedAppAuthority::Anonymous
+            | ResolvedAppAuthority::AdminBypass { .. }
+            | ResolvedAppAuthority::System => None,
+        }
+    }
+
+    /// Safe caller identity facts for the admission record: identity and
+    /// generation only — never tokens, deadlines, or provider material.
+    fn asset_auth_pair(authority: &PreparedAuthority) -> serde_json::Value {
+        match authority.resolved() {
+            ResolvedAppAuthority::Session {
+                user_id,
+                generation,
+                authority_instance_id,
+                ..
+            } => serde_json::json!({
+                "kind": "session",
+                "userId": user_id,
+                "generation": generation,
+                "authorityInstanceId": authority_instance_id,
+            }),
+            ResolvedAppAuthority::DevImpersonation { user_id, .. } => {
+                serde_json::json!({ "kind": "dev", "userId": user_id })
+            }
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                effective_user_id,
+                grant_id,
+                ..
+            } => serde_json::json!({
+                "kind": "servicePrincipal",
+                "actorUserId": actor_user_id,
+                "effectiveUserId": effective_user_id,
+                "grantId": grant_id,
+            }),
+            other => serde_json::json!({ "kind": format!("{other:?}") }),
+        }
+    }
+
+    pub(crate) fn asset_attempt_create(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetAttemptCreateRequestV1,
+    ) -> SnapbackResult<crate::assets::AssetAttemptCreateResponseV1> {
+        use crate::assets as assets;
+
+        let intent = self.asset_intent(&request.intent_id)?.clone();
+        // A stale or target-incompatible generated reference refuses before
+        // reserving an asset id or writing staging bytes.
+        if intent.intent_policy_hash != request.intent_policy_hash {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_INTENT_STALE",
+                "assets",
+                "the generated upload reference does not match the deployed intent policy",
+            )
+            .with_details(serde_json::json!({ "intentId": intent.id })));
+        }
+        let declared_length = request.declared_length.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED",
+                "assets",
+                "every v1 lane requires a known total length at attempt creation",
+            )
+        })?;
+        if declared_length > intent.accept.max_bytes {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                "assets",
+                format!(
+                    "declared length {declared_length} exceeds the intent's maxBytes {}",
+                    intent.accept.max_bytes
+                ),
+            ));
+        }
+        if let Some(declared) = &request.declared_content_type
+            && !asset_media_type_admitted(&intent.accept.media_types, declared)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED",
+                "assets",
+                format!("declared content type {declared} is outside the intent's accept list"),
+            ));
+        }
+
+        // Run the generated authorizer under the protected profile, capturing
+        // the complete LLP 0007 read-set witness.
+        let definition = self.asset_intent_definition(&intent)?;
+        let prepared = InvocationGate::prepare_function(authority.clone(), &definition)?;
+        let module = match &intent.runtime {
+            crate::manifest::FunctionRuntime::IbexModule(module) => module.clone(),
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
+                    "assets",
+                    "upload-intent authorizers run as Ibex modules in v1",
+                ))
+            }
+        };
+        let input = prepared.canonicalize_input(crate::manifest::HandlerInput {
+            args: request.args.clone(),
+            ..Default::default()
+        });
+        let run = self.db.with_pinned_read_view(|db| {
+            crate::runtime::run_ibex_asset_authorizer_prepared(&module, input.clone(), &prepared, db)
+        })?;
+
+        let caller = Self::asset_caller_principal(authority);
+        let auth_pair = Self::asset_auth_pair(authority);
+        let witness = serde_json::to_value(&run.read_dependencies).unwrap_or_default();
+        let app_id = self.functions.app_id.clone();
+        let now = now_millis();
+        let store = self.asset_store()?;
+
+        let response = self.db.asset_transaction(|tx| {
+            let generation =
+                assets::ensure_intent_generation(tx, &intent.id, &intent.intent_policy_hash, now)?;
+            if generation.revoked {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_REVOKED",
+                    "assets",
+                    "this intent's policy generation is revoked; nothing further finalizes under it",
+                ));
+            }
+
+            // Ceilings and logical quota, inside the reservation transaction
+            // so concurrent preflights cannot jointly overrun.
+            let accounting = assets::asset_accounting(tx, &app_id)?;
+            if accounting.open_attempts_app >= assets::ASSET_MAX_OPEN_ATTEMPTS_PER_APP {
+                return Err(asset_ceiling_error(
+                    "open attempts per app",
+                    assets::ASSET_MAX_OPEN_ATTEMPTS_PER_APP,
+                    accounting.open_attempts_app,
+                ));
+            }
+            if let Some(principal) = &caller {
+                let open = assets::open_attempts_for_principal(tx, &app_id, principal)?;
+                if open >= assets::ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL {
+                    return Err(asset_ceiling_error(
+                        "open attempts per principal",
+                        assets::ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL,
+                        open,
+                    ));
+                }
+            }
+            let reservation =
+                declared_length.max(assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
+            let in_use = accounting.reserved_bytes.saturating_add(accounting.settled_bytes);
+            if in_use.saturating_add(reservation) > assets::ASSET_APP_LOGICAL_QUOTA_BYTES {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_QUOTA_EXCEEDED",
+                    "assets",
+                    "the app's logical asset quota cannot cover this reservation",
+                )
+                .with_details(serde_json::json!({
+                    "limit": assets::ASSET_APP_LOGICAL_QUOTA_BYTES,
+                    "observed": in_use,
+                    "reservation": reservation,
+                })));
+            }
+
+            let lineage = crate::assets::AssetFsStore::new_opaque_key();
+            let (asset_id, lifecycle_generation, predecessor) = match &request.retry_of_asset_id {
+                None => {
+                    let asset = assets::AssetRecordV1 {
+                        asset_id: crate::assets::AssetFsStore::new_opaque_key(),
+                        app_id: app_id.clone(),
+                        intent_id: intent.id.clone(),
+                        intent_policy_hash: intent.intent_policy_hash.clone(),
+                        policy_generation: generation.generation,
+                        owner_principal: run.owner.clone(),
+                        delivery_profile: intent.delivery.kind,
+                        read_access: intent.access.read,
+                        availability: assets::AssetAvailability::Pending,
+                        primary_rendition_id: None,
+                        lifecycle_generation: 1,
+                        created_at_ms: now,
+                        updated_at_ms: now,
+                        deleted_at_ms: None,
+                    };
+                    assets::insert_asset(tx, &asset)?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &lineage,
+                            assets::AssetReceiptEventV1::AssetReserved,
+                            &asset.asset_id,
+                            None,
+                            now,
+                            serde_json::json!({
+                                "intentId": intent.id,
+                                "policyGeneration": generation.generation,
+                            }),
+                        ),
+                    )?;
+                    (asset.asset_id, asset.lifecycle_generation, None)
+                }
+                Some(asset_id) => {
+                    // Retry: the same-asset successor path. The asset must be
+                    // pending (ready/rejected/deleted admit no attempts), the
+                    // same intent, and the caller's fresh admission must
+                    // produce the same owner.
+                    let asset = assets::load_asset(tx, asset_id)?.ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_UNKNOWN",
+                            "assets",
+                            format!("unknown asset {asset_id}"),
+                        )
+                    })?;
+                    if asset.availability != assets::AssetAvailability::Pending {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_ATTEMPT_TERMINAL",
+                            "assets",
+                            "attempts exist only for pending assets; replacement is a new asset",
+                        ));
+                    }
+                    if asset.intent_id != intent.id || asset.owner_principal != run.owner {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_ATTACH_DENIED",
+                            "assets",
+                            "retry does not admit this caller for this asset",
+                        ));
+                    }
+                    let predecessor = match assets::current_attempt(tx, asset_id)? {
+                        Some(mut current) => {
+                            // Supersession: predecessor cancels in the same
+                            // transaction that opens the successor; its
+                            // staging object is fenced after commit (the key
+                            // is unique and never reused).
+                            assets::transition_attempt(
+                                tx,
+                                &mut current,
+                                assets::AssetAttemptState::Cancelled,
+                                now,
+                            )?;
+                            assets::write_receipt(
+                                tx,
+                                &asset_receipt(
+                                    &lineage,
+                                    assets::AssetReceiptEventV1::AttemptCancelled,
+                                    asset_id,
+                                    Some(&current.attempt_id),
+                                    now,
+                                    serde_json::json!({ "superseded": true }),
+                                ),
+                            )?;
+                            Some(current)
+                        }
+                        None => None,
+                    };
+                    (asset.asset_id.clone(), asset.lifecycle_generation, predecessor)
+                }
+            };
+
+            let attempt = assets::AssetAttemptRecordV1 {
+                attempt_id: crate::assets::AssetFsStore::new_opaque_key(),
+                predecessor_attempt_id: predecessor
+                    .as_ref()
+                    .map(|attempt| attempt.attempt_id.clone()),
+                asset_id: asset_id.clone(),
+                app_id: app_id.clone(),
+                intent_id: intent.id.clone(),
+                lifecycle_generation,
+                state: assets::AssetAttemptState::Open,
+                staging_key: crate::assets::AssetFsStore::new_opaque_key(),
+                declared_filename: request.declared_filename.clone(),
+                declared_length,
+                declared_content_type: request.declared_content_type.clone(),
+                acknowledged_offset: 0,
+                integrity_grade: assets::AssetIntegrityGrade::ReceivedBytesCanonical,
+                all_chunks_checksummed: true,
+                admission: assets::AssetAdmissionV1 {
+                    intent_policy_hash: intent.intent_policy_hash.clone(),
+                    policy_generation: generation.generation,
+                    owner_principal: run.owner.clone(),
+                    auth: auth_pair.clone(),
+                    witness: witness.clone(),
+                    args: request.args.clone(),
+                },
+                expires_at_ms: now + assets::ASSET_ATTEMPT_TTL_MS,
+                created_at_ms: now,
+                updated_at_ms: now,
+                failure: None,
+            };
+            assets::insert_attempt(tx, &attempt)?;
+            assets::write_receipt(
+                tx,
+                &asset_receipt(
+                    &lineage,
+                    assets::AssetReceiptEventV1::AttemptCreated,
+                    &asset_id,
+                    Some(&attempt.attempt_id),
+                    now,
+                    serde_json::json!({ "declaredLength": declared_length }),
+                ),
+            )?;
+            Ok((attempt, predecessor))
+        })?;
+        let (attempt, predecessor) = response;
+        if let Some(predecessor) = &predecessor {
+            // Store-side fencing: the superseded attempt's staging object is
+            // removed so late bytes have nowhere to land. Idempotent; a crash
+            // here leaves an orphan the attempt-GC sweep reclaims.
+            store.delete_staging(&predecessor.staging_key)?;
+        }
+        let task = asset_task_state(&attempt, None);
+        Ok(crate::assets::AssetAttemptCreateResponseV1 {
+            transfer: crate::assets::AssetTusInstructionV1 {
+                upload_url: format!("/assets/tus/{}", attempt.attempt_id),
+                tus_resumable: crate::assets::ASSET_TUS_VERSION.to_owned(),
+                upload_length: attempt.declared_length,
+                expires_at_ms: attempt.expires_at_ms,
+                checksum_algorithms: crate::assets::ASSET_TUS_CHECKSUM_ALGORITHMS
+                    .iter()
+                    .map(|algorithm| (*algorithm).to_owned())
+                    .collect(),
+                max_chunk_bytes: crate::assets::ASSET_MAX_CHUNK_BYTES,
+            },
+            task,
+        })
+    }
+
+    /// Load an attempt for a caller, enforcing the auth-session lineage rule
+    /// (the caller's server-resolved principal must be the admission's) and
+    /// applying lazy TTL expiry.
+    fn asset_attempt_for_caller(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
+        use crate::assets as assets;
+        let caller = Self::asset_caller_principal(authority);
+        let now = now_millis();
+        let (attempt, expired_staging) = self.db.asset_transaction(|tx| {
+            let mut attempt = assets::load_attempt(tx, attempt_id)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                    "assets",
+                    format!("unknown attempt {attempt_id}"),
+                )
+            })?;
+            // Possession of an attempt URL is not authority: the resolved
+            // caller must match the admission (LLP 0044 §Authorization).
+            // Resume binds this authority lineage, never a transport
+            // connection — a refresh or restart under the same principal
+            // resumes.
+            if caller.as_deref() != Some(attempt.admission.owner_principal.as_str()) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "assets",
+                    "this attempt belongs to a different authority",
+                ));
+            }
+            let mut expired_staging = None;
+            if attempt.state.is_current() && now >= attempt.expires_at_ms {
+                assets::transition_attempt(
+                    tx,
+                    &mut attempt,
+                    assets::AssetAttemptState::Expired,
+                    now,
+                )?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &attempt.attempt_id.clone(),
+                        assets::AssetReceiptEventV1::AttemptExpired,
+                        &attempt.asset_id,
+                        Some(&attempt.attempt_id),
+                        now,
+                        serde_json::json!({ "expiresAtMs": attempt.expires_at_ms }),
+                    ),
+                )?;
+                expired_staging = Some(attempt.staging_key.clone());
+            }
+            Ok((attempt, expired_staging))
+        })?;
+        if let Some(staging_key) = expired_staging {
+            self.asset_store()?.delete_staging(&staging_key)?;
+        }
+        Ok(attempt)
+    }
+
+    pub(crate) fn asset_attempt_inspect(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+    ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
+        let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
+        let asset = self
+            .db
+            .asset_transaction(|tx| crate::assets::load_asset(tx, &attempt.asset_id))?;
+        Ok(asset_task_state(&attempt, asset.as_ref()))
+    }
+
+    pub(crate) fn asset_attempt_cancel(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetAttemptCancelRequestV1,
+    ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
+        use crate::assets as assets;
+        // Enforces caller lineage and lazy expiry before the cancel proper.
+        self.asset_attempt_for_caller(authority, &request.attempt_id)?;
+        let now = now_millis();
+        let (attempt, asset) = self.db.asset_transaction(|tx| {
+            let mut attempt = assets::load_attempt(tx, &request.attempt_id)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                    "assets",
+                    format!("unknown attempt {}", request.attempt_id),
+                )
+            })?;
+            if attempt.lifecycle_generation != request.lifecycle_generation {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_GENERATION_STALE",
+                    "assets",
+                    "the request carries a stale lifecycle generation",
+                ));
+            }
+            let mut asset = assets::load_asset(tx, &attempt.asset_id)?;
+            if attempt.state.is_current() {
+                assets::transition_attempt(
+                    tx,
+                    &mut attempt,
+                    assets::AssetAttemptState::Cancelled,
+                    now,
+                )?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &attempt.attempt_id.clone(),
+                        assets::AssetReceiptEventV1::AttemptCancelled,
+                        &attempt.asset_id,
+                        Some(&attempt.attempt_id),
+                        now,
+                        serde_json::json!({ "discardAsset": request.discard_asset }),
+                    ),
+                )?;
+            }
+            if request.discard_asset
+                && let Some(record) = asset.as_mut()
+                && record.availability == assets::AssetAvailability::Pending
+            {
+                // Explicit cancel-and-discard: pending → deleted without
+                // waiting out the grace period (LLP 0044 §Deletion).
+                assets::transition_asset(tx, record, assets::AssetAvailability::Deleted, now)?;
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &attempt.attempt_id.clone(),
+                        assets::AssetReceiptEventV1::AssetDeleted,
+                        &attempt.asset_id,
+                        Some(&attempt.attempt_id),
+                        now,
+                        serde_json::json!({ "cause": "cancel-and-discard" }),
+                    ),
+                )?;
+            }
+            Ok((attempt, asset))
+        })?;
+        self.asset_store()?.delete_staging(&attempt.staging_key)?;
+        Ok(asset_task_state(&attempt, asset.as_ref()))
+    }
+
+    pub(crate) fn asset_tus_head(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
+        let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
+        if !attempt.state.is_current() {
+            return Err(asset_terminal_error(&attempt));
+        }
+        Ok(attempt)
+    }
+
+    pub(crate) fn asset_tus_patch(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        offset: u64,
+        chunk: &[u8],
+        checksum: Option<(&str, &str)>,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
+        use crate::assets as assets;
+        use sha2::Digest as _;
+
+        let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
+        if !attempt.state.is_current() {
+            return Err(asset_terminal_error(&attempt));
+        }
+        if offset != attempt.acknowledged_offset {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_OFFSET_CONFLICT",
+                "assets",
+                format!(
+                    "upload offset {offset} does not match the acknowledged offset {}",
+                    attempt.acknowledged_offset
+                ),
+            ));
+        }
+        let new_offset = offset.saturating_add(chunk.len() as u64);
+        if new_offset > attempt.declared_length {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                "assets",
+                "the chunk would exceed the declared upload length",
+            ));
+        }
+        // Per-chunk checksum (TUS checksum extension): verified when
+        // offered; a checksum-less chunk demotes the integrity grade fact.
+        let mut all_checksummed = attempt.all_chunks_checksummed;
+        match checksum {
+            Some((algorithm, expected)) => {
+                if !assets::ASSET_TUS_CHECKSUM_ALGORITHMS.contains(&algorithm) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID",
+                        "assets",
+                        format!("unsupported checksum algorithm {algorithm}"),
+                    ));
+                }
+                let digest = sha2::Sha256::digest(chunk);
+                let observed =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, digest);
+                if observed != expected {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID",
+                        "assets",
+                        "the chunk checksum does not match its bytes",
+                    ));
+                }
+            }
+            None => all_checksummed = false,
+        }
+
+        // Append at the verified offset. Write-then-record: bytes land in
+        // restricted staging before the acknowledged offset moves, so a
+        // crash between the two re-receives the tail chunk idempotently.
+        let store = self.asset_store()?;
+        let path = store.staging_path(&attempt.staging_key)?;
+        asset_append_staging_chunk(&path, offset, chunk)?;
+
+        let now = now_millis();
+        let attempt = self.db.asset_transaction(|tx| {
+            let mut attempt = assets::load_attempt(tx, attempt_id)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                    "assets",
+                    format!("unknown attempt {attempt_id}"),
+                )
+            })?;
+            if attempt.state == assets::AssetAttemptState::Open {
+                assets::transition_attempt(
+                    tx,
+                    &mut attempt,
+                    assets::AssetAttemptState::Transferring,
+                    now,
+                )?;
+            }
+            attempt.acknowledged_offset = new_offset;
+            attempt.all_chunks_checksummed = all_checksummed;
+            attempt.updated_at_ms = now;
+            assets::store_attempt(tx, &attempt)?;
+            Ok(attempt)
+        })?;
+        Ok(attempt)
+    }
+
+    pub(crate) fn asset_tus_terminate(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+    ) -> SnapbackResult<()> {
+        let request = crate::assets::AssetAttemptCancelRequestV1 {
+            attempt_id: attempt_id.to_owned(),
+            lifecycle_generation: self
+                .asset_attempt_for_caller(authority, attempt_id)?
+                .lifecycle_generation,
+            discard_asset: false,
+        };
+        self.asset_attempt_cancel(authority, request)?;
+        Ok(())
+    }
+
     /// Execute the only full revalidation path permitted to mint an
     /// AuthorizedLease. Query result, data head, authorization pair,
     /// activation, issuer, and target-scoped obligation state are captured
@@ -17546,6 +18209,125 @@ pub(crate) fn live_stream_text_with_server_observed(
 
 fn elapsed_ms(started: Instant) -> u64 {
     started.elapsed().as_millis() as u64
+}
+
+// ---------------------------------------------------------------------------
+// Asset session helpers (LLP 0044, tickets L1-04/L1-05).
+// ---------------------------------------------------------------------------
+
+fn asset_receipt(
+    lineage: &str,
+    event: crate::assets::AssetReceiptEventV1,
+    asset_id: &str,
+    attempt_id: Option<&str>,
+    at_ms: u64,
+    details: serde_json::Value,
+) -> crate::assets::AssetReceiptV1 {
+    crate::assets::AssetReceiptV1 {
+        receipt_id: crate::assets::AssetFsStore::new_opaque_key(),
+        operation_lineage: lineage.to_owned(),
+        event,
+        asset_id: asset_id.to_owned(),
+        attempt_id: attempt_id.map(str::to_owned),
+        at_ms,
+        details,
+    }
+}
+
+fn asset_task_state(
+    attempt: &crate::assets::AssetAttemptRecordV1,
+    asset: Option<&crate::assets::AssetRecordV1>,
+) -> crate::assets::AssetTaskStateV1 {
+    crate::assets::AssetTaskStateV1 {
+        asset_id: attempt.asset_id.clone(),
+        attempt_id: attempt.attempt_id.clone(),
+        attempt_state: attempt.state,
+        availability: asset
+            .map(|asset| asset.availability)
+            .unwrap_or(crate::assets::AssetAvailability::Pending),
+        acknowledged_offset: attempt.acknowledged_offset,
+        total_bytes: attempt.declared_length,
+        expires_at_ms: attempt.expires_at_ms,
+        integrity_grade: attempt.integrity_grade,
+        primary_rendition_id: asset.and_then(|asset| asset.primary_rendition_id.clone()),
+        diagnostic: attempt.failure.clone(),
+    }
+}
+
+fn asset_ceiling_error(what: &str, limit: u64, observed: u64) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_CEILING_EXCEEDED",
+        "assets",
+        format!("the {what} ceiling is reached"),
+    )
+    .with_details(serde_json::json!({ "limit": limit, "observed": observed }))
+}
+
+fn asset_terminal_error(attempt: &crate::assets::AssetAttemptRecordV1) -> SnapbackError {
+    if attempt.state == crate::assets::AssetAttemptState::Expired {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_ATTEMPT_EXPIRED",
+            "assets",
+            "this attempt expired; request a fresh one (retry preserves the asset id)",
+        )
+    } else {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_ATTEMPT_TERMINAL",
+            "assets",
+            format!("attempt is terminal ({})", attempt.state.as_str()),
+        )
+    }
+}
+
+/// Media-type admission over the intent's accept list, honoring `type/*`
+/// wildcards the way generation-time admission does.
+fn asset_media_type_admitted(accepted: &[String], declared: &str) -> bool {
+    let declared = declared
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    accepted.iter().any(|entry| {
+        let entry = entry.to_ascii_lowercase();
+        entry == declared
+            || entry
+                .strip_suffix("/*")
+                .is_some_and(|prefix| declared.starts_with(&format!("{prefix}/")))
+    })
+}
+
+/// Append one verified chunk to restricted staging at the exact offset,
+/// durably (flush + fsync) before the acknowledged offset advances.
+fn asset_append_staging_chunk(
+    path: &std::path::Path,
+    offset: u64,
+    chunk: &[u8],
+) -> SnapbackResult<()> {
+    use std::io::{Seek, SeekFrom, Write};
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(false)
+        .write(true)
+        .open(path)
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                format!("cannot open staging object: {error}"),
+            )
+        })?;
+    file.seek(SeekFrom::Start(offset))
+        .and_then(|_| file.write_all(chunk))
+        .and_then(|()| file.flush())
+        .and_then(|()| file.sync_data())
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                format!("cannot append staging chunk: {error}"),
+            )
+        })
 }
 
 fn now_millis() -> u64 {

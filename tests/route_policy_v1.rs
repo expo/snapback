@@ -208,6 +208,12 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
+        ("POST", "/assets/attempts"),
+        ("GET", "/assets/attempts/{id}"),
+        ("POST", "/assets/attempts/{id}/cancel"),
+        ("HEAD", "/assets/tus/{id}"),
+        ("PATCH", "/assets/tus/{id}"),
+        ("DELETE", "/assets/tus/{id}"),
         ("POST", "/mutation/{name}"),
         ("POST", "/action/{name}"),
         ("POST", "/app/bundle"),
@@ -276,7 +282,11 @@ async fn registry_and_router_have_black_box_path_method_parity() {
     );
 
     let mut seen = BTreeSet::new();
-    for route in registry {
+    // Same-path multi-method families (the LLP 0044 TUS resource) are
+    // separate registry rows over one installed path: a method is installed
+    // when any row for the path accepts it.
+    let registry: Vec<_> = registry;
+    for route in &registry {
         assert!(
             seen.insert((route.method, route.path)),
             "duplicate registry entry: {} {}",
@@ -291,7 +301,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
                 .oneshot(request(method, &path, None))
                 .await
                 .expect("probe registered path and method");
-            let installed = route.accepts_http_method(method);
+            let installed = registry
+                .iter()
+                .filter(|sibling| sibling.path == route.path)
+                .any(|sibling| sibling.accepts_http_method(method));
             if installed {
                 assert_ne!(
                     response.status(),
@@ -1439,6 +1452,65 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             },
         ),
         (
+            ("POST", "/assets/attempts"),
+            SessionBodyProbe {
+                uri: "/assets/attempts",
+                base: json!({
+                    "intentId": "missing_intent",
+                    "intentPolicyHash": "sha256:policy_probe",
+                    "args": {},
+                    "declaredFilename": null,
+                    "declaredLength": 1,
+                    "declaredContentType": null
+                }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("GET", "/assets/attempts/{id}"),
+            SessionBodyProbe {
+                uri: "/assets/attempts/policy_probe",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/assets/attempts/{id}/cancel"),
+            SessionBodyProbe {
+                uri: "/assets/attempts/policy_probe/cancel",
+                base: json!({
+                    "attemptId": "policy_probe",
+                    "lifecycleGeneration": 1,
+                    "discardAsset": false
+                }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("HEAD", "/assets/tus/{id}"),
+            SessionBodyProbe {
+                uri: "/assets/tus/policy_probe",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("PATCH", "/assets/tus/{id}"),
+            SessionBodyProbe {
+                uri: "/assets/tus/policy_probe",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("DELETE", "/assets/tus/{id}"),
+            SessionBodyProbe {
+                uri: "/assets/tus/policy_probe",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
             ("POST", "/client-mutations/acknowledge"),
             SessionBodyProbe {
                 uri: "/client-mutations/acknowledge",
@@ -1672,13 +1744,16 @@ async fn sessions_runtime_rejects_body_auth_on_every_http_ingress() {
                 route.method,
                 route.path
             );
-            assert_eq!(
-                diagnostic_code(response).await,
-                "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
-                "{field} diagnostic drifted for {} {}",
-                route.method,
-                route.path
-            );
+            // HEAD responses carry no body; the status is the whole probe.
+            if route.method != "HEAD" {
+                assert_eq!(
+                    diagnostic_code(response).await,
+                    "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
+                    "{field} diagnostic drifted for {} {}",
+                    route.method,
+                    route.path
+                );
+            }
         }
     }
 }

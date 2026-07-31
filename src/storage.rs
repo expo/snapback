@@ -1708,6 +1708,22 @@ impl LocalDatabase {
         self.path.as_deref()
     }
 
+    /// One immediate write transaction over the asset system tables (LLP
+    /// 0044). The closure sees the raw transaction because every asset write
+    /// goes through `crate::assets` helpers, which enforce the closed
+    /// transition tables; app data is never touched on this path.
+    pub(crate) fn asset_transaction<T>(
+        &mut self,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let value = f(&tx)?;
+        tx.commit()?;
+        Ok(value)
+    }
+
     /// Durably upsert host-owned `StreamAttemptV1` rows. The write-ahead
     /// pre-mark contract requires the row to be committed BEFORE the upstream
     /// request bytes leave the process; callers hold the instance lock for

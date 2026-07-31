@@ -17,10 +17,13 @@
       ]
     },
     "declaredLength": {
-      "description": "Required: deferred-length creation is refused on every v1 lane.",
+      "description": "Deferred-length creation is refused on every v1 lane with a\nstructured diagnostic — the field is optional exactly so the refusal\nis `SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED`, not a parse error.",
       "format": "uint64",
       "minimum": 0,
-      "type": "integer"
+      "type": [
+        "integer",
+        "null"
+      ]
     },
     "intentId": {
       "type": "string"
@@ -39,8 +42,7 @@
   "required": [
     "intentId",
     "intentPolicyHash",
-    "args",
-    "declaredLength"
+    "args"
   ],
   "title": "AssetAttemptCreateRequestV1",
   "type": "object"

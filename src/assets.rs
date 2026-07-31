@@ -27,6 +27,24 @@ pub const ASSET_DIGEST_ALGORITHM_SHA256: &str = "sha256";
 pub const ASSET_UPLOAD_REFERENCE_KIND: &str = "assetUploadReference";
 
 // ---------------------------------------------------------------------------
+// v1 limit facts (LLP 0044 §Deduplication/quotas, §Capability facts). These
+// are the local target's enforced bounds; L1-12 reports them through the
+// capability manifest. Every one is `Enforced` here — refusal, not advisory.
+// ---------------------------------------------------------------------------
+
+pub const ASSET_ATTEMPT_TTL_MS: u64 = 6 * 60 * 60 * 1000;
+pub const ASSET_MAX_OPEN_ATTEMPTS_PER_APP: u64 = 64;
+pub const ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL: u64 = 8;
+pub const ASSET_APP_LOGICAL_QUOTA_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+/// Every asset consumes at least this much logical quota, so zero-byte
+/// assets are not free (LLP 0044 §Deduplication/quotas).
+pub const ASSET_MIN_ACCOUNTING_UNIT_BYTES: u64 = 4096;
+pub const ASSET_MAX_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
+pub const ASSET_TUS_VERSION: &str = "1.0.0";
+/// The checksum algorithms the TUS lane accepts on `Upload-Checksum`.
+pub const ASSET_TUS_CHECKSUM_ALGORITHMS: [&str; 1] = ["sha256"];
+
+// ---------------------------------------------------------------------------
 // Closed state vocabularies (LLP 0044 §Lifecycle transitions). Name-keyed per
 // the LLP 0037 dated constraint; an unlisted transition is refused by the
 // state machines built on these, not by this module.
@@ -165,6 +183,27 @@ pub struct AssetRecordV1 {
     pub deleted_at_ms: Option<u64>,
 }
 
+/// The admission facts captured when the authorizer admitted the attempt:
+/// the LLP 0007 complete read-set witness, the LLP 0053 authorization pair,
+/// and the frozen policy identity finalization re-validates under.
+///
+/// @ref LLP 0044#internal-model — witness validation is re-validate, then
+///   refuse only on denial; the witness is the substrate.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetAdmissionV1 {
+    pub intent_policy_hash: String,
+    pub policy_generation: u64,
+    pub owner_principal: String,
+    /// The sealed caller identity facts the decision ran under.
+    pub auth: Value,
+    /// The captured read dependencies (row, missing-row, query range, index
+    /// cursor, table predicate, auth/permission), serialized verbatim.
+    pub witness: Value,
+    /// Canonical intent arguments the authorizer admitted.
+    pub args: Value,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssetAttemptRecordV1 {
@@ -184,6 +223,11 @@ pub struct AssetAttemptRecordV1 {
     pub declared_content_type: Option<String>,
     pub acknowledged_offset: u64,
     pub integrity_grade: AssetIntegrityGrade,
+    /// True until a chunk arrives without a verifiable checksum; the
+    /// finalizer grades end-to-end verified only while this holds (or an
+    /// authenticated whole-upload digest matches).
+    pub all_chunks_checksummed: bool,
+    pub admission: AssetAdmissionV1,
     pub expires_at_ms: u64,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
@@ -341,8 +385,11 @@ pub struct AssetAttemptCreateRequestV1 {
     pub intent_policy_hash: String,
     pub args: Value,
     pub declared_filename: Option<String>,
-    /// Required: deferred-length creation is refused on every v1 lane.
-    pub declared_length: u64,
+    /// Deferred-length creation is refused on every v1 lane with a
+    /// structured diagnostic — the field is optional exactly so the refusal
+    /// is `SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED`, not a parse error.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_length: Option<u64>,
     pub declared_content_type: Option<String>,
     /// Present on retry: the same-asset successor path. Absent reserves a
     /// fresh asset id.
@@ -499,11 +546,12 @@ pub struct AssetRefusalDetailV1 {
 // System tables.
 // ---------------------------------------------------------------------------
 
-/// The seven Snapback-owned asset tables. The `_snapback` prefix keeps them
+/// The Snapback-owned asset tables. The `_snapback` prefix keeps them
 /// outside the app namespace: `validate_user_identifier` already refuses any
 /// app-declared identifier with this prefix, so collision refusal is the
-/// existing `SNAPBACK_INVALID_IDENTIFIER` diagnostic.
-pub const ASSET_SYSTEM_TABLES: [&str; 7] = [
+/// existing `SNAPBACK_INVALID_IDENTIFIER` diagnostic. Receipts and intent
+/// generations joined the original seven with the session ticket (L1-04).
+pub const ASSET_SYSTEM_TABLES: [&str; 9] = [
     "_snapback_asset_records_v1",
     "_snapback_asset_attempts_v1",
     "_snapback_asset_blobs_v1",
@@ -511,6 +559,8 @@ pub const ASSET_SYSTEM_TABLES: [&str; 7] = [
     "_snapback_asset_reference_edges_v1",
     "_snapback_asset_publications_v1",
     "_snapback_asset_work_ledger_v1",
+    "_snapback_asset_receipts_v1",
+    "_snapback_asset_intent_generations_v1",
 ];
 
 pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
@@ -606,9 +656,401 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
              updated_at_ms INTEGER NOT NULL
          );
          CREATE INDEX IF NOT EXISTS _snapback_asset_work_by_state_v1
-             ON _snapback_asset_work_ledger_v1(state, next_eligible_at_ms);",
+             ON _snapback_asset_work_ledger_v1(state, next_eligible_at_ms);
+         CREATE TABLE IF NOT EXISTS _snapback_asset_receipts_v1 (
+             receipt_id TEXT PRIMARY KEY NOT NULL,
+             operation_lineage TEXT NOT NULL,
+             event TEXT NOT NULL,
+             asset_id TEXT NOT NULL,
+             attempt_id TEXT,
+             at_ms INTEGER NOT NULL,
+             record_json TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_asset_receipts_by_asset_v1
+             ON _snapback_asset_receipts_v1(asset_id, at_ms);
+         CREATE TABLE IF NOT EXISTS _snapback_asset_intent_generations_v1 (
+             intent_id TEXT PRIMARY KEY NOT NULL,
+             intent_policy_hash TEXT NOT NULL,
+             generation INTEGER NOT NULL,
+             revoked INTEGER NOT NULL DEFAULT 0,
+             updated_at_ms INTEGER NOT NULL
+         );",
     )?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Per-intent policy generations (LLP 0044 §Internal model). Generations are
+// minted lazily inside the attempt-create transaction: the loaded manifest's
+// policy hash is the activation identity, so the first admission after a
+// changed intent deploys bumps the generation — an O(1) per-intent event,
+// never per-asset fanout. Revocation has exactly three explicit triggers
+// (intent removal, a revoking-flagged deployment, the operator action); the
+// flag lives here and refuses finalization-side work.
+// ---------------------------------------------------------------------------
+
+pub struct IntentGeneration {
+    pub generation: u64,
+    pub revoked: bool,
+}
+
+pub fn ensure_intent_generation(
+    tx: &Transaction<'_>,
+    intent_id: &str,
+    intent_policy_hash: &str,
+    now_ms: u64,
+) -> SnapbackResult<IntentGeneration> {
+    let existing: Option<(String, u64, bool)> = tx
+        .query_row(
+            "SELECT intent_policy_hash, generation, revoked
+             FROM _snapback_asset_intent_generations_v1 WHERE intent_id = ?1",
+            [intent_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, i64>(2)? != 0)),
+        )
+        .optional()?;
+    Ok(match existing {
+        None => {
+            tx.execute(
+                "INSERT INTO _snapback_asset_intent_generations_v1 (
+                     intent_id, intent_policy_hash, generation, revoked, updated_at_ms
+                 ) VALUES (?1, ?2, 1, 0, ?3)",
+                rusqlite::params![intent_id, intent_policy_hash, now_ms],
+            )?;
+            IntentGeneration { generation: 1, revoked: false }
+        }
+        Some((stored_hash, generation, revoked)) if stored_hash == intent_policy_hash => {
+            IntentGeneration { generation, revoked }
+        }
+        Some((_, generation, _)) => {
+            // A changed intent activated: bump, and clear any revocation —
+            // the new policy is the author's current word.
+            tx.execute(
+                "UPDATE _snapback_asset_intent_generations_v1
+                 SET intent_policy_hash = ?2, generation = ?3, revoked = 0,
+                     updated_at_ms = ?4
+                 WHERE intent_id = ?1",
+                rusqlite::params![intent_id, intent_policy_hash, generation + 1, now_ms],
+            )?;
+            IntentGeneration { generation: generation + 1, revoked: false }
+        }
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Receipts (LLP 0044 §Receipts): semantic events with shared lineage.
+// ---------------------------------------------------------------------------
+
+pub fn write_receipt(tx: &Transaction<'_>, receipt: &AssetReceiptV1) -> SnapbackResult<()> {
+    let record_json = serde_json::to_string(receipt).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("receipt does not serialize: {error}"),
+        )
+    })?;
+    let event = serde_json::to_value(receipt.event)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_default();
+    tx.execute(
+        "INSERT INTO _snapback_asset_receipts_v1 (
+             receipt_id, operation_lineage, event, asset_id, attempt_id, at_ms,
+             record_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![
+            receipt.receipt_id,
+            receipt.operation_lineage,
+            event,
+            receipt.asset_id,
+            receipt.attempt_id,
+            receipt.at_ms,
+            record_json,
+        ],
+    )?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Asset and attempt persistence. Every write goes through these helpers so
+// the closed transition tables are enforced in exactly one place.
+// ---------------------------------------------------------------------------
+
+fn record_json<T: Serialize>(record: &T) -> SnapbackResult<String> {
+    serde_json::to_string(record).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("asset record does not serialize: {error}"),
+        )
+    })
+}
+
+fn decode_record<T: for<'de> Deserialize<'de>>(json: &str) -> SnapbackResult<T> {
+    serde_json::from_str(json).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("stored asset record does not decode: {error}"),
+        )
+    })
+}
+
+/// The closed asset-availability transition table (LLP 0044 §Lifecycle
+/// transitions). Anything not listed is refused.
+pub fn asset_transition_allowed(from: AssetAvailability, to: AssetAvailability) -> bool {
+    use AssetAvailability as A;
+    matches!(
+        (from, to),
+        (A::Pending, A::Ready)
+            | (A::Pending, A::Rejected)
+            | (A::Pending, A::Deleted)
+            | (A::Ready, A::Deleted)
+            | (A::Rejected, A::Deleted)
+    )
+}
+
+/// The closed attempt transition table. Terminal states admit nothing.
+pub fn attempt_transition_allowed(from: AssetAttemptState, to: AssetAttemptState) -> bool {
+    use AssetAttemptState as S;
+    matches!(
+        (from, to),
+        (S::Open, S::Transferring)
+            | (S::Open | S::Transferring, S::Finalizing)
+            | (S::Finalizing, S::Complete)
+            | (S::Open | S::Transferring | S::Finalizing, S::Expired)
+            | (S::Open | S::Transferring | S::Finalizing, S::Cancelled)
+            | (S::Open | S::Transferring | S::Finalizing, S::Failed)
+    )
+}
+
+pub fn insert_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO _snapback_asset_records_v1 (
+             asset_id, app_id, intent_id, owner_principal, availability,
+             lifecycle_generation, record_json, updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        rusqlite::params![
+            record.asset_id,
+            record.app_id,
+            record.intent_id,
+            record.owner_principal,
+            serde_json::to_value(record.availability)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_owned))
+                .unwrap_or_default(),
+            record.lifecycle_generation,
+            record_json(record)?,
+            record.updated_at_ms,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn load_asset(tx: &Transaction<'_>, asset_id: &str) -> SnapbackResult<Option<AssetRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_records_v1 WHERE asset_id = ?1",
+            [asset_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+/// Persist an availability transition, enforcing the closed table and
+/// bumping the lifecycle generation.
+pub fn transition_asset(
+    tx: &Transaction<'_>,
+    record: &mut AssetRecordV1,
+    to: AssetAvailability,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    if !asset_transition_allowed(record.availability, to) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_TRANSITION_INVALID",
+            "assets",
+            format!(
+                "asset availability cannot move {:?} → {to:?}",
+                record.availability
+            ),
+        ));
+    }
+    record.availability = to;
+    record.lifecycle_generation += 1;
+    record.updated_at_ms = now_ms;
+    if to == AssetAvailability::Deleted {
+        record.deleted_at_ms = Some(now_ms);
+    }
+    store_asset(tx, record)
+}
+
+pub fn store_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResult<()> {
+    let changed = tx.execute(
+        "UPDATE _snapback_asset_records_v1
+         SET availability = ?2, lifecycle_generation = ?3, record_json = ?4,
+             updated_at_ms = ?5
+         WHERE asset_id = ?1",
+        rusqlite::params![
+            record.asset_id,
+            serde_json::to_value(record.availability)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_owned))
+                .unwrap_or_default(),
+            record.lifecycle_generation,
+            record_json(record)?,
+            record.updated_at_ms,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("asset {} does not exist to update", record.asset_id),
+        ));
+    }
+    Ok(())
+}
+
+pub fn insert_attempt(tx: &Transaction<'_>, record: &AssetAttemptRecordV1) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO _snapback_asset_attempts_v1 (
+             attempt_id, asset_id, state, staging_key, expires_at_ms,
+             record_json, updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![
+            record.attempt_id,
+            record.asset_id,
+            record.state.as_str(),
+            record.staging_key,
+            record.expires_at_ms,
+            record_json(record)?,
+            record.updated_at_ms,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn load_attempt(
+    tx: &Transaction<'_>,
+    attempt_id: &str,
+) -> SnapbackResult<Option<AssetAttemptRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_attempts_v1 WHERE attempt_id = ?1",
+            [attempt_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+pub fn store_attempt(tx: &Transaction<'_>, record: &AssetAttemptRecordV1) -> SnapbackResult<()> {
+    let changed = tx.execute(
+        "UPDATE _snapback_asset_attempts_v1
+         SET state = ?2, record_json = ?3, updated_at_ms = ?4, expires_at_ms = ?5
+         WHERE attempt_id = ?1",
+        rusqlite::params![
+            record.attempt_id,
+            record.state.as_str(),
+            record_json(record)?,
+            record.updated_at_ms,
+            record.expires_at_ms,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("attempt {} does not exist to update", record.attempt_id),
+        ));
+    }
+    Ok(())
+}
+
+/// Move an attempt through the closed transition table.
+pub fn transition_attempt(
+    tx: &Transaction<'_>,
+    record: &mut AssetAttemptRecordV1,
+    to: AssetAttemptState,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    if !attempt_transition_allowed(record.state, to) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_TRANSITION_INVALID",
+            "assets",
+            format!("attempt cannot move {:?} → {to:?}", record.state),
+        ));
+    }
+    record.state = to;
+    record.updated_at_ms = now_ms;
+    store_attempt(tx, record)
+}
+
+/// The current (non-terminal) attempt for an asset, if any.
+pub fn current_attempt(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+) -> SnapbackResult<Option<AssetAttemptRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_attempts_v1
+             WHERE asset_id = ?1 AND state IN ('open', 'transferring', 'finalizing')",
+            [asset_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+// ---------------------------------------------------------------------------
+// Quota and ceiling accounting (LLP 0044 §Deduplication/quotas). Logical
+// usage charges each rendition record's blob once (the primary included
+// exactly once — there is no second asset-to-blob edge) with the minimum
+// accounting unit as a floor per asset; reservations are the open attempts'
+// declared lengths, floored the same way.
+// ---------------------------------------------------------------------------
+
+pub struct AssetAccounting {
+    pub reserved_bytes: u64,
+    pub settled_bytes: u64,
+    pub open_attempts_app: u64,
+}
+
+pub fn asset_accounting(tx: &Transaction<'_>, app_id: &str) -> SnapbackResult<AssetAccounting> {
+    let (reserved_bytes, open_attempts_app): (u64, u64) = tx.query_row(
+        "SELECT COALESCE(SUM(MAX(json_extract(record_json, '$.declaredLength'), ?2)), 0),
+                COUNT(*)
+         FROM _snapback_asset_attempts_v1
+         WHERE state IN ('open', 'transferring', 'finalizing')
+           AND json_extract(record_json, '$.appId') = ?1",
+        rusqlite::params![app_id, ASSET_MIN_ACCOUNTING_UNIT_BYTES],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let settled_bytes: u64 = tx.query_row(
+        "SELECT COALESCE(SUM(MAX(b.byte_length, ?2)), 0)
+         FROM _snapback_asset_renditions_v1 r
+         JOIN _snapback_asset_blobs_v1 b ON b.blob_id = r.blob_id
+         JOIN _snapback_asset_records_v1 a ON a.asset_id = r.asset_id
+         WHERE a.app_id = ?1 AND r.state IN ('pending', 'ready')",
+        rusqlite::params![app_id, ASSET_MIN_ACCOUNTING_UNIT_BYTES],
+        |row| row.get(0),
+    )?;
+    Ok(AssetAccounting { reserved_bytes, settled_bytes, open_attempts_app })
+}
+
+pub fn open_attempts_for_principal(
+    tx: &Transaction<'_>,
+    app_id: &str,
+    principal: &str,
+) -> SnapbackResult<u64> {
+    Ok(tx.query_row(
+        "SELECT COUNT(*) FROM _snapback_asset_attempts_v1
+         WHERE state IN ('open', 'transferring', 'finalizing')
+           AND json_extract(record_json, '$.appId') = ?1
+           AND json_extract(record_json, '$.admission.ownerPrincipal') = ?2",
+        rusqlite::params![app_id, principal],
+        |row| row.get(0),
+    )?)
 }
 
 // ---------------------------------------------------------------------------

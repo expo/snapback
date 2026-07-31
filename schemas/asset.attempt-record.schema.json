@@ -1,5 +1,40 @@
 {
   "$defs": {
+    "AssetAdmissionV1": {
+      "additionalProperties": false,
+      "description": "The admission facts captured when the authorizer admitted the attempt:\nthe LLP 0007 complete read-set witness, the LLP 0053 authorization pair,\nand the frozen policy identity finalization re-validates under.\n\n@ref LLP 0044#internal-model — witness validation is re-validate, then\n  refuse only on denial; the witness is the substrate.",
+      "properties": {
+        "args": {
+          "description": "Canonical intent arguments the authorizer admitted."
+        },
+        "auth": {
+          "description": "The sealed caller identity facts the decision ran under."
+        },
+        "intentPolicyHash": {
+          "type": "string"
+        },
+        "ownerPrincipal": {
+          "type": "string"
+        },
+        "policyGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "witness": {
+          "description": "The captured read dependencies (row, missing-row, query range, index\ncursor, table predicate, auth/permission), serialized verbatim."
+        }
+      },
+      "required": [
+        "intentPolicyHash",
+        "policyGeneration",
+        "ownerPrincipal",
+        "auth",
+        "witness",
+        "args"
+      ],
+      "type": "object"
+    },
     "AssetAttemptState": {
       "enum": [
         "open",
@@ -29,6 +64,13 @@
       "format": "uint64",
       "minimum": 0,
       "type": "integer"
+    },
+    "admission": {
+      "$ref": "#/$defs/AssetAdmissionV1"
+    },
+    "allChunksChecksummed": {
+      "description": "True until a chunk arrives without a verifiable checksum; the\nfinalizer grades end-to-end verified only while this holds (or an\nauthenticated whole-upload digest matches).",
+      "type": "boolean"
     },
     "appId": {
       "type": "string"
@@ -109,6 +151,8 @@
     "declaredLength",
     "acknowledgedOffset",
     "integrityGrade",
+    "allChunksChecksummed",
+    "admission",
     "expiresAtMs",
     "createdAtMs",
     "updatedAtMs"

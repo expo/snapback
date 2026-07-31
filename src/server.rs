@@ -84,7 +84,7 @@ use axum::extract::{ConnectInfo, DefaultBodyLimit, Extension, OriginalUri, Path,
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{MethodRouter, delete, get, post};
+use axum::routing::{MethodRouter, delete, get, head, patch, post};
 use axum::{
     Json, Router,
     body::{Body, Bytes, to_bytes},
@@ -7701,6 +7701,38 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_function_route("POST", "/action/{name}"),
             post(invoke_action),
         ),
+        // Asset upload sessions (LLP 0044; LLP 0031 dated amendment
+        // 2026-07-31). Root-level AppData family beside the function routes:
+        // create admits through the generated intent's authorizer, the rest
+        // are authority-bound attempt operations, and the TUS resource is
+        // wrapped by Snapback admission — TUS itself is never the authority
+        // model.
+        RegisteredRoute::new(
+            app_auth_route("POST", "/assets/attempts"),
+            post(asset_attempt_create_route),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("GET", "/assets/attempts/{id}"),
+            get(asset_attempt_inspect_route),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/assets/attempts/{id}/cancel"),
+            post(asset_attempt_cancel_route),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("HEAD", "/assets/tus/{id}"),
+            head(asset_tus_head_route),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("PATCH", "/assets/tus/{id}"),
+            patch(asset_tus_patch_route).layer(DefaultBodyLimit::max(
+                crate::assets::ASSET_MAX_CHUNK_BYTES as usize + 16 * 1024,
+            )),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("DELETE", "/assets/tus/{id}"),
+            delete(asset_tus_delete_route),
+        ),
         RegisteredRoute::new(
             RouteSpec::new(
                 "POST",
@@ -8735,6 +8767,12 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/auth/grants/by-actor/{actor_id}"
         | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
+        // Attempt creation runs the generated upload-intent authorizer — a
+        // Query-kind admission (LLP 0044 §Upload sessions).
+        "/assets/attempts" => Some(InvocationSource::HttpQuery),
+        "/assets/attempts/{id}"
+        | "/assets/attempts/{id}/cancel"
+        | "/assets/tus/{id}" => Some(InvocationSource::AssetTransfer),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         // Bundle entries are evaluated exactly like HTTP queries; register
         // mode re-prepares LiveInitialQuery authorities per entry inside the
@@ -13438,37 +13476,53 @@ pub(crate) fn router_from_registrations(
     registrations: Vec<RegisteredRoute>,
     runtime: AppState,
 ) -> Router<AppState> {
-    registrations
+    // Same-path registrations merge into one axum method router — the TUS
+    // resource registers HEAD/PATCH/DELETE as three policy rows over one
+    // path (LLP 0044; LLP 0031 dated amendment 2026-07-31) — and the shared
+    // OPTIONS fallback is added exactly once per path. Each method keeps its
+    // own registration's policy middleware because the layer is applied
+    // before the merge.
+    let mut paths: Vec<(&'static str, MethodRouter<AppState>)> = Vec::new();
+    for registration in registrations {
+        let spec = registration.spec;
+        let runtime = runtime.clone();
+        let method_router = registration.method_router.route_layer(middleware::from_fn(
+            move |mut request: Request<Body>, next: Next| {
+                let runtime = runtime.clone();
+                let sender_nonce = SenderNonceResponse::default();
+                request.extensions_mut().insert(sender_nonce.clone());
+                async move {
+                    let mut response =
+                        enforce_registered_route_policy(spec, runtime, request, next).await;
+                    if let Some(value) = sender_nonce.value() {
+                        response.headers_mut().insert(
+                            HeaderName::from_static(SENDER_NONCE_HEADER),
+                            value.clone(),
+                        );
+                        response.headers_mut().insert(
+                            header::CACHE_CONTROL,
+                            HeaderValue::from_static("no-store"),
+                        );
+                    }
+                    response
+                }
+            },
+        ));
+        match paths.iter_mut().find(|(path, _)| *path == spec.path) {
+            Some((_, existing)) => {
+                let merged = std::mem::take(existing).merge(method_router);
+                *existing = merged;
+            }
+            None => paths.push((spec.path, method_router)),
+        }
+    }
+    paths
         .into_iter()
-        .fold(Router::new(), |router, registration| {
-            let spec = registration.spec;
-            let runtime = runtime.clone();
-            let method_router = registration
-                .method_router
-                .options(|| async { StatusCode::NO_CONTENT })
-                .route_layer(middleware::from_fn(
-                    move |mut request: Request<Body>, next: Next| {
-                        let runtime = runtime.clone();
-                        let sender_nonce = SenderNonceResponse::default();
-                        request.extensions_mut().insert(sender_nonce.clone());
-                        async move {
-                            let mut response =
-                                enforce_registered_route_policy(spec, runtime, request, next).await;
-                            if let Some(value) = sender_nonce.value() {
-                                response.headers_mut().insert(
-                                    HeaderName::from_static(SENDER_NONCE_HEADER),
-                                    value.clone(),
-                                );
-                                response.headers_mut().insert(
-                                    header::CACHE_CONTROL,
-                                    HeaderValue::from_static("no-store"),
-                                );
-                            }
-                            response
-                        }
-                    },
-                ));
-            router.route(spec.path, method_router)
+        .fold(Router::new(), |router, (path, method_router)| {
+            router.route(
+                path,
+                method_router.options(|| async { StatusCode::NO_CONTENT }),
+            )
         })
 }
 
@@ -17689,6 +17743,190 @@ async fn acknowledge_mutations(
     Ok(Json(MutationAcknowledgementResponse { acknowledged }))
 }
 
+// ---------------------------------------------------------------------------
+// Asset upload sessions (LLP 0044; tickets L1-04/L1-05).
+// ---------------------------------------------------------------------------
+
+const TUS_RESUMABLE_HEADER: &str = "tus-resumable";
+const TUS_UPLOAD_OFFSET_HEADER: &str = "upload-offset";
+const TUS_UPLOAD_LENGTH_HEADER: &str = "upload-length";
+const TUS_UPLOAD_EXPIRES_MS_HEADER: &str = "upload-expires-ms";
+const TUS_UPLOAD_CHECKSUM_HEADER: &str = "upload-checksum";
+const TUS_CONTENT_TYPE: &str = "application/offset+octet-stream";
+
+fn require_tus_version(headers: &HeaderMap) -> Result<(), ApiError> {
+    let version = headers
+        .get(TUS_RESUMABLE_HEADER)
+        .and_then(|value| value.to_str().ok());
+    if version != Some(crate::assets::ASSET_TUS_VERSION) {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED",
+            "assets",
+            format!(
+                "this lane speaks TUS {} only",
+                crate::assets::ASSET_TUS_VERSION
+            ),
+        )));
+    }
+    Ok(())
+}
+
+fn tus_response_headers(
+    response: &mut Response,
+    attempt: &crate::assets::AssetAttemptRecordV1,
+) {
+    let headers = response.headers_mut();
+    headers.insert(
+        HeaderName::from_static(TUS_RESUMABLE_HEADER),
+        HeaderValue::from_static(crate::assets::ASSET_TUS_VERSION),
+    );
+    if let Ok(offset) = HeaderValue::from_str(&attempt.acknowledged_offset.to_string()) {
+        headers.insert(HeaderName::from_static(TUS_UPLOAD_OFFSET_HEADER), offset);
+    }
+    if let Ok(length) = HeaderValue::from_str(&attempt.declared_length.to_string()) {
+        headers.insert(HeaderName::from_static(TUS_UPLOAD_LENGTH_HEADER), length);
+    }
+    if let Ok(expires) = HeaderValue::from_str(&attempt.expires_at_ms.to_string()) {
+        headers.insert(
+            HeaderName::from_static(TUS_UPLOAD_EXPIRES_MS_HEADER),
+            expires,
+        );
+    }
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+}
+
+async fn asset_attempt_create_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    input: Result<Json<crate::assets::AssetAttemptCreateRequestV1>, JsonRejection>,
+) -> Result<Json<crate::assets::AssetAttemptCreateResponseV1>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let response = with_snapback(&state, move |snapback| {
+        snapback.asset_attempt_create(&authority, request)
+    })
+    .await?;
+    Ok(Json(response))
+}
+
+async fn asset_attempt_inspect_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+) -> Result<Json<crate::assets::AssetTaskStateV1>, ApiError> {
+    let task = with_snapback(&state, move |snapback| {
+        snapback.asset_attempt_inspect(&authority, &id)
+    })
+    .await?;
+    Ok(Json(task))
+}
+
+async fn asset_attempt_cancel_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+    input: Result<Json<crate::assets::AssetAttemptCancelRequestV1>, JsonRejection>,
+) -> Result<Json<crate::assets::AssetTaskStateV1>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.attempt_id != id {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+            "assets",
+            "the cancel body names a different attempt than the route",
+        )));
+    }
+    let task = with_snapback(&state, move |snapback| {
+        snapback.asset_attempt_cancel(&authority, request)
+    })
+    .await?;
+    Ok(Json(task))
+}
+
+async fn asset_tus_head_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    require_tus_version(&headers)?;
+    let attempt = with_snapback(&state, move |snapback| {
+        snapback.asset_tus_head(&authority, &id)
+    })
+    .await?;
+    let mut response = StatusCode::OK.into_response();
+    tus_response_headers(&mut response, &attempt);
+    Ok(response)
+}
+
+async fn asset_tus_patch_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<Response, ApiError> {
+    require_tus_version(&headers)?;
+    let content_type = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    if content_type != TUS_CONTENT_TYPE {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_ASSET_TUS_CONTENT_TYPE_UNSUPPORTED",
+            "assets",
+            format!("TUS PATCH requires content type {TUS_CONTENT_TYPE}"),
+        )));
+    }
+    let offset: u64 = headers
+        .get(TUS_UPLOAD_OFFSET_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse().ok())
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_ASSET_OFFSET_CONFLICT",
+                "assets",
+                "TUS PATCH requires a numeric Upload-Offset header",
+            ))
+        })?;
+    // `Upload-Checksum: <algorithm> <base64>` (TUS checksum extension).
+    let checksum_header = headers
+        .get(TUS_UPLOAD_CHECKSUM_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let attempt = with_snapback(&state, move |snapback| {
+        let checksum = checksum_header.as_deref().map(|value| {
+            let mut parts = value.splitn(2, ' ');
+            (
+                parts.next().unwrap_or_default(),
+                parts.next().unwrap_or_default(),
+            )
+        });
+        snapback.asset_tus_patch(&authority, &id, offset, body.as_ref(), checksum)
+    })
+    .await?;
+    let mut response = StatusCode::NO_CONTENT.into_response();
+    tus_response_headers(&mut response, &attempt);
+    Ok(response)
+}
+
+async fn asset_tus_delete_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    require_tus_version(&headers)?;
+    with_snapback(&state, move |snapback| {
+        snapback.asset_tus_terminate(&authority, &id)
+    })
+    .await?;
+    let mut response = StatusCode::NO_CONTENT.into_response();
+    response.headers_mut().insert(
+        HeaderName::from_static(TUS_RESUMABLE_HEADER),
+        HeaderValue::from_static(crate::assets::ASSET_TUS_VERSION),
+    );
+    Ok(response)
+}
+
 /// Mutations respond with the MutationOutput fields plus the provider-core
 /// MutationReceipt (LLP 0034 §3.2, ENG-22478). A REJECTED mutation still
 /// produces a receipt; it rides the error envelope.
@@ -21639,6 +21877,31 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // application-handler diagnostics. Adding a new code does not add it
         // here automatically: the default below remains a truthful 500 until
         // its producer deliberately chooses a client class.
+        // LLP 0044 asset classes (LLP 0012 dated registration 2026-07-31):
+        // each producer chose these deliberately with this landing.
+        "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED"
+        | "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_ASSET_FORBIDDEN" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ASSET_INTENT_UNKNOWN"
+        | "SNAPBACK_ASSET_ATTEMPT_UNKNOWN"
+        | "SNAPBACK_ASSET_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_ASSET_INTENT_STALE"
+        | "SNAPBACK_ASSET_INTENT_REVOKED"
+        | "SNAPBACK_ASSET_OFFSET_CONFLICT"
+        | "SNAPBACK_ASSET_ATTEMPT_TERMINAL"
+        | "SNAPBACK_ASSET_GENERATION_STALE" => StatusCode::CONFLICT,
+        "SNAPBACK_ASSET_ATTEMPT_EXPIRED" => StatusCode::GONE,
+        "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,
+        "SNAPBACK_ASSET_QUOTA_EXCEEDED"
+        | "SNAPBACK_ASSET_CEILING_EXCEEDED" => StatusCode::TOO_MANY_REQUESTS,
+        "SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED" => StatusCode::PRECONDITION_FAILED,
+        "SNAPBACK_ASSET_TUS_CONTENT_TYPE_UNSUPPORTED" => {
+            StatusCode::UNSUPPORTED_MEDIA_TYPE
+        }
+        // TUS 1.0.0's checksum-mismatch class (460 has no StatusCode const).
+        "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID" => {
+            StatusCode::from_u16(460).unwrap_or(StatusCode::BAD_REQUEST)
+        }
         "SNAPBACK_ARG_MISSING"
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
         | "SNAPBACK_ACTION_STREAM_INVALID"
