@@ -13,11 +13,19 @@
 // - transfer progress is presentation state; readiness comes from the
 //   server's durable answer (finalize response, `watch`, or `record`).
 //
-// Transport posture: this v1 surface is the dev-lane client — it talks the
-// asset route family directly and rides `SnapbackClient.subscribeLive` for
-// the reserved record projection. Sessions-custody integration follows the
-// server's own sessions-mode admission of the projection (both recorded in
-// the live-projection follow-up ticket).
+// Transport posture: custody follows the client protocol. When the parent
+// client holds a sessions credential (an authority fence from its
+// AuthCoordinator, or an external-session bearer), every asset request —
+// create, TUS transfer, finalize, metadata, delivery-adjacent reads —
+// carries `authorization: Bearer` exactly like the client's own request
+// lane, and the asset route family's `OptionalSessionBearer` overlay
+// resolves the caller. Without a credential the dev-lane header is sent;
+// note the dev-mode HTTP body-authority gap recorded by the conformance
+// suite (asset request DTOs carry no dev auth member, so dev-lane HTTP
+// requests resolve anonymous server-side today). The reserved record
+// projection rides `SnapbackClient.subscribeLive`, whose custody the parent
+// client owns; sessions-mode establishment of that projection is refused
+// server-side until its LLP 0053 classification lands (W2e).
 
 import { createHash } from 'node:crypto';
 
@@ -197,9 +205,40 @@ export class SnapbackAssetClient {
     return `${this.#client.baseUrl}::${userId ?? 'anonymous'}::${assetId}`;
   }
 
+  /**
+   * Custody for direct asset-route requests. A sessions credential from the
+   * parent client's authority fence (or an external-session bearer) always
+   * wins; the dev-lane header is the no-credential fallback and never
+   * overrides a real credential.
+   */
+  #custodyHeaders(userId) {
+    // A sessions request must offer the exact auth-client protocol beside
+    // its credential (the server refuses a bare bearer).
+    const bearerHeaders = (bearer) => ({
+      authorization: `Bearer ${bearer}`,
+      'x-snapback-auth-client-protocol': '1',
+    });
+    const fence = this.#client.authorityFence;
+    if (fence) {
+      try {
+        const bearer = fence.credentialFor(fence.capture()).bearer;
+        if (bearer) return bearerHeaders(bearer);
+      } catch {
+        // No current credential — fall through to the dev-lane posture.
+      }
+    }
+    const external = this.#client.bearerToken;
+    if (typeof external === 'string' && external.length > 0) {
+      return bearerHeaders(external);
+    }
+    return userId ? { 'x-snapback-dev-user': userId } : {};
+  }
+
   async #json(method, path, body, { userId = null } = {}) {
-    const headers = { 'content-type': 'application/json' };
-    if (userId) headers['x-snapback-dev-user'] = userId;
+    const headers = {
+      'content-type': 'application/json',
+      ...this.#custodyHeaders(userId),
+    };
     const response = await fetch(`${this.#client.baseUrl}${path}`, {
       method,
       headers,
@@ -343,7 +382,7 @@ export class SnapbackAssetClient {
             method: 'HEAD',
             headers: {
               'tus-resumable': TUS_VERSION,
-              ...(state.userId ? { 'x-snapback-dev-user': state.userId } : {}),
+              ...this.#custodyHeaders(state.userId),
             },
           },
         );
@@ -376,7 +415,7 @@ export class SnapbackAssetClient {
               'upload-offset': String(state.offset),
               // The conformance requirement: every PATCH carries a checksum.
               'upload-checksum': `sha256 ${sha256Base64(bytes)}`,
-              ...(state.userId ? { 'x-snapback-dev-user': state.userId } : {}),
+              ...this.#custodyHeaders(state.userId),
             },
             body: bytes,
           },
@@ -524,8 +563,27 @@ export class SnapbackAssetClient {
       });
     };
     const effectiveConnectionId = connectionId ?? `snapback_assets_watch_${assetId}`;
+    let releaseStream = null;
     void (async () => {
       try {
+        // Frames only flow while a live stream holds the connection open.
+        // Acquire stream demand when the client exposes the manager; a
+        // stream that cannot come up degrades honestly to `static` (the
+        // establishment snapshot still resolves) instead of reporting a
+        // live mode with no delivery lane behind it.
+        if (typeof this.#client.liveStreamManager === 'function') {
+          try {
+            const manager = this.#client.liveStreamManager(effectiveConnectionId);
+            releaseStream = manager.acquireDemand();
+            await manager.waitUntilReady();
+          } catch {
+            if (releaseStream) {
+              releaseStream();
+              releaseStream = null;
+            }
+            snapshot = Object.freeze({ ...snapshot, mode: 'static' });
+          }
+        }
         const established = await this.#client.subscribeLive(
           ASSET_RECORD_LIVE_FUNCTION,
           { connectionId: effectiveConnectionId, userId, args: { assetId } },
@@ -534,7 +592,11 @@ export class SnapbackAssetClient {
         subscriptionId = established?.subscription_id
           ?? established?.subscriptionId
           ?? null;
-        if (typeof this.#client.registerDurableConsumer === 'function' && subscriptionId) {
+        if (
+          snapshot.mode === 'live'
+          && typeof this.#client.registerDurableConsumer === 'function'
+          && subscriptionId
+        ) {
           unregister = this.#client.registerDurableConsumer(
             effectiveConnectionId,
             (frame) => {
@@ -546,7 +608,10 @@ export class SnapbackAssetClient {
         } else {
           snapshot = Object.freeze({ ...snapshot, mode: 'static' });
         }
-        applyRows(established?.rows ?? []);
+        // The real subscribe response carries the establishment rows under
+        // `snapshot.rows` (the live-wire establishment block); the bare
+        // `rows` spelling is kept for older fakes.
+        applyRows(established?.snapshot?.rows ?? established?.rows ?? []);
       } catch (error) {
         publish({
           status: 'error',
@@ -573,6 +638,10 @@ export class SnapbackAssetClient {
             connectionId: effectiveConnectionId,
             ...(userId === null ? {} : { userId }),
           })).catch(() => {});
+        }
+        if (releaseStream) {
+          releaseStream();
+          releaseStream = null;
         }
       },
     });

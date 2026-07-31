@@ -407,6 +407,143 @@ const client = { baseUrl, subscribeLive: () => {} };
   store.dispose();
 }
 
+// --- sessions custody: a fence credential rides authorization on every
+// --- asset request; the dev header is only the no-credential fallback ---
+{
+  const seenHeaders = [];
+  const custodyServer = createServer((request, response) => {
+    seenHeaders.push({
+      url: request.url,
+      method: request.method,
+      authorization: request.headers.authorization ?? null,
+      devUser: request.headers['x-snapback-dev-user'] ?? null,
+    });
+    if (request.method === 'HEAD') {
+      response.setHeader('tus-resumable', '1.0.0');
+      response.setHeader('upload-offset', '0');
+      response.end();
+      return;
+    }
+    response.statusCode = 404;
+    response.end(JSON.stringify({ diagnostics: [{ code: 'SNAPBACK_ASSET_UNKNOWN' }] }));
+  });
+  await new Promise((resolve) => custodyServer.listen(0, '127.0.0.1', resolve));
+  const custodyBase = `http://127.0.0.1:${custodyServer.address().port}`;
+  const fenced = new SnapbackAssetClient({
+    baseUrl: custodyBase,
+    authorityFence: {
+      capture: () => ({ lineage: 'l1' }),
+      credentialFor: () => ({ bearer: 'bearer_fence_1' }),
+    },
+    subscribeLive: () => {},
+  });
+  await fenced.record('asset_c1', { userId: 'user_ignored' }).catch(() => {});
+  const external = new SnapbackAssetClient({
+    baseUrl: custodyBase,
+    bearerToken: 'bearer_external_1',
+    subscribeLive: () => {},
+  });
+  await external.record('asset_c2').catch(() => {});
+  const devLane = new SnapbackAssetClient({
+    baseUrl: custodyBase,
+    subscribeLive: () => {},
+  });
+  await devLane.record('asset_c3', { userId: 'user_dev' }).catch(() => {});
+  // TUS resume HEAD carries the same custody.
+  const resumeStore = createMemoryAssetTaskStore();
+  const fencedResume = new SnapbackAssetClient(
+    {
+      baseUrl: custodyBase,
+      authorityFence: {
+        capture: () => ({ lineage: 'l1' }),
+        credentialFor: () => ({ bearer: 'bearer_fence_1' }),
+      },
+      subscribeLive: () => {},
+    },
+    { taskStore: resumeStore },
+  );
+  resumeStore.set(
+    fencedResume.taskStoreKey({ userId: null, assetId: 'asset_c4' }),
+    JSON.stringify({
+      assetId: 'asset_c4', attemptId: 'attempt_c4', attemptExpiresAtMs: null,
+      fileSize: 1, fileName: null,
+    }),
+  );
+  const resumeTask = fencedResume.resumePersisted({ assetId: 'asset_c4', file: makeFile('z') });
+  await resumeTask.done;
+  await new Promise((resolve) => custodyServer.close(resolve));
+  const [fencedSeen, externalSeen, devSeen, headSeen] = [
+    seenHeaders.find((entry) => entry.url.includes('asset_c1')),
+    seenHeaders.find((entry) => entry.url.includes('asset_c2')),
+    seenHeaders.find((entry) => entry.url.includes('asset_c3')),
+    seenHeaders.find((entry) => entry.method === 'HEAD'),
+  ];
+  assert.equal(fencedSeen.authorization, 'Bearer bearer_fence_1');
+  assert.equal(fencedSeen.devUser, null, 'a credential suppresses the dev header');
+  assert.equal(externalSeen.authorization, 'Bearer bearer_external_1');
+  assert.equal(devSeen.authorization, null);
+  assert.equal(devSeen.devUser, 'user_dev');
+  assert.equal(headSeen.authorization, 'Bearer bearer_fence_1', 'TUS custody matches');
+}
+
+// --- watchStore consumes the real establishment shape (snapshot.rows) and
+// --- acquires live-stream demand when the client exposes the manager ---
+{
+  const demand = { acquired: 0, released: 0, managers: [] };
+  const streamed = new SnapbackAssetClient({
+    baseUrl,
+    liveStreamManager: (connectionId) => {
+      demand.managers.push(connectionId);
+      return {
+        acquireDemand: () => {
+          demand.acquired += 1;
+          return () => {
+            demand.released += 1;
+          };
+        },
+        waitUntilReady: async () => {},
+      };
+    },
+    subscribeLive: async () => ({
+      subscription_id: 'sub_e1',
+      snapshot: { rows: [{ assetId: 'asset_9', availability: 'ready' }] },
+    }),
+    registerDurableConsumer: () => () => {},
+    unsubscribeLive: () => ({ removed: true }),
+  });
+  const store = streamed.watchStore('asset_9', { userId: 'user_a' });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(store.getSnapshot().status, 'ready', 'snapshot.rows establishment is consumed');
+  assert.equal(store.getSnapshot().mode, 'live');
+  assert.equal(demand.acquired, 1);
+  store.dispose();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(demand.released, 1, 'dispose releases stream demand');
+}
+
+// --- a stream that cannot come up degrades honestly to static ---
+{
+  const degraded = new SnapbackAssetClient({
+    baseUrl,
+    liveStreamManager: () => ({
+      acquireDemand: () => () => {},
+      waitUntilReady: async () => {
+        throw new Error('socket refused');
+      },
+    }),
+    subscribeLive: async () => ({
+      subscription_id: 'sub_d1',
+      snapshot: { rows: [{ assetId: 'asset_9', availability: 'ready' }] },
+    }),
+    registerDurableConsumer: () => () => {},
+  });
+  const store = degraded.watchStore('asset_9');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(store.getSnapshot().status, 'ready');
+  assert.equal(store.getSnapshot().mode, 'static', 'failed stream reports static, not fake-live');
+  store.dispose();
+}
+
 server.closeAllConnections?.(); server.close();
 console.log('assets.test.mjs passed');
 process.exit(0);
