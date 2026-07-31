@@ -2815,6 +2815,38 @@ fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKi
     crate::manifest::rqs_eligible_digest_kind(function)
 }
 
+/// The reserved system live query projecting one asset record (LLP 0044
+/// §Live asset lifecycle). The `_snapback` prefix is refused for user
+/// identifiers, so the name cannot collide with a generated function; it is
+/// admitted by name at subscribe/re-run and never enters public listings.
+pub const ASSET_RECORD_LIVE_FUNCTION: &str = "_snapback.assetRecord";
+
+/// The synthetic-change table name for asset fan-out frames and the reserved
+/// projection's point-read dependencies.
+pub(crate) const ASSET_RECORDS_LIVE_TABLE: &str = "_snapback_asset_records_v1";
+
+/// The synthesized definition backing the reserved projection: enough for the
+/// ordinary subscribe machinery (kind, auth requirement, attribution) while
+/// execution stays native — the runtime body is never run, and the definition
+/// is deliberately not `authority_independent`, so it can never become
+/// RQS-eligible.
+fn asset_record_live_definition() -> SnapbackResult<FunctionDefinition> {
+    serde_json::from_value(serde_json::json!({
+        "id": ASSET_RECORD_LIVE_FUNCTION,
+        "name": ASSET_RECORD_LIVE_FUNCTION,
+        "kind": "LiveQuery",
+        "runtime": { "IbexModule": { "source": "", "export": "_snapbackAssetRecord" } },
+        "authRequirement": "optional-user",
+    }))
+    .map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("asset record live definition does not synthesize: {error}"),
+        )
+    })
+}
+
 fn routes_manifest_error(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_ROUTES_MANIFEST_INVALID",
@@ -5736,6 +5768,230 @@ impl LocalSnapback {
         })
     }
 
+    /// One live projection run: the caller's authorized view of one asset
+    /// record. Rows are `[record]` when readable and `[]` otherwise — absence
+    /// and denial blank rather than error, so revocation delivers an empty
+    /// replace instead of tearing the subscription down. The dependency
+    /// vector is the delivery fingerprint: it starts with a synthetic row
+    /// dependency carrying the record's observable facts, then the complete
+    /// LLP 0053-classified read-decision capture, so "dependencies changed"
+    /// is exactly "this subscriber must hear about it".
+    fn asset_record_projection(
+        &mut self,
+        caller: Option<&str>,
+        asset_id: &str,
+    ) -> SnapbackResult<(Vec<Value>, Vec<CapturedReadDependency>)> {
+        let schema = self.db.schema().clone();
+        let caller = caller.map(str::to_owned);
+        let asset_id = asset_id.to_owned();
+        self.db.asset_transaction(move |tx| {
+            let mut dependencies = Vec::new();
+            let Some(asset) = crate::assets::load_asset(tx, &asset_id)? else {
+                dependencies.push(CapturedReadDependency {
+                    kind: CapturedReadKind::MissingRow,
+                    table: Some(ASSET_RECORDS_LIVE_TABLE.to_owned()),
+                    id: Some(asset_id.clone()),
+                    version: None,
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: None,
+                    value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+                return Ok((Vec::new(), dependencies));
+            };
+            dependencies.push(CapturedReadDependency {
+                kind: CapturedReadKind::Row,
+                table: Some(ASSET_RECORDS_LIVE_TABLE.to_owned()),
+                id: Some(asset_id.clone()),
+                version: Some(asset.lifecycle_generation),
+                predicate: None,
+                rows: Vec::new(),
+                field: None,
+                value: Some(serde_json::json!({
+                    "availability": asset.availability,
+                    "updatedAtMs": asset.updated_at_ms,
+                    "primaryRenditionId": asset.primary_rendition_id,
+                })),
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
+            });
+            let decision =
+                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
+            dependencies.extend(decision.dependencies);
+            // A tombstone is not deliverable metadata: deletion blanks the
+            // live view (LLP 0044 §Deletion), exactly like a denial.
+            let deleted = asset.availability == crate::assets::AssetAvailability::Deleted;
+            let rows = if decision.authorized && !deleted {
+                vec![serde_json::json!({
+                    "assetId": asset.asset_id,
+                    "availability": asset.availability,
+                    "deliveryProfile": asset.delivery_profile,
+                    "primaryRenditionId": asset.primary_rendition_id,
+                    "lifecycleGeneration": asset.lifecycle_generation,
+                    "createdAtMs": asset.created_at_ms,
+                    "updatedAtMs": asset.updated_at_ms,
+                })]
+            } else {
+                Vec::new()
+            };
+            Ok((rows, dependencies))
+        })
+    }
+
+    /// The reserved system live query's initial snapshot (LLP 0044 §Live
+    /// asset lifecycle). Rides the ordinary subscribe machinery; only the
+    /// execution is native.
+    fn asset_record_query_invocation(
+        &mut self,
+        authority: &PreparedAuthority,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryInvocation> {
+        let asset_id = input
+            .args
+            .get("assetId")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_LIVE_INPUT_INVALID",
+                    "assets",
+                    "the asset record projection requires a string `assetId` argument",
+                )
+            })?;
+        let caller = Self::asset_caller_principal(authority);
+        let version = self.db.current_version()?;
+        let (rows, read_dependencies) =
+            self.asset_record_projection(caller.as_deref(), &asset_id)?;
+        Ok(QueryInvocation {
+            output: crate::manifest::QueryOutput {
+                version,
+                rows,
+                cursor: None,
+            },
+            read_dependencies,
+        })
+    }
+
+    /// Re-run one reserved asset-record subscription inside a commit frame.
+    /// Delivery is fingerprint-deduplicated: recompute, and enqueue a
+    /// `live_replace` only when the dependency vector moved — an attach, a
+    /// revocation, or a record transition all move it; an unrelated commit
+    /// does not.
+    fn rerun_asset_record_subscription(
+        &mut self,
+        subscription: &LiveSubscription,
+        admission: &AdmissionLease,
+        frame_version: u64,
+    ) {
+        let authority =
+            match self.prepare_live_rerun_authority(&subscription.authority, admission.clone()) {
+                Ok(authority) => authority,
+                Err(error) => {
+                    self.fail_subscription_fanout(
+                        subscription,
+                        "live_authority_ended",
+                        error,
+                        Some(frame_version),
+                        admission,
+                    );
+                    return;
+                }
+            };
+        let query = match self.asset_record_query_invocation(&authority, &subscription.input) {
+            Ok(query) => query,
+            Err(error) => {
+                self.fail_subscription_fanout(
+                    subscription,
+                    "live_refresh_failed",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
+                return;
+            }
+        };
+        let moved = self
+            .subscriptions
+            .get(&subscription.id)
+            .is_none_or(|stored| stored.read_dependencies != query.read_dependencies);
+        if !moved {
+            self.live_delivery.total_skipped += 1;
+            self.live_delivery.last_skipped += 1;
+            return;
+        }
+        let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
+            subscription_id: subscription.id.clone(),
+            function: subscription.function.clone(),
+            version: query.output.version,
+            rows: query.output.rows,
+            resume: None,
+        }) {
+            Ok(payload) => payload,
+            Err(error) => {
+                self.fail_subscription_fanout(
+                    subscription,
+                    "live_serialize_failed",
+                    SnapbackError::error(
+                        "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                        "realtime",
+                        "asset record update could not be serialized",
+                    )
+                    .with_details(json!({ "error": error.to_string() })),
+                    Some(frame_version),
+                    admission,
+                );
+                return;
+            }
+        };
+        let _publication = match admission.effect_guard("live replacement publication") {
+            Ok(publication) => publication,
+            Err(error) => {
+                self.fail_subscription_fanout(
+                    subscription,
+                    "live_replacement_publication_failed",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
+                return;
+            }
+        };
+        if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
+            stored.read_dependencies = query.read_dependencies;
+        }
+        self.enqueue_subscription_durable(subscription, payload);
+        self.live_delivery.total_deliveries += 1;
+        self.live_delivery.last_deliveries += 1;
+    }
+
+    /// Asset system-table writes commit through `asset_transaction`, outside
+    /// the app changeset that ordinarily feeds live fan-out. Every asset
+    /// state transition an observer may care about funnels through here with
+    /// the touched asset ids, synthesizing the change frame the ordinary
+    /// notify path expects.
+    pub(crate) fn notify_asset_record_change(&mut self, asset_ids: &[String]) {
+        if asset_ids.is_empty() {
+            return;
+        }
+        let changes: Vec<ChangedRow> = asset_ids
+            .iter()
+            .map(|asset_id| ChangedRow {
+                table: ASSET_RECORDS_LIVE_TABLE.to_owned(),
+                id: asset_id.clone(),
+                op: crate::storage::ChangeOp::Update,
+                row: None,
+                changed_fields: Vec::new(),
+            })
+            .collect();
+        self.notify_live_subscriptions(&changes);
+    }
+
     /// The `snapback assets` operator surface (LLP 0044 §Seeds and agent DX):
     /// five host-ops operations over the same asset machinery the routes use.
     /// Authority is the `function.run` model — dev-admitted, optionally
@@ -6245,7 +6501,11 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request: crate::assets::AssetFinalizeRequestV1,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
-        self.asset_attempt_finalize_inner(authority, request, None)
+        let response = self.asset_attempt_finalize_inner(authority, request, None)?;
+        // Availability may have moved (ready or rejected): fan the durable
+        // transition out to reserved asset-record subscribers.
+        self.notify_asset_record_change(std::slice::from_ref(&response.task.asset_id));
+        Ok(response)
     }
 
     pub(crate) fn asset_attempt_finalize_inner(
@@ -7328,7 +7588,9 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         asset_id: &str,
     ) -> SnapbackResult<Value> {
-        self.asset_delete_inner(authority, asset_id, false)
+        let outcome = self.asset_delete_inner(authority, asset_id, false)?;
+        self.notify_asset_record_change(&[asset_id.to_owned()]);
+        Ok(outcome)
     }
 
     pub(crate) fn asset_delete_inner(
@@ -7389,6 +7651,7 @@ impl LocalSnapback {
         use crate::assets as assets;
         let store = self.asset_store()?;
         let mut report = AssetGcReport::default();
+        let mut reclaimed_asset_ids: Vec<String> = Vec::new();
 
         // Attempt GC: expire overdue current attempts, then fence staging.
         let expired = self
@@ -7460,6 +7723,7 @@ impl LocalSnapback {
                 store.delete_staging(&staging_key)?;
             }
             report.pending_reclaimed += 1;
+            reclaimed_asset_ids.push(asset.asset_id.clone());
         }
 
         // Tombstone purge after retention: the receipts remain as evidence.
@@ -7547,6 +7811,7 @@ impl LocalSnapback {
         }
 
         report.publication = self.asset_publication_maintain(now_ms)?;
+        self.notify_asset_record_change(&reclaimed_asset_ids);
         Ok(report)
     }
 
@@ -10502,7 +10767,24 @@ impl LocalSnapback {
         authority.validate_admission("live subscribe preparation")?;
         let effect_fence = invalidation.effect_fence.clone();
         let authority_subject = authority.resolved().invalidation_subject();
-        let function = self.function(name)?.clone();
+        let asset_record_live = name == ASSET_RECORD_LIVE_FUNCTION;
+        if asset_record_live && authority.active_mode() == AuthMode::Sessions {
+            // Fail closed: the sessions-mode auth-invalidation classification
+            // for the reserved projection is a recorded follow-up; admitting
+            // it here would route re-runs through machinery that cannot
+            // execute a native projection.
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_LIVE_SESSIONS_UNSUPPORTED",
+                "assets",
+                "the asset record projection is not yet admitted for sessions-mode \
+                 subscriptions",
+            ));
+        }
+        let function = if asset_record_live {
+            asset_record_live_definition()?
+        } else {
+            self.function(name)?.clone()
+        };
         if function.kind != FunctionKind::LiveQuery {
             return Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_NOT_LIVE",
@@ -10682,19 +10964,23 @@ impl LocalSnapback {
             })));
         }
 
-        let query = execute_query_invocation(
-            &function,
-            name,
-            DbRead::Live(&self.db),
-            &self.permission_epochs,
-            subscription_input.clone(),
-            &prepared_invocation,
-            Some(&self.warm_vms),
-            Some(RelationalCursorAuthority {
-                app_id: &self.functions.app_id,
-                keyring: &self.resume_keyring,
-            }),
-        )?;
+        let query = if asset_record_live {
+            self.asset_record_query_invocation(&authority, &subscription_input)?
+        } else {
+            execute_query_invocation(
+                &function,
+                name,
+                DbRead::Live(&self.db),
+                &self.permission_epochs,
+                subscription_input.clone(),
+                &prepared_invocation,
+                Some(&self.warm_vms),
+                Some(RelationalCursorAuthority {
+                    app_id: &self.functions.app_id,
+                    keyring: &self.resume_keyring,
+                }),
+            )?
+        };
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
 
         // Server-held RQS digest state for eligible subscriptions, the fresh
@@ -16315,8 +16601,20 @@ impl LocalSnapback {
         // subscribers (DK-3 review finding C).
         let mut skipped = 0u64;
         let mut affected: Vec<(LiveSubscription, Option<QueryPlan>)> = Vec::new();
+        // Reserved asset-record projections re-run natively below. Every
+        // non-empty frame includes them conservatively: the recompute is a
+        // few point reads, and delivery is fingerprint-deduplicated inside
+        // the re-run, so an unrelated commit costs a skipped recompute, not
+        // a delivery. (Exact matching is unreliable here because the
+        // reverse-edge and sharing dependencies are captured against system
+        // and app tables whose commit frames differ.)
+        let mut asset_record_subscriptions: Vec<LiveSubscription> = Vec::new();
         for subscription in self.subscriptions.values() {
             if already_resynced.contains(&subscription.id) {
+                continue;
+            }
+            if subscription.function == ASSET_RECORD_LIVE_FUNCTION {
+                asset_record_subscriptions.push(subscription.clone());
                 continue;
             }
             let Some(function) = self.functions.function(&subscription.function) else {
@@ -16584,6 +16882,9 @@ impl LocalSnapback {
             }
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
+        }
+        for subscription in asset_record_subscriptions {
+            self.rerun_asset_record_subscription(&subscription, admission, frame_version);
         }
         Ok(())
     }
@@ -20639,7 +20940,8 @@ mod auth_room_kick_acceptance;
 #[cfg(test)]
 mod tests {
     use super::{
-        AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats, AuthorizationInvalidationAckInput,
+        ASSET_RECORD_LIVE_FUNCTION, AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats,
+        AuthorizationInvalidationAckInput,
         BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
         BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
         DetachedMutationRead, EnsureAppMode, FAIL_NEXT_LIVE_SCOPE_REGISTRATION,
@@ -21609,7 +21911,7 @@ globalThis.__snapbackHandlers = {
             },
             ..Default::default()
         };
-        snapback.db.commit_buffered_writes_idempotent_guarded(
+        let commit = snapback.db.commit_buffered_writes_idempotent_guarded(
             &input,
             crate::storage::BufferedCommitPayload {
                 writes,
@@ -21622,7 +21924,11 @@ globalThis.__snapbackHandlers = {
             None,
             || Ok(()),
             || Ok(()),
-        )
+        )?;
+        // Mirror the production mutation path's post-commit live fan-out so
+        // subscription tests observe what a real handler commit delivers.
+        snapback.notify_live_subscriptions(&commit.changes);
+        Ok(commit)
     }
 
     fn asset_edges(
@@ -22052,6 +22358,159 @@ globalThis.__snapbackHandlers = {
             })
             .expect("re-evaluation");
         assert!(moved, "the first attachment must move the pinned empty capture");
+    }
+
+    fn asset_live_input(connection_id: &str, user: &str, asset_id: &str) -> LiveSubscribeInput {
+        LiveSubscribeInput {
+            connection_id: connection_id.to_owned(),
+            input: HandlerInput {
+                args: json!({ "assetId": asset_id }),
+                auth: crate::manifest::AuthInput {
+                    user_id: Some(user.to_owned()),
+                    ..crate::manifest::AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
+            authorization_namespace: None,
+            supersedes: None,
+            resume_from_token: None,
+        }
+    }
+
+    fn asset_last_replace_rows(snapback: &mut LocalSnapback, connection_id: &str) -> Vec<Value> {
+        let frames = rqs_drained_envelopes(snapback, connection_id);
+        let replace = frames
+            .iter()
+            .rev()
+            .find(|frame| frame["kind"] == "live_replace")
+            .unwrap_or_else(|| panic!("no live_replace frame for {connection_id}: {frames:?}"));
+        replace["rows"].as_array().cloned().unwrap_or_default()
+    }
+
+    #[test]
+    fn asset_record_live_projection_publishes_wakes_and_blanks_with_no_polling() {
+        let mut snapback = asset_reference_snapback();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_shared_intent()],
+            ..FunctionManifest::default()
+        });
+        // The owner subscribes to a pending asset and holds the pending row.
+        let created = asset_upload(&mut snapback, "user_a", b"live-bytes", true);
+        let asset_id = created.task.asset_id.clone();
+        let attempt_id = created.task.attempt_id.clone();
+        let established = snapback
+            .subscribe_live(
+                ASSET_RECORD_LIVE_FUNCTION,
+                asset_live_input("conn-owner", "user_a", &asset_id),
+            )
+            .expect("owner subscribes to the reserved projection");
+        let snapshot = established.snapshot.expect("initial rows");
+        assert_eq!(snapshot.rows.len(), 1);
+        assert_eq!(snapshot.rows[0]["availability"], "pending");
+        assert!(established.resume.is_none(), "never RQS-eligible");
+
+        // Publish: the durable transition reaches the subscriber with no
+        // polling — the finalize itself fans out the frame.
+        asset_finalize(&mut snapback, "user_a", &attempt_id, None).expect("publishes");
+        let rows = asset_last_replace_rows(&mut snapback, "conn-owner");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["availability"], "ready");
+
+        // An outsider's subscription establishes blank (owner-only through
+        // no edge), then the FIRST attachment wakes it — the pinned
+        // empty-range capture moving through an ordinary app commit.
+        let outsider = snapback
+            .subscribe_live(
+                ASSET_RECORD_LIVE_FUNCTION,
+                asset_live_input("conn-b", "user_b", &asset_id),
+            )
+            .expect("outsider subscribes");
+        assert_eq!(
+            outsider.snapshot.expect("blank rows").rows.len(),
+            0,
+            "unreferenced assets blank for non-owners"
+        );
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "posts".to_owned(),
+                id: "post_live".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(asset_id))]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: None,
+            }],
+        )
+        .expect("first attachment commits");
+        let rows = asset_last_replace_rows(&mut snapback, "conn-b");
+        assert_eq!(rows.len(), 1, "the attachment wakes the blank subscriber");
+        assert_eq!(rows[0]["availability"], "ready");
+
+        // Revocation: removing the referencing row blanks the outsider at
+        // the governed boundary, while the owner's view stays intact.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Delete {
+                table: "posts".to_owned(),
+                id: "post_live".to_owned(),
+            }],
+            Vec::new(),
+        )
+        .expect("detach commits");
+        let rows = asset_last_replace_rows(&mut snapback, "conn-b");
+        assert_eq!(rows.len(), 0, "edge removal blanks the live view");
+
+        // Deletion blanks the owner too.
+        let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        snapback.asset_delete(&owner, &asset_id).expect("delete");
+        let rows = asset_last_replace_rows(&mut snapback, "conn-owner");
+        assert_eq!(rows.len(), 0, "deletion blanks the record projection");
+    }
+
+    #[test]
+    fn asset_record_live_projection_refuses_bad_input_and_unrelated_commit_stays_quiet() {
+        let mut snapback = asset_reference_snapback();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_shared_intent()],
+            ..FunctionManifest::default()
+        });
+        let error = snapback
+            .subscribe_live(
+                ASSET_RECORD_LIVE_FUNCTION,
+                rqs_subscribe_input("conn-x", None),
+            )
+            .expect_err("assetId is required");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_LIVE_INPUT_INVALID");
+
+        let (asset_id, _, _) = asset_ready_fixture(&mut snapback);
+        snapback
+            .subscribe_live(
+                ASSET_RECORD_LIVE_FUNCTION,
+                asset_live_input("conn-q", "user_a", &asset_id),
+            )
+            .expect("subscribe");
+        rqs_drained_envelopes(&mut snapback, "conn-q");
+        // An unrelated app commit re-checks but does not deliver: the
+        // fingerprint deduplicates.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "drafts".to_owned(),
+                id: "draft_quiet".to_owned(),
+                values: serde_json::Map::new(),
+            }],
+            Vec::new(),
+        )
+        .expect("unrelated commit");
+        let frames = rqs_drained_envelopes(&mut snapback, "conn-q");
+        assert!(
+            frames.iter().all(|frame| frame["kind"] != "live_replace"),
+            "an unrelated commit must not deliver: {frames:?}"
+        );
     }
 
     fn asset_ready_fixture(snapback: &mut LocalSnapback) -> (String, Option<String>, u64) {
