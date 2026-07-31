@@ -4,7 +4,9 @@
   "type": "module",
   "description": "Snapback codegen: executes source-authored schema/function definitions and emits the generated manifests, typed API, and Contract binding modules.",
   "files": [
+    "contract-emitter.d.mts",
     "contract-emitter.mjs",
+    "codegen-summary.d.mts",
     "codegen-summary.mjs",
     "codegen-policy.schema.json",
     "data-tier-corpus.mjs",
@@ -13,14 +15,19 @@
     "effect-ceiling.mjs",
     "file-read-capability.mjs",
     "generate-worker.mjs",
+    "index.d.mts",
     "index.mjs",
     "inline-handlers.mjs",
     "provider-bindings.schema.json",
+    "provider-introspection.d.mts",
     "provider-introspection.mjs",
+    "result-contracts.d.mts",
     "result-contracts.mjs",
+    "seed-artifact.d.mts",
     "seed-artifact.mjs",
     "provider-introspection.schema.json",
     "review-manifest.schema.json",
+    "review-surface.d.mts",
     "review-surface.mjs",
     "prepare-runtime-artifacts.mjs",
     "runtime-artifacts",
@@ -28,21 +35,42 @@
     "standard-patterns.mjs"
   ],
   "exports": {
-    ".": "./index.mjs",
+    ".": {
+      "types": "./index.d.mts",
+      "default": "./index.mjs"
+    },
     "./define": {
       "types": "./define.d.ts",
       "default": "./define.mjs"
     },
-    "./contract-emitter": "./contract-emitter.mjs",
-    "./codegen-summary": "./codegen-summary.mjs",
+    "./contract-emitter": {
+      "types": "./contract-emitter.d.mts",
+      "default": "./contract-emitter.mjs"
+    },
+    "./codegen-summary": {
+      "types": "./codegen-summary.d.mts",
+      "default": "./codegen-summary.mjs"
+    },
     "./codegen-policy.schema.json": "./codegen-policy.schema.json",
-    "./provider-introspection": "./provider-introspection.mjs",
+    "./provider-introspection": {
+      "types": "./provider-introspection.d.mts",
+      "default": "./provider-introspection.mjs"
+    },
     "./provider-introspection.schema.json": "./provider-introspection.schema.json",
     "./provider-bindings.schema.json": "./provider-bindings.schema.json",
-    "./review-surface": "./review-surface.mjs",
+    "./review-surface": {
+      "types": "./review-surface.d.mts",
+      "default": "./review-surface.mjs"
+    },
     "./review-manifest.schema.json": "./review-manifest.schema.json",
-    "./result-contracts": "./result-contracts.mjs",
-    "./seed-artifact": "./seed-artifact.mjs",
+    "./result-contracts": {
+      "types": "./result-contracts.d.mts",
+      "default": "./result-contracts.mjs"
+    },
+    "./seed-artifact": {
+      "types": "./seed-artifact.d.mts",
+      "default": "./seed-artifact.mjs"
+    },
     "./standard-patterns": {
       "types": "./standard-patterns.d.ts",
       "default": "./standard-patterns.mjs"

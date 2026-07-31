@@ -11,13 +11,21 @@
     "service.mjs",
     "external-store.mjs",
     "hosted-edge-admission.mjs",
+    "index.d.mts",
     "index.mjs",
+    "operator-authority.d.mts",
     "operator-authority.mjs",
+    "operator-authority-transaction.d.mts",
     "operator-authority-transaction.mjs",
+    "operator-service.d.mts",
     "operator-service.mjs",
+    "provider-credentials.d.mts",
     "provider-credentials.mjs",
+    "provider-executor.d.mts",
     "provider-executor.mjs",
+    "supervisor-response.d.mts",
     "supervisor-response.mjs",
+    "target-onboarding.d.mts",
     "target-onboarding.mjs"
   ],
   "bin": {
@@ -26,14 +34,38 @@
     "snapback-hosted-target-onboarding": "./target-onboarding.mjs"
   },
   "exports": {
-    ".": "./index.mjs",
-    "./operator-authority": "./operator-authority.mjs",
-    "./operator-authority-transaction": "./operator-authority-transaction.mjs",
-    "./operator-service": "./operator-service.mjs",
-    "./provider-credentials": "./provider-credentials.mjs",
-    "./provider-executor": "./provider-executor.mjs",
-    "./supervisor-response": "./supervisor-response.mjs",
-    "./target-onboarding": "./target-onboarding.mjs",
+    ".": {
+      "types": "./index.d.mts",
+      "default": "./index.mjs"
+    },
+    "./operator-authority": {
+      "types": "./operator-authority.d.mts",
+      "default": "./operator-authority.mjs"
+    },
+    "./operator-authority-transaction": {
+      "types": "./operator-authority-transaction.d.mts",
+      "default": "./operator-authority-transaction.mjs"
+    },
+    "./operator-service": {
+      "types": "./operator-service.d.mts",
+      "default": "./operator-service.mjs"
+    },
+    "./provider-credentials": {
+      "types": "./provider-credentials.d.mts",
+      "default": "./provider-credentials.mjs"
+    },
+    "./provider-executor": {
+      "types": "./provider-executor.d.mts",
+      "default": "./provider-executor.mjs"
+    },
+    "./supervisor-response": {
+      "types": "./supervisor-response.d.mts",
+      "default": "./supervisor-response.mjs"
+    },
+    "./target-onboarding": {
+      "types": "./target-onboarding.d.mts",
+      "default": "./target-onboarding.mjs"
+    },
     "./package.json": "./package.json"
   },
   "engines": {

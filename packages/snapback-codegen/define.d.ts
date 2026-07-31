@@ -532,4 +532,25 @@ export declare function isFunctionDef(value: unknown): boolean;
 export declare function isCronDef(value: unknown): boolean;
 export declare function isConfigDef(value: unknown): boolean;
 export declare function isEphemeralCollectionDef(value: unknown): boolean;
+export declare function isEphemeralDef(value: unknown): boolean;
+export declare function isRoutesDef(value: unknown): boolean;
+export declare function isTableDef(value: unknown): boolean;
+
+/** A `params-v1` route-param reference for `defineRoutes` args mappings
+ * (the `{"$param": name}` grammar of LLP 0092 §0E.6). */
+export declare function routeParam(name: string): { $param: string };
+
+export interface RouteQuerySpec {
+  readonly function: string;
+  readonly args?: Record<string, unknown>;
+}
+export interface RouteEntrySpec {
+  readonly route: string;
+  readonly queries: readonly RouteQuerySpec[];
+  readonly persist?: boolean;
+}
+/** Declare the app's route→query manifest (LLP 0092 §0C.1); compiled by
+ * codegen into `generated/routes.manifest.json`. */
+export declare function defineRoutes(routes: readonly RouteEntrySpec[]): unknown;
+
 export declare function assert(cond: unknown, message: string): asserts cond;
