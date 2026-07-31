@@ -9,6 +9,7 @@ pub mod admin;
 pub mod admin_impersonation;
 pub mod admin_secret_read;
 pub mod assets;
+pub mod assets_image;
 pub mod auth;
 pub mod bench;
 pub(crate) mod bounded_children_cursor;

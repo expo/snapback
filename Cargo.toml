@@ -25,6 +25,8 @@ hkdf = "0.12"
 hmac = "0.12"
 http-body = "1"
 ibex-runtime = { path = "vendor/ibex" }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+kamadak-exif = "0.6"
 libc = "0.2"
 regex = "1"
 ring = "0.17"
