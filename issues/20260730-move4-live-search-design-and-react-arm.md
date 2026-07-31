@@ -1,6 +1,6 @@
 # Move 4 first slice: live-search design pass in LLP 0073's frame + React/query-group rerun arm prep
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -83,3 +83,44 @@ successor-rerun arm prep (an arm — Campfire is natural — consuming
 the LLP 0114 React surface and a registered LLP 0112 group), plus
 implementation per the accepted Spec. LLP 0115's CV-11 board row
 records the design half landed.
+
+## 2026-07-31 — work item (2) DONE: the Campfire React query-group arm
+
+The successor-rerun arm prep landed as `demos/campfire`: the Campfire
+contract (Diary 0025/0034 — rooms, monotonic sequences, newest-first
+exclusive-cursor pagination, reactions, live delivery) rebuilt in-repo
+so every product read renders through the LLP 0114 React surface over
+a registered LLP 0112 generated group. The route `/rooms/:roomId`
+generates a `registerGroupEligible` typed group (children
+`liveMessages`/`liveReactions`); the arm component
+(`demos/campfire/src/CampfireRoom.mjs`) consumes only
+`@expo/snapback-react` (`useSnapbackQueries(preparedGroup)`,
+`useSnapbackMutation`, `useSnapbackConnection`) and renders the
+registered boot provenance into the tree. The retained acceptance
+(`demos/campfire/tests/react-arm.mjs`, receipt
+`acceptance/results/react-arm.v1.json`, 7/7 against the checkout's
+qualified binary) pins the consumption: preparation omits
+`fallbackToLive` so a lost `registered_bundle_boot_v1` capability
+fails loudly; the rendered `boot-provenance` node must read
+`registered-bundle`; a structural pin refuses the component importing
+the headless client; and live mutation deltas must re-render the
+tree. LLP 0115 §Sequencing 5's dated satisfaction note records that
+the React-surface measurement requirement is now satisfiable. Found
+and filed en route:
+`issues/20260731-0112-register-eligibility-js-param-seam.md` (codegen
+marks `$param`-into-JS-live-query routes eligible; the served
+admission refuses them — the arm's group children are declarative for
+that reason). Diary 0040 carries the build experience. Measurement
+prep only: no capability claims changed, no live-search
+implementation, the option 1a pre-registration stays watch-gated.
+
+## Resolution (2026-07-31)
+
+Both work items are done: (1) LLP 0136 (Accepted 2026-07-31, dual-
+family loop, `6ac46221`) is the live-search design pass in LLP 0073's
+frame; (2) `demos/campfire` is the rerun arm consuming the 0114 React
+surface and a registered 0112 group, with acceptance pinning the
+consumption. Follow-ons live elsewhere: live-search implementation
+follows the accepted LLP 0136; the codegen/server eligibility seam is
+`issues/20260731-0112-register-eligibility-js-param-seam.md`. This
+file is ready to move to `issues/closed/`.

@@ -1,0 +1,9 @@
+{
+  "name": "snapback-campfire",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/react-arm.mjs",
+    "test:react-arm": "node tests/react-arm.mjs"
+  }
+}

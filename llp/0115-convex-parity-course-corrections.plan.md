@@ -5,7 +5,18 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (decision 9's scope migration EXECUTED in-repo,
+**Revised:** 2026-07-31 (§Sequencing 5 rerun-arm prep EXECUTED: the
+Campfire React query-group arm landed in-repo at `demos/campfire` — the
+Diary 0025/0034 Campfire contract rebuilt so every product read renders
+through the LLP 0114 React surface over a registered LLP 0112 generated
+group (`/rooms/:roomId`), with retained acceptance pinning the consumption
+(no `fallbackToLive`, rendered registered-boot provenance, a structural pin
+against headless-client use, live-delta re-renders); item 5's dated note
+records that the React-surface measurement requirement is now satisfiable.
+Measurement prep only — no capability claim, classification, or watch-item
+change. The codegen/served-admission register-eligibility seam found en
+route is issues/20260731-0112-register-eligibility-js-param-seam.md.)
+2026-07-31 (decision 9's scope migration EXECUTED in-repo,
 LLP 0130 SD-6 lane: every workspace package renamed to the terminal
 `@expo/snapback-*` names (publishing nine plus the private/image-bound
 members — the workspace-coherence decision and rationale are recorded in
@@ -1268,6 +1279,14 @@ the prebuilt rung's `verified`-only admission is unchanged.
    0127's proposal for open question 4 —
    offline/cold-boot scoring as a new dimension on existing arms — is
    recorded at that question, answered by LLP 0130 SD-3 (2026-07-31).
+   2026-07-31: the React-surface measurement requirement is SATISFIABLE —
+   the Campfire arm exists in-repo (`demos/campfire`), consuming the 0114
+   React surface and the registered 0112 group `/rooms/:roomId`, with the
+   retained acceptance `demos/campfire/acceptance/results/react-arm.v1.json`
+   pinning both consumptions (the suite fails if the arm leaves the React
+   surface or loses registered boot). Measurement prep only; the rerun
+   itself, its burst-benchmark and offline-acceptance preconditions, and
+   the watch trigger's scoring remain open.
 
 ## Exit criterion for the plan
 

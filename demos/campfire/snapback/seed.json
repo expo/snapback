@@ -1,0 +1,55 @@
+{
+  "seedVersion": "2026-07-31.1",
+  "tables": {
+    "rooms": [
+      { "_id": "room_campfire", "name": "Campfire" },
+      { "_id": "room_lounge", "name": "Lounge" }
+    ],
+    "messages": [
+      {
+        "_id": "msg_campfire_1",
+        "roomId": "room_campfire",
+        "sequence": 1,
+        "author": "ada",
+        "body": "Anyone bring marshmallows?"
+      },
+      {
+        "_id": "msg_campfire_2",
+        "roomId": "room_campfire",
+        "sequence": 2,
+        "author": "grace",
+        "body": "Two bags, plus the long forks."
+      },
+      {
+        "_id": "msg_campfire_3",
+        "roomId": "room_campfire",
+        "sequence": 3,
+        "author": "ada",
+        "body": "The fire is going now."
+      },
+      {
+        "_id": "msg_campfire_4",
+        "roomId": "room_campfire",
+        "sequence": 4,
+        "author": "lin",
+        "body": "On my way with cocoa."
+      },
+      {
+        "_id": "msg_lounge_1",
+        "roomId": "room_lounge",
+        "sequence": 1,
+        "author": "ada",
+        "body": "This message stays out of the campfire room."
+      }
+    ],
+    "reactions": [
+      {
+        "_id": "react_campfire_1",
+        "roomId": "room_campfire",
+        "messageId": "msg_campfire_2",
+        "emoji": "🔥",
+        "userKey": "ada"
+      }
+    ]
+  }
+}

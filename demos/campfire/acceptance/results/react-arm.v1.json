@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "campfire.react-arm-receipt.v1",
+  "generatedAt": "2026-07-31T12:09:41.069Z",
+  "sourceRevision": "a127d42f727cd5dd69cc19ab6bdbc673bebe60a5",
+  "appId": "campfire",
+  "generated": {
+    "artifactManifest": {
+      "path": "snapback/generated/artifacts.json",
+      "sha256": "sha256:5374273ade960f3d79fbe081865626f8f26ea12d8fd2a33b3db0f5bc87f2bd47"
+    },
+    "routeSource": {
+      "path": "snapback/routes.mjs",
+      "sha256": "sha256:b7f4bac4e484fb5a6550cc5fb95097f58a69892d5b5d2e4c8073867ca15f1d66"
+    },
+    "runtime": {
+      "path": "snapback/generated/api.mjs",
+      "sha256": "sha256:7f320a8f39b45f741eb401f3529cbf26e4989582d532f0729a763b4afde61bc2"
+    },
+    "group": {
+      "id": "campfire:query-group:/rooms/:roomId",
+      "route": "/rooms/:roomId",
+      "definitionHash": "sha256:26a157e6a5568c9a42947288e612020a3696ee5478997fea9f9c1d9aadf66b37",
+      "queryNames": [
+        "liveMessages",
+        "liveReactions"
+      ]
+    }
+  },
+  "arm": {
+    "component": {
+      "path": "src/CampfireRoom.mjs",
+      "sha256": "sha256:25ff00f006f4e5f86b77ef96e902f85e94318b25f41d3dbcb634fc12ec820e3f"
+    },
+    "consumption": "useSnapbackQueries(preparedGroup) + useSnapbackMutation over a TestRenderer render",
+    "headlessReads": "shared-pagination-and-summary-contract check only; every product read renders through React"
+  },
+  "binding": {
+    "preparation": "SnapbackClient.prepareReactBinding",
+    "registeredBundleAvailable": true,
+    "routeManifestHash": "sha256:d2e721d8ae5cad2d26e12d2c07eb7efbf3faddcad59e4f040ed604552341bd20",
+    "groupIds": [
+      "campfire:query-group:/rooms/:roomId"
+    ]
+  },
+  "adoption": {
+    "source": "registered-bundle",
+    "boot": {
+      "source": "registered-bundle",
+      "commitVersion": 1,
+      "generation": "gen1:4193a0b181fb44ca185cd2723da81a68e9c14bf617f79202096702a878aa8915",
+      "versionStream": "019fb814-8a32-7532-8c88-3375af33bab1",
+      "attachDeadline": 1785499811719
+    },
+    "renderedBootProvenance": "registered-bundle",
+    "consumers": 2,
+    "armConsumer": "CampfireRoom via useSnapbackQueries(preparedGroup)"
+  },
+  "skips": 0,
+  "title": "campfire / React query-group rerun arm v1",
+  "passed": 7,
+  "skipped": 0,
+  "failed": 0,
+  "total": 7,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated-group-register-eligible",
+      "ok": true,
+      "details": {
+        "route": "/rooms/:roomId",
+        "registerGroupEligible": true,
+        "groupId": "campfire:query-group:/rooms/:roomId",
+        "children": [
+          "liveMessages",
+          "liveReactions"
+        ]
+      }
+    },
+    {
+      "name": "registered-bundle-boot-rendered-through-react",
+      "ok": true,
+      "details": {
+        "source": "registered-bundle",
+        "commitVersion": 1,
+        "consumers": 2
+      }
+    },
+    {
+      "name": "send-message-live-rerender",
+      "ok": true,
+      "details": {
+        "sequence": 5,
+        "renderedBody": "quinn: S’mores are ready — come back to the fire"
+      }
+    },
+    {
+      "name": "reaction-toggle-live-rerender",
+      "ok": true,
+      "details": {
+        "toggled": "019fb814-8ac1-7411-a196-76206f96c864",
+        "finalCounts": "5 messages · 1 reactions"
+      }
+    },
+    {
+      "name": "shared-pagination-and-summary-contract",
+      "ok": true,
+      "details": {
+        "pages": [
+          [
+            5,
+            4
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "cursor": 4
+      }
+    },
+    {
+      "name": "react-surface-structural-pin",
+      "ok": true,
+      "details": {
+        "component": "src/CampfireRoom.mjs",
+        "sha256": "sha256:25ff00f006f4e5f86b77ef96e902f85e94318b25f41d3dbcb634fc12ec820e3f",
+        "reactSurfaceOnly": true
+      }
+    },
+    {
+      "name": "cleanup-zero-resources",
+      "ok": true,
+      "details": {
+        "terminal": true,
+        "serverSubscriptions": 0
+      }
+    }
+  ],
+  "expectedChecks": 7,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

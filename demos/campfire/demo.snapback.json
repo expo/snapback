@@ -1,0 +1,54 @@
+{
+  "id": "campfire",
+  "title": "Campfire — React query-group rerun arm",
+  "description": "The Campfire chat contract (rooms, newest-first sequence-cursor pagination, reactions, live delivery) rebuilt as an in-repo rerun arm that consumes the LLP 0114 first-class React surface and a registered LLP 0112 generated query group, so a successor matrix rerun can score the React-surface path instead of driving only headless clients (LLP 0115 §Sequencing 5).",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Client integration", "React", "Live Queries", "Codegen", "Storage", "Realtime", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "sessions",
+    "liveSubscriptions": true,
+    "registeredBundleBoot": true,
+    "generatedQueryGroups": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/routes.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/campfire/snapback",
+    "generated": [
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "reactQueryGroupArm": {
+      "requirement": "required-local-nonclaim",
+      "buildTargets": [],
+      "runner": "node demos/campfire/tests/react-arm.mjs",
+      "toolchain": "bun>=1.3 (demo install), node>=24, cargo"
+    }
+  },
+  "acceptanceChecks": {
+    "reactQueryGroupArm": [
+      "the generated route group is register-eligible and identical between codegen and the prepared binding",
+      "the arm boots from one registered LLP 0090 bundle and renders that provenance plus the seeded room through the React bindings",
+      "sendMessage settles its exact result contract and the new message re-renders through the live React path",
+      "toggleReaction settles both directions and the live summary re-renders both counts",
+      "the shared newest-first sequence-cursor pagination contract holds",
+      "the arm component consumes only the React surface (structural pin)",
+      "unmount and disposal release every provider and server resource"
+    ]
+  },
+  "capabilityGaps": [
+    "room membership and authorized shared-room cursors (deliberately public, as in the Diary 0025/0034 Campfire arms)",
+    "opaque or tamper-resistant pagination cursors",
+    "portable full-text search",
+    "hosted deployment claims"
+  ],
+  "notClaiming": [
+    "any capability-class change (registered boot is startup consistency, not offline support)",
+    "live search (LLP 0136 is design-only; full_text_search_v1 stays non-live)",
+    "a membership-authorized shared-room cursor"
+  ]
+}
