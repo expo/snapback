@@ -5,7 +5,27 @@
 **Systems:** Capability publication, Application data API, Relational queries, Code generation, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:**
+**Revised:** 2026-07-31 (v0.2, round-1 dual-family review fixes — both
+round-1 reviews NOT READY
+(`reviews/0134-capability-maturity-promotion.fable.md`: 3 MATERIAL C1–C3,
+3 should-fix C4–C6, 4 details C7–C10;
+`reviews/0134-capability-maturity-promotion.codex.md`: 8 MATERIAL,
+1 MINOR). Merged and applied once per item: E6's soak witness defined per
+route with digest-bound `soakEvidence`, a closed defect corpus, a finite
+population, and a gap/reset rule; §2's anchoring preamble corrected; §7's
+0110-pair exclusion restated on tree-true grounds, with per-member
+grandfather evidence manifests, a decidable baseline-digest void rule,
+dated tombstones, and the SD-1 interplay note; closed evidence locators
+throughout the receipt plus `MaturityDemotionRecordV1` as a closed
+schema; the promotion commit's sole parent pinned to `candidateSourceSha`
+with a history-aware A5; E5 lanes scoped per capability class; the
+demotion act grounded in LLP 0005 — author-adjudicated with an
+objective-trigger fast path proposed as this Spec's own standing
+delegation; A1 specified as canonical-JSON emission compared in CI; E4
+split into candidate and promotion-tree audits; E1's history corrected on
+the 0080 precedent; records rooted at `tests/acceptance/maturity/`; the
+seed pair joined to the promote-together rule; the local-carrier escape
+hatch added; SD-6 cited as instantiation.)
 **Related:** LLP 0005, LLP 0058, LLP 0061, LLP 0076, LLP 0080, LLP 0081, LLP 0108, LLP 0109, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0115, LLP 0120, LLP 0127, LLP 0130, issue `20260731-cv8-piece2-stable-promotion-design`
 
 ## Summary
@@ -65,7 +85,14 @@ Two promotion routes exist, and only two:
    publication authority) for local and packaged targets — and then promotes
    under §2–§4. Mandatory for every id minted after 2026-07-30. Where an
    id's family kind is not yet in LLP 0113 §4's closed union, adding it is a
-   dated LLP 0113 amendment; this Spec widens nothing by inference.
+   dated LLP 0113 amendment; this Spec widens nothing by inference. The
+   local leg is symmetric: LLP 0110's carrier binds the two atomic
+   relation/activity ids exactly and generalizes to nothing else, and the
+   other experimental ids' local facts are plain registered booleans gated
+   by their conformance suites — where a local or packaged id has no
+   source-owned carrier definition, adding one is a dated amendment to
+   LLP 0110 or to the id's governing LLP (or a small owned carrier design
+   of its own), never an inference from this Spec.
 2. **The grandfathered direct act,** reserved by LLP 0127 decision 3 for the
    closed set in §7 and available to no other surface.
 
@@ -73,24 +100,41 @@ Ids that publish as one atomic claim family (the relation/activity pair
 `bounded_children_v1` + `write_activity_v1`, LLP 0110 §Hosted union carrier)
 promote, and demote, together: one receipt, one commit. Their evidence is
 shared; a split promotion would claim what was never separately witnessed.
+The rule follows the evidence, not only the wire carrier: the seed pair
+`versioned_seed_install_v1` + `versioned_seed_reset_v1` is advertised only
+after one closed mandatory suite passes every local row (the registry gate
+in `src/manifest.rs` carrying `@ref LLP 0109`), so its evidence is
+likewise shared and the pair promotes and demotes together. An id coupled
+this way gains a solo route only when a dated revision here records every
+§2 item witnessed for it severally.
 
 ## 2. The promotion evidence bar
 
-A promotion proposal binds all eight items below, each witnessed at the exact
-promotion-candidate source revision and retained in-tree by digest. A missing
-or vacuous item refuses the promotion; there is no partial credit.
+A promotion proposal binds all eight items below, each retained in-tree as
+digest-bound evidence in the receipt (§4). Their anchoring differs, and is
+stated honestly: E2, E3 (including the last-gate negative), and E4's
+candidate audit are witnessed at the exact promotion-candidate source
+revision; E1, E5, E6, and E7 are historical or time-extended facts — a
+review loop's history, a consumer arm, a window that spans revisions,
+lineage that predates the candidate — bound by closed evidence locators
+rather than re-witnessed at one SHA; E8 is the author's dated act. A
+missing or vacuous item refuses the promotion; there is no partial credit.
 
 - **E1 — Governing-contract standing.** The id's governing LLP is Accepted
   after a dual-family LLP 0005 loop and has reached Implemented with every
   §Acceptance item witnessed, receipts retained. A Draft or Review contract
-  cannot promote: `experimental` exists precisely because the governing
-  contract is not Accepted (the `CapabilityMaturity` vocabulary in
-  `src/manifest.rs`).
+  cannot promote, and acceptance alone is not the exit: `experimental`
+  persists until the contract is Accepted, witnessed Implemented, and the
+  id explicitly promoted under a route here (the `CapabilityMaturity`
+  vocabulary in `src/manifest.rs`; LLP 0080's ids stayed experimental
+  after its 2026-07-24 acceptance until the Implemented witnesses landed
+  2026-07-26).
 - **E2 — Acceptance-corpus breadth.** The complete target-applicable
   acceptance corpus reruns green at the candidate revision on every target
-  profile whose support predicate is true. GAP rows on non-supporting
-  targets are honest GAPs, not breadth; a run inherited from an older
-  revision is not evidence.
+  profile — drawn from the closed profile list, codegen's
+  `TARGET_PROFILES` — whose support predicate is true. GAP rows on
+  non-supporting targets are honest GAPs, not breadth; a run inherited
+  from an older revision is not evidence.
 - **E3 — Adversarial fixtures.** The corpus's negative rows rerun green in
   the same run: refusal properties, fail-closed diagnostics, isolation and
   existence-secrecy negatives, and — mandatory — the id's
@@ -99,33 +143,84 @@ or vacuous item refuses the promotion; there is no partial credit.
   revision as the final record of the gate this promotion removes. For ids
   whose support rode the LLP 0113 route, the applicable §6 negatives are
   included.
-- **E4 — Capability-claim audit.** An `llp-maintain`-style audit receipt at
-  the candidate revision: both registries agree; generated artifacts, the
-  guide capability index and its GAP rows (LLP 0061), diagnostics, and the
-  governing document's claims are mutually consistent; no overclaim and no
-  stale experimental reference survives; `./ref-check --verbose` is green.
-- **E5 — At least one real consumer arm.** An application consumer outside
-  the acceptance corpus and comparator fixtures consumes the capability
-  through the ordinary generated surface, under an ordinary principal (never
-  the acceptance or observation principal), exercising the profile's primary
-  declared shape, with a retained diary entry or equivalent receipt. For
-  `write_activity_v1` this means an arm with real `existing-owner.v1`
-  provenance; the anonymous-arm gap (LLP 0120 open question 5) narrows the
-  candidate pool and does not waive the item.
+- **E4 — Capability-claim audit, two trees.** Two `llp-maintain`-style
+  audit receipts, resolving what "stale" means on each side of the flip.
+  (a) The candidate audit, at the candidate revision: both registries
+  agree; generated artifacts, the guide capability index and its GAP rows
+  (LLP 0061), diagnostics, and the governing document's claims are
+  mutually consistent; the id's experimental references are present and
+  current — at this revision the id *is* experimental, so those
+  references are required, not stale; no overclaim; `./ref-check
+  --verbose` is green. (b) The promotion-tree audit, on the promotion
+  commit itself: every authoritative registry, guide, and document
+  statement reflects stable and no stale authoritative experimental
+  reference survives, while historical generated acknowledgments remain
+  explicitly permitted (§5). Both receipts are E4 evidence.
+- **E5 — At least one real consumer arm.** A real consumer outside the
+  acceptance corpus and comparator fixtures consumes the capability
+  through its governing production authority lane, exercising the
+  profile's primary declared shape. "Ordinary surface" is scoped per
+  capability class, because for some capabilities that surface *is* the
+  operator lane: application-surface capabilities require the ordinary
+  generated surface under an ordinary application principal;
+  administrative/startup-lane capabilities whose ordinary surface is the
+  operator lane — the seed pair's `AdminWrite` / pre-bind startup
+  authority (LLP 0109) — require the exact ordinary operator or startup
+  authority, in a real app. In every class the acceptance, qualification,
+  and observation principals are excluded, and a retained diary entry or
+  equivalent receipt is required. For `write_activity_v1` this means an
+  arm with real `existing-owner.v1` provenance; the anonymous-arm gap
+  (LLP 0120 open question 5) narrows the candidate pool and does not
+  waive the item.
 - **E6 — Soak / no-regression window.** At least 14 consecutive days of
-  verified runtime support on at least one ordinary target profile,
-  immediately preceding the promotion commit, during which there were zero
-  support-fact regressions on any supporting target, zero claim-family
-  withdrawals, zero maturity demotions of the id, and zero open MATERIAL
-  defects against the id's contract — plus at least one full E2+E3 rerun
-  inside the window. Any disqualifying event resets the window start. The
-  14-day figure matches LLP 0113's retention scale; amending it is a dated
-  revision here and never applies mid-window.
+  verified runtime support immediately preceding the promotion commit,
+  witnessed rather than asserted. All timestamps are UTC RFC 3339; the
+  window start is inclusive, the end exclusive, and the end is the
+  promotion date.
+  - *Population.* The receipt's `soakEvidence.window` fixes the finite
+    target population at window start: at least one ordinary profile from
+    the closed profile list (codegen's `TARGET_PROFILES`) plus, for
+    hosted members, the enumerated deployment identities. "Any supporting
+    target" below means exactly this recorded population. A member added
+    mid-window accrues no credit; a member leaving the population is a
+    disqualifying event.
+  - *Witness, hosted.* The supervisor journal's canonical renewal record
+    for the id's claim family across the window — final carriers are
+    renewable leases and renewals are journaled as canonical bytes
+    (LLP 0113 §4.2) — exported as a digest-bound extract showing
+    family-epoch continuity with zero withdrawals and zero expiries.
+  - *Witness, local.* Local support lives in ephemeral processes that
+    re-derive the fact at each start from the embedded carrier, so
+    continuity is witnessed by dated support-verification runs: at least
+    one green run per UTC calendar day executes the id's mandatory
+    support suite — the same closed suite whose green rows gate the
+    registered fact; for the 0110 pair, the embedded-carrier and
+    qualification-receipt verification — at the then-current main HEAD
+    and emits a dated receipt binding date, HEAD SHA, carrier/receipt
+    digests, and outcome, retained under §4's records root. A calendar
+    day with no green run is a coverage gap.
+  - *Disqualifiers and reset.* Any support-fact regression on a
+    population member, claim-family withdrawal, maturity demotion of the
+    id, coverage gap, or population loss resets the window start, as does
+    a MATERIAL defect against the id's contract open at any point in the
+    window (MATERIAL in the review-severity sense the LLP 0005 loop
+    artifacts use). The defect corpus is closed: open filesystem tickets
+    under `issues/` (not `issues/closed/`), Linear issues in the Exact
+    project with the Snapback label naming the id or its governing LLP,
+    and the governing LLP's defect ledger where the LLP 0076/0077
+    convention applies. The receipt records the dated search over exactly
+    these scopes.
+  - *Rerun.* At least one full E2+E3 rerun inside the window.
+  - *Binding.* The window, population, observation and journal-extract
+    locators, and defect search are all bound in the receipt's
+    `soakEvidence` member (§4). The 14-day figure matches LLP 0113's
+    retention scale; amending it is a dated revision here and never
+    applies mid-window.
 - **E7 — Support-evidence lineage.** The receipts that made runtime support
-  true, bound by digest: for the LLP 0113 route, the qualification receipt
-  and final claim-family lineage (LLP 0113 §5); for local targets, the
-  embedded `LocalCapabilityPublicationV1` carrier digest; for packaged
-  runtimes, the `PackageCapabilityAttestationV1`.
+  true, bound by closed evidence locators (§4): for the LLP 0113 route,
+  the qualification receipt and final claim-family lineage (LLP 0113 §5);
+  for local targets, the embedded `LocalCapabilityPublicationV1` carrier;
+  for packaged runtimes, the `PackageCapabilityAttestationV1`.
 - **E8 — Author adjudication.** The author's own dated ratification (§3),
   recorded in the receipt.
 
@@ -149,13 +244,18 @@ acceptance is never presented as a fresh manual one, and vice versa).
 LLP 0130 ER-2 binds this Spec: no promotion, and no future amendment here,
 may weaken an evidence boundary; a proposal that would do so escalates to the
 author regardless of how many receipts it carries. Demotion (§6) is the
-asymmetric case: it reduces a claim, so it is a duty on discovery, not an
-adjudication gate.
+asymmetric case: discovering a demotion trigger creates a duty to propose
+the demotion the same day, but the act itself remains the author's except
+on §6's objective-trigger fast path — a standing delegation this Spec
+itself proposes, effective only with the author's acceptance of this
+document (an in-scope commissioned design, so SD-4 can carry that
+acceptance), and recorded as a standing-rule act whenever used.
 
 ## 4. The promotion act
 
 A promotion is one dated commit that carries the promotion and nothing else
-(the LLP 0130 SD-6 serialization principle). The commit:
+(the serialization principle LLP 0130 SD-6 instantiates for its own scope
+migration). The commit:
 
 1. moves the id from the `Experimental` arm of `TargetCapabilityId::maturity`
    to the stable default in `src/manifest.rs`, with a dated comment citing
@@ -167,12 +267,25 @@ A promotion is one dated commit that carries the promotion and nothing else
 3. updates the exhaustive registry test and the codegen acknowledgment
    tests so the new assignment is pinned;
 4. commits the promotion receipt (below) under
-   `acceptance/results/maturity/`, content-addressed, its digest cited by
+   `tests/acceptance/maturity/` — inside the existing acceptance-receipts
+   root (`tests/acceptance/`, the `auth-mode-predecessor-v1.receipt.json`
+   convention; conformance receipts live in `tests/conformance/`),
+   deliberately not a new top-level directory — with its SHA-256 cited by
    the commit message and the registry comment;
 5. adds a dated promotion addendum to the id's governing LLP recording the
    act, the receipt digest, and the adjudication; and
 6. updates the guide capability index row and any program board row in the
    same commit (LLP 0130's board-lockstep lesson).
+
+The promotion commit's sole parent must equal `candidateSourceSha`: no
+merge commit, no stacked promotions, exactly one maturity transition per
+`parent..HEAD` range (A5). There is no tolerated drift — if main advances
+past the candidate revision before the landing, the candidate is
+re-declared at the new head and the revision-anchored items (E2, E3, and
+E4's candidate audit) are re-witnessed there. The receipt records the
+parent as `candidateParentSha`, constrained equal to `candidateSourceSha`;
+A5's transition check compares it against the commit's actual parent, so
+the receipt never needs to name its own commit.
 
 `MaturityPromotionReceiptV1` is a closed canonical-JSON document:
 
@@ -186,17 +299,38 @@ A promotion is one dated commit that carries the promotion and nothing else
   governingLlp,
   governingStatusAtPromotion,
   candidateSourceSha,
-  corpusRunDigests,         // E2 + E3, per target profile
-  claimAuditDigest,         // E4
-  consumerArmRefs,          // E5: diary/receipt paths + digests
-  soakWindow?,              // E6: { start, end, targetProfileId };
-                            // absent only on the grandfathered route
-  supportEvidenceDigests,   // E7, or shipped-history refs when
-                            // route = "grandfathered-direct.v1"
-  authorAdjudication,       // E8: { date, record }
-  promotionDate
+  candidateParentSha,       // == candidateSourceSha == the promotion
+                            //   commit's sole parent
+  reviewJournalRefs,        // E1: review artifacts, acceptance and
+                            //   Implemented addenda
+  corpusRunRefs,            // E2 + E3, per target profile
+  claimAuditRefs,           // E4: candidate + promotion-tree audits
+  consumerArmRefs,          // E5: diary/receipt evidence
+  soakEvidence?,            // E6: { window: { start, end,
+                            //   targetPopulation }, observationRefs,
+                            //   journalExtractRef?, defectSearch };
+                            //   absent only on the grandfathered route
+  supportEvidenceRefs,      // E7, or the grandfather evidence manifest
+                            //   when route = "grandfathered-direct.v1"
+  authorAdjudication,       // E8: { date, adjudicator, record,
+                            //   provenanceRef }
+  promotionDate             // all dates UTC RFC 3339
 }
 ```
+
+Every `…Ref`/`…Refs` member is a closed evidence locator (or a list of
+them), never a bare digest:
+
+```text
+{ path, sha256, schemaVersion, producer, sourceSha }
+```
+
+`path` is repo-relative; `sha256` is the artifact digest; `schemaVersion`
+names the referenced artifact's own closed schema (`diary.v1` for prose
+diary evidence); `producer` names the emitting suite or tool; `sourceSha`
+is the revision that produced the artifact. A digest without a locator
+cannot be reopened or interpreted; a locator that fails to resolve, or
+resolves to different bytes, is a conforming validator's refusal (A2).
 
 The receipt is document evidence, not a runtime object. No target parses it,
 no supervisor signs it, and no wire carrier transports it; the registry
@@ -224,15 +358,64 @@ this Spec leaves untouched. Demotion corrects the maturity claim itself.
 
 Demotion triggers: a witnessed MATERIAL regression of the stable contract; a
 promotion receipt's evidence discovered wrong or unreproducible; or shipped
-behavior materially diverging from the governing contract. Because demotion
-reduces a claim, any maintainer or agent lands it on discovery — holding a
-known-false stable claim open pending adjudication would itself violate the
-honesty rules — and notifies the author the same day.
+behavior materially diverging from the governing contract.
 
-The demotion commit mirrors §4: both registries and their tests change in one
-dated commit that carries a `MaturityDemotionRecordV1` (the id set, trigger
-evidence digests, the voided promotion receipt's digest, date) and a dated
-addendum in the governing LLP. Consequences are fail-closed:
+Authority is grounded in LLP 0005, which grants no general unilateral
+revision right over accepted designs — not even in the claim-reducing
+direction. The split:
+
+- **Support withdrawal** (the operational cut) stays immediate and
+  needs no adjudication, as above — honesty never waits to stop
+  *relying* on a claim.
+- **The demotion proposal is a duty on discovery.** Any maintainer or
+  agent who witnesses a trigger files the dated proposal — a draft
+  `MaturityDemotionRecordV1` plus author notification — the day of
+  discovery. Sitting silently on a known-suspect stable claim violates
+  the honesty rules.
+- **The demotion act** — flipping both registries and adding the
+  governing-LLP addendum — is the author's adjudication, with one
+  objective-trigger fast path: when the regression is witnessed by a
+  failing committed gate — the id's mandatory support/conformance suite
+  red at HEAD on a population profile, or A2 finding the promotion
+  receipt cryptographically invalid (a digest or locator mismatch) — the
+  discovering maintainer executes the demotion immediately, with
+  same-day author notification. Subjective triggers — behavioral
+  divergence, disputed materiality — always escalate and are never
+  fast-path.
+
+The fast path is a standing delegation in LLP 0130's shape, and this Spec
+does not silently create it: it is proposed here, inside a commissioned
+in-scope design, and takes effect only with the author's acceptance of
+this document (§3). A fast-path demotion is recorded as such ("demoted
+under LLP 0134 §6 fast path"), never presented as a fresh manual
+adjudication — LLP 0130's honesty framing, in both directions.
+
+The demotion commit mirrors §4 — sole-parent pin, exactly one transition
+per `parent..HEAD` range, the same records root — in one dated commit
+carrying a conforming `MaturityDemotionRecordV1` and a dated addendum in
+the governing LLP. The record receives the same closed-schema treatment
+as the promotion receipt — canonical JSON, closed members, A2 validation;
+promotion and demotion files are distinguished by suffix
+(`*.promotion.json` / `*.demotion.json`) under
+`tests/acceptance/maturity/`:
+
+```text
+{
+  schemaVersion: 1,
+  capabilityIds,            // the atomic set, sorted
+  fromMaturity: "stable",
+  toMaturity: "experimental",
+  triggerKind: "gate-regression.v1" | "receipt-invalid.v1"
+             | "contract-divergence.v1",
+  triggerEvidenceRefs,      // closed evidence locators (§4)
+  voidedReceiptDigest,
+  authority: "author.v1" | "fast-path.v1",
+  notifiedAuthorDate,
+  demotionDate              // all dates UTC RFC 3339
+}
+```
+
+Consequences are fail-closed:
 
 - the acknowledgment gate returns for new admissions;
 - artifacts generated during the stable window carry no acknowledgment, so
@@ -267,23 +450,77 @@ The closed set — the only surfaces that may still use the direct act:
 | `versioned_seed_install_v1` | LLP 0109 |
 | `versioned_seed_reset_v1` | LLP 0109 |
 
-Each has a registered implementation whose positive predicate held in shipped
-acceptance and demo use before 2026-07-30, and each is experimental today
-solely because its governing contract is not yet Accepted. Excluded, by name:
-`bounded_children_v1` and `write_activity_v1` — their complete publication
-receipt has not passed and they are the default route's first consumers (§8)
-— and every id minted after 2026-07-30, so the set is closed by construction
-and can only shrink.
+Membership is two-legged — shipped acceptance AND demo use before
+2026-07-30 — and both legs are witnessed in-tree per member. Shipped
+acceptance: the conformance/registration suites landed 2026-07-27 for the
+LLP 0108 pair and the seed pair and 2026-07-28 for bundle boot, all
+pre-rule. Demo use: `inline_handler_v1` in the rerun diaries (Diary 0033
+— Relay Board's board view and atomic move kept as inline handlers;
+Diary 0039's colocated-inline-handlers row); `result_contract_v1`
+acknowledged by four demo generated manifests (todo, todo-v2, rbac,
+competitive-checkpoint: `snapback/generated/functions.manifest.json`,
+`acknowledgedExperimentalCapabilities`); `registered_bundle_boot_v1` by
+the signal-desk real-adapter receipt
+(`demos/signal-desk/acceptance/results/react-query-group.v1.json`,
+2026-07-29: `generated-registered-bundle-boot` green with
+`bootSource: "registered-bundle"`, retained evidence copies beside it) —
+a receipt-witnessed demo adoption path rather than a manifest
+acknowledgment; the seed pair by the fourteen demos carrying
+`snapback/seed.json` plus Diary 0039's deterministic reset/seed row. Each
+member is experimental today because its governing contract is not yet
+Accepted — E1's necessary condition already fails.
+
+Excluded, by name: `bounded_children_v1` and `write_activity_v1`.
+Decision 3's letter arguably reaches them — the tree holds a passing
+pre-rule *local* publication for exactly this pair (the embedded
+`LocalRelationActivityPublicationV1` carrier with its pinned
+qualification receipt, verified by
+`local_relation_activity_publication_verified_for`; the registry test
+asserts the pair is advertised on the local profile) — so this Spec
+states plainly that decision 3 set an eligibility ceiling and the set
+here is a deliberately stricter subset of it. The pair fails the subset
+on three tree-true grounds: its hosted LLP 0113 §5 chain
+(plan/confirm/provision/finalize, observation receipt, the LLP 0111
+receipt vector) has never run; its demo-use leg is empty —
+`write-with-activity.v1`'s existing-owner-only admission made it
+"unusable by every anonymous rerun arm" (LLP 0120 open question 5), so
+every rerun arm bypassed the pair; and CV-8 piece 1 already routes the
+pair through the default path ("execute the 0113 path — yielding honest
+experimental maturity"), whose first consumers they are (§8). A shipped
+pre-rule local carrier alone confers nothing: membership requires both
+legs. Also excluded is every id minted after 2026-07-30, so the set is
+closed by construction and can only shrink.
 
 The reserved act is the 0080 shape, not a waiver of honesty: it requires E1
 (Accepted after the dual-family loop, then witnessed Implemented), E2–E5, E8,
 and the §4 one-commit mechanics with `route: "grandfathered-direct.v1"` in
 the receipt. Waived are E6 and E7's qualification lineage only — the
-pre-rule shipped history substitutes and must be cited in the receipt. A
-material normative revision to a member's contract after 2026-07-30 voids its
-reservation; the surface then has no promotion route until a dated amendment
-gives its support authority a qualification path. That outcome is fail-closed
-on purpose.
+pre-rule shipped history substitutes, and it is bound, not gestured at:
+before a member exercises the act, a closed per-member grandfather
+evidence manifest (`<id>.grandfather.json` under the same records root,
+A2-validated) binds the exact pre-cutoff commits, the acceptance-suite
+and demo-use witnesses above as closed evidence locators, the
+positive-predicate evidence, and `governingContractBaselineSha256` — the
+canonical digest of the governing LLP's normative text as of 2026-07-30.
+The reserved receipt's `supportEvidenceRefs` cites that manifest.
+
+Voiding is decidable against the baseline. A post-2026-07-30 change to a
+member's governing-contract canonical normative digest voids its
+reservation when the author adjudicates the change material; the
+adjudicator is the author, at or before E8, and the adjudication is
+recorded in the receipt or the governing-LLP addendum. Dated evidence
+notes and diary annotations are categorically non-material (LLP 0108 and
+LLP 0110 both carry 2026-07-30-dated evidence notes; they do not void).
+Every void is recorded as a dated tombstone row appended to the table
+above, so the printed set can never silently disagree with effective
+membership. A voided surface has no promotion route until a dated
+amendment gives its support authority a qualification path — fail-closed
+on purpose. One standing decision is already aimed at this set: LLP 0130
+SD-1 (omitted result contracts become a refusal when 0115's A+E slices
+land) will land as a normative change in LLP 0108's family and may void
+`result_contract_v1`'s — and possibly `inline_handler_v1`'s —
+reservation by exactly this rule. That shrinkage is intended; the set
+only shrinks.
 
 ## 8. First consumers and sequencing
 
@@ -303,22 +540,42 @@ Spec. Per the executing ticket, this document promotes nothing itself.
 
 - **A1 — Cross-registry parity gate.** A committed check asserts the codegen
   experimental set equals the Rust registry's non-stable table, so a
-  one-sided maturity flip fails CI. This gate lands with this Spec's first
-  implementation commit, before any promotion executes.
-- **A2 — Receipt validation.** A committed validator parses every
-  `acceptance/results/maturity/*.json` receipt against the closed §4 schema
-  and refuses unknown members, missing bar items for the declared route, or
-  a digest mismatch with the registry comments.
+  one-sided maturity flip fails CI. The mechanism is canonical-JSON
+  emission compared in CI, never source scraping: a Rust test-mode
+  emitter prints the sorted non-stable ids of `TargetCapabilityId::ALL`
+  as canonical JSON, the codegen package exports its sorted experimental
+  set the same way, and the check compares the two outputs byte-for-byte.
+  (Deriving both registries from one canonical source would retire the
+  mirror hazard entirely; that is future work, not assumed here.) This
+  gate lands with this Spec's first implementation commit, before any
+  promotion executes.
+- **A2 — Record validation.** A committed validator parses every file
+  under `tests/acceptance/maturity/` against the closed schema its suffix
+  names — `*.promotion.json` (§4), `*.demotion.json` (§6),
+  `*.grandfather.json` (§7) — and refuses unknown members, missing bar
+  items for the declared route, an evidence locator that fails to resolve
+  to its recorded bytes, a digest mismatch with the registry comments, or
+  duplicate/conflicting records for the same transition.
 - **A3 — First-promotion shape.** The first executed promotion lands as one
   commit containing both registry changes, the updated tests, the conforming
   receipt, the governing-LLP addendum, and the guide/board rows — verified
   against the commit itself.
 - **A4 — The gate's last witness.** The E3 acknowledgment-gate negative at
   the candidate revision is retained with the receipt.
-- **A5 — No unreceipted flip.** Any maturity change in either registry
-  without a same-commit conforming receipt is a violation of this Spec, in
-  either direction; A1 plus A2 make the one-sided and malformed cases
-  mechanically detectable.
+- **A5 — No unreceipted or non-atomic flip.** Any maturity change in
+  either registry without a same-commit conforming record violates this
+  Spec, in either direction. A history-aware committed check makes the
+  atomicity claim mechanical rather than aspirational: when a pushed
+  range changes either registry's maturity assignment, CI identifies the
+  transition commit, requires its sole parent to equal the record's
+  `candidateParentSha` (= `candidateSourceSha`, §4) — merge commits and
+  stacked transitions are refused; exactly one transition per
+  `parent..HEAD` range — derives the changed id set from the diff, and
+  requires that same diff to contain the matching new record, both
+  registry changes, the test updates, the governing-LLP addendum, and the
+  guide/board rows. Final-tree tests, including the post-flip admission
+  behavior, run on the transition commit itself, not only on its parent.
+  A1 plus A2 cover the one-sided and malformed cases.
 
 This Spec's own Review → Accepted transition may ride LLP 0130 SD-4 if it
 converges dual-family READY with zero unresolved MATERIAL concerns, within
