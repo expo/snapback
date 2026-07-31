@@ -51,13 +51,13 @@ fn decode_error(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_ASSET_IMAGE_DECODE_FAILED", "assets", message)
 }
 
-struct StepBudget {
+pub(crate) struct StepBudget {
     started: std::time::Instant,
     budget_ms: u64,
 }
 
 impl StepBudget {
-    fn start(ceilings: &AssetImageCeilingsV1) -> Self {
+    pub(crate) fn start(ceilings: &AssetImageCeilingsV1) -> Self {
         Self { started: std::time::Instant::now(), budget_ms: ceilings.step_time_budget_ms }
     }
 
@@ -157,7 +157,7 @@ fn probe_dimensions(
     Ok((width, height))
 }
 
-fn decode_bounded(
+pub(crate) fn decode_bounded(
     bytes: &[u8],
     content_type: &str,
     ceilings: &AssetImageCeilingsV1,
@@ -273,12 +273,282 @@ fn apply_orientation(decoded: DynamicImage, orientation: u16) -> DynamicImage {
     }
 }
 
+/// The single v1 placeholder algorithm (author decision 2026-07-31):
+/// ThumbHash, one versioned tag so a successor can be admitted beside it
+/// without reinterpreting stored values.
+pub const ASSET_PLACEHOLDER_ALGO_THUMBHASH_V1: &str = "thumbhash.v1";
+
+/// ThumbHash encoding, transcribed faithfully from the published reference
+/// implementation (Evan Wallace, MIT) so client-side reference decoders can
+/// render our values. Input must already be ≤ `THUMBHASH_MAX_DIM` per side.
+mod thumbhash {
+    pub(super) const THUMBHASH_MAX_DIM: u32 = 100;
+
+    pub(super) fn rgba_to_thumb_hash(w: usize, h: usize, rgba: &[u8]) -> Vec<u8> {
+        assert!(w <= 100 && h <= 100, "thumbhash input must be ≤100x100");
+        assert_eq!(rgba.len(), w * h * 4);
+
+        let mut avg_r = 0f64;
+        let mut avg_g = 0f64;
+        let mut avg_b = 0f64;
+        let mut avg_a = 0f64;
+        for i in 0..w * h {
+            let j = i * 4;
+            let alpha = f64::from(rgba[j + 3]) / 255.0;
+            avg_r += alpha / 255.0 * f64::from(rgba[j]);
+            avg_g += alpha / 255.0 * f64::from(rgba[j + 1]);
+            avg_b += alpha / 255.0 * f64::from(rgba[j + 2]);
+            avg_a += alpha;
+        }
+        if avg_a > 0.0 {
+            avg_r /= avg_a;
+            avg_g /= avg_a;
+            avg_b /= avg_a;
+        }
+
+        let has_alpha = avg_a < (w * h) as f64;
+        let l_limit = if has_alpha { 5.0 } else { 7.0 };
+        let max_wh = w.max(h) as f64;
+        let lx = ((l_limit * w as f64 / max_wh).round() as usize).max(1);
+        let ly = ((l_limit * h as f64 / max_wh).round() as usize).max(1);
+        let mut l = vec![0f64; w * h];
+        let mut p = vec![0f64; w * h];
+        let mut q = vec![0f64; w * h];
+        let mut a = vec![0f64; w * h];
+        for i in 0..w * h {
+            let j = i * 4;
+            let alpha = f64::from(rgba[j + 3]) / 255.0;
+            let r = avg_r * (1.0 - alpha) + alpha / 255.0 * f64::from(rgba[j]);
+            let g = avg_g * (1.0 - alpha) + alpha / 255.0 * f64::from(rgba[j + 1]);
+            let b = avg_b * (1.0 - alpha) + alpha / 255.0 * f64::from(rgba[j + 2]);
+            l[i] = (r + g + b) / 3.0;
+            p[i] = (r + g) / 2.0 - b;
+            q[i] = r - g;
+            a[i] = alpha;
+        }
+
+        let encode_channel = |channel: &[f64], nx: usize, ny: usize| {
+            let mut dc = 0f64;
+            let mut ac = Vec::new();
+            let mut scale = 0f64;
+            let mut fx = vec![0f64; w];
+            for cy in 0..ny {
+                let mut cx = 0usize;
+                while cx * ny < nx * (ny - cy) {
+                    let mut f = 0f64;
+                    for (x, slot) in fx.iter_mut().enumerate() {
+                        *slot = (std::f64::consts::PI / w as f64
+                            * cx as f64
+                            * (x as f64 + 0.5))
+                            .cos();
+                    }
+                    for y in 0..h {
+                        let fy = (std::f64::consts::PI / h as f64
+                            * cy as f64
+                            * (y as f64 + 0.5))
+                            .cos();
+                        for x in 0..w {
+                            f += channel[x + y * w] * fx[x] * fy;
+                        }
+                    }
+                    f /= (w * h) as f64;
+                    if cx > 0 || cy > 0 {
+                        ac.push(f);
+                        scale = scale.max(f.abs());
+                    } else {
+                        dc = f;
+                    }
+                    cx += 1;
+                }
+            }
+            if scale > 0.0 {
+                for value in &mut ac {
+                    *value = 0.5 + 0.5 / scale * *value;
+                }
+            }
+            (dc, ac, scale)
+        };
+
+        let (l_dc, l_ac, l_scale) = encode_channel(&l, lx.max(3), ly.max(3));
+        let (p_dc, p_ac, p_scale) = encode_channel(&p, 3, 3);
+        let (q_dc, q_ac, q_scale) = encode_channel(&q, 3, 3);
+        let (a_dc, a_ac, a_scale) =
+            if has_alpha { encode_channel(&a, 5, 5) } else { (1.0, Vec::new(), 1.0) };
+
+        let is_landscape = w > h;
+        let header24: u32 = ((63.0 * l_dc).round() as u32)
+            | (((31.5 + 31.5 * p_dc).round() as u32) << 6)
+            | (((31.5 + 31.5 * q_dc).round() as u32) << 12)
+            | (((31.0 * l_scale).round() as u32) << 18)
+            | (u32::from(has_alpha) << 23);
+        let header16: u32 = (if is_landscape { ly } else { lx } as u32)
+            | (((63.0 * p_scale).round() as u32) << 3)
+            | (((63.0 * q_scale).round() as u32) << 9)
+            | (u32::from(is_landscape) << 15);
+        let mut hash = vec![
+            (header24 & 255) as u8,
+            ((header24 >> 8) & 255) as u8,
+            (header24 >> 16) as u8,
+            (header16 & 255) as u8,
+            (header16 >> 8) as u8,
+        ];
+        let ac_start = if has_alpha { 6 } else { 5 };
+        if has_alpha {
+            hash.push(
+                ((15.0 * a_dc).round() as u8) | (((15.0 * a_scale).round() as u8) << 4),
+            );
+        }
+        let mut ac_index = 0usize;
+        let channels: &[&[f64]] = if has_alpha {
+            &[&l_ac, &p_ac, &q_ac, &a_ac]
+        } else {
+            &[&l_ac, &p_ac, &q_ac]
+        };
+        for ac in channels {
+            for f in ac.iter() {
+                let slot = ac_start + (ac_index >> 1);
+                if slot >= hash.len() {
+                    hash.push(0);
+                }
+                hash[slot] |= ((15.0 * f).round() as u8) << ((ac_index & 1) * 4);
+                ac_index += 1;
+            }
+        }
+        hash
+    }
+}
+
+/// Placeholder + dominant color derived from one bounded downscale of the
+/// oriented pixels. Deterministic: same input bytes → same facts.
+#[derive(Clone, Debug)]
+pub struct AssetImageDerivedFacts {
+    /// Base64 (standard, unpadded) ThumbHash bytes.
+    pub placeholder: String,
+    /// `#rrggbb` alpha-weighted average.
+    pub dominant_color: String,
+}
+
+fn derive_image_facts(oriented: &DynamicImage) -> AssetImageDerivedFacts {
+    use base64::Engine as _;
+    let small = oriented.thumbnail(thumbhash::THUMBHASH_MAX_DIM, thumbhash::THUMBHASH_MAX_DIM);
+    let rgba = small.to_rgba8();
+    let (w, h) = (rgba.width() as usize, rgba.height() as usize);
+    let hash = thumbhash::rgba_to_thumb_hash(w, h, rgba.as_raw());
+    let placeholder = base64::engine::general_purpose::STANDARD_NO_PAD.encode(hash);
+    let (mut r, mut g, mut b, mut weight) = (0f64, 0f64, 0f64, 0f64);
+    for pixel in rgba.pixels() {
+        let alpha = f64::from(pixel[3]) / 255.0;
+        r += alpha * f64::from(pixel[0]);
+        g += alpha * f64::from(pixel[1]);
+        b += alpha * f64::from(pixel[2]);
+        weight += alpha;
+    }
+    let dominant_color = if weight > 0.0 {
+        format!(
+            "#{:02x}{:02x}{:02x}",
+            (r / weight).round() as u8,
+            (g / weight).round() as u8,
+            (b / weight).round() as u8
+        )
+    } else {
+        "#000000".to_owned()
+    };
+    AssetImageDerivedFacts { placeholder, dominant_color }
+}
+
+/// Facts-only inspection for images published without rewriting (retain
+/// policy). Dimensions are the displayed (post-orientation) dimensions.
+#[derive(Clone, Debug)]
+pub struct AssetImageInspection {
+    pub width: u32,
+    pub height: u32,
+    pub safe_exif: AssetImageSafeExif,
+    pub derived: AssetImageDerivedFacts,
+}
+
+pub fn inspect_image(
+    bytes: &[u8],
+    content_type: &str,
+    ceilings: &AssetImageCeilingsV1,
+) -> SnapbackResult<AssetImageInspection> {
+    let budget = StepBudget::start(ceilings);
+    let metadata = metadata_bytes(bytes, content_type);
+    if metadata > ceilings.max_metadata_bytes {
+        return Err(bounds_error(format!(
+            "embedded metadata ({metadata} bytes) exceeds the {} ceiling",
+            ceilings.max_metadata_bytes
+        )));
+    }
+    let safe_exif = extract_safe_exif(bytes);
+    let decoded = decode_bounded(bytes, content_type, ceilings, &budget)?;
+    let oriented = apply_orientation(decoded, safe_exif.orientation.unwrap_or(1));
+    budget.check("the orientation transform")?;
+    let derived = derive_image_facts(&oriented);
+    budget.check("fact derivation")?;
+    Ok(AssetImageInspection {
+        width: oriented.width(),
+        height: oriented.height(),
+        safe_exif,
+        derived,
+    })
+}
+
+/// One declared rendition: bounded decode of the canonical bytes, downscale
+/// to the declared width (never upscale), re-encode in the canonical
+/// container. Deterministic for a given canonical input.
+pub fn render_variant(
+    canonical: &[u8],
+    content_type: &str,
+    target_width: u64,
+    ceilings: &AssetImageCeilingsV1,
+) -> SnapbackResult<Vec<u8>> {
+    let budget = StepBudget::start(ceilings);
+    let decoded = decode_bounded(canonical, content_type, ceilings, &budget)?;
+    let width = decoded.width();
+    let target = u32::try_from(target_width).unwrap_or(u32::MAX).min(width);
+    let resized = if target < width {
+        decoded.resize(target, u32::MAX, image::imageops::FilterType::Triangle)
+    } else {
+        decoded
+    };
+    budget.check("resize")?;
+    let mut out = Vec::new();
+    match content_type {
+        "image/jpeg" => {
+            let mut cursor = std::io::Cursor::new(&mut out);
+            let mut encoder =
+                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, 90);
+            encoder
+                .encode_image(&resized.to_rgb8())
+                .map_err(|error| decode_error(format!("variant jpeg encode failed: {error}")))?;
+        }
+        "image/png" => {
+            resized
+                .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+                .map_err(|error| decode_error(format!("variant png encode failed: {error}")))?;
+        }
+        other => {
+            return Err(decode_error(format!("no variant renderer for {other}")));
+        }
+    }
+    budget.check("variant re-encode")?;
+    if out.len() as u64 > ceilings.max_output_bytes {
+        return Err(bounds_error(format!(
+            "variant output ({} bytes) exceeds the {} ceiling",
+            out.len(),
+            ceilings.max_output_bytes
+        )));
+    }
+    Ok(out)
+}
+
 #[derive(Clone, Debug)]
 pub struct AssetImageStripOutcome {
     pub canonical: Vec<u8>,
     pub safe_exif: AssetImageSafeExif,
     pub width: u32,
     pub height: u32,
+    pub derived: AssetImageDerivedFacts,
 }
 
 /// The strip canonicalization: decode → corrective orientation transform →
@@ -310,6 +580,8 @@ pub fn canonicalize_strip(
     let oriented = apply_orientation(decoded, safe_exif.orientation.unwrap_or(1));
     budget.check("the orientation transform")?;
     let (width, height) = (oriented.width(), oriented.height());
+    let derived = derive_image_facts(&oriented);
+    budget.check("fact derivation")?;
     let mut canonical = Vec::new();
     match content_type {
         "image/jpeg" => {
@@ -344,7 +616,7 @@ pub fn canonicalize_strip(
             ceilings.max_output_bytes
         )));
     }
-    Ok(AssetImageStripOutcome { canonical, safe_exif, width, height })
+    Ok(AssetImageStripOutcome { canonical, safe_exif, width, height, derived })
 }
 
 #[cfg(test)]
@@ -602,6 +874,75 @@ mod tests {
         let second = canonicalize_strip(&fixture, "image/jpeg", &small_ceilings())
             .expect("second strip");
         assert_eq!(first.canonical, second.canonical);
+    }
+
+    #[test]
+    fn asset_image_thumbhash_is_deterministic_and_reference_shaped() {
+        let image = fixtures::deterministic_rgb(64, 32);
+        let rgba = image::DynamicImage::ImageRgb8(image).to_rgba8();
+        let first =
+            thumbhash::rgba_to_thumb_hash(64, 32, rgba.as_raw());
+        let second =
+            thumbhash::rgba_to_thumb_hash(64, 32, rgba.as_raw());
+        assert_eq!(first, second, "same pixels must hash identically");
+        // Reference layout facts for an opaque landscape input: no alpha bit
+        // in header24, the landscape bit set in header16, and 5 header bytes
+        // plus nibble-packed AC coefficients.
+        let header24 =
+            u32::from(first[0]) | (u32::from(first[1]) << 8) | (u32::from(first[2]) << 16);
+        assert_eq!(header24 >> 23, 0, "opaque input must not claim alpha");
+        let header16 = u32::from(first[3]) | (u32::from(first[4]) << 8);
+        assert_eq!(header16 >> 15, 1, "64x32 is landscape");
+        assert!(first.len() > 5, "AC coefficients follow the headers");
+    }
+
+    #[test]
+    fn asset_image_derived_facts_pin_placeholder_and_dominant_color() {
+        // A solid red square: the dominant color is exact and the
+        // placeholder is a stable, decodable vector for the JS cross-check.
+        let solid = image::RgbImage::from_pixel(32, 32, image::Rgb([200, 40, 20]));
+        let facts = derive_image_facts(&image::DynamicImage::ImageRgb8(solid));
+        assert_eq!(facts.dominant_color, "#c82814");
+        // The committed vector the JS cross-check decodes with the vendored
+        // reference decoder (asset-thumbhash-vector.test.mjs). Changing the
+        // encoder or the downscale changes this value — that is a
+        // compatibility event for stored placeholders, not a test to update
+        // casually.
+        assert_eq!(facts.placeholder, "FTsDBwAwZIZ3d4eHiGd3l4h3CIpjoDgG");
+        assert_eq!(
+            facts.placeholder,
+            derive_image_facts(&image::DynamicImage::ImageRgb8(
+                image::RgbImage::from_pixel(32, 32, image::Rgb([200, 40, 20]))
+            ))
+            .placeholder,
+            "placeholder must be deterministic"
+        );
+    }
+
+    #[test]
+    fn asset_image_inspect_applies_orientation_and_derives_facts() {
+        // Orientation 6 (rotate 90°): a 48x32 stored frame displays 32x48.
+        let bytes = fixtures::jpeg_with_gps_exif(48, 32, 6);
+        let inspection =
+            inspect_image(&bytes, "image/jpeg", &small_ceilings()).expect("inspects");
+        assert_eq!((inspection.width, inspection.height), (32, 48));
+        assert_eq!(inspection.safe_exif.orientation, Some(6));
+        assert!(inspection.safe_exif.captured_at.is_some());
+        assert!(!inspection.derived.placeholder.is_empty());
+    }
+
+    #[test]
+    fn asset_image_render_variant_downscales_never_upscales() {
+        let canonical = fixtures::plain_jpeg(64, 48);
+        let small = render_variant(&canonical, "image/jpeg", 32, &small_ceilings())
+            .expect("renders");
+        let decoded = image::load_from_memory(&small).expect("variant decodes");
+        assert_eq!(decoded.width(), 32);
+        assert_eq!(decoded.height(), 24, "aspect ratio preserved");
+        let same = render_variant(&canonical, "image/jpeg", 500, &small_ceilings())
+            .expect("renders");
+        let full = image::load_from_memory(&same).expect("variant decodes");
+        assert_eq!(full.width(), 64, "a variant never upscales past the canonical width");
     }
 
     #[test]

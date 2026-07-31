@@ -6716,6 +6716,7 @@ impl LocalSnapback {
                     }
                     image_media_facts.insert("width".into(), outcome.width.into());
                     image_media_facts.insert("height".into(), outcome.height.into());
+                    asset_insert_derived_facts(&mut image_media_facts, &outcome.derived);
                     AssetCanonicalBytes {
                         path: canonical_path,
                         digest: hashed.digest,
@@ -6735,6 +6736,53 @@ impl LocalSnapback {
                 }
             }
         } else {
+            // Retain-declared images publish their received bytes unchanged,
+            // but the pipeline still derives display facts (dimensions,
+            // placeholder, dominant color) from a bounded decode when the
+            // image capability is on. A hostile retain-path image refuses
+            // deterministically, exactly like strip — the pipeline claim
+            // covers both policies or neither.
+            if image_location.is_some()
+                && self.asset_image_finalization_enabled()
+                && matches!(detected, "image/jpeg" | "image/png")
+            {
+                let source = std::fs::read(&staging_path).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        format!("cannot read staging for inspection: {error}"),
+                    )
+                })?;
+                match crate::assets_image::inspect_image(
+                    &source,
+                    detected,
+                    &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+                ) {
+                    Ok(inspection) => {
+                        if let Some(orientation) = inspection.safe_exif.orientation {
+                            image_media_facts
+                                .insert("orientationApplied".into(), orientation.into());
+                        }
+                        if let Some(captured_at) = inspection.safe_exif.captured_at {
+                            image_media_facts
+                                .insert("capturedAt".into(), captured_at.into());
+                        }
+                        image_media_facts.insert("width".into(), inspection.width.into());
+                        image_media_facts.insert("height".into(), inspection.height.into());
+                        asset_insert_derived_facts(
+                            &mut image_media_facts,
+                            &inspection.derived,
+                        );
+                    }
+                    Err(error) => {
+                        return self.asset_fail_attempt(
+                            &attempt,
+                            assets::AssetAvailability::Rejected,
+                            error,
+                        );
+                    }
+                }
+            }
             AssetCanonicalBytes {
                 path: staging_path.clone(),
                 digest: staged.digest.clone(),
@@ -20610,6 +20658,22 @@ struct AssetCanonicalBytes {
     policy: &'static str,
 }
 
+/// The versioned placeholder field plus dominant color, one shape for every
+/// image path (LLP 0044: one placeholder algorithm, versioned field).
+fn asset_insert_derived_facts(
+    facts: &mut serde_json::Map<String, serde_json::Value>,
+    derived: &crate::assets_image::AssetImageDerivedFacts,
+) {
+    facts.insert(
+        "placeholder".into(),
+        serde_json::json!({
+            "algo": crate::assets_image::ASSET_PLACEHOLDER_ALGO_THUMBHASH_V1,
+            "value": derived.placeholder,
+        }),
+    );
+    facts.insert("dominantColor".into(), derived.dominant_color.clone().into());
+}
+
 #[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssetFinalizeCrashPoint {
@@ -23621,6 +23685,9 @@ globalThis.__snapbackHandlers = {
             (facts["width"].as_u64(), facts["height"].as_u64()),
             (Some(32), Some(48))
         );
+        assert_eq!(facts["placeholder"]["algo"], "thumbhash.v1");
+        assert!(!facts["placeholder"]["value"].as_str().unwrap().is_empty());
+        assert!(facts["dominantColor"].as_str().unwrap().starts_with('#'));
 
         let blob = snapback
             .db
@@ -23696,6 +23763,15 @@ globalThis.__snapbackHandlers = {
         );
         let facts = kept_rendition.media_facts.expect("media facts");
         assert_eq!(facts["locationPolicy"], "retain");
+        // The retain path still derives display facts from a bounded decode:
+        // post-orientation dimensions, the versioned placeholder, dominant
+        // color — the pipeline claim covers both location policies.
+        assert_eq!(
+            (facts["width"].as_u64(), facts["height"].as_u64()),
+            (Some(24), Some(24))
+        );
+        assert_eq!(facts["placeholder"]["algo"], "thumbhash.v1");
+        assert!(facts["dominantColor"].as_str().unwrap().starts_with('#'));
         // Retain evidence reaches the receipts too.
         let receipts = retain
             .db
