@@ -918,6 +918,7 @@ mod tests {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: Some(event_members()),
+            asset_sharing: None,
         };
         table.membership = Some(event_members());
         let events = TableManifest {
@@ -933,6 +934,7 @@ mod tests {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
         schema.tables = vec![table, events.clone()];
 
@@ -1057,6 +1059,7 @@ mod tests {
                 scope,
                 resource_table: resource_scoped.then(|| "events".to_owned()),
             }),
+            asset_sharing: None,
         }
     }
 

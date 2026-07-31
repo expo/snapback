@@ -1164,6 +1164,7 @@ mod tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })

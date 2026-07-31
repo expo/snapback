@@ -39,6 +39,7 @@ fn bundle_schema() -> SchemaManifest {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
             TableManifest {
                 name: "todos".to_owned(),
@@ -64,6 +65,7 @@ fn bundle_schema() -> SchemaManifest {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
         ],
         ..SchemaManifest::default()

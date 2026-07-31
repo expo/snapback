@@ -23,6 +23,7 @@ const PROJECTION = Symbol('snapback.maintainedProjection');
 const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
+const ASSET_UPLOAD = Symbol('snapback.assetUpload');
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
@@ -91,6 +92,22 @@ const SEARCH_CURSOR_LIMIT_FIELDS = new Set(['ttlMs', 'maxBytes']);
 const SEARCH_MAINTENANCE_LIMIT_FIELDS = new Set([
   'searchMaintenanceEffects', 'searchPostingOps', 'searchPositions', 'searchBytes',
 ]);
+// @ref LLP 0044#generated-upload-intents — the closed authoring surface for
+//   one upload intent; the client cannot supply or widen any declared fact.
+const ASSET_UPLOAD_FIELDS = new Set([
+  'args', 'auth', 'reads', 'accept', 'delivery', 'access', 'image',
+  'authorize', 'source', 'exportName',
+]);
+const ASSET_ACCEPT_FIELDS = new Set(['mediaTypes', 'maxBytes']);
+const ASSET_DELIVERY_KINDS = new Set(['public-immutable', 'private-signed', 'private-strict']);
+const ASSET_READ_ACCESS = new Set(['owner-only', 'via-references']);
+const ASSET_LOCATION_POLICIES = new Set(['strip', 'retain']);
+const ASSET_IMAGE_FIELDS = new Set(['location', 'variants']);
+const ASSET_VARIANT_FIELDS = new Set(['key', 'width']);
+// @ref LLP 0007#dated-amendment-asset-references-sharing-declarations-and-admission
+//   — the sharing declaration reuses the shipped closed visibility union.
+const ASSET_SHARING_KINDS = new Set(['public-read', 'owner', 'membership']);
+
 const MEMBERSHIP_FIELDS = new Set([
   'id', 'principal', 'resource', 'role', 'roles', 'pendingRoles',
   'bootstrapRole', 'lastHolder', 'expiry', 'incidental', 'provenance',
@@ -198,6 +215,26 @@ export const v = {
     return validator({
       RelationIncarnation: { foreignKeyField, parentTable },
     }, 'string', { protectedWrite: true });
+  },
+  /** Typed asset reference (LLP 0044 §Typed references; LLP 0007 dated
+   * amendment 2026-07-31). The value is the opaque asset id string; the
+   * commit boundary validates every write's admission, so a raw string
+   * assignment fails there, not here. An `upload` restriction names the
+   * exported upload-intent binding whose assets the field admits and is what
+   * lets non-handler write paths derive a commit-boundary admission;
+   * a restriction-less field is attachable only through handler-side
+   * `ctx.assets.attach`. */
+  assetRef: (options = {}) => {
+    assertKnownSpecFields(options, 'v.assetRef() options', new Set(['upload']));
+    if (options.upload !== undefined) {
+      assert(
+        typeof options.upload === 'string' && options.upload.length > 0,
+        'v.assetRef() upload must name an upload-intent binding',
+      );
+    }
+    return validator({
+      AssetRef: { ...(options.upload !== undefined ? { upload: options.upload } : {}) },
+    }, 'string');
   },
   boolean: () => validator('Boolean', 'boolean'),
   integer: (options = {}) => {
@@ -681,6 +718,42 @@ class TableBuilder {
       resource: reference,
       roles,
     });
+  }
+
+  /** Declare this table's analyzable row-visibility policy sufficient for
+   * asset sharing: anyone the spec admits may also read assets referenced
+   * from these rows, independent of any function-level gate a query adds.
+   * Without this declaration a typed reference confers no `via-references`
+   * read authority (owner-only fallback).
+   * @ref LLP 0044#asset-read-authorization — sharing authority is an
+   *   explicit app-authored statement, never inferred from a filter's
+   *   existence, because a row filter alone can be broader than any query
+   *   path actually exposes. */
+  assetSharing(spec) {
+    assert(!this.assetSharingDeclaration, 'assetSharing() may be declared only once per table');
+    assert(spec && typeof spec === 'object' && !Array.isArray(spec), 'assetSharing() expects a spec object');
+    assert(ASSET_SHARING_KINDS.has(spec.kind), "assetSharing() kind must be 'public-read', 'owner', or 'membership'");
+    if (spec.kind === 'public-read') {
+      exactObject(spec, 'assetSharing()', new Set(['kind']));
+      this.assetSharingDeclaration = { kind: 'public-read' };
+    } else if (spec.kind === 'owner') {
+      exactObject(spec, 'assetSharing()', new Set(['kind', 'field']));
+      assert(typeof spec.field === 'string' && spec.field.length > 0, 'assetSharing() owner requires field');
+      this.assetSharingDeclaration = { kind: 'owner', field: spec.field };
+    } else {
+      exactObject(spec, 'assetSharing()', new Set(['kind', 'membership', 'roles']));
+      assert(
+        typeof spec.membership === 'string' && spec.membership.length > 0,
+        'assetSharing() membership requires a declared membership id',
+      );
+      const roles = spec.roles === undefined ? undefined : stringArray(spec.roles, 'assetSharing() roles');
+      this.assetSharingDeclaration = {
+        kind: 'membership',
+        membership: spec.membership,
+        ...(roles ? { roles } : {}),
+      };
+    }
+    return this;
   }
 
   memberOf(resource) {
@@ -2436,6 +2509,83 @@ export function defineConfig(entries) {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Declare one generated upload intent (LLP 0044 §Generated upload intents).
+ * The declaration fixes accepted types, byte bounds, delivery profile,
+ * read-access policy, and processing recipe; the client cannot supply or
+ * widen any of those facts, and one upload task carries exactly one file.
+ * The authorizer runs server-side under LLP 0039 authority with the same
+ * closed inline-handler rules as LLP 0108: inline `authorize` or
+ * `source` + `exportName`, never both.
+ */
+export function defineAssetUpload(spec) {
+  assertKnownSpecFields(spec, 'AssetUpload', ASSET_UPLOAD_FIELDS);
+  const inline = spec.authorize !== undefined;
+  const legacy = spec.source !== undefined || spec.exportName !== undefined;
+  assert(inline !== legacy, 'AssetUpload requires exactly one authorizer form: authorize or source + exportName');
+  if (legacy) {
+    assert(spec.source, 'AssetUpload requires an authorizer source file');
+    assert(spec.exportName, 'AssetUpload requires exportName');
+  }
+  if (spec.auth !== undefined) {
+    assert(AUTH_REQUIREMENTS.has(spec.auth), 'AssetUpload auth must be public, optional-user, or authenticated');
+  }
+  const reads = spec.reads === undefined ? [] : stringArray(spec.reads, 'AssetUpload reads', { allowEmpty: true });
+  assert(spec.accept && typeof spec.accept === 'object' && !Array.isArray(spec.accept), 'AssetUpload requires accept');
+  exactObject(spec.accept, 'AssetUpload accept', ASSET_ACCEPT_FIELDS);
+  const mediaTypes = stringArray(spec.accept.mediaTypes, 'AssetUpload accept.mediaTypes');
+  for (const mediaType of mediaTypes) {
+    assert(/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+*-]+$/i.test(mediaType), `AssetUpload accept.mediaTypes entry ${mediaType} is not a media type`);
+  }
+  assert(
+    Number.isSafeInteger(spec.accept.maxBytes) && spec.accept.maxBytes > 0,
+    'AssetUpload accept.maxBytes must be a positive safe integer',
+  );
+  let delivery = { kind: 'private-strict' };
+  if (spec.delivery !== undefined) {
+    exactObject(spec.delivery, 'AssetUpload delivery', new Set(['kind']));
+    assert(ASSET_DELIVERY_KINDS.has(spec.delivery.kind), 'AssetUpload delivery.kind must be public-immutable, private-signed, or private-strict');
+    delivery = { kind: spec.delivery.kind };
+  }
+  let access = { read: 'owner-only' };
+  if (spec.access !== undefined) {
+    exactObject(spec.access, 'AssetUpload access', new Set(['read']));
+    assert(ASSET_READ_ACCESS.has(spec.access.read), 'AssetUpload access.read must be owner-only or via-references');
+    access = { read: spec.access.read };
+  }
+  let image;
+  if (spec.image !== undefined) {
+    exactObject(spec.image, 'AssetUpload image', ASSET_IMAGE_FIELDS);
+    assert(ASSET_LOCATION_POLICIES.has(spec.image.location), "AssetUpload image.location must be 'strip' or 'retain' — there is no implicit fallback");
+    const variants = (spec.image.variants ?? []).map((variant, index) => {
+      exactObject(variant, `AssetUpload image.variants[${index}]`, ASSET_VARIANT_FIELDS);
+      assert(typeof variant.key === 'string' && variant.key.length > 0, `AssetUpload image.variants[${index}].key is required`);
+      assert(Number.isSafeInteger(variant.width) && variant.width > 0, `AssetUpload image.variants[${index}].width must be a positive integer`);
+      return { key: variant.key, width: variant.width };
+    });
+    assert(variants.length <= 8, 'AssetUpload image.variants is bounded to 8');
+    image = { location: spec.image.location, ...(variants.length > 0 ? { variants } : {}) };
+  }
+  return {
+    [ASSET_UPLOAD]: true,
+    __kind: 'AssetUploadIntent',
+    args: spec.args ?? {},
+    auth: spec.auth ?? 'authenticated',
+    reads,
+    accept: { mediaTypes, maxBytes: spec.accept.maxBytes },
+    delivery,
+    access,
+    ...(image ? { image } : {}),
+    ...(inline
+      ? { authorize: spec.authorize }
+      : { source: spec.source, exportName: spec.exportName }),
+  };
+}
+
+export function isAssetUploadDef(value) {
+  return !!(value && value[ASSET_UPLOAD]);
+}
 
 export function isFunctionDef(value) {
   return !!(value && value[FN]);

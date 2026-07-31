@@ -18,7 +18,8 @@ export type FieldType =
   | 'Json'
   | 'Principal'
   | { readonly Id: { readonly table: string } }
-  | { readonly RelationIncarnation: { readonly foreignKeyField: string; readonly parentTable: string } };
+  | { readonly RelationIncarnation: { readonly foreignKeyField: string; readonly parentTable: string } }
+  | { readonly AssetRef: { readonly upload?: string } };
 
 export interface Validator<
   Value = unknown,
@@ -54,6 +55,9 @@ export declare const v: {
   relationIncarnationOf<const ForeignKey extends string, const Parent extends string>(
     spec: { foreignKeyField: ForeignKey; parentTable: Parent },
   ): Validator<string, { readonly RelationIncarnation: { readonly foreignKeyField: ForeignKey; readonly parentTable: Parent } }, false>;
+  assetRef<const Upload extends string = string>(
+    options?: { upload?: Upload },
+  ): Validator<string, { readonly AssetRef: { readonly upload?: Upload } }, false>;
   boolean(): Validator<boolean, 'Boolean', false>;
   integer(options?: { min?: number; max?: number }): Validator<number, 'Integer', false>;
   real(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
@@ -383,12 +387,22 @@ type RolesOf<Spec extends MembershipSpec> =
   | (Spec extends { pendingRoles: readonly (infer Role extends string)[] } ? Role : never);
 type ScopeOf<Spec extends MembershipSpec> = Spec extends { scope: 'app' } ? 'app' : 'resource';
 
+export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<string, Validator>> =
+  | { kind: 'public-read' }
+  | { kind: 'owner'; field: keyof Fields & string }
+  | { kind: 'membership'; membership: string; roles?: readonly string[] };
+
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
   index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
   searchIndex(name: string, spec: SearchIndexSpec<Fields>): TableBuilder<Fields>;
   sync(): TableBuilder<Fields>;
   permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
   membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
+  /** Declare this table's row-visibility policy sufficient for asset
+   * sharing (LLP 0044 §Asset read authorization; LLP 0007 dated amendment
+   * 2026-07-31). Without it a typed reference confers no via-references
+   * read authority. */
+  assetSharing(spec: AssetSharingSpec<Fields>): TableBuilder<Fields>;
 }
 
 export type SearchFieldClassification = 'public' | 'private' | 'sensitive' | 'forbidden';
@@ -529,6 +543,28 @@ export declare function assertSourceChanged(table: string, id: ValueExpr, operat
 export declare function defineWriteWithActivity(spec: unknown): unknown;
 export declare function defineJsMutation(spec: JsMutationSpec): unknown;
 export declare function defineAction(spec: HostPlanActionSpec | JsActionSpec): unknown;
+/** One generated upload intent (LLP 0044 §Generated upload intents): the
+ * declaration fixes accepted types, byte bounds, delivery profile,
+ * read-access policy, and processing recipe; the client cannot supply or
+ * widen any of them. Location-bearing media (image/*, video/*) require an
+ * explicit `image.location` — omission refuses at generation. */
+export interface AssetUploadSpec {
+  args?: Record<string, Validator>;
+  auth?: 'public' | 'optional-user' | 'authenticated';
+  reads?: readonly string[];
+  accept: { mediaTypes: readonly string[]; maxBytes: number };
+  delivery?: { kind: 'public-immutable' | 'private-signed' | 'private-strict' };
+  access?: { read: 'owner-only' | 'via-references' };
+  image?: {
+    location: 'strip' | 'retain';
+    variants?: ReadonlyArray<{ key: string; width: number }>;
+  };
+  authorize?: (ctx: unknown, args?: unknown) => unknown;
+  source?: string;
+  exportName?: string;
+}
+export declare function defineAssetUpload(spec: AssetUploadSpec): unknown;
+export declare function isAssetUploadDef(value: unknown): boolean;
 export declare function defineCron(jobs: Record<string, unknown>): unknown;
 export declare function defineConfig(entries: Record<string, unknown>): unknown;
 export declare function runMutation(name: string, args?: Record<string, ValueExpr>, opts?: { bindResultAs?: string }): unknown;

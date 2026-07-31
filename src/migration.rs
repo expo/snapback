@@ -1693,6 +1693,7 @@ pub fn migration_vector_fixture() -> SnapbackResult<(
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
     let string_field = |name: &str, optional: bool| FieldManifest {
         name: name.to_owned(),
@@ -1920,6 +1921,7 @@ mod tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }
         };
         let predecessor = crate::manifest::SchemaManifest {
@@ -2107,6 +2109,7 @@ mod tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "users".to_owned(),
@@ -2132,6 +2135,7 @@ mod tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()

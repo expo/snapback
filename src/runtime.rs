@@ -3875,6 +3875,7 @@ mod membership_bridge_tests {
                         scope: MembershipScope::App,
                         resource_table: None,
                     }),
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "custom_acl".to_owned(),
@@ -3889,6 +3890,7 @@ mod membership_bridge_tests {
                     permission_fields: Some(vec!["ownerId".to_owned()]),
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "events".to_owned(),
@@ -3903,6 +3905,7 @@ mod membership_bridge_tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "event_members".to_owned(),
@@ -3948,6 +3951,7 @@ mod membership_bridge_tests {
                         scope: MembershipScope::Resource,
                         resource_table: Some("events".to_owned()),
                     }),
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()

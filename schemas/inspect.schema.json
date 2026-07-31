@@ -166,6 +166,276 @@
       ],
       "type": "string"
     },
+    "AssetAcceptPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "maxBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mediaTypes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "mediaTypes",
+        "maxBytes"
+      ],
+      "type": "object"
+    },
+    "AssetAccessPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "read": {
+          "$ref": "#/$defs/AssetReadAccessPolicy"
+        }
+      },
+      "required": [
+        "read"
+      ],
+      "type": "object"
+    },
+    "AssetDeliveryPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AssetDeliveryProfile"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "AssetDeliveryProfile": {
+      "enum": [
+        "public-immutable",
+        "private-signed",
+        "private-strict"
+      ],
+      "type": "string"
+    },
+    "AssetImagePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "location": {
+          "$ref": "#/$defs/AssetLocationPolicy",
+          "description": "Mandatory-explicit for location-bearing media; there is no implicit\nfallback (LLP 0044 §Generated upload intents)."
+        },
+        "variants": {
+          "items": {
+            "$ref": "#/$defs/AssetImageVariant"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "location"
+      ],
+      "type": "object"
+    },
+    "AssetImageVariant": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "width": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "width"
+      ],
+      "type": "object"
+    },
+    "AssetLocationPolicy": {
+      "enum": [
+        "strip",
+        "retain"
+      ],
+      "type": "string"
+    },
+    "AssetReadAccessPolicy": {
+      "enum": [
+        "owner-only",
+        "via-references"
+      ],
+      "type": "string"
+    },
+    "AssetSharingManifest": {
+      "description": "The closed asset-sharing declaration, reusing the shipped visibility\nunion rather than a not-yet-implemented general permission language.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "membership": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "membership"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AssetUploadIntentDefinition": {
+      "description": "One generated upload intent: the declared, client-unwidenable policy\nplus the server-executed authorizer. The declaration fixes accepted\ntypes, byte bounds, delivery profile, read-access policy, and processing\nrecipe (LLP 0044 §Generated upload intents).",
+      "properties": {
+        "accept": {
+          "$ref": "#/$defs/AssetAcceptPolicy"
+        },
+        "access": {
+          "$ref": "#/$defs/AssetAccessPolicy"
+        },
+        "argsContractHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authRequirement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthRequirement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "declaredReads": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "delivery": {
+          "$ref": "#/$defs/AssetDeliveryPolicy"
+        },
+        "exportedName": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "handlerForm": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "default": "",
+          "description": "Stable identity, `app:intent` like function ids.",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetImagePolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "implementationHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "intentPolicyHash": {
+          "description": "Hash over the declared accept/delivery/access/image/auth facts — the\nadmitted policy identity an attempt finalizes under.",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "runtime": {
+          "$ref": "#/$defs/FunctionRuntime"
+        },
+        "sourceSpan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSpan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "intentPolicyHash",
+        "accept",
+        "delivery",
+        "access",
+        "runtime"
+      ],
+      "type": "object"
+    },
     "AuthManifest": {
       "additionalProperties": false,
       "description": "Closed schema-manifest auth declaration. Unknown members are rejected so a\nfuture authority-changing field cannot be silently ignored by this parser.",
@@ -1871,6 +2141,27 @@
             "RelationIncarnation"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`v.assetRef({ upload? })` — a typed asset reference (LLP 0044 §Typed\nreferences; LLP 0007 dated amendment 2026-07-31). Stored as the opaque\nasset id string; the commit boundary validates every write's\nadmission, so a raw string assignment fails there rather than by\nshape. The optional `upload` restriction names the upload-intent\nbinding whose assets the field admits and is what lets write paths\nwithout handler execution derive a commit-boundary admission.",
+          "properties": {
+            "AssetRef": {
+              "properties": {
+                "upload": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "AssetRef"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -2245,6 +2536,13 @@
         "artifactKind": {
           "default": "functionManifest",
           "type": "string"
+        },
+        "assetUploadIntents": {
+          "description": "Generated upload intents (LLP 0044 §Generated upload intents; LLP\n0037 dated alignment 2026-07-31). Deliberately their own section —\nan intent is not a callable function, appears in no public function\nlisting, and its authorizer executes only through the asset attempt\nadmission path.",
+          "items": {
+            "$ref": "#/$defs/AssetUploadIntentDefinition"
+          },
+          "type": "array"
         },
         "bundleHash": {
           "default": null,
@@ -5064,6 +5362,17 @@
     "TableManifest": {
       "additionalProperties": false,
       "properties": {
+        "assetSharing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetSharingManifest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`.assetSharing(spec)` — the explicit declaration that this table's\nanalyzable row-visibility policy is sufficient asset-sharing\nauthority: anyone the spec admits may also read assets referenced\nfrom these rows. Without it a typed reference confers no\n`via-references` read authority (owner-only fallback).\n\n@ref LLP 0044#asset-read-authorization — sharing is never inferred\n  from a filter's existence; LLP 0007 dated amendment 2026-07-31\n  freezes the closed spelling."
+        },
         "fields": {
           "default": [],
           "items": {

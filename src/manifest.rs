@@ -456,6 +456,38 @@ pub struct TableManifest {
     ///   is the recognized shape; the derivation, not the app, owns the table.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub membership: Option<MembershipManifest>,
+    /// `.assetSharing(spec)` — the explicit declaration that this table's
+    /// analyzable row-visibility policy is sufficient asset-sharing
+    /// authority: anyone the spec admits may also read assets referenced
+    /// from these rows. Without it a typed reference confers no
+    /// `via-references` read authority (owner-only fallback).
+    ///
+    /// @ref LLP 0044#asset-read-authorization — sharing is never inferred
+    ///   from a filter's existence; LLP 0007 dated amendment 2026-07-31
+    ///   freezes the closed spelling.
+    #[serde(
+        default,
+        rename = "assetSharing",
+        alias = "asset_sharing",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub asset_sharing: Option<AssetSharingManifest>,
+}
+
+/// The closed asset-sharing declaration, reusing the shipped visibility
+/// union rather than a not-yet-implemented general permission language.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum AssetSharingManifest {
+    PublicRead,
+    Owner {
+        field: String,
+    },
+    Membership {
+        membership: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        roles: Option<Vec<String>>,
+    },
 }
 
 impl TableManifest {
@@ -769,6 +801,17 @@ pub enum FieldType {
         #[serde(rename = "parentTable", alias = "parent_table")]
         parent_table: String,
     },
+    /// `v.assetRef({ upload? })` — a typed asset reference (LLP 0044 §Typed
+    /// references; LLP 0007 dated amendment 2026-07-31). Stored as the opaque
+    /// asset id string; the commit boundary validates every write's
+    /// admission, so a raw string assignment fails there rather than by
+    /// shape. The optional `upload` restriction names the upload-intent
+    /// binding whose assets the field admits and is what lets write paths
+    /// without handler execution derive a commit-boundary admission.
+    AssetRef {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        upload: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -844,6 +887,100 @@ pub struct FunctionManifest {
     /// the output in its own commit.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub projections: Vec<MaintainedProjectionPlan>,
+    /// Generated upload intents (LLP 0044 §Generated upload intents; LLP
+    /// 0037 dated alignment 2026-07-31). Deliberately their own section —
+    /// an intent is not a callable function, appears in no public function
+    /// listing, and its authorizer executes only through the asset attempt
+    /// admission path.
+    #[serde(
+        default,
+        rename = "assetUploadIntents",
+        alias = "asset_upload_intents",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub asset_upload_intents: Vec<AssetUploadIntentDefinition>,
+}
+
+/// One generated upload intent: the declared, client-unwidenable policy
+/// plus the server-executed authorizer. The declaration fixes accepted
+/// types, byte bounds, delivery profile, read-access policy, and processing
+/// recipe (LLP 0044 §Generated upload intents).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetUploadIntentDefinition {
+    /// Stable identity, `app:intent` like function ids.
+    #[serde(default)]
+    pub id: String,
+    pub name: String,
+    #[serde(default, rename = "exportedName", alias = "exported_name")]
+    pub exported_name: Option<String>,
+    #[serde(default, rename = "implementationHash", alias = "implementation_hash")]
+    pub implementation_hash: Option<String>,
+    #[serde(default, rename = "argsContractHash", alias = "args_contract_hash")]
+    pub args_contract_hash: Option<String>,
+    /// Hash over the declared accept/delivery/access/image/auth facts — the
+    /// admitted policy identity an attempt finalizes under.
+    #[serde(rename = "intentPolicyHash", alias = "intent_policy_hash")]
+    pub intent_policy_hash: String,
+    #[serde(default, rename = "authRequirement", alias = "auth_requirement")]
+    pub auth_requirement: Option<AuthRequirement>,
+    pub accept: AssetAcceptPolicy,
+    pub delivery: AssetDeliveryPolicy,
+    pub access: AssetAccessPolicy,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<AssetImagePolicy>,
+    #[serde(default, rename = "declaredReads", alias = "declared_reads")]
+    pub declared_reads: Vec<String>,
+    pub runtime: FunctionRuntime,
+    #[serde(default, rename = "handlerForm", alias = "handler_form")]
+    pub handler_form: Option<String>,
+    #[serde(default, rename = "sourceSpan", alias = "source_span")]
+    pub source_span: Option<SourceSpan>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetAcceptPolicy {
+    #[serde(rename = "mediaTypes", alias = "media_types")]
+    pub media_types: Vec<String>,
+    #[serde(rename = "maxBytes", alias = "max_bytes")]
+    pub max_bytes: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetDeliveryPolicy {
+    pub kind: crate::assets::AssetDeliveryProfile,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetAccessPolicy {
+    pub read: crate::assets::AssetReadAccessPolicy,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetImagePolicy {
+    /// Mandatory-explicit for location-bearing media; there is no implicit
+    /// fallback (LLP 0044 §Generated upload intents).
+    pub location: AssetLocationPolicy,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<AssetImageVariant>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetLocationPolicy {
+    Strip,
+    Retain,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetImageVariant {
+    pub key: String,
+    pub width: u64,
 }
 
 impl Default for FunctionManifest {
@@ -861,6 +998,7 @@ impl Default for FunctionManifest {
             cron_jobs: Vec::new(),
             config: Vec::new(),
             projections: Vec::new(),
+            asset_upload_intents: Vec::new(),
         }
     }
 }
@@ -1169,6 +1307,54 @@ impl FunctionManifest {
                     "function": job.action,
                     "authRequirement": AuthRequirement::Authenticated.as_str(),
                 })));
+            }
+        }
+        // Upload intents (LLP 0044): stable ids like functions, closed to
+        // duplicates across intents *and* functions (one exported-name
+        // namespace), a non-empty accept set, and an Ibex authorizer — a
+        // host-plan intent authorizer is not a defined thing.
+        let mut intent_identities = BTreeSet::new();
+        for intent in &self.asset_upload_intents {
+            if intent.name.trim().is_empty() || intent.id.trim().is_empty() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+                    "asset",
+                    "asset upload intents require non-empty stable ids and names",
+                ));
+            }
+            if !intent_identities.insert(intent.id.clone())
+                || !intent_identities.insert(intent.name.clone())
+                || self.function(&intent.name).is_some()
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_IDENTITY_COLLISION",
+                    "asset",
+                    format!("asset upload intent identity {:?} is duplicated", intent.name),
+                ));
+            }
+            if intent.accept.media_types.is_empty() || intent.accept.max_bytes == 0 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_ACCEPT_INVALID",
+                    "asset",
+                    format!(
+                        "asset upload intent {} must accept at least one media type and a positive byte bound",
+                        intent.name
+                    ),
+                ));
+            }
+            if intent.intent_policy_hash.trim().is_empty() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+                    "asset",
+                    format!("asset upload intent {} is missing intentPolicyHash", intent.name),
+                ));
+            }
+            if !matches!(intent.runtime, FunctionRuntime::IbexModule(_)) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID",
+                    "asset",
+                    format!("asset upload intent {} requires an Ibex authorizer", intent.name),
+                ));
             }
         }
         Ok(())
@@ -4142,6 +4328,11 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             // public summary can be added deliberately if inspection needs
             // one.
             projections: _,
+            // Upload intents never enter the public function projection:
+            // an intent is not callable, and its authorizer source is a
+            // private artifact like every handler body (LLP 0044; LLP 0108
+            // source-custody rules).
+            asset_upload_intents: _,
         } = manifest;
         PublicFunctionManifest {
             artifact_kind,
@@ -7741,5 +7932,92 @@ mod membership_manifest_grammar_tests {
             .is_err(),
             "unknown fields inside the authorization reference fail closed"
         );
+    }
+}
+
+#[cfg(test)]
+mod asset_upload_intent_manifest_tests {
+    use super::*;
+
+    fn intent(name: &str) -> AssetUploadIntentDefinition {
+        AssetUploadIntentDefinition {
+            id: format!("app:{name}"),
+            name: name.to_owned(),
+            exported_name: Some(name.to_owned()),
+            implementation_hash: Some("sha256:aa".to_owned()),
+            args_contract_hash: Some("sha256:bb".to_owned()),
+            intent_policy_hash: "sha256:cc".to_owned(),
+            auth_requirement: Some(AuthRequirement::Authenticated),
+            accept: AssetAcceptPolicy {
+                media_types: vec!["application/pdf".to_owned()],
+                max_bytes: 1_000,
+            },
+            delivery: AssetDeliveryPolicy {
+                kind: crate::assets::AssetDeliveryProfile::PrivateStrict,
+            },
+            access: AssetAccessPolicy {
+                read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
+            },
+            image: None,
+            declared_reads: Vec::new(),
+            runtime: FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: name.to_owned(),
+            }),
+            handler_form: Some("inline".to_owned()),
+            source_span: None,
+        }
+    }
+
+    fn manifest_with(intents: Vec<AssetUploadIntentDefinition>) -> FunctionManifest {
+        FunctionManifest {
+            asset_upload_intents: intents,
+            ..FunctionManifest::default()
+        }
+    }
+
+    #[test]
+    fn valid_intent_passes_manifest_validation() {
+        manifest_with(vec![intent("avatarUpload")])
+            .validate_semantics()
+            .expect("valid intent admits");
+    }
+
+    #[test]
+    fn duplicate_intent_identity_is_refused() {
+        let error = manifest_with(vec![intent("avatarUpload"), intent("avatarUpload")])
+            .validate_semantics()
+            .expect_err("duplicate identity must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_INTENT_IDENTITY_COLLISION"
+        );
+    }
+
+    #[test]
+    fn empty_accept_set_is_refused() {
+        let mut bad = intent("avatarUpload");
+        bad.accept.media_types.clear();
+        let error = manifest_with(vec![bad])
+            .validate_semantics()
+            .expect_err("empty accept must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_ACCEPT_INVALID");
+    }
+
+    #[test]
+    fn host_plan_authorizer_is_refused() {
+        let mut bad = intent("avatarUpload");
+        bad.runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "notes".to_owned(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        }));
+        let error = manifest_with(vec![bad])
+            .validate_semantics()
+            .expect_err("host-plan authorizer must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID");
     }
 }

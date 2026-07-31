@@ -44,6 +44,7 @@ fn events_table() -> TableManifest {
         permission_backing: false,
         permission_fields: None,
         membership: None,
+        asset_sharing: None,
     }
 }
 
@@ -93,6 +94,7 @@ fn members_table(membership: Option<MembershipManifest>) -> TableManifest {
         permission_backing: false,
         permission_fields: None,
         membership,
+        asset_sharing: None,
     }
 }
 

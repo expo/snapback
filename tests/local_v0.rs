@@ -2799,6 +2799,7 @@ fn todo_schema() -> SchemaManifest {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         }],
         ..SchemaManifest::default()
     }
@@ -4872,6 +4873,7 @@ fn l3_prune_preserves_cold_table_validation_version() {
         permission_fields: None,
         search_indexes: Vec::new(),
         membership: None,
+        asset_sharing: None,
     });
     snapback
         .apply_schema(schema)
@@ -4953,6 +4955,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         permission_fields: None,
         search_indexes: Vec::new(),
         membership: None,
+        asset_sharing: None,
     });
     let mut db = LocalDatabase::memory().unwrap();
     db.apply_schema(schema).unwrap();
@@ -5586,6 +5589,7 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         }],
         ..SchemaManifest::default()
     }

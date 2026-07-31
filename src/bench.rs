@@ -321,6 +321,7 @@ fn schema() -> SchemaManifest {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
             TableManifest {
                 name: "others".to_owned(),
@@ -331,6 +332,7 @@ fn schema() -> SchemaManifest {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
         ],
         ..SchemaManifest::default()

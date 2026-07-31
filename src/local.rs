@@ -15660,6 +15660,15 @@ fn validate_function_schema_references(
                                         FieldType::Id { table } => ResultValueContract::Id {
                                             table: table.clone(),
                                         },
+                                        // An asset reference projects as its
+                                        // opaque id string; commit-boundary
+                                        // admission, not shape, is what
+                                        // protects the field (LLP 0044).
+                                        FieldType::AssetRef { .. } => {
+                                            ResultValueContract::String {
+                                                max_bytes: 1_048_576,
+                                            }
+                                        }
                                         FieldType::Json | FieldType::RelationIncarnation { .. } => {
                                             unreachable!("non-portable projections refused above")
                                         }
@@ -17683,6 +17692,7 @@ mod tests {
                     scope: MembershipScope::App,
                     resource_table: None,
                 }),
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
@@ -17725,6 +17735,7 @@ mod tests {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
         let members = TableManifest {
             name: "event_members".to_owned(),
@@ -17768,6 +17779,7 @@ mod tests {
                 scope: MembershipScope::Resource,
                 resource_table: Some("events".to_owned()),
             }),
+            asset_sharing: None,
         };
         let schema = SchemaManifest {
             tables: vec![events, members],
@@ -18189,6 +18201,7 @@ mod tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -18259,6 +18272,7 @@ mod tests {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         }];
         functions.bundle_hash = Some(format!(
             "{}{}",
@@ -18716,6 +18730,7 @@ mod tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
@@ -18907,6 +18922,7 @@ mod tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
@@ -19126,6 +19142,7 @@ mod tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
@@ -20377,6 +20394,7 @@ mod tests {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         });
         let function = functions
             .functions
@@ -20783,6 +20801,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -20801,6 +20820,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -20928,6 +20948,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
             TableManifest {
                 name: "authors".to_owned(),
@@ -20946,6 +20967,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
         ];
         unproven_schema_snapback
@@ -21004,6 +21026,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -21022,6 +21045,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -21287,6 +21311,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -21305,6 +21330,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -21450,6 +21476,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -21468,6 +21495,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -21679,6 +21707,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -22738,6 +22767,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -23538,6 +23568,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
@@ -23908,6 +23939,7 @@ globalThis.__snapbackHandlers = {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
         let schema = SchemaManifest {
             tables: vec![
@@ -24330,6 +24362,7 @@ globalThis.__snapbackHandlers = {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         }];
         if include_extra {
             tables.push(TableManifest {
@@ -24345,6 +24378,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             });
         }
         SchemaManifest {
@@ -24744,6 +24778,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: Some(vec!["gameId".to_owned()]),
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -24964,6 +24999,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -25863,6 +25899,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -25968,6 +26005,7 @@ globalThis.__snapbackHandlers = {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -26195,6 +26233,7 @@ globalThis.__snapbackHandlers = {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
 
         let books = TableManifest {
@@ -26226,6 +26265,7 @@ globalThis.__snapbackHandlers = {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
         let authors = TableManifest {
             name: "authors".to_owned(),
@@ -26256,6 +26296,7 @@ globalThis.__snapbackHandlers = {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         snapback
@@ -27228,6 +27269,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: Some(vec!["ownerId".to_owned()]),
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
@@ -29004,6 +29046,7 @@ globalThis.__snapbackHandlers = {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         }

@@ -120,6 +120,7 @@ fn schema() -> SchemaManifest {
                 scope: MembershipScope::App,
                 resource_table: None,
             }),
+            asset_sharing: None,
         }],
         ..SchemaManifest::default()
     }

@@ -20,7 +20,15 @@ const INLINE_BUILDERS = new Set([
   'defineJsLiveQuery',
   'defineJsMutation',
   'defineAction',
+  'defineAssetUpload',
 ]);
+
+// The extracted property per builder: upload intents spell their handler
+// `authorize` (LLP 0044 §Generated upload intents); every other builder
+// spells it `handler`. Same marker pipeline either way.
+const inlineHandlerPropertyFor = (builderName) => (
+  builderName === 'defineAssetUpload' ? 'authorize' : 'handler'
+);
 
 const ALLOWED_GLOBALS = new Set([
   'Array',
@@ -653,12 +661,13 @@ export function extractInlineHandlers(source, {
         || !ts.isObjectLiteralExpression(call.arguments[0])
       ) continue;
       const spec = call.arguments[0];
+      const handlerProperty = inlineHandlerPropertyFor(call.expression.text);
       const fields = new Map();
       const directHandlerMembers = [];
       const invalidHandlerMembers = [];
       for (const member of spec.properties) {
         const authoredName = authoredPropertyName(member);
-        if (authoredName === 'handler') {
+        if (authoredName === handlerProperty) {
           if (
             ts.isPropertyAssignment(member)
             && !ts.isComputedPropertyName(member.name)
@@ -687,7 +696,7 @@ export function extractInlineHandlers(source, {
         ));
         continue;
       }
-      const handler = fields.get('handler');
+      const handler = fields.get(handlerProperty);
       if (!handler) continue;
       const structurallyAmbiguous = spec.properties.find((member) => (
         ts.isSpreadAssignment(member)

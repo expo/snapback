@@ -52,6 +52,7 @@ fn configured() -> LocalSnapback {
                 permission_backing: false,
                 permission_fields: None,
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         })

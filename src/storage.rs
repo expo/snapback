@@ -9671,6 +9671,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Principal => "Principal",
         FieldType::Id { .. } => "Id",
         FieldType::RelationIncarnation { .. } => "RelationIncarnation",
+        FieldType::AssetRef { .. } => "AssetRef",
     }
 }
 
@@ -10569,7 +10570,8 @@ fn validate_query_filter_value(
                 FieldType::String
                 | FieldType::Principal
                 | FieldType::Id { .. }
-                | FieldType::RelationIncarnation { .. } => value.is_string(),
+                | FieldType::RelationIncarnation { .. }
+                | FieldType::AssetRef { .. } => value.is_string(),
                 FieldType::Boolean => value.is_boolean(),
                 FieldType::Integer => portable_integer_value(value).is_some(),
                 FieldType::Real => value.as_f64().is_some(),
@@ -14846,7 +14848,8 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
         Some(FieldType::String)
         | Some(FieldType::Principal)
         | Some(FieldType::Id { .. })
-        | Some(FieldType::RelationIncarnation { .. }) => value
+        | Some(FieldType::RelationIncarnation { .. })
+        | Some(FieldType::AssetRef { .. }) => value
             .as_str()
             .map(|value| SqlValue::Text(value.to_owned()))
             .ok_or_else(|| type_error("string", value)),
@@ -14973,7 +14976,8 @@ fn sqlite_type(field_type: &FieldType) -> &'static str {
         | FieldType::Json
         | FieldType::Principal
         | FieldType::Id { .. }
-        | FieldType::RelationIncarnation { .. } => "TEXT",
+        | FieldType::RelationIncarnation { .. }
+        | FieldType::AssetRef { .. } => "TEXT",
         FieldType::Boolean | FieldType::Integer => "INTEGER",
         FieldType::Real => "REAL",
     }
@@ -15474,6 +15478,7 @@ mod guarded_commit_tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         })
@@ -15695,6 +15700,7 @@ mod guarded_commit_tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         }
@@ -15730,6 +15736,7 @@ mod guarded_commit_tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "children".to_owned(),
@@ -15774,6 +15781,7 @@ mod guarded_commit_tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "activity".to_owned(),
@@ -15827,6 +15835,7 @@ mod guarded_commit_tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -16992,6 +17001,7 @@ mod guarded_commit_tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -17013,6 +17023,7 @@ mod guarded_commit_tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -19466,6 +19477,7 @@ mod guarded_commit_tests {
             permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         };
         let projection = crate::ephemeral::RoomPermissionProjection {
             table: "memberships".to_owned(),
@@ -19538,6 +19550,7 @@ mod guarded_commit_tests {
                     permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -20975,6 +20988,7 @@ mod membership_write_tests {
                     permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
+                    asset_sharing: None,
                 },
                 TableManifest {
                     name: "event_members".to_owned(),
@@ -21088,6 +21102,7 @@ mod membership_write_tests {
                         scope: MembershipScope::Resource,
                         resource_table: Some("events".to_owned()),
                     }),
+                    asset_sharing: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -21155,6 +21170,7 @@ mod membership_write_tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             });
             let mut db = ready_db_with_schema(schema);
             let (event_id, host_id) = create_event(&mut db, "alice");
@@ -22261,6 +22277,7 @@ mod membership_write_tests {
                     scope: MembershipScope::App,
                     resource_table: None,
                 }),
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         }

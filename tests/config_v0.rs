@@ -34,6 +34,7 @@ fn probe_schema() -> SchemaManifest {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         }],
         ..Default::default()
     }

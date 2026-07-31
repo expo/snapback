@@ -72,6 +72,67 @@
       ],
       "type": "string"
     },
+    "AssetSharingManifest": {
+      "description": "The closed asset-sharing declaration, reusing the shipped visibility\nunion rather than a not-yet-implemented general permission language.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "membership": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "membership"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "AuthManifest": {
       "additionalProperties": false,
       "description": "Closed schema-manifest auth declaration. Unknown members are rejected so a\nfuture authority-changing field cannot be silently ignored by this parser.",
@@ -811,6 +872,27 @@
           },
           "required": [
             "RelationIncarnation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`v.assetRef({ upload? })` — a typed asset reference (LLP 0044 §Typed\nreferences; LLP 0007 dated amendment 2026-07-31). Stored as the opaque\nasset id string; the commit boundary validates every write's\nadmission, so a raw string assignment fails there rather than by\nshape. The optional `upload` restriction names the upload-intent\nbinding whose assets the field admits and is what lets write paths\nwithout handler execution derive a commit-boundary admission.",
+          "properties": {
+            "AssetRef": {
+              "properties": {
+                "upload": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "AssetRef"
           ],
           "type": "object"
         }
@@ -3128,6 +3210,17 @@
     "TableManifest": {
       "additionalProperties": false,
       "properties": {
+        "assetSharing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetSharingManifest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`.assetSharing(spec)` — the explicit declaration that this table's\nanalyzable row-visibility policy is sufficient asset-sharing\nauthority: anyone the spec admits may also read assets referenced\nfrom these rows. Without it a typed reference confers no\n`via-references` read authority (owner-only fallback).\n\n@ref LLP 0044#asset-read-authorization — sharing is never inferred\n  from a filter's existence; LLP 0007 dated amendment 2026-07-31\n  freezes the closed spelling."
+        },
         "fields": {
           "default": [],
           "items": {

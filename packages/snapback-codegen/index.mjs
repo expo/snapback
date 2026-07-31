@@ -1045,6 +1045,21 @@ export async function generateInProcess(backendDir, options = {}) {
       };
     }
 
+    // @ref LLP 0044#asset-read-authorization — the sharing declaration is the
+    //   explicit statement that this table's analyzable row policy is
+    //   sufficient asset-sharing authority; its owner field must exist.
+    let assetSharing;
+    if (table.assetSharingDeclaration) {
+      assetSharing = table.assetSharingDeclaration;
+      if (assetSharing.kind === 'owner' && !Object.hasOwn(table.fields, assetSharing.field)) {
+        err('SNAPBACK_ASSET_SHARING_FIELD_UNKNOWN', 'schema', `table ${name} assetSharing owner field ${assetSharing.field} does not exist`, {
+          table: name,
+          field: assetSharing.field,
+        });
+        assetSharing = undefined;
+      }
+    }
+
     tables[name] = {
       name,
       fields,
@@ -1054,6 +1069,7 @@ export async function generateInProcess(backendDir, options = {}) {
       ...(table.permissionBackingDeclared ? { permissionBacking: true } : {}),
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
       ...(membership ? { membership } : {}),
+      ...(assetSharing ? { assetSharing } : {}),
     };
   }
 
@@ -1151,6 +1167,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const cronDefs = [];
   const configDefs = [];
   const projectionDefs = [];
+  const assetUploadDefs = [];
 
   // @ref LLP 0108#final-author-reconciliation-after-round-3 — codegen
   // evaluates only an opaque marker in the definition sandbox, then binds
@@ -1248,6 +1265,10 @@ export async function generateInProcess(backendDir, options = {}) {
     }
     if (isIsolatedDefinition(def, 'maintained-projection')) {
       projectionDefs.push({ exportName: name, def });
+      continue;
+    }
+    if (isIsolatedDefinition(def, 'asset-upload')) {
+      assetUploadDefs.push({ exportName: name, def });
       continue;
     }
     if (!isIsolatedDefinition(def, 'function')) continue;
@@ -1991,6 +2012,9 @@ export async function generateInProcess(backendDir, options = {}) {
   }
 
   for (const name of inlineExtraction.handlers.keys()) {
+    // Upload-intent authorizers bind later, in the asset-intent block, with
+    // the same marker verification; they are deliberately not functions.
+    if (assetUploadDefs.some((intent) => intent.exportName === name)) continue;
     if (!functions.some((fn) => fn.name === name && fn.handlerForm === 'inline')) {
       err(
         'SNAPBACK_INLINE_HANDLER_NOT_BOUND',
@@ -2148,6 +2172,198 @@ export async function generateInProcess(backendDir, options = {}) {
     binding.resultHash = fn.resultContractHash;
     binding.resultContract = fn.resultContract;
   }
+  // @ref LLP 0044#generated-upload-intents — generation-time admission: the
+  //   location policy is mandatory for location-bearing media, `strip` is
+  //   admissible only where the target advertises the matching
+  //   metadata-rewriting fact, and the reference freezes the admitted policy
+  //   identity as `intentPolicyHash`.
+  const assetUploadIntents = [];
+  {
+    const supportedTargetCapabilities = new Set(
+      Array.isArray(canonicalCapability.manifest?.supportedCapabilities)
+        ? canonicalCapability.manifest.supportedCapabilities
+        : [],
+    );
+    const locationBearing = (mediaType) => {
+      const lowered = mediaType.toLowerCase();
+      return lowered.startsWith('image/') || lowered.startsWith('video/');
+    };
+    const seenIntents = new Set();
+    for (const { exportName, def } of assetUploadDefs) {
+      if (!IDENT.test(exportName) || RESERVED_WORDS.has(exportName)) {
+        err('SCHEMA_INVALID_IDENTIFIER', 'asset', `invalid asset upload intent identifier ${exportName}`, { intent: exportName });
+        continue;
+      }
+      if (seenIntents.has(exportName)) continue;
+      seenIntents.add(exportName);
+      for (const table of def.reads ?? []) {
+        if (!tables[table]) {
+          err('FUNCTION_UNKNOWN_TABLE', 'asset', `${exportName}: authorizer declares unknown table ${table}`, { intent: exportName, table });
+        }
+      }
+      const bearing = def.accept.mediaTypes.filter(locationBearing);
+      if (bearing.length > 0 && def.image?.location === undefined) {
+        err(
+          'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED',
+          'asset',
+          `${exportName}: media types ${bearing.join(', ')} carry location metadata; declare image.location ('strip' or 'retain') — omission refuses at generation, there is no implicit fallback`,
+          { intent: exportName, mediaTypes: bearing },
+        );
+        continue;
+      }
+      if (def.image !== undefined && bearing.length === 0) {
+        err(
+          'SNAPBACK_ASSET_INTENT_IMAGE_SPEC_INVALID',
+          'asset',
+          `${exportName}: image policy declared but no accepted media type is an image or video`,
+          { intent: exportName, mediaTypes: def.accept.mediaTypes },
+        );
+        continue;
+      }
+      if (def.image?.location === 'strip') {
+        const images = bearing.filter((type) => type.toLowerCase().startsWith('image/'));
+        const videos = bearing.filter((type) => type.toLowerCase().startsWith('video/'));
+        const missing = [];
+        if (images.length > 0 && !supportedTargetCapabilities.has('asset_image_finalization_v1')) {
+          missing.push({ capability: 'asset_image_finalization_v1', mediaTypes: images });
+        }
+        if (videos.length > 0 && !supportedTargetCapabilities.has('asset_video_finalization_v1')) {
+          missing.push({ capability: 'asset_video_finalization_v1', mediaTypes: videos });
+        }
+        if (missing.length > 0) {
+          err(
+            'SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED',
+            'asset',
+            `${exportName}: location 'strip' requires ${missing.map((entry) => entry.capability).join(' and ')}, which target ${canonicalCapability.manifest?.targetProfileId ?? targetProfile} does not advertise; an explicit 'retain' admits without the rewriting fact`,
+            { intent: exportName, missing },
+          );
+          continue;
+        }
+      }
+      // Restriction targets: every v.assetRef({ upload }) must name a
+      // declared intent; collected here so the check covers all intents.
+      let resolvedAuthorizer;
+      if (def.authorize !== undefined) {
+        const extracted = inlineExtraction.handlers.get(exportName);
+        const marker = def.authorize?.__snapbackInlineHandlerMarker;
+        if (!extracted || marker !== extracted.token) {
+          err('SNAPBACK_INLINE_HANDLER_MARKER_INVALID', 'asset', `${exportName}: inline authorizer marker does not match its direct source expression`, { intent: exportName });
+          continue;
+        }
+        const rendered = renderInlineOperationModule(exportName, extracted);
+        for (const issue of scanUnsupportedHandlerSource(rendered.source, 'functions.mjs')) {
+          err(issue.code, 'bundle', `${exportName}: ${issue.message}`, { intent: exportName, token: issue.token });
+        }
+        resolvedAuthorizer = {
+          source: rendered.source,
+          exportName,
+          handlerForm: 'inline',
+          inlineAst: extracted.ast,
+          sourceSpan: extracted.sourceSpan,
+        };
+      } else {
+        resolvedAuthorizer = {
+          source: loadHandlerSource(def.source, exportName) ?? '',
+          exportName: def.exportName,
+          handlerForm: 'module',
+          sourceSpan: null,
+        };
+      }
+      const policyIdentity = {
+        format: 'snapback.asset-intent-policy.v1',
+        app: appId,
+        intent: exportName,
+        accept: {
+          mediaTypes: [...def.accept.mediaTypes].sort(),
+          maxBytes: def.accept.maxBytes,
+        },
+        delivery: def.delivery,
+        access: def.access,
+        image: def.image ?? null,
+        authRequirement: def.auth,
+        argsContractHash: argsContractHash(def.args ?? {}),
+      };
+      const implementationIdentity = {
+        format: 'snapback.asset-intent-implementation.v1',
+        app: appId,
+        intent: exportName,
+        handler: resolvedAuthorizer.handlerForm === 'inline'
+          ? { form: 'inline', canonicalAst: resolvedAuthorizer.inlineAst }
+          : {
+              form: 'module',
+              sourceHash: `sha256:${sha256(resolvedAuthorizer.source)}`,
+              export: resolvedAuthorizer.exportName,
+            },
+        policy: policyIdentity,
+        reads: [...(def.reads ?? [])].sort(),
+      };
+      assetUploadIntents.push({
+        id: `${appId}:${exportName}`,
+        name: exportName,
+        exportedName: resolvedAuthorizer.exportName ?? exportName,
+        argsContractHash: policyIdentity.argsContractHash,
+        implementationHash: `sha256:${sha256(canonicalResultJson(implementationIdentity))}`,
+        intentPolicyHash: `sha256:${sha256(canonicalResultJson(policyIdentity))}`,
+        authRequirement: def.auth,
+        accept: policyIdentity.accept,
+        delivery: def.delivery,
+        access: def.access,
+        ...(def.image ? { image: def.image } : {}),
+        declaredReads: def.reads ?? [],
+        runtime: {
+          IbexModule: {
+            source: resolvedAuthorizer.source,
+            export: resolvedAuthorizer.exportName ?? exportName,
+          },
+        },
+        handlerForm: resolvedAuthorizer.handlerForm,
+        ...(resolvedAuthorizer.sourceSpan ? { sourceSpan: resolvedAuthorizer.sourceSpan } : {}),
+      });
+    }
+    const declaredIntentNames = new Set(assetUploadDefs.map(({ exportName }) => exportName));
+    for (const table of Object.values(tables)) {
+      for (const tableField of table.fields) {
+        const restriction = tableField.field_type?.AssetRef?.upload;
+        if (restriction !== undefined && !declaredIntentNames.has(restriction)) {
+          err('SNAPBACK_ASSET_INTENT_UNKNOWN', 'schema', `${table.name}.${tableField.name} restricts to undeclared upload intent ${restriction}`, {
+            table: table.name,
+            field: tableField.name,
+            intent: restriction,
+          });
+        }
+      }
+    }
+    // @ref LLP 0044#asset-read-authorization — the deployment warning lists
+    //   every reachable table that confers no via-references authority; the
+    //   enumeration covers restriction-less fields too, since handler-side
+    //   attach can place any intent's asset in them.
+    for (const intent of assetUploadIntents) {
+      if (intent.access.read !== 'via-references') continue;
+      const uncovered = [];
+      for (const table of Object.values(tables)) {
+        const reachable = table.fields.some((tableField) => {
+          const assetRef = tableField.field_type?.AssetRef;
+          return assetRef && (assetRef.upload === undefined || assetRef.upload === intent.name);
+        });
+        if (reachable && !table.assetSharing) uncovered.push(table.name);
+      }
+      if (uncovered.length > 0) {
+        const warning = {
+          code: 'SNAPBACK_ASSET_SHARING_UNDECLARED',
+          severity: 'warning',
+          subsystem: 'asset',
+          message: `${intent.name}: via-references assets reachable from tables without an assetSharing declaration confer no read authority there (owner-only fallback): ${uncovered.sort().join(', ')}`,
+          details: { intent: intent.name, tables: uncovered.sort() },
+        };
+        // Both surfaces deliberately: the generated manifest carries the
+        // deployment warning durably; the codegen result surfaces it to the
+        // invoking operator/agent.
+        infoDiagnostics.push(warning);
+        diagnostics.push(warning);
+      }
+    }
+  }
+
   const requiredTargetCapabilities = new Set(schemaRequiredCapabilities);
   for (const fn of decoratedFunctionDefinitions) {
     for (const capability of fn.requiredCapabilities) requiredTargetCapabilities.add(capability);
@@ -2289,6 +2505,7 @@ export async function generateInProcess(backendDir, options = {}) {
     cronJobs,
     config: configEntries,
     ...(projections.length > 0 ? { projections } : {}),
+    ...(assetUploadIntents.length > 0 ? { assetUploadIntents } : {}),
   };
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
   // selected committed schemas/ instance is generated from the Rust core's
@@ -2407,12 +2624,34 @@ export async function generateInProcess(backendDir, options = {}) {
   }
 
   const outDir = join(backendRoot, targetConfig.outputDirectory);
+  // DK-7 for the asset reference DTO: every emitted upload reference must
+  // match the committed Rust-owned schema exactly (LLP 0037 dated alignment).
+  for (const reference of renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)) {
+    const { missing, problems } = validateArtifactAgainstSchema(
+      'asset.upload-reference.schema.json',
+      reference,
+      { artifactKind: 'assetUploadReference', schemaVersion: SCHEMA_VERSION },
+    );
+    if (missing) {
+      err('CODEGEN_ARTIFACT_SCHEMA_MISSING', 'codegen',
+        `cannot validate assetUploadReference against committed schema: ${missing}`,
+        { artifact: 'assetUploadReference', schema: 'schemas/asset.upload-reference.schema.json' });
+    } else if (problems.length > 0) {
+      err('CODEGEN_ARTIFACT_SCHEMA_INVALID', 'codegen',
+        `assetUploadReference ${reference.name} does not match committed schemas/asset.upload-reference.schema.json: ${problems.join('; ')}`,
+        { artifact: 'assetUploadReference', intent: reference.name, problems });
+    }
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   const apiModule = renderApiModule(
     appId,
     functionManifest.functions,
     functionsModule,
     ephemeralCollections,
     routesManifest,
+    assetUploadIntents,
   );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
@@ -3443,8 +3682,9 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
   ]);
   const idTable = idFieldTypeTable(val.fieldType);
   const relationIncarnation = val.fieldType?.RelationIncarnation;
+  const assetRef = val.fieldType?.AssetRef;
   if (!primitives.get(val.primitive)?.has(val.fieldType)
-      && !(val.primitive === 'string' && (idTable !== null || relationIncarnation))) {
+      && !(val.primitive === 'string' && (idTable !== null || relationIncarnation || assetRef))) {
     report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}`);
     return false;
   }
@@ -6026,8 +6266,35 @@ function renderQueryGroupReferences(appId, functions, routesManifest) {
   return groups;
 }
 
-function renderApiModule(appId, functions, functionsModule, ephemeralCollections, routesManifest) {
+// @ref LLP 0044#generated-upload-intents — the emitted reference is the exact
+//   Rust-owned `assetUploadReference` DTO. `policyGeneration` is 0 at
+//   generation: the deployment mints real generations at activation, and the
+//   client→server identity fact is `intentPolicyHash`, never the generation.
+function renderAssetUploadReferences(appId, assetUploadIntents, functionsModule) {
+  return assetUploadIntents.map((intent) => ({
+    artifactKind: 'assetUploadReference',
+    schemaVersion: SCHEMA_VERSION,
+    appId,
+    id: intent.id,
+    name: intent.name,
+    implementationHash: intent.implementationHash,
+    argsContractHash: intent.argsContractHash,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      ...jsonSchemaObjectProperties(functionsModule[intent.name]?.args ?? {}),
+    },
+    intentPolicyHash: intent.intentPolicyHash,
+    policyGeneration: 0,
+    requiredCapabilities: [],
+  }));
+}
+
+function renderApiModule(appId, functions, functionsModule, ephemeralCollections, routesManifest, assetUploadIntents = []) {
   const refs = dict();
+  for (const reference of renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)) {
+    refs[reference.name] = reference;
+  }
   for (const fn of functions) {
     refs[fn.name] = {
       artifactKind: 'functionReference',
@@ -7395,10 +7662,11 @@ async function buildDefinitionBundle(
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isTableDef } from ${define};`;
+  const imports = `import { isAssetUploadDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
+  if (isAssetUploadDef(value)) return 'asset-upload';
   if (isCronDef(value)) return 'cron';
   if (isConfigDef(value)) return 'config';
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';

@@ -9062,6 +9062,7 @@ mod tests {
                 permission_fields: Some(vec!["boardId".to_owned(), "userId".to_owned()]),
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         };
@@ -9155,6 +9156,7 @@ mod tests {
                 scope: MembershipScope::Resource,
                 resource_table: Some("boards".to_owned()),
             }),
+            asset_sharing: None,
         };
 
         validate_collection_permission_backing(

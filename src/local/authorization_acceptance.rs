@@ -183,6 +183,7 @@ fn table(
             .map(|fields| fields.into_iter().map(str::to_owned).collect()),
         search_indexes: Vec::new(),
         membership: None,
+        asset_sharing: None,
     }
 }
 

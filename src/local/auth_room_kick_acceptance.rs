@@ -1003,6 +1003,7 @@ fn game_schema() -> SchemaManifest {
                 permission_fields: Some(vec!["gameId".to_owned(), "userId".to_owned()]),
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
             TableManifest {
                 name: "moves".to_owned(),
@@ -1033,6 +1034,7 @@ fn game_schema() -> SchemaManifest {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
         ],
         ephemeral_collections: vec![

@@ -1804,6 +1804,7 @@ mod tests {
             permission_fields: None,
             search_indexes: Vec::new(),
             membership: None,
+            asset_sharing: None,
         }
     }
 
@@ -1872,6 +1873,7 @@ mod tests {
                 permission_fields: None,
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             },
             TableManifest {
                 name: "event_members".to_owned(),
@@ -1917,6 +1919,7 @@ mod tests {
                     scope: MembershipScope::Resource,
                     resource_table: Some("events".to_owned()),
                 }),
+                asset_sharing: None,
             },
         ];
         (identity, manifest)

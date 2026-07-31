@@ -164,6 +164,7 @@ mod tests {
                     .map(|fields| fields.into_iter().map(str::to_owned).collect()),
                 search_indexes: Vec::new(),
                 membership: None,
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         }
@@ -234,6 +235,7 @@ mod tests {
                     scope: MembershipScope::Resource,
                     resource_table: Some("events".to_owned()),
                 }),
+                asset_sharing: None,
             }],
             ..SchemaManifest::default()
         }

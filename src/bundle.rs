@@ -447,7 +447,8 @@ pub fn function_route_arg_types(
             FieldType::String
             | FieldType::Principal
             | FieldType::Id { .. }
-            | FieldType::RelationIncarnation { .. } => Some(RouteParamType::String),
+            | FieldType::RelationIncarnation { .. }
+            | FieldType::AssetRef { .. } => Some(RouteParamType::String),
             FieldType::Integer => Some(RouteParamType::Integer),
             FieldType::Real => Some(RouteParamType::Number),
             FieldType::Boolean => Some(RouteParamType::Boolean),
