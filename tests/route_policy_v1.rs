@@ -259,6 +259,11 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/functions/{name}/run"),
         ("POST", "/_snapback/api/cron/tick"),
         ("POST", "/_snapback/api/cron/{name}/run"),
+        // LLP 0070 first slice: the injected-clock jobs drain plus the
+        // authenticated jobs inspection pair.
+        ("POST", "/_snapback/api/jobs/drain"),
+        ("GET", "/_snapback/api/jobs"),
+        ("GET", "/_snapback/api/jobs/{id}"),
         ("POST", "/_snapback/api/ephemeral/cleanup"),
     ]);
     assert_eq!(
