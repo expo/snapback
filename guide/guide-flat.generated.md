@@ -212,6 +212,7 @@ here (or listed here but gone from the code).
 | host_ops.app.inspect | operating.host-ops |
 | host_ops.app.reset | operating.host-ops |
 | host_ops.asset.put | backend.assets |
+| host_ops.asset.ensureSeedFixture | backend.assets |
 | host_ops.asset.inspect | backend.assets |
 | host_ops.asset.list | backend.assets |
 | host_ops.asset.retry | backend.assets |

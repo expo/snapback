@@ -6279,16 +6279,13 @@ impl LocalSnapback {
     /// §17) both ride it, so a fixture can never bypass the trusted path.
     fn asset_ingest_bytes(
         &mut self,
-        upload: &str,
-        bytes: &[u8],
-        file_name: Option<String>,
-        content_type: Option<String>,
-        args: Value,
+        spec: AssetIngestSpec<'_>,
         user_id: Option<&str>,
         profile: ServerProfile,
     ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
         use sha2::Digest as _;
 
+        let AssetIngestSpec { upload, bytes, file_name, content_type, args } = spec;
         let intent = self.asset_intent(upload)?.clone();
         let creator = self.asset_host_authority(user_id, InvocationSource::HttpQuery, profile)?;
         let transfer =
@@ -6367,13 +6364,15 @@ impl LocalSnapback {
             )
         })?;
         let task = self.asset_ingest_bytes(
-            &parsed.upload,
-            &bytes,
-            parsed.file_name,
-            parsed.content_type,
-            parsed
-                .args
-                .unwrap_or_else(|| Value::Object(Default::default())),
+            AssetIngestSpec {
+                upload: &parsed.upload,
+                bytes: &bytes,
+                file_name: parsed.file_name,
+                content_type: parsed.content_type,
+                args: parsed
+                    .args
+                    .unwrap_or_else(|| Value::Object(Default::default())),
+            },
             user_id,
             profile,
         )?;
@@ -6444,11 +6443,13 @@ impl LocalSnapback {
             return Ok(serde_json::json!({ "assetId": asset_id, "reused": true }));
         }
         let task = self.asset_ingest_bytes(
-            &parsed.upload,
-            &bytes,
-            parsed.file_name,
-            Some(parsed.media_type.clone()),
-            Value::Object(Default::default()),
+            AssetIngestSpec {
+                upload: &parsed.upload,
+                bytes: &bytes,
+                file_name: parsed.file_name,
+                content_type: Some(parsed.media_type.clone()),
+                args: Value::Object(Default::default()),
+            },
             user_id,
             profile,
         )?;
@@ -22174,6 +22175,15 @@ struct AssetHostPutInput {
     #[serde(default)]
     content_type: Option<String>,
     bytes_base64: String,
+}
+
+/// The shared ingestion engine's input: one file, one declared intent.
+struct AssetIngestSpec<'a> {
+    upload: &'a str,
+    bytes: &'a [u8],
+    file_name: Option<String>,
+    content_type: Option<String>,
+    args: Value,
 }
 
 #[derive(serde::Deserialize)]

@@ -22387,7 +22387,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // client-fixable by different content or a retain declaration.
         | "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED"
         | "SNAPBACK_ASSET_VIDEO_PARSE_FAILED"
-        | "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
+        | "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED"
+        // LLP 0109 §17: fixture bytes did not publish under the declared
+        // intent — content-unprocessable, same class as the media refusals.
+        | "SNAPBACK_ASSET_SEED_FIXTURE_REJECTED" => StatusCode::UNPROCESSABLE_ENTITY,
         "SNAPBACK_ASSET_INTENT_STALE"
         | "SNAPBACK_ASSET_INTENT_REVOKED"
         | "SNAPBACK_ASSET_OFFSET_CONFLICT"
@@ -22397,7 +22400,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_ADMISSION_CONFLICT"
         | "SNAPBACK_ASSET_GENERATION_STALE"
         | "SNAPBACK_ASSET_NOT_READY"
-        | "SNAPBACK_ASSET_REFERENCED" => StatusCode::CONFLICT,
+        | "SNAPBACK_ASSET_REFERENCED"
+        // LLP 0109 §17: ordering precondition — run asset.ensureSeedFixture
+        // first, then re-send the ensure.
+        | "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED" => StatusCode::CONFLICT,
         "SNAPBACK_ASSET_VARIANT_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_ASSET_ATTEMPT_EXPIRED" => StatusCode::GONE,
         "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,
@@ -22680,6 +22686,13 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_REQUEST_JSON_INVALID"
         | "SNAPBACK_SEED_DECLARATION_INVALID"
         | "SNAPBACK_SEED_INVALID"
+        // LLP 0109 §17: authored-artifact defects — misplaced or undeclared
+        // placeholders, a placeholder with no attached fixtures artifact,
+        // and a fixture-bytes digest lie are all client-fixable 400s.
+        | "SNAPBACK_SEED_ASSET_FIXTURE_PLACEMENT_INVALID"
+        | "SNAPBACK_SEED_ASSET_FIXTURE_UNKNOWN"
+        | "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED"
+        | "SNAPBACK_ASSET_SEED_FIXTURE_DIGEST_MISMATCH"
         | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
         | "SNAPBACK_SCHEMA_DUPLICATE_INDEX"
         | "SNAPBACK_SCHEMA_DUPLICATE_TABLE"
@@ -35898,6 +35911,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_REQUEST_JSON_INVALID",
         "SNAPBACK_SEED_DECLARATION_INVALID",
         "SNAPBACK_SEED_INVALID",
+        "SNAPBACK_SEED_ASSET_FIXTURE_PLACEMENT_INVALID",
+        "SNAPBACK_SEED_ASSET_FIXTURE_UNKNOWN",
+        "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED",
+        "SNAPBACK_ASSET_SEED_FIXTURE_DIGEST_MISMATCH",
         "SNAPBACK_SCHEMA_DUPLICATE_FIELD",
         "SNAPBACK_SCHEMA_DUPLICATE_INDEX",
         "SNAPBACK_SCHEMA_DUPLICATE_TABLE",
@@ -36095,6 +36112,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_GENERATION_STALE",
         "SNAPBACK_ASSET_NOT_READY",
         "SNAPBACK_ASSET_REFERENCED",
+        "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
@@ -36428,6 +36446,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED",
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
         "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
+        "SNAPBACK_ASSET_SEED_FIXTURE_REJECTED",
     ];
     const ASSET_PRECONDITION_DIAGNOSTICS: &[&str] =
         &["SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED"];
