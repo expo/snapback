@@ -6,6 +6,7 @@
   "files": [
     "README.md",
     "agent-authority-brand.mjs",
+    "agent-authority.d.mts",
     "agent-authority.mjs",
     "app-data.d.mts",
     "app-data.mjs",
@@ -14,13 +15,19 @@
     "external-store.d.mts",
     "index.d.mts",
     "external-store.mjs",
+    "hosted-browser.d.mts",
     "hosted-browser.mjs",
     "index.mjs",
+    "online.d.mts",
     "online.mjs",
     "react-binding.mjs",
+    "rqs.d.mts",
     "rqs.mjs",
+    "rqs-preload.d.mts",
     "rqs-preload.mjs",
+    "rqs-store.d.mts",
     "rqs-store.mjs",
+    "rqs-store-file.d.mts",
     "rqs-store-file.mjs",
     "sender-proof.mjs",
     "search.d.mts",
@@ -31,13 +38,22 @@
       "types": "./index.d.mts",
       "import": "./index.mjs"
     },
-    "./agent-authority": "./agent-authority.mjs",
+    "./agent-authority": {
+      "types": "./agent-authority.d.mts",
+      "import": "./agent-authority.mjs"
+    },
     "./app-data": {
       "types": "./app-data.d.mts",
       "import": "./app-data.mjs"
     },
-    "./hosted-browser": "./hosted-browser.mjs",
-    "./online": "./online.mjs",
+    "./hosted-browser": {
+      "types": "./hosted-browser.d.mts",
+      "import": "./hosted-browser.mjs"
+    },
+    "./online": {
+      "types": "./online.d.mts",
+      "import": "./online.mjs"
+    },
     "./canonical-client-value": {
       "types": "./canonical-client-value.d.mts",
       "import": "./canonical-client-value.mjs"
@@ -46,10 +62,22 @@
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
     },
-    "./rqs": "./rqs.mjs",
-    "./rqs-preload": "./rqs-preload.mjs",
-    "./rqs-store": "./rqs-store.mjs",
-    "./rqs-store-file": "./rqs-store-file.mjs",
+    "./rqs": {
+      "types": "./rqs.d.mts",
+      "import": "./rqs.mjs"
+    },
+    "./rqs-preload": {
+      "types": "./rqs-preload.d.mts",
+      "import": "./rqs-preload.mjs"
+    },
+    "./rqs-store": {
+      "types": "./rqs-store.d.mts",
+      "import": "./rqs-store.mjs"
+    },
+    "./rqs-store-file": {
+      "types": "./rqs-store-file.d.mts",
+      "import": "./rqs-store-file.mjs"
+    },
     "./search": {
       "types": "./search.d.mts",
       "import": "./search.mjs"

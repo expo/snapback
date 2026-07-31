@@ -40,7 +40,10 @@ export type SnapbackAppDataSurface = Pick<
   | 'startEphemeralRoom'
 >;
 
-declare class SnapbackAppDataClientBase {
+// Class + interface declaration merging (no separate base class: a
+// top-level `declare class` in a .d.mts is importable by consumers even
+// without `export`, which would claim a value the runtime does not have).
+export class SnapbackAppDataClient {
   constructor(baseUrl: string, options?: SnapbackAppDataClientOptions);
   readonly baseUrl: string;
   readonly authProtocols: Readonly<Record<string, number | null>>;
@@ -48,8 +51,6 @@ declare class SnapbackAppDataClientBase {
   readonly ingressLimits: Readonly<Record<string, number>>;
   readonly wireVersionDiagnostics: readonly unknown[];
 }
-
-export class SnapbackAppDataClient extends SnapbackAppDataClientBase {}
 export interface SnapbackAppDataClient extends SnapbackAppDataSurface {}
 
 export function createAppDataClient(

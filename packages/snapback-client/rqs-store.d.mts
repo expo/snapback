@@ -1,0 +1,139 @@
+// Type declarations for rqs-store.mjs — Channel B persisted RQS resume store
+// (web/IndexedDB arm) plus the shared verification, arbitration, and budget
+// helpers consumed store-agnostically by index.mjs and rqs-store-file.mjs.
+
+import type { RqsRow } from './rqs.mjs';
+
+export const RQS_STORE_DATABASE_NAME: string;
+export const RQS_STORE_MAX_BYTES: number;
+export const RQS_STORE_MAX_ENTRIES: number;
+export const RQS_TOKEN_MAX_BYTES: number;
+
+/** Canonical authority-independent persisted-entry key for one subscription
+ * (query name + JCS args); null when the args cannot canonicalize. */
+export function rqsEntryKey(name: string, args?: unknown): string | null;
+
+/** The verified identity/meta half of a persisted resume entry. */
+export interface RqsPersistedResumeMeta {
+  readonly app: string;
+  readonly generation: string;
+  readonly versionStream: string;
+  readonly queryArtifact: string;
+  readonly argsHash: string;
+  readonly contentDigest: string;
+  readonly version: number;
+}
+
+/** One persisted store record as written by `commit`. Records read back via
+ * `load` are untrusted until `verifyPersistedResumeEntry` accepts them. */
+export interface RqsPersistedResumeRecord {
+  readonly rows: readonly RqsRow[];
+  readonly meta: RqsPersistedResumeMeta;
+  readonly token: string;
+  readonly bytes: number;
+  readonly savedAt: number;
+  readonly resumedAt: number;
+  readonly inProgress: boolean;
+}
+
+export type RqsResumeEntryRefusalReason =
+  | 'shape'
+  | 'in_progress'
+  | 'token'
+  | 'meta'
+  | 'rows'
+  | 'identity'
+  | 'digest';
+
+/** Fail-closed verification of a persisted (or preloaded) resume entry.
+ * Any refusal means "discard and subscribe fresh" (LLP 0091 §0B.3 T2). */
+export function verifyPersistedResumeEntry(
+  entry: unknown,
+  options?: { readonly args?: unknown },
+):
+  | { ok: true; reason: null }
+  | { ok: false; reason: RqsResumeEntryRefusalReason };
+
+/** A digest-verified resume candidate for Channel A vs Channel B
+ * arbitration: anything carrying `resume.meta` token identity. */
+export interface RqsResumeCandidate {
+  readonly resume?: Readonly<{
+    meta?: Readonly<{
+      app: string;
+      generation: string;
+      versionStream: string;
+      queryArtifact: string;
+      argsHash: string;
+      version: number;
+    }> | null;
+  }> | null;
+}
+
+/** Channel A vs Channel B arbitration (LLP 0090 D3): the higher `version`
+ * within matching token identity wins; any identity mismatch returns null
+ * (discard BOTH and subscribe fresh). */
+export function arbitrateResumeCandidates<
+  A extends RqsResumeCandidate,
+  B extends RqsResumeCandidate,
+>(a: A | null | undefined, b: B | null | undefined): A | B | null;
+
+/** Budget accounting for one persisted entry: serialized
+ * `{rows, meta, token}` bytes (LLP 0091 §0A.5). */
+export function rqsEntryRecordBytes(
+  persisted: Readonly<{ rows: unknown; meta: unknown; token: unknown }>,
+): number;
+
+/** Least-recently-resumed eviction comparator: never-resumed entries first,
+ * `savedAt` as the tiebreak. */
+export function rqsEvictionOrder(
+  a: Readonly<{ resumedAt?: number | null; savedAt?: number | null }>,
+  b: Readonly<{ resumedAt?: number | null; savedAt?: number | null }>,
+): number;
+
+export type RqsStoreCommitResult =
+  | Readonly<{ persisted: true; reason: null; bytes: number; evicted: readonly string[] }>
+  | Readonly<{ persisted: false; reason: 'not_writer' | 'key' | 'oversize' | 'corrupt' }>;
+
+export interface RqsStoreInspection {
+  readonly writer: boolean;
+  readonly entries: number;
+  readonly bytes: number;
+  readonly maxBytes: number;
+  readonly maxEntries: number;
+  /** Present on the file arm only. */
+  readonly corrupt?: boolean;
+}
+
+/** The store contract shared by the web/IndexedDB and native/file arms. */
+export interface RqsResumeStore {
+  isWriter(): boolean;
+  whenLockSettled(): Promise<void>;
+  outboxEmpty(): Promise<boolean>;
+  /** Raw persisted record — callers MUST verify with
+   * `verifyPersistedResumeEntry` before trusting it. */
+  load(key: string): Promise<RqsPersistedResumeRecord | null>;
+  commit(
+    key: string,
+    entry: Readonly<{ rows: readonly RqsRow[]; meta: RqsPersistedResumeMeta; token: string }>,
+  ): Promise<RqsStoreCommitResult>;
+  markInProgress(key: string): Promise<boolean>;
+  markResumed(key: string, at?: number): Promise<boolean>;
+  remove(key: string): Promise<boolean>;
+  wipe(): Promise<boolean>;
+  inspection(): Promise<RqsStoreInspection>;
+  close(): Promise<void>;
+}
+
+/** IndexedDB-backed persisted RQS resume store under single-writer Web-Lock
+ * ownership. `indexedDB` and `lockManager` are host handles (an `IDBFactory`
+ * and a `LockManager`), typed structurally so this declaration does not
+ * require the DOM lib; both are validated at runtime. */
+export function createIndexedDbRqsResumeStore(options?: {
+  readonly indexedDB?: unknown;
+  readonly lockManager?: unknown;
+  readonly databaseName?: string;
+  readonly now?: () => number;
+  readonly maxBytes?: number;
+  readonly maxEntries?: number;
+  readonly relaunchOutboxEmpty?: (() => boolean | Promise<boolean>) | null;
+}): RqsResumeStore;

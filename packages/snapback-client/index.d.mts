@@ -834,8 +834,99 @@ export const DURABLE_BYTES_RESYNC_REASON: string;
 export function durableBytesResyncSentinel(): Readonly<Record<string, unknown>>;
 export function dispatchDurableBytesFrame(stream: unknown, frame: unknown): unknown;
 
-export class AgentAuthorityFence {
-  constructor(...args: unknown[]);
+export {
+  AgentAuthorityFence,
+  createMemoryAgentAuthorityCustodyStorage,
+} from './agent-authority.mjs';
+export type {
+  AgentAuthorityCapture,
+  AgentAuthorityCredentialInput,
+  AgentAuthorityCustodyStorage,
+  AgentAuthorityDescriptor,
+  AgentAuthorityFenceOptions,
+  AgentAuthorityParticipant,
+  AgentCredentialOffer,
+  AgentCredentialReplacementOffer,
+  AgentCustodyOwner,
+  AgentDurableAuthority,
+  AgentTerminalHandle,
+  AgentTerminationDisposition,
+} from './agent-authority.mjs';
+/** Exact JS twin of the server's service_authority_instance_id derivation;
+ * extra credential fields (tokenId, bearerToken) are tolerated. */
+export function deriveServiceAuthorityInstanceId(credential: {
+  readonly actorUserId: string;
+  readonly credentialId: string;
+  readonly credentialGeneration: number;
+  readonly grantId: string;
+}): string;
+
+export {
+  compileResultContractValidator,
+  RESULT_CONTRACT_LIMITS_V1,
+} from '@snapback/contract/result-contract-validator';
+
+export {
+  RQS_STORE_MAX_BYTES,
+  RQS_STORE_MAX_ENTRIES,
+  arbitrateResumeCandidates,
+  createIndexedDbRqsResumeStore,
+  rqsEntryKey,
+  verifyPersistedResumeEntry,
+} from './rqs-store.mjs';
+export type {
+  RqsPersistedResumeMeta,
+  RqsPersistedResumeRecord,
+  RqsResumeCandidate,
+  RqsResumeEntryRefusalReason,
+  RqsResumeStore,
+  RqsStoreCommitResult,
+  RqsStoreInspection,
+} from './rqs-store.mjs';
+
+export {
+  RQS_BOOT_ELEMENT_ID,
+  createRqsPreloadRegistry,
+  readInlineBootPayload,
+  readRqsPreloadRegistry,
+} from './rqs-preload.mjs';
+export type {
+  RqsBootDocument,
+  RqsBootPayload,
+  RqsPreloadEntry,
+  RqsPreloadRegistry,
+} from './rqs-preload.mjs';
+
+export const DEFAULT_INGRESS_LIMIT_BYTES: Readonly<{
+  appCall: number;
+  authLifecycle: number;
+  discovery: number;
+  artifact: number;
+  liveFrame: number;
+}>;
+
+export function assertPreparedReactBinding(binding: unknown): PreparedReactBinding;
+export function preparedReactBindingClient(binding: unknown): SnapbackClient;
+export function isPreparedReactQueryGroup(value: unknown): boolean;
+export function admittedReactQueryGroup(
+  binding: unknown,
+  reference: SnapbackQueryGroupReference,
+): SnapbackQueryGroupReference;
+export function admittedReactReference(
+  binding: unknown,
+  reference: SnapbackFunctionReference,
+  expectedKind: SnapbackFunctionKind | readonly SnapbackFunctionKind[],
+): SnapbackFunctionReference;
+export function preparedReactResultContract(
+  binding: unknown,
+  reference: SnapbackFunctionReference,
+): Readonly<Record<string, unknown>> | null;
+export interface PreparedReactEphemeralDefinition {
+  readonly reference: SnapbackEphemeralReference;
+  readonly definition: Readonly<Record<string, unknown>>;
+  readonly staticPolicyDigest: string;
 }
-export function createMemoryAgentAuthorityCustodyStorage(...args: unknown[]): unknown;
-export function deriveServiceAuthorityInstanceId(...args: unknown[]): string;
+export function admittedReactEphemeralDefinition(
+  binding: unknown,
+  reference: SnapbackEphemeralReference,
+): PreparedReactEphemeralDefinition;
