@@ -5,7 +5,11 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-31, later same day (companion pass landed: dated
+**Revised:** 2026-07-31, image-pipeline kickoff (author decisions: the
+pure-Rust `image` crate + `kamadak-exif` for v1 with a recorded
+more-robust-library revisit trigger — HEIC coverage, rendition
+throughput, or video finalization reopens it; ThumbHash as the single
+versioned placeholder). Prior, same day (companion pass landed: dated
 amendments in LLP 0007, LLP 0037, LLP 0012, and LLP 0053 freeze the
 `v.assetRef` and `.assetSharing` spellings, the `assetUploadReference` DTO
 custody, the `SNAPBACK_ASSET_*` and capability registrations, and the
@@ -1680,11 +1684,20 @@ Tooling and manifest:
   outweigh BLAKE3's local hashing speed; the algorithm remains a versioned
   manifest fact, so a successor can be admitted behind versioned blob
   identity if profiling ever justifies it.
-- Which small image library provides trusted detection, metadata rewriting,
-  dimensions, and bounded renditions locally without making bootstrap
-  disproportionate?
-- Which single placeholder algorithm should `asset-image-pipeline-v1` ship
-  first, and what measured client benefit would justify a second?
+- ~~Which small image library?~~ — **resolved 2026-07-31, author decision
+  (Charlie): the pure-Rust `image` crate plus `kamadak-exif` for v1**
+  ("native rust stuff is fine for now"). No native dependency enters the
+  bootstrap; decode ceilings ride the crate's limits API plus explicit
+  checks. The revisit trigger is recorded with the decision — Charlie
+  expects "a more robust image library down the line": reopen when
+  rendition throughput, format coverage (HEIC foremost, which phones
+  shoot by default and `image` does not decode), or video finalization
+  demands a native library, and admit it behind the same capability
+  facts rather than a silent swap.
+- ~~Which single placeholder algorithm?~~ — **resolved 2026-07-31, author
+  decision (Charlie): ThumbHash**, one algorithm, in the versioned
+  metadata field; a second is admitted only on measured client benefit,
+  exactly as the processing section already requires.
 - What are the default and maximum signed-delivery TTLs, and which hosted
   profiles can provide stronger early invalidation?
 - May an intent retain the raw source as a separate restricted/admin-only blob,
