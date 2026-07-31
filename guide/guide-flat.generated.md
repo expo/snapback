@@ -60,7 +60,9 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle | llp/0090, llp/0092 | realtime/snapshot-bundles.md |
-| sync.offline | Retained queries, outbox, replay, optimistic overlays | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
+| sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
+| sync.offline-js-arm | JS/React arm (LLP 0129 Phase 0): default persisted client cache (IndexedDB/file, in-memory fallback) with cold-boot retained render for the rqsEligible subset, durable LLP 0043 M2 outbox with client-minted mutation ids, and ordered exactly-once replay on reconnect; protected/auth-scoped queries refuse retention with a named reason; no local execution, so no `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence | local | shipped | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs | llp/0043, llp/0090, llp/0129 | sync/offline-and-retention.md |
+| sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Adopt a session minted by a trusted server-side identity broker; dev/test/demo host operation only | native login, external identity, broker, adopted bearer | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs | llp/0024, llp/0057, llp/0096 | auth/native-apps.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
@@ -7822,13 +7824,13 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [sync.offline]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs]
-examples: [demos/card-game, demos/todo-v2/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs]
+capabilities: [sync.offline, sync.offline-js-arm]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0129-local-first-program.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/outbox-store.test.mjs]
+examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
+reviewed: 2026-07-31
 reviewed-commit: 8299c6ddb1c9019c08a72545c8e74998aeb2b5f5
 ---
 
@@ -7842,6 +7844,60 @@ The Contract adapter can retain the last authoritative query snapshot, render
 derived optimistic changes while offline, and replay a durable mutation outbox
 in order after reconnect. It reports this as `Parity` only when every
 required proof is present; otherwise the surface stays honestly `Online`.
+
+## The JS/React arm: default persistence and the offline queue
+
+Since LLP 0129 Phase 0, `@snapback/client` (and the LLP 0114 React hooks
+riding it) persists its cache **by default**: the client resolves an
+IndexedDB store in browsers, a durable file store on node, and an in-memory
+fallback elsewhere, reporting the resolved implementation and durability on
+`client.rqsStoreInfo` (pass `rqsStore: null` or set
+`SNAPBACK_CLIENT_RQS_STORE=off` to opt out). What that buys, each proven by
+`demos/public-dashboard/tests/acceptance/offline-local-first.mjs`:
+
+- **Cold-boot retained render for the rqsEligible subset.** A relaunch —
+  including with the backend unreachable — renders the persisted rows of
+  authority-independent live queries first, marked
+  `freshness: 'retained'`, then settles to `'current'` on reconnect
+  (LLP 0090 Channel B). Protected/auth-scoped and opaque queries are NOT
+  retainable on this arm: the handle's `retention` fact names the refusal
+  (`SNAPBACK_RETENTION_NOT_RETAINABLE`,
+  `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
+  local-first — LLP 0053's retainability invariant is the boundary, and
+  lease-bounded protected retention remains the Contract arm's.
+- **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
+  queued durably under a client-minted `clientMutationId` (protocol-lane
+  identity) with a monotonic local sequence, and returns
+  `{ queued: true, clientMutationId, sequence }`.
+- **Ordered exactly-once replay.** After reconnect completes a fresh
+  authoritative snapshot (full resync first — LLP 0008 §Mutation Replay),
+  the client drains the queue in sequence order; the server's settlement
+  ledger returns the original result on duplicate delivery, and a refused
+  replay is dropped and marked failed, visible in `outboxRecords()`.
+- **No `Parity` claim.** This arm runs no local execution, so the queued
+  path is Online-class retention/replay under LLP 0043's proof rule; a
+  relaunch with pending intent renders nothing ahead of the full resync
+  (LLP 0090's outbox rule).
+
+```js source=packages/snapback-client/outbox-store.test.mjs
+  // Offline: fetch refuses at the transport (TypeError, like undici).
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const queued = await client.mutate('createThing', { args: { title: 'offline' } });
+  assert.equal(queued.queued, true);
+```
+
+```js source=packages/snapback-client/outbox-store.test.mjs
+  const outcome = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: outcome.replayed, failed: outcome.failed, remaining: outcome.remaining },
+    { replayed: 2, failed: 0, remaining: 0 },
+  );
+  assert.deepEqual(
+    delivered.map((body) => body.clientMutationId),
+    [queued.clientMutationId, queuedUpdate.clientMutationId],
+    'replay is ordered by sequence and keeps the minted durable identity',
+  );
+```
 
 ## Enable the complete client-store contract
 

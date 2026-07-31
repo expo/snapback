@@ -5,7 +5,11 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (standing-decisions pointer: LLP 0130 records
+**Revised:** 2026-07-31 (Phase 0 status note added under §Phases: the
+option-A JS-arm slice is implemented in-branch with its diary-grade
+offline acceptance green — see the dated block for what landed, the
+environment-capture honesty note, and the ticketed remainders.)
+2026-07-31 (standing-decisions pointer: LLP 0130 records
 the author's pre-adjudicated conditional rules for this program's
 mid-flight gates — SD-3 folds the offline dimension into the shared
 successor rerun, answering §Measurement's pending composition; SD-5
@@ -219,6 +223,41 @@ prerequisite of this lane's minimum wire surface — LLP 0008/0090/0093
 territory no rung skips. Owners: LLP 0043/0114/0090, wire in
 0008/0093. *Evidence gate:* a diary-grade offline acceptance rerun on
 the chosen arm (0126 option A's gate).
+
+> **Phase 0 status (2026-07-31, wave-1 lane C5 — in-branch, pending
+> landing).** The option-A slice is implemented on
+> `packages/snapback-client` and proven by a new diary-grade harness
+> acceptance, `demos/public-dashboard/tests/acceptance/
+> offline-local-first.mjs` (9 non-vacuous checks against the real
+> server, registered in the workout inventory). Landed: (1) default
+> `rqsStore` persistence — IndexedDB (browser) / durable file (node) /
+> in-memory fallback, resolution and durability reported on
+> `client.rqsStoreInfo` (DK-9); (2) the LLP 0090 token path rides the
+> default store, and a cold boot with a verified persisted entry now
+> survives a connectivity-refused first subscribe (retained render,
+> bounded-backoff re-entry) — the Diary 0027 Convex-GAP scenario; (3)
+> the LLP 0043 M2 outbox on all three store arms with client-minted
+> `clientMutationId` (protocol-lane identity, decision 10's carve-out)
+> and ordered exactly-once replay after a completed fresh snapshot;
+> the LLP 0090 D3 outbox rule is now enforced on *every* fresh
+> subscribe, not only relaunch seeding; (4) the retainability boundary
+> refused with clarity per LLP 0053 (`handle.retention` names the
+> refusal; protected/opaque queries never silently act local-first);
+> (5) arm-scoped guide claims: `sync.offline-js-arm` (shipped, gated
+> on the acceptance) and `sync.offline-js-arm-protected` (explicit
+> GAP). Environment honesty: with no local execution and no
+> id-bearing optimistic derivation on this arm, a queued intent
+> usually captures no `{generatedIds}` ledger; a caller-supplied
+> `ctxLedger` is transmitted verbatim per the 0008 accept pin, and
+> the captured enqueue wall-clock is retained as a labeled claim,
+> never authority. Remainders, ticketed in
+> `issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`:
+> M1 lease custody on this arm (exit criterion 2's
+> `auth.authorized-leases` half is therefore still open) and the
+> sessions-custody queue leg (the JS-arm outbox covers
+> dev/external-bearer custody; session-fenced clients defer to the
+> Contract arm). Gate disposition under SD-5 awaits this lane's
+> landing plus the named acceptance staying green on main.
 
 **Phase 1 — The shared IR rung.** *Staging confirmed by decision 2;
 IR-rung-first resourcing puts this phase before either ladder

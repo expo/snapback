@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "427244d743c524970cd61927a9f35d2bbcc3e80b"
+    "commit": "4f24e914400c33fe1ef54eca00b5ce9c839c7744"
   },
   "nav": {
     ".": [
@@ -989,7 +989,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "d17ba0498137ec97a06c433d6132745622989e002141eb1f3ea57f32671d9624",
+      "sha256": "99d76b12b5ead2766f23c02b7f86874925c8d86f1a797adb2f3c6bfee58842b2",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2045,24 +2045,39 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "sync.offline"
+        "sync.offline",
+        "sync.offline-js-arm"
       ],
       "authorities": [
         "llp/0043-offline-replay-retention.rfc.md",
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
+        "llp/0129-local-first-program.plan.md",
         "packages/snapback-contract/index.mjs",
-        "packages/snapback-contract/offline-replay.test.mjs"
+        "packages/snapback-contract/offline-replay.test.mjs",
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-client/outbox-store.test.mjs"
       ],
       "examples": [
         "demos/card-game",
         "demos/todo-v2/surfaces/contract",
+        "demos/public-dashboard",
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
-      "reviewed": "2026-07-26",
+      "reviewed": "2026-07-31",
       "reviewedCommit": "8299c6ddb1c9019c08a72545c8e74998aeb2b5f5",
-      "sha256": "4e4e7644d929b23702a93a7dea3210d6172e4bfe8d08be6e97f33a8c41b533c8",
+      "sha256": "b589d74b2ccadfe32cf1712f8316686631170b29939b09f877268ddd3e3666e1",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-client/outbox-store.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-client/outbox-store.test.mjs"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -2195,6 +2210,7 @@
       "realtime.live-queries",
       "realtime.snapshot-bundles",
       "sync.offline",
+      "sync.offline-js-arm",
       "testing.acceptance"
     ],
     "gaps": [
@@ -2204,12 +2220,13 @@
       "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
-      "clients.poll-hosted"
+      "clients.poll-hosted",
+      "sync.offline-js-arm-protected"
     ]
   },
   "surfaces": {
     "routes": 73,
     "hostOps": 19
   },
-  "contentHash": "49d85c07a1877d9229522b6365630e3ca9f9578ccdb70e52b03d53c7ef5de1a0"
+  "contentHash": "951f2c1ea56457554d5cb635ab476a8d51ce375a5412e1e4716dd1c5ce56699e"
 }
