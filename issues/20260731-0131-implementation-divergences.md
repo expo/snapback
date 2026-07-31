@@ -62,7 +62,15 @@ making the two genuine rulings — rather than silent drift.
    surface existed on the branch base, so the enqueue-side successor
    validation has no code target yet; the seam function is ready for
    the jobs lane (C2 / LLP 0070) to call. Verify the wire-up when C2
-   lands, then evidence acceptance 14.
+   lands, then evidence acceptance 14. **RE-CHECKED at C2's landing
+   (2026-07-31, `804782a1`): DONE.** `admit_job_enqueues`
+   (src/local.rs) calls `validate_function_args` per enqueue,
+   pre-commit, inside the producing mutation's transaction;
+   violations refuse with the existing per-lane code and no job row
+   or partial write; contract-less callees keep legacy behavior.
+   Pinned by `enqueue_validates_callee_args_contract_transactionally`
+   (violating, conforming, and legacy-callee legs). Only items 1–5,
+   7, and 9 remain for the delta pass.
 7. **Acceptance rows partially evidenced:** row 8's at-bound/one-over
    matrix is covered ad hoc, not exhaustively; row 9's
    hosted-evaluator leg is inherited-by-construction (the seam runs
