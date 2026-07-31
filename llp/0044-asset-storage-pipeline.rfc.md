@@ -5,7 +5,13 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-31 (v6.1 acceptance-time folds of the four non-gating
+**Revised:** 2026-07-31, later same day (companion pass landed: dated
+amendments in LLP 0007, LLP 0037, LLP 0012, and LLP 0053 freeze the
+`v.assetRef` and `.assetSharing` spellings, the `assetUploadReference` DTO
+custody, the `SNAPBACK_ASSET_*` and capability registrations, and the
+read-authorization classification; the gating open question is resolved,
+with only the Exact-owned descriptor mapping remaining by 0037's scope
+fence). Prior same day: (v6.1 acceptance-time folds of the four non-gating
 round-4 DETAILs — the frozen-generation re-validation substrate pinned with
 its bounded artifact-retention obligation, "materially identical" defined
 as validated-output-DTO equality, the sweep summary covering `planned`,
@@ -1681,17 +1687,25 @@ Tooling and manifest:
 - May an intent retain the raw source as a separate restricted/admin-only blob,
   or must v1 always delete staging after canonical publication? The default
   remains deletion.
-- What exact `v.assetRef` schema spelling, asset-sharing row-policy
-  declaration spelling, and Contract/Exact descriptor
-  vocabulary should the companion LLP 0007/0037 implementation amendment
-  freeze — and, in the same companion pass, the LLP 0012 registration of
-  the `SNAPBACK_ASSET_*` diagnostic family, the capability rows, and the
-  delivery-profile facts, plus the LLP 0053 classification: whether asset
-  read dependencies are ordinary reads under 0053's existing closed
-  event/input universe (the working assumption, since reverse edges and
-  owner/generation facts are ordinary rows) or need a dated 0053
-  amendment? The companion amendment is a **gating prerequisite**: no
-  implementation lands against unfrozen reference or admission encodings.
+- ~~The companion amendment freeze~~ — **resolved 2026-07-31**: the
+  gating companion pass landed as dated amendments in the owning
+  documents. LLP 0007 froze `v.assetRef(options?: { upload?: string })`
+  with explicit optional/bounded-array nodes, the `.assetSharing(spec)`
+  table declaration on the shipped closed visibility union
+  (`public-read` / `owner` / `membership`, citing LLP 0011's
+  pushdown-compilability requirement by name), and commit-boundary
+  admission under commit-time validation. LLP 0037 aligned the Rust-owned
+  `assetUploadReference` DTO (with `intentPolicyHash` and policy
+  generation) and the attempt/transfer/lifecycle/receipt carriers into
+  `schema_export::artifact_schemas()`. LLP 0012 registered the
+  `SNAPBACK_ASSET_*` family, the granular capability rows superseding
+  `assetUpload` at first implementation, and the profile/grade/limit
+  facts. LLP 0053 classified the asset-readable predicate node as
+  admitted (0056 idiom, pinned empty-result capture) with no new
+  authorization events and no `permissionBacking` need. One sliver stays
+  open by 0037's scope fence: the Contract/Exact *descriptor* vocabulary
+  maps onto the Exact-owned `ContractDataManifest` shape and freezes with
+  that mapping, not here.
 - When does the generated custom read authorizer (beyond `owner-only` /
   `via-references`) earn its capability, and what invalidation obligations
   does it carry?

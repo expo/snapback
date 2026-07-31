@@ -5,7 +5,13 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-23 (LLP 0079 SC-3: dated reinforcement — the DK-3 additive-lane wire guardrail gains LLP 0078 F2a/F2e as external evidence); 2026-07-20 (Partitime Step 2 client checkpoint — the framework-neutral
+**Revised:** 2026-07-31 (LLP 0044 companion registration: the
+`SNAPBACK_ASSET_*` diagnostic family with its initial closed set; the
+granular asset capability rows superseding the `assetUpload` boolean at
+first implementation, with store-parameterized lifecycle claims,
+delivery-profile and integrity-grade facts, and Missing-not-omitted v1
+nonclaims; the asset wire DTOs versioned under the existing compatibility
+rules); 2026-07-23 (LLP 0079 SC-3: dated reinforcement — the DK-3 additive-lane wire guardrail gains LLP 0078 F2a/F2e as external evidence); 2026-07-20 (Partitime Step 2 client checkpoint — the framework-neutral
 `snapback.external-store.v1` implementation and `@snapback/react` adapter now
 ship with package tests; React web and React Expo Android consume the same
 generated function references and lifecycle store, while the Android carrier
@@ -39,7 +45,7 @@ versions are per-app-stream opaque `(stream, version)` resume tokens, no
 cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
 added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
 LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0064
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0044, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0064
 
 ## Summary
 
@@ -1024,6 +1030,55 @@ guardrail is load-bearing and must not be relaxed under delivery pressure;
 LLP 0008's 2026-07-23 dated constraints section records the companion
 app-facing rule (no connection-lifecycle exposure).
 
+## Dated registration: asset subsystem contract (2026-07-31)
+
+Recorded as part of [LLP 0044](./0044-asset-storage-pipeline.rfc.md)'s
+gating companion pass (directed by Charlie, 2026-07-31). This registers
+the asset subsystem's contract surface into the registries this Spec
+defines; the entries are frozen spellings that land in code with LLP
+0044's first implementation slice — until then the manifest keeps
+truthfully reporting the existing gap.
+
+**Diagnostic family.** `SNAPBACK_ASSET_*` joins the stable code families
+beside `SNAPBACK_AUTH_*`; LLP 0044 owns the spellings, and later asset
+work extends the family rather than inventing an adapter-specific
+dialect. The initial closed set distinguishes at least: stale/unsupported
+upload intent; location-policy refusal; auth, read-access, or attachment
+denial; unverified reference commit refusal
+(`SNAPBACK_ASSET_REF_UNVERIFIED`); media-type, size, count-ceiling, and
+quota refusal; offset/part conflict, cancellation, expiry, and
+superseded-attempt refusal; transport-integrity and canonical-digest
+failure; restricted-staging/finalization failure; processing and
+resource-bound refusal; unsupported delivery profile or range behavior;
+and referenced-delete/GC refusal. Changing an emitted code is a
+compatibility event. HTTP classes follow the server's exhaustive
+allow-list rule: a new code remains a truthful 500 until its producer
+deliberately chooses a client class.
+
+**Capability manifest.** The v0 boolean `assetUpload` and the `assets`
+capability-gap entry are superseded, at first implementation, by granular
+rows in the closed `TargetCapabilityId` registry:
+`asset_lifecycle_v1` (the LLP 0044 target composite, claimed together
+with a companion `assetLifecycleStores` fact listing each qualified byte
+store — the store parameter is part of the claim),
+`asset_image_pipeline_v1` and `asset_image_finalization_v1`, and the
+later capabilities `asset_reference_gc_v1`, `asset_custom_processing_v1`,
+and `asset_video_finalization_v1`. Delivery-profile support
+(`assetDeliveryProfiles` over `public-immutable` / `private-signed` /
+`private-strict`), integrity-grade reporting (end-to-end verified versus
+received-bytes canonical), and the size/quota/TTL/attempt/count-ceiling
+limits vector are manifest facts carrying `Enforced`/`Advisory`/`Missing`
+grades. LLP 0044's v1 nonclaims — asset backup/export, video
+finalization, custom read authorizers, deferred-length transfer — are
+reported `Missing`, never omitted, in the manifest's
+surface-missing-instead-of-fall-back idiom.
+
+**Wire registry.** The upload-intent reference and the attempt, transfer,
+lifecycle, and receipt DTOs are Rust-owned per LLP 0037's same-day
+alignment and versioned like every other artifact here. Unknown protocol
+versions, capabilities, intent members, state variants, and delivery
+profiles fail closed under this Spec's existing compatibility rules.
+
 ## Status
 
 Draft. Valet's integration record ([LLP 0006](./0006-valet-retrospective.research.md))
@@ -1060,6 +1115,15 @@ independently negotiated item-6/8 surfaces and honest hosted-readiness refusal.
 
 ## Changelog
 
+- **2026-07-31 (LLP 0044 companion registration).** Added §Dated
+  registration: asset subsystem contract — the `SNAPBACK_ASSET_*` family
+  with its initial closed set, the granular asset capability rows that
+  supersede the `assetUpload` boolean at first implementation
+  (store-parameterized lifecycle claim, image pipeline/finalization,
+  later-capability ids), delivery-profile/integrity-grade/limit facts
+  with Missing-not-omitted v1 nonclaims, and the Rust-owned asset wire
+  DTOs under the existing compatibility rules. Frozen spellings only; no
+  code claim until LLP 0044's first slice lands.
 - **2026-07-14 (ENG-24905 stable function ids).** Registered the stable,
   non-optional function id requirement (the LLP 0055 stage prerequisite):
   every function carries a non-empty `id`; a manifest that omits one fails

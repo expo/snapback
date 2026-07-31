@@ -5,8 +5,14 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-24 (same-landing amendments for the acceptance of LLP 0065/0080/0081: the change-journal's closed operation vocabulary admits the two typed schema-transition events with high-water counting and an unchanged head/cut invariant; every declared index gains the framework-generated, scan-order-only implicit trailing `_id` component; generated standard-pattern update/delete are named as the server-evaluated conditional-plan carve-out from the Option A client-baseline path; the Schema Evolution section points at Accepted LLP 0081 as the migrations authority and the Index Contract points at Accepted LLP 0080 as the controlling relational profile). 2026-07-23 (LLP 0086 CC-8 row 2 amendment: per-target durability claims adopt the output-gate vocabulary — "synchronous inside, gated at the boundary" — with D1 Sessions bookmarks recorded as prior art for keeping bookmarkable versions on the wire (wire half cross-referenced to LLP 0008); vocabulary and citations only, no decided contract changed). 2026-07-18 (ordinary tables can declare true single/compound unique indexes; v1 requires every key field to be non-optional, maps both activation and write conflicts to one stable diagnostic, and deliberately defers upsert sugar). 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
-**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032, LLP 0083, LLP 0086
+**Revised:** 2026-07-31 (LLP 0044 companion: `v.assetRef` joins the field
+vocabulary with the `upload` restriction and explicit optional/bounded-array
+nodes; commit-boundary asset admission is classified under commit-time
+validation for every write path with the reverse edge in the same changeset;
+the `.assetSharing` table declaration is frozen on the shipped closed
+visibility union, citing LLP 0011's pushdown-compilability requirement by
+name; asset system tables recorded as Snapback-owned). 2026-07-24 (same-landing amendments for the acceptance of LLP 0065/0080/0081: the change-journal's closed operation vocabulary admits the two typed schema-transition events with high-water counting and an unchanged head/cut invariant; every declared index gains the framework-generated, scan-order-only implicit trailing `_id` component; generated standard-pattern update/delete are named as the server-evaluated conditional-plan carve-out from the Option A client-baseline path; the Schema Evolution section points at Accepted LLP 0081 as the migrations authority and the Index Contract points at Accepted LLP 0080 as the controlling relational profile). 2026-07-23 (LLP 0086 CC-8 row 2 amendment: per-target durability claims adopt the output-gate vocabulary — "synchronous inside, gated at the boundary" — with D1 Sessions bookmarks recorded as prior art for keeping bookmarkable versions on the wire (wire half cross-referenced to LLP 0008); vocabulary and citations only, no decided contract changed). 2026-07-18 (ordinary tables can declare true single/compound unique indexes; v1 requires every key field to be non-optional, maps both activation and write conflicts to one stable diagnostic, and deliberately defers upsert sugar). 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032, LLP 0044, LLP 0083, LLP 0086
 
 ## Summary
 
@@ -661,6 +667,68 @@ same logical app behavior on at least:
 - a machine-readable cross-engine conformance corpus (LLP 0010) as the standing
   portability proof — Valet treated "the trait is portable" as an assertion because
   the matrix CI rig was never built (`[observed - Valet LLP 0035/0083/0048]`).
+
+## Dated amendment: asset references, sharing declarations, and admission (2026-07-31)
+
+> Recorded 2026-07-31 as part of
+> [LLP 0044](./0044-asset-storage-pipeline.rfc.md)'s gating companion pass
+> (its §Open questions makes this freeze an implementation prerequisite;
+> the pass was directed by Charlie on 2026-07-31). This amendment adds
+> vocabulary and commit-boundary semantics; it changes no decided contract
+> above.
+
+**`v.assetRef` joins the portable field vocabulary.** Spelling, in the
+closed validator set of `packages/snapback-codegen/define.mjs`:
+`v.assetRef(options?: { upload?: string })`, where `upload` names the
+exported upload-intent binding whose assets the field admits; omitted, the
+field is unrestricted and attachable only through handler-side
+`ctx.assets.attach` (LLP 0044 §Typed references). Placements are explicit
+schema nodes: bare, `v.optional(v.assetRef(...))`, and
+`v.array(v.assetRef(...), { maxItems })` — the array bound is required.
+The physical representation is the opaque asset id string under the
+single-sourced type map; asset bytes are never inline document fields
+(unchanged rule above). The asset metadata, upload-attempt, blob,
+rendition, reverse-reference-edge, publication-record, and asset-work
+ledger tables are Snapback-owned system tables in the LLP 0044 §Internal
+model shapes; application schemas cannot declare or shadow them.
+
+**Commit-boundary admission is part of commit-time validation.** Every
+committed write to a `v.assetRef` field — scalar, optional, or array
+element, on every write path — validates an admission inside the final
+write lock, in this Spec's read-set-validation idiom. Handler (Ibex)
+writes consume the transaction-scoped admission `ctx.assets.attach`
+records; write paths without handler execution — host plans, including
+both the Option A client-baseline path and the server-evaluated
+standard-pattern carve-out, plus seed, migration, and admin edits — derive
+the admission check from the field's declared `upload` restriction and run
+it under the path's own authority in the committing transaction, refusing
+on a restriction-less field. An untyped or admission-bypassing write fails
+the commit with `SNAPBACK_ASSET_REF_UNVERIFIED`. The system
+reverse-reference edge commits in the same changeset as the field write,
+including field update, field clear, and row deletion. LLP 0044's
+finalization-time authorization witness is this Spec's complete read-set
+witness — row ids, observed-missing rows, query ranges, index cursors,
+table predicates, and auth/permission facts — captured at upload-intent
+admission and re-validated at finalization; it introduces no second
+dependency vocabulary.
+
+**The asset-sharing declaration.** Table-builder spelling:
+`.assetSharing(spec)`, where `spec` reuses the shipped closed visibility
+union rather than a not-yet-implemented general permission language:
+`{ kind: 'public-read' }`, `{ kind: 'owner', field }`, or
+`{ kind: 'membership', membership: <declared membership id>, roles?: [...] }`
+(the [LLP 0056](./0056-scoped-roles-and-memberships.rfc.md) membership
+predicate, already admitted by LLP 0053's 2026-07-14 amendment). Each
+variant is pushdown-compilable by construction, satisfying *LLP 0011,
+pushdown-compilability requirement, 2026-07-23* — cited by name as that
+requirement demands. A table without `.assetSharing` confers no
+`via-references` asset read authority regardless of any other visibility
+it declares — LLP 0044 v6's explicit-declaration rule; the declaration is
+an app-authored statement that anyone the spec admits may also read assets
+referenced from the table's rows, independent of any function-level gate a
+query adds. When a general row-visibility language lands (LLP 0011's open
+question), `.assetSharing` becomes a citation into it rather than a
+parallel dialect.
 
 ## Open Questions
 

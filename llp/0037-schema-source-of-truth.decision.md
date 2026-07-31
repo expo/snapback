@@ -5,10 +5,14 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
-**Revised:** 2026-07-27 (LLP 0108 amendment: Rust owns the effective result
+**Revised:** 2026-07-31 (LLP 0044 companion: the asset upload-intent
+reference, attempt/transfer/lifecycle/receipt DTOs, and `SNAPBACK_ASSET_*`
+detail shapes are Rust-owned under this decision, registered through
+`schema_export::artifact_schemas()` with the ordinary drift gates; no
+`ExpectedOperationV1` revival); 2026-07-27 (LLP 0108 amendment: Rust owns the effective result
 contract and hashes projected through manifests, schemas, providers, Contract,
 and generated references); 2026-07-23 (LLP 0086 CC-8 rows 1/7/11: schema lockdown recorded as a named safety feature; Triplit compatibility-classified schema-push comparison; Cambria lens-migration prior-art note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
-**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057, LLP 0082, LLP 0084, LLP 0085, LLP 0086, LLP 0108
+**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0044, LLP 0057, LLP 0082, LLP 0084, LLP 0085, LLP 0086, LLP 0108
 
 ## Summary
 
@@ -212,6 +216,37 @@ that authority. Each projection carries the effective result hash. A consumer
 that cannot represent a contract emits a closed missing witness or refuses; it
 must not infer, drop, or widen fields. Executable source and source locations
 remain outside public projections.
+
+## Dated alignment: asset subsystem artifacts (2026-07-31)
+
+Recorded as part of [LLP 0044](./0044-asset-storage-pipeline.rfc.md)'s
+gating companion pass (directed by Charlie, 2026-07-31). LLP 0044's
+carriers are Rust-owned serde/schemars types under this decision:
+
+- the **upload-intent reference** — `artifactKind:
+  "assetUploadReference"`, following the shipped `functionReference`
+  whole-artifact idiom (`schemaVersion`, `appId`, `id`, `name`,
+  `implementationHash`, `argsContractHash`, argument schema) plus the
+  policy identity that freezes what admission means: an
+  `intentPolicyHash` over the declared accept/delivery/access/processing
+  facts and the intent policy generation. It deliberately carries no
+  `ExpectedOperationV1` member — that carrier stays removed (LLP 0108
+  §B) — and is name-keyed per the 2026-07-23 constraint;
+- the upload attempt/task state machine DTOs, create/resume/cancel/
+  finalize request-response DTOs, TUS-lane and S3-lane transfer
+  instructions, live lifecycle messages, receipts, capability facts, and
+  `SNAPBACK_ASSET_*` diagnostic detail shapes.
+
+`snapback-schemagen` emits their committed schemas through
+`schema_export::artifact_schemas()`, and the ordinary artifact-schema
+drift and representative-value gates cover them, exactly as the
+versioned-seed alignment above. Codegen owns only canonical construction
+of authoring-surface artifacts; it cannot redefine a server request,
+receipt, or reference. Generated SDKs in every language consume the same
+committed schemas; none parses JavaScript source or synthesizes reference
+identity. These types land with LLP 0044's first implementation slice —
+this alignment freezes their shapes and custody, and LLP 0044 bars any
+implementation from landing against different encodings.
 
 ## Status
 

@@ -5,7 +5,13 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-26 (JavaScript protected-input attribution follows each
+**Revised:** 2026-07-31 (LLP 0044 companion classification: asset
+read-authorization inputs admitted — the asset-readable predicate node in
+the 0056 idiom with pinned empty-result capture over the reverse-edge
+index; intent activation is event 2 and operator revocation event 4; the
+finalization witness stays LLP 0007's; asset system tables confirmed
+needing no `permissionBacking` classification. No contract change; Status
+stays Accepted.) 2026-07-26 (JavaScript protected-input attribution follows each
 exported handler's conservative locally reachable call graph, including
 aliases, object methods, callbacks, and nested closures, without poisoning a
 protected query for mutable input reachable only from an unrelated sibling
@@ -49,7 +55,7 @@ history and §Changelog; artifacts in
 `reviews/0053-authorization-invalidation.{fable,codex}.md`. Split out of
 [LLP 0039](./0039-auth-vertical-slice.rfc.md) §Permission dependencies on
 2026-07-12.)
-**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0051, LLP 0055, LLP 0056, LLP 0074, LLP 0086
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0044, LLP 0051, LLP 0055, LLP 0056, LLP 0074, LLP 0086
 
 ## Summary
 
@@ -671,6 +677,50 @@ above are written to leave them intact:
   *is* `permissionBacking: true` in the existing sense (LLP 0056 §Invalidation),
   consumed by the same one-commit-hook rule, `permissionFields` narrowing, and
   matcher/read-summary paths, with no new mechanism.
+
+### Asset read-authorization inputs (amended 2026-07-31, LLP 0044)
+
+This dated classification admits
+[LLP 0044](./0044-asset-storage-pipeline.rfc.md)'s asset
+read-authorization dependencies, required because the protected-query
+profile above is default-deny: a newly added expression kind is denied
+until this profile classifies it. Result: **no new authorization events
+and one admitted expression kind** — every other input lands inside an
+existing admitted category, so the closure claim holds.
+
+Asset metadata live state and `private-strict` delivery decisions depend
+only on: the asset system row (owner principal, availability, admitted
+policy identity) — ordinary snapshot-bound database reads; the
+reverse-reference edge set, read through the edge index **with pinned
+empty-result capture over the index range**, so the first attachment
+wakes a subscription that previously matched nothing — the same
+load-bearing pattern as the 0056 membership empty capture above; the
+declared asset-sharing predicate over referencing rows, whose variants
+add only admitted inputs (`public-read` adds no dependency, `owner`
+adds an ordinary row read, `membership` is the already-admitted
+membership predicate node); and the sealed `ctx.auth` projection. The
+**asset-readable predicate node** — the existential over
+sharing-admitting referencing rows that LLP 0044 §Asset read
+authorization defines — is admitted as an expression kind under §2 in
+the 0056 idiom: snapshot-bound, participating in the complete
+read/capture summary including its empty-result ranges, admitting no
+clock, id, or other `MutableNonDatabase` input.
+
+Two boundary notes. Intent policy activation is **event 2** — a changed
+upload intent stages, validates, and atomically activates with the
+bundle, firing an authorization event; LLP 0044's explicit operator
+revocation action is **event 4**. Neither is a new event. And LLP 0044's
+finalization-time authorization witness is LLP 0007's commit-time
+read-set contract, not this document's protected-query machinery; its
+obligations stay with 0007/0044, while signed-URL bearer windows retain
+exactly the declared weaker profile semantics 0044 states — nothing here
+claims strict revocation for them.
+
+This confirms LLP 0044's working assumption (its §Open questions): the
+asset system tables need no `permissionBacking` classification for these
+decisions, because every decision reads them as ordinary captured
+dependencies whose changes are ordinary committed writes already inside
+the invalidation perimeter.
 
 ### Ephemeral room authority invalidation
 
@@ -2080,6 +2130,13 @@ LLP 0086 governing constraint 2.
 
 ## Changelog
 
+- **2026-07-31 (LLP 0044 companion classification; still Accepted).** Added
+  §Asset read-authorization inputs: one admitted expression kind (the
+  asset-readable predicate node, snapshot-bound with pinned empty-result
+  capture), no new authorization events (intent activation = event 2,
+  operator revocation = event 4), the 0007-witness boundary note, and the
+  no-`permissionBacking` confirmation for asset system tables. No contract
+  change.
 - **2026-07-23, later same day (LLP 0086 CC-3.3 probe results; still
   Accepted).** Updated the §Competitive half note: the InstantDB probe ran —
   data-dependent revocation evicts live, rule revocation is reconnect-only —
