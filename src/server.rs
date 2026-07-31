@@ -34489,6 +34489,10 @@ globalThis.__snapbackHandlers = {
             "compile-time environment variable carrying build provenance",
         ),
         (
+            "SNAPBACK_CONNECTION_SOCKET_REQUIRED",
+            "hosted-arm wire-fixture refusal code (LLP 0095 T-SUB live/hosted); emitted by the hosted socket arm, never by this Rust server",
+        ),
+        (
             "SNAPBACK_CRON_DISABLED",
             "environment variable disabling autonomous cron claiming; manual admin ticks still run",
         ),
