@@ -497,6 +497,29 @@ pub struct AssetFinalizeResponseV1 {
     pub task: AssetTaskStateV1,
 }
 
+/// `private-signed` issuance (LLP 0044 §Delivery profiles). The variant is a
+/// concrete key — the declarative `best` selector resolves at request time
+/// and is deliberately not signable, since the signature binds one alias.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetSignedUrlIssueRequestV1 {
+    pub variant: String,
+    /// Bounded by the declared maximum; the declared default applies when
+    /// absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ttl_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetSignedUrlIssueResponseV1 {
+    /// Origin-relative bearer URL; the token rides the `token` query
+    /// parameter and is the only credential the URL carries.
+    pub url: String,
+    pub variant: String,
+    pub expires_at_ms: u64,
+}
+
 /// Live lifecycle messages: durable system-row changes observed over the
 /// existing live-query channel. Transfer progress stays ephemeral and is
 /// never one of these.
@@ -546,6 +569,13 @@ pub enum AssetReceiptEventV1 {
     RenditionFailed,
     RenditionSuperseded,
     DeliveryAdmitted,
+    /// A `private-signed` bearer URL was issued after per-request
+    /// authorization; the receipt carries variant and expiry, never the
+    /// token or key id.
+    SignedUrlIssued,
+    /// Instance signing-key rotation (operator action; instance-scoped, no
+    /// `asset_id`, and no key ids — the Spec bars them from evidence).
+    SigningKeyRotated,
     AttachmentDenied,
     AttachmentCommitted,
     ReferenceRemoved,
@@ -573,9 +603,9 @@ pub struct AssetReceiptV1 {
     /// top-level artifacts.
     pub operation_lineage: String,
     pub event: AssetReceiptEventV1,
-    /// Present on every asset-scoped event; `None` only for intent-scoped
-    /// bookkeeping events (`IntentArtifactReclaimed`), whose subject lives in
-    /// `details`.
+    /// Present on every asset-scoped event; `None` only for non-asset-scoped
+    /// bookkeeping events (`IntentArtifactReclaimed`, `SigningKeyRotated`),
+    /// whose subject lives in `details`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -615,7 +645,7 @@ pub struct AssetRefusalDetailV1 {
 /// existing `SNAPBACK_INVALID_IDENTIFIER` diagnostic. Receipts and intent
 /// generations joined the original seven with the session ticket (L1-04);
 /// retained intent artifacts joined with the W2a retention work.
-pub const ASSET_SYSTEM_TABLES: [&str; 10] = [
+pub const ASSET_SYSTEM_TABLES: [&str; 11] = [
     "_snapback_asset_records_v1",
     "_snapback_asset_attempts_v1",
     "_snapback_asset_blobs_v1",
@@ -626,6 +656,7 @@ pub const ASSET_SYSTEM_TABLES: [&str; 10] = [
     "_snapback_asset_receipts_v1",
     "_snapback_asset_intent_generations_v1",
     "_snapback_asset_intent_artifacts_v1",
+    "_snapback_asset_signing_keys_v1",
 ];
 
 pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
@@ -746,6 +777,12 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
              intent_json TEXT NOT NULL,
              updated_at_ms INTEGER NOT NULL,
              PRIMARY KEY (intent_id, generation)
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_asset_signing_keys_v1 (
+             key_id TEXT PRIMARY KEY,
+             material TEXT NOT NULL,
+             created_at_ms INTEGER NOT NULL,
+             retired_at_ms INTEGER
          );",
     )?;
     // Blob record_json once carried referenceCount/condemned copies of the
@@ -2085,6 +2122,209 @@ pub fn forces_attachment_disposition(content_type: &str) -> bool {
     )
 }
 
+// ---------------------------------------------------------------------------
+// Signed-URL custody and token format (LLP 0044 §Delivery profiles,
+// `private-signed`). The signing key is instance-owned system material in
+// the instance's system store; rotation retires every prior key, and a
+// retired key validates nothing, so rotation invalidates outstanding URLs
+// by construction. Key ids and material never appear in receipts,
+// diagnostics, or host-ops output.
+// ---------------------------------------------------------------------------
+
+pub const ASSET_SIGNED_URL_DEFAULT_TTL_MS: u64 = 15 * 60 * 1000;
+pub const ASSET_SIGNED_URL_MAX_TTL_MS: u64 = 24 * 60 * 60 * 1000;
+const ASSET_SIGNED_URL_INPUT_FORMAT: &str = "snapback.asset-signed-url.v1";
+const ASSET_SIGNING_KEY_BYTES: usize = 32;
+
+pub struct AssetSigningKey {
+    pub key_id: String,
+    material: Vec<u8>,
+}
+
+fn decode_signing_material(encoded: &str) -> SnapbackResult<Vec<u8>> {
+    use base64::Engine as _;
+    base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(encoded)
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "signing-key material is unreadable",
+            )
+        })
+}
+
+/// Newest non-retired key, minting the first one on demand.
+pub fn active_signing_key(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<AssetSigningKey> {
+    let existing: Option<(String, String)> = tx
+        .query_row(
+            "SELECT key_id, material FROM _snapback_asset_signing_keys_v1
+             WHERE retired_at_ms IS NULL ORDER BY created_at_ms DESC LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    if let Some((key_id, material)) = existing {
+        return Ok(AssetSigningKey {
+            key_id,
+            material: decode_signing_material(&material)?,
+        });
+    }
+    mint_signing_key(tx, now_ms)
+}
+
+fn mint_signing_key(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<AssetSigningKey> {
+    use base64::Engine as _;
+    let mut material = vec![0u8; ASSET_SIGNING_KEY_BYTES];
+    getrandom::fill(&mut material).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+            "assets",
+            "no randomness source for signing-key material",
+        )
+    })?;
+    let key_id = Uuid::now_v7().to_string();
+    tx.execute(
+        "INSERT INTO _snapback_asset_signing_keys_v1 (key_id, material, created_at_ms, retired_at_ms)
+         VALUES (?1, ?2, ?3, NULL)",
+        rusqlite::params![
+            key_id,
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&material),
+            now_ms
+        ],
+    )?;
+    Ok(AssetSigningKey { key_id, material })
+}
+
+/// Rotation: retire every active key and mint a fresh one. An operator
+/// action, not per-principal revocation (LLP 0044).
+pub fn rotate_signing_key(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<AssetSigningKey> {
+    tx.execute(
+        "UPDATE _snapback_asset_signing_keys_v1 SET retired_at_ms = ?1 WHERE retired_at_ms IS NULL",
+        [now_ms],
+    )?;
+    mint_signing_key(tx, now_ms)
+}
+
+fn load_live_signing_key(tx: &Transaction<'_>, key_id: &str) -> SnapbackResult<Option<Vec<u8>>> {
+    let material: Option<String> = tx
+        .query_row(
+            "SELECT material FROM _snapback_asset_signing_keys_v1
+             WHERE key_id = ?1 AND retired_at_ms IS NULL",
+            [key_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    material.map(|m| decode_signing_material(&m)).transpose()
+}
+
+fn signed_url_input(
+    asset_id: &str,
+    variant: &str,
+    grantee: &str,
+    lifecycle_generation: u64,
+    expires_at_ms: u64,
+) -> String {
+    format!(
+        "{ASSET_SIGNED_URL_INPUT_FORMAT}\n{asset_id}\n{variant}\n{grantee}\n{lifecycle_generation}\n{expires_at_ms}"
+    )
+}
+
+fn signed_url_hmac(material: &[u8], input: &str) -> String {
+    use base64::Engine as _;
+    use hmac::Mac as _;
+    let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(material)
+        .expect("hmac accepts any key length");
+    mac.update(input.as_bytes());
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes())
+}
+
+/// The frozen bearer-token format:
+/// `v1.<keyId>.<expiresAtMs>.<granteeB64url>.<sigB64url>`, where the
+/// signature is HMAC-SHA256 over the alias, grantee authorization basis,
+/// lifecycle generation, and expiry — never a blob path. The generation is
+/// deliberately not carried: validation recomputes against the asset's
+/// *current* lifecycle generation, so deletion or replacement invalidates
+/// at the origin (the target-specific stronger mechanism 0044 permits).
+pub fn mint_signed_url_token(
+    key: &AssetSigningKey,
+    asset_id: &str,
+    variant: &str,
+    grantee: &str,
+    lifecycle_generation: u64,
+    expires_at_ms: u64,
+) -> String {
+    use base64::Engine as _;
+    let sig = signed_url_hmac(
+        &key.material,
+        &signed_url_input(asset_id, variant, grantee, lifecycle_generation, expires_at_ms),
+    );
+    let grantee_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(grantee.as_bytes());
+    format!("v1.{}.{expires_at_ms}.{grantee_b64}.{sig}", key.key_id)
+}
+
+pub enum SignedTokenOutcome {
+    Valid,
+    Expired,
+    /// Bad shape, unknown/rotated key, or signature mismatch (including a
+    /// lifecycle-generation move since issuance). One refusal class: a
+    /// bearer probe learns nothing about which part failed.
+    Invalid,
+}
+
+pub fn validate_signed_url_token(
+    tx: &Transaction<'_>,
+    token: &str,
+    asset_id: &str,
+    variant: &str,
+    lifecycle_generation: u64,
+    now_ms: u64,
+) -> SnapbackResult<SignedTokenOutcome> {
+    use base64::Engine as _;
+    let mut parts = token.splitn(5, '.');
+    let (Some("v1"), Some(key_id), Some(expires), Some(grantee_b64), Some(sig)) = (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) else {
+        return Ok(SignedTokenOutcome::Invalid);
+    };
+    let Ok(expires_at_ms) = expires.parse::<u64>() else {
+        return Ok(SignedTokenOutcome::Invalid);
+    };
+    let Ok(grantee_bytes) =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(grantee_b64)
+    else {
+        return Ok(SignedTokenOutcome::Invalid);
+    };
+    let Ok(grantee) = String::from_utf8(grantee_bytes) else {
+        return Ok(SignedTokenOutcome::Invalid);
+    };
+    let Some(material) = load_live_signing_key(tx, key_id)? else {
+        return Ok(SignedTokenOutcome::Invalid);
+    };
+    let expected = signed_url_hmac(
+        &material,
+        &signed_url_input(asset_id, variant, &grantee, lifecycle_generation, expires_at_ms),
+    );
+    // Constant-time comparison of equal-length base64 strings.
+    let matches = expected.len() == sig.len()
+        && expected
+            .bytes()
+            .zip(sig.bytes())
+            .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+            == 0;
+    if !matches {
+        return Ok(SignedTokenOutcome::Invalid);
+    }
+    if now_ms >= expires_at_ms {
+        return Ok(SignedTokenOutcome::Expired);
+    }
+    Ok(SignedTokenOutcome::Valid)
+}
+
 /// The original filename is metadata only, sanitized before it can appear in
 /// a `Content-Disposition` parameter; it is never a physical key.
 pub fn sanitize_filename(declared: Option<&str>) -> String {
@@ -2517,6 +2757,10 @@ pub struct AssetTargetFactsV1 {
     pub publication_retention_ms: u64,
     pub work_retry_ceiling: u64,
     pub work_lease_ms: u64,
+    /// `private-signed` issuance TTLs: the default applied when a request
+    /// names none, and the declared maximum a request may not exceed.
+    pub signed_url_default_ttl_ms: u64,
+    pub signed_url_max_ttl_ms: u64,
     /// The image-processing facts block; `None` is the honest Missing
     /// report for a target without `asset-image-finalization`.
     pub image: Option<AssetImageFactsV1>,
@@ -2534,7 +2778,11 @@ impl AssetTargetFactsV1 {
         Self {
             capability_id: "asset_lifecycle_v1".to_owned(),
             lifecycle_stores: vec![ASSET_STORE_LOCAL_FS.to_owned()],
-            delivery_profiles: vec!["private-strict".to_owned()],
+            delivery_profiles: vec![
+                "private-strict".to_owned(),
+                "private-signed".to_owned(),
+                "public-immutable".to_owned(),
+            ],
             integrity_grades: vec![
                 "end-to-end-verified".to_owned(),
                 "received-bytes-canonical".to_owned(),
@@ -2552,6 +2800,8 @@ impl AssetTargetFactsV1 {
             publication_retention_ms: ASSET_PUBLICATION_RETENTION_MS,
             work_retry_ceiling: ASSET_WORK_RETRY_CEILING,
             work_lease_ms: ASSET_WORK_LEASE_MS,
+            signed_url_default_ttl_ms: ASSET_SIGNED_URL_DEFAULT_TTL_MS,
+            signed_url_max_ttl_ms: ASSET_SIGNED_URL_MAX_TTL_MS,
             image: Some(AssetImageFactsV1::local_v1()),
             advisory_limits: Vec::new(),
             missing: vec![
@@ -2560,8 +2810,6 @@ impl AssetTargetFactsV1 {
                 "asset-custom-read-authorizers".to_owned(),
                 "asset-deferred-length".to_owned(),
                 "asset-reference-gc".to_owned(),
-                "public-immutable".to_owned(),
-                "private-signed".to_owned(),
             ],
         }
     }
@@ -2777,6 +3025,8 @@ pub fn schema_registrations() -> Vec<(&'static str, Value)> {
         ("asset.tus-instruction.schema.json", schema_of::<AssetTusInstructionV1>()),
         ("asset.finalize-request.schema.json", schema_of::<AssetFinalizeRequestV1>()),
         ("asset.finalize-response.schema.json", schema_of::<AssetFinalizeResponseV1>()),
+        ("asset.signed-url-request.schema.json", schema_of::<AssetSignedUrlIssueRequestV1>()),
+        ("asset.signed-url-response.schema.json", schema_of::<AssetSignedUrlIssueResponseV1>()),
         ("asset.lifecycle-message.schema.json", schema_of::<AssetLifecycleMessageV1>()),
         ("asset.receipt.schema.json", schema_of::<AssetReceiptV1>()),
         ("asset.refusal-detail.schema.json", schema_of::<AssetRefusalDetailV1>()),

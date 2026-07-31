@@ -7,7 +7,9 @@
     "attemptTtlMs": 21600000,
     "capabilityId": "asset_lifecycle_v1",
     "deliveryProfiles": [
-      "private-strict"
+      "private-strict",
+      "private-signed",
+      "public-immutable"
     ],
     "digestAlgorithm": "sha256",
     "image": {
@@ -44,13 +46,13 @@
       "asset-backup-export",
       "asset-custom-read-authorizers",
       "asset-deferred-length",
-      "asset-reference-gc",
-      "public-immutable",
-      "private-signed"
+      "asset-reference-gc"
     ],
     "pendingGraceMs": 86400000,
     "publicationRetentionMs": 604800000,
     "resumableLane": "tus-1.0.0",
+    "signedUrlDefaultTtlMs": 900000,
+    "signedUrlMaxTtlMs": 86400000,
     "tombstoneRetentionMs": 604800000,
     "workLeaseMs": 60000,
     "workRetryCeiling": 5

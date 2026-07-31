@@ -950,6 +950,12 @@ pub enum AssetsCommand {
         target: TargetArgs,
         asset_id: String,
     },
+    /// asset.rotateSigningKey — retire every signing key and mint a fresh
+    /// one; every outstanding signed URL stops validating.
+    RotateSigningKey {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
     /// asset.delete — explicit authorized delete (refuses while typed
     /// references remain).
     Delete {
@@ -1117,6 +1123,10 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AssetsCommand::Retry { target, asset_id } => host_op_via_http(
                 &target,
                 json!({ "operation": "asset.retry", "input": { "assetId": asset_id } }),
+            ),
+            AssetsCommand::RotateSigningKey { target } => host_op_via_http(
+                &target,
+                json!({ "operation": "asset.rotateSigningKey" }),
             ),
             AssetsCommand::Delete {
                 target,

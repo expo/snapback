@@ -214,6 +214,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/assets/records/{id}"),
         ("GET", "/assets/records/{id}/bytes/{variant}"),
         ("DELETE", "/assets/records/{id}"),
+        ("POST", "/assets/records/{id}/signed-url"),
+        ("GET", "/assets/signed/{id}/{variant}"),
+        ("GET", "/assets/public/{id}/{variant}"),
         ("POST", "/assets/attempts/{id}/finalize"),
         ("HEAD", "/assets/tus/{id}"),
         ("PATCH", "/assets/tus/{id}"),
@@ -920,6 +923,7 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.asset.list",
             "host_ops.asset.put",
             "host_ops.asset.retry",
+            "host_ops.asset.rotateSigningKey",
             "host_ops.app.reset",
             "host_ops.app.seed.clear.v1",
             "host_ops.app.seed.ensure.v1",
@@ -1504,6 +1508,14 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/assets/records/policy_probe",
                 base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/assets/records/{id}/signed-url"),
+            SessionBodyProbe {
+                uri: "/assets/records/policy_probe/signed-url",
+                base: json!({ "variant": "primary" }),
                 forbidden_fields: handler_fields(),
             },
         ),

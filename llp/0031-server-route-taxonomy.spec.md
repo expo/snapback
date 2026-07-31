@@ -5,7 +5,12 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-07-31, later same day (LLP 0044 tickets L1-09/L1-10:
+**Revised:** 2026-07-31, W2b (LLP 0044 completion program: the asset family
+gains the `private-signed` issuance route, the token-credentialed public
+signed serve lane, and the `public-immutable` lane — the registry's first
+`AppData`/`Public` byte routes, with the existence-oracle and cache
+postures pinned in the extended dated amendment; `asset.rotateSigningKey`
+joins the host-operation registry). Prior same day (LLP 0044 tickets L1-09/L1-10:
 the asset family grows strict delivery over `(asset, rendition)` aliases —
 `GET /assets/records/{id}/bytes/{variant}` — and the owner's explicit
 `DELETE /assets/records/{id}`, ten rows total; see the extended dated
@@ -1153,6 +1158,30 @@ resource is this registry's first same-path multi-method family: the rows
 stay one-per-method in the registry, and the router merges them onto one
 installed path with a single OPTIONS fallback, each method keeping its own
 registration's policy middleware.
+
+The W2b delivery-profile landing (2026-07-31, same day) extends the family
+with the signed and public lanes:
+
+- `POST /assets/records/{id}/signed-url` — `private-signed` issuance;
+  per-request authorized exactly like strict delivery (query-shaped,
+  `HttpQuery`, ordinary app-auth sessions posture), returning a bearer URL
+  bounded by the declared TTL facts;
+- `GET /assets/signed/{id}/{variant}` — the signed serve lane. `AppData`
+  with `RoutePolicy::Public` and no credential resolution: the token query
+  parameter is the entire credential, validated against the instance
+  signing keys, the token's expiry, and the asset's *current* lifecycle
+  generation; responses are privately cacheable only within the remaining
+  bearer window;
+- `GET /assets/public/{id}/{variant}` — the `public-immutable` lane.
+  `AppData`/`Public`, no credential; only a Ready asset whose declared
+  profile is public serves, everything else is indistinguishable from
+  unknown (the public lane is never an existence oracle), and responses
+  carry `Cache-Control: public, max-age=31536000, immutable` with
+  rendition-id ETags.
+
+The rotation operator surface is not a route: `asset.rotateSigningKey`
+joins the LLP 0024 host-operation registry beside the other `asset.*`
+operations (AdminWrite, NonProd).
 
 ## Dated amendment: versioned seed route family (2026-07-27)
 

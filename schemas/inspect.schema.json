@@ -501,6 +501,17 @@
         "resumableLane": {
           "type": "string"
         },
+        "signedUrlDefaultTtlMs": {
+          "description": "`private-signed` issuance TTLs: the default applied when a request\nnames none, and the declared maximum a request may not exceed.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "signedUrlMaxTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "tombstoneRetentionMs": {
           "format": "uint64",
           "minimum": 0,
@@ -535,6 +546,8 @@
         "publicationRetentionMs",
         "workRetryCeiling",
         "workLeaseMs",
+        "signedUrlDefaultTtlMs",
+        "signedUrlMaxTtlMs",
         "advisoryLimits",
         "missing"
       ],

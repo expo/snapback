@@ -6620,6 +6620,12 @@ pub enum CredentialResolution {
     AgentFamilySecretBody,
     /// A bearer accepted only by the opaque revoke-only family alarm.
     FamilyAlarmBearer,
+    /// A signed asset-delivery URL's token query parameter — the entire
+    /// credential on the signed serve lane. Validated against the instance
+    /// signing keys, its own expiry, and the asset's current lifecycle
+    /// generation; no session, body, or header authority participates
+    /// (LLP 0044 §Delivery profiles, `private-signed`).
+    SignedUrlToken,
     LegacyBodyAuth,
     ConnectionGrantHeader,
     ConnectionGrantHeaderOrWebSocketSubprotocol,
@@ -6988,6 +6994,7 @@ impl RouteSpec {
                     | CredentialResolution::AgentCredentialBody
                     | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::FamilyAlarmBearer
+                    | CredentialResolution::SignedUrlToken
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => {
@@ -7168,6 +7175,9 @@ impl RouteSpec {
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OptionalSessionBearer
                     | CredentialResolution::OptionalSessionOrScopedToken
+                    // The signed-URL token is authority-complete on its own;
+                    // sessions mode changes nothing about the lane.
+                    | CredentialResolution::SignedUrlToken
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => false,
@@ -7751,6 +7761,45 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             app_auth_route("DELETE", "/assets/records/{id}"),
             delete(asset_record_delete_route),
+        ),
+        // `private-signed` issuance is per-request authorized like strict
+        // delivery; the minted URL is then a bearer capability until its
+        // TTL (LLP 0044 §Delivery profiles; LLP 0031 dated amendment).
+        RegisteredRoute::new(
+            app_auth_route("POST", "/assets/records/{id}/signed-url"),
+            post(asset_signed_url_issue_route),
+        ),
+        // The signed serve lane: the token in the query IS the credential;
+        // no session/body authority participates, and the response is
+        // privately cacheable only within the remaining bearer window.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/assets/signed/{id}/{variant}",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::SignedUrlToken,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::ApplicationData,
+            ),
+            get(asset_deliver_signed_route),
+        ),
+        // `public-immutable`: ready renditions under a public alias with
+        // immutable cache headers; everything non-servable is
+        // indistinguishable from unknown.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/assets/public/{id}/{variant}",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::None,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::StaticPublic,
+            ),
+            get(asset_deliver_public_route),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -8799,9 +8848,9 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         // Metadata reads, byte delivery, and owner deletion all decide
         // through the declared read-access policy / owner authority
         // (LLP 0044 §Asset read authorization) — query-shaped admission.
-        "/assets/records/{id}" | "/assets/records/{id}/bytes/{variant}" => {
-            Some(InvocationSource::HttpQuery)
-        }
+        "/assets/records/{id}"
+        | "/assets/records/{id}/bytes/{variant}"
+        | "/assets/records/{id}/signed-url" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         // Bundle entries are evaluated exactly like HTTP queries; register
         // mode re-prepares LiveInitialQuery authorities per entry inside the
@@ -14073,6 +14122,19 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             },
         ),
         host(
+            "host_ops.asset.rotateSigningKey",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
             "host_ops.function.explain",
             RoutePolicy::AdminRead,
             EffectPolicy::None,
@@ -14478,6 +14540,7 @@ pub(crate) fn host_ops_operation_spec(
         "asset.list" => "host_ops.asset.list",
         "asset.retry" => "host_ops.asset.retry",
         "asset.delete" => "host_ops.asset.delete",
+        "asset.rotateSigningKey" => "host_ops.asset.rotateSigningKey",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
         // authenticated request reaches the structured UNIMPLEMENTED /
@@ -18154,6 +18217,14 @@ async fn asset_deliver_route(
         snapback.asset_deliver(&authority, &id, &variant, range_header.as_deref(), max_width)
     })
     .await?;
+    stream_asset_delivery(outcome).await
+}
+
+/// Shared byte-window → HTTP response tail for every delivery profile; the
+/// cache posture rides on the resolved delivery itself.
+async fn stream_asset_delivery(
+    outcome: crate::local::AssetDeliveryOutcome,
+) -> Result<Response, ApiError> {
     let delivery = match outcome {
         crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
             let mut response = StatusCode::RANGE_NOT_SATISFIABLE.into_response();
@@ -18219,7 +18290,7 @@ async fn asset_deliver_route(
         .header(header::CONTENT_TYPE, &delivery.content_type)
         .header(header::CONTENT_LENGTH, delivery.window_length)
         .header(header::ETAG, &delivery.etag)
-        .header(header::CACHE_CONTROL, "private, no-store")
+        .header(header::CACHE_CONTROL, &delivery.cache_control)
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
         .header(header::CONTENT_DISPOSITION, &delivery.disposition);
@@ -18236,6 +18307,59 @@ async fn asset_deliver_route(
     builder
         .body(Body::from_stream(stream))
         .map_err(|_| ApiError::from(asset_delivery_header_error()))
+}
+
+async fn asset_signed_url_issue_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+    Json(request): Json<crate::assets::AssetSignedUrlIssueRequestV1>,
+) -> Result<Json<crate::assets::AssetSignedUrlIssueResponseV1>, ApiError> {
+    let response = with_snapback(&state, move |snapback| {
+        snapback.asset_signed_url_issue(&authority, &id, request)
+    })
+    .await?;
+    Ok(Json(response))
+}
+
+async fn asset_deliver_signed_route(
+    State(state): State<SharedSnapback>,
+    Path((id, variant)): Path<(String, String)>,
+    Query(query): Query<std::collections::HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let token = query.get("token").cloned().ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_ASSET_SIGNATURE_INVALID",
+            "assets",
+            "the signed URL does not validate",
+        ))
+    })?;
+    let range_header = headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.asset_deliver_signed(&id, &variant, &token, range_header.as_deref())
+    })
+    .await?;
+    stream_asset_delivery(outcome).await
+}
+
+async fn asset_deliver_public_route(
+    State(state): State<SharedSnapback>,
+    Path((id, variant)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let range_header = headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.asset_deliver_public(&id, &variant, range_header.as_deref())
+    })
+    .await?;
+    stream_asset_delivery(outcome).await
 }
 
 fn asset_delivery_header_error() -> SnapbackError {
@@ -22223,6 +22347,14 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_ATTACH_UNAVAILABLE"
         | "SNAPBACK_ASSET_ATTACH_DENIED" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ASSET_ADMISSION_REVOKED" => StatusCode::FORBIDDEN,
+        // Signed-URL refusals: an expired bearer is 401 (re-issuance is the
+        // recovery); a token that does not validate — bad shape, rotated or
+        // unknown key, signature/generation mismatch — is one 403 class so
+        // a probe learns nothing about which part failed.
+        "SNAPBACK_ASSET_SIGNATURE_EXPIRED" => StatusCode::UNAUTHORIZED,
+        "SNAPBACK_ASSET_SIGNATURE_INVALID" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ASSET_TTL_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
         // Image-processing refusals about the client's bytes are 422: the
         // request was well-formed, the content is unprocessable under the
@@ -35775,9 +35907,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
         "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
         "SNAPBACK_ASSET_ATTACH_DENIED",
+        "SNAPBACK_ASSET_TTL_INVALID",
     ];
 
     const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ASSET_SIGNATURE_EXPIRED",
         "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "SNAPBACK_ADMIN_TOKEN_REQUIRED",
         "SNAPBACK_AUTH_CODE_INVALID",
@@ -35834,6 +35968,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED",
         "SNAPBACK_ASSET_FORBIDDEN",
         "SNAPBACK_ASSET_ADMISSION_REVOKED",
+        "SNAPBACK_ASSET_SIGNATURE_INVALID",
     ];
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
@@ -36266,6 +36401,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED",
         "SNAPBACK_ASSET_IMAGE_DECODE_FAILED",
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
+        "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
     ];
     const ASSET_PRECONDITION_DIAGNOSTICS: &[&str] =
         &["SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED"];

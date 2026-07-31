@@ -1,0 +1,25 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.signed-url-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`private-signed` issuance (LLP 0044 §Delivery profiles). The variant is a\nconcrete key — the declarative `best` selector resolves at request time\nand is deliberately not signable, since the signature binds one alias.",
+  "properties": {
+    "ttlMs": {
+      "description": "Bounded by the declared maximum; the declared default applies when\nabsent.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "variant": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "variant"
+  ],
+  "title": "AssetSignedUrlIssueRequestV1",
+  "type": "object"
+}

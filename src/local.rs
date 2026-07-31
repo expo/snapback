@@ -5284,6 +5284,17 @@ impl LocalSnapback {
         self.asset_image_finalization_override = Some(enabled);
     }
 
+    /// Whether the declared facts advertise a delivery profile — the same
+    /// single source the manifest embeds, so the runtime gate and the
+    /// advertised claim can never disagree.
+    pub(crate) fn asset_delivery_profile_declared(profile: &str) -> bool {
+        static DECLARED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+        DECLARED
+            .get_or_init(|| crate::assets::AssetTargetFactsV1::local_v1().delivery_profiles)
+            .iter()
+            .any(|declared| declared == profile)
+    }
+
     /// The app logical quota, overridable in tests so exceed paths are
     /// exercisable without gigabyte fixtures.
     pub(crate) fn asset_app_quota(&self) -> u64 {
@@ -5420,6 +5431,23 @@ impl LocalSnapback {
                 "the generated upload reference does not match the deployed intent policy",
             )
             .with_details(serde_json::json!({ "intentId": intent.id })));
+        }
+        // Defense in depth beside codegen's manifest-keyed admission: an
+        // intent whose declared delivery profile this target does not
+        // advertise refuses before any state exists (LLP 0044: "a target
+        // advertises supported profiles and refuses an intent it cannot
+        // honor").
+        let profile_name = match intent.delivery.kind {
+            assets::AssetDeliveryProfile::PublicImmutable => "public-immutable",
+            assets::AssetDeliveryProfile::PrivateSigned => "private-signed",
+            assets::AssetDeliveryProfile::PrivateStrict => "private-strict",
+        };
+        if !Self::asset_delivery_profile_declared(profile_name) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
+                "assets",
+                format!("this target does not advertise the {profile_name} delivery profile"),
+            ));
         }
         let declared_length = request.declared_length.ok_or_else(|| {
             SnapbackError::error(
@@ -6064,6 +6092,10 @@ impl LocalSnapback {
                     self.asset_host_authority(user_id, InvocationSource::HttpQuery, profile)?;
                 self.asset_delete(&authority, &parsed.asset_id)
             }
+            // The documented rotation path (LLP 0044 §Delivery profiles):
+            // an operator action that invalidates every outstanding signed
+            // URL; takes no input and returns no key identity.
+            "asset.rotateSigningKey" => self.asset_rotate_signing_key(),
             _ => Err(SnapbackError::error(
                 "SNAPBACK_ASSET_HOST_OP_UNKNOWN",
                 "assets",
@@ -7910,11 +7942,39 @@ impl LocalSnapback {
                     "the asset has no deliverable bytes yet",
                 ));
             }
-            // `best` is the declarative selector (LLP 0044: "best image
-            // variant with width ≤ N"): the widest Ready rendition within
-            // the bound, else the narrowest available — a bound below every
-            // rendition serves the closest fit, never an arbitrary larger
-            // one.
+            Self::asset_deliver_from(
+                tx,
+                &store,
+                &asset,
+                &variant,
+                max_width,
+                range_header.as_deref(),
+                "private-strict",
+                "private, no-store".to_owned(),
+                now,
+            )
+        })
+    }
+
+    /// Shared alias→bytes resolution for every delivery profile: rendition
+    /// selection (including the `best` bound), live-blob load, range
+    /// grammar, the per-request receipt, and trusted headers. Callers own
+    /// the profile's authorization semantics; this owns everything after.
+    #[allow(clippy::too_many_arguments)]
+    fn asset_deliver_from(
+        tx: &rusqlite::Transaction<'_>,
+        store: &crate::assets::AssetFsStore,
+        asset: &crate::assets::AssetRecordV1,
+        variant: &str,
+        max_width: Option<u64>,
+        range_header: Option<&str>,
+        profile_label: &str,
+        cache_control: String,
+        now: u64,
+    ) -> SnapbackResult<AssetDeliveryOutcome> {
+        use crate::assets as assets;
+        let asset_id = asset.asset_id.as_str();
+        {
             let rendition = if variant == "best" {
                 let bound = max_width.ok_or_else(|| {
                     SnapbackError::error(
@@ -7947,7 +8007,7 @@ impl LocalSnapback {
                         )
                     })?
             } else {
-                assets::load_rendition_by_variant(tx, asset_id, &variant)?
+                assets::load_rendition_by_variant(tx, asset_id, variant)?
                     .filter(|r| r.state == assets::AssetRenditionState::Ready)
                     .ok_or_else(|| {
                         SnapbackError::error(
@@ -7967,7 +8027,7 @@ impl LocalSnapback {
                         "the rendition's blob is not available",
                     )
                 })?;
-            let range = assets::parse_byte_range(range_header.as_deref(), blob.byte_length);
+            let range = assets::parse_byte_range(range_header, blob.byte_length);
             if range == assets::ByteRangeOutcome::Unsatisfiable {
                 return Ok(AssetDeliveryOutcome::Unsatisfiable {
                     total_length: blob.byte_length,
@@ -7988,7 +8048,7 @@ impl LocalSnapback {
                     None,
                     now,
                     serde_json::json!({
-                        "profile": "private-strict",
+                        "profile": profile_label,
                         "variant": rendition.variant_key,
                         "partial": partial,
                         "windowStart": window_start,
@@ -8019,8 +8079,245 @@ impl LocalSnapback {
                 // blob never expose equal validators (alias identity).
                 etag: format!("\"r-{}\"", rendition.rendition_id),
                 disposition,
+                cache_control,
                 partial,
             })))
+        }
+    }
+
+    /// `private-signed` issuance: authorization happens here, per request;
+    /// the minted URL is then a bearer capability until its TTL (LLP 0044
+    /// §Delivery profiles). Only signed-profile assets issue.
+    pub(crate) fn asset_signed_url_issue(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        request: crate::assets::AssetSignedUrlIssueRequestV1,
+    ) -> SnapbackResult<crate::assets::AssetSignedUrlIssueResponseV1> {
+        use crate::assets as assets;
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        let now = now_millis();
+        let ttl = match request.ttl_ms {
+            None => assets::ASSET_SIGNED_URL_DEFAULT_TTL_MS,
+            Some(ms) if ms == 0 || ms > assets::ASSET_SIGNED_URL_MAX_TTL_MS => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_TTL_INVALID",
+                    "assets",
+                    format!(
+                        "ttlMs must be between 1 and {}",
+                        assets::ASSET_SIGNED_URL_MAX_TTL_MS
+                    ),
+                ));
+            }
+            Some(ms) => ms,
+        };
+        if request.variant == "best" {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+                "assets",
+                "signed issuance binds one concrete variant; resolve best before issuing",
+            ));
+        }
+        self.db.asset_transaction(|tx| {
+            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+            if asset.availability == assets::AssetAvailability::Deleted {
+                return Err(asset_unknown(asset_id)());
+            }
+            if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
+                    "assets",
+                    "this asset's declared delivery profile does not issue signed URLs",
+                ));
+            }
+            let decision =
+                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
+            if !decision.authorized {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "assets",
+                    "this asset is not readable by the caller",
+                ));
+            }
+            if asset.availability != assets::AssetAvailability::Ready {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_NOT_READY",
+                    "assets",
+                    "the asset has no deliverable bytes yet",
+                ));
+            }
+            let grantee = caller.as_deref().unwrap_or("anonymous");
+            let expires_at_ms = now.saturating_add(ttl);
+            let key = assets::active_signing_key(tx, now)?;
+            let token = assets::mint_signed_url_token(
+                &key,
+                asset_id,
+                &request.variant,
+                grantee,
+                asset.lifecycle_generation,
+                expires_at_ms,
+            );
+            assets::write_receipt(
+                tx,
+                &asset_receipt(
+                    &asset.asset_id.clone(),
+                    assets::AssetReceiptEventV1::SignedUrlIssued,
+                    &asset.asset_id,
+                    None,
+                    now,
+                    serde_json::json!({
+                        "variant": request.variant,
+                        "expiresAtMs": expires_at_ms,
+                    }),
+                ),
+            )?;
+            Ok(assets::AssetSignedUrlIssueResponseV1 {
+                url: format!(
+                    "/assets/signed/{asset_id}/{}?token={token}",
+                    request.variant
+                ),
+                variant: request.variant.clone(),
+                expires_at_ms,
+            })
+        })
+    }
+
+    /// Serve a signed bearer URL: signature, expiry, and current lifecycle
+    /// generation validate; no per-request read authorization — that is the
+    /// profile's declared bearer semantics.
+    pub(crate) fn asset_deliver_signed(
+        &mut self,
+        asset_id: &str,
+        variant: &str,
+        token: &str,
+        range_header: Option<&str>,
+    ) -> SnapbackResult<AssetDeliveryOutcome> {
+        use crate::assets as assets;
+        let store = self.asset_store()?;
+        let now = now_millis();
+        let variant = variant.to_owned();
+        let token = token.to_owned();
+        let range_header = range_header.map(str::to_owned);
+        self.db.asset_transaction(|tx| {
+            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+            if asset.availability == assets::AssetAvailability::Deleted {
+                return Err(asset_unknown(asset_id)());
+            }
+            if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
+                return Err(asset_unknown(asset_id)());
+            }
+            match assets::validate_signed_url_token(
+                tx,
+                &token,
+                asset_id,
+                &variant,
+                asset.lifecycle_generation,
+                now,
+            )? {
+                assets::SignedTokenOutcome::Valid => {}
+                assets::SignedTokenOutcome::Expired => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_SIGNATURE_EXPIRED",
+                        "assets",
+                        "the signed URL's bearer window has passed; request a fresh issuance",
+                    ));
+                }
+                assets::SignedTokenOutcome::Invalid => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_SIGNATURE_INVALID",
+                        "assets",
+                        "the signed URL does not validate",
+                    ));
+                }
+            }
+            if asset.availability != assets::AssetAvailability::Ready {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_NOT_READY",
+                    "assets",
+                    "the asset has no deliverable bytes yet",
+                ));
+            }
+            // A signed response may be privately cached for the remaining
+            // bearer window and no longer — the validated token's expiry is
+            // authoritative (token part 3; validation already proved it).
+            let remaining_s = token
+                .split('.')
+                .nth(2)
+                .and_then(|part| part.parse::<u64>().ok())
+                .map(|expires| expires.saturating_sub(now) / 1000)
+                .unwrap_or(0);
+            Self::asset_deliver_from(
+                tx,
+                &store,
+                &asset,
+                &variant,
+                None,
+                range_header.as_deref(),
+                "private-signed",
+                format!("private, max-age={remaining_s}"),
+                now,
+            )
+        })
+    }
+
+    /// Serve a `public-immutable` alias: no authorization, immutable cache
+    /// headers, and everything non-servable is indistinguishable from
+    /// unknown — the public lane is never an existence oracle.
+    pub(crate) fn asset_deliver_public(
+        &mut self,
+        asset_id: &str,
+        variant: &str,
+        range_header: Option<&str>,
+    ) -> SnapbackResult<AssetDeliveryOutcome> {
+        use crate::assets as assets;
+        let store = self.asset_store()?;
+        let now = now_millis();
+        let variant = variant.to_owned();
+        let range_header = range_header.map(str::to_owned);
+        self.db.asset_transaction(|tx| {
+            let masked = asset_unknown(asset_id);
+            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(&masked)?;
+            if asset.availability != assets::AssetAvailability::Ready
+                || asset.delivery_profile != assets::AssetDeliveryProfile::PublicImmutable
+            {
+                return Err(masked());
+            }
+            Self::asset_deliver_from(
+                tx,
+                &store,
+                &asset,
+                &variant,
+                None,
+                range_header.as_deref(),
+                "public-immutable",
+                "public, max-age=31536000, immutable".to_owned(),
+                now,
+            )
+        })
+    }
+
+    /// Operator signing-key rotation: retires every prior key, so every
+    /// outstanding signed URL stops validating (LLP 0044: an operator
+    /// action, not per-principal revocation). No key ids in the result.
+    pub(crate) fn asset_rotate_signing_key(&mut self) -> SnapbackResult<Value> {
+        use crate::assets as assets;
+        let now = now_millis();
+        self.db.asset_transaction(|tx| {
+            assets::rotate_signing_key(tx, now)?;
+            assets::write_receipt(
+                tx,
+                &assets::AssetReceiptV1 {
+                    receipt_id: uuid::Uuid::now_v7().to_string(),
+                    operation_lineage: "signing-key-rotation".to_owned(),
+                    event: assets::AssetReceiptEventV1::SigningKeyRotated,
+                    asset_id: None,
+                    attempt_id: None,
+                    at_ms: now,
+                    details: serde_json::json!({ "scope": "instance" }),
+                },
+            )?;
+            Ok(serde_json::json!({ "rotated": true }))
         })
     }
 
@@ -21225,7 +21522,10 @@ pub(crate) struct AssetPublicationMaintenanceReport {
     pub objects_deleted: u64,
 }
 
-/// One resolved strict-delivery window over an `(asset, rendition)` alias.
+/// One resolved delivery window over an `(asset, rendition)` alias. The
+/// cache posture is the profile's: strict is `private, no-store`, signed is
+/// `private` bounded by the remaining bearer window, public-immutable is the
+/// immutable year (LLP 0044 §Delivery profiles).
 #[derive(Debug)]
 pub(crate) struct AssetDelivery {
     pub file_path: std::path::PathBuf,
@@ -21235,6 +21535,7 @@ pub(crate) struct AssetDelivery {
     pub content_type: String,
     pub etag: String,
     pub disposition: String,
+    pub cache_control: String,
     pub partial: bool,
 }
 
@@ -22645,6 +22946,73 @@ globalThis.__snapbackHandlers = {
             )
             .expect("bytes land");
         created
+    }
+
+    /// A strict-intent clone with a different id and delivery profile, for
+    /// the signed/public delivery-lane suites.
+    fn asset_profile_intent(
+        name: &str,
+        kind: crate::assets::AssetDeliveryProfile,
+    ) -> crate::manifest::AssetUploadIntentDefinition {
+        let mut intent = asset_test_intent();
+        intent.id = format!("app:{name}");
+        intent.name = name.to_owned();
+        intent.exported_name = Some(name.to_owned());
+        intent.intent_policy_hash = format!("sha256:test-policy-{name}");
+        intent.delivery = crate::manifest::AssetDeliveryPolicy { kind };
+        intent
+    }
+
+    fn asset_profile_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![
+                asset_test_intent(),
+                asset_profile_intent(
+                    "signedUpload",
+                    crate::assets::AssetDeliveryProfile::PrivateSigned,
+                ),
+                asset_profile_intent(
+                    "publicUpload",
+                    crate::assets::AssetDeliveryProfile::PublicImmutable,
+                ),
+            ],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "intent manifest must load: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    /// Upload + finalize under a named profile intent; returns the asset id.
+    fn asset_ready_under_intent(
+        snapback: &mut LocalSnapback,
+        user: &str,
+        bytes: &[u8],
+        name: &str,
+    ) -> String {
+        let creator = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
+        let transfer = asset_dev_authority(snapback, user, InvocationSource::AssetTransfer);
+        let mut request = asset_create_request(Some(bytes.len() as u64));
+        request.intent_id = format!("app:{name}");
+        request.intent_policy_hash = format!("sha256:test-policy-{name}");
+        let created = snapback
+            .asset_attempt_create(&creator, request)
+            .expect("attempt creates");
+        let checksum = asset_chunk_checksum(bytes);
+        snapback
+            .asset_tus_patch(
+                &transfer,
+                &created.task.attempt_id,
+                0,
+                bytes,
+                Some(("sha256", checksum.as_str())),
+            )
+            .expect("bytes land");
+        asset_finalize(snapback, user, &created.task.attempt_id, None).expect("finalizes");
+        created.task.asset_id
     }
 
     fn asset_finalize(
@@ -25074,6 +25442,264 @@ globalThis.__snapbackHandlers = {
             live_refcount, 0,
             "each rendition's blob reference decrements exactly once"
         );
+    }
+
+    #[test]
+    fn asset_signed_url_issues_and_serves_as_a_bearer_until_ttl() {
+        let mut snapback = asset_profile_snapback();
+        let bytes = b"signed-profile-bytes".to_vec();
+        let asset_id = asset_ready_under_intent(&mut snapback, "user_a", &bytes, "signedUpload");
+        let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+        // Issuance is per-request authorized: a foreign caller refuses.
+        let foreign = asset_dev_authority(&snapback, "user_b", InvocationSource::HttpQuery);
+        let refused = snapback
+            .asset_signed_url_issue(
+                &foreign,
+                &asset_id,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: "primary".to_owned(),
+                    ttl_ms: None,
+                },
+            )
+            .expect_err("foreign issuance refuses");
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+
+        // TTL beyond the declared maximum and the unsignable `best`
+        // selector refuse structurally.
+        let over = snapback
+            .asset_signed_url_issue(
+                &owner,
+                &asset_id,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: "primary".to_owned(),
+                    ttl_ms: Some(crate::assets::ASSET_SIGNED_URL_MAX_TTL_MS + 1),
+                },
+            )
+            .expect_err("over-max ttl refuses");
+        assert_eq!(over.diagnostic.code, "SNAPBACK_ASSET_TTL_INVALID");
+        let best = snapback
+            .asset_signed_url_issue(
+                &owner,
+                &asset_id,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: "best".to_owned(),
+                    ttl_ms: None,
+                },
+            )
+            .expect_err("best is unsignable");
+        assert_eq!(best.diagnostic.code, "SNAPBACK_ASSET_VARIANT_UNKNOWN");
+
+        // A strict-profile asset does not issue.
+        let strict_asset = asset_ready(&mut snapback, "user_a", b"strict-bytes");
+        let wrong_profile = snapback
+            .asset_signed_url_issue(
+                &owner,
+                &strict_asset,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: "primary".to_owned(),
+                    ttl_ms: None,
+                },
+            )
+            .expect_err("strict assets do not issue signed URLs");
+        assert_eq!(
+            wrong_profile.diagnostic.code,
+            "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED"
+        );
+
+        // Issue, then serve with the bearer token and no authority at all —
+        // that IS the profile's declared semantics.
+        let issued = snapback
+            .asset_signed_url_issue(
+                &owner,
+                &asset_id,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: "primary".to_owned(),
+                    ttl_ms: None,
+                },
+            )
+            .expect("owner issuance");
+        assert!(issued.url.starts_with(&format!("/assets/signed/{asset_id}/primary?token=v1.")));
+        let token = issued.url.split("token=").nth(1).expect("token").to_owned();
+        let served = match snapback
+            .asset_deliver_signed(&asset_id, "primary", &token, None)
+            .expect("bearer serves")
+        {
+            crate::local::AssetDeliveryOutcome::Content(delivery) => *delivery,
+            other => panic!("expected content, got {other:?}"),
+        };
+        assert_eq!(asset_window_bytes(&served), bytes);
+        assert!(served.cache_control.starts_with("private, max-age="));
+
+        // Range requests ride the same lane; a tampered token is one
+        // invalid class; an expired token is 401-shaped.
+        let ranged = snapback
+            .asset_deliver_signed(&asset_id, "primary", &token, Some("bytes=0-4"))
+            .expect("ranged bearer serves");
+        match ranged {
+            crate::local::AssetDeliveryOutcome::Content(delivery) => {
+                assert!(delivery.partial);
+                assert_eq!(delivery.window_length, 5);
+            }
+            other => panic!("expected partial content, got {other:?}"),
+        }
+        let mut tampered = token.clone();
+        tampered.pop();
+        tampered.push('A');
+        let invalid = snapback
+            .asset_deliver_signed(&asset_id, "primary", &tampered, None)
+            .expect_err("tampered token refuses");
+        assert_eq!(invalid.diagnostic.code, "SNAPBACK_ASSET_SIGNATURE_INVALID");
+        let expired_token = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset =
+                    crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
+                let key = crate::assets::active_signing_key(tx, now_millis())?;
+                Ok(crate::assets::mint_signed_url_token(
+                    &key,
+                    &asset_id,
+                    "primary",
+                    "user_a",
+                    asset.lifecycle_generation,
+                    now_millis().saturating_sub(1_000),
+                ))
+            })
+            .expect("expired token minted");
+        let expired = snapback
+            .asset_deliver_signed(&asset_id, "primary", &expired_token, None)
+            .expect_err("expired token refuses");
+        assert_eq!(expired.diagnostic.code, "SNAPBACK_ASSET_SIGNATURE_EXPIRED");
+    }
+
+    #[test]
+    fn asset_signed_url_rotation_and_generation_moves_invalidate() {
+        let mut snapback = asset_profile_snapback();
+        let asset_id =
+            asset_ready_under_intent(&mut snapback, "user_a", b"rotating-bytes", "signedUpload");
+        let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let issue = |snapback: &mut LocalSnapback, owner: &PreparedAuthority| {
+            snapback
+                .asset_signed_url_issue(
+                    owner,
+                    &asset_id,
+                    crate::assets::AssetSignedUrlIssueRequestV1 {
+                        variant: "primary".to_owned(),
+                        ttl_ms: None,
+                    },
+                )
+                .expect("issuance")
+                .url
+                .split("token=")
+                .nth(1)
+                .expect("token")
+                .to_owned()
+        };
+        let token = issue(&mut snapback, &owner);
+
+        // Rotation retires every key: the outstanding URL stops validating,
+        // a fresh issuance works, and the rotation is receipted without an
+        // asset id or key identity.
+        snapback.asset_rotate_signing_key().expect("rotation");
+        let rotated = snapback
+            .asset_deliver_signed(&asset_id, "primary", &token, None)
+            .expect_err("rotation invalidates outstanding URLs");
+        assert_eq!(rotated.diagnostic.code, "SNAPBACK_ASSET_SIGNATURE_INVALID");
+        let fresh = issue(&mut snapback, &owner);
+        assert!(matches!(
+            snapback
+                .asset_deliver_signed(&asset_id, "primary", &fresh, None)
+                .expect("fresh issuance serves"),
+            crate::local::AssetDeliveryOutcome::Content(_)
+        ));
+
+        // A lifecycle-generation move since issuance invalidates: the
+        // signature binds the generation, and validation recomputes against
+        // the current one.
+        let stale_generation_token = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset =
+                    crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
+                let key = crate::assets::active_signing_key(tx, now_millis())?;
+                Ok(crate::assets::mint_signed_url_token(
+                    &key,
+                    &asset_id,
+                    "primary",
+                    "user_a",
+                    asset.lifecycle_generation + 1,
+                    now_millis() + 60_000,
+                ))
+            })
+            .expect("stale-generation token minted");
+        let stale = snapback
+            .asset_deliver_signed(&asset_id, "primary", &stale_generation_token, None)
+            .expect_err("generation mismatch refuses");
+        assert_eq!(stale.diagnostic.code, "SNAPBACK_ASSET_SIGNATURE_INVALID");
+
+        // Deletion masks the alias entirely on the next request.
+        let deleter = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        snapback.asset_delete(&deleter, &asset_id).expect("delete");
+        let deleted = snapback
+            .asset_deliver_signed(&asset_id, "primary", &fresh, None)
+            .expect_err("deleted asset serves nothing");
+        assert_eq!(deleted.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
+    }
+
+    #[test]
+    fn asset_public_lane_serves_immutable_and_masks_everything_else() {
+        let mut snapback = asset_profile_snapback();
+        let bytes = b"public-profile-bytes".to_vec();
+        let asset_id = asset_ready_under_intent(&mut snapback, "user_a", &bytes, "publicUpload");
+
+        let served = match snapback
+            .asset_deliver_public(&asset_id, "primary", None)
+            .expect("public serves with no credential")
+        {
+            crate::local::AssetDeliveryOutcome::Content(delivery) => *delivery,
+            other => panic!("expected content, got {other:?}"),
+        };
+        assert_eq!(asset_window_bytes(&served), bytes);
+        assert_eq!(served.cache_control, "public, max-age=31536000, immutable");
+        assert!(served.etag.starts_with("\"r-"));
+        let ranged = snapback
+            .asset_deliver_public(&asset_id, "primary", Some("bytes=-5"))
+            .expect("public suffix range serves");
+        assert!(matches!(
+            ranged,
+            crate::local::AssetDeliveryOutcome::Content(ref delivery) if delivery.partial
+        ));
+
+        // Everything non-servable is indistinguishable from unknown: a
+        // strict asset, a pending public asset, and a deleted public asset
+        // all mask — the public lane is never an existence oracle.
+        let strict_asset = asset_ready(&mut snapback, "user_a", b"strict-bytes");
+        let masked = snapback
+            .asset_deliver_public(&strict_asset, "primary", None)
+            .expect_err("strict asset masks on the public lane");
+        assert_eq!(masked.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let mut pending_request = asset_create_request(Some(4));
+        pending_request.intent_id = "app:publicUpload".to_owned();
+        pending_request.intent_policy_hash = "sha256:test-policy-publicUpload".to_owned();
+        let pending = snapback
+            .asset_attempt_create(&creator, pending_request)
+            .expect("pending attempt");
+        let masked_pending = snapback
+            .asset_deliver_public(&pending.task.asset_id, "primary", None)
+            .expect_err("pending masks on the public lane");
+        assert_eq!(masked_pending.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
+        snapback.asset_delete(&creator, &asset_id).expect("delete");
+        let masked_deleted = snapback
+            .asset_deliver_public(&asset_id, "primary", None)
+            .expect_err("delete stops future canonical access");
+        assert_eq!(masked_deleted.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
+
+        // The declared-profile runtime gate reads the same facts the
+        // manifest embeds.
+        assert!(LocalSnapback::asset_delivery_profile_declared("private-signed"));
+        assert!(LocalSnapback::asset_delivery_profile_declared("public-immutable"));
+        assert!(!LocalSnapback::asset_delivery_profile_declared("cdn-magic"));
     }
 
     fn asset_deliver_content(

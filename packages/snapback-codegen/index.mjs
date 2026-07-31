@@ -2240,6 +2240,20 @@ export async function generateInProcess(backendDir, options = {}) {
           continue;
         }
       }
+      // Delivery-profile admission is manifest-keyed like strip admission:
+      // a target advertises supported profiles and refuses an intent it
+      // cannot honor (LLP 0044 §Delivery profiles). Targets with no assets
+      // facts block keep their existing posture — the runtime refuses.
+      const declaredProfiles = canonicalCapability.manifest?.assets?.deliveryProfiles;
+      if (Array.isArray(declaredProfiles) && !declaredProfiles.includes(def.delivery.kind)) {
+        err(
+          'SNAPBACK_ASSET_INTENT_DELIVERY_UNSUPPORTED',
+          'asset',
+          `${exportName}: delivery profile ${def.delivery.kind} is not advertised by target ${canonicalCapability.manifest?.targetProfileId ?? targetProfile}`,
+          { intent: exportName, profile: def.delivery.kind, declared: declaredProfiles },
+        );
+        continue;
+      }
       // Restriction targets: every v.assetRef({ upload }) must name a
       // declared intent; collected here so the check covers all intents.
       let resolvedAuthorizer;

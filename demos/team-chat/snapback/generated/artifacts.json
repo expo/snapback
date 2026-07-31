@@ -50,10 +50,10 @@
     "contract/unreadDeliveries.query.ts",
     "contract/unreadDeliveries.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:b015daeda67232f1",
+  "bundleHash": "sha256:c41e526ad056b558",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/fd6d3a2e2af0d129ca3da79786fea1ba037f9082c0abcd2b34d8051bd7812a02",
-    "key": "fd6d3a2e2af0d129ca3da79786fea1ba037f9082c0abcd2b34d8051bd7812a02",
+    "graphPath": "../../.snapback/codegen-cache/421971f9842af79e167ef95fb99b12550eebaa602a45a910ad023d004f7eb132",
+    "key": "421971f9842af79e167ef95fb99b12550eebaa602a45a910ad023d004f7eb132",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -90,7 +90,7 @@
       "sha256": "sha256:53008631e6c9b9eaf762d7fe011b7501e8f820bcb46ebd10f88a12b2c74d6ae9"
     },
     {
-      "bytes": 7182,
+      "bytes": 7859,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -99,7 +99,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:385007a7686555fae5f8e0619759f44d760f0ee9526dcdd09ad60b7d4fe641a7"
+      "sha256": "sha256:0236c99d2805a255bbbb6318e5f0f48327503a99f27ae290c1c68b530f07bc9d"
     },
     {
       "bytes": 33554,
@@ -111,7 +111,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:62f46d65792745899f5b691b9fc3245f8e91195fe0db4a070ccd1db9666bbbfa"
+      "sha256": "sha256:0ee7b64370e937749b5e107a0ac5eccd8d3d1d2f18d482db2e973862cdbcccbb"
     },
     {
       "bytes": 344,
@@ -423,7 +423,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:ff013e23d6237e85bb1aff03d2c57f44813c1f926ea3f6d396a0ebf4fbc255e2"
+      "sha256": "sha256:3f53ee1ca256579283b90f0232ab9a3b0360bb4e1edf058941a1b8ee8bf1a39d"
     },
     {
       "bytes": 352,
@@ -603,7 +603,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:71ffd57828070c1bbbdab5f5b5244d4941cdf1fb7e2b37721c895bf5d17ee2c0"
+      "sha256": "sha256:cd752aff420d170f319f69a98c5ad0054141cc507069b80a0a886aeff734ff02"
     },
     {
       "bytes": 41276,
@@ -615,7 +615,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:37630fe95a38bddee7c6204dfc0e2dedf85d7a9492bcf03d9418ab70cd2db673"
+      "sha256": "sha256:98625ddbf471437c9951b616fe6a071df50d646ca78ae584cac24ab65c6baa74"
     },
     {
       "bytes": 6750,
@@ -627,7 +627,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:95c09f198927034f2a977b4dda232df42cd7cd14b4218d1f51c15e01e9b53d11"
+      "sha256": "sha256:bb92b01c18c522bba780470dca01a41f7d0ed3dacb1d24004884ac205f175b1c"
     }
   ],
   "functions": [
@@ -693,14 +693,14 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "fd6d3a2e2af0d129ca3da79786fea1ba037f9082c0abcd2b34d8051bd7812a02",
+  "inputsHash": "421971f9842af79e167ef95fb99b12550eebaa602a45a910ad023d004f7eb132",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:c3d8597f8c0891d4",
+  "schemaHash": "sha256:71d3f7881988f6f9",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "team-chat",
@@ -816,7 +816,7 @@
         }
       }
     ],
-    "inputsHash": "fd6d3a2e2af0d129ca3da79786fea1ba037f9082c0abcd2b34d8051bd7812a02",
+    "inputsHash": "421971f9842af79e167ef95fb99b12550eebaa602a45a910ad023d004f7eb132",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

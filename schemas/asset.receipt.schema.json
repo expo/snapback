@@ -40,6 +40,16 @@
           "type": "string"
         },
         {
+          "const": "signed-url-issued",
+          "description": "A `private-signed` bearer URL was issued after per-request\nauthorization; the receipt carries variant and expiry, never the\ntoken or key id.",
+          "type": "string"
+        },
+        {
+          "const": "signing-key-rotated",
+          "description": "Instance signing-key rotation (operator action; instance-scoped, no\n`asset_id`, and no key ids — the Spec bars them from evidence).",
+          "type": "string"
+        },
+        {
           "const": "intent-artifact-reclaimed",
           "description": "A superseded intent generation's retained authorizer artifact was\nreclaimed after its last open attempt terminated (intent-scoped;\nno `asset_id`).",
           "type": "string"
@@ -52,7 +62,7 @@
   "additionalProperties": false,
   "properties": {
     "assetId": {
-      "description": "Present on every asset-scoped event; `None` only for intent-scoped\nbookkeeping events (`IntentArtifactReclaimed`), whose subject lives in\n`details`.",
+      "description": "Present on every asset-scoped event; `None` only for non-asset-scoped\nbookkeeping events (`IntentArtifactReclaimed`, `SigningKeyRotated`),\nwhose subject lives in `details`.",
       "type": [
         "string",
         "null"

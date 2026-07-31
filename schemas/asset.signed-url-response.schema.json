@@ -1,0 +1,26 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.signed-url-response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "url": {
+      "description": "Origin-relative bearer URL; the token rides the `token` query\nparameter and is the only credential the URL carries.",
+      "type": "string"
+    },
+    "variant": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "url",
+    "variant",
+    "expiresAtMs"
+  ],
+  "title": "AssetSignedUrlIssueResponseV1",
+  "type": "object"
+}

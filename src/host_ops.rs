@@ -1255,7 +1255,8 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
         // DX): dev-admitted like function.run, admin-write gated at the
         // route, closed input shapes, no byte samples or bearer material in
         // any envelope.
-        "asset.put" | "asset.inspect" | "asset.list" | "asset.retry" | "asset.delete" => {
+        "asset.put" | "asset.inspect" | "asset.list" | "asset.retry" | "asset.delete"
+        | "asset.rotateSigningKey" => {
             let outcome = snapback.asset_host_op(
                 &operation,
                 request.input.as_ref(),

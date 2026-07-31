@@ -271,4 +271,60 @@ export const gallery = defineAssetUpload({
   assert.equal(result.ok, false, 'a non-boolean required must refuse');
 }
 
+// --- delivery-profile admission is manifest-keyed (W2b) --------------------
+
+{
+  // The local target declares all three profiles, so signed and public
+  // intents admit.
+  const functions = `
+import { defineAssetUpload } from '${defineUrl}';
+export const signedDoc = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-signed' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const publicDoc = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'public-immutable' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { dir, result } = await runCase({ schema: baseSchema, functions });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  const kinds = manifest.assetUploadIntents.map((entry) => entry.delivery.kind).sort();
+  assert.deepEqual(kinds, ['private-signed', 'public-immutable']);
+}
+
+{
+  // A target with no assets facts block keeps its existing posture: the
+  // profile check is skipped and the runtime refuses at attempt creation.
+  // (When a hosted target grows an assets block, its declared list gates
+  // here — the check is manifest-keyed, not hardcoded.)
+  const functions = `
+import { defineAssetUpload } from '${defineUrl}';
+export const signedDoc = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-signed' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { result } = await runCase({
+    schema: baseSchema,
+    functions,
+    targetProfile: 'remote-service-sqlite-ibex',
+  });
+  assert.equal(
+    result.diagnostics.some((d) => d.code === 'SNAPBACK_ASSET_INTENT_DELIVERY_UNSUPPORTED'),
+    false,
+    'absent facts block skips the profile check by design',
+  );
+}
+
 console.log('asset-upload-authoring.test.mjs passed');
