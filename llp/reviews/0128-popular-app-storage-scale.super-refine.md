@@ -141,3 +141,10 @@ Review → Active (Research-type, matching the 0116–0126 series), with
 the document's own named next action — the Phase-0 workload envelope
 plus LLP 0125's normalized burst measurement — startable immediately
 and no substrate decision made.
+
+**Author adjudication — 2026-07-30.** Charlie Cheever accepted the
+proposal ("promote and the philippe source is good enough even if i
+probably didn't quote him exactly"); LLP 0128 advanced Review → Active
+in the same landing as this note, and the Philippe provenance item is
+closed as an author-confirmed paraphrase with the verbatim wording,
+date, and channel deliberately left unrecorded.

@@ -1,20 +1,20 @@
 # LLP 0128: Popular-app storage scale
 
 **Type:** Research
-**Status:** Review
+**Status:** Active
 **Systems:** Storage, Runtime, Sync, Realtime, Query planning, Deployment, Performance, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.3, round-2 review fixes — load-bar thresholds, broadened D/E gates, cell-lane contract, tenant-isolation column)
+**Revised:** 2026-07-30 (v0.3 accepted — dual-family READY; author advanced Review → Active and adjudicated the challenge provenance as a confirmed paraphrase)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0012, LLP 0014, LLP 0018, LLP 0035, LLP 0046, LLP 0050, LLP 0051, LLP 0080, LLP 0083, LLP 0090, LLP 0103, LLP 0104, LLP 0115, LLP 0120, LLP 0125, LLP 0126, LLP 0127, https://www.sqlite.org/whentouse.html, https://www.postgresql.org/docs/current/logicaldecoding-explanation.html, https://www.postgresql.org/docs/current/logical-replication-architecture.html, https://apple.github.io/foundationdb/architecture.html, https://apple.github.io/foundationdb/features.html, https://www.cockroachlabs.com/docs/stable/architecture/overview/, https://www.cockroachlabs.com/docs/stable/architecture/transaction-layer/, https://developers.cloudflare.com/durable-objects/platform/limits/, https://developers.cloudflare.com/workers/platform/storage-options/, https://developers.cloudflare.com/d1/best-practices/read-replication/, https://apple.github.io/foundationdb/known-limitations.html, https://www.postgresql.org/docs/current/mvcc-intro.html
 
 ## Summary
 
 The challenge behind “why build Snapback around SQL if SQL does not scale?”
-(external feedback to the author from Philippe, paraphrased — the verbatim
-wording, date, and channel are not recorded in the corpus and remain an
-author-supplied provenance item) is real, but the premise combines three
-independent choices:
+(external feedback to the author from Philippe; the author confirms the
+substance of this paraphrase, with the verbatim wording, date, and channel
+deliberately left unrecorded — adjudicated 2026-07-30) is real, but the
+premise combines three independent choices:
 
 1. the **application model** authors use — Snapback's typed
    document/relational contract and bounded query language;
@@ -732,6 +732,6 @@ benchmark measures popular-app scale.
 
 ## Status
 
-Research in Review. It records the option space and evidence program but
+Active Research. It records the option space and evidence program but
 makes no substrate decision. The next action is the Phase-0 workload envelope plus LLP
 0125's normalized burst measurement, in parallel with LLP 0115 execution.
