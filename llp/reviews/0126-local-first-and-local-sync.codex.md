@@ -222,3 +222,126 @@ Revise in one focused pass:
 5. add dated primary sources for load-bearing category-(c) claims.
 
 After that, run a second independent review concentrated on the revised approach-9 proof boundary and option-space fairness.
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model gpt-5.6-sol (reasoning effort: medium)
+**Reasoning effort:** CLI default
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, mutually blind; round-2 delta review at commit 14d73928 (`git diff b50690ec -- llp/0126-local-first-and-local-sync.research.md`) against the reviewer's own Round 1 record
+**Target SHA-256:** `4814e5b3eb3781c43b3bfe9e2545099e1d7c7e9f6a831873d92ca33b4cc931d5`
+**Instruction SHA-256:** `fb630c57e4ca8b653f472bcb1d48c9e9cc32f0a74568e2772c56a5831048afde`
+**Status:** completed
+
+### Verbatim review
+
+## Round-2 delta assessment
+
+The revision fixes most of the technical substance, especially the lease model, hosting inventory, field-retreat characterization, and ideals matrix. It does not yet meet the unusually strict “exhausted pre-empirical analysis” READY bar because the execution-identity discussion contains one factual contradiction and the option board still embeds unsized recommendations.
+
+| Item | Resolution | Assessment |
+|---|---|---|
+| A | **Partial** | The five-element tuple is sound: source/plan hash; runtime/evaluator identity; portable semantics plus corpus version; captured host answers; store semantics plus schema/artifact activation ([LLP 0126](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:479)). This matches the actual hash boundary: codegen hashes handler/plan, contracts, reads/writes, auth and related metadata, but not runtime or schema activation ([codegen](/Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:4156)). LLP 0123 supports binary+Hermes digest identity, and LLP 0051 D5 supports the version-pinned semantics/corpus component. “Same code” is correctly recast as a hypothesis. However, line 594 newly says “the hash names its schema era,” contradicting both the tuple and codegen. |
+| B | **Resolved** | “Server-issued, server-MACed” is now consistent, and the client/server verification loci are accurately separated ([LLP 0126](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:596)). This matches LLP 0043’s exact custody checks and server-keyring verification rule ([LLP 0043](/Users/ccheever/projects/snapback/llp/0043-offline-replay-retention.rfc.md:84)). |
+| C | **Resolved** | Co-packaging, sidecar execution, and in-process embedding are distinguished; all nine requested cost classes are covered, with several additional costs. Mobile is correctly demoted to a spike with explicit success dimensions and OQ10 ([LLP 0126](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:514)). |
+| D | **Resolved** | The count is now the defensible LLP 0084 tally: five materialized-state systems, four query/subscription/bucket scoped, Turso whole-database/page scoped, zero client-visible event logs. “Retreated to” is narrowed to “retreated toward,” with Electric and Jazz differences preserved. |
+| E | **Partial** | The missing lanes are now present: Replicache-class Option C, raw/governed B1/B2, and sidecar/in-process D3a/D3b. B2 is fairly treated. The remaining board is not fully neutral: B1 has “none identified” as its conditions despite obvious public-data or deliberately lower-capability conditions; Option C claims “a fraction” of D’s cost without sizing; and D’s numbered staging makes the desktop sidecar appear dependent on the WASM stage even though those are independent platform lanes. |
+| F | **Not resolved substantively** | The headings now say “conditions favoring” and “evidence gate,” but recommendation-shaped language remains: Option F is “no-regrets under every branch,” effectively replacing “do regardless”; Option G “cancels” rather than defers the graduation path and “wastes” the Contract slice; Option C asserts fractional cost. These conflict with the section’s statement that none of its cost/risk language is sizing or decision. |
+| G | **Partial** | None of the named sources looks fabricated. Replicache, the 2017 JSON-CRDT paper, Yjs/YATA, CouchDB, Figma’s 2019 post, cr-sqlite, and Ink & Switch’s 2019 essay are genuine primary sources. For example: [Replicache](https://doc.replicache.dev/concepts/how-it-works), [JSON CRDT paper](https://martin.kleppmann.com/2017/04/24/json-crdt.html), [Figma](https://www.figma.com/blog/how-figmas-multiplayer-technology-works/), [CouchDB](https://docs.couchdb.org/en/stable/replication/conflicts.html), and [Ink & Switch](https://www.inkandswitch.com/essay/local-first/). But the document still says none received a dated verification pass. Moreover, Linear has an official, dated Tuomas Artman source from June 29, 2023, so “cannot confidently date” is unnecessarily weak, although keeping the detailed architecture contour uncertain is appropriate: [Scaling the Linear Sync Engine](https://linear.app/now/scaling-the-linear-sync-engine). |
+| H | **Resolved** | The 9×4 matrix exists and removes the original contradiction, including explicit restart and transfer qualifications for approaches 6 and 8 ([LLP 0126](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:137)). |
+
+## New concerns
+
+1. **MATERIAL — schema-era detection is assigned to the wrong identity.**  
+   [Line 594](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:594) says the implementation hash makes an S1/S2 mismatch detectable because it “names its schema era.” It does not. Resolution: say the complete execution tuple or settlement envelope must carry schema/artifact activation, or propose adding that activation to the hash.
+
+2. **MATERIAL — the option board still contains disguised sizing and recommendations.**  
+   “At a fraction of Option D’s cost,” “no-regrets under every branch,” and “cancels/wastes” exceed conditions-and-evidence analysis. Resolution: replace them with structural scope comparisons and neutral conditions; give B1 a real admissible condition or explicitly classify it as rejected by a named governing constraint.
+
+3. **DETAIL — Option D’s staging implies a false dependency.**  
+   Desktop sidecar execution does not inherently follow WASM handler artifacts. Present browser IR/WASM and desktop sidecar/in-process work as parallel platform ladders unless an actual dependency is identified.
+
+4. **DETAIL — source verification metadata remains incomplete.**  
+   The sources are real, but the document should record verification dates and use the available dated official Linear source while retaining uncertainty around details not established by that source.
+
+## Verdict
+
+**NOT READY**
+
+The central direction is now credible, but the schema-hash contradiction is load-bearing and the option-board language has not fully cleared the round-1 empirical and decision-hygiene concerns.
+
+## Recommended next step
+
+Make one narrow correction pass:
+
+- remove the schema-era claim from the implementation hash;
+- neutralize the remaining cost/recommendation wording;
+- separate Option D’s browser and desktop ladders;
+- add verification dates, including Linear’s official 2023 source.
+
+Then run a final delta-only check focused on those four edits; another broad research pass should not be necessary.
+
+## Round 3 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model gpt-5.6-sol (reasoning effort: medium)
+**Reasoning effort:** CLI default
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, mutually blind; round-3 final delta check of the v0.3 fix pass (`git diff 14d73928 -- llp/0126-local-first-and-local-sync.research.md`) scoped to the reviewer's own four Round 2 items plus the carried B1 adjudication
+**Target SHA-256:** `0cb8a9a6423fc894537b3ddfa55a9235f525196ab48a7b26fb0fafcc17b77664`
+**Instruction SHA-256:** `f50707d0f1d012ac427e0187471412f584d0d50298614d6b55d901631174af02`
+**Status:** completed
+
+### Verbatim review
+
+## Round-3 delta check
+
+1. **Schema-era claim — RESOLVED.**  
+   The hash is correctly limited to source/plan identity; schema/artifact activation is execution-identity element 5 and must travel in the settlement submission ([LLP 0126:611](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:611)).
+
+2. **Residual recommendation/sizing language — PARTIAL.**
+
+   - Option F’s “no-regrets” wording is now a neutral compatibility relationship.
+   - Option G now states the consequences of deferral without “cancels/wastes.”
+   - **MATERIAL:** Option C’s new “strictly smaller build surface” remains an unsupported total-surface comparison ([line 937](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:937)). The parenthetical proves only that C avoids three D-specific workstreams; C also introduces its own mutator and authorization surfaces. Replace it with the direct structural comparison, without “strictly smaller.”
+
+3. **Option D staging — RESOLVED.**  
+   The browser and desktop ladders are parallel, and the desktop sidecar is explicitly independent of WASM ([line 949](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:949)).
+
+4. **Verification dates / Linear source — RESOLVED.**  
+   The document records the 2026-07-30 fetch, correctly identifies Tuomas Artman and June 29, 2023, and preserves the limitation that the page is a talk pointer rather than textual support for the architecture contour. The [official Linear page](https://linear.app/now/scaling-the-linear-sync-engine) confirms those facts.
+
+## B1 adjudication
+
+**Needs a one-line addition.** “None identified” does not survive the option-space fairness bar ([line 904](/Users/ccheever/projects/snapback/llp/0126-local-first-and-local-sync.research.md:904)). A plausible condition is a deliberately public/non-sensitive, read-only dataset where arbitrary local SQL is required and Snapback’s governed authorization/evidence guarantees are explicitly not claimed. This is a carried MATERIAL completeness issue, despite the small fix.
+
+No other fresh defects were found in the v0.3 changes; `git diff --check` is clean.
+
+**Verdict: NOT READY.**
+
+Recommended next step: make two narrow wording edits—neutralize Option C’s total-surface comparison and add B1’s public/read-only condition, ideally with a matching scope-enforcement evidence gate. Then perform a mechanical two-hunk check; no further research pass is needed.
+
+## Round 4 — 2026-07-30
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model gpt-5.6-sol (reasoning effort: medium)
+**Reasoning effort:** CLI default
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh CLI runner, read-only sandbox, mutually blind; round-4 mechanical two-hunk check of the v0.4 edits (option C's comparison sentence; option B1's conditions-favoring plus scope-enforcement evidence gate) against `git diff 14d73928 -- llp/0126-local-first-and-local-sync.research.md`, scoped to the reviewer's own Round 3 recommended next step
+**Target SHA-256:** `64df5aebfc63283bb5c701f940bdb1e2c33ba5daa0723bf0e1d9be5a6c946a1d`
+**Instruction SHA-256:** `5ddf3a58e7cf3d3d3a02c90330a43b0ae40ea15c5c37cffc1414648b03facf19`
+**Status:** completed
+
+### Verbatim review
+
+**Verdict: READY**
+
+Option C — RESOLVED: direct structural comparison replaces the unsupported total-cost claim; no fresh defect.
+
+Option B1 — RESOLVED: fair conditions-favoring case and matching scope-enforcement evidence gate added; no fresh defect.
+
+Recommended next step: append this round-4 READY result to the Codex review artifact, then return LLP 0126 to the author for status disposition.

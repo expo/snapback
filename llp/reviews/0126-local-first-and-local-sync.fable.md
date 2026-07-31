@@ -348,3 +348,185 @@ owning-document statuses, and the option space needed no correction in
 this round and do not need re-litigating. Suggest also filing the
 LLP 0022 internal-misquote fix upstream in the same change so the
 corrected Electric quote form is the only one in the corpus.
+
+
+## Round 2 — 2026-07-30
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh general-purpose subagent
+**Effort:** session-inherited
+**Date:** 2026-07-30
+**Redacted:** no
+**Method:** fresh non-author subagent context, round-2 delta review at
+commit 14d73928 under the delta stopping rule: own Round 1 section read
+as required; delta read as
+`git diff b50690ec -- llp/0126-local-first-and-local-sync.research.md`
+(495 insertions / 208 deletions); each round-1 concern's fix re-checked
+against its source in the tree; new text checked for fresh defects;
+settled round-1 text not re-litigated; mutually blind (the .codex.md
+artifact not read)
+**Target SHA-256:** `4814e5b3eb3781c43b3bfe9e2545099e1d7c7e9f6a831873d92ca33b4cc931d5`
+**Instruction SHA-256:** `33c3fd21fcc61f4ed59da1207ef188e75a1328149be03f08f57ca9141b06f7ce`
+**Status:** completed
+
+## 1. Resolution check — round-1 concerns
+
+- **C1 (InstantDB misclassification; offline-leader record) —
+  RESOLVED.** Approach 6's mechanism list now reads "Convex and
+  Snapback's current clients" with an explicit parenthetical routing
+  InstantDB to approach 3 ("persisted to IndexedDB/AsyncStorage with
+  offline reads — LLP 0082"), which matches LLP 0082 L122 exactly. The
+  Summary now carries the two-backend exception (Firebase clean in all
+  three diaries; InstantDB strong in two), the "one strong browser
+  result" sentence is replaced by the corpus-wide framing, and finding
+  1 states the diaries' measured bar as Firebase/InstantDB. Verified
+  against the diaries: Diary 0027 "Firebase passed all 14 frozen Todo
+  scenarios" and "The offline requirements alone put InstantDB and
+  Firebase ahead" (L1181); Diary 0029 Firebase "handled the realtime
+  and offline portions unusually well" (its environment limitation at
+  L233 is hosted deployment, not offline) and the InstantDB section's
+  "The cold-browser result was particularly strong" (L784, inside the
+  InstantDB arm); Diary 0028's Instant CHAT-09 GAP text "a custom
+  in-memory store is not direct provider evidence" (L772-773) — the
+  new quotation is exact and the environment-limit characterization is
+  faithful.
+- **C2 (wrong LLP 0053 mechanism; OQ2 aimed at it) — RESOLVED.** Both
+  the arm section and open question 2 now cite the retainability
+  invariant "Retainable ⇒ declared authorization dependence ⇒
+  enumerated events" — exact at LLP 0053 L506 — with one consistent
+  name, and both correctly re-scope the shrink-delivery obligation as
+  the delivery mechanism for authorization-negative updates, matching
+  0053's own structure (delivery obligations at L256-268; the
+  invariant as the retainability gate).
+- **C3 (three nonexistent-as-printed quotations) — RESOLVED.**
+  (a) The Jazz list is now presented as "per LLP 0085's own summary,"
+  unquoted, with only "the experience" in quotes — exactly 0085's
+  L113-115 form. (b) Option G now quotes the three actual verdicts,
+  each verified exact against Diaries 0027/0028/0029, with the
+  repairability hedge restored ("each verdict hedged toward
+  repairability, and this option forfeits the repair"). (c) The 0074
+  splice is split into its two real quotes: "retained local-first
+  execution" from the surviving-conjunction sentence (0074 L481) and
+  "the React/Expo local-first story is not yet built and is claimed
+  only as a graduation path" from the Parity bullet (L489-491) — both
+  exact.
+- **C4 (Electric/PowerSync hardening) — RESOLVED.** "Benchmarked
+  100k→1M concurrent clients — a vendor benchmark LLP 0022 confirmed
+  as claimed, not independently reproduced" matches 0022 L138;
+  "now officially 'legacy' after the second-generation Sync Streams
+  shipped (GA 2026-06-09)" matches 0022 L190-192 including the GA
+  date; the day-one lesson now carries 0022's `[inferred]` tag,
+  matching L193-194 exactly.
+- **C5 (D1 bookmark conflation) — RESOLVED.** Approach 5 now names
+  "the SRS PITR bookmarks that fell out of D1's log-plus-snapshot
+  storage" (0083 L81-82) and approach 4 / hosted topology tie the
+  Sessions API bookmarks to "sequential consistency across replicas,
+  not caching" (0083 L176-183), with cacheability explicitly kept as
+  "Electric's idea."
+- **C6 ("sealed" overstatement) — RESOLVED.** All three positions now
+  read "co-packaged, digest-attested per-platform runtime packages"
+  with sealing marked as "LLP 0123's prospective move, not a shipped
+  property" — matching 0123 L439-442 ("The strategic move is to make
+  that co-packaged pair … installed atomically together") and its
+  sealed-artifact vocabulary being the Convex comparator's (L128).
+  The only remaining "sealing" mentions are the deliberate
+  prospective-move framings.
+- **C7 (JS-interpreter reading 0051 rejects) — RESOLVED.** The browser
+  rung now reads "a small IR evaluator implemented in JS for the
+  browser (an IR interpreter, not an embedded JS engine)" and quotes
+  0051 §Rejected's "QuickJS (or any JS engine) on clients for Parity"
+  — exact at 0051 L1105.
+- **C8 (0064 ownership row) — RESOLVED.** The relationship section now
+  assigns capability classes to LLP 0012 (Online/Parity and the
+  honesty rule) with LLP 0064 owning the native client surfaces that
+  carry them — the correction as recommended.
+- **C9 (combined five-to-zero citation) — RESOLVED.** Both summary
+  positions now attribute the count to LLP 0084 ("the count is
+  LLP 0084's, folding in LLP 0022's three peers"), and the new
+  four/one decomposition (four query/subscription/bucket-scoped;
+  Turso whole-database/page) is verified against 0084 L38-43/L355-359
+  (Triplit, Ditto, Electric, PowerSync + Turso) and 0022's
+  page-hydration characterization — the rendering is more precise
+  than 0084's own headline phrase, in the right direction.
+- **C10 (inference-tag slippage) — RESOLVED.** The market claim is now
+  "LLP 0084's inferred market characterization … offline-critical
+  physical-operations verticals" (0084 L343/L368, both in `[inferred]`
+  synthesis items), and the wall claim is now "as LLP 0022 synthesizes
+  it (its `[inferred]` §1 theme)" — matching 0022 L339's explicit tag.
+
+Round-1 suggestions (non-gating) were also substantially absorbed:
+option A's rerun-confirmability clause, option F's "no-regrets"
+recast of "do regardless," at-rest custody and native replica-file
+custody in the new cross-cutting hosting list, and the OQ-1-style
+per-claim citation standard. The upstream LLP 0022 internal-misquote
+suggestion was not taken (0022 L36-37 still carries the truncated
+Electric quote); that is a defect in 0022, not in this document, which
+quotes the correct form.
+
+## 2. New concerns in the delta
+
+The new text is substantial (execution-identity tuple, hosting-shape
+split, options re-lettered A–G with new B1/B2 and C, the 9×4 ideals
+matrix, recast conditions/evidence gates, named category-(c) sources,
+OQ10). I verified the new claims against their sources: the tuple's
+element citations (0118/0123/0051 D5/0051 D1+0008/schema epoch), the
+hash-coverage parenthetical "canonical AST (or module source hash, or
+host plan) … auth facts" (code-true at
+`packages/snapback-codegen/index.mjs:4156-4177` — the three handler
+forms and `authRequirement`/`authorizationDependence` are exactly
+there), the lease trust-shape text (LLP 0043's ENG-24992 amendment
+L96-103 and LLP 0053 §The lease L1218/L1262 "Verification locus" —
+faithful), "server-MACed" replacing "signed" (0043 L84's own
+vocabulary), the Rust-library claim (`src/lib.rs` exports `pub mod
+cli`; no embedding ABI exists — accurate), "LLP 0043 leaves mobile
+encryption open" (0043 L388), Jazz v2's "deep history under
+trusted-server policy" (0085 L40), "most heavily funded CRDT vendor in
+the surveyed corpus" (0084 L29 says most heavily funded in local-first
+— the narrower claim is safe), and the option re-lettering (every
+cross-reference outside the board — L206, L229, L395, L1119, L1150 —
+points at the correct new letter). The named category-(c) primary
+sources (2017 JSON-CRDT paper, 2016 YATA, Figma 2019, Ink & Switch
+2019, Zero announced 2024, Artman/Linear) are correct to my knowledge
+and properly kept inside category (c) ("naming a source does not
+promote the claim"). One concern:
+
+**N1. Option C's "at a fraction of option D's cost" is the one sizing-
+flavored phrase under a preamble that forswears sizing — DETAIL.**
+The recast option-board preamble now promises "None of the cost/risk
+language below is a sizing or a decision — finding 11 stands."
+Option C's benefit clause then says offline writes come "at a fraction
+of option D's cost." The structural claim underneath is sound (option
+C omits the embedded runtime, the tuple, and the hosting shapes — a
+strictly smaller surface), but "a fraction of the cost" is magnitude
+language, the exact register the preamble just excluded, and option D
+itself is careful the other way ("'cheap' is a hypothesis until
+sized"). *Resolves:* one phrase — e.g. "with a strictly smaller build
+surface than option D."
+
+Cosmetic, not a concern: the approach-6 Firebase sentence has a ragged
+source wrap ("Firestore's" alone on line 379); rendering is unaffected.
+
+## 3. Verdict
+
+**READY** — against the stated bar. All ten round-1 concerns are
+genuinely resolved, not reworded: every fix was re-verified against
+the same sources round 1 checked, and each lands the source's actual
+words or scope. The substantial new material holds the document's own
+method discipline — the tuple is declared "design vocabulary this
+document introduces, not shipped machinery," mobile is downgraded to a
+named spike question, the leans are recast as conditions plus evidence
+gates without smuggling a decision, and roughly twenty-five new
+factual claims I checked (diary lines, LLP quotations, code paths,
+dates) are all accurate. N1 is a single wording-register inconsistency,
+not a factual defect, and does not hold the document below
+"exhausted pre-empirical analysis."
+
+## 4. Recommended next step
+
+Accept-ready from this family. The author may fold in N1's one-phrase
+fix at acceptance (it needs no re-review), and should still file the
+LLP 0022 internal-misquote fix (0022 L36-37's truncated Electric
+quote) as a small upstream edit or issues/ ticket so the corrected
+form 0126 quotes is the only one in the corpus. Per LLP 0005 the
+acceptance call is the author's, pending the other family's round-2
+verdict.

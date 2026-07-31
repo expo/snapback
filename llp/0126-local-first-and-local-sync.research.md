@@ -5,7 +5,30 @@
 **Systems:** Competitive evaluation, Sync, Realtime, Storage, Runtime, Client integration, Wire Protocol, Auth, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2 — round-1 dual-family review corrections
+**Revised:** 2026-07-30 (v0.4 — round-3 micro-fix pass. Round-3
+outcome: Codex NOT READY on exactly two wording items — option C's
+build-surface comparison and the carried B1 conditions-favoring
+adjudication (llp/reviews/0126-local-first-and-local-sync.codex.md).
+Applied, both: option C's "strictly smaller build surface" replaced
+with the direct structural comparison stating what C does not require
+that D does; option B1's *Conditions favoring* recast from
+none-identified to the adjudicated deliberately public, non-sensitive,
+read-only-dataset condition with the governed guarantees explicitly
+not claimed, plus a scope-enforcement evidence gate.)
+2026-07-30 (v0.3 — round-2 fix pass. Round-2 outcome:
+Fable READY with one foldable DETAIL
+(llp/reviews/0126-local-first-and-local-sync.fable.md); Codex NOT
+READY on four narrow items
+(llp/reviews/0126-local-first-and-local-sync.codex.md). Applied: the
+schema-era mismatch-detection claim reassigned from the content hash
+to execution-identity element 5 carried in the settlement submission;
+option C's cost-fraction, option F's no-regrets, and option G's
+cancels/wastes wording recast as conditions and neutral statements of
+relationship; option D restaged as parallel browser and desktop
+ladders with no cross-dependency; the Linear background source
+upgraded to the dated official Artman post, June 29 2023, verified
+2026-07-30; the approach-6 Firebase quotation rewrapped.)
+2026-07-30 (v0.2 — round-1 dual-family review corrections
 from llp/reviews/0126-local-first-and-local-sync.fable.md and
 llp/reviews/0126-local-first-and-local-sync.codex.md: all eight Codex
 items (A–H) and all ten Fable concerns (C1–C10) verified against their
@@ -103,11 +126,14 @@ Four labels, used throughout:
   replication/conflicts documentation; Evan Wallace's "How Figma's
   multiplayer technology works" (Figma engineering blog, 2019); the
   vlcn-io/cr-sqlite repository; Ink & Switch's "Local-first software"
-  (2019). Linear's engine is known only from public engineering talks
-  by cofounder Tuomas Artman that this pass cannot confidently date —
-  that contour is marked uncertain rather than cited. None of these
-  has had a dated in-repo verification pass; naming a source does not
-  promote the claim out of category (c).
+  (2019). For Linear there is an official dated source — Tuomas
+  Artman, "Scaling the Linear Sync Engine" (linear.app/now, June 29
+  2023; identified in the round-2 Codex review and fetched 2026-07-30:
+  title, author, and date verified) — but that page is a talk pointer,
+  so the architecture contour stays uncertain beyond its existence and
+  date. Beyond that one dated fetch, none of these has had a dated
+  verification pass; naming a source does not promote the claim out of
+  category (c).
 - **(d) Code-verified** — checked against the working tree 2026-07-30,
   cited by path (line numbers as of that date).
 
@@ -244,11 +270,13 @@ JS mutators run speculatively, a push endpoint applies the same-named
 mutations authoritatively, pull-driven rebase reconciles — server
 reconciliation in the rollback-netcode tradition; Zero is the successor
 generation (announced 2024) with query-driven partial sync. Linear's
-engine, per public engineering talks by cofounder Tuomas Artman (no
-confidently datable citation; contour uncertain): an IndexedDB-
-persisted local object graph bootstrapped then maintained by deltas
-from a server-ordered log, local writes enqueued as transactions.
-Contours only; unverified here.
+engine, per cofounder Tuomas Artman's public engineering accounts
+(dated source: "Scaling the Linear Sync Engine," linear.app/now,
+June 29 2023 — verified 2026-07-30; the architecture details below
+come from talks, not that page's text): an IndexedDB-persisted local
+object graph bootstrapped then maintained by deltas from a
+server-ordered log, local writes enqueued as transactions. Contours
+only; the details remain unverified here.
 **(b)** InstantDB is a verified adjacent form: a pending-mutation queue
 over an immutable committed store persisted to IndexedDB/AsyncStorage
 (offline reads), server-final, attribute-level LWW, rejection = drop
@@ -376,14 +404,14 @@ online-only JavaScript memory). SpacetimeDB recorded three offline GAPs
 (Diary 0027); Supabase and Appwrite recorded the cold-boot GAP. The
 corpus's offline leaders sit outside this approach family: Firebase
 passed the offline scenarios in all three diaries — within Diary 0028
-"Firestore's
-browser persistence was the strongest offline result so far," with the
-sting that "Revocation did not erase bytes already stored in
-Firestore's browser cache… Firebase leaves sensitive-cache retirement
-to the application" — and InstantDB's persisted cache was strong in
-Diaries 0027 and 0029 ("The offline requirements alone put InstantDB
-and Firebase ahead" — Diary 0027; 0028's Instant cold-offline GAP was
-an environment limit, "not direct provider evidence").
+"Firestore's browser persistence was the strongest offline result so
+far," with the sting that "Revocation did not erase bytes already
+stored in Firestore's browser cache… Firebase leaves sensitive-cache
+retirement to the application" — and InstantDB's persisted cache was
+strong in Diaries 0027 and 0029 ("The offline requirements alone put
+InstantDB and Firebase ahead" — Diary 0027; 0028's Instant
+cold-offline GAP was an environment limit, "not direct provider
+evidence").
 
 **What it buys / costs.** The cheapest path to ideals 1 (warm) and 4;
 no replica, no merge, no migration-skew surface. It is not local-first
@@ -590,9 +618,12 @@ question 10), not a lane.
   silently replayed or dropped." Local execution adds an untreated
   instance: a mutation executed locally against schema S1 and settled
   after the server migrated to S2 — schema-at-capture versus
-  schema-at-settle. The content address makes the mismatch detectable
-  (the hash names its schema era); the policy is unowned. Jazz v2's
-  lens migrations are the field's more ambitious answer (LLP 0085).
+  schema-at-settle. The content hash does not name a schema era — the
+  schema/artifact activation is execution-identity element 5, a
+  separate tuple element precisely because the hash does not cover it —
+  so detecting the mismatch requires the settlement submission to
+  carry that activation; the policy is unowned. Jazz v2's lens
+  migrations are the field's more ambitious answer (LLP 0085).
 - *The evidence story.* A local commit's receipt is self-attested; it
   must be marked speculative and never presented as settlement. The
   template that exists is a *server-issued, server-MACed fact in
@@ -880,9 +911,13 @@ contract validation, and read-set capture — the three load-bearing
 evidence boundaries — and must reinvent revocation eviction.
 *Evidence:* the highest evidence-regression risk on the board — a
 property of the rawness, not of replication itself. *Conditions
-favoring:* none identified; its one distinctly valuable piece — the
-cacheable immutable-offset read lane — is separable and already a
-preserved 0008 option. *Evidence gate:* not applicable as scoped.
+favoring:* a deliberately public, non-sensitive, read-only dataset
+where arbitrary local SQL is the product need, with the governed
+authorization/evidence guarantees explicitly not claimed. Its one
+distinctly valuable piece — the cacheable immutable-offset read lane
+— is separable and already a preserved 0008 option. *Evidence gate:*
+evidence that the deployment's scope enforcement keeps B1 confined
+to such datasets.
 
 *B2 — governed partial replica.* A server-produced,
 authorization-filtered replica of declared shapes, delivered under the
@@ -912,26 +947,30 @@ form), with no embedded Snapback runtime and no same-code pin: the
 halves are same-by-convention, and the lane sits explicitly below
 `Parity` (LLP 0012's honesty rule names the claim). *Benefit:* the
 closest lane to the incumbent mental model; offline writes with
-arbitrary client logic on every platform including the browser, at a
-fraction of option D's cost. *Cost:* two implementations of business
-logic can drift silently — the exact weakness approach 9 exists to
-remove; speculative results can diverge from settlement more than
-IR-derived overlays do; the mutator surface needs its own client-side
-authorization story. *Evidence:* neutral if claimed as
-`Online`-plus-speculation and never `Parity`. *Conditions favoring:*
-demand for offline writes with client-arbitrary logic before the
-option D program matures. *Evidence gate:* a diary-grade test of
-divergence-at-settlement ergonomics on the scenarios that scored
-Convex.
+arbitrary client logic on every platform including the browser.
+Unlike option D, it requires no embedded runtime, no
+execution-identity tuple, and no hosting-shape work. *Cost:* two
+implementations of business logic can drift silently — the exact
+weakness approach 9 exists to remove; speculative results can diverge
+from settlement more than IR-derived overlays do; the mutator surface
+needs its own client-side authorization story. *Evidence:* neutral if
+claimed as `Online`-plus-speculation and never `Parity`. *Conditions
+favoring:* demand for offline writes with client-arbitrary logic
+before the option D program matures. *Evidence gate:* a diary-grade
+test of divergence-at-settlement ergonomics on the scenarios that
+scored Convex.
 
-**Option D — Embedded-runtime rebase (approach 9, staged).** Stage 1:
-the LLP 0051 D2 IR evaluator as the local execution tier — browser-
-safe, already designed, and it earns honest `Parity` for IR-complete
-surfaces under the rule 0043 already enforces. Stage 2: WASM handler
-artifacts (D3). Stage 3a: desktop sidecar — the packaged binary
-spawned next to the app, carrying the hosting-shape costs named in
-approach 9. Stage 3b: in-process embedding behind a stable ABI that
-does not exist today; mobile only after the open-question-10 spike.
+**Option D — Embedded-runtime rebase (approach 9, staged as two
+parallel platform ladders).** The shared first rung: the LLP 0051 D2
+IR evaluator as the local execution tier — browser-safe, already
+designed, and it earns honest `Parity` for IR-complete surfaces under
+the rule 0043 already enforces. The browser ladder continues with
+WASM handler artifacts (D3) for logic past the IR. The desktop ladder
+— independent of the browser rungs; nothing in it depends on the WASM
+stage — starts with the packaged native binary spawned next to the
+app as a sidecar, carrying the hosting-shape costs named in approach
+9, then in-process embedding behind a stable ABI that does not exist
+today. Mobile only after the open-question-10 spike.
 *Benefit:* the only lane whose endpoint is a structural moat —
 same-source-both-sides pinned by content address, with execution
 equivalence a testable hypothesis gated on the execution-identity
@@ -947,11 +986,11 @@ content-addressed speculative receipts settled by authoritative
 re-execution would out-evidence every surveyed peer, in the pattern of
 LLP 0116 finding 4 — if the tuple lands. *Conditions favoring:* the
 strategic judgment that differentiation must be structural (LLP 0074's
-frame) plus demonstrated staging discipline; stage 1 is the smallest
-independently valuable piece, though "cheap" is a hypothesis until
-sized. *Evidence gate:* per stage — a stage-1 sizing spike, a working
-desktop sidecar behind an acceptance suite for 3a, and the named
-spikes for 3b and mobile.
+frame) plus demonstrated staging discipline; the shared IR rung is
+the smallest independently valuable piece, though "cheap" is a
+hypothesis until sized. *Evidence gate:* per rung — an IR-evaluator
+sizing spike, a working desktop sidecar behind an acceptance suite,
+and the named spikes for in-process embedding and mobile.
 
 **Option E — CRDT sidecar for specific data types.** Admit a
 merge-typed field or lane (text first) under its own capability id,
@@ -973,9 +1012,11 @@ story legible; composes with every other option and forecloses none.
 *Cost:* not sync; must never be marketed as local-first collaboration;
 "near-zero" is a hypothesis until the backup/export surface is sized.
 *Evidence:* positive (receipted backups exist on the hosted profile to
-copy). *Conditions favoring:* no-regrets under every branch of the
-board — it packages existing truths. *Evidence gate:* a paved
-backup/restore walkthrough proven by an acceptance script.
+copy). *Conditions favoring:* demand for single-user or
+agent-workspace deployments with a paved backup story; it packages
+properties that are already true, so no branch of the board excludes
+it. *Evidence gate:* a paved backup/restore walkthrough proven by an
+acceptance script.
 
 **Option G — Do nothing, with honest nonclaims.** Keep `Online` as the
 JS-arm truth, keep the nonclaims the diaries praised, and record a
@@ -988,12 +1029,14 @@ weighed heavily — "Not yet for this Todo. The offline requirements
 alone put InstantDB and Firebase ahead" (Diary 0027); "I would not
 rank it first for this chat today" (Diary 0028); "For a local-first
 issue tracker today, no" (Diary 0029) — each verdict hedged toward
-repairability, and this option forfeits the repair. It also cancels a
-named LLP 0074 differentiator: 0074's surviving conjunction includes
-"retained local-first execution," and its Parity bullet records that
-"the React/Expo local-first story is not yet built and is claimed
-only as a graduation path" — deferral cancels the graduation path and
-weakens the conjunction. And it wastes the shipped Contract slice.
+repairability, and this option forfeits the repair. It also
+intersects a named LLP 0074 claim: 0074's surviving conjunction
+includes "retained local-first execution," and its Parity bullet
+records that "the React/Expo local-first story is not yet built and
+is claimed only as a graduation path" — under deferral that claim
+cannot stand as written, so a dated deferral also restates or
+withdraws 0074's graduation-path claim, and the shipped Contract
+retention/replay slice remains without a diary-scored consumer.
 *Risk:* strategic, not technical. *Conditions favoring:* a deliberate
 strategy call that the parity program's measured fronts outrank an
 unmeasured one. *Evidence gate:* none technical — if chosen it must be
@@ -1104,9 +1147,11 @@ Low-to-medium: all category-(c) general background. Replicache/Zero,
 Linear, cr-sqlite, Couch/Pouch, Figma, and OT history are stated at
 contour level from knowledge-cutoff material; well-known primary
 sources are named in the method section and at the point of use, but
-none has had a dated in-repo verification pass, and the Linear contour
-is explicitly uncertain. Where a specific number, date, or mechanism
-detail would be load-bearing, it is deliberately omitted rather than
+apart from the Linear source's dated existence check (fetched
+2026-07-30), none has had a dated verification pass, and the Linear
+architecture contour beyond that page stays explicitly uncertain.
+Where a specific number, date, or mechanism detail would be
+load-bearing, it is deliberately omitted rather than
 risked. Hermes-to-WASM feasibility, in-process embedding, and mobile
 carriage of the Rust host are explicitly unassessed. The option-space
 conditions and evidence gates are structural arguments, not
