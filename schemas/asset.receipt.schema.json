@@ -2,40 +2,49 @@
   "$defs": {
     "AssetReceiptEventV1": {
       "description": "Semantic receipt events (LLP 0044 §Receipts) — never per-chunk noise.",
-      "enum": [
-        "asset-reserved",
-        "attempt-created",
-        "attempt-completed",
-        "attempt-cancelled",
-        "attempt-expired",
-        "attempt-failed",
-        "bytes-verified",
-        "bytes-rejected",
-        "staging-cleaned",
-        "blob-reused",
-        "blob-created",
-        "asset-ready",
-        "asset-rejected",
-        "asset-deleted",
-        "rendition-produced",
-        "rendition-failed",
-        "rendition-superseded",
-        "delivery-admitted",
-        "attachment-denied",
-        "attachment-committed",
-        "reference-removed",
-        "publication-repaired",
-        "migration-verified",
-        "gc-reclaimed",
-        "work-claimed",
-        "work-completed",
-        "work-retrying",
-        "work-exhausted",
-        "work-cancelled",
-        "work-lease-reclaimed",
-        "work-ambiguous"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "asset-reserved",
+            "attempt-created",
+            "attempt-completed",
+            "attempt-cancelled",
+            "attempt-expired",
+            "attempt-failed",
+            "bytes-verified",
+            "bytes-rejected",
+            "staging-cleaned",
+            "blob-reused",
+            "blob-created",
+            "asset-ready",
+            "asset-rejected",
+            "asset-deleted",
+            "rendition-produced",
+            "rendition-failed",
+            "rendition-superseded",
+            "delivery-admitted",
+            "attachment-denied",
+            "attachment-committed",
+            "reference-removed",
+            "publication-repaired",
+            "migration-verified",
+            "gc-reclaimed",
+            "work-claimed",
+            "work-completed",
+            "work-retrying",
+            "work-exhausted",
+            "work-cancelled",
+            "work-lease-reclaimed",
+            "work-ambiguous"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "intent-artifact-reclaimed",
+          "description": "A superseded intent generation's retained authorizer artifact was\nreclaimed after its last open attempt terminated (intent-scoped;\nno `asset_id`).",
+          "type": "string"
+        }
+      ]
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/asset.receipt.schema.json",
@@ -43,7 +52,11 @@
   "additionalProperties": false,
   "properties": {
     "assetId": {
-      "type": "string"
+      "description": "Present on every asset-scoped event; `None` only for intent-scoped\nbookkeeping events (`IntentArtifactReclaimed`), whose subject lives in\n`details`.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "atMs": {
       "format": "uint64",
@@ -74,7 +87,6 @@
     "receiptId",
     "operationLineage",
     "event",
-    "assetId",
     "atMs",
     "details"
   ],

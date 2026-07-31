@@ -13886,7 +13886,7 @@ pub(crate) fn enforce_asset_reference_changes(
                         receipt_id: uuid::Uuid::now_v7().to_string(),
                         operation_lineage: lineage.clone(),
                         event: AssetReceiptEventV1::ReferenceRemoved,
-                        asset_id: edge.asset_id.clone(),
+                        asset_id: Some(edge.asset_id.clone()),
                         attempt_id: None,
                         at_ms: now_ms,
                         details: serde_json::json!({
@@ -13931,7 +13931,7 @@ pub(crate) fn enforce_asset_reference_changes(
                         receipt_id: uuid::Uuid::now_v7().to_string(),
                         operation_lineage: lineage.clone(),
                         event: AssetReceiptEventV1::ReferenceRemoved,
-                        asset_id: edge.asset_id.clone(),
+                        asset_id: Some(edge.asset_id.clone()),
                         attempt_id: None,
                         at_ms: now_ms,
                         details: serde_json::json!({
@@ -14009,7 +14009,7 @@ pub(crate) fn enforce_asset_reference_changes(
                     receipt_id: uuid::Uuid::now_v7().to_string(),
                     operation_lineage: lineage.clone(),
                     event: AssetReceiptEventV1::AttachmentCommitted,
-                    asset_id: asset_id.clone(),
+                    asset_id: Some(asset_id.clone()),
                     attempt_id: None,
                     at_ms: now_ms,
                     details: serde_json::json!({

@@ -3687,7 +3687,7 @@ fn asset_wire_schemas_accept_rust_values_and_reject_extensions() {
         receipt_id: "01890f3c-9d5b-7000-8000-000000000012".to_owned(),
         operation_lineage: "01890f3c-9d5b-7000-8000-000000000013".to_owned(),
         event: AssetReceiptEventV1::AssetReady,
-        asset_id: task.asset_id.clone(),
+        asset_id: Some(task.asset_id.clone()),
         attempt_id: Some(task.attempt_id.clone()),
         at_ms: 1_800_000_000_000,
         details: json!({"lifecycleGeneration": 4}),

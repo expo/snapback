@@ -5478,9 +5478,21 @@ impl LocalSnapback {
         let store = self.asset_store()?;
         let app_quota = self.asset_app_quota();
 
+        let intent_artifact_json = serde_json::to_string(&intent).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                format!("intent definition does not serialize for retention: {error}"),
+            )
+        })?;
         let response = self.db.asset_transaction(|tx| {
-            let generation =
-                assets::ensure_intent_generation(tx, &intent.id, &intent.intent_policy_hash, now)?;
+            let generation = assets::ensure_intent_generation(
+                tx,
+                &intent.id,
+                &intent.intent_policy_hash,
+                &intent_artifact_json,
+                now,
+            )?;
             if generation.revoked {
                 return Err(SnapbackError::error(
                     "SNAPBACK_ASSET_INTENT_REVOKED",
@@ -6658,14 +6670,26 @@ impl LocalSnapback {
                 "this attempt's intent was removed from the deployed artifact",
             )
         })?.clone();
-        // Whether the frozen generation's authorizer code is the deployed
-        // code. When the policy hash moved, an open attempt still finalizes
-        // under its frozen policy — but if the witness also moved, the frozen
-        // authorizer cannot re-run without artifact retention, so that
-        // combination refuses (fail-closed; retry re-admits under the new
-        // generation with the same asset id).
-        let frozen_code_available =
-            intent.intent_policy_hash == attempt.admission.intent_policy_hash;
+        // The frozen generation's authorizer code (LLP 0044 v6.1 reading
+        // (a)): when the policy hash moved, the attempt still finalizes under
+        // the policy it was admitted with — witness re-runs go through the
+        // retained artifact of the frozen generation, not the current
+        // deployment. `None` only when the retained row is genuinely missing
+        // (crash-safety), which keeps the fail-closed refusal.
+        let frozen_intent: Option<crate::manifest::AssetUploadIntentDefinition> =
+            if intent.intent_policy_hash == attempt.admission.intent_policy_hash {
+                Some(intent.clone())
+            } else {
+                self.db
+                    .asset_transaction(|tx| {
+                        assets::load_intent_artifact(
+                            tx,
+                            &attempt.intent_id,
+                            attempt.admission.policy_generation,
+                        )
+                    })?
+                    .and_then(|json| serde_json::from_str(&json).ok())
+            };
 
         let revoked = self.db.asset_transaction(|tx| {
             use rusqlite::OptionalExtension as _;
@@ -7434,19 +7458,24 @@ impl LocalSnapback {
                 }
                 AssetPublishOutcome::WitnessMoved => {
                     // Re-validate, then refuse only on denial: re-run the
-                    // authorizer under the frozen policy generation and
-                    // current authority; a materially identical admit (the
+                    // FROZEN generation's retained authorizer under current
+                    // authority; a materially identical admit (the
                     // schema-validated output DTO — exactly `{ owner }`)
-                    // publishes, so benign churn never strands an upload.
-                    if !frozen_code_available {
+                    // publishes, so benign churn never strands an upload,
+                    // including across an ordinary intent redeploy.
+                    let Some(frozen) = frozen_intent.as_ref() else {
                         return Err(SnapbackError::error(
                             "SNAPBACK_ASSET_ADMISSION_STALE",
                             "assets",
                             "the admission witness moved and the frozen intent generation's \
-                             authorizer is no longer deployed; retry to re-admit this asset \
-                             under the current generation",
-                        ));
-                    }
+                             retained authorizer artifact is missing; retry to re-admit this \
+                             asset under the current generation",
+                        )
+                        .with_details(serde_json::json!({
+                            "missingRetainedArtifact": true,
+                            "policyGeneration": attempt.admission.policy_generation,
+                        })));
+                    };
                     revalidations += 1;
                     if revalidations > 2 {
                         return Err(SnapbackError::error(
@@ -7455,9 +7484,9 @@ impl LocalSnapback {
                             "admission re-validation kept conflicting with concurrent writes",
                         ));
                     }
-                    let definition = self.asset_intent_definition(&intent)?;
+                    let definition = self.asset_intent_definition(frozen)?;
                     let prepared = InvocationGate::prepare_function(authority.clone(), &definition)?;
-                    let module = match &intent.runtime {
+                    let module = match &frozen.runtime {
                         crate::manifest::FunctionRuntime::IbexModule(module) => module.clone(),
                         _ => {
                             return Err(SnapbackError::error(
@@ -8223,6 +8252,31 @@ impl LocalSnapback {
             })?;
             report.blob_rows_removed += 1;
         }
+
+        // Retained-artifact GC: superseded intent generations whose last open
+        // attempt has terminated release their authorizer artifacts, each
+        // reclamation receipted (intent-scoped — no asset lineage).
+        report.intent_artifacts_reclaimed = self.db.asset_transaction(|tx| {
+            let reclaimed = assets::reclaim_intent_artifacts(tx)?;
+            for (intent_id, generation) in &reclaimed {
+                assets::write_receipt(
+                    tx,
+                    &assets::AssetReceiptV1 {
+                        receipt_id: assets::AssetFsStore::new_opaque_key(),
+                        operation_lineage: format!("intent:{intent_id}"),
+                        event: assets::AssetReceiptEventV1::IntentArtifactReclaimed,
+                        asset_id: None,
+                        attempt_id: None,
+                        at_ms: now_ms,
+                        details: serde_json::json!({
+                            "intentId": intent_id,
+                            "policyGeneration": generation,
+                        }),
+                    },
+                )?;
+            }
+            Ok(reclaimed.len() as u64)
+        })?;
 
         report.publication = self.asset_publication_maintain(now_ms)?;
         self.notify_asset_record_change(&reclaimed_asset_ids);
@@ -21211,6 +21265,7 @@ pub(crate) struct AssetGcReport {
     pub blobs_condemned: u64,
     pub blob_objects_deleted: u64,
     pub blob_rows_removed: u64,
+    pub intent_artifacts_reclaimed: u64,
     pub publication: AssetPublicationMaintenanceReport,
 }
 
@@ -21572,7 +21627,7 @@ fn asset_receipt(
         receipt_id: crate::assets::AssetFsStore::new_opaque_key(),
         operation_lineage: lineage.to_owned(),
         event,
-        asset_id: asset_id.to_owned(),
+        asset_id: Some(asset_id.to_owned()),
         attempt_id: attempt_id.map(str::to_owned),
         at_ms,
         details,
@@ -24158,9 +24213,11 @@ globalThis.__snapbackHandlers = {
             .expect("attempt");
         assert_eq!(attempt.state, crate::assets::AssetAttemptState::Failed);
 
-        // Case 3 — the witness moved AND the frozen generation's code is no
-        // longer deployed: fail closed (retry re-admits under the current
-        // generation).
+        // Case 3 — the witness moved AND the intent redeployed with a changed
+        // policy: the RETAINED frozen generation's authorizer re-runs, so a
+        // long upload spanning an ordinary redeploy under benign churn still
+        // finalizes (LLP 0044 v6.1 reading (a) — the exact case the W2a
+        // retention ticket names).
         let mut snapback = asset_test_snapback();
         snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"stale-bytes", true);
@@ -24172,9 +24229,41 @@ globalThis.__snapbackHandlers = {
             asset_upload_intents: vec![changed],
             ..FunctionManifest::default()
         });
+        let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("the retained frozen authorizer finalizes across a redeploy");
+        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+
+        // Case 3b — same shape, but the retained artifact is genuinely
+        // missing (crash-safety): fail closed with the distinct detail.
+        let mut snapback = asset_test_snapback();
+        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        let created = asset_upload(&mut snapback, "user_a", b"missing-artifact", true);
+        asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
+        asset_insert_phantom(&mut snapback);
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                assert_eq!(
+                    tx.execute("DELETE FROM _snapback_asset_intent_artifacts_v1", [])?,
+                    1,
+                    "the admission retained exactly one artifact"
+                );
+                Ok(())
+            })
+            .expect("drop retained artifact");
+        let mut changed = asset_test_intent();
+        changed.intent_policy_hash = "sha256:new-policy-2".to_owned();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![changed],
+            ..FunctionManifest::default()
+        });
         let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-            .expect_err("frozen code unavailable fails closed");
+            .expect_err("a missing retained artifact fails closed");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ADMISSION_STALE");
+        assert_eq!(
+            error.diagnostic.details["missingRetainedArtifact"],
+            serde_json::Value::Bool(true)
+        );
 
         // Case 4 — intent removal is a revocation trigger.
         let mut snapback = asset_test_snapback();
@@ -24183,6 +24272,108 @@ globalThis.__snapbackHandlers = {
         let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect_err("intent removal revokes");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_REVOKED");
+    }
+
+    #[test]
+    fn asset_intent_artifact_retention_reclaims_after_last_attempt_terminates() {
+        let mut snapback = asset_test_snapback();
+        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+
+        // Like `asset_upload`, but presenting a generated reference that
+        // matches the currently deployed (changed) intent policy.
+        fn upload_with_hash(
+            snapback: &mut LocalSnapback,
+            user: &str,
+            bytes: &[u8],
+            hash: &str,
+        ) -> crate::assets::AssetAttemptCreateResponseV1 {
+            let creator = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
+            let transfer = asset_dev_authority(snapback, user, InvocationSource::AssetTransfer);
+            let mut request = asset_create_request(Some(bytes.len() as u64));
+            request.intent_policy_hash = hash.to_owned();
+            let created = snapback
+                .asset_attempt_create(&creator, request)
+                .expect("attempt creates");
+            let checksum = asset_chunk_checksum(bytes);
+            snapback
+                .asset_tus_patch(
+                    &transfer,
+                    &created.task.attempt_id,
+                    0,
+                    bytes,
+                    Some(("sha256", checksum.as_str())),
+                )
+                .expect("bytes land");
+            created
+        }
+
+        // Gen 1 admission retains its artifact; finalize terminates the
+        // attempt, so nothing pins gen 1 once gen 2 supersedes it.
+        let created = asset_upload(&mut snapback, "user_a", b"gen-one-bytes", true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("gen-1 upload publishes");
+
+        let mut changed = asset_test_intent();
+        changed.intent_policy_hash = "sha256:gen-two".to_owned();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![changed],
+            ..FunctionManifest::default()
+        });
+        // Gen 2 mints at the next admission and retains its own artifact;
+        // its attempt stays open, pinning gen 2 across the next redeploy.
+        let pinned =
+            upload_with_hash(&mut snapback, "user_a", b"gen-two-bytes", "sha256:gen-two");
+
+        let count_artifacts = |snapback: &mut LocalSnapback| -> u64 {
+            snapback
+                .db
+                .asset_transaction(|tx| {
+                    Ok(tx.query_row(
+                        "SELECT COUNT(*) FROM _snapback_asset_intent_artifacts_v1",
+                        [],
+                        |row| row.get(0),
+                    )?)
+                })
+                .expect("count")
+        };
+        assert_eq!(count_artifacts(&mut snapback), 2, "both generations retained");
+
+        // A third deploy supersedes gen 2 while its attempt is still open.
+        let mut third = asset_test_intent();
+        third.intent_policy_hash = "sha256:gen-three".to_owned();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![third],
+            ..FunctionManifest::default()
+        });
+        let _fourth =
+            upload_with_hash(&mut snapback, "user_a", b"gen-three-bytes", "sha256:gen-three");
+
+        let report = snapback.asset_gc_sweep(1).expect("sweep");
+        assert_eq!(
+            report.intent_artifacts_reclaimed, 1,
+            "gen 1 reclaims; gen 2 is pinned by its open attempt; gen 3 is current"
+        );
+        assert_eq!(count_artifacts(&mut snapback), 2);
+
+        // Terminating the pinning attempt releases gen 2 on the next sweep —
+        // and that finalize itself runs through the retained gen-2 artifact.
+        asset_finalize(&mut snapback, "user_a", &pinned.task.attempt_id, None)
+            .expect("the pinned attempt finalizes through its retained artifact");
+        let report = snapback.asset_gc_sweep(2).expect("sweep");
+        assert_eq!(report.intent_artifacts_reclaimed, 1, "gen 2 released");
+        assert_eq!(count_artifacts(&mut snapback), 1, "only the current generation remains");
+        let receipted: u64 = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_receipts_v1
+                     WHERE event = 'intent-artifact-reclaimed' AND asset_id = ''",
+                    [],
+                    |row| row.get(0),
+                )?)
+            })
+            .expect("receipts");
+        assert_eq!(receipted, 2, "each reclamation is receipted, intent-scoped");
     }
 
     #[test]

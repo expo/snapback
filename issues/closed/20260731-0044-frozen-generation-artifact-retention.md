@@ -20,3 +20,23 @@ Fix: retain superseded intent artifacts keyed by policy generation until
 the last open attempt admitted under them terminates or expires, and
 route witness re-runs through the retained artifact. Reflect the
 narrowed behavior honestly in any acceptance claims until then.
+
+---
+
+**RESOLVED 2026-07-31 (W2a-2, branch 0044-wave2).** Implemented v6.1
+reading (a): `_snapback_asset_intent_artifacts_v1` retains each
+generation's serialized intent definition (upserted by
+`ensure_intent_generation` in every arm, self-healing), finalization's
+witness re-run loads the frozen generation's retained artifact instead
+of the current deployment (`SNAPBACK_ASSET_ADMISSION_STALE` survives
+only for a genuinely missing artifact, with the
+`missingRetainedArtifact` detail), and `reclaim_intent_artifacts` runs
+in the GC sweep once no non-terminal attempt pins a superseded
+generation — each reclamation receipted (`intent-artifact-reclaimed`,
+intent-scoped). Evidence: the case-3 rewrite in
+`asset_finalize_witness_rechecks_benign_churn_publishes_denial_refuses`
+(redeploy + churn now PUBLISHES via retained code; missing-artifact
+fails closed) and
+`asset_intent_artifact_retention_reclaims_after_last_attempt_terminates`
+(pinning + release + receipts). Full lib 1522/1522; all pinned gates
+green.

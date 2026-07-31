@@ -1804,16 +1804,22 @@ block; every other target withholds all three asset ids. Evidence: the
 program `issues/closed/20260731-0044-p-*`, the §Image pipeline section
 of the traceability map, and the guide page's Images flow.
 
+Two of the deferred items closed 2026-07-31, later same day (the W2a
+completion-program pass): frozen-generation authorizer retention is
+implemented per v6.1 reading (a) — superseded intent artifacts are
+retained keyed by policy generation, witness re-runs go through the
+retained code so a long upload spanning an ordinary redeploy finalizes
+under benign churn, reclamation is receipted GC, and the fail-closed
+refusal survives only for a genuinely missing artifact — and the
+blob-JSON refcount staleness is resolved by making the columns the
+blob's only mutable representation (which also fixed two latent
+ineffective condemned filters on the delivery paths).
+
 Deferred with named owners, honestly: the React/Expo projection and
 real-server JS conformance vectors (ticket L1-14's recorded remainder);
 sessions-mode live-projection classification (the live-projection
-ticket's remainder note); frozen-generation authorizer retention
-(`issues/20260731-0044-frozen-generation-artifact-retention.md` — the
-implementation currently fails closed where 0044 would re-run frozen
-code); bounded-array `v.assetRef`
-(`issues/20260731-assetref-array-needs-portable-array-fields.md`); the
-blob-JSON refcount staleness cleanup
-(`issues/20260731-0044-blob-json-refcount-staleness.md`); and
+ticket's remainder note); bounded-array `v.assetRef`
+(`issues/20260731-assetref-array-needs-portable-array-fields.md`); and
 signed/public delivery profiles, S3 store qualification, store
 migration, video finalization, reference GC, and the LLP 0070 runner
 generation, each already scoped as later capabilities above. The

@@ -558,6 +558,10 @@ pub enum AssetReceiptEventV1 {
     WorkExhausted,
     WorkCancelled,
     WorkLeaseReclaimed,
+    /// A superseded intent generation's retained authorizer artifact was
+    /// reclaimed after its last open attempt terminated (intent-scoped;
+    /// no `asset_id`).
+    IntentArtifactReclaimed,
     WorkAmbiguous,
 }
 
@@ -569,7 +573,11 @@ pub struct AssetReceiptV1 {
     /// top-level artifacts.
     pub operation_lineage: String,
     pub event: AssetReceiptEventV1,
-    pub asset_id: String,
+    /// Present on every asset-scoped event; `None` only for intent-scoped
+    /// bookkeeping events (`IntentArtifactReclaimed`), whose subject lives in
+    /// `details`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attempt_id: Option<String>,
     pub at_ms: u64,
@@ -605,8 +613,9 @@ pub struct AssetRefusalDetailV1 {
 /// outside the app namespace: `validate_user_identifier` already refuses any
 /// app-declared identifier with this prefix, so collision refusal is the
 /// existing `SNAPBACK_INVALID_IDENTIFIER` diagnostic. Receipts and intent
-/// generations joined the original seven with the session ticket (L1-04).
-pub const ASSET_SYSTEM_TABLES: [&str; 9] = [
+/// generations joined the original seven with the session ticket (L1-04);
+/// retained intent artifacts joined with the W2a retention work.
+pub const ASSET_SYSTEM_TABLES: [&str; 10] = [
     "_snapback_asset_records_v1",
     "_snapback_asset_attempts_v1",
     "_snapback_asset_blobs_v1",
@@ -616,6 +625,7 @@ pub const ASSET_SYSTEM_TABLES: [&str; 9] = [
     "_snapback_asset_work_ledger_v1",
     "_snapback_asset_receipts_v1",
     "_snapback_asset_intent_generations_v1",
+    "_snapback_asset_intent_artifacts_v1",
 ];
 
 pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
@@ -729,6 +739,13 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
              generation INTEGER NOT NULL,
              revoked INTEGER NOT NULL DEFAULT 0,
              updated_at_ms INTEGER NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_asset_intent_artifacts_v1 (
+             intent_id TEXT NOT NULL,
+             generation INTEGER NOT NULL,
+             intent_json TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL,
+             PRIMARY KEY (intent_id, generation)
          );",
     )?;
     // Blob record_json once carried referenceCount/condemned copies of the
@@ -764,6 +781,7 @@ pub fn ensure_intent_generation(
     tx: &Transaction<'_>,
     intent_id: &str,
     intent_policy_hash: &str,
+    intent_json: &str,
     now_ms: u64,
 ) -> SnapbackResult<IntentGeneration> {
     let existing: Option<(String, u64, bool)> = tx
@@ -774,7 +792,7 @@ pub fn ensure_intent_generation(
             |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, i64>(2)? != 0)),
         )
         .optional()?;
-    Ok(match existing {
+    let result = match existing {
         None => {
             tx.execute(
                 "INSERT INTO _snapback_asset_intent_generations_v1 (
@@ -799,7 +817,63 @@ pub fn ensure_intent_generation(
             )?;
             IntentGeneration { generation: generation + 1, revoked: false }
         }
-    })
+    };
+    // Retention (LLP 0044 v6.1 reading (a)): the artifact that can re-run
+    // this generation's authorizer is retained keyed by (intent, generation)
+    // until the last open attempt admitted under it terminates. Idempotent
+    // upsert self-heals a missing artifact for the current generation.
+    tx.execute(
+        "INSERT INTO _snapback_asset_intent_artifacts_v1 (
+             intent_id, generation, intent_json, updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(intent_id, generation)
+         DO UPDATE SET intent_json = ?3, updated_at_ms = ?4",
+        rusqlite::params![intent_id, result.generation, intent_json, now_ms],
+    )?;
+    Ok(result)
+}
+
+pub fn load_intent_artifact(
+    tx: &Transaction<'_>,
+    intent_id: &str,
+    generation: u64,
+) -> SnapbackResult<Option<String>> {
+    Ok(tx
+        .query_row(
+            "SELECT intent_json FROM _snapback_asset_intent_artifacts_v1
+             WHERE intent_id = ?1 AND generation = ?2",
+            rusqlite::params![intent_id, generation],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// Reclaims retained artifacts of superseded generations once no non-terminal
+/// attempt was admitted under them. The current generation's artifact is
+/// always kept. Returns the reclaimed (intent, generation) pairs so the
+/// sweep can receipt each one.
+pub fn reclaim_intent_artifacts(
+    tx: &Transaction<'_>,
+) -> SnapbackResult<Vec<(String, u64)>> {
+    let mut statement = tx.prepare(
+        "DELETE FROM _snapback_asset_intent_artifacts_v1 AS a
+         WHERE NOT EXISTS (
+                 SELECT 1 FROM _snapback_asset_intent_generations_v1 g
+                 WHERE g.intent_id = a.intent_id AND g.generation = a.generation
+               )
+           AND NOT EXISTS (
+                 SELECT 1 FROM _snapback_asset_attempts_v1 t
+                 WHERE t.state IN ('open', 'transferring', 'finalizing')
+                   AND json_extract(t.record_json, '$.intentId') = a.intent_id
+                   AND json_extract(t.record_json, '$.admission.policyGeneration')
+                       = a.generation
+               )
+         RETURNING intent_id, generation",
+    )?;
+    let reclaimed = statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(reclaimed)
 }
 
 // ---------------------------------------------------------------------------
@@ -827,7 +901,7 @@ pub fn write_receipt(tx: &Transaction<'_>, receipt: &AssetReceiptV1) -> Snapback
             receipt.receipt_id,
             receipt.operation_lineage,
             event,
-            receipt.asset_id,
+            receipt.asset_id.clone().unwrap_or_default(),
             receipt.attempt_id,
             receipt.at_ms,
             record_json,
