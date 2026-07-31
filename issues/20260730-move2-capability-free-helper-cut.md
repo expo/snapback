@@ -114,3 +114,19 @@ gated on measured pressure, 0118 OQ6), hermetic package closures (proposed
 deferred, 0118 OQ8), and the independently landable complements (pinned
 civil-date/money stdlib, exact-duplicate drift diagnostic), which are not
 gated by any decision but are not this ticket's scope.
+
+## 2026-07-31 — LANDED on main; ticket narrows to the benchmark
+
+Lane C1 landed at `4d72c407`: the full option-1a same-file slice as
+the Progress section describes (context-readers admitted, splice
+emission, v2 named-helper-content hash, 11 cross-helper adversarial
+fixtures, spliced-bytes capability rescan, both diary shapes proven
+de-duplicated in `inline-helper-sharing.test.mjs`). The design frame
+also hardened upstream: LLP 0131 (Accepted 2026-07-31 under SD-4)
+pins the v2 implementation-hash recompute obligation and the
+generation-time registry conformance gate this mechanism now sits
+under. Still open here, unchanged: work item (5), the respecified
+benchmark receipts (per-invocation evaluation latency/memory against
+LLP 0035's ~3.9 ms fresh-invocation baseline, 0118 OQ1), and
+absorbing the mechanism into LLP 0108's normative text. This ticket
+closes when those two land.

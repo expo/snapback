@@ -5,7 +5,17 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (slice 5-types swept: CV-1 named gap 4's
+**Revised:** 2026-07-31 (v0.8, wave-1 program-state refresh: the six
+commissioned Specs are all Accepted under LLP 0130 SD-4 — LLP 0131
+(CV-4a+CV-5 unified argument grammar), LLP 0132 (vector search), LLP
+0133 (local settlement), LLP 0134 (CV-8 piece 2 stable promotion),
+LLP 0135 (move 6 sequence-primitive + 3a designs), LLP 0136 (CV-11
+design half) — and the in-branch code lanes landed on main: C1
+helper slice `4d72c407` (CV-7), C3 receipt lane `63dacde2`/`5ac77b8d`
+(CV-3, CV-15), C4 types sweep `1f475864` (CV-1 gap 4), CV-13 guide
+rewrite `5592c8ba`, C5 offline Phase 0 `2a7bf058`..`b53c28fd`. Board
+rows updated; design tickets for move 6 and CV-8 piece 2 closed.)
+2026-07-31 (slice 5-types swept: CV-1 named gap 4's
 `types`-condition sweep executed in-branch (`move5-types-sweep`,
 pending landing) — 51 declarations + conditions across all seven
 publishing packages, and `scripts/check-package-export-types.mjs`
@@ -370,23 +380,23 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 
 | Item | Title | Tranche | Move | Owning doc(s) | Analysis | Size | State |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types SWEPT in-branch 2026-07-31 (`move5-types-sweep`, pending landing; named gap 4 closes at landing) |
+| CV-1 | Public package/starter loop proven from a clean repo | A (P0) | 5 | 0041 (lead), 0111, 0114; 0074 gate | 0122 | L | Open; custody decided (decision 4: CLI-fold + published helpers) and OQ5 decided (decision 1: 0074's parallel gate); slice 5-rebuild un-blocked, sequenced after/with decision 9's scope migration; slice 5-types LANDED 2026-07-31 (`1f475864`: 51 hand-authored declarations across 10 publishing packages + the three-phase `check:export-types` gate wired into the proof; named gap 4 closed) |
 | CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Landed 2026-07-30 (`814acd77`: `snapback runtime-qualify` create/destroy gate + relink invalidation + regression fixture; ticket closed; residue = persisted receipt → CV-3, kit rungs → issues/20260730-kit-rungs-skip-handler-vm-qualification.md) |
-| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Landed in-branch 2026-07-31, pending landing on main (`snapback.runtime-readiness.v1` receipt beside the binary; digest-recompute consumption; kept-target probe + verify-local-proof issue it; doctor read-only served-binary check; all four kit rungs covered; `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`; kit-rungs ticket closed; posture-neutrality finding + test per 0123) |
-| CV-4a | Structured collection validators for arguments | B (P1) | 1 | new Spec + 0004 alignment | 0117 | M | Open (startable; first slice with CV-5) |
+| CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Landed 2026-07-31 (`63dacde2` + `5ac77b8d`: `snapback.runtime-readiness.v1` receipt beside the binary; digest-recompute consumption; kept-target probe + verify-local-proof issue it; doctor read-only served-binary check; all four kit rungs covered; `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`; kit-rungs ticket closed; posture-neutrality finding + test per 0123) |
+| CV-4a | Structured collection validators for arguments | B (P1) | 1 | new Spec + 0004 alignment | 0117 | M | Design accepted 2026-07-31 (LLP 0131 under SD-4 — one argument grammar carrying CV-4a and CV-5 together; implementation lane in flight) |
 | CV-4b | Structured collection stored fields | B (P1) | 1 | new Spec + 0004/0007/0081 | 0117 | L | Open |
-| CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 1 | 0073, 0037 | 0117 | M | Open (re-scoped v0.3) |
+| CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 1 | 0073, 0037 | 0117 | M | Design accepted 2026-07-31 (folded into LLP 0131's unified grammar — the 0108 recursive vocabulary at args positions; re-scoped v0.3) |
 | CV-6 | Precise mutation results as the paved default | B (P1) | 1 | 0108 amendment, guide | 0117 | S | Open (OQ3 answered — decision 5: deferral confirmed, provisional lean recorded; sequenced post-A+E) |
-| CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Implemented on wave1 branch, pending landing (2026-07-31: full option-1a same-file slice — context-readers admitted per 0127 decision 6, splice emission, v2 named-helper-content hash, cross-helper adversarial fixtures, spliced-bytes capability rescan; ticket issues/20260730-move2-capability-free-helper-cut.md; benchmark receipts against LLP 0035's baseline still open) |
-| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, re-verified 2026-07-31; decision 3: sequence primitive first, then 3a; stable-promotion design written as part of move 6, ticketed 2026-07-31: issues/20260731-cv8-piece2-stable-promotion-design.md) |
+| CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Landed 2026-07-31 (`4d72c407`: full option-1a same-file slice — context-readers admitted per 0127 decision 6, splice emission, v2 named-helper-content hash, cross-helper adversarial fixtures, spliced-bytes capability rescan; ticket issues/20260730-move2-capability-free-helper-cut.md; benchmark receipts against LLP 0035's baseline still open) |
+| CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, re-verified 2026-07-31; decision 3: sequence primitive first, then 3a; stable-promotion design LANDED as LLP 0134, Accepted 2026-07-31 under SD-4; sequence-primitive + 3a design passes LANDED as LLP 0135, Accepted 2026-07-31 under SD-4; both design tickets closed) |
 | CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice = 0127 slice 3-jobs, startable; receipt-association owner = 0070 per decision 7) |
 | CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Landed 2026-07-30 (`c57ef9cd`: canonical-digest recheck + storage normalization + 0073 pin; ticket closed) |
-| CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Open (genuine design hole; design pass startable) |
+| CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Design half landed 2026-07-31 (LLP 0136, Accepted under SD-4: coarse re-execution on invalidation, non-auth-scoped v1, table-scoped ceilings, offer-gated negotiation); implementation + the 0114 rerun-arm prep remain open |
 | CV-12a | Portable range filters | D (P1) | 4 (rider) | 0073 (new design) | — | M | Open |
 | CV-12b | Search target expansion | D (P2) | 4 (rider) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
 | CV-13 | Inline handlers primary in "Your first backend" | E (P2) | 5 | guide (0061) | 0122 | S | Landed 2026-07-31 (first-backend page rewritten inline-primary, legacy split moved to a labeled compatibility section; guide checks green; ticket closed) |
 | CV-14 | Semantic review summary for dense manifests | E (P2) | — | custody owner (confirm at start; 0062 family) | — | M | Open (claimed by no move; rides its custody trigger) |
-| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Landed in-branch 2026-07-31, pending landing on main (split: `pinned-binary-dirty-checkout` for exact clean-built binaries compared against a dirty checkout, `unpinned-binary` for binaries whose own stamp is dirty/unknown; kit README updated) |
+| CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Landed 2026-07-31 (`5ac77b8d`; split: `pinned-binary-dirty-checkout` for exact clean-built binaries compared against a dirty checkout, `unpinned-binary` for binaries whose own stamp is dirty/unknown; kit README updated) |
 | CV-16 | Declaration-closed rejection unions as result-contract variants | B (P1) | 1 | 0108 family (0125 option 2) | 0125 | M | Confirmed (0127 decision 7, 2026-07-30) |
 | CV-17 | Typed-interior pilot (0117 option F) | B (P1) | 1 | 0108 clarification + codegen | 0117 | S | Confirmed (0127 decision 7, 2026-07-30) |
 

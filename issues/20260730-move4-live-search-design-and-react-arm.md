@@ -60,3 +60,26 @@ and any classification-boundary change — the option 1a pre-registration is
 watch-gated (0115's watch item; no action until the post-CV-11,
 React-measured rerun scores the boundary itself), and its acceptance plus
 0127 §Sequencing 7's watch-item amendment are author calls.
+
+## 2026-07-31 — work item (1) DONE: the design pass is LLP 0136
+
+The live-search design pass landed as LLP 0136 ("Live search by
+coarse re-execution", Spec), ACCEPTED 2026-07-31 under LLP 0130 SD-4
+after a dual-family loop (Fable READY round 2, Codex READY round 3;
+commit `6ac46221`). It proves option 4's composition hypothesis in
+LLP 0073's frame: coarse re-execution on invalidation under search's
+own capability id (`live_full_text_search_v1`), v1 scoped honestly to
+non-auth-scoped subscriptions (sessions-mode `owner.v1` refuses at
+admission), per-index/per-connection budgets plus a table-scoped
+aggregate ceiling (`TableManifest.searchLiveLimits`), cursor
+semantics pinned (terminal-page-only absence; atomic client cursor
+invalidation on resync), and the wire members routed as dated LLP
+0091/0094 amendments behind an offer-gated `liveSearchProtocol`
+negotiation. The 0119 OQ1/OQ2 proposals this ticket owed the author
+are therefore made and accepted. `full_text_search_v1` stays non-live
+with the pinned `SNAPBACK_FUNCTION_NOT_LIVE` refusal until the
+implementation ships. Still open here: work item (2), the
+successor-rerun arm prep (an arm — Campfire is natural — consuming
+the LLP 0114 React surface and a registered LLP 0112 group), plus
+implementation per the accepted Spec. LLP 0115's CV-11 board row
+records the design half landed.

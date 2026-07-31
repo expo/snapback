@@ -5,7 +5,13 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (Phase 0 status note added under §Phases: the
+**Revised:** 2026-07-31 (wave-1 state refresh: lane C5 landed on main
+(`2a7bf058`/`e416fb89`/`b53c28fd`) and the
+Phase 0 evidence gate is recorded CLEARED under SD-5, with the
+lease-custody/sessions-queue remainders ticketed and holding exit
+criterion 2's `auth.authorized-leases` half open at program level;
+ledger row 1 UN-GATED — the owning settlement Spec landed as LLP
+0133, Accepted 2026-07-31 under LLP 0130 SD-4.) 2026-07-31 (Phase 0 status note added under §Phases: the
 option-A JS-arm slice is implemented in-branch with its diary-grade
 offline acceptance green — see the dated block for what landed, the
 environment-capture honesty note, and the ticketed remainders.)
@@ -224,8 +230,9 @@ territory no rung skips. Owners: LLP 0043/0114/0090, wire in
 0008/0093. *Evidence gate:* a diary-grade offline acceptance rerun on
 the chosen arm (0126 option A's gate).
 
-> **Phase 0 status (2026-07-31, wave-1 lane C5 — in-branch, pending
-> landing).** The option-A slice is implemented on
+> **Phase 0 status (2026-07-31, wave-1 lane C5 — LANDED on main:
+> `2a7bf058` client slice, `e416fb89` acceptance, `b53c28fd`
+> guide/claims).** The option-A slice is implemented on
 > `packages/snapback-client` and proven by a new diary-grade harness
 > acceptance, `demos/public-dashboard/tests/acceptance/
 > offline-local-first.mjs` (9 non-vacuous checks against the real
@@ -256,8 +263,14 @@ the chosen arm (0126 option A's gate).
 > `auth.authorized-leases` half is therefore still open) and the
 > sessions-custody queue leg (the JS-arm outbox covers
 > dev/external-bearer custody; session-fenced clients defer to the
-> Contract arm). Gate disposition under SD-5 awaits this lane's
-> landing plus the named acceptance staying green on main.
+> Contract arm). Gate disposition (2026-07-31, under SD-5): the
+> Phase 0 evidence gate — the diary-grade offline acceptance on the
+> chosen arm — is CLEARED; the lane landed on main with the named
+> acceptance green (9/9) and registered in the workout inventory.
+> The ticketed remainders hold exit criterion 2's
+> `auth.authorized-leases` half open — a program-exit matter, not
+> this phase's gate. Phase 1 is un-blocked on Phase 0's side; its
+> own preconditions (the IR-evaluator sizing spike) stand.
 
 **Phase 1 — The shared IR rung.** *Staging confirmed by decision 2;
 IR-rung-first resourcing puts this phase before either ladder
@@ -336,6 +349,12 @@ designed but unbuilt. Proposed owners are proposals (constraint 7).
    new-owned-Spec branch — and the program's first owned-Spec
    deliverable. Still first among these: the first design the program
    hits once Phase 0 lands; the row un-gates when the Spec lands.
+   **LANDED (2026-07-31): LLP 0133 ("Local settlement") is that
+   Spec**, Accepted under LLP 0130 SD-4 after a dual-family loop; it
+   pins the lane Q (shipped 0008 accept pin) / lane L (re-derivation
+   default) split below, the (mint site, occurrence) logical mint
+   identity, labeled-claim receipts, and bounded-skew as a per-field
+   declared opt-in inert in lane Q. This row is UN-GATED.
    **Domain and lane scoping (v0.3; verified against LLP 0008
    §Replay environment contract, 2026-07-31).** (a) Decision 10
    governs *application-visible* values: client-captured time and
