@@ -171,12 +171,73 @@ pub struct SearchPhraseV1 {
     pub field: Option<String>,
 }
 
+/// The one filter operator the v1 parser profile admits. A closed enum rather
+/// than a free string so the deserialization grammar, the exported request
+/// schema, and the published client typings admit exactly the same set — a new
+/// operator is a new parser profile, not a wider string.
+///
+/// @ref LLP 0131#the-search-fixture-cv-5 — every carrier of the AST grammar
+/// derives from or verifies against the one exported request schema.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+pub enum SearchFilterOpV1 {
+    #[default]
+    #[serde(rename = "eq")]
+    Eq,
+}
+
+/// The closed scalar vocabulary for equality-filter values. Previously this
+/// field was an open `serde_json::Value` whose non-scalar shapes were refused
+/// later by semantic validation; closing it at the deserialization grammar
+/// keeps the accepted query set identical while letting every schema carrier
+/// state the same admissible set.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum SearchFilterValueV1 {
+    String(String),
+    Number(serde_json::Number),
+    Boolean(bool),
+}
+
+impl SearchFilterValueV1 {
+    pub fn as_value(&self) -> Value {
+        match self {
+            Self::String(value) => Value::String(value.clone()),
+            Self::Number(value) => Value::Number(value.clone()),
+            Self::Boolean(value) => Value::Bool(*value),
+        }
+    }
+
+    pub fn matches_value(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Self::String(left), Value::String(right)) => left == right,
+            (Self::Number(left), Value::Number(right)) => left == right,
+            (Self::Boolean(left), Value::Bool(right)) => left == right,
+            _ => false,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        matches!(self, Self::String(_))
+    }
+
+    pub fn is_boolean(&self) -> bool {
+        matches!(self, Self::Boolean(_))
+    }
+
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            Self::Number(value) => value.as_i64(),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SearchFilterV1 {
     pub field: String,
-    pub op: String,
-    pub value: Value,
+    pub op: SearchFilterOpV1,
+    pub value: SearchFilterValueV1,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]

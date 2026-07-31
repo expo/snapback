@@ -6087,6 +6087,12 @@ impl LocalSnapback {
                 authorization: None,
             });
         }
+        // @ref LLP 0131#runtime-ingress-validation — fresh mutation admission
+        // validates the declared argument contract after the replay-settlement
+        // lookup (exact replay releases the original bytes without re-running
+        // ingress validation — LLP 0108's replay identity posture) and before
+        // any plan step, handler dispatch, or buffered write.
+        crate::args_contract::validate_function_args(&function, &input.args)?;
         let client_mutation_digest = identity
             .as_ref()
             .map(ClientMutationIdentity::activity_digest);
@@ -6202,6 +6208,10 @@ impl LocalSnapback {
             ));
         }
         refuse_unprovenanced_host_plan_authority_creation(prepared, &function, self.db.schema())?;
+        // @ref LLP 0131#runtime-ingress-validation — nested host-plan
+        // mutations (runMutation from actions) are fresh executions and see
+        // the same seam as every other evaluator lane.
+        crate::args_contract::validate_function_args(&function, &input.args)?;
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         self.ensure_permission_epoch_capacity(&epoch_scopes)?;
         let plan = match &function.runtime {
@@ -9860,6 +9870,10 @@ impl LocalSnapback {
         let invocation = InvocationGate::prepare_function(authority, &function)?;
         self.persist_and_validate_prepared_service_authority(invocation.authority())?;
         let canonical_input = invocation.canonicalize_input(input.clone());
+        // @ref LLP 0131#runtime-ingress-validation — action-hosted nested
+        // mutations validate at staging, before any dry run, handler byte,
+        // or detached effect.
+        crate::args_contract::validate_function_args(&function, &canonical_input.args)?;
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
@@ -12115,6 +12129,10 @@ impl LocalSnapback {
             ));
         }
         let input = prepared.canonicalize_input(input);
+        // @ref LLP 0131#runtime-ingress-validation — fresh action admission
+        // validates the declared argument contract before any dispatch or
+        // external effect.
+        crate::args_contract::validate_function_args(&function, &input.args)?;
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let result = match (&function.kind, &function.runtime) {
             (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
@@ -16197,6 +16215,10 @@ fn execute_query_invocation(
         });
     }
     prepared.validate_admission("query execution")?;
+    // @ref LLP 0131#runtime-ingress-validation — fresh query admission
+    // (direct run, server request, live subscribe binding, search) validates
+    // the declared argument contract before any plan or handler work.
+    crate::args_contract::validate_function_args(function, &input.args)?;
     let invocation = match (&function.kind, &function.runtime) {
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
@@ -23985,6 +24007,147 @@ globalThis.__snapbackHandlers = {
             .expect("apply guarded schema");
         snapback.load_functions(guarded_functions());
         snapback
+    }
+
+    /// LLP 0131 acceptance 1–2 (the Split-Ledger shape): a split vector
+    /// declared as `v.array(v.object({...}), {maxItems})` commits when valid
+    /// and refuses server-side with the exact bounded pointer when a nested
+    /// element has the wrong kind — with no handler execution and no partial
+    /// write observable afterward.
+    #[test]
+    fn split_vector_argument_contract_commits_valid_and_refuses_invalid_nested_payloads() {
+        let schema = SchemaManifest {
+            schema_hash: Some("split-ledger-schema".to_owned()),
+            tables: vec![TableManifest {
+                name: "expenses".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "note".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "splits".to_owned(),
+                        field_type: FieldType::Json,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let contract: crate::manifest::FunctionArgsContract = serde_json::from_value(json!({
+            "fields": [
+                { "name": "note", "required": true, "value": { "kind": "string", "maxBytes": 256 } },
+                { "name": "splits", "required": true, "value": { "kind": "array", "maxItems": 16, "element": {
+                    "kind": "object", "allowExtra": false, "fields": [
+                        { "name": "participant", "required": true, "value": { "kind": "string", "maxBytes": 64 } },
+                        { "name": "amountCents", "required": true, "value": { "kind": "integer", "min": 0, "max": 9007199254740991_i64 } },
+                    ],
+                } } },
+            ],
+        }))
+        .expect("split contract deserializes");
+        let mut record = FunctionDefinition::new(
+            "recordExpense",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "expenses".to_owned(),
+                    values: BTreeMap::from([
+                        ("note".to_owned(), ValueExpr::Arg("note".to_owned())),
+                        ("splits".to_owned(), ValueExpr::Arg("splits".to_owned())),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        record.args_contract_hash = Some(
+            crate::manifest::args_contract_hash(&contract).expect("hash split contract"),
+        );
+        record.args_contract = Some(contract);
+        record
+            .required_capabilities
+            .push("args_contract_v1".to_owned());
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(schema)
+            .expect("apply split-ledger schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![record],
+            acknowledged_experimental_capabilities: vec!["args_contract_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            !diagnostics
+                .iter()
+                .any(|d| d.severity == crate::diagnostic::DiagnosticSeverity::Error),
+            "split-ledger manifest must admit: {diagnostics:?}"
+        );
+
+        let valid = snapback.run_function(
+            "recordExpense",
+            HandlerInput {
+                args: json!({
+                    "note": "dinner",
+                    "splits": [
+                        { "participant": "ada", "amountCents": 1250 },
+                        { "participant": "grace", "amountCents": 750 },
+                    ],
+                }),
+                ..HandlerInput::default()
+            },
+        );
+        assert!(valid.ok, "valid split vector must commit: {valid:?}");
+        assert_eq!(valid.changed_count, Some(1));
+        let committed_version = valid.version.expect("committed version");
+
+        let invalid = snapback.run_function(
+            "recordExpense",
+            HandlerInput {
+                args: json!({
+                    "note": "dinner",
+                    "splits": [
+                        { "participant": "ada", "amountCents": 1250 },
+                        { "participant": "grace", "amountCents": 750 },
+                        { "participant": "alan", "amountCents": "not-a-number" },
+                    ],
+                }),
+                ..HandlerInput::default()
+            },
+        );
+        assert!(!invalid.ok, "wrong-kind nested element must refuse");
+        let diagnostic = invalid.diagnostic.expect("refusal diagnostic");
+        assert_eq!(diagnostic.code, "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION");
+        assert_eq!(diagnostic.details["path"], "/splits/2/amountCents");
+        assert_eq!(diagnostic.details["expected"], "integer");
+        assert_eq!(diagnostic.details["actual"], "string");
+
+        let undeclared = snapback.run_function(
+            "recordExpense",
+            HandlerInput {
+                args: json!({ "note": "x", "splits": [], "tip": true }),
+                ..HandlerInput::default()
+            },
+        );
+        assert!(!undeclared.ok, "undeclared root property must refuse");
+        assert_eq!(
+            undeclared.diagnostic.expect("diagnostic").code,
+            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+        );
+
+        // No partial write: the durable head still names the one valid commit.
+        assert_eq!(
+            snapback.db.current_version().expect("head version"),
+            committed_version,
+            "refused invocations must leave no observable write"
+        );
     }
 
     fn permission_epoch_guarded_snapback() -> LocalSnapback {

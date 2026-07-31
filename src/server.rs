@@ -21720,6 +21720,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH"
         | "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
         | "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+        // @ref LLP 0131#runtime-ingress-validation — a malformed argument
+        // descriptor is author input, and an args-contract violation is a
+        // client payload outside the declared contract; both are 4xx.
+        | "SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID"
+        | "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
         | "SNAPBACK_SEARCH_CURSOR_RESTART"
         | "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID"
         | "SNAPBACK_SEARCH_MAINTENANCE_LIMIT"
@@ -34815,6 +34820,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON",
         "SNAPBACK_HANDLER_HOST_CALL_MALFORMED",
         "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
+        "SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID",
+        "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
         "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
         "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
         "SNAPBACK_HANDLER_RESULT_INVALID",

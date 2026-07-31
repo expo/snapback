@@ -34,6 +34,7 @@ pub mod local;
 pub mod manifest;
 pub(crate) mod membership_rules;
 pub mod migration;
+pub mod args_contract;
 pub mod result_contract;
 pub mod rqs;
 pub mod runtime;

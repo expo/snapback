@@ -1590,7 +1590,7 @@ fn validate_filter_values(table: &TableManifest, query: &SearchQueryAstV1) -> Sn
             }
             FieldType::Boolean => filter.value.is_boolean(),
             FieldType::Integer => filter.value.as_i64().is_some(),
-            _ => false,
+            FieldType::Real | FieldType::Json | FieldType::RelationIncarnation { .. } => false,
         };
         if !valid {
             return Err(diagnostic(
@@ -1622,12 +1622,10 @@ pub fn query_search_on(
             "search query plan names an unsupported semantic profile",
         ));
     }
-    let request: SearchRequestV1 = serde_json::from_value(input.args.clone()).map_err(|_| {
-        diagnostic(
-            "SNAPBACK_SEARCH_QUERY_INVALID",
-            "search arguments must be {query, limit?, after?}",
-        )
-    })?;
+    // @ref LLP 0131#runtime-ingress-validation — the request parse delegates
+    // through the shared args-contract seam so this special case and the
+    // SchemaRef delegation are one path-carrying serde authority.
+    let request: SearchRequestV1 = crate::args_contract::parse_search_request(&input.args)?;
     let limit = request.limit.unwrap_or(20);
     if !(1..=SEARCH_MAX_LIMIT).contains(&limit) {
         return Err(diagnostic(
@@ -1763,9 +1761,10 @@ pub fn query_search_on(
             ));
         }
         let filters_match = query.all.iter().all(|clause| match clause {
-            SearchClauseV1::Filter(filter) => {
-                source.filters.get(&filter.field) == Some(&filter.value)
-            }
+            SearchClauseV1::Filter(filter) => source
+                .filters
+                .get(&filter.field)
+                .is_some_and(|stored| filter.value.matches_value(stored)),
             _ => true,
         });
         if !filters_match {
@@ -2079,8 +2078,8 @@ mod tests {
                         }),
                         SearchClauseV1::Filter(SearchFilterV1 {
                             field: "status".to_owned(),
-                            op: "eq".to_owned(),
-                            value: Value::String("open".to_owned()),
+                            op: SearchFilterOpV1::Eq,
+                            value: SearchFilterValueV1::String("open".to_owned()),
                         }),
                     ],
                 },

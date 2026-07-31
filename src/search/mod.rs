@@ -12,6 +12,7 @@
 pub mod analyzer;
 pub mod ast;
 pub mod cursor;
+pub mod fixtures;
 pub mod highlight;
 pub mod parser;
 pub mod rebuild;

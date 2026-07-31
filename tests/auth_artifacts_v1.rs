@@ -234,12 +234,13 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "migration_keyset_scan_v1",
             "full_text_search_v1",
             "result_contract_v1",
+            "args_contract_v1",
             "versioned_seed_install_v1",
             "versioned_seed_reset_v1",
             "write_activity_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 19);
+    assert_eq!(TargetCapabilityId::ALL.len(), 20);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),

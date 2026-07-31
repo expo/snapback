@@ -1021,6 +1021,7 @@ impl FunctionManifest {
             validate_retainable_query(function)?;
             validate_effect_ceiling(function)?;
             validate_result_contract_definition(function)?;
+            validate_args_contract_definition(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
@@ -1177,6 +1178,44 @@ fn invalid_result_contract(
     )
 }
 
+fn invalid_args_contract(
+    function: &FunctionDefinition,
+    message: impl Into<String>,
+) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID",
+        "runtime",
+        format!("function {} {}", function.name, message.into()),
+    )
+}
+
+/// Hash witness for the extended argument-contract descriptor.
+///
+/// @ref LLP 0131#identity-and-hashing — the canonical form is hashed under
+/// the new v2 domain prefix (the v1 descriptor dropped all bounds, so a
+/// hash-stable extension would witness nothing this Spec makes contractual).
+/// A `PlatformSchemaRef` node contributes its authority class and reference id, never artifact bytes.
+pub(crate) fn args_contract_hash(contract: &FunctionArgsContract) -> SnapbackResult<String> {
+    let value = serde_json::to_value(contract).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+            "runtime",
+            "args contract cannot be represented as canonical JSON",
+        )
+    })?;
+    let canonical = crate::rqs::jcs(&value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+            "runtime",
+            "args contract is outside the canonical JSON profile",
+        )
+    })?;
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:function-args:v2\n");
+    hash.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", hash.finalize()))
+}
+
 pub(crate) fn result_contract_hash(contract: &FunctionResultContract) -> SnapbackResult<String> {
     let value = serde_json::to_value(contract).map_err(|_| {
         SnapbackError::error(
@@ -1227,9 +1266,9 @@ fn result_primitive_kind(contract: &ResultValueContract) -> ResultPrimitiveKind 
             Value::Array(_) => ResultPrimitiveKind::Array,
             Value::Object(_) => ResultPrimitiveKind::Object,
         },
-        ResultValueContract::Json { .. } | ResultValueContract::Union { .. } => {
-            ResultPrimitiveKind::AnyJson
-        }
+        ResultValueContract::Json { .. }
+        | ResultValueContract::Union { .. }
+        | ResultValueContract::PlatformSchemaRef { .. } => ResultPrimitiveKind::AnyJson,
         ResultValueContract::Array { .. } => ResultPrimitiveKind::Array,
         ResultValueContract::Object { .. } => ResultPrimitiveKind::Object,
     }
@@ -1318,6 +1357,25 @@ fn validate_result_value_contract(
     depth: usize,
     object_fields: &mut usize,
 ) -> SnapbackResult<()> {
+    validate_value_contract_node(function, contract, depth, object_fields, ContractLane::Result)
+}
+
+/// Which contract root a value node sits under. One node vocabulary, two
+/// roots (LLP 0131): argument contracts additionally admit registry-checked
+/// `PlatformSchemaRef` nodes; result contracts keep the LLP 0108 set.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ContractLane {
+    Result,
+    Args,
+}
+
+fn validate_value_contract_node(
+    function: &FunctionDefinition,
+    contract: &ResultValueContract,
+    depth: usize,
+    object_fields: &mut usize,
+    lane: ContractLane,
+) -> SnapbackResult<()> {
     if depth > RESULT_CONTRACT_MAX_DEPTH {
         return Err(invalid_result_contract(
             function,
@@ -1390,7 +1448,7 @@ fn validate_result_value_contract(
                     "result array bound exceeds 1,024 items",
                 ));
             }
-            validate_result_value_contract(function, element, depth + 1, object_fields)?;
+            validate_value_contract_node(function, element, depth + 1, object_fields, lane)?;
         }
         ResultValueContract::Union { variants } => {
             if !(2..=RESULT_CONTRACT_MAX_UNION_VARIANTS).contains(&variants.len()) {
@@ -1407,10 +1465,22 @@ fn validate_result_value_contract(
                 ));
             }
             for variant in variants {
-                validate_result_value_contract(function, variant, depth + 1, object_fields)?;
+                validate_value_contract_node(function, variant, depth + 1, object_fields, lane)?;
             }
         }
-        ResultValueContract::Object { fields, .. } => {
+        ResultValueContract::Object {
+            fields,
+            allow_extra,
+        } => {
+            // @ref LLP 0131#the-argument-contract-descriptor — `allowExtra`
+            // is carried for node-type reuse and must be false at every
+            // argument position; argument objects are closed.
+            if lane == ContractLane::Args && *allow_extra {
+                return Err(invalid_args_contract(
+                    function,
+                    "argument objects must be closed (allowExtra: false)",
+                ));
+            }
             *object_fields = object_fields.saturating_add(fields.len());
             if *object_fields > RESULT_CONTRACT_MAX_FIELDS {
                 return Err(invalid_result_contract(
@@ -1426,13 +1496,108 @@ fn validate_result_value_contract(
                         "result object field names must be non-empty and unique",
                     ));
                 }
-                validate_result_value_contract(function, &field.value, depth + 1, object_fields)?;
+                validate_value_contract_node(
+                    function,
+                    &field.value,
+                    depth + 1,
+                    object_fields,
+                    lane,
+                )?;
+            }
+        }
+        // @ref LLP 0131#one-argument-grammar — PlatformSchemaRef is an argument-lane
+        // node in v1; result contracts keep the LLP 0108 vocabulary. The
+        // reference id must name an entry in the closed platform registry.
+        ResultValueContract::PlatformSchemaRef { schema, .. } => {
+            if lane == ContractLane::Result {
+                return Err(invalid_result_contract(
+                    function,
+                    "result contracts do not admit platformSchemaRef nodes",
+                ));
+            }
+            if !schema_ref_registry_v1().contains(&schema.as_str()) {
+                return Err(invalid_args_contract(
+                    function,
+                    format!("argument schemaRef names unregistered schema {schema}"),
+                ));
             }
         }
         ResultValueContract::Null
         | ResultValueContract::Boolean
         | ResultValueContract::Principal
         | ResultValueContract::Id { .. } => {}
+    }
+    Ok(())
+}
+
+/// Load-time integrity of the argument-contract descriptor (LLP 0131): node
+/// bounds under the shared profile, hash pairing under the v2 domain, and the
+/// fail-closed capability requirement for structured/reference declarations.
+fn validate_args_contract_definition(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let Some(contract) = &function.args_contract else {
+        // Legacy manifests (v1 args hash, no descriptor) keep loading; the
+        // runtime ingress seam validates only descriptor-carrying functions.
+        return Ok(());
+    };
+    let mut object_fields = 0;
+    let mut names = BTreeSet::new();
+    for field in &contract.fields {
+        if field.name.is_empty() || !names.insert(field.name.as_str()) {
+            return Err(invalid_args_contract(
+                function,
+                "argument names must be non-empty and unique",
+            ));
+        }
+        validate_value_contract_node(
+            function,
+            &field.value,
+            0,
+            &mut object_fields,
+            ContractLane::Args,
+        )?;
+    }
+    match function.args_contract_hash.as_deref() {
+        None => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+                "runtime",
+                format!(
+                    "function {} must pair its argument contract and argsContractHash",
+                    function.name
+                ),
+            ));
+        }
+        Some(actual) => {
+            let expected = args_contract_hash(contract)?;
+            if actual != expected {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+                    "runtime",
+                    format!(
+                        "function {} argsContractHash does not authenticate its argument contract",
+                        function.name
+                    ),
+                ));
+            }
+        }
+    }
+    // @ref LLP 0131#runtime-ingress-validation — the capability posture is
+    // app-wide: every function carrying the v2 descriptor requires
+    // `args_contract_v1`, scalar-only and empty argument roots included,
+    // the same fail-closed pattern result_contract_v1 uses.
+    if !function
+        .required_capabilities
+        .iter()
+        .any(|capability| capability == "args_contract_v1")
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            "capability",
+            format!(
+                "function {} carries an argument contract without args_contract_v1",
+                function.name
+            ),
+        ));
     }
     Ok(())
 }
@@ -2997,7 +3162,60 @@ pub enum ResultValueContract {
         #[serde(rename = "allowExtra", alias = "allow_extra")]
         allow_extra: bool,
     },
+    /// A reference to an entry in the closed, platform-owned registry of
+    /// exported Rust-owned schemas. Valid only at argument positions in v1;
+    /// not an app-authorable spelling — `defineSearchQuery` constructs it
+    /// internally and no `v.*` builder emits it. The node contributes its
+    /// authority class and reference id (never the referenced artifact's
+    /// bytes) to the canonical hash form; artifact drift is gated by the
+    /// schema-export drift test. The explicit `authority` member is a closed
+    /// enum with exactly one admitted value in v1, so a future app-schema
+    /// reference (option E) is a distinct authority class with
+    /// digest-carrying identity rather than a silent reinterpretation.
+    ///
+    /// @ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is
+    /// the one new node kind; v1's registry has exactly
+    /// `snapback:search-query-ast:v1`.
+    PlatformSchemaRef {
+        authority: SchemaRefAuthority,
+        schema: String,
+    },
 }
+
+/// The closed authority classes a schema-reference node may name. V1 admits
+/// exactly `platform`; hash-by-reference-id is a property of this class.
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+pub enum SchemaRefAuthority {
+    #[default]
+    #[serde(rename = "platform")]
+    Platform,
+}
+
+/// The closed v1 registry of platform schema-reference ids (LLP 0131).
+/// Exactly one entry: the search query AST, resolving to the
+/// `SearchQueryAstV1` definition inside the exported
+/// `search.request.schema.json`. The registry maps the id to both its
+/// exported artifact definition and its runtime validator; in v1 both are
+/// the same Rust type (`SearchQueryAstV1`), so artifact/validator agreement
+/// is intrinsic and byte drift is gated by the schema-export drift test.
+pub const SCHEMA_REF_SEARCH_QUERY_AST_V1: &str = "snapback:search-query-ast:v1";
+
+pub fn schema_ref_registry_v1() -> [&'static str; 1] {
+    [SCHEMA_REF_SEARCH_QUERY_AST_V1]
+}
+
+/// One closed object contract over a function's declared arguments:
+/// declaration-ordered fields, each carrying a value node from the same node
+/// vocabulary the result manifest uses (LLP 0131 — one node vocabulary, two
+/// contract roots).
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FunctionArgsContract {
+    pub fields: Vec<ResultObjectFieldContract>,
+}
+
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3068,6 +3286,17 @@ pub struct FunctionDefinition {
     pub implementation_hash: Option<String>,
     #[serde(default, rename = "argsContractHash", alias = "args_contract_hash")]
     pub args_contract_hash: Option<String>,
+    /// The declared argument contract (LLP 0131): one closed object over the
+    /// function's declaration-ordered arguments, carried beside the result
+    /// contract and witnessed by `argsContractHash` (v2 domain). Absent on
+    /// pre-0131 manifests, which keep loading without ingress validation.
+    #[serde(
+        default,
+        rename = "argsContract",
+        alias = "args_contract",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub args_contract: Option<FunctionArgsContract>,
     #[serde(default, rename = "resultContract", alias = "result_contract")]
     pub result_contract: FunctionResultContract,
     #[serde(default, rename = "resultContractHash", alias = "result_contract_hash")]
@@ -3187,6 +3416,7 @@ impl FunctionDefinition {
             handler_form: None,
             implementation_hash: None,
             args_contract_hash: None,
+            args_contract: None,
             result_contract: FunctionResultContract::Unknown,
             result_contract_hash: None,
             required_capabilities: Vec::new(),
@@ -3787,6 +4017,10 @@ pub struct PublicFunctionDefinition {
     pub implementation_hash: Option<String>,
     #[serde(rename = "argsContractHash", skip_serializing_if = "Option::is_none")]
     pub args_contract_hash: Option<String>,
+    /// The declared argument contract (LLP 0131) — a bounded declarative
+    /// schema like the result contract, safe on the public projection.
+    #[serde(rename = "argsContract", skip_serializing_if = "Option::is_none")]
+    pub args_contract: Option<FunctionArgsContract>,
     // @ref LLP 0107#optimistic-mutation-projection — the browser verifies
     // the deployed descriptor as well as its hash before admitting an
     // optimistic reducer. Result contracts are bounded declarative schemas,
@@ -3974,6 +4208,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             handler_form,
             implementation_hash,
             args_contract_hash,
+            args_contract,
             result_contract,
             result_contract_hash,
             required_capabilities,
@@ -4001,6 +4236,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             handler_form,
             implementation_hash,
             args_contract_hash,
+            args_contract,
             result_contract,
             result_contract_hash,
             required_capabilities,
@@ -5257,6 +5493,8 @@ pub enum TargetCapabilityId {
     FullTextSearchV1,
     #[serde(rename = "result_contract_v1")]
     ResultContractV1,
+    #[serde(rename = "args_contract_v1")]
+    ArgsContractV1,
     #[serde(rename = "versioned_seed_install_v1")]
     VersionedSeedInstallV1,
     #[serde(rename = "versioned_seed_reset_v1")]
@@ -5266,7 +5504,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -5283,6 +5521,7 @@ impl TargetCapabilityId {
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
         Self::ResultContractV1,
+        Self::ArgsContractV1,
         Self::VersionedSeedInstallV1,
         Self::VersionedSeedResetV1,
         Self::WriteActivityV1,
@@ -5306,6 +5545,7 @@ impl TargetCapabilityId {
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
+            Self::ArgsContractV1 => "args_contract_v1",
             Self::VersionedSeedInstallV1 => "versioned_seed_install_v1",
             Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
             Self::WriteActivityV1 => "write_activity_v1",
@@ -5336,6 +5576,7 @@ impl TargetCapabilityId {
             | Self::InlineHandlerV1
             | Self::RegisteredBundleBootV1
             | Self::ResultContractV1
+            | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
             | Self::VersionedSeedResetV1
             | Self::WriteActivityV1 => CapabilityMaturity::Experimental,
@@ -5434,6 +5675,10 @@ impl TargetCapabilityId {
                     })
             }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
+            // @ref LLP 0131#runtime-ingress-validation — positive presence
+            // means this exact target instance runs `validate_function_args`
+            // on every fresh invocation admission lane, scalars included.
+            Self::ArgsContractV1 => facts.args_contract_v1_registered,
             // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate
             // — the local fact is enabled only by the complete mandatory
             // conformance receipt; hosted/default target facts remain false.
@@ -5610,6 +5855,7 @@ pub struct TargetCapabilityFacts {
     full_text_search_v1_registered: bool,
     inline_handler_v1_registered: bool,
     result_contract_v1_registered: bool,
+    args_contract_v1_registered: bool,
     versioned_seed_install_v1_registered: bool,
     versioned_seed_reset_v1_registered: bool,
     paired_v1_parser_registered: bool,
@@ -5649,6 +5895,7 @@ impl TargetCapabilityFacts {
             full_text_search_v1_registered: true,
             inline_handler_v1_registered: true,
             result_contract_v1_registered: true,
+            args_contract_v1_registered: true,
             versioned_seed_install_v1_registered: true,
             versioned_seed_reset_v1_registered: true,
             paired_v1_parser_registered: true,
@@ -6786,6 +7033,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::ResultContractV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::ArgsContractV1,
                 CapabilityMaturity::Experimental,
             ),
             (

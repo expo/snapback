@@ -123,6 +123,17 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "capability.manifest.schema.json",
             schemars::schema_for!(CapabilityManifest),
         ),
+        // The one exported search request schema (LLP 0131 §The search
+        // fixture / LLP 0115 CV-5): the Rust parser owns the AST grammar and
+        // every other carrier — codegen-emitted client types, the operation
+        // args schema's embedded expansion, the provider projection, and the
+        // client package's published typings — derives from or verifies
+        // against this artifact. `$defs` embeds `SearchQueryAstV1`, the
+        // clause/atom types, and the closed filter op/value vocabulary.
+        finish(
+            "search.request.schema.json",
+            schemars::schema_for!(crate::search::types::SearchRequestV1),
+        ),
         finish(
             "seed.artifact.schema.json",
             schemars::schema_for!(SeedArtifactV1),
@@ -736,6 +747,15 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: crate::wire_fixtures::WIRE_FIXTURES_FILE,
             schema: sorted_keys(crate::wire_fixtures::wire_fixture_corpus()),
+        },
+        // The LLP 0131/CV-5 search-AST conformance corpus: accepted/rejected
+        // request fixtures generated through the Rust parser (deserialization
+        // agreement is asserted during generation), then re-proved against
+        // the exported schema and both TypeScript carriers in
+        // packages/snapback-codegen/search-ast-fixtures.test.mjs.
+        SchemaArtifact {
+            file: crate::search::fixtures::SEARCH_AST_FIXTURES_FILE,
+            schema: sorted_keys(crate::search::fixtures::search_ast_fixture_corpus()),
         },
     ]
 }

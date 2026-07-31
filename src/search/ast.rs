@@ -120,8 +120,10 @@ pub fn validate_query(
                 excluded += 1;
             }
             SearchClauseV1::Filter(filter) => {
-                if filter.op != "eq"
-                    || filter.value.is_null()
+                // The grammar (SearchFilterOpV1 / SearchFilterValueV1) already
+                // closed op and value at deserialization; the declared-field
+                // membership stays a semantic check against the index.
+                if filter.op != SearchFilterOpV1::Eq
                     || !index.equality_filters.contains(&filter.field)
                 {
                     return Err(invalid("filter must be declared non-null equality"));
