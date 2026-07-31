@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const bakeoffRoot = path.resolve(here, "..");
+const repoRoot = path.resolve(bakeoffRoot, "../..");
 const providers = ["snapback", "convex", "supabase", "firebase", "instantdb", "spacetimedb", "appwrite"];
 const apps = ["todo", "chat", "linear", "partiful", "research-room"];
 const finalScenarioStatuses = new Set(["pass", "fail", "gap", "expected-refusal", "unavailable-remote-dependency"]);
@@ -150,6 +152,141 @@ function problem(problems, condition, message) {
   if (!condition) problems.push(message);
 }
 
+// @ref LLP 0102#stage-0-freeze — the capsule shape is frozen. The verifier
+// hard-binds to protocol/run-capsule.v1.schema.json (integrity-checked against
+// freeze.v2.json): this validator implements exactly the draft 2020-12
+// keywords that frozen schema uses and refuses to run against any other
+// vocabulary. Accepting a new capsule field therefore requires a dated
+// protocol version amendment (new frozen schema plus verifier update), never
+// an ad-hoc relaxation here.
+const schemaAnnotationKeywords = new Set(["$schema", "$id", "title"]);
+const schemaSupportedKeywords = new Set(["type", "required", "properties", "additionalProperties", "const", "enum", "minLength"]);
+
+function assertSupportedSchema(schema, at = "#") {
+  for (const [keyword, value] of Object.entries(schema)) {
+    if (schemaAnnotationKeywords.has(keyword)) continue;
+    if (!schemaSupportedKeywords.has(keyword)) {
+      throw new Error(`frozen schema uses unsupported keyword "${keyword}" at ${at}; ` +
+        "amend the protocol version and extend this validator together");
+    }
+    if (keyword === "additionalProperties" && value !== false) {
+      throw new Error(`frozen schema uses non-boolean additionalProperties at ${at}; ` +
+        "amend the protocol version and extend this validator together");
+    }
+    if (keyword === "properties") {
+      for (const [name, child] of Object.entries(value)) assertSupportedSchema(child, `${at}/properties/${name}`);
+    }
+  }
+}
+
+let frozenSchemaPromise = null;
+
+async function loadFrozenSchema() {
+  frozenSchemaPromise ??= (async () => {
+    const relative = "protocol/run-capsule.v1.schema.json";
+    const body = await readFile(path.join(bakeoffRoot, relative), "utf8");
+    const freeze = JSON.parse(await readFile(path.join(bakeoffRoot, "protocol", "freeze.v2.json"), "utf8"));
+    const record = (freeze.artifacts ?? []).find((item) => item.path === `demos/backend-bakeoff/${relative}`);
+    const actualSha256 = createHash("sha256").update(body).digest("hex");
+    if (!record || record.sha256 !== actualSha256) {
+      throw new Error(`${relative} does not match the freeze record; ` +
+        "capsule fields change only through a dated protocol amendment plus re-freeze, not schema edits");
+    }
+    const schema = JSON.parse(body);
+    assertSupportedSchema(schema);
+    return schema;
+  })();
+  return frozenSchemaPromise;
+}
+
+function typeMatches(type, value) {
+  if (type === "object") return value !== null && typeof value === "object" && !Array.isArray(value);
+  if (type === "array") return Array.isArray(value);
+  if (type === "string") return typeof value === "string";
+  throw new Error(`frozen schema uses unsupported type "${type}"`);
+}
+
+export function schemaViolations(schema, value, at = "$") {
+  const violations = [];
+  if ("const" in schema && value !== schema.const) {
+    violations.push(`${at}: must equal ${JSON.stringify(schema.const)}`);
+  }
+  if ("enum" in schema && !schema.enum.includes(value)) {
+    violations.push(`${at}: must be one of ${JSON.stringify(schema.enum)}`);
+  }
+  if ("type" in schema && !typeMatches(schema.type, value)) {
+    violations.push(`${at}: must be of type ${schema.type}`);
+    return violations;
+  }
+  if ("minLength" in schema && typeof value === "string" && value.length < schema.minLength) {
+    violations.push(`${at}: must be at least ${schema.minLength} characters`);
+  }
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    for (const name of schema.required ?? []) {
+      if (!Object.hasOwn(value, name)) violations.push(`${at}: missing required field "${name}"`);
+    }
+    for (const [name, child] of Object.entries(schema.properties ?? {})) {
+      if (Object.hasOwn(value, name)) violations.push(...schemaViolations(child, value[name], `${at}.${name}`));
+    }
+    if (schema.additionalProperties === false) {
+      const known = new Set(Object.keys(schema.properties ?? {}));
+      for (const name of Object.keys(value)) {
+        if (!known.has(name)) violations.push(`${at}: unknown field "${name}" is not in the frozen capsule schema`);
+      }
+    }
+  }
+  return violations;
+}
+
+// Path-bearing capsule fields must either be empty when inapplicable or
+// resolve to retained artifact files under the arm directory or, for
+// repository-rooted declarations, under the repository root. A prose sentinel
+// standing in for a file is a verification failure.
+export function declaredCapsulePaths(capsule) {
+  const declared = [];
+  const push = (at, value) => declared.push({ at, value });
+  const pushList = (at, values) => {
+    if (Array.isArray(values)) values.forEach((value, index) => push(`${at}[${index}]`, value));
+  };
+  push("targets.binding.baselineReceiptPath", capsule?.targets?.binding?.baselineReceiptPath);
+  push("targets.binding.scopedCleanupPlanPath", capsule?.targets?.binding?.scopedCleanupPlanPath);
+  for (const target of ["local", "hosted"]) pushList(`targets.${target}.receiptPaths`, capsule?.targets?.[target]?.receiptPaths);
+  for (const scenario of capsule?.scenarioResults ?? []) pushList(`scenarioResults[${scenario?.id}].evidencePaths`, scenario?.evidencePaths);
+  push("inventory.receiptPath", capsule?.inventory?.receiptPath);
+  for (const [dimension, confidence] of Object.entries(capsule?.evidenceConfidence ?? {})) {
+    pushList(`evidenceConfidence.${dimension}.evidencePaths`, confidence?.evidencePaths);
+  }
+  push("cleanup.targetBoundPlanPath", capsule?.cleanup?.targetBoundPlanPath);
+  pushList("cleanup.receiptPaths", capsule?.cleanup?.receiptPaths);
+  return declared.filter((item) => item.value !== undefined && item.value !== null && item.value !== "");
+}
+
+async function isFile(candidate) {
+  try {
+    return (await stat(candidate)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function pathResolutionProblems(capsule, capsuleDir) {
+  const problems = [];
+  for (const { at, value } of declaredCapsulePaths(capsule)) {
+    if (typeof value !== "string") {
+      problems.push(`${at}: declared path must be a string`);
+      continue;
+    }
+    if (path.isAbsolute(value) || value.split(/[\\/]/).includes("..")) {
+      problems.push(`${at}: declared path "${value}" escapes the retained evidence roots`);
+      continue;
+    }
+    if (!(await isFile(path.resolve(capsuleDir, value))) && !(await isFile(path.resolve(repoRoot, value)))) {
+      problems.push(`${at}: declared path "${value}" does not resolve to a retained file under the arm or repository root`);
+    }
+  }
+  return problems;
+}
+
 function hasSecretShapedKey(value, at = "$") {
   if (Array.isArray(value)) {
     return value.flatMap((item, index) => hasSecretShapedKey(item, `${at}[${index}]`));
@@ -163,7 +300,12 @@ function hasSecretShapedKey(value, at = "$") {
   return findings;
 }
 
-export async function verifyCapsule(capsule, { allowDraft = false } = {}) {
+export async function verifyCapsule(capsule, { allowDraft = false, capsuleDir = null } = {}) {
+  // Frozen-schema validation runs first: a capsule that is not an instance of
+  // the frozen shape fails on that alone, before any semantic reading of it.
+  const shapeProblems = schemaViolations(await loadFrozenSchema(), capsule).map((violation) => `schema: ${violation}`);
+  if (shapeProblems.length > 0) return shapeProblems;
+
   const problems = [];
   problem(problems, capsule?.schemaVersion === 1, "schemaVersion must be 1");
   problem(problems, capsule?.protocolId === "llp-0102-backend-bakeoff-v1", "protocolId mismatch");
@@ -271,6 +413,8 @@ export async function verifyCapsule(capsule, { allowDraft = false } = {}) {
 
   const secretKeys = hasSecretShapedKey(capsule);
   problem(problems, secretKeys.length === 0, `secret-shaped keys are forbidden: ${secretKeys.join(", ")}`);
+
+  if (capsuleDir) problems.push(...await pathResolutionProblems(capsule, capsuleDir));
   return problems;
 }
 
@@ -289,8 +433,9 @@ async function main() {
   }
   if (command === "verify") {
     if (!first) throw new Error("usage: npm run capsule:verify -- <capsule> [--draft]");
-    const capsule = JSON.parse(await readFile(path.resolve(process.cwd(), first), "utf8"));
-    const problems = await verifyCapsule(capsule, { allowDraft: second === "--draft" });
+    const capsulePath = path.resolve(process.cwd(), first);
+    const capsule = JSON.parse(await readFile(capsulePath, "utf8"));
+    const problems = await verifyCapsule(capsule, { allowDraft: second === "--draft", capsuleDir: path.dirname(capsulePath) });
     if (problems.length > 0) {
       console.error(JSON.stringify({ ok: false, problems }, null, 2));
       process.exitCode = 1;

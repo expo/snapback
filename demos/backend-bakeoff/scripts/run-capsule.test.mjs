@@ -1,6 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { newCapsule, verifyCapsule } from "./run-capsule.mjs";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { declaredCapsulePaths, newCapsule, verifyCapsule } from "./run-capsule.mjs";
+
+async function retainedArmDir(capsule) {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "run-capsule-arm-"));
+  for (const { value } of declaredCapsulePaths(capsule)) {
+    const file = path.join(dir, value);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, "{}\n");
+  }
+  return dir;
+}
 
 async function validCapsule() {
   const capsule = await newCapsule({
@@ -63,6 +76,53 @@ test("new capsule binds the immutable freeze, machine, provider versions, and ta
   assert.equal(capsule.environment.providerVersions.cli, "2.7.0");
   assert.match(capsule.environment.machine, /Mac17,3/);
   assert.match(capsule.targets.hosted.profile, /Maincloud/);
+});
+
+test("rejects unknown root fields against the frozen schema before any semantic check", async () => {
+  // The four historical corpus violations: root notes, resultSummary, and
+  // builderIncidents all rode through the semantic verifier unnoticed.
+  const capsule = await validCapsule();
+  capsule.notes = "extension prose";
+  capsule.resultSummary = { outcome: "complete" };
+  capsule.builderIncidents = [];
+  capsule.result = "not-a-result"; // semantic violation that must NOT surface yet
+  const problems = await verifyCapsule(capsule);
+  assert.ok(problems.length > 0);
+  assert.ok(problems.every((message) => message.startsWith("schema: ")));
+  for (const field of ["notes", "resultSummary", "builderIncidents"]) {
+    assert.ok(problems.some((message) => message.includes(`unknown field "${field}"`)), `expected a violation for ${field}`);
+  }
+  assert.ok(!problems.some((message) => message.includes("invalid result")));
+});
+
+test("rejects unknown nested fields where the frozen schema is closed", async () => {
+  const capsule = await validCapsule();
+  capsule.arm.builderModel = "fable-5";
+  const problems = await verifyCapsule(capsule);
+  assert.ok(problems.some((message) => message.includes('$.arm: unknown field "builderModel"')));
+});
+
+test("accepts a capsule whose declared paths all resolve to retained files", async () => {
+  const capsule = await validCapsule();
+  const capsuleDir = await retainedArmDir(capsule);
+  assert.deepEqual(await verifyCapsule(capsule, { capsuleDir }), []);
+});
+
+test("rejects a non-file sentinel in a path-bearing field", async () => {
+  const capsule = await validCapsule();
+  const capsuleDir = await retainedArmDir(capsule);
+  capsule.targets.binding.baselineReceiptPath = "captured in the run log, no separate receipt";
+  const problems = await verifyCapsule(capsule, { capsuleDir });
+  assert.ok(problems.some((message) =>
+    message.includes("targets.binding.baselineReceiptPath") && message.includes("does not resolve to a retained file")));
+});
+
+test("rejects declared paths that escape the retained evidence roots", async () => {
+  const capsule = await validCapsule();
+  const capsuleDir = await retainedArmDir(capsule);
+  capsule.cleanup.receiptPaths.push("../other-arm/receipts/cleanup.json");
+  const problems = await verifyCapsule(capsule, { capsuleDir });
+  assert.ok(problems.some((message) => message.includes("escapes the retained evidence roots")));
 });
 
 test("rejects a vacuous result set", async () => {

@@ -24,6 +24,17 @@ npm test
 A valid protocol with failed readiness is not authorization to start a timed
 arm. It is an actionable preflight report.
 
+`npm run capsule:verify -- <capsule>` validates a run capsule against the
+frozen `protocol/run-capsule.v1.schema.json` first (strict draft 2020-12
+semantics, root `additionalProperties: false`, integrity-checked against
+`protocol/freeze.v2.json`), then applies the semantic non-vacuity and evidence
+checks, then requires every declared evidence, cleanup, and baseline path to be
+either empty or resolve to a retained file under the arm directory or the
+repository root — a prose sentinel in a path field fails. Accepting a new
+capsule field requires a dated protocol version amendment (a new frozen schema
+plus a verifier update and re-freeze), never an ad-hoc relaxation of the
+verifier.
+
 `npm run preflight:credentials` probes existing CLI sessions while discarding
 all raw provider output. It prints only capability statuses and booleans; it
 never prints or persists account emails, tokens, project ids, or mailbox
