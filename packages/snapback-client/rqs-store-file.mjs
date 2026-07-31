@@ -92,9 +92,15 @@ const corruptError = (path) => storeError(
   { path },
 );
 
-/// Default files adapter: Node-compatible hosts (`node:fs` loaded lazily so
-/// bundling this module for a Hermes/React Native host — which injects its
-/// own adapter over the platform filesystem — never resolves the builtin).
+/// Default files adapter: Node-compatible hosts. The filesystem builtin is
+/// looked up lazily through `process.getBuiltinModule` — never an import
+/// statement or a literal dynamic `import()` — because this module is
+/// reachable from the client root export: Metro statically resolves even
+/// lazy literal `import('node:fs')` specifiers when bundling for a
+/// Hermes/React Native host (which injects its own adapter over the platform
+/// filesystem), and the browser release proof refuses any builtin specifier
+/// in the emitted bundle. The builtin lookup is invisible to both bundlers
+/// and non-Node hosts reject only if this default adapter is actually used.
 // Process-exit lock hygiene (module-level so N store instances share ONE
 // exit listener): a normal process exit unlinks still-held lock files so
 // short-lived clients (tests, CLIs) do not strew stale locks — a crashed
@@ -104,7 +110,14 @@ const exitLockCleanup = { paths: new Set(), unlinkSync: null, hooked: false };
 export function createNodeFilesAdapter() {
   let fsPromise = null;
   const fs = () => {
-    fsPromise ??= import('node:fs').then((mod) => {
+    fsPromise ??= Promise.resolve().then(() => {
+      const mod = globalThis.process?.getBuiltinModule?.('fs');
+      if (!mod) {
+        throw storeError(
+          'SNAPBACK_RQS_STORE_HOST_UNSUPPORTED',
+          'the default files adapter requires a Node host; inject a files adapter on this platform',
+        );
+      }
       exitLockCleanup.unlinkSync ??= mod.unlinkSync;
       return mod.promises;
     });

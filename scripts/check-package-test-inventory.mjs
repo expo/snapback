@@ -58,7 +58,9 @@ const inventories = [
     expectedFiles: [
       'app-data.test.mjs',
       'argument-validation.test.mjs',
+      'assets.test.mjs',
       'attribution.test.mjs',
+      'browser-closure.test.mjs',
       'bundle.test.mjs',
       'ephemeral-room.test.mjs',
       'external-store.test.mjs',
@@ -132,6 +134,8 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'args-contract-goldens.test.mjs',
+      'asset-thumbhash-vector.test.mjs',
+      'asset-upload-authoring.test.mjs',
       'auth-artifacts.test.mjs',
       'auth-crypto-vectors.test.mjs',
       'authoring-validation.test.mjs',
@@ -353,7 +357,16 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // inline-helper sharing (`4d72c407`, LLP 0118 option 1a), and the
 // one-argument-grammar goldens plus search-AST fixtures (`16595117`,
 // LLP 0131). Reconciled by the SD-6 scope migration's baseline pass.
-assert.equal(total, 132, 'reviewed package/admin test count changed');
+// 132 -> 134 (2026-07-31, staged cold-install lane repair): @expo/snapback-client
+// gains the maintained root-export browser-closure bundling witness (the
+// packaged Expo/Metro + browser/esbuild release-proof closure guarded
+// repo-side after node:fs reached index.mjs via the LLP 0129 Phase 0 default
+// store), and the asset-pipeline landings' assets.test.mjs
+// (@expo/snapback-client) plus asset-upload-authoring.test.mjs and
+// asset-thumbhash-vector.test.mjs (@expo/snapback-codegen, LLP 0044
+// P-03..P-05) are registered here — those landings added the files and their
+// test-script entries without updating this canonical inventory.
+assert.equal(total, 136, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
