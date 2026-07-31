@@ -1,7 +1,7 @@
 # LLP 0129: The local-first program
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Review
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
