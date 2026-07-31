@@ -349,3 +349,20 @@ Verified SHA-256 `84de64d…d0b1`; read required Codex Rounds 1–3 only and did
 - **Locator tokens — RESOLVED.** `llp-blob.v1` and producer `git` are explicitly defined for exact committed LLP blob bytes.
 
 Next step: make `journalExtractRefs` plural with exactly one successful extract per hosted deployment identity, and require A2 to prove a green observation for every local `targetProfileId × UTC-day` cell in the window. Then request targeted Round 5.
+
+## Round 5 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-5 targeted — verify the closure of the one Round-4 item (N2 population coverage: plural `journalExtractRefs` with exactly-one-successful-extract-per-hosted-identity, and per-cell `targetProfileId × UTC-day` local coverage in the E6 witness text, A2 cross-record constraints, and A2's refusal clause, with the day-gap reset restated as the same cell rule) against v0.5; changed text only for fresh defects; fresh CLI runner, read-only sandbox, blind to this Spec's fable artifact; Rounds 1–4 sections above provided as required context
+**Target SHA-256:** `44e68e92b6c51a4b62d017e0407d0a2c58a885a10d0646dc1454e0e515029c96`
+**Session id:** `019fb771-114c-7d90-8d1c-baef24e8ad84`
+**Status:** completed
+
+### Verbatim review
+
+**READY** — N2 is fully and consistently closed; no fresh defects found in v0.5. I did not read `.fable.md`.
+
+Next step: append Round 5 to the Codex review artifact, then proceed with the SD-4 author decision.

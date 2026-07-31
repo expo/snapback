@@ -1,11 +1,23 @@
 # LLP 0134: Capability maturity promotion to stable
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Capability publication, Application data API, Relational queries, Code generation, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.2, round-1 dual-family review fixes — both
+**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+authorization: dual-family READY — Fable round 3, Codex round 5 —
+with the three conditions checked and satisfied: (1) zero unresolved
+MATERIAL concerns in either family's final round; (2) within the
+decided scope of its commission (CV-8 piece 2 per decision 3; the
+demotion fast-path standing delegation is this Spec's own in-scope
+proposal, effective with this acceptance per its §3); (3) no evidence
+boundary weakened — the promotion bar, receipts, and demotion
+machinery are all additive evidence obligations, and SD-4 itself is
+explicitly barred from covering maturity promotions. Recorded per
+SD-4's honesty rule: the author's standing acceptance made in advance.
+Review artifacts:
+reviews/0134-capability-maturity-promotion.{fable,codex}.md.) 2026-07-31 (v0.2, round-1 dual-family review fixes — both
 round-1 reviews NOT READY
 (`reviews/0134-capability-maturity-promotion.fable.md`: 3 MATERIAL C1–C3,
 3 should-fix C4–C6, 4 details C7–C10;
