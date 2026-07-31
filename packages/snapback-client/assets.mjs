@@ -480,6 +480,105 @@ export class SnapbackAssetClient {
   }
 
   /**
+   * The strict-delivery URL for a rendition. `best` is the declarative
+   * selector and requires `maxWidth` (the server 404s without it); a named
+   * variant key addresses one declared rendition. Authorization stays
+   * per-request at the server — the URL carries no bearer authority.
+   */
+  deliveryUrl(assetId, { variant = 'best', maxWidth = null } = {}) {
+    const base = `${this.#client.baseUrl}/assets/records/${encodeURIComponent(assetId)}/bytes/${encodeURIComponent(variant)}`;
+    if (variant === 'best') {
+      if (!Number.isSafeInteger(maxWidth) || maxWidth <= 0) {
+        throw new TypeError('deliveryUrl best selection requires a positive integer maxWidth');
+      }
+      return `${base}?maxWidth=${maxWidth}`;
+    }
+    return base;
+  }
+
+  /**
+   * External store over the reserved record projection: one authorized
+   * establishment, then `live_replace` frames with no polling. Denial and
+   * deletion arrive as an empty row set and blank the snapshot. On clients
+   * without the durable-frame lane the store still resolves the
+   * establishment snapshot and reports itself `static` rather than
+   * pretending to be live.
+   */
+  watchStore(assetId, { userId = null, connectionId = null } = {}) {
+    const listeners = new Set();
+    let snapshot = Object.freeze({ status: 'connecting', record: null, mode: 'live' });
+    let disposed = false;
+    let subscriptionId = null;
+    let unregister = () => {};
+    const publish = (next) => {
+      if (disposed) return;
+      snapshot = Object.freeze(next);
+      for (const listener of [...listeners]) listener(snapshot);
+    };
+    const applyRows = (rows) => {
+      const record = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      publish({
+        status: record === null ? 'blank' : 'ready',
+        record,
+        mode: snapshot.mode,
+      });
+    };
+    const effectiveConnectionId = connectionId ?? `snapback_assets_watch_${assetId}`;
+    void (async () => {
+      try {
+        const established = await this.#client.subscribeLive(
+          ASSET_RECORD_LIVE_FUNCTION,
+          { connectionId: effectiveConnectionId, userId, args: { assetId } },
+        );
+        if (disposed) return;
+        subscriptionId = established?.subscription_id
+          ?? established?.subscriptionId
+          ?? null;
+        if (typeof this.#client.registerDurableConsumer === 'function' && subscriptionId) {
+          unregister = this.#client.registerDurableConsumer(
+            effectiveConnectionId,
+            (frame) => {
+              const frameSubscription = frame?.subscription_id ?? frame?.subscriptionId ?? null;
+              if (frameSubscription !== subscriptionId) return;
+              applyRows(frame?.rows ?? frame?.data?.rows ?? []);
+            },
+          );
+        } else {
+          snapshot = Object.freeze({ ...snapshot, mode: 'static' });
+        }
+        applyRows(established?.rows ?? []);
+      } catch (error) {
+        publish({
+          status: 'error',
+          record: null,
+          mode: snapshot.mode,
+          diagnostic: error?.diagnostic ?? { message: error?.message ?? String(error) },
+        });
+      }
+    })();
+    return Object.freeze({
+      getSnapshot: () => snapshot,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      dispose: () => {
+        if (disposed) return;
+        disposed = true;
+        listeners.clear();
+        unregister();
+        if (subscriptionId && typeof this.#client.unsubscribeLive === 'function') {
+          void Promise.resolve(this.#client.unsubscribeLive(ASSET_RECORD_LIVE_FUNCTION, {
+            subscriptionId,
+            connectionId: effectiveConnectionId,
+            ...(userId === null ? {} : { userId }),
+          })).catch(() => {});
+        }
+      },
+    });
+  }
+
+  /**
    * Establish the live view over the reserved record projection:
    * availability and rendition identity then arrive over the ordinary live
    * delivery lane with no polling; denial and deletion blank. Returns the

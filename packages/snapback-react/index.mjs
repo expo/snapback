@@ -22,6 +22,15 @@ import {
   abandonConsumedReactQueryGroup,
 } from '@expo/snapback-client';
 export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
+import { createAssetClient } from '@expo/snapback-client/assets';
+import { placeholderToDataURL, thumbHashToApproximateAspectRatio } from './thumbhash.mjs';
+export {
+  placeholderToDataURL,
+  rgbaToDataURL,
+  thumbHashToApproximateAspectRatio,
+  thumbHashToDataURL,
+  thumbHashToRGBA,
+} from './thumbhash.mjs';
 
 // @ref LLP 0114#prepared-binding-and-provider-ownership — the provider owns
 // its registry and barrier participant while borrowing the prepared client's
@@ -1790,6 +1799,7 @@ export function createSnapbackReactProvider(binding, options = {}) {
     providerInstanceId,
     binding: prepared,
     registry,
+    assets: options.assets ?? null,
     registerEphemeralRepublisher(reference, callback) {
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
@@ -2120,4 +2130,258 @@ export async function invokeSnapbackMutation(providerValue, reference, args, opt
   const provider = assertProvider(providerValue);
   const admitted = admittedReactReference(provider.binding, reference, 'Mutation');
   return provider.registry.runMutation(admitted, args, options.optimistic ?? null);
+}
+
+// ---------------------------------------------------------------------------
+// Assets (LLP 0044 §Client upload surface — the React projection over the
+// framework-neutral asset client; LLP 0107 optimistic lifecycle).
+//
+// The hooks below own no transport, cache, or auth of their own: every byte
+// and every decision rides the headless `SnapbackAssetClient`, and authority
+// replacement blanks through the same barrier-participant contract the query
+// registry uses. Late task events after a blank are generation-fenced.
+
+const BLANKED_UPLOAD = Object.freeze({
+  assetId: null,
+  assetRef: null,
+  attemptId: null,
+  attemptExpiresAtMs: null,
+  status: 'blanked',
+  diagnostic: null,
+  bytesTransferred: 0,
+  totalBytes: 0,
+  previewUrl: null,
+  integrityBasis: null,
+});
+const IDLE_UPLOAD = Object.freeze({ ...BLANKED_UPLOAD, status: 'idle' });
+
+const assetRegistries = new WeakMap();
+
+function assetRegistryFor(provider) {
+  let registry = assetRegistries.get(provider);
+  if (registry) return registry;
+  const client = preparedReactBindingClient(provider.binding);
+  const assets = provider.assets ?? createAssetClient(client);
+  const stores = new Set();
+  let generation = 0;
+  const participant = {
+    name: `snapback-react-assets:${provider.providerInstanceId}`,
+    async quiesce() {},
+    blank() {
+      generation += 1;
+      for (const store of [...stores]) store._blank();
+    },
+    clearMemory() {},
+    async commitDurable() {},
+    async resume() {},
+  };
+  const unregister = typeof client.registerAuthBarrierParticipant === 'function'
+    ? client.registerAuthBarrierParticipant(participant)
+    : () => {};
+  registry = {
+    assets,
+    stores,
+    get generation() { return generation; },
+    dispose: unregister,
+  };
+  assetRegistries.set(provider, registry);
+  return registry;
+}
+
+function createAssetUploadStore(registry, upload) {
+  const listeners = new Set();
+  let snapshot = IDLE_UPLOAD;
+  let task = null;
+  let taskOff = null;
+  let boundGeneration = registry.generation;
+  const publish = (next) => {
+    snapshot = next;
+    for (const listener of [...listeners]) {
+      try { listener(); } catch { /* observational */ }
+    }
+  };
+  const detach = () => {
+    taskOff?.();
+    taskOff = null;
+    task = null;
+  };
+  const adopt = (nextTask) => {
+    detach();
+    task = nextTask;
+    boundGeneration = registry.generation;
+    const bound = task;
+    const boundAt = boundGeneration;
+    taskOff = task.subscribe((taskSnapshot) => {
+      // Generation fence: an authority change orphans in-flight tasks; their
+      // late events must not repopulate a blanked surface.
+      if (task !== bound || boundAt !== registry.generation) return;
+      publish(taskSnapshot);
+    });
+  };
+  const store = {
+    getSnapshot: () => snapshot,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start(file, options = {}) {
+      const nextTask = registry.assets.start({ upload, file, ...options });
+      adopt(nextTask);
+      return nextTask;
+    },
+    resumePersisted(options) {
+      const nextTask = registry.assets.resumePersisted(options);
+      if (nextTask !== null) adopt(nextTask);
+      return nextTask;
+    },
+    pause: () => task?.pause(),
+    resume: () => task?.resume(),
+    cancel: (options) => task?.cancel(options) ?? Promise.resolve(snapshot),
+    async retry() {
+      if (!task) return null;
+      const successor = await task.retry();
+      adopt(successor);
+      publish(successor.snapshot());
+      return successor;
+    },
+    _blank() {
+      detach();
+      publish(BLANKED_UPLOAD);
+    },
+    release() {
+      registry.stores.delete(store);
+      detach();
+      listeners.clear();
+    },
+  };
+  registry.stores.add(store);
+  return store;
+}
+
+export function useSnapbackAssetUpload(options) {
+  const provider = useProvider();
+  if (!options || typeof options !== 'object' || !options.upload) {
+    throw new TypeError('useSnapbackAssetUpload requires a generated upload reference');
+  }
+  const registry = assetRegistryFor(provider);
+  const storeRef = useRef(null);
+  if (storeRef.current === null) {
+    storeRef.current = createAssetUploadStore(registry, options.upload);
+  }
+  const store = storeRef.current;
+  useEffect(() => () => store.release(), [store]);
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  return useMemo(() => Object.freeze({
+    state,
+    start: store.start,
+    resumePersisted: store.resumePersisted,
+    pause: store.pause,
+    resume: store.resume,
+    cancel: store.cancel,
+    retry: store.retry,
+  }), [state, store]);
+}
+
+const ASSET_IMAGE_IDLE = Object.freeze({
+  phase: 'empty',
+  src: null,
+  aspectRatio: null,
+  record: null,
+});
+
+/**
+ * The renderer ladder as a headless hook (Expo-ready — no DOM API in this
+ * path): local preview → ThumbHash placeholder → best delivered rendition.
+ * Readiness arrives over the reserved record projection with no polling
+ * where the client supports the frame lane.
+ */
+export function useSnapbackAssetImage({
+  assetId = null,
+  placeholder = null,
+  previewUrl = null,
+  maxWidth = 512,
+  userId = null,
+} = {}) {
+  const provider = useProvider();
+  const registry = assetRegistryFor(provider);
+  const watchRef = useRef(null);
+  const [watchTick, setWatchTick] = React.useState(0);
+  useEffect(() => {
+    watchRef.current?.dispose();
+    watchRef.current = null;
+    if (assetId !== null && typeof registry.assets.watchStore === 'function') {
+      const watch = registry.assets.watchStore(assetId, { userId });
+      watchRef.current = watch;
+      const off = watch.subscribe(() => setWatchTick((tick) => tick + 1));
+      return () => {
+        off();
+        watch.dispose();
+        if (watchRef.current === watch) watchRef.current = null;
+      };
+    }
+    return undefined;
+  }, [registry, assetId, userId]);
+  return useMemo(() => {
+    void watchTick;
+    const record = watchRef.current?.getSnapshot() ?? null;
+    const ready = record?.status === 'ready'
+      && (record.record?.availability ?? 'ready') === 'ready';
+    const blanked = record?.status === 'blank';
+    if (ready && assetId !== null && !blanked) {
+      return Object.freeze({
+        phase: 'rendition',
+        src: registry.assets.deliveryUrl(assetId, { maxWidth }),
+        aspectRatio: null,
+        record: record.record,
+      });
+    }
+    if (blanked) return ASSET_IMAGE_IDLE;
+    if (previewUrl !== null) {
+      return Object.freeze({
+        phase: 'preview', src: previewUrl, aspectRatio: null, record: null,
+      });
+    }
+    if (placeholder !== null) {
+      try {
+        const bytes = Uint8Array.from(
+          typeof atob === 'function'
+            ? atob(placeholder).split('').map((char) => char.charCodeAt(0))
+            : Buffer.from(placeholder, 'base64'),
+        );
+        return Object.freeze({
+          phase: 'placeholder',
+          src: placeholderToDataURL(placeholder),
+          aspectRatio: thumbHashToApproximateAspectRatio(bytes),
+          record: null,
+        });
+      } catch {
+        return ASSET_IMAGE_IDLE;
+      }
+    }
+    return ASSET_IMAGE_IDLE;
+  }, [registry, assetId, placeholder, previewUrl, maxWidth, watchTick]);
+}
+
+/**
+ * Web convenience component over the headless ladder (`img` is DOM-only;
+ * React Native consumers use `useSnapbackAssetImage` with their own
+ * `Image`).
+ */
+export function SnapbackAssetImage({
+  assetId = null,
+  placeholder = null,
+  previewUrl = null,
+  maxWidth = 512,
+  userId = null,
+  alt = '',
+  ...rest
+}) {
+  const image = useSnapbackAssetImage({ assetId, placeholder, previewUrl, maxWidth, userId });
+  if (image.src === null) return null;
+  return React.createElement('img', {
+    src: image.src,
+    alt,
+    'data-snapback-asset-phase': image.phase,
+    ...rest,
+  });
 }

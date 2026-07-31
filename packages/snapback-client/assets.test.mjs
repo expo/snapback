@@ -316,6 +316,97 @@ const client = { baseUrl, subscribeLive: () => {} };
   assert.deepEqual(calls[0].options.args, { assetId: 'asset_9' });
 }
 
+// --- deliveryUrl shapes ---
+{
+  const delivering = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} });
+  assert.equal(
+    delivering.deliveryUrl('asset_9', { maxWidth: 256 }),
+    `${baseUrl}/assets/records/asset_9/bytes/best?maxWidth=256`,
+  );
+  assert.equal(
+    delivering.deliveryUrl('asset_9', { variant: 'thumb' }),
+    `${baseUrl}/assets/records/asset_9/bytes/thumb`,
+  );
+  let refused = false;
+  try {
+    delivering.deliveryUrl('asset_9');
+  } catch (error) {
+    refused = error instanceof TypeError;
+  }
+  assert.ok(refused, 'best selection without maxWidth refuses client-side');
+}
+
+// --- watchStore: establishment snapshot, frames, blank, dispose ---
+{
+  const consumers = new Set();
+  const unsubscribed = [];
+  const framed = new SnapbackAssetClient({
+    baseUrl,
+    subscribeLive: async () => ({
+      subscription_id: 'sub_w1',
+      rows: [{ assetId: 'asset_9', availability: 'pending' }],
+    }),
+    registerDurableConsumer: (_connectionId, consumer) => {
+      consumers.add(consumer);
+      return () => consumers.delete(consumer);
+    },
+    unsubscribeLive: (_name, options) => {
+      unsubscribed.push(options.subscriptionId);
+      return { removed: true };
+    },
+  });
+  const store = framed.watchStore('asset_9', { userId: 'user_a' });
+  const seen = [];
+  store.subscribe((snapshot) => seen.push(snapshot));
+  assert.equal(store.getSnapshot().status, 'connecting');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(store.getSnapshot().status, 'ready');
+  assert.equal(store.getSnapshot().record.availability, 'pending');
+  assert.equal(store.getSnapshot().mode, 'live');
+
+  // A live_replace frame for the subscription updates; foreign frames don't.
+  for (const consumer of [...consumers]) {
+    consumer({ subscription_id: 'sub_other', rows: [{ availability: 'ready' }] });
+  }
+  assert.equal(store.getSnapshot().record.availability, 'pending');
+  for (const consumer of [...consumers]) {
+    consumer({
+      subscription_id: 'sub_w1',
+      rows: [{ assetId: 'asset_9', availability: 'ready' }],
+    });
+  }
+  assert.equal(store.getSnapshot().status, 'ready');
+  assert.equal(store.getSnapshot().record.availability, 'ready');
+
+  // Denial/deletion blanks (empty row set).
+  for (const consumer of [...consumers]) {
+    consumer({ subscription_id: 'sub_w1', rows: [] });
+  }
+  assert.equal(store.getSnapshot().status, 'blank');
+  assert.equal(store.getSnapshot().record, null);
+
+  store.dispose();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(consumers.size, 0, 'dispose unregisters the frame consumer');
+  assert.deepEqual(unsubscribed, ['sub_w1'], 'dispose retires the subscription');
+}
+
+// --- watchStore without the frame lane stays honest (static mode) ---
+{
+  const staticClient = new SnapbackAssetClient({
+    baseUrl,
+    subscribeLive: async () => ({
+      subscription_id: 'sub_s1',
+      rows: [{ assetId: 'asset_9', availability: 'ready' }],
+    }),
+  });
+  const store = staticClient.watchStore('asset_9');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(store.getSnapshot().status, 'ready');
+  assert.equal(store.getSnapshot().mode, 'static');
+  store.dispose();
+}
+
 server.closeAllConnections?.(); server.close();
 console.log('assets.test.mjs passed');
 process.exit(0);

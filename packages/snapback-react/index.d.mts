@@ -59,6 +59,7 @@ export interface SnapbackReactProvider {
   readonly kind: 'snapback.react-provider.v1';
   readonly providerInstanceId: string;
   readonly binding: PreparedReactBinding;
+  readonly assets: unknown | null;
   registerEphemeralRepublisher(
     reference: string,
     callback: (context: Readonly<{
@@ -99,6 +100,8 @@ export function createSnapbackReactProvider(
     readonly connectionId?: string;
     readonly onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
     readonly preparedGroup?: PreparedReactQueryGroup;
+    /** Test/DI seam: a pre-built SnapbackAssetClient-compatible surface. */
+    readonly assets?: unknown;
   },
 ): SnapbackReactProvider;
 
@@ -320,3 +323,94 @@ export function bindSnapbackAppLifecycle(
   handle: { pause(): void | Promise<void>; resume(): void | Promise<void> },
   options?: { activeState?: string; onError?: (error: unknown) => void },
 ): { dispose(): void; settled(): Promise<void> };
+
+// --- Assets (LLP 0044 §Client upload surface) ------------------------------
+
+export type AssetUploadHookStatus =
+  | 'idle'
+  | 'blanked'
+  | 'creating'
+  | 'uploading'
+  | 'paused'
+  | 'finalizing'
+  | 'ready'
+  | 'rejected'
+  | 'cancelled'
+  | 'failed';
+
+export interface AssetUploadHookState {
+  readonly assetId: string | null;
+  readonly assetRef: string | null;
+  readonly attemptId: string | null;
+  readonly attemptExpiresAtMs: number | null;
+  readonly status: AssetUploadHookStatus;
+  readonly diagnostic: { code?: string; message?: string } | null;
+  readonly bytesTransferred: number;
+  readonly totalBytes: number;
+  readonly previewUrl: string | null;
+  readonly integrityBasis: string | null;
+}
+
+export interface AssetUploadHook {
+  readonly state: AssetUploadHookState;
+  start(
+    file: { size: number; slice(start: number, end?: number): unknown },
+    options?: Readonly<{
+      args?: Record<string, unknown>;
+      userId?: string | null;
+      declaredFilename?: string | null;
+      declaredContentType?: string | null;
+      previewUrl?: string | null;
+    }>,
+  ): unknown;
+  resumePersisted(options: {
+    assetId: string;
+    file: { size: number; slice(start: number, end?: number): unknown };
+    userId?: string | null;
+  }): unknown;
+  pause(): void;
+  resume(): void;
+  cancel(options?: { discardAsset?: boolean }): Promise<unknown>;
+  retry(): Promise<unknown>;
+}
+
+export function useSnapbackAssetUpload(options: Readonly<{
+  upload: { artifactKind: 'assetUploadReference'; name: string } | string;
+}>): AssetUploadHook;
+
+export type AssetImagePhase = 'empty' | 'preview' | 'placeholder' | 'rendition';
+
+export interface AssetImageState {
+  readonly phase: AssetImagePhase;
+  readonly src: string | null;
+  readonly aspectRatio: number | null;
+  readonly record: Record<string, unknown> | null;
+}
+
+export function useSnapbackAssetImage(options?: Readonly<{
+  assetId?: string | null;
+  placeholder?: string | null;
+  previewUrl?: string | null;
+  maxWidth?: number;
+  userId?: string | null;
+}>): AssetImageState;
+
+export function SnapbackAssetImage(props: Readonly<{
+  assetId?: string | null;
+  placeholder?: string | null;
+  previewUrl?: string | null;
+  maxWidth?: number;
+  userId?: string | null;
+  alt?: string;
+  [key: string]: unknown;
+}>): any;
+
+export function thumbHashToRGBA(hash: Uint8Array): {
+  w: number;
+  h: number;
+  rgba: Uint8Array;
+};
+export function thumbHashToApproximateAspectRatio(hash: Uint8Array): number;
+export function rgbaToDataURL(w: number, h: number, rgba: Uint8Array): string;
+export function thumbHashToDataURL(hash: Uint8Array): string;
+export function placeholderToDataURL(value: string | Uint8Array): string;

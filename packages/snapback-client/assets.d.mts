@@ -87,6 +87,27 @@ export declare class SnapbackAssetClient {
   }): AssetUploadTask | null;
   record(assetId: string, options?: { userId?: string | null }): Promise<unknown>;
   watch(assetId: string, options?: { userId?: string | null; connectionId?: string }): unknown;
+  deliveryUrl(
+    assetId: string,
+    options?: { variant?: string; maxWidth?: number | null },
+  ): string;
+  watchStore(
+    assetId: string,
+    options?: { userId?: string | null; connectionId?: string | null },
+  ): AssetRecordWatchStore;
+}
+
+export interface AssetRecordWatchSnapshot {
+  readonly status: 'connecting' | 'ready' | 'blank' | 'error';
+  readonly record: Record<string, unknown> | null;
+  readonly mode: 'live' | 'static';
+  readonly diagnostic?: { code?: string; message?: string };
+}
+
+export interface AssetRecordWatchStore {
+  getSnapshot(): AssetRecordWatchSnapshot;
+  subscribe(listener: (snapshot: AssetRecordWatchSnapshot) => void): () => void;
+  dispose(): void;
 }
 
 export declare function createAssetClient(
