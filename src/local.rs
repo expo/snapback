@@ -1743,6 +1743,17 @@ pub(crate) fn admit_job_enqueues(
                 ),
             ));
         }
+        // @ref LLP 0131#the-ingress-seam-validate-at-every-admission-boundary —
+        // scheduled-work admission validates at enqueue time against the
+        // callee's declared args contract, inside the producing mutation's
+        // transaction: a violating enqueue refuses the whole mutation and no
+        // job row exists (acceptance 14 / replay lane 3). Enqueue-validated
+        // bytes are then authoritative for that job's own attempts — the
+        // drain replays them with no shape revalidation — and any future
+        // successor-creation surface re-enters this same admission, so every
+        // successor validates at its own enqueue. A callee without a v2
+        // contract validates vacuously (legacy behavior preserved).
+        crate::args_contract::validate_function_args(callee, &enqueue.args)?;
     }
     Ok((
         enqueues,

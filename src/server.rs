@@ -36532,6 +36532,193 @@ globalThis.__snapbackHandlers = {
         assert_eq!(attempts[0]["claimedAtMs"], serde_json::json!(available_at));
     }
 
+    /// LLP 0131 acceptance 14's enqueue-side code target (replay lane 3;
+    /// issues/20260731-0131-implementation-divergences.md item 6): scheduled-
+    /// work admission validates the enqueued action's args against that
+    /// action's declared contract AT ENQUEUE TIME, inside the producing
+    /// mutation's transaction — a violating enqueue refuses the whole
+    /// mutation under `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION` with no job
+    /// row and no partial write, while a contract-less callee preserves the
+    /// legacy (vacuously valid) behavior. Attempts then execute the retained
+    /// enqueue-validated bytes with no shape revalidation, and any successor
+    /// surface re-enters the same admission (its own fresh enqueue).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn enqueue_validates_callee_args_contract_transactionally() {
+        use crate::manifest::{
+            FieldManifest, FieldType, FunctionArgsContract, ResultObjectFieldContract,
+            ResultValueContract, SchemaManifest, TableManifest, args_contract_hash,
+        };
+        let state = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            let mut snapback = LocalSnapback::memory().expect("jobs contract test state");
+            snapback
+                .apply_schema(SchemaManifest {
+                    tables: vec![TableManifest {
+                        name: "events".to_owned(),
+                        fields: vec![FieldManifest {
+                            name: "name".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        }],
+                        indexes: Vec::new(),
+                        syncable: true,
+                        permission_backing: false,
+                        permission_fields: None,
+                        search_indexes: Vec::new(),
+                        membership: None,
+                    }],
+                    ..SchemaManifest::default()
+                })
+                .expect("apply jobs contract schema");
+            let contract = FunctionArgsContract {
+                fields: vec![ResultObjectFieldContract {
+                    name: "name".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 256 },
+                }],
+            };
+            let mut notify = FunctionDefinition::new(
+                "notify",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: "globalThis.__snapbackHandlers = {\
+                         async notify(ctx, args) { return null; } };"
+                        .to_owned(),
+                    export: "notify".to_owned(),
+                }),
+            );
+            notify.args_contract_hash =
+                Some(args_contract_hash(&contract).expect("contract hash"));
+            notify.args_contract = Some(contract);
+            notify
+                .required_capabilities
+                .push("args_contract_v1".to_owned());
+            let notify_legacy = FunctionDefinition::new(
+                "notifyLegacy",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: "globalThis.__snapbackHandlers = {\
+                         async notifyLegacy(ctx, args) { return null; } };"
+                        .to_owned(),
+                    export: "notifyLegacy".to_owned(),
+                }),
+            );
+            let manifest = FunctionManifest {
+                functions: vec![
+                    FunctionDefinition::new(
+                        "scheduleAny",
+                        FunctionKind::Mutation,
+                        FunctionRuntime::IbexModule(IbexModule {
+                            source: "globalThis.__snapbackHandlers = {\
+                                 async scheduleAny(ctx, args) {\
+                                   await ctx.db.insert('events', { name: 'pre-enqueue' });\
+                                   return await ctx.jobs.enqueue(\
+                                     args.action, args.payload, { delayMs: 60000 });\
+                                 } };"
+                                .to_owned(),
+                            export: "scheduleAny".to_owned(),
+                        }),
+                    ),
+                    notify,
+                    notify_legacy,
+                ],
+                acknowledged_experimental_capabilities: vec!["args_contract_v1".to_owned()],
+                ..FunctionManifest::default()
+            };
+            let diagnostics = snapback.load_functions(manifest);
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.severity
+                        != crate::diagnostic::DiagnosticSeverity::Error),
+                "jobs contract fixture must install: {diagnostics:?}"
+            );
+            Arc::new(Mutex::new(snapback))
+        })
+        .await
+        .expect("fixture builds off the async worker");
+
+        // A violating enqueue refuses the WHOLE mutation transactionally:
+        // the handler's earlier db.insert does not land, and no job exists.
+        let (result, receipt) = with_snapback(&state, |snapback| {
+            snapback.invoke_mutation_recording(
+                "scheduleAny",
+                HandlerInput {
+                    args: serde_json::json!({
+                        "action": "notify",
+                        "payload": { "name": 123 },
+                    }),
+                    ..HandlerInput::default()
+                },
+            )
+        })
+        .await;
+        let error = result.expect_err("a contract-violating enqueue refuses the mutation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+        );
+        assert_eq!(error.diagnostic.details["path"], "/name");
+        let receipt_value = receipt.into_value();
+        assert_eq!(receipt_value["outcome"], "rejected");
+        assert!(
+            receipt_value.get("enqueues").is_none(),
+            "a rejected mutation receipt never carries enqueue facts"
+        );
+        let events = with_snapback(&state, |snapback| snapback.scan_table("events", 10, 0))
+            .await
+            .expect("scan events");
+        assert_eq!(events.total, 0, "no partial write survives the refusal");
+        let inspect = with_snapback(&state, |snapback| snapback.jobs_inspect(50))
+            .await
+            .expect("jobs inspect");
+        assert_eq!(
+            inspect["jobs"].as_array().map(Vec::len),
+            Some(0),
+            "no job row survives the refusal: {inspect}"
+        );
+
+        // A conforming payload against the same contract commits.
+        let conforming = with_snapback(&state, |snapback| {
+            snapback
+                .invoke_mutation(
+                    "scheduleAny",
+                    HandlerInput {
+                        args: serde_json::json!({
+                            "action": "notify",
+                            "payload": { "name": "ok" },
+                        }),
+                        ..HandlerInput::default()
+                    },
+                )
+        })
+        .await
+        .expect("conforming enqueue commits");
+        assert!(conforming.result["jobId"].is_string());
+
+        // A contract-less callee keeps the legacy behavior: any payload
+        // enqueues (no invented refusal for pre-v2 apps).
+        let legacy = with_snapback(&state, |snapback| {
+            snapback.invoke_mutation(
+                "scheduleAny",
+                HandlerInput {
+                    args: serde_json::json!({
+                        "action": "notifyLegacy",
+                        "payload": { "anything": true, "nested": { "deep": [1, 2, 3] } },
+                    }),
+                    ..HandlerInput::default()
+                },
+            )
+        })
+        .await
+        .expect("contract-less callee enqueues under legacy behavior");
+        assert!(legacy.result["jobId"].is_string());
+        let inspect = with_snapback(&state, |snapback| snapback.jobs_inspect(50))
+            .await
+            .expect("jobs inspect");
+        assert_eq!(inspect["jobs"].as_array().map(Vec::len), Some(2));
+    }
+
     fn generation_test_manifest() -> FunctionManifest {
         FunctionManifest {
             functions: vec![
