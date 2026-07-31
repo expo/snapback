@@ -1674,9 +1674,12 @@ Tooling and manifest:
 
 ## Open questions
 
-- Which canonical cryptographic digest should v1 use for trusted blob identity?
-  Physical keys and the public API no longer depend on the answer, but migration
-  vectors and dedup do.
+- ~~Which canonical cryptographic digest should v1 use?~~ — **resolved
+  2026-07-31, author decision (Charlie): SHA-256.** Native S3-compatible
+  checksum interop (`x-amz-checksum-sha256`) and universal client tooling
+  outweigh BLAKE3's local hashing speed; the algorithm remains a versioned
+  manifest fact, so a successor can be admitted behind versioned blob
+  identity if profiling ever justifies it.
 - Which small image library provides trusted detection, metadata rewriting,
   dimensions, and bounded renditions locally without making bootstrap
   disproportionate?
@@ -1714,9 +1717,12 @@ Tooling and manifest:
   reference sufficient?
 - How do explicit delete and blob retention interact with backups,
   object-store lifecycle rules, legal holds, and restore epochs?
-- Does the first `asset-lifecycle-v1` landing use only the cron compatibility
-  runner, or sequence directly after LLP 0070's designated first durable-work
-  slice?
+- ~~Does the first landing use the cron compatibility runner or wait for
+  LLP 0070?~~ — **resolved 2026-07-31, author decision (Charlie): the
+  compatibility runner (the asset-work ledger driven by the 0028 sweep)
+  ships first.** LLP 0070 is Draft; the ledger is specified to stand
+  alone, and the second runner generation arrives with 0070's anticipated
+  trusted-processor amendment, changing no application semantics.
 
 ## Status
 
