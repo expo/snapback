@@ -5,7 +5,21 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.3, round-2 micro-fixes —
+**Revised:** 2026-07-31 (v0.4, round-3 single fix —
+`reviews/0132-vector-search.codex.md` round 3 NOT READY on one item:
+the fixed beyond-20-significant-digit conversion witness cannot
+detect round-to-H double rounding on a target whose
+implementation-defined H exceeds 20 — IEEE 754-2019 §5.12.2 requires
+only H ≥ M+3, with larger or unbounded H permitted. Applied: the
+conversion-witness requirement made per-target in the conversion pin
+and the acceptance corpus bullet — each target with finite H runs a
+distinguishing witness with more significant digits than that
+target's own H, constructed to differ between direct correct
+rounding and round-to-H-then-binary64 double rounding; a target
+correctly rounding at any input length records that fact as its
+conversion evidence; the beyond-20-digit witness kept as the
+portable floor)
+2026-07-31 (v0.3, round-2 micro-fixes —
 `reviews/0132-vector-search.codex.md` round 2 NOT READY — all five
 round-1 findings RESOLVED, one new MATERIAL on the mutation-side
 refusal contract; `reviews/0132-vector-search.fable.md` round 2
@@ -147,8 +161,16 @@ arbitrarily long, and that is exactly where halfway-straddling inputs
 live, so here correct rounding is unconditional at any input length.
 A parser off by an ulp on halfway-adjacent decimals is a divergence
 source of exactly the same kind as the forbidden fast-math
-transformations and does not conform; the adversarial corpus carries
-conversion witnesses, including beyond-H-digit entries (§Acceptance).
+transformations and does not conform. The adversarial corpus carries
+conversion witnesses (§Acceptance): a portable floor of at least one
+entry beyond 20 significant digits, and, on each target whose
+conversion is correctly rounded only up to a finite
+implementation-defined H, a distinguishing witness with more
+significant digits than that target's H, constructed so direct
+correct rounding and round-to-H-then-binary64 double rounding produce
+different binary64 values; a target whose conversion is correctly
+rounded at any input length records that fact as its conversion
+evidence.
 
 The type contract is specified by this Spec as the vector owner; its
 schema-vocabulary landing (`v.vector(dims)` beside `v.number()` et al.)
@@ -562,10 +584,16 @@ The implementation must retain executable evidence that:
 - an adversarial arithmetic corpus covers negative zero, subnormals,
   components at the 2^100 admission bound, halfway-case
   decimal→binary64 conversion entries (adjacent decimals that a
-  non-correctly-rounded parser converts off by one ulp, including at
-  least one witness whose decimal spelling exceeds 20 significant
-  digits, so a parser taking IEEE 754's H-digit shortcut is
-  detected), bit-equal distance ties resolved by row-id direction,
+  non-correctly-rounded parser converts off by one ulp; the portable
+  floor is at least one witness whose decimal spelling exceeds 20
+  significant digits, and each target whose conversion is correctly
+  rounded only up to a finite implementation-defined H must
+  additionally run a distinguishing witness with more significant
+  digits than that target's H, constructed so direct correct rounding
+  and round-to-H-then-binary64 double rounding produce different
+  binary64 values — a target whose conversion is correctly rounded at
+  any input length instead records that fact as its conversion
+  evidence), bit-equal distance ties resolved by row-id direction,
   dimension mismatch, and non-finite refusal. For each named
   divergence class — FMA contraction, reassociation/reduction
   reorder, extended-precision
