@@ -1,0 +1,26 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.attempt-cancel-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "type": "string"
+    },
+    "discardAsset": {
+      "default": false,
+      "description": "Cancel-and-discard also deletes the pending asset (LLP 0044\n§Deletion: explicit pending delete without waiting out the grace\nperiod).",
+      "type": "boolean"
+    },
+    "lifecycleGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "attemptId",
+    "lifecycleGeneration"
+  ],
+  "title": "AssetAttemptCancelRequestV1",
+  "type": "object"
+}

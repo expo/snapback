@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "AssetAttemptState": {
+      "enum": [
+        "open",
+        "transferring",
+        "finalizing",
+        "complete",
+        "expired",
+        "cancelled",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "AssetIntegrityGrade": {
+      "description": "@ref LLP 0044#byte-stores-and-resumable-transfer — integrity is a graded\n  fact: a freshly computed digest names received bytes, it does not verify\n  them against client intent.",
+      "enum": [
+        "end-to-end-verified",
+        "received-bytes-canonical"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.attempt-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "acknowledgedOffset": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "appId": {
+      "type": "string"
+    },
+    "assetId": {
+      "type": "string"
+    },
+    "attemptId": {
+      "type": "string"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "declaredContentType": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "declaredFilename": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "declaredLength": {
+      "description": "Every v1 lane requires a known total length at attempt creation.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "failure": true,
+    "integrityGrade": {
+      "$ref": "#/$defs/AssetIntegrityGrade"
+    },
+    "intentId": {
+      "type": "string"
+    },
+    "lifecycleGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "predecessorAttemptId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stagingKey": {
+      "description": "Opaque restricted-staging key; never derived from app data.",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/AssetAttemptState"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "attemptId",
+    "assetId",
+    "appId",
+    "intentId",
+    "lifecycleGeneration",
+    "state",
+    "stagingKey",
+    "declaredLength",
+    "acknowledgedOffset",
+    "integrityGrade",
+    "expiresAtMs",
+    "createdAtMs",
+    "updatedAtMs"
+  ],
+  "title": "AssetAttemptRecordV1",
+  "type": "object"
+}

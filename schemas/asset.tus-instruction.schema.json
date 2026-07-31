@@ -1,0 +1,46 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.tus-instruction.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Target-specific transfer instructions for the local/proxied lane.\nTUS 1.0.0 core plus creation, expiration, checksum, and termination; no\n`creation-defer-length`.",
+  "properties": {
+    "checksumAlgorithms": {
+      "description": "Generated clients checksum every PATCH (a conformance requirement);\nchecksum-less foreign clients finalize at the weaker grade.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "maxChunkBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "tusResumable": {
+      "type": "string"
+    },
+    "uploadLength": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "uploadUrl": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "uploadUrl",
+    "tusResumable",
+    "uploadLength",
+    "expiresAtMs",
+    "checksumAlgorithms",
+    "maxChunkBytes"
+  ],
+  "title": "AssetTusInstructionV1",
+  "type": "object"
+}

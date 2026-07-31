@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "AssetAvailability": {
+      "enum": [
+        "pending",
+        "ready",
+        "rejected",
+        "deleted"
+      ],
+      "type": "string"
+    },
+    "AssetDeliveryProfile": {
+      "enum": [
+        "public-immutable",
+        "private-signed",
+        "private-strict"
+      ],
+      "type": "string"
+    },
+    "AssetReadAccessPolicy": {
+      "enum": [
+        "owner-only",
+        "via-references"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "assetId": {
+      "type": "string"
+    },
+    "availability": {
+      "$ref": "#/$defs/AssetAvailability"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "deletedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "deliveryProfile": {
+      "$ref": "#/$defs/AssetDeliveryProfile"
+    },
+    "intentId": {
+      "type": "string"
+    },
+    "intentPolicyHash": {
+      "description": "Hash of the declared accept/delivery/access/processing facts the asset\nwas admitted under; pairs with `policy_generation`.",
+      "type": "string"
+    },
+    "lifecycleGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ownerPrincipal": {
+      "type": "string"
+    },
+    "policyGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "primaryRenditionId": {
+      "description": "Primary bytes are represented exclusively by the `primary` rendition\nrecord — there is no second asset-to-blob edge, so blob references and\nquota charges count the primary exactly once.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "readAccess": {
+      "$ref": "#/$defs/AssetReadAccessPolicy"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "assetId",
+    "appId",
+    "intentId",
+    "intentPolicyHash",
+    "policyGeneration",
+    "ownerPrincipal",
+    "deliveryProfile",
+    "readAccess",
+    "availability",
+    "lifecycleGeneration",
+    "createdAtMs",
+    "updatedAtMs"
+  ],
+  "title": "AssetRecordV1",
+  "type": "object"
+}

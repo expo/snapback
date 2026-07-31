@@ -98,7 +98,7 @@ pub struct SchemaArtifact {
 /// gate in `tests/artifact_schemas_v0.rs` (which compares) call this, so the
 /// generated output and the gate can never diverge.
 pub fn artifact_schemas() -> Vec<SchemaArtifact> {
-    vec![
+    let mut artifacts = vec![
         finish(
             "schema.manifest.schema.json",
             schemars::schema_for!(SchemaManifest),
@@ -695,7 +695,16 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "ephemeral.delete.output.schema.json",
             schemars::schema_for!(Option<EphemeralMessage>),
         ),
-    ]
+    ];
+    // @ref LLP 0037#dated-alignment-asset-subsystem-artifacts-2026-07-31 —
+    // the asset wire and record shapes register like every other Rust-owned
+    // artifact; the drift gate covers them through this single generator.
+    artifacts.extend(
+        crate::assets::schema_registrations()
+            .into_iter()
+            .map(|(file, schema)| finish(file, schema)),
+    );
+    artifacts
 }
 
 /// Generated public artifact instances owned by the Rust authority. These are

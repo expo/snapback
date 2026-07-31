@@ -1,0 +1,52 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.refusal-detail.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Typed detail body for `SNAPBACK_ASSET_*` diagnostics that refuse a\nrequest; the closed code set is registered in LLP 0012.",
+  "properties": {
+    "assetId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "attemptId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "intentId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lifecycleGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "limit": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "observed": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "title": "AssetRefusalDetailV1",
+  "type": "object"
+}

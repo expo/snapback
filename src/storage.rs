@@ -5026,6 +5026,7 @@ impl LocalDatabase {
         // predecessor resets remain safe because active identity is keyed by
         // the already-governed data-version stream.
         crate::seed_identity::create_infra(&tx)?;
+        crate::assets::create_infra(&tx)?;
         tx.commit()?;
         self.ensure_client_mutation_retention_counters()?;
         Ok(())
@@ -15414,6 +15415,29 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+#[cfg(test)]
+mod asset_infra_tests {
+    use super::*;
+
+    /// @ref LLP 0044#internal-model — the asset system tables are part of the
+    ///   core infra migration, present after every open.
+    #[test]
+    fn asset_system_tables_migrate_on_startup() {
+        let db = LocalDatabase::memory().expect("memory database");
+        for table in crate::assets::ASSET_SYSTEM_TABLES {
+            let count: u64 = db
+                .conn
+                .query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .expect("sqlite_master probe");
+            assert_eq!(count, 1, "{table} must exist after open");
+        }
+    }
 }
 
 #[cfg(test)]

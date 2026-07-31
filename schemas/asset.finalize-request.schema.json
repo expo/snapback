@@ -1,0 +1,28 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.finalize-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "type": "string"
+    },
+    "declaredDigest": {
+      "description": "An authenticated whole-upload digest upgrades a checksum-less\ntransfer to end-to-end verified when it matches.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lifecycleGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "attemptId",
+    "lifecycleGeneration"
+  ],
+  "title": "AssetFinalizeRequestV1",
+  "type": "object"
+}

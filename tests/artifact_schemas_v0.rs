@@ -3616,3 +3616,81 @@ fn hosted_product_journey_receipt_is_rust_owned_and_closed() {
     assert_rejects("hosted-product-journey-v1.schema.json", &unknown);
     assert!(serde_json::from_value::<HostedProductJourneyV1>(unknown).is_err());
 }
+
+/// @ref LLP 0037#dated-alignment-asset-subsystem-artifacts-2026-07-31 — the
+/// asset wire shapes round-trip through their committed schemas: Rust-built
+/// representative values serialize, validate, and reject unknown members.
+#[test]
+fn asset_wire_schemas_accept_rust_values_and_reject_extensions() {
+    use snapback::assets::{
+        ASSET_DIGEST_ALGORITHM_SHA256, ASSET_UPLOAD_REFERENCE_KIND, AssetAttemptState,
+        AssetAvailability, AssetIntegrityGrade, AssetLifecycleMessageV1, AssetReceiptEventV1,
+        AssetReceiptV1, AssetTaskStateV1, AssetTusInstructionV1, AssetUploadReference,
+    };
+
+    let reference = AssetUploadReference {
+        artifact_kind: ASSET_UPLOAD_REFERENCE_KIND.to_owned(),
+        schema_version: "snapback.v0".to_owned(),
+        app_id: "app_1".to_owned(),
+        id: "avatarUpload".to_owned(),
+        name: "avatarUpload".to_owned(),
+        implementation_hash: "sha256:aa".to_owned(),
+        args_contract_hash: "sha256:bb".to_owned(),
+        argument_schema: json!({"type": "object"}),
+        intent_policy_hash: "sha256:cc".to_owned(),
+        policy_generation: 3,
+        required_capabilities: vec!["asset_lifecycle_v1".to_owned()],
+    };
+    let mut reference_value = serde_json::to_value(&reference).unwrap();
+    assert_validates("asset.upload-reference.schema.json", &reference_value);
+    reference_value["expectedOperation"] = json!({});
+    assert_rejects("asset.upload-reference.schema.json", &reference_value);
+
+    let task = AssetTaskStateV1 {
+        asset_id: "01890f3c-9d5b-7000-8000-000000000010".to_owned(),
+        attempt_id: "01890f3c-9d5b-7000-8000-000000000011".to_owned(),
+        attempt_state: AssetAttemptState::Transferring,
+        availability: AssetAvailability::Pending,
+        acknowledged_offset: 1024,
+        total_bytes: 4096,
+        expires_at_ms: 1_800_000_000_000,
+        integrity_grade: AssetIntegrityGrade::EndToEndVerified,
+        primary_rendition_id: None,
+        diagnostic: None,
+    };
+    assert_validates("asset.task-state.schema.json", &serde_json::to_value(&task).unwrap());
+
+    let transfer = AssetTusInstructionV1 {
+        upload_url: "/_snapback/api/assets/tus/01890f3c".to_owned(),
+        tus_resumable: "1.0.0".to_owned(),
+        upload_length: 4096,
+        expires_at_ms: 1_800_000_000_000,
+        checksum_algorithms: vec![ASSET_DIGEST_ALGORITHM_SHA256.to_owned()],
+        max_chunk_bytes: 1_048_576,
+    };
+    assert_validates(
+        "asset.tus-instruction.schema.json",
+        &serde_json::to_value(&transfer).unwrap(),
+    );
+
+    let message = AssetLifecycleMessageV1::Availability {
+        asset_id: task.asset_id.clone(),
+        availability: AssetAvailability::Ready,
+        lifecycle_generation: 4,
+    };
+    assert_validates(
+        "asset.lifecycle-message.schema.json",
+        &serde_json::to_value(&message).unwrap(),
+    );
+
+    let receipt = AssetReceiptV1 {
+        receipt_id: "01890f3c-9d5b-7000-8000-000000000012".to_owned(),
+        operation_lineage: "01890f3c-9d5b-7000-8000-000000000013".to_owned(),
+        event: AssetReceiptEventV1::AssetReady,
+        asset_id: task.asset_id.clone(),
+        attempt_id: Some(task.attempt_id.clone()),
+        at_ms: 1_800_000_000_000,
+        details: json!({"lifecycleGeneration": 4}),
+    };
+    assert_validates("asset.receipt.schema.json", &serde_json::to_value(&receipt).unwrap());
+}

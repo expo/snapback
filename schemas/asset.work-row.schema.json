@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "AssetWorkState": {
+      "description": "@ref LLP 0044#processing-runner-and-idempotency — closed ledger states;\n  `claimed → enqueued` on lease expiry is an explicit transition.",
+      "enum": [
+        "enqueued",
+        "claimed",
+        "done",
+        "retrying",
+        "exhausted",
+        "ambiguous",
+        "cancelled"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.work-row.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "attemptCount": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "attemptId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "deadlineAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "failure": true,
+    "kind": {
+      "description": "Closed work kinds grow with the runner ticket; the column is indexed,\nthe vocabulary is validated by the runner.",
+      "type": "string"
+    },
+    "leaseExpiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "leaseOwner": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lifecycleGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "nextEligibleAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "retryCeiling": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/AssetWorkState"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "workId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workId",
+    "kind",
+    "assetId",
+    "lifecycleGeneration",
+    "state",
+    "attemptCount",
+    "retryCeiling",
+    "nextEligibleAtMs",
+    "deadlineAtMs",
+    "createdAtMs",
+    "updatedAtMs"
+  ],
+  "title": "AssetWorkRowV1",
+  "type": "object"
+}

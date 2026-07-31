@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "AssetReceiptEventV1": {
+      "description": "Semantic receipt events (LLP 0044 §Receipts) — never per-chunk noise.",
+      "enum": [
+        "asset-reserved",
+        "attempt-created",
+        "attempt-completed",
+        "attempt-cancelled",
+        "attempt-expired",
+        "attempt-failed",
+        "bytes-verified",
+        "bytes-rejected",
+        "staging-cleaned",
+        "blob-reused",
+        "blob-created",
+        "asset-ready",
+        "asset-rejected",
+        "asset-deleted",
+        "rendition-produced",
+        "rendition-failed",
+        "rendition-superseded",
+        "delivery-admitted",
+        "attachment-denied",
+        "attachment-committed",
+        "reference-removed",
+        "publication-repaired",
+        "migration-verified",
+        "gc-reclaimed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "atMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "attemptId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "details": {
+      "description": "Safe structured facts only: identity, generation, policy, capability,\ndiagnostics — no secrets, byte samples, staging keys, or bearer URLs."
+    },
+    "event": {
+      "$ref": "#/$defs/AssetReceiptEventV1"
+    },
+    "operationLineage": {
+      "description": "Shared lineage so inspection renders one lifecycle, not unrelated\ntop-level artifacts.",
+      "type": "string"
+    },
+    "receiptId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "receiptId",
+    "operationLineage",
+    "event",
+    "assetId",
+    "atMs",
+    "details"
+  ],
+  "title": "AssetReceiptV1",
+  "type": "object"
+}

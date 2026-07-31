@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "AssetRenditionState": {
+      "enum": [
+        "pending",
+        "ready",
+        "failed",
+        "superseded",
+        "retired"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.rendition-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "blobId": {
+      "type": "string"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "failure": true,
+    "mediaFacts": true,
+    "recipe": {
+      "type": "string"
+    },
+    "recipeVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "renditionId": {
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/AssetRenditionState"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "variantKey": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "renditionId",
+    "assetId",
+    "variantKey",
+    "blobId",
+    "state",
+    "recipe",
+    "recipeVersion",
+    "createdAtMs",
+    "updatedAtMs"
+  ],
+  "title": "AssetRenditionRecordV1",
+  "type": "object"
+}

@@ -1,0 +1,67 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.blob-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "blobId": {
+      "type": "string"
+    },
+    "byteLength": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "canonicalizationPolicy": {
+      "type": "string"
+    },
+    "condemned": {
+      "type": "boolean"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "detectedContentType": {
+      "type": "string"
+    },
+    "digest": {
+      "type": "string"
+    },
+    "digestAlgorithm": {
+      "type": "string"
+    },
+    "physicalKey": {
+      "description": "Deliberately opaque; the canonical digest is blob metadata, not the\nphysical key (LLP 0044 §Internal model).",
+      "type": "string"
+    },
+    "referenceCount": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "store": {
+      "description": "The byte-store parameter this blob lives in (`local-fs` in v1).",
+      "type": "string"
+    }
+  },
+  "required": [
+    "blobId",
+    "appId",
+    "store",
+    "physicalKey",
+    "byteLength",
+    "detectedContentType",
+    "digestAlgorithm",
+    "digest",
+    "canonicalizationPolicy",
+    "referenceCount",
+    "condemned",
+    "createdAtMs"
+  ],
+  "title": "AssetBlobRecordV1",
+  "type": "object"
+}

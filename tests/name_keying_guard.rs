@@ -5,6 +5,10 @@
 //!   this file enforces; the semantic pin catches ordinal encodings even when
 //!   both sides of the artifact-schema drift gate are regenerated together.
 
+use snapback::assets::{
+    AssetAttemptState, AssetDeliveryProfile, AssetIntegrityGrade, AssetPublicationState,
+    AssetWorkState,
+};
 use snapback::live_wire::LiveDeltaOpKind;
 use snapback::manifest::FieldType;
 use std::path::{Path, PathBuf};
@@ -46,10 +50,43 @@ fn representative_enum_encodings_are_name_keyed() {
         );
     }
 
+    for (value, wire) in [
+        (
+            serde_json::to_value(AssetAttemptState::Finalizing).unwrap(),
+            "finalizing",
+        ),
+        (
+            serde_json::to_value(AssetPublicationState::Condemned).unwrap(),
+            "condemned",
+        ),
+        (
+            serde_json::to_value(AssetWorkState::Retrying).unwrap(),
+            "retrying",
+        ),
+        (
+            serde_json::to_value(AssetDeliveryProfile::PrivateStrict).unwrap(),
+            "private-strict",
+        ),
+        (
+            serde_json::to_value(AssetIntegrityGrade::EndToEndVerified).unwrap(),
+            "end-to-end-verified",
+        ),
+    ] {
+        assert_eq!(
+            value,
+            serde_json::json!(wire),
+            "asset state vocabularies must serialize as their closed names",
+        );
+    }
+
     let ordinal_probe = serde_json::json!(0);
     assert!(
         serde_json::from_value::<FieldType>(ordinal_probe.clone()).is_err(),
         "an ordinal FieldType encoding must not deserialize",
+    );
+    assert!(
+        serde_json::from_value::<AssetAttemptState>(ordinal_probe.clone()).is_err(),
+        "an ordinal asset attempt-state encoding must not deserialize",
     );
     assert!(
         serde_json::from_value::<LiveDeltaOpKind>(ordinal_probe).is_err(),

@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "AssetPublicationState": {
+      "description": "@ref LLP 0044#publication-and-crash-recovery — closed publication-record\n  states: `planned → staged | condemned`, `staged → committed | condemned`.",
+      "enum": [
+        "planned",
+        "staged",
+        "committed",
+        "condemned"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.publication-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "attemptId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "blobId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "canonicalizationPolicy": {
+      "type": "string"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "digest": {
+      "type": "string"
+    },
+    "digestAlgorithm": {
+      "type": "string"
+    },
+    "generation": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "plannedKey": {
+      "description": "The planned opaque object key, recorded before any object write so\norphans are discoverable from records, never only store listings.",
+      "type": "string"
+    },
+    "publicationId": {
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/AssetPublicationState"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "publicationId",
+    "appId",
+    "plannedKey",
+    "digestAlgorithm",
+    "digest",
+    "canonicalizationPolicy",
+    "state",
+    "generation",
+    "createdAtMs",
+    "updatedAtMs"
+  ],
+  "title": "AssetPublicationRecordV1",
+  "type": "object"
+}

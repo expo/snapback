@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "AssetAttemptState": {
+      "enum": [
+        "open",
+        "transferring",
+        "finalizing",
+        "complete",
+        "expired",
+        "cancelled",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "AssetAvailability": {
+      "enum": [
+        "pending",
+        "ready",
+        "rejected",
+        "deleted"
+      ],
+      "type": "string"
+    },
+    "AssetIntegrityGrade": {
+      "description": "@ref LLP 0044#byte-stores-and-resumable-transfer — integrity is a graded\n  fact: a freshly computed digest names received bytes, it does not verify\n  them against client intent.",
+      "enum": [
+        "end-to-end-verified",
+        "received-bytes-canonical"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.task-state.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The closed client-task snapshot (LLP 0044 §Client upload surface),\nlanguage-neutral: every generated SDK observes this one state machine.",
+  "properties": {
+    "acknowledgedOffset": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "assetId": {
+      "type": "string"
+    },
+    "attemptId": {
+      "type": "string"
+    },
+    "attemptState": {
+      "$ref": "#/$defs/AssetAttemptState"
+    },
+    "availability": {
+      "$ref": "#/$defs/AssetAvailability"
+    },
+    "diagnostic": true,
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "integrityGrade": {
+      "$ref": "#/$defs/AssetIntegrityGrade"
+    },
+    "primaryRenditionId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "totalBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "assetId",
+    "attemptId",
+    "attemptState",
+    "availability",
+    "acknowledgedOffset",
+    "totalBytes",
+    "expiresAtMs",
+    "integrityGrade"
+  ],
+  "title": "AssetTaskStateV1",
+  "type": "object"
+}

@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "AssetAttemptState": {
+      "enum": [
+        "open",
+        "transferring",
+        "finalizing",
+        "complete",
+        "expired",
+        "cancelled",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "AssetAvailability": {
+      "enum": [
+        "pending",
+        "ready",
+        "rejected",
+        "deleted"
+      ],
+      "type": "string"
+    },
+    "AssetRenditionState": {
+      "enum": [
+        "pending",
+        "ready",
+        "failed",
+        "superseded",
+        "retired"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.lifecycle-message.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Live lifecycle messages: durable system-row changes observed over the\nexisting live-query channel. Transfer progress stays ephemeral and is\nnever one of these.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "attempt",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/AssetAttemptState"
+        }
+      },
+      "required": [
+        "kind",
+        "asset_id",
+        "attempt_id",
+        "state"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "availability": {
+          "$ref": "#/$defs/AssetAvailability"
+        },
+        "kind": {
+          "const": "availability",
+          "type": "string"
+        },
+        "lifecycle_generation": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "asset_id",
+        "availability",
+        "lifecycle_generation"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "rendition",
+          "type": "string"
+        },
+        "rendition_id": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/AssetRenditionState"
+        },
+        "variant_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "asset_id",
+        "rendition_id",
+        "variant_key",
+        "state"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "AssetLifecycleMessageV1"
+}

@@ -1,0 +1,1033 @@
+//! Asset subsystem groundwork: the Snapback-owned system tables, the local
+//! filesystem byte store, and the Rust-owned wire DTOs.
+//!
+//! @ref LLP 0044#internal-model — four records with distinct jobs (asset,
+//!   upload attempt, blob, rendition) plus the reverse-reference edge,
+//!   publication record, and asset-work ledger.
+//! @ref LLP 0037#dated-alignment-asset-subsystem-artifacts-2026-07-31 —
+//!   these serde types are the single source of truth for the asset wire
+//!   shapes; committed schemas are generated and drift-gated.
+
+use std::path::{Path, PathBuf};
+
+use rusqlite::{OptionalExtension, Transaction};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use uuid::Uuid;
+
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+
+/// The v1 canonical digest algorithm (author decision, 2026-07-31): native
+/// S3-compatible checksum interop and universal tooling. The algorithm is a
+/// versioned manifest fact; a successor is admitted behind versioned blob
+/// identity, never by silently reinterpreting stored digests.
+pub const ASSET_DIGEST_ALGORITHM_SHA256: &str = "sha256";
+
+/// `artifactKind` for the generated upload-intent reference.
+pub const ASSET_UPLOAD_REFERENCE_KIND: &str = "assetUploadReference";
+
+// ---------------------------------------------------------------------------
+// Closed state vocabularies (LLP 0044 §Lifecycle transitions). Name-keyed per
+// the LLP 0037 dated constraint; an unlisted transition is refused by the
+// state machines built on these, not by this module.
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetAvailability {
+    Pending,
+    Ready,
+    Rejected,
+    Deleted,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetAttemptState {
+    Open,
+    Transferring,
+    Finalizing,
+    Complete,
+    Expired,
+    Cancelled,
+    Failed,
+}
+
+impl AssetAttemptState {
+    /// The states the single-current-attempt invariant counts as current.
+    /// Kept in exact agreement with the partial unique index in
+    /// [`create_infra`].
+    pub fn is_current(self) -> bool {
+        matches!(self, Self::Open | Self::Transferring | Self::Finalizing)
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Transferring => "transferring",
+            Self::Finalizing => "finalizing",
+            Self::Complete => "complete",
+            Self::Expired => "expired",
+            Self::Cancelled => "cancelled",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetRenditionState {
+    Pending,
+    Ready,
+    Failed,
+    Superseded,
+    Retired,
+}
+
+/// @ref LLP 0044#publication-and-crash-recovery — closed publication-record
+///   states: `planned → staged | condemned`, `staged → committed | condemned`.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetPublicationState {
+    Planned,
+    Staged,
+    Committed,
+    Condemned,
+}
+
+/// @ref LLP 0044#processing-runner-and-idempotency — closed ledger states;
+///   `claimed → enqueued` on lease expiry is an explicit transition.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetWorkState {
+    Enqueued,
+    Claimed,
+    Done,
+    Retrying,
+    Exhausted,
+    Ambiguous,
+    Cancelled,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AssetDeliveryProfile {
+    PublicImmutable,
+    PrivateSigned,
+    PrivateStrict,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AssetReadAccessPolicy {
+    OwnerOnly,
+    ViaReferences,
+}
+
+/// @ref LLP 0044#byte-stores-and-resumable-transfer — integrity is a graded
+///   fact: a freshly computed digest names received bytes, it does not verify
+///   them against client intent.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AssetIntegrityGrade {
+    EndToEndVerified,
+    ReceivedBytesCanonical,
+}
+
+// ---------------------------------------------------------------------------
+// Record shapes (LLP 0044 §Internal model). Stored as `record_json` beside
+// the indexed columns; both sides are written from these structs only.
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetRecordV1 {
+    pub asset_id: String,
+    pub app_id: String,
+    pub intent_id: String,
+    /// Hash of the declared accept/delivery/access/processing facts the asset
+    /// was admitted under; pairs with `policy_generation`.
+    pub intent_policy_hash: String,
+    pub policy_generation: u64,
+    pub owner_principal: String,
+    pub delivery_profile: AssetDeliveryProfile,
+    pub read_access: AssetReadAccessPolicy,
+    pub availability: AssetAvailability,
+    /// Primary bytes are represented exclusively by the `primary` rendition
+    /// record — there is no second asset-to-blob edge, so blob references and
+    /// quota charges count the primary exactly once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_rendition_id: Option<String>,
+    pub lifecycle_generation: u64,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetAttemptRecordV1 {
+    pub attempt_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub predecessor_attempt_id: Option<String>,
+    pub asset_id: String,
+    pub app_id: String,
+    pub intent_id: String,
+    pub lifecycle_generation: u64,
+    pub state: AssetAttemptState,
+    /// Opaque restricted-staging key; never derived from app data.
+    pub staging_key: String,
+    pub declared_filename: Option<String>,
+    /// Every v1 lane requires a known total length at attempt creation.
+    pub declared_length: u64,
+    pub declared_content_type: Option<String>,
+    pub acknowledged_offset: u64,
+    pub integrity_grade: AssetIntegrityGrade,
+    pub expires_at_ms: u64,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetBlobRecordV1 {
+    pub blob_id: String,
+    pub app_id: String,
+    /// The byte-store parameter this blob lives in (`local-fs` in v1).
+    pub store: String,
+    /// Deliberately opaque; the canonical digest is blob metadata, not the
+    /// physical key (LLP 0044 §Internal model).
+    pub physical_key: String,
+    pub byte_length: u64,
+    pub detected_content_type: String,
+    pub digest_algorithm: String,
+    pub digest: String,
+    pub canonicalization_policy: String,
+    pub reference_count: u64,
+    pub condemned: bool,
+    pub created_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetRenditionRecordV1 {
+    pub rendition_id: String,
+    pub asset_id: String,
+    pub variant_key: String,
+    pub blob_id: String,
+    pub state: AssetRenditionState,
+    pub recipe: String,
+    pub recipe_version: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_facts: Option<Value>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetReferenceEdgeV1 {
+    pub edge_id: String,
+    pub asset_id: String,
+    pub app_id: String,
+    pub table_name: String,
+    pub row_id: String,
+    pub field_path: String,
+    pub created_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetPublicationRecordV1 {
+    pub publication_id: String,
+    pub app_id: String,
+    pub attempt_id: Option<String>,
+    /// The planned opaque object key, recorded before any object write so
+    /// orphans are discoverable from records, never only store listings.
+    pub planned_key: String,
+    pub digest_algorithm: String,
+    pub digest: String,
+    pub canonicalization_policy: String,
+    pub state: AssetPublicationState,
+    pub generation: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blob_id: Option<String>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetWorkRowV1 {
+    pub work_id: String,
+    /// Closed work kinds grow with the runner ticket; the column is indexed,
+    /// the vocabulary is validated by the runner.
+    pub kind: String,
+    pub asset_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attempt_id: Option<String>,
+    pub lifecycle_generation: u64,
+    pub state: AssetWorkState,
+    pub attempt_count: u64,
+    pub retry_ceiling: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_owner: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_expires_at_ms: Option<u64>,
+    pub next_eligible_at_ms: u64,
+    pub deadline_at_ms: u64,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<Value>,
+}
+
+// ---------------------------------------------------------------------------
+// Wire DTOs (LLP 0037 dated alignment, 2026-07-31).
+// ---------------------------------------------------------------------------
+
+/// The generated upload-intent reference, in the shipped `functionReference`
+/// whole-artifact idiom. Deliberately carries no `ExpectedOperationV1`
+/// member — that carrier stays removed (LLP 0108 §B).
+///
+/// @ref LLP 0044#generated-upload-intents — the reference freezes admitted
+///   policy identity: `intentPolicyHash` plus the per-intent policy
+///   generation an attempt finalizes under.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetUploadReference {
+    pub artifact_kind: String,
+    pub schema_version: String,
+    pub app_id: String,
+    pub id: String,
+    pub name: String,
+    pub implementation_hash: String,
+    pub args_contract_hash: String,
+    pub argument_schema: Value,
+    pub intent_policy_hash: String,
+    pub policy_generation: u64,
+    #[serde(default)]
+    pub required_capabilities: Vec<String>,
+}
+
+/// The closed client-task snapshot (LLP 0044 §Client upload surface),
+/// language-neutral: every generated SDK observes this one state machine.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetTaskStateV1 {
+    pub asset_id: String,
+    pub attempt_id: String,
+    pub attempt_state: AssetAttemptState,
+    pub availability: AssetAvailability,
+    pub acknowledged_offset: u64,
+    pub total_bytes: u64,
+    pub expires_at_ms: u64,
+    pub integrity_grade: AssetIntegrityGrade,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_rendition_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetAttemptCreateRequestV1 {
+    pub intent_id: String,
+    pub intent_policy_hash: String,
+    pub args: Value,
+    pub declared_filename: Option<String>,
+    /// Required: deferred-length creation is refused on every v1 lane.
+    pub declared_length: u64,
+    pub declared_content_type: Option<String>,
+    /// Present on retry: the same-asset successor path. Absent reserves a
+    /// fresh asset id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_of_asset_id: Option<String>,
+}
+
+/// Target-specific transfer instructions for the local/proxied lane.
+/// TUS 1.0.0 core plus creation, expiration, checksum, and termination; no
+/// `creation-defer-length`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetTusInstructionV1 {
+    pub upload_url: String,
+    pub tus_resumable: String,
+    pub upload_length: u64,
+    pub expires_at_ms: u64,
+    /// Generated clients checksum every PATCH (a conformance requirement);
+    /// checksum-less foreign clients finalize at the weaker grade.
+    pub checksum_algorithms: Vec<String>,
+    pub max_chunk_bytes: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetAttemptCreateResponseV1 {
+    pub task: AssetTaskStateV1,
+    pub transfer: AssetTusInstructionV1,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetAttemptCancelRequestV1 {
+    pub attempt_id: String,
+    pub lifecycle_generation: u64,
+    /// Cancel-and-discard also deletes the pending asset (LLP 0044
+    /// §Deletion: explicit pending delete without waiting out the grace
+    /// period).
+    #[serde(default)]
+    pub discard_asset: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetFinalizeRequestV1 {
+    pub attempt_id: String,
+    pub lifecycle_generation: u64,
+    /// An authenticated whole-upload digest upgrades a checksum-less
+    /// transfer to end-to-end verified when it matches.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_digest: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetFinalizeResponseV1 {
+    pub task: AssetTaskStateV1,
+}
+
+/// Live lifecycle messages: durable system-row changes observed over the
+/// existing live-query channel. Transfer progress stays ephemeral and is
+/// never one of these.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase", tag = "kind")]
+pub enum AssetLifecycleMessageV1 {
+    #[serde(rename = "attempt")]
+    Attempt {
+        asset_id: String,
+        attempt_id: String,
+        state: AssetAttemptState,
+    },
+    #[serde(rename = "availability")]
+    Availability {
+        asset_id: String,
+        availability: AssetAvailability,
+        lifecycle_generation: u64,
+    },
+    #[serde(rename = "rendition")]
+    Rendition {
+        asset_id: String,
+        rendition_id: String,
+        variant_key: String,
+        state: AssetRenditionState,
+    },
+}
+
+/// Semantic receipt events (LLP 0044 §Receipts) — never per-chunk noise.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AssetReceiptEventV1 {
+    AssetReserved,
+    AttemptCreated,
+    AttemptCompleted,
+    AttemptCancelled,
+    AttemptExpired,
+    AttemptFailed,
+    BytesVerified,
+    BytesRejected,
+    StagingCleaned,
+    BlobReused,
+    BlobCreated,
+    AssetReady,
+    AssetRejected,
+    AssetDeleted,
+    RenditionProduced,
+    RenditionFailed,
+    RenditionSuperseded,
+    DeliveryAdmitted,
+    AttachmentDenied,
+    AttachmentCommitted,
+    ReferenceRemoved,
+    PublicationRepaired,
+    MigrationVerified,
+    GcReclaimed,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetReceiptV1 {
+    pub receipt_id: String,
+    /// Shared lineage so inspection renders one lifecycle, not unrelated
+    /// top-level artifacts.
+    pub operation_lineage: String,
+    pub event: AssetReceiptEventV1,
+    pub asset_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attempt_id: Option<String>,
+    pub at_ms: u64,
+    /// Safe structured facts only: identity, generation, policy, capability,
+    /// diagnostics — no secrets, byte samples, staging keys, or bearer URLs.
+    pub details: Value,
+}
+
+/// Typed detail body for `SNAPBACK_ASSET_*` diagnostics that refuse a
+/// request; the closed code set is registered in LLP 0012.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetRefusalDetailV1 {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attempt_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifecycle_generation: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed: Option<u64>,
+}
+
+// ---------------------------------------------------------------------------
+// System tables.
+// ---------------------------------------------------------------------------
+
+/// The seven Snapback-owned asset tables. The `_snapback` prefix keeps them
+/// outside the app namespace: `validate_user_identifier` already refuses any
+/// app-declared identifier with this prefix, so collision refusal is the
+/// existing `SNAPBACK_INVALID_IDENTIFIER` diagnostic.
+pub const ASSET_SYSTEM_TABLES: [&str; 7] = [
+    "_snapback_asset_records_v1",
+    "_snapback_asset_attempts_v1",
+    "_snapback_asset_blobs_v1",
+    "_snapback_asset_renditions_v1",
+    "_snapback_asset_reference_edges_v1",
+    "_snapback_asset_publications_v1",
+    "_snapback_asset_work_ledger_v1",
+];
+
+pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    tx.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_asset_records_v1 (
+             asset_id TEXT PRIMARY KEY NOT NULL,
+             app_id TEXT NOT NULL,
+             intent_id TEXT NOT NULL,
+             owner_principal TEXT NOT NULL,
+             availability TEXT NOT NULL,
+             lifecycle_generation INTEGER NOT NULL,
+             record_json TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_asset_records_by_app_v1
+             ON _snapback_asset_records_v1(app_id, availability);
+         CREATE TABLE IF NOT EXISTS _snapback_asset_attempts_v1 (
+             attempt_id TEXT PRIMARY KEY NOT NULL,
+             asset_id TEXT NOT NULL,
+             state TEXT NOT NULL,
+             staging_key TEXT NOT NULL UNIQUE,
+             expires_at_ms INTEGER NOT NULL,
+             record_json TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL
+         );
+         -- The single-current-attempt invariant is structural: at most one
+         -- non-terminal attempt row can exist per asset (LLP 0044 §Internal
+         -- model). Supersession updates the predecessor to a terminal state
+         -- in the same transaction that inserts the successor.
+         CREATE UNIQUE INDEX IF NOT EXISTS _snapback_asset_attempts_current_v1
+             ON _snapback_asset_attempts_v1(asset_id)
+             WHERE state IN ('open', 'transferring', 'finalizing');
+         CREATE TABLE IF NOT EXISTS _snapback_asset_blobs_v1 (
+             blob_id TEXT PRIMARY KEY NOT NULL,
+             app_id TEXT NOT NULL,
+             store TEXT NOT NULL,
+             physical_key TEXT NOT NULL UNIQUE,
+             digest_algorithm TEXT NOT NULL,
+             digest TEXT NOT NULL,
+             canonicalization_policy TEXT NOT NULL,
+             byte_length INTEGER NOT NULL,
+             reference_count INTEGER NOT NULL,
+             condemned INTEGER NOT NULL DEFAULT 0,
+             record_json TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL,
+             UNIQUE(app_id, digest_algorithm, digest, canonicalization_policy)
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_asset_renditions_v1 (
+             rendition_id TEXT PRIMARY KEY NOT NULL,
+             asset_id TEXT NOT NULL,
+             variant_key TEXT NOT NULL,
+             blob_id TEXT NOT NULL,
+             state TEXT NOT NULL,
+             record_json TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_asset_renditions_by_asset_v1
+             ON _snapback_asset_renditions_v1(asset_id, variant_key);
+         CREATE TABLE IF NOT EXISTS _snapback_asset_reference_edges_v1 (
+             edge_id TEXT PRIMARY KEY NOT NULL,
+             asset_id TEXT NOT NULL,
+             app_id TEXT NOT NULL,
+             table_name TEXT NOT NULL,
+             row_id TEXT NOT NULL,
+             field_path TEXT NOT NULL,
+             created_at_ms INTEGER NOT NULL,
+             UNIQUE(asset_id, table_name, row_id, field_path)
+         );
+         -- The reverse-reference index: reads capture empty results over
+         -- this range so a first attachment wakes an owner-only subscriber
+         -- (LLP 0053 §Asset read-authorization inputs).
+         CREATE INDEX IF NOT EXISTS _snapback_asset_edges_by_asset_v1
+             ON _snapback_asset_reference_edges_v1(asset_id);
+         CREATE INDEX IF NOT EXISTS _snapback_asset_edges_by_row_v1
+             ON _snapback_asset_reference_edges_v1(table_name, row_id);
+         CREATE TABLE IF NOT EXISTS _snapback_asset_publications_v1 (
+             publication_id TEXT PRIMARY KEY NOT NULL,
+             app_id TEXT NOT NULL,
+             planned_key TEXT NOT NULL UNIQUE,
+             state TEXT NOT NULL,
+             record_json TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_asset_publications_by_state_v1
+             ON _snapback_asset_publications_v1(state, updated_at_ms);
+         CREATE TABLE IF NOT EXISTS _snapback_asset_work_ledger_v1 (
+             work_id TEXT PRIMARY KEY NOT NULL,
+             kind TEXT NOT NULL,
+             asset_id TEXT NOT NULL,
+             state TEXT NOT NULL,
+             next_eligible_at_ms INTEGER NOT NULL,
+             record_json TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_asset_work_by_state_v1
+             ON _snapback_asset_work_ledger_v1(state, next_eligible_at_ms);",
+    )?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Local filesystem byte store.
+// ---------------------------------------------------------------------------
+
+/// The `local-fs` store parameter: restricted staging and immutable blobs
+/// under the instance directory, opaque keys only.
+///
+/// @ref LLP 0044#restricted-staging-and-trusted-finalization — staging is
+///   never addressable through delivery and is deleted after finalization or
+///   mandatory GC.
+pub struct AssetFsStore {
+    staging_dir: PathBuf,
+    blobs_dir: PathBuf,
+}
+
+pub const ASSET_STORE_LOCAL_FS: &str = "local-fs";
+
+impl AssetFsStore {
+    pub fn open(instance_dir: &Path) -> SnapbackResult<Self> {
+        let root = instance_dir.join("assets");
+        let staging_dir = root.join("staging");
+        let blobs_dir = root.join("blobs");
+        for dir in [&staging_dir, &blobs_dir] {
+            std::fs::create_dir_all(dir).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot create asset store directory {}: {error}", dir.display()),
+                )
+            })?;
+        }
+        Ok(Self { staging_dir, blobs_dir })
+    }
+
+    /// Opaque keys are UUIDv7 (LLP 0004's ratified id algorithm) — never
+    /// derived from app data, filenames, or digests.
+    pub fn new_opaque_key() -> String {
+        Uuid::now_v7().to_string()
+    }
+
+    pub fn staging_path(&self, staging_key: &str) -> SnapbackResult<PathBuf> {
+        Ok(self.staging_dir.join(validated_key(staging_key)?))
+    }
+
+    pub fn blob_path(&self, physical_key: &str) -> SnapbackResult<PathBuf> {
+        Ok(self.blobs_dir.join(validated_key(physical_key)?))
+    }
+
+    pub fn delete_staging(&self, staging_key: &str) -> SnapbackResult<()> {
+        let path = self.staging_path(staging_key)?;
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                format!("cannot delete staging object: {error}"),
+            )),
+        }
+    }
+}
+
+fn validated_key(key: &str) -> SnapbackResult<&str> {
+    let valid = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-');
+    if !valid {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ASSET_STORE_KEY_INVALID",
+            "assets",
+            "asset store keys are opaque identifiers, never paths or names",
+        ));
+    }
+    Ok(key)
+}
+
+// ---------------------------------------------------------------------------
+// Blob reference transactions (LLP 0044 §Publication and crash recovery).
+// ---------------------------------------------------------------------------
+
+pub enum BlobAcquisition {
+    /// A live blob with this identity existed; its reference count was
+    /// incremented in this transaction.
+    Adopted { blob_id: String },
+    /// No live blob with this identity exists (absent, or condemned — a
+    /// condemned blob is never reusable).
+    Absent,
+}
+
+/// Dedup reuse acquires its reference in the same transaction that checks GC
+/// eligibility: the condemned fence and the increment are one statement, so
+/// reuse can never race deletion.
+pub fn acquire_blob_reference(
+    tx: &Transaction<'_>,
+    app_id: &str,
+    digest_algorithm: &str,
+    digest: &str,
+    canonicalization_policy: &str,
+    now_ms: u64,
+) -> SnapbackResult<BlobAcquisition> {
+    let blob_id: Option<String> = tx
+        .query_row(
+            "UPDATE _snapback_asset_blobs_v1
+             SET reference_count = reference_count + 1, updated_at_ms = ?5
+             WHERE app_id = ?1 AND digest_algorithm = ?2 AND digest = ?3
+               AND canonicalization_policy = ?4 AND condemned = 0
+             RETURNING blob_id",
+            rusqlite::params![app_id, digest_algorithm, digest, canonicalization_policy, now_ms],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(match blob_id {
+        Some(blob_id) => BlobAcquisition::Adopted { blob_id },
+        None => BlobAcquisition::Absent,
+    })
+}
+
+pub enum BlobInsertOutcome {
+    /// This transaction created the blob row with an initial reference.
+    Created,
+    /// A concurrent finalizer won the uniqueness race with a live blob; the
+    /// caller adopted the winner (reference acquired here) and must condemn
+    /// its own publication record and staged object.
+    ConvergedOnWinner { blob_id: String },
+}
+
+pub fn insert_blob(
+    tx: &Transaction<'_>,
+    record: &AssetBlobRecordV1,
+    now_ms: u64,
+) -> SnapbackResult<BlobInsertOutcome> {
+    let record_json = serde_json::to_string(record).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_RECORD_INVALID",
+            "assets",
+            format!("blob record does not serialize: {error}"),
+        )
+    })?;
+    let inserted = tx.execute(
+        "INSERT OR IGNORE INTO _snapback_asset_blobs_v1 (
+             blob_id, app_id, store, physical_key, digest_algorithm, digest,
+             canonicalization_policy, byte_length, reference_count, condemned,
+             record_json, updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?11)",
+        rusqlite::params![
+            record.blob_id,
+            record.app_id,
+            record.store,
+            record.physical_key,
+            record.digest_algorithm,
+            record.digest,
+            record.canonicalization_policy,
+            record.byte_length,
+            record.reference_count,
+            record_json,
+            now_ms,
+        ],
+    )?;
+    if inserted == 1 {
+        return Ok(BlobInsertOutcome::Created);
+    }
+    match acquire_blob_reference(
+        tx,
+        &record.app_id,
+        &record.digest_algorithm,
+        &record.digest,
+        &record.canonicalization_policy,
+        now_ms,
+    )? {
+        BlobAcquisition::Adopted { blob_id } => Ok(BlobInsertOutcome::ConvergedOnWinner { blob_id }),
+        // The identity row exists but is condemned: the caller keeps its own
+        // publication as a fresh blob under a new physical key. Surfaced as a
+        // structured refusal for now; the finalizer ticket owns the retry.
+        BlobAcquisition::Absent => Err(SnapbackError::error(
+            "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE",
+            "assets",
+            "blob identity exists but is condemned; retry publication under a fresh key",
+        )),
+    }
+}
+
+/// Returns the post-release reference count.
+pub fn release_blob_reference(
+    tx: &Transaction<'_>,
+    blob_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<u64> {
+    let count: Option<u64> = tx
+        .query_row(
+            "UPDATE _snapback_asset_blobs_v1
+             SET reference_count = reference_count - 1, updated_at_ms = ?2
+             WHERE blob_id = ?1 AND reference_count > 0
+             RETURNING reference_count",
+            rusqlite::params![blob_id, now_ms],
+            |row| row.get(0),
+        )
+        .optional()?;
+    count.ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_ASSET_REFCOUNT_INVALID",
+            "assets",
+            format!("blob {blob_id} has no reference to release"),
+        )
+    })
+}
+
+/// Blob GC marks a blob condemned transactionally before deleting bytes;
+/// only an unreferenced, un-condemned blob is eligible. Returns whether this
+/// transaction condemned it.
+pub fn condemn_blob_if_unreferenced(
+    tx: &Transaction<'_>,
+    blob_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<bool> {
+    let changed = tx.execute(
+        "UPDATE _snapback_asset_blobs_v1
+         SET condemned = 1, updated_at_ms = ?2
+         WHERE blob_id = ?1 AND reference_count = 0 AND condemned = 0",
+        rusqlite::params![blob_id, now_ms],
+    )?;
+    Ok(changed == 1)
+}
+
+/// The committed-schema registrations for this module, consumed by
+/// `schema_export::artifact_schemas`.
+pub fn schema_registrations() -> Vec<(&'static str, Value)> {
+    fn schema_of<T: schemars::JsonSchema>() -> Value {
+        serde_json::to_value(schemars::schema_for!(T)).expect("schema serializes")
+    }
+    vec![
+        ("asset.upload-reference.schema.json", schema_of::<AssetUploadReference>()),
+        ("asset.task-state.schema.json", schema_of::<AssetTaskStateV1>()),
+        ("asset.attempt-create-request.schema.json", schema_of::<AssetAttemptCreateRequestV1>()),
+        ("asset.attempt-create-response.schema.json", schema_of::<AssetAttemptCreateResponseV1>()),
+        ("asset.attempt-cancel-request.schema.json", schema_of::<AssetAttemptCancelRequestV1>()),
+        ("asset.tus-instruction.schema.json", schema_of::<AssetTusInstructionV1>()),
+        ("asset.finalize-request.schema.json", schema_of::<AssetFinalizeRequestV1>()),
+        ("asset.finalize-response.schema.json", schema_of::<AssetFinalizeResponseV1>()),
+        ("asset.lifecycle-message.schema.json", schema_of::<AssetLifecycleMessageV1>()),
+        ("asset.receipt.schema.json", schema_of::<AssetReceiptV1>()),
+        ("asset.refusal-detail.schema.json", schema_of::<AssetRefusalDetailV1>()),
+        ("asset.record.schema.json", schema_of::<AssetRecordV1>()),
+        ("asset.attempt-record.schema.json", schema_of::<AssetAttemptRecordV1>()),
+        ("asset.blob-record.schema.json", schema_of::<AssetBlobRecordV1>()),
+        ("asset.rendition-record.schema.json", schema_of::<AssetRenditionRecordV1>()),
+        ("asset.publication-record.schema.json", schema_of::<AssetPublicationRecordV1>()),
+        ("asset.work-row.schema.json", schema_of::<AssetWorkRowV1>()),
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn test_tx(conn: &mut Connection) -> Transaction<'_> {
+        conn.transaction().expect("transaction")
+    }
+
+    fn blob_record(digest: &str, key: &str) -> AssetBlobRecordV1 {
+        AssetBlobRecordV1 {
+            blob_id: AssetFsStore::new_opaque_key(),
+            app_id: "app_1".to_owned(),
+            store: ASSET_STORE_LOCAL_FS.to_owned(),
+            physical_key: key.to_owned(),
+            byte_length: 42,
+            detected_content_type: "application/octet-stream".to_owned(),
+            digest_algorithm: ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
+            digest: digest.to_owned(),
+            canonicalization_policy: "none".to_owned(),
+            reference_count: 1,
+            condemned: false,
+            created_at_ms: 1,
+        }
+    }
+
+    #[test]
+    fn blob_identity_uniqueness_converges_on_the_winner() {
+        let mut conn = Connection::open_in_memory().expect("db");
+        let tx = test_tx(&mut conn);
+        create_infra(&tx).expect("infra");
+
+        let winner = blob_record("d1", "k1");
+        assert!(matches!(
+            insert_blob(&tx, &winner, 1).expect("insert"),
+            BlobInsertOutcome::Created
+        ));
+
+        let loser = blob_record("d1", "k2");
+        match insert_blob(&tx, &loser, 2).expect("race") {
+            BlobInsertOutcome::ConvergedOnWinner { blob_id } => {
+                assert_eq!(blob_id, winner.blob_id);
+            }
+            BlobInsertOutcome::Created => panic!("uniqueness constraint did not hold"),
+        }
+
+        let count: u64 = tx
+            .query_row(
+                "SELECT reference_count FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1",
+                [&winner.blob_id],
+                |row| row.get(0),
+            )
+            .expect("count");
+        assert_eq!(count, 2, "the loser adopted the winner's reference");
+    }
+
+    #[test]
+    fn condemned_blobs_are_never_reusable_and_refcounts_fence_gc() {
+        let mut conn = Connection::open_in_memory().expect("db");
+        let tx = test_tx(&mut conn);
+        create_infra(&tx).expect("infra");
+
+        let record = blob_record("d2", "k3");
+        insert_blob(&tx, &record, 1).expect("insert");
+
+        assert!(
+            !condemn_blob_if_unreferenced(&tx, &record.blob_id, 2).expect("fence"),
+            "a referenced blob must not be condemnable",
+        );
+        assert_eq!(release_blob_reference(&tx, &record.blob_id, 3).expect("release"), 0);
+        assert!(condemn_blob_if_unreferenced(&tx, &record.blob_id, 4).expect("condemn"));
+
+        assert!(matches!(
+            acquire_blob_reference(&tx, "app_1", ASSET_DIGEST_ALGORITHM_SHA256, "d2", "none", 5)
+                .expect("acquire"),
+            BlobAcquisition::Absent
+        ));
+        assert!(
+            release_blob_reference(&tx, &record.blob_id, 6).is_err(),
+            "releasing a zero-reference blob is a structural error",
+        );
+    }
+
+    #[test]
+    fn single_current_attempt_is_structural() {
+        let mut conn = Connection::open_in_memory().expect("db");
+        let tx = test_tx(&mut conn);
+        create_infra(&tx).expect("infra");
+
+        let insert = |attempt_id: &str, state: &str, staging: &str| {
+            tx.execute(
+                "INSERT INTO _snapback_asset_attempts_v1 (
+                     attempt_id, asset_id, state, staging_key, expires_at_ms,
+                     record_json, updated_at_ms
+                 ) VALUES (?1, 'asset_1', ?2, ?3, 0, '{}', 0)",
+                rusqlite::params![attempt_id, state, staging],
+            )
+        };
+        insert("a1", "open", "s1").expect("first current attempt");
+        assert!(
+            insert("a2", "transferring", "s2").is_err(),
+            "two current attempts for one asset must violate the partial unique index",
+        );
+        tx.execute(
+            "UPDATE _snapback_asset_attempts_v1 SET state = 'cancelled' WHERE attempt_id = 'a1'",
+            [],
+        )
+        .expect("supersede");
+        insert("a2", "open", "s2").expect("successor after supersession");
+    }
+
+    #[test]
+    fn app_schemas_cannot_declare_or_shadow_asset_system_tables() {
+        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
+
+        for reserved in ASSET_SYSTEM_TABLES {
+            let mut db = crate::storage::LocalDatabase::memory().expect("memory database");
+            let error = db
+                .apply_schema(SchemaManifest {
+                    tables: vec![TableManifest {
+                        name: reserved.to_owned(),
+                        fields: vec![FieldManifest {
+                            name: "k".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        }],
+                        indexes: Vec::new(),
+                        syncable: false,
+                        permission_backing: false,
+                        permission_fields: None,
+                        search_indexes: Vec::new(),
+                        membership: None,
+                    }],
+                    ..SchemaManifest::default()
+                })
+                .expect_err("a reserved asset table name must refuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_INVALID_IDENTIFIER");
+        }
+    }
+
+    #[test]
+    fn opaque_store_keys_refuse_path_shapes() {
+        assert!(validated_key("01890f3c-9d5b-7000-8000-000000000001").is_ok());
+        for bad in ["../escape", "a/b", "", "name.png", "key with space"] {
+            assert!(validated_key(bad).is_err(), "{bad:?} must refuse");
+        }
+    }
+
+    #[test]
+    fn closed_state_vocabularies_are_name_keyed() {
+        assert_eq!(
+            serde_json::to_value(AssetAttemptState::Finalizing).unwrap(),
+            serde_json::json!("finalizing"),
+        );
+        assert_eq!(
+            serde_json::to_value(AssetPublicationState::Condemned).unwrap(),
+            serde_json::json!("condemned"),
+        );
+        assert_eq!(
+            serde_json::to_value(AssetDeliveryProfile::PrivateStrict).unwrap(),
+            serde_json::json!("private-strict"),
+        );
+        assert_eq!(
+            serde_json::to_value(AssetIntegrityGrade::ReceivedBytesCanonical).unwrap(),
+            serde_json::json!("received-bytes-canonical"),
+        );
+        assert!(serde_json::from_value::<AssetWorkState>(serde_json::json!(0)).is_err());
+    }
+}

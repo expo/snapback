@@ -1,0 +1,47 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.attempt-create-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "args": true,
+    "declaredContentType": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "declaredFilename": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "declaredLength": {
+      "description": "Required: deferred-length creation is refused on every v1 lane.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "intentId": {
+      "type": "string"
+    },
+    "intentPolicyHash": {
+      "type": "string"
+    },
+    "retryOfAssetId": {
+      "description": "Present on retry: the same-asset successor path. Absent reserves a\nfresh asset id.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "intentId",
+    "intentPolicyHash",
+    "args",
+    "declaredLength"
+  ],
+  "title": "AssetAttemptCreateRequestV1",
+  "type": "object"
+}

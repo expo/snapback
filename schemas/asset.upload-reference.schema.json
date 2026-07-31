@@ -1,0 +1,59 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.upload-reference.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The generated upload-intent reference, in the shipped `functionReference`\nwhole-artifact idiom. Deliberately carries no `ExpectedOperationV1`\nmember — that carrier stays removed (LLP 0108 §B).\n\n@ref LLP 0044#generated-upload-intents — the reference freezes admitted\n  policy identity: `intentPolicyHash` plus the per-intent policy\n  generation an attempt finalizes under.",
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "argsContractHash": {
+      "type": "string"
+    },
+    "argumentSchema": true,
+    "artifactKind": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "implementationHash": {
+      "type": "string"
+    },
+    "intentPolicyHash": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "policyGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "requiredCapabilities": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "schemaVersion",
+    "appId",
+    "id",
+    "name",
+    "implementationHash",
+    "argsContractHash",
+    "argumentSchema",
+    "intentPolicyHash",
+    "policyGeneration"
+  ],
+  "title": "AssetUploadReference",
+  "type": "object"
+}
