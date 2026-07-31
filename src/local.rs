@@ -1743,7 +1743,7 @@ pub(crate) fn admit_job_enqueues(
                 ),
             ));
         }
-        // @ref LLP 0131#the-ingress-seam-validate-at-every-admission-boundary —
+        // @ref LLP 0131#runtime-ingress-validation —
         // scheduled-work admission validates at enqueue time against the
         // callee's declared args contract, inside the producing mutation's
         // transaction: a violating enqueue refuses the whole mutation and no
