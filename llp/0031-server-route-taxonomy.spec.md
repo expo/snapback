@@ -1116,13 +1116,16 @@ registers the root-level AppData asset family:
   witness re-validation can re-run the authorizer, so it is query-shaped
   (`HttpQuery`) like creation;
 - `GET /assets/attempts/{id}` (inspect), `POST /assets/attempts/{id}/cancel`;
+- `GET /assets/records/{id}` (L1-08) — the caller-facing asset metadata
+  read; it decides through the declared read-access policy (LLP 0044
+  §Asset read authorization), so it is query-shaped (`HttpQuery`);
 - `HEAD|PATCH|DELETE /assets/tus/{id}` — the TUS 1.0.0 resource, wrapped by
   Snapback admission (TUS is never the authority model).
 
 The inspect/cancel/TUS rows share the new authority-only `AssetTransfer`
 invocation source: the intent authorizer ran at attempt creation, and
 possession of an attempt URL is not authority — every operation re-resolves
-the caller and matches the admission's owner principal. All seven rows are
+the caller and matches the admission's owner principal. All eight rows are
 `AppData`/`AppAuth` with the standard sessions overlay (legacy body
 authority rejected; covered by the session body-probe sweep, with the HEAD
 probe asserting status only since HEAD responses carry no body). The TUS

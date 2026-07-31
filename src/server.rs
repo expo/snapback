@@ -7720,6 +7720,10 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             post(asset_attempt_cancel_route),
         ),
         RegisteredRoute::new(
+            app_auth_route("GET", "/assets/records/{id}"),
+            get(asset_record_inspect_route),
+        ),
+        RegisteredRoute::new(
             app_auth_route("POST", "/assets/attempts/{id}/finalize"),
             post(asset_attempt_finalize_route),
         ),
@@ -8781,6 +8785,9 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/assets/attempts/{id}"
         | "/assets/attempts/{id}/cancel"
         | "/assets/tus/{id}" => Some(InvocationSource::AssetTransfer),
+        // Metadata reads decide through the declared read-access policy
+        // (LLP 0044 §Asset read authorization) — query-shaped.
+        "/assets/records/{id}" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
         // Bundle entries are evaluated exactly like HTTP queries; register
         // mode re-prepares LiveInitialQuery authorities per entry inside the
@@ -17828,6 +17835,18 @@ async fn asset_attempt_inspect_route(
     Ok(Json(task))
 }
 
+async fn asset_record_inspect_route(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let record = with_snapback(&state, move |snapback| {
+        snapback.asset_record_inspect(&authority, &id)
+    })
+    .await?;
+    Ok(Json(record))
+}
+
 async fn asset_attempt_cancel_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -21915,7 +21934,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_ATTEMPT_UNKNOWN"
         | "SNAPBACK_ASSET_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_ASSET_LENGTH_MISMATCH"
-        | "SNAPBACK_ASSET_DIGEST_MISMATCH" => StatusCode::BAD_REQUEST,
+        | "SNAPBACK_ASSET_DIGEST_MISMATCH"
+        | "SNAPBACK_ASSET_REF_UNVERIFIED"
+        | "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH"
+        | "SNAPBACK_ASSET_ATTACH_UNAVAILABLE"
+        | "SNAPBACK_ASSET_ATTACH_DENIED" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ASSET_ADMISSION_REVOKED" => StatusCode::FORBIDDEN,
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
         "SNAPBACK_ASSET_INTENT_STALE"

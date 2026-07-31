@@ -227,6 +227,7 @@ pub(crate) struct ExecutedIbexMutation {
     pub job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     pub membership_commands: Vec<BufferedMembershipCommand>,
     pub reads: Vec<CapturedReadDependency>,
+    pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
 }
@@ -394,6 +395,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         job_enqueues,
         membership_commands,
         reads,
+        asset_admissions,
         ..
     } = invocation;
     prepared.validate_admission("ibex mutation completion")?;
@@ -402,6 +404,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         job_enqueues,
         membership_commands,
         reads,
+        asset_admissions,
         result,
         ctx_ledger,
     })
@@ -942,6 +945,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// `writes`, these are effects of the mutation transaction: they commit
     /// or roll back with it, never independently.
     job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
+    /// Transaction-scoped `ctx.assets.attach` admissions (LLP 0044 §Typed
+    /// references): recorded during handler execution, consumed by the
+    /// commit hook, never serialized or persisted.
+    asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     /// Declaration-bound membership operations carry their host-derived writer
     /// separately from raw `ctx.db` writes all the way to the central commit seam.
     membership_commands: Vec<BufferedMembershipCommand>,
@@ -1028,6 +1035,7 @@ impl<'a> IbexHostContext<'a> {
             protected_query_profile: false,
             writes: Vec::new(),
             job_enqueues: Vec::new(),
+            asset_admissions: Vec::new(),
             membership_commands: Vec::new(),
             membership_writer,
             reads,
@@ -1083,6 +1091,7 @@ impl<'a> IbexHostContext<'a> {
             protected_query_profile: false,
             writes: Vec::new(),
             job_enqueues: Vec::new(),
+            asset_admissions: Vec::new(),
             membership_commands: Vec::new(),
             membership_writer: MembershipWriter::System,
             reads,
@@ -1547,6 +1556,31 @@ impl<'a> IbexHostContext<'a> {
                     "availableAtMs": available_at_ms,
                     "deduplicated": false,
                 }))
+            "assets.attach" => {
+                self.ensure_writable("attach")?;
+                let asset_id = required_string(&args, "assetId")?;
+                if asset_id.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+                        "runtime",
+                        "ctx.assets.attach requires a non-empty asset id",
+                    ));
+                }
+                let upload = args
+                    .get("upload")
+                    .and_then(Value::as_str)
+                    .filter(|upload| !upload.is_empty())
+                    .map(str::to_owned);
+                // Record-only: the commit boundary is the authority (LLP 0044
+                // v6.1) — it re-verifies owner, intent, availability, and
+                // generation inside the final write lock, so a delete racing
+                // this admission refuses at commit rather than here.
+                self.asset_admissions
+                    .push(crate::assets::AssetAttachmentAdmission {
+                        asset_id: asset_id.clone(),
+                        upload,
+                    });
+                Ok(Value::String(asset_id))
             }
             // Declaration-bound membership authoring. The JS helper supplies a
             // stable declaration id and operation arguments; the host resolves
@@ -4102,6 +4136,7 @@ mod membership_bridge_tests {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 writes: Vec::new(),
+            asset_admissions: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: json!(null),
@@ -4360,6 +4395,7 @@ globalThis.__snapbackHandlers = {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 writes: Vec::new(),
+            asset_admissions: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: result.clone(),

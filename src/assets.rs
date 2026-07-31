@@ -172,6 +172,11 @@ pub struct AssetRecordV1 {
     pub asset_id: String,
     pub app_id: String,
     pub intent_id: String,
+    /// The intent's exported binding name — what a `v.assetRef` field
+    /// restriction names, so commit-boundary admission can compare without
+    /// resolving the function manifest inside the storage layer.
+    #[serde(default)]
+    pub intent_name: String,
     /// Hash of the declared accept/delivery/access/processing facts the asset
     /// was admitted under; pairs with `policy_generation`.
     pub intent_policy_hash: String,
@@ -864,6 +869,252 @@ pub fn load_asset(tx: &Transaction<'_>, asset_id: &str) -> SnapbackResult<Option
         )
         .optional()?;
     json.map(|json| decode_record(&json)).transpose()
+}
+
+// ---------------------------------------------------------------------------
+// L1-07: commit-boundary typed references (LLP 0044 §Typed references and
+// atomic attachment; LLP 0007 dated amendment 2026-07-31).
+// ---------------------------------------------------------------------------
+
+/// A transaction-scoped attachment admission. `ctx.assets.attach` records one
+/// during handler execution; it never serializes, persists, or crosses a
+/// transaction boundary, so app code cannot construct, store, or replay one.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AssetAttachmentAdmission {
+    pub asset_id: String,
+    /// The upload-intent binding the handler named, when it named one.
+    pub upload: Option<String>,
+}
+
+/// Which write path is committing. Handler paths admit through recorded
+/// admissions; paths without handler execution derive the admission from the
+/// field's schema-declared intent restriction at the commit boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AssetWritePath {
+    Handler,
+    HostPlan,
+    Seed,
+}
+
+pub struct AssetCommitAuthority<'a> {
+    pub path: AssetWritePath,
+    /// The effective caller principal; `None` only for system authority
+    /// (seed), which skips the owner comparison but nothing else.
+    pub principal: Option<&'a str>,
+    pub admissions: &'a [AssetAttachmentAdmission],
+}
+
+pub fn load_edge_for_field(
+    tx: &Transaction<'_>,
+    table: &str,
+    row_id: &str,
+    field: &str,
+) -> SnapbackResult<Option<AssetReferenceEdgeV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT edge_id, asset_id, app_id, table_name, row_id, field_path, created_at_ms
+             FROM _snapback_asset_reference_edges_v1
+             WHERE table_name = ?1 AND row_id = ?2 AND field_path = ?3",
+            rusqlite::params![table, row_id, field],
+            |row| {
+                Ok(serde_json::to_string(&AssetReferenceEdgeV1 {
+                    edge_id: row.get(0)?,
+                    asset_id: row.get(1)?,
+                    app_id: row.get(2)?,
+                    table_name: row.get(3)?,
+                    row_id: row.get(4)?,
+                    field_path: row.get(5)?,
+                    created_at_ms: row.get::<_, i64>(6)? as u64,
+                })
+                .unwrap_or_default())
+            },
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+pub fn load_edges_for_row(
+    tx: &Transaction<'_>,
+    table: &str,
+    row_id: &str,
+) -> SnapbackResult<Vec<AssetReferenceEdgeV1>> {
+    let mut statement = tx.prepare(
+        "SELECT edge_id, asset_id, app_id, table_name, row_id, field_path, created_at_ms
+         FROM _snapback_asset_reference_edges_v1
+         WHERE table_name = ?1 AND row_id = ?2 ORDER BY field_path",
+    )?;
+    let rows = statement.query_map(rusqlite::params![table, row_id], |row| {
+        Ok(AssetReferenceEdgeV1 {
+            edge_id: row.get(0)?,
+            asset_id: row.get(1)?,
+            app_id: row.get(2)?,
+            table_name: row.get(3)?,
+            row_id: row.get(4)?,
+            field_path: row.get(5)?,
+            created_at_ms: row.get::<_, i64>(6)? as u64,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+pub fn load_edges_for_asset(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+) -> SnapbackResult<Vec<AssetReferenceEdgeV1>> {
+    let mut statement = tx.prepare(
+        "SELECT edge_id, asset_id, app_id, table_name, row_id, field_path, created_at_ms
+         FROM _snapback_asset_reference_edges_v1
+         WHERE asset_id = ?1 ORDER BY table_name, row_id, field_path",
+    )?;
+    let rows = statement.query_map([asset_id], |row| {
+        Ok(AssetReferenceEdgeV1 {
+            edge_id: row.get(0)?,
+            asset_id: row.get(1)?,
+            app_id: row.get(2)?,
+            table_name: row.get(3)?,
+            row_id: row.get(4)?,
+            field_path: row.get(5)?,
+            created_at_ms: row.get::<_, i64>(6)? as u64,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+pub fn insert_reference_edge(
+    tx: &Transaction<'_>,
+    app_id: &str,
+    asset_id: &str,
+    table: &str,
+    row_id: &str,
+    field: &str,
+    now_ms: u64,
+) -> SnapbackResult<AssetReferenceEdgeV1> {
+    let edge = AssetReferenceEdgeV1 {
+        edge_id: Uuid::now_v7().to_string(),
+        asset_id: asset_id.to_owned(),
+        app_id: app_id.to_owned(),
+        table_name: table.to_owned(),
+        row_id: row_id.to_owned(),
+        field_path: field.to_owned(),
+        created_at_ms: now_ms,
+    };
+    tx.execute(
+        "INSERT INTO _snapback_asset_reference_edges_v1
+             (edge_id, asset_id, app_id, table_name, row_id, field_path, created_at_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![
+            edge.edge_id,
+            edge.asset_id,
+            edge.app_id,
+            edge.table_name,
+            edge.row_id,
+            edge.field_path,
+            edge.created_at_ms as i64,
+        ],
+    )?;
+    Ok(edge)
+}
+
+pub fn delete_reference_edge(tx: &Transaction<'_>, edge_id: &str) -> SnapbackResult<()> {
+    tx.execute(
+        "DELETE FROM _snapback_asset_reference_edges_v1 WHERE edge_id = ?1",
+        [edge_id],
+    )?;
+    Ok(())
+}
+
+fn attach_refusal(code: &str, message: String, asset_id: &str) -> SnapbackError {
+    SnapbackError::error(code, "assets", message).with_details(
+        serde_json::to_value(AssetRefusalDetailV1 {
+            asset_id: Some(asset_id.to_owned()),
+            attempt_id: None,
+            intent_id: None,
+            lifecycle_generation: None,
+            limit: None,
+            observed: None,
+        })
+        .unwrap_or(Value::Null),
+    )
+}
+
+/// The commit-boundary attachment check (LLP 0044 v6.1). Runs inside the
+/// committing transaction — the final write lock — so deletion, ownership
+/// change, or revocation racing an earlier `attach` refuses here instead of
+/// committing a stale admission.
+pub fn verify_attachment(
+    tx: &Transaction<'_>,
+    app_id: &str,
+    asset_id: &str,
+    field_restriction: Option<&str>,
+    admission_upload: Option<&str>,
+    authority: &AssetCommitAuthority<'_>,
+) -> SnapbackResult<AssetRecordV1> {
+    if let (Some(field), Some(named)) = (field_restriction, admission_upload)
+        && field != named {
+            return Err(attach_refusal(
+                "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
+                format!(
+                    "attach named upload intent {named:?} but the field restricts to {field:?}"
+                ),
+                asset_id,
+            ));
+        }
+    let asset = load_asset(tx, asset_id)?.ok_or_else(|| {
+        attach_refusal(
+            "SNAPBACK_ASSET_ATTACH_DENIED",
+            "attachment names an unknown asset".to_owned(),
+            asset_id,
+        )
+    })?;
+    if asset.app_id != app_id {
+        return Err(attach_refusal(
+            "SNAPBACK_ASSET_ATTACH_DENIED",
+            "attachment crosses an app boundary".to_owned(),
+            asset_id,
+        ));
+    }
+    if let Some(restriction) = field_restriction.or(admission_upload)
+        && asset.intent_name != restriction && asset.intent_id != restriction {
+            return Err(attach_refusal(
+                "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
+                format!(
+                    "asset was admitted by intent {:?}, not {restriction:?}",
+                    asset.intent_name
+                ),
+                asset_id,
+            ));
+        }
+    match asset.availability {
+        AssetAvailability::Pending | AssetAvailability::Ready => {}
+        other => {
+            return Err(attach_refusal(
+                "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
+                format!("a {other:?} asset admits no attachment"),
+                asset_id,
+            ));
+        }
+    }
+    match authority.principal {
+        Some(principal) => {
+            if principal != asset.owner_principal {
+                return Err(attach_refusal(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "attachment caller is not the asset owner".to_owned(),
+                    asset_id,
+                ));
+            }
+        }
+        None => {
+            if authority.path != AssetWritePath::Seed {
+                return Err(attach_refusal(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "attachment requires a caller principal".to_owned(),
+                    asset_id,
+                ));
+            }
+        }
+    }
+    Ok(asset)
 }
 
 /// Persist an availability transition, enforcing the closed table and

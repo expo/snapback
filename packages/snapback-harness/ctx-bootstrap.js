@@ -734,6 +734,23 @@
       db.patch = readonlyDenied("patch");
       db.delete = readonlyDenied("delete");
     }
+    // Typed asset attachment (LLP 0044): mutations only. attach records a
+    // transaction-scoped admission on the host and returns the typed value to
+    // write; the storage commit boundary is the authority that re-verifies it.
+    var assets = {
+      attach: function(assetId, options) {
+        var upload = null;
+        if (options && options.upload != null) {
+          upload = typeof options.upload === "object"
+            ? (options.upload.name || options.upload.id || null)
+            : options.upload;
+        }
+        return host("assets.attach", { assetId: assetId, upload: upload });
+      }
+    };
+    if (mode !== "mutation") {
+      assets.attach = readonlyDenied("attach");
+    }
     if (mode === "action") {
       db.get = readonlyDenied("get");
       db.query = readonlyDenied("query");
@@ -747,6 +764,7 @@
         return auth.kind === "human" && auth.actor == null;
       },
       db: db,
+      assets: assets,
       runtime: {
         now: function() { return host("runtime.now", {}); },
         id: function() { return host("runtime.id", {}); }

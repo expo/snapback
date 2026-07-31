@@ -57,6 +57,11 @@
     "intentId": {
       "type": "string"
     },
+    "intentName": {
+      "default": "",
+      "description": "The intent's exported binding name — what a `v.assetRef` field\nrestriction names, so commit-boundary admission can compare without\nresolving the function manifest inside the storage layer.",
+      "type": "string"
+    },
     "intentPolicyHash": {
       "description": "Hash of the declared accept/delivery/access/processing facts the asset\nwas admitted under; pairs with `policy_generation`.",
       "type": "string"

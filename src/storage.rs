@@ -621,6 +621,9 @@ pub(crate) struct BufferedCommitPayload {
     /// Producer provenance stamped on every inserted job row (0127 decision
     /// 7). `None` is only legal when `job_enqueues` is empty.
     pub job_producer: Option<crate::jobs::JobProducer>,
+    /// Transaction-scoped `ctx.assets.attach` admissions (LLP 0044); never
+    /// serialized, never persisted, consumed by the commit hook.
+    pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
 }
 
 struct BufferedEffects {
@@ -630,6 +633,7 @@ struct BufferedEffects {
     result: Value,
     job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     job_producer: Option<crate::jobs::JobProducer>,
+    asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
 }
 
 #[derive(Clone, Copy)]
@@ -4028,6 +4032,21 @@ impl LocalDatabase {
         // after projection convergence and before the source head publishes;
         // any bound/storage failure aborts the complete mutation.
         crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        // @ref LLP 0044#typed-references-and-atomic-attachment — host plans
+        //   have no handler execution to call attach in, so the commit
+        //   boundary derives the admission from the field's schema-declared
+        //   intent restriction; restriction-less fields refuse here.
+        enforce_asset_reference_changes(
+            &schema,
+            &tx,
+            &changes,
+            &crate::assets::AssetCommitAuthority {
+                path: crate::assets::AssetWritePath::HostPlan,
+                principal: input.auth.user_id.as_deref(),
+                admissions: &[],
+            },
+            now_ms,
+        )?;
         if !changes.is_empty() {
             set_version(&tx, next_version)?;
         }
@@ -4186,6 +4205,7 @@ impl LocalDatabase {
             ctx_ledger,
             job_enqueues,
             job_producer,
+            asset_admissions,
         } = payload;
         self.apply_buffered_writes_with_lifecycle(
             input,
@@ -4196,6 +4216,7 @@ impl LocalDatabase {
                 result,
                 job_enqueues,
                 job_producer,
+                asset_admissions,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4257,6 +4278,7 @@ impl LocalDatabase {
                 result,
                 job_enqueues,
                 job_producer,
+                asset_admissions: Vec::new(),
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4286,6 +4308,7 @@ impl LocalDatabase {
                 result,
                 job_enqueues: Vec::new(),
                 job_producer: None,
+                asset_admissions: Vec::new(),
             },
             options,
             MembershipCommitAuthority::deny(),
@@ -4338,6 +4361,7 @@ impl LocalDatabase {
             result,
             job_enqueues,
             job_producer,
+            asset_admissions,
         } = effects;
         if !job_enqueues.is_empty() && job_producer.is_none() {
             return Err(SnapbackError::error(
@@ -4607,6 +4631,22 @@ impl LocalDatabase {
             )?;
         }
         crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+
+        // @ref LLP 0044#typed-references-and-atomic-attachment — the commit
+        //   hook is the authority: every asset-field write in this changeset
+        //   validates its admission and maintains its reverse edge here,
+        //   inside the final write lock.
+        enforce_asset_reference_changes(
+            &schema,
+            &tx,
+            &changes,
+            &crate::assets::AssetCommitAuthority {
+                path: crate::assets::AssetWritePath::Handler,
+                principal: input.auth.user_id.as_deref(),
+                admissions: &asset_admissions,
+            },
+            now_ms,
+        )?;
 
         if !changes.is_empty() {
             set_version(&tx, next_version)?;
@@ -11441,6 +11481,33 @@ fn seed_into_transaction(
     seed: SeedData,
     version: u64,
 ) -> SnapbackResult<Vec<ChangedRow>> {
+    let mut changes = seed_rows_into_transaction(tx, schema, seed, version)?;
+    // @ref LLP 0044#typed-references-and-atomic-attachment — seeds run the
+    //   same commit-boundary admission under system authority: restricted
+    //   fields verify the asset (owner check waived for system custody),
+    //   restriction-less fields refuse, and seeded bytes can never enter as
+    //   `ready` blobs because a seed writes rows, never blob records.
+    enforce_asset_reference_changes(
+        schema,
+        tx,
+        &changes,
+        &crate::assets::AssetCommitAuthority {
+            path: crate::assets::AssetWritePath::Seed,
+            principal: None,
+            admissions: &[],
+        },
+        now_millis(),
+    )?;
+    changes.shrink_to_fit();
+    Ok(changes)
+}
+
+fn seed_rows_into_transaction(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    seed: SeedData,
+    version: u64,
+) -> SnapbackResult<Vec<ChangedRow>> {
     let mut changes = Vec::new();
     let now_ms = now_millis();
     let mut tables = seed.tables.into_iter().collect::<Vec<_>>();
@@ -12549,6 +12616,7 @@ impl LocalDatabase {
                 result: plan.result,
                 job_enqueues: Vec::new(),
                 job_producer: None,
+                asset_admissions: Vec::new(),
             },
             BufferedCommitOptions {
                 ctx_ledger: None,
@@ -13780,6 +13848,402 @@ fn enforce_membership_write_gate(
         MembershipGuardOp::Patch => {}
     }
     Ok(())
+}
+
+/// The asset-reference commit hook (LLP 0044 §Typed references; LLP 0007
+/// dated amendment 2026-07-31). Runs over the committed change set inside the
+/// same transaction, below every write path — buffered Ibex writes, host
+/// plans, and seeds — so enforcement lives at the storage boundary, not in a
+/// helper. Reverse edges commit in this same changeset, which is what makes
+/// `via-references` read grants and reference GC exact.
+pub(crate) fn enforce_asset_reference_changes(
+    schema: &SchemaManifest,
+    tx: &Transaction<'_>,
+    changes: &[ChangedRow],
+    authority: &crate::assets::AssetCommitAuthority<'_>,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    use crate::assets::{self, AssetReceiptEventV1, AssetReceiptV1, AssetWritePath};
+    let lineage = format!("attach:{}", uuid::Uuid::now_v7());
+    for change in changes {
+        let Some(table) = schema.table(&change.table) else {
+            continue;
+        };
+        let asset_fields: Vec<&FieldManifest> = table
+            .fields
+            .iter()
+            .filter(|field| matches!(field.field_type, FieldType::AssetRef { .. }))
+            .collect();
+        if asset_fields.is_empty() {
+            continue;
+        }
+        if change.op == ChangeOp::Delete {
+            for edge in assets::load_edges_for_row(tx, &change.table, &change.id)? {
+                assets::delete_reference_edge(tx, &edge.edge_id)?;
+                assets::write_receipt(
+                    tx,
+                    &AssetReceiptV1 {
+                        receipt_id: uuid::Uuid::now_v7().to_string(),
+                        operation_lineage: lineage.clone(),
+                        event: AssetReceiptEventV1::ReferenceRemoved,
+                        asset_id: edge.asset_id.clone(),
+                        attempt_id: None,
+                        at_ms: now_ms,
+                        details: serde_json::json!({
+                            "table": edge.table_name,
+                            "rowId": edge.row_id,
+                            "fieldPath": edge.field_path,
+                            "cause": "row-delete",
+                        }),
+                    },
+                )?;
+            }
+            continue;
+        }
+        for field in asset_fields {
+            let after = match change.row.as_ref().and_then(|row| row.get(&field.name)) {
+                None | Some(Value::Null) => None,
+                Some(Value::String(id)) => Some(id.clone()),
+                Some(_) => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_REF_UNVERIFIED",
+                        "assets",
+                        format!(
+                            "{}.{} is a typed asset reference; the written value is not an asset id",
+                            change.table, field.name
+                        ),
+                    ));
+                }
+            };
+            let existing = assets::load_edge_for_field(tx, &change.table, &change.id, &field.name)?;
+            let unchanged = matches!(
+                (&existing, &after),
+                (Some(edge), Some(id)) if edge.asset_id == *id
+            ) || (existing.is_none() && after.is_none());
+            if unchanged {
+                continue;
+            }
+            if let Some(edge) = existing {
+                assets::delete_reference_edge(tx, &edge.edge_id)?;
+                assets::write_receipt(
+                    tx,
+                    &AssetReceiptV1 {
+                        receipt_id: uuid::Uuid::now_v7().to_string(),
+                        operation_lineage: lineage.clone(),
+                        event: AssetReceiptEventV1::ReferenceRemoved,
+                        asset_id: edge.asset_id.clone(),
+                        attempt_id: None,
+                        at_ms: now_ms,
+                        details: serde_json::json!({
+                            "table": edge.table_name,
+                            "rowId": edge.row_id,
+                            "fieldPath": edge.field_path,
+                            "cause": "field-change",
+                        }),
+                    },
+                )?;
+            }
+            let Some(asset_id) = after else {
+                continue;
+            };
+            let restriction = match &field.field_type {
+                FieldType::AssetRef { upload } => upload.as_deref(),
+                _ => None,
+            };
+            let admission_upload = match authority.path {
+                AssetWritePath::Handler => {
+                    let admission = authority
+                        .admissions
+                        .iter()
+                        .find(|admission| admission.asset_id == asset_id)
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_REF_UNVERIFIED",
+                                "assets",
+                                format!(
+                                    "{}.{} was written without a ctx.assets.attach admission",
+                                    change.table, field.name
+                                ),
+                            )
+                        })?;
+                    admission.upload.as_deref()
+                }
+                AssetWritePath::HostPlan | AssetWritePath::Seed => {
+                    // Write paths without handler execution derive their
+                    // admission from the schema-declared restriction; a
+                    // restriction-less field is handler-attach-only.
+                    if restriction.is_none() {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_REF_UNVERIFIED",
+                            "assets",
+                            format!(
+                                "{}.{} carries no upload restriction; only handler-side \
+                                 ctx.assets.attach can admit it",
+                                change.table, field.name
+                            ),
+                        ));
+                    }
+                    None
+                }
+            };
+            let asset = assets::verify_attachment(
+                tx,
+                &schema.app_id,
+                &asset_id,
+                restriction,
+                admission_upload,
+                authority,
+            )?;
+            assets::insert_reference_edge(
+                tx,
+                &schema.app_id,
+                &asset_id,
+                &change.table,
+                &change.id,
+                &field.name,
+                now_ms,
+            )?;
+            assets::write_receipt(
+                tx,
+                &AssetReceiptV1 {
+                    receipt_id: uuid::Uuid::now_v7().to_string(),
+                    operation_lineage: lineage.clone(),
+                    event: AssetReceiptEventV1::AttachmentCommitted,
+                    asset_id: asset_id.clone(),
+                    attempt_id: None,
+                    at_ms: now_ms,
+                    details: serde_json::json!({
+                        "table": change.table,
+                        "rowId": change.id,
+                        "fieldPath": field.name,
+                        "lifecycleGeneration": asset.lifecycle_generation,
+                    }),
+                },
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// The asset read-authorization decision (LLP 0044 §Asset read authorization;
+/// LLP 0053 dated classification 2026-07-31). Decides only through
+/// `assetSharing`-declared analyzable policies; a typed reference on any
+/// other table confers nothing (owner-only fallback). Returns the captured
+/// dependency set — including the pinned empty-result capture over the
+/// reverse-edge index range, so a first attachment moves the dependencies of
+/// a decision that previously saw no edges.
+pub(crate) struct AssetReadDecision {
+    pub authorized: bool,
+    /// The captured dependency set; consumed by the live-channel follow-up
+    /// and the invalidation tests today.
+    #[allow(dead_code)]
+    pub dependencies: Vec<CapturedReadDependency>,
+}
+
+pub(crate) fn asset_read_authorized(
+    schema: &SchemaManifest,
+    tx: &Transaction<'_>,
+    principal: Option<&str>,
+    asset: &crate::assets::AssetRecordV1,
+) -> SnapbackResult<AssetReadDecision> {
+    use crate::assets::AssetReadAccessPolicy;
+    let mut dependencies = vec![CapturedReadDependency {
+        kind: CapturedReadKind::Auth,
+        table: None,
+        id: None,
+        version: None,
+        predicate: None,
+        rows: Vec::new(),
+        field: Some("principal".to_owned()),
+        value: Some(match principal {
+            Some(principal) => Value::String(principal.to_owned()),
+            None => Value::Null,
+        }),
+        order: None,
+        limit: None,
+        result_count: None,
+        boundary: None,
+    }];
+    let Some(principal) = principal else {
+        return Ok(AssetReadDecision {
+            authorized: false,
+            dependencies,
+        });
+    };
+    if principal == asset.owner_principal {
+        return Ok(AssetReadDecision {
+            authorized: true,
+            dependencies,
+        });
+    }
+    if asset.read_access != AssetReadAccessPolicy::ViaReferences {
+        return Ok(AssetReadDecision {
+            authorized: false,
+            dependencies,
+        });
+    }
+    let edges = crate::assets::load_edges_for_asset(tx, &asset.asset_id)?;
+    // The pinned reverse-edge range capture: empty results are first-class,
+    // so the decision that saw zero edges is invalidated by the first
+    // attachment (LLP 0053 §Asset read-authorization inputs).
+    dependencies.push(CapturedReadDependency {
+        kind: CapturedReadKind::Query,
+        table: Some("_snapback_asset_reference_edges_v1".to_owned()),
+        id: None,
+        version: None,
+        predicate: Some(serde_json::json!({ "assetId": asset.asset_id })),
+        rows: edges.iter().map(|edge| edge.edge_id.clone()).collect(),
+        field: None,
+        value: None,
+        order: None,
+        limit: None,
+        result_count: Some(edges.len()),
+        boundary: None,
+    });
+    let mut authorized = false;
+    for edge in &edges {
+        let Some(table) = schema.table(&edge.table_name) else {
+            continue;
+        };
+        let Some(sharing) = table.asset_sharing.as_ref() else {
+            // Mixed-table non-bypass: no sharing declaration confers nothing,
+            // however broad any other visibility the table declares may be.
+            continue;
+        };
+        match sharing {
+            crate::manifest::AssetSharingManifest::PublicRead => {
+                authorized = true;
+            }
+            crate::manifest::AssetSharingManifest::Owner { field } => {
+                let row = get_document_from_tx(tx, table, &edge.row_id, u64::MAX)?;
+                let matches = row
+                    .as_ref()
+                    .and_then(|row| row.get(field))
+                    .and_then(Value::as_str)
+                    == Some(principal);
+                dependencies.push(CapturedReadDependency {
+                    kind: if row.is_some() {
+                        CapturedReadKind::Row
+                    } else {
+                        CapturedReadKind::MissingRow
+                    },
+                    table: Some(edge.table_name.clone()),
+                    id: Some(edge.row_id.clone()),
+                    version: None,
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: Some(field.clone()),
+                    value: row.as_ref().and_then(|row| row.get(field)).cloned(),
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+                if matches {
+                    authorized = true;
+                }
+            }
+            crate::manifest::AssetSharingManifest::Membership { membership, roles } => {
+                let Some((mtable, declaration)) =
+                    crate::membership_rules::find_declaration(schema, membership)
+                else {
+                    continue;
+                };
+                let resource_value = match declaration.resource.as_ref() {
+                    Some(_) => {
+                        let row = get_document_from_tx(tx, table, &edge.row_id, u64::MAX)?;
+                        // The membership resource axis correlates through the
+                        // referencing row's resource field when the sharing
+                        // table declares one with the same name; absent that,
+                        // the row id itself is the resource.
+                        row.and_then(|row| {
+                            declaration
+                                .resource
+                                .as_ref()
+                                .and_then(|resource| row.get(resource).cloned())
+                        })
+                    }
+                    None => None,
+                };
+                let role: Option<String> = {
+                    let mut sql = format!(
+                        "SELECT {role} FROM {table} WHERE {principal_col} = ?1",
+                        role = quote_ident(&declaration.role)?,
+                        table = quote_ident(&mtable.name)?,
+                        principal_col = quote_ident(&declaration.principal)?,
+                    );
+                    let mut params: Vec<SqlValue> =
+                        vec![SqlValue::Text(principal.to_owned())];
+                    if let (Some(resource_col), Some(resource_value)) =
+                        (declaration.resource.as_ref(), resource_value.as_ref())
+                    {
+                        sql.push_str(&format!(
+                            " AND {} = ?2",
+                            quote_ident(resource_col)?
+                        ));
+                        params.push(json_to_sql_value(
+                            resource_value,
+                            field_type(mtable, resource_col),
+                        )?);
+                    }
+                    tx.query_row(&sql, rusqlite::params_from_iter(params), |row| {
+                        row.get(0)
+                    })
+                    .optional()?
+                };
+                dependencies.push(CapturedReadDependency {
+                    kind: if role.is_some() {
+                        CapturedReadKind::Permission
+                    } else {
+                        CapturedReadKind::MissingRow
+                    },
+                    table: Some(mtable.name.clone()),
+                    id: None,
+                    version: None,
+                    predicate: Some(serde_json::json!({
+                        "principal": principal,
+                        "resource": resource_value,
+                    })),
+                    rows: Vec::new(),
+                    field: Some(declaration.role.clone()),
+                    value: role.clone().map(Value::String),
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+                let role_admits = match (role, roles) {
+                    (None, _) => false,
+                    (Some(_), None) => true,
+                    (Some(role), Some(allowed)) => allowed.iter().any(|r| r == &role),
+                };
+                if role_admits {
+                    authorized = true;
+                }
+            }
+        }
+    }
+    Ok(AssetReadDecision {
+        authorized,
+        dependencies,
+    })
+}
+
+/// Re-evaluate a previously captured asset read decision's dependency set.
+/// Returns true when any dependency moved — the substrate the live channel
+/// re-checks on governed boundaries (a first attachment moves the pinned
+/// empty edge-range capture; an edge removal, row change, or membership
+/// change moves its dependency the same way).
+#[allow(dead_code)] // Exercised by tests; the live channel's governed-boundary re-check consumes it next.
+pub(crate) fn asset_read_dependencies_moved(
+    schema: &SchemaManifest,
+    tx: &Transaction<'_>,
+    principal: Option<&str>,
+    asset: &crate::assets::AssetRecordV1,
+    captured: &[CapturedReadDependency],
+) -> SnapbackResult<bool> {
+    let fresh = asset_read_authorized(schema, tx, principal, asset)?;
+    Ok(fresh.dependencies != captured)
 }
 
 /// Creating a resource row of a `lastHolder`-protected declaration is refused
@@ -18497,6 +18961,7 @@ mod guarded_commit_tests {
             ctx_ledger: ledger(),
             job_enqueues: Vec::new(),
             job_producer: None,
+            asset_admissions: Vec::new(),
         }
     }
 
@@ -20872,6 +21337,7 @@ mod guarded_commit_tests {
                     ctx_ledger: ledger.clone(),
                     job_enqueues: Vec::new(),
                     job_producer: None,
+                    asset_admissions: Vec::new(),
                 },
                 None,
                 || Ok(()),
@@ -21681,6 +22147,7 @@ mod membership_write_tests {
                     membership_plans: vec![AuthorizedMembershipPlan::user_transition(writer, plan)],
                     read_dependencies: Vec::new(),
                     result: Value::Null,
+                    asset_admissions: Vec::new(),
                     ctx_ledger: CtxAnswerLedger {
                         version: CTX_ANSWER_LEDGER_VERSION,
                         ids: Vec::new(),

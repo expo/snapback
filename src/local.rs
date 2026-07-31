@@ -5450,6 +5450,7 @@ impl LocalSnapback {
                         asset_id: crate::assets::AssetFsStore::new_opaque_key(),
                         app_id: app_id.clone(),
                         intent_id: intent.id.clone(),
+                        intent_name: intent.name.clone(),
                         intent_policy_hash: intent.intent_policy_hash.clone(),
                         policy_generation: generation.generation,
                         owner_principal: run.owner.clone(),
@@ -5674,6 +5675,51 @@ impl LocalSnapback {
             .db
             .asset_transaction(|tx| crate::assets::load_asset(tx, &attempt.asset_id))?;
         Ok(asset_task_state(&attempt, asset.as_ref()))
+    }
+
+    /// The caller-facing asset metadata read (LLP 0044 §Asset read
+    /// authorization): decides through the declared read-access policy —
+    /// owner-only, or via-references over asset-sharing-declared analyzable
+    /// row policies — and refuses without leaking whether a foreign asset
+    /// exists differently from a missing one.
+    pub(crate) fn asset_record_inspect(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+    ) -> SnapbackResult<Value> {
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        self.db.asset_transaction(|tx| {
+            let asset = crate::assets::load_asset(tx, asset_id)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_UNKNOWN",
+                    "assets",
+                    format!("unknown asset {asset_id}"),
+                )
+            })?;
+            let decision = crate::storage::asset_read_authorized(
+                &schema,
+                tx,
+                caller.as_deref(),
+                &asset,
+            )?;
+            if !decision.authorized {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "assets",
+                    "this asset is not readable by the caller",
+                ));
+            }
+            Ok(serde_json::json!({
+                "assetId": asset.asset_id,
+                "availability": asset.availability,
+                "deliveryProfile": asset.delivery_profile,
+                "primaryRenditionId": asset.primary_rendition_id,
+                "lifecycleGeneration": asset.lifecycle_generation,
+                "createdAtMs": asset.created_at_ms,
+                "updatedAtMs": asset.updated_at_ms,
+            }))
+        })
     }
 
     pub(crate) fn asset_attempt_cancel(
@@ -7504,6 +7550,7 @@ impl LocalSnapback {
                         ctx_ledger: executed.ctx_ledger,
                         job_enqueues,
                         job_producer,
+                        asset_admissions: executed.asset_admissions,
                     };
                     crate::result_contract::validate_handler_result(&function, &payload.result)?;
                     let preview = self.db.dry_run_buffered_writes_with_jobs(
@@ -7927,6 +7974,7 @@ impl LocalSnapback {
                         ctx_ledger: executed.ctx_ledger,
                         job_enqueues,
                         job_producer,
+                        asset_admissions: executed.asset_admissions,
                     },
                     identity.as_ref(),
                     || Ok(()),
@@ -8155,6 +8203,7 @@ impl LocalSnapback {
                 ctx_ledger: executed.ctx_ledger,
                 job_enqueues,
                 job_producer,
+                asset_admissions: executed.asset_admissions,
             },
             None,
             check_live,
@@ -20339,6 +20388,536 @@ globalThis.__snapbackHandlers = {
         )
     }
 
+    /// posts.photo restricts to the avatarUpload intent and shares
+    /// public-read; drafts.pic is restriction-less with no sharing (the
+    /// mixed-table stand-in); owned.photo shares through an owner field.
+    fn asset_reference_schema() -> SchemaManifest {
+        let table = |name: &str,
+                     fields: Vec<crate::manifest::FieldManifest>,
+                     sharing: Option<crate::manifest::AssetSharingManifest>| {
+            crate::manifest::TableManifest {
+                name: name.to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+                asset_sharing: sharing,
+            }
+        };
+        let string_field = |name: &str| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional: true,
+        };
+        let asset_field = |name: &str, upload: Option<&str>| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::AssetRef {
+                upload: upload.map(str::to_owned),
+            },
+            optional: true,
+        };
+        SchemaManifest {
+            tables: vec![
+                table(
+                    "posts",
+                    vec![
+                        string_field("title"),
+                        asset_field("photo", Some("avatarUpload")),
+                    ],
+                    Some(crate::manifest::AssetSharingManifest::PublicRead),
+                ),
+                table("drafts", vec![asset_field("pic", None)], None),
+                table(
+                    "owned",
+                    vec![
+                        string_field("ownerId"),
+                        asset_field("photo", Some("avatarUpload")),
+                    ],
+                    Some(crate::manifest::AssetSharingManifest::Owner {
+                        field: "ownerId".to_owned(),
+                    }),
+                ),
+            ],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn asset_reference_snapback() -> LocalSnapback {
+        let mut snapback = asset_test_snapback();
+        snapback
+            .db
+            .apply_schema(asset_reference_schema())
+            .expect("schema");
+        snapback
+    }
+
+    fn asset_ready(snapback: &mut LocalSnapback, user: &str, bytes: &[u8]) -> String {
+        let created = asset_upload(snapback, user, bytes, true);
+        asset_finalize(snapback, user, &created.task.attempt_id, None).expect("finalizes");
+        created.task.asset_id
+    }
+
+    fn asset_handler_commit(
+        snapback: &mut LocalSnapback,
+        user: &str,
+        writes: Vec<crate::storage::BufferedWrite>,
+        admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    ) -> SnapbackResult<crate::storage::MutationCommit> {
+        let input = HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some(user.to_owned()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        snapback.db.commit_buffered_writes_idempotent_guarded(
+            &input,
+            crate::storage::BufferedCommitPayload {
+                writes,
+                membership_plans: Vec::new(),
+                read_dependencies: Vec::new(),
+                result: Value::Null,
+                ctx_ledger: crate::manifest::CtxAnswerLedger::default(),
+                asset_admissions: admissions,
+            },
+            None,
+            || Ok(()),
+            || Ok(()),
+        )
+    }
+
+    fn asset_edges(
+        snapback: &mut LocalSnapback,
+        table: &str,
+        row_id: &str,
+    ) -> Vec<crate::assets::AssetReferenceEdgeV1> {
+        snapback
+            .db
+            .asset_transaction(|tx| crate::assets::load_edges_for_row(tx, table, row_id))
+            .expect("edges")
+    }
+
+    #[test]
+    fn asset_handler_raw_write_refuses_and_attach_admission_commits_edge() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"avatar-bytes");
+        let insert = |id: &str, asset: &str| crate::storage::BufferedWrite::Insert {
+            table: "posts".to_owned(),
+            id: id.to_owned(),
+            values: serde_json::Map::from_iter([
+                ("title".to_owned(), json!("hello")),
+                ("photo".to_owned(), json!(asset)),
+            ]),
+        };
+        // A raw id-shaped string with no admission fails the commit: the
+        // hook is the authority, not the helper.
+        let error = asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![insert("post_raw", &asset_id)],
+            Vec::new(),
+        )
+        .expect_err("raw write refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_REF_UNVERIFIED");
+        // The same write under a ctx.assets.attach admission commits the row
+        // and its reverse edge in one changeset.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![insert("post_ok", &asset_id)],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: Some("avatarUpload".to_owned()),
+            }],
+        )
+        .expect("admitted write commits");
+        let edges = asset_edges(&mut snapback, "posts", "post_ok");
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].asset_id, asset_id);
+        assert!(asset_receipt_events(&mut snapback, &asset_id)
+            .contains(&"attachment-committed".to_owned()));
+    }
+
+    #[test]
+    fn asset_attach_wrong_intent_wrong_owner_and_deleted_asset_fail_closed() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"strict-bytes");
+        let insert = crate::storage::BufferedWrite::Insert {
+            table: "posts".to_owned(),
+            id: "post_x".to_owned(),
+            values: serde_json::Map::from_iter([("photo".to_owned(), json!(asset_id))]),
+        };
+        // Intent disagreement between the admission and the field restriction.
+        let error = asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![insert.clone()],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: Some("someOtherIntent".to_owned()),
+            }],
+        )
+        .expect_err("intent mismatch refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH"
+        );
+        // A different caller cannot attach another owner's asset.
+        let error = asset_handler_commit(
+            &mut snapback,
+            "user_b",
+            vec![insert.clone()],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: None,
+            }],
+        )
+        .expect_err("foreign owner refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        // The attach-versus-delete race: the admission was recorded, the
+        // asset is deleted before commit, and the commit-time re-check
+        // refuses instead of committing a stale admission.
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let mut asset = crate::assets::load_asset(tx, &asset_id)?.unwrap();
+                crate::assets::transition_asset(
+                    tx,
+                    &mut asset,
+                    crate::assets::AssetAvailability::Deleted,
+                    now_millis(),
+                )
+            })
+            .expect("asset deleted");
+        let error = asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![insert],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: None,
+            }],
+        )
+        .expect_err("deleted asset refuses at commit");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ATTACH_UNAVAILABLE");
+    }
+
+    #[test]
+    fn asset_host_plan_and_seed_derive_admission_from_the_restriction() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"plan-bytes");
+        let plan_insert = |table: &str, field: &str, asset: &str| MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: table.to_owned(),
+                values: BTreeMap::from([
+                    (field.to_owned(), ValueExpr::Literal(json!(asset))),
+                ]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let input_for = |user: &str| HandlerInput {
+            auth: crate::manifest::AuthInput {
+                user_id: Some(user.to_owned()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        // Restricted field: the commit boundary derives the full admission.
+        snapback
+            .db
+            .execute_mutation(&plan_insert("posts", "photo", &asset_id), &input_for("user_a"))
+            .expect("host plan with restriction commits");
+        // Wrong owner fails closed.
+        let error = snapback
+            .db
+            .execute_mutation(&plan_insert("posts", "photo", &asset_id), &input_for("user_b"))
+            .expect_err("foreign host plan refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        // A restriction-less field is handler-attach-only on host plans.
+        let error = snapback
+            .db
+            .execute_mutation(&plan_insert("drafts", "pic", &asset_id), &input_for("user_a"))
+            .expect_err("unrestricted host plan refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_REF_UNVERIFIED");
+        // Seeds run the same commit-boundary admission under system
+        // authority: the restricted field admits, the unrestricted refuses.
+        snapback
+            .db
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "posts".to_owned(),
+                    vec![serde_json::Map::from_iter([
+                        ("title".to_owned(), json!("seeded")),
+                        ("photo".to_owned(), json!(asset_id)),
+                    ])],
+                )]),
+            })
+            .expect("seed with restriction commits");
+        let error = snapback
+            .db
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "drafts".to_owned(),
+                    vec![serde_json::Map::from_iter([(
+                        "pic".to_owned(),
+                        json!(asset_id),
+                    )])],
+                )]),
+            })
+            .expect_err("unrestricted seed refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_REF_UNVERIFIED");
+    }
+
+    #[test]
+    fn asset_edges_follow_patch_clear_and_row_delete_in_the_same_changeset() {
+        let mut snapback = asset_reference_snapback();
+        let first = asset_ready(&mut snapback, "user_a", b"first-bytes");
+        let second = asset_ready(&mut snapback, "user_a", b"second-bytes");
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "posts".to_owned(),
+                id: "post_e".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(first))]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: first.clone(),
+                upload: None,
+            }],
+        )
+        .expect("insert attaches");
+        // Change: the old edge is removed and the new one committed together.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Patch {
+                table: "posts".to_owned(),
+                id: "post_e".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(second))]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: second.clone(),
+                upload: None,
+            }],
+        )
+        .expect("patch re-attaches");
+        let edges = asset_edges(&mut snapback, "posts", "post_e");
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].asset_id, second);
+        assert!(asset_receipt_events(&mut snapback, &first)
+            .contains(&"reference-removed".to_owned()));
+        // Clear: writing null removes the edge with no new admission needed.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Patch {
+                table: "posts".to_owned(),
+                id: "post_e".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), Value::Null)]),
+            }],
+            Vec::new(),
+        )
+        .expect("clear commits");
+        assert!(asset_edges(&mut snapback, "posts", "post_e").is_empty());
+        // Row delete removes every edge for the row.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "posts".to_owned(),
+                id: "post_f".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(second))]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: second.clone(),
+                upload: None,
+            }],
+        )
+        .expect("insert attaches");
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Delete {
+                table: "posts".to_owned(),
+                id: "post_f".to_owned(),
+            }],
+            Vec::new(),
+        )
+        .expect("delete commits");
+        assert!(asset_edges(&mut snapback, "posts", "post_f").is_empty());
+    }
+
+    fn asset_shared_intent() -> crate::manifest::AssetUploadIntentDefinition {
+        let mut intent = asset_test_intent();
+        intent.access = crate::manifest::AssetAccessPolicy {
+            read: crate::assets::AssetReadAccessPolicy::ViaReferences,
+        };
+        intent
+    }
+
+    #[test]
+    fn asset_read_authorization_decides_only_through_sharing_declarations() {
+        let mut snapback = asset_reference_snapback();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_shared_intent()],
+            ..FunctionManifest::default()
+        });
+        let asset_id = asset_ready(&mut snapback, "user_a", b"shared-bytes");
+        let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let outsider = asset_dev_authority(&snapback, "user_b", InvocationSource::HttpQuery);
+        // Unreferenced: readable only by its owner, even under via-references.
+        snapback
+            .asset_record_inspect(&owner, &asset_id)
+            .expect("owner reads");
+        let error = snapback
+            .asset_record_inspect(&outsider, &asset_id)
+            .expect_err("unreferenced asset denies the outsider");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        // A reference on the mixed-table stand-in (no sharing declaration)
+        // confers nothing, however visible its rows may otherwise be.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "drafts".to_owned(),
+                id: "draft_1".to_owned(),
+                values: serde_json::Map::from_iter([("pic".to_owned(), json!(asset_id))]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: None,
+            }],
+        )
+        .expect("handler attach into the undeclared table commits");
+        let error = snapback
+            .asset_record_inspect(&outsider, &asset_id)
+            .expect_err("no sharing declaration = no bypass");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        // A public-read-shared reference grants with the edge commit and
+        // revokes with its removal.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "posts".to_owned(),
+                id: "post_s".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(asset_id))]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: None,
+            }],
+        )
+        .expect("shared attach commits");
+        snapback
+            .asset_record_inspect(&outsider, &asset_id)
+            .expect("grant arrives with the edge commit");
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Delete {
+                table: "posts".to_owned(),
+                id: "post_s".to_owned(),
+            }],
+            Vec::new(),
+        )
+        .expect("detach commits");
+        let error = snapback
+            .asset_record_inspect(&outsider, &asset_id)
+            .expect_err("revoke arrives with the edge removal");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        // Owner-field sharing admits exactly the row's owner-field principal.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "owned".to_owned(),
+                id: "owned_1".to_owned(),
+                values: serde_json::Map::from_iter([
+                    ("ownerId".to_owned(), json!("user_b")),
+                    ("photo".to_owned(), json!(asset_id)),
+                ]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: None,
+            }],
+        )
+        .expect("owner-field attach commits");
+        snapback
+            .asset_record_inspect(&outsider, &asset_id)
+            .expect("the owner-field principal reads");
+        let stranger = asset_dev_authority(&snapback, "user_c", InvocationSource::HttpQuery);
+        let error = snapback
+            .asset_record_inspect(&stranger, &asset_id)
+            .expect_err("a third principal stays denied");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+    }
+
+    #[test]
+    fn asset_read_decision_pins_the_empty_edge_range_so_first_attachment_moves_it() {
+        let mut snapback = asset_reference_snapback();
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_shared_intent()],
+            ..FunctionManifest::default()
+        });
+        let asset_id = asset_ready(&mut snapback, "user_a", b"wake-bytes");
+        let schema = snapback.db.schema().clone();
+        let captured = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset = crate::assets::load_asset(tx, &asset_id)?.unwrap();
+                let decision = crate::storage::asset_read_authorized(
+                    &schema,
+                    tx,
+                    Some("user_b"),
+                    &asset,
+                )?;
+                assert!(!decision.authorized);
+                Ok(decision.dependencies)
+            })
+            .expect("decision");
+        // The empty reverse-edge range is a first-class captured dependency.
+        assert!(captured.iter().any(|dependency| {
+            dependency.result_count == Some(0)
+                && dependency.table.as_deref() == Some("_snapback_asset_reference_edges_v1")
+        }));
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "posts".to_owned(),
+                id: "post_w".to_owned(),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(asset_id))]),
+            }],
+            vec![crate::assets::AssetAttachmentAdmission {
+                asset_id: asset_id.clone(),
+                upload: None,
+            }],
+        )
+        .expect("first attachment commits");
+        let schema = snapback.db.schema().clone();
+        let moved = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset = crate::assets::load_asset(tx, &asset_id)?.unwrap();
+                crate::storage::asset_read_dependencies_moved(
+                    &schema,
+                    tx,
+                    Some("user_b"),
+                    &asset,
+                    &captured,
+                )
+            })
+            .expect("re-evaluation");
+        assert!(moved, "the first attachment must move the pinned empty capture");
+    }
+
     fn asset_receipt_events(snapback: &mut LocalSnapback, asset_id: &str) -> Vec<String> {
         snapback
             .db
@@ -30283,6 +30862,7 @@ globalThis.__snapbackHandlers = {
             job_enqueues: Vec::new(),
             membership_commands: Vec::new(),
             reads: Vec::new(),
+            asset_admissions: Vec::new(),
             result: json!("guarded_item"),
             ctx_ledger: CtxAnswerLedger {
                 version: ctx_ledger_version(),
